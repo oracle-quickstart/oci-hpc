@@ -6,11 +6,11 @@ This deployment is an example of cluster provisioning using Terraform and SaltSt
 Salt configuration is stored under ./salt directory, containing pillar/ (variables) and salt/ (state) information. Read more about salt in the documentation: https://docs.saltstack.com/en/latest/
 
 
-## Architecture
+### Architecture
 
 ![Architecture](images/architecture.png)
 
-## SSH Key
+### SSH Key
   
 SSH key is generated each time for the environment in the ./key.pem file. 
 
