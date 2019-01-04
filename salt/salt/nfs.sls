@@ -38,8 +38,6 @@ add_simple_export:
     - hosts:    {{ pillar['vcn_cidr'] }}
     - options:
       - 'rw'
-    - require: 
-      - /mnt/share
 
 {% else %}
 
