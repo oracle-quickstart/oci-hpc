@@ -17,7 +17,7 @@ resource "oci_objectstorage_bucket" "bucket" {
 }
 
 resource "oci_objectstorage_object" "salt" {
-    depends_on		= ["oci_objectstorage_bucket.bucket", "oci_objectstorage_preauthrequest.salt-par"]
+    depends_on		= ["oci_objectstorage_bucket.bucket", "oci_objectstorage_preauthrequest.salt-par", "data.archive_file.salt-config"]
     #Required
     bucket = "${oci_objectstorage_bucket.bucket.name}"
     source = "${path.module}/conf/salt.zip"
