@@ -1,0 +1,7 @@
+terraform.tfstate*
+custom.vars
+conf/salt.zip
+salt/pillar/variables.sls
+.terraform
+salt/salt/id_rsa
+key.pem
