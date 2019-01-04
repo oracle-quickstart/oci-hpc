@@ -1,0 +1,6 @@
+user_ocid=""
+fingerprint=""
+private_key_path=""
+tenancy_ocid=""
+region=""
+compartment_ocid=""
