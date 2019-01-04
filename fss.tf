@@ -3,7 +3,7 @@ module "fss" {
   compartment_ocid  = "${var.compartment_ocid}"
   subnet_id         = "${element(module.network.public-subnet-1-id, var.ad - 1)}" // required
   vcn_cidr          = "${module.network.vcn-cidr}"
-  ad                = "2"
+  ad                = "${var.ad}"
   cluster_name      = "${local.cluster_name}"
   share_name        = "${var.fss_share_name}"
 }
