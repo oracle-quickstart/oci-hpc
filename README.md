@@ -1,5 +1,5 @@
 # oci-hpc-terraform-arch
-
+<pre>
       `-/+++++++++++++++++/-.`
    `/syyyyyyyyyyyyyyyyyyyyyyys/.
   :yyyyo/-...............-/oyyyy/
@@ -11,7 +11,8 @@
   /yyyyo:-...............-:oyyyy/`
    `/syyyyyyyyyyyyyyyyyyyyyyys+.
      `.:/+ooooooooooooooo+/:.`
-
+`
+</pre>
 High Performance Computing and storage in the cloud can be very confusing and it can be difficult to determine where to start. This repository is designed to be a first step in expoloring a cloud based HPC storage and compute architecture. There are many different configurations and deployment methods that could be used, but this repository focuses on a bare metal compute system deployed with Terraform. After deployment fully independant and functioning IaaS HPC compute cluster has been deployed based on the architecture below.
 
 This deployment is an example of cluster provisioning using Terraform and SaltStack. Terraform is used to provision infrastructure, while Salt is a configuration and cluster management system. 
@@ -56,3 +57,4 @@ SSH key is generated each time for the environment in the ./key.pem file.
 - FSS
   
   File system service endpoint will be created in the private subnet and mounted on each node under /mnt/fss
+
