@@ -22,7 +22,7 @@ gfs_data:
   lvm.lv_present:
     - vgname: gfs_vg
     - extents: +100%FREE
-    - stripes: {% disks|length %}
+    - stripes: {{disks|length}}
     - require:
       - gfs_vg
 
