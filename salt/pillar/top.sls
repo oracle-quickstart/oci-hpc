@@ -1,3 +1,4 @@
 base:
   '*':
     - variables
+    - mine

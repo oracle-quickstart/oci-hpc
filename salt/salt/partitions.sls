@@ -22,6 +22,7 @@ gfs_data:
   lvm.lv_present:
     - vgname: gfs_vg
     - extents: +100%FREE
+    - stripes: {% disks|length %}
     - require:
       - gfs_vg
 
@@ -51,7 +52,6 @@ sync_custom_modules:
   - fs_type: xfs
   - require: 
     - sync_custom_modules
-    
 
 /mnt/share:
   mount.mounted:
@@ -63,4 +63,12 @@ sync_custom_modules:
       - defaults
     - require: 
       - /dev/sdb
+
+{% elif 'master' in grains['roles'] %}
+
+/mnt/share:
+  file.directory:
+    - mode: 755
+    - makedirs: True
+
 {% endif %}

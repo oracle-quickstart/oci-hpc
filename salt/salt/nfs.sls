@@ -32,11 +32,6 @@ nfsidmap_running:
   service.running:
     - name: nfs-idmap
 
-/mnt/share:
-  file.directory:
-    - mode: 755
-    - makedirs: True
-
 add_simple_export:
   nfs_export.present:
     - name:     '/mnt/share/'
