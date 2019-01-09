@@ -19,11 +19,15 @@ This deployment is an example of cluster provisioning using Terraform and SaltSt
 
 Salt configuration is stored under ./salt directory, containing pillar/ (variables) and salt/ (state) information. Read more about salt in the documentation: https://docs.saltstack.com/en/latest/
 
-
-
 ### Architecture
 
 ![Architecture](images/architecture.png)
+
+### Operations
+
+Salt commands should be executed from the headnode. 
+IntelMPI installation: sudo salt '*' state.apply intelmpi
+
 
 ### SSH Key
   
@@ -58,3 +62,4 @@ SSH key is generated each time for the environment in the ./key.pem file.
   
   File system service endpoint will be created in the private subnet and mounted on each node under /mnt/fss
 
+  
