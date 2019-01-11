@@ -11,7 +11,7 @@ glusterd_running:
 /mnt/lvm/brick1:
   file.directory:
     - makedirs: True
-{% set storage_servers = pillar['storage'].split(',') %}
+{% set storage_servers = pillar['storage_servers'].split(',') %}
 
 {% if grains['host'] is match storage_servers[0] %}
 peer-clusters:
@@ -46,10 +46,11 @@ gfs:
 {% if 'gluster' in grains['roles'] %}
 
   {% set storage_servers = [] %}
-  {% for item in pillar['storage'].split(',') %}
+  {% for item in pillar['storage_servers'].split(',') %}
     {% do storage_servers.append( item + "." + pillar['private_subnet_name']) %}
   {% endfor %}
 
+  {% if storage_servers|length > 0 %}
 mount glusterfs volume:
   mount.mounted:
     - name: /mnt/gluster
@@ -72,5 +73,7 @@ mount glusterfs volume:
   file.directory:
     - user: opc
     - group: opc
+
+    {% endif %}
 
 {% endif %}

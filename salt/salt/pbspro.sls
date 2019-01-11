@@ -26,4 +26,7 @@ pbs_service_start:
   service.started:
     - name: pbs
 
-    
+"config_file: 
+  file.line: 
+    - name: /etc/pbs.conf
+"

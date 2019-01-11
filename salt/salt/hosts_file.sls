@@ -4,11 +4,13 @@
                 fun='network.get_fqdn',
                 tgt_type='glob') %}
   {% set minions_compute = salt.saltutil.runner('mine.get',
-                tgt='G@roles:compute',
-                fun='network.get_fqdn') %}
+                tgt='roles:compute',
+                fun='network.get_fqdn',
+                tgt_type='grain') %}
   {% set minions_storage = salt.saltutil.runner('mine.get',
-                tgt='G@roles:storage',
-                fun='network.get_fqdn') %}
+                tgt='roles:storage',
+                fun='network.get_fqdn',
+                tgt_type='grain') %}
 
 /mnt/share/hosts:
   file.managed:
@@ -27,7 +29,7 @@
 /mnt/share/hosts.storage:
   file.managed:
     - contents:
-  {% for ip in minions_storager %}
+  {% for ip in minions_storage %}
       - {{ ip }}
   {% endfor %}
 {% endif %}

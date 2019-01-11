@@ -1,3 +1,4 @@
-sync_grains:
-  local.saltutil.sync_grains:
-    - tgt: {{ data['id'] }}
+startup_orchestrate:
+  runner.state.orchestrate:
+    - args:
+      - mods: orchestration.startup

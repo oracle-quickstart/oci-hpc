@@ -46,15 +46,10 @@ resource "oci_core_default_security_list" "default-security-list" {
 	display_name               = "default-security-list-${var.cluster_name}"
 
   	// allow outbound tcp traffic on all ports
-  	egress_security_rules {
-    		destination = "0.0.0.0/0"
-    		protocol    = "6"
-  	}
-
   	ingress_security_rules {
     		protocol  = 1
     		source    = "0.0.0.0/0"
-    		stateless = true
+    		stateless = false
 
 		icmp_options {
 		      "type" = 3
@@ -63,15 +58,43 @@ resource "oci_core_default_security_list" "default-security-list" {
 	}
 }
 
-resource "oci_core_security_list" "custom-security-list" {
+resource "oci_core_security_list" "custom-private-security-list" {
 	display_name	= "public-security-list-${var.cluster_name}"
 	compartment_id	= "${var.compartment_ocid}"	
 	vcn_id		= "${oci_core_vcn.vcn.id}"
 	
+	egress_security_rules {
+    		destination = "0.0.0.0/0"
+    		protocol    = "all"
+  	}
+
 	ingress_security_rules {
 		protocol	= "all" 
 		source		= "${oci_core_vcn.vcn.cidr_block}"
-		stateless 	= true
+	} 
+
+	ingress_security_rules { 
+		protocol 	= 6
+		source		= "0.0.0.0/0"
+		tcp_options { 
+			"min"	= "22"
+			"max"	= "22"
+		}
+	}
+}
+
+resource "oci_core_security_list" "custom-public-security-list" {
+	display_name	= "public-security-list-${var.cluster_name}"
+	compartment_id	= "${var.compartment_ocid}"	
+	vcn_id		= "${oci_core_vcn.vcn.id}"
+	
+	egress_security_rules {
+    		destination = "0.0.0.0/0"
+    		protocol    = "all"
+  	}
+	ingress_security_rules {
+		protocol	= "all" 
+		source		= "${oci_core_vcn.vcn.cidr_block}"
 	} 
 
 	ingress_security_rules { 
@@ -91,7 +114,7 @@ resource "oci_core_subnet" "public-subnet-1" {
 	compartment_id	    = "${var.compartment_ocid}"
 	vcn_id		        = "${oci_core_vcn.vcn.id}"
 	route_table_id	    = "${oci_core_default_route_table.default-route-table.id}"
-	security_list_ids   = ["${oci_core_default_security_list.default-security-list.id}", "${oci_core_security_list.custom-security-list.id}"]
+	security_list_ids   = ["${oci_core_default_security_list.default-security-list.id}", "${oci_core_security_list.custom-public-security-list.id}"]
 	availability_domain = "${lookup(data.oci_identity_availability_domains.ad.availability_domains[count.index],"name")}"
 	dns_label	        = "ad${count.index + 1}pub1"
 }
@@ -103,7 +126,7 @@ resource "oci_core_subnet" "private-subnet-1" {
     compartment_id      = "${var.compartment_ocid}"
     vcn_id              = "${oci_core_vcn.vcn.id}"
     route_table_id      = "${oci_core_route_table.private-route-table.id}"
-    security_list_ids   = ["${oci_core_default_security_list.default-security-list.id}", "${oci_core_security_list.custom-security-list.id}"]
+    security_list_ids   = ["${oci_core_default_security_list.default-security-list.id}", "${oci_core_security_list.custom-private-security-list.id}"]
     availability_domain = "${lookup(data.oci_identity_availability_domains.ad.availability_domains[count.index],"name")}"
 	dns_label	        = "ad${count.index + 1}priv1"
 }

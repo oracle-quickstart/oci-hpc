@@ -5,4 +5,4 @@ write_files:
       path: /etc/motd
 runcmd:
     - curl -L https://bootstrap.saltstack.com -o install_salt.sh
-    - sudo sh install_salt.sh -A ${master_address} -j '{"default_include":"minion.d/*.conf","conf_file":"/etc/salt/minion","pki_dir":"/etc/salt/pki/minion","grains":{"roles":${role}},"file_roots":{"base":["/srv/salt/"]},"pillar_roots":{"base":["/srv/pillar"]},"autosign_grains":["server_id"],"startup_states":"highstate"}'
+    - sudo sh install_salt.sh -A ${master_address} -j '{"default_include":"minion.d/*.conf","conf_file":"/etc/salt/minion","pki_dir":"/etc/salt/pki/minion","grains":{"roles":${role}},"file_roots":{"base":["/srv/salt/"]},"pillar_roots":{"base":["/srv/pillar"]},"autosign_grains":["server_id"]}'
