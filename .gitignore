@@ -5,3 +5,4 @@ salt/pillar/variables.sls
 .terraform
 salt/salt/id_rsa
 key.pem
+.terraform.tfstate.lock.info
