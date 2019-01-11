@@ -44,24 +44,24 @@ module "compute" {
         
 }
 
-module "gluster" { 
+module "storage" { 
         
         source          = "modules/instance"
 
         compartment_ocid  = "${var.compartment_ocid}"
-        instances       = "${var.gluster_count}" // required. can be 0 
+        instances       = "${var.storage_count}" // required. can be 0 
         subnet_id       = "${element(module.network.private-subnet-1-id, var.ad - 1)}" // required
         ad              = "${var.ad}" // required
-        name            = "${var.gluster_name}" // required
+        name            = "${var.storage_name}" // required
         ssh_key         = "${tls_private_key.key.public_key_openssh}" // required
-        shape           = "${var.gluster_shape}" // required
+        shape           = "${var.storage_shape}" // required
         source_id       = "${lookup(var.image, var.region)}" // required
 
         // Optional parameters
         
-        bootstrap       = "${data.template_file.gluster_template.rendered}"
-        volumes         = "${var.gluster_volumes}" // optional. default: 0
-        volume_size     = "${var.gluster_volume_size}" // optional. default: 50 
+        bootstrap       = "${data.template_file.storage_template.rendered}"
+        volumes         = "${var.storage_volumes}" // optional. default: 0
+        volume_size     = "${var.storage_volume_size}" // optional. default: 50 
         source_type     = "image" // optional. default: image
         cluster_name    = "${local.cluster_name}" // optional. default: cluster
         public_ip       = true // optional. default: true
