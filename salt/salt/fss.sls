@@ -1,6 +1,7 @@
 {% if pillar['fssip'] != None %}
-/mnt/fss:
+fss mount:
   mount.mounted:
+    - name: /mnt/fss
     - device: {{ pillar['fssip'] }}:/{{pillar['fss_share_name']}}
     - fstype: nfs
     - mkmnt: True
@@ -8,3 +9,8 @@
     - opts:
       - defaults
 {% endif %}
+
+/mnt/fss:
+  file.directory:
+    - user: opc
+    - group: opc

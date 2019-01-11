@@ -5,7 +5,6 @@ install_packages:
       - pdsh
       - stress
       - axel
-      - openmpi
       - screen
       - golang
       - sshpass

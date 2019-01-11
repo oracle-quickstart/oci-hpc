@@ -1,10 +1,10 @@
-psxe_repo: 
+intelmpi_repo: 
   pkgrepo.managed:
-    - humanname: Intel(R) Parallel Studio XE 2018 runtime
-    - baseurl: https://yum.repos.intel.com/2018
+    - humanname: Intel(R) MPI Library
+    - baseurl: https://yum.repos.intel.com/mpi
     - enabled: 1
     - gpgcheck: 1
-    - gpgkey: https://yum.repos.intel.com/2018/setup/RPM-GPG-KEY-intel-psxe-runtime-2018
+    - gpgkey: https://yum.repos.intel.com/mpi/setup/PUBLIC_KEY.PUB
 
-intel-mpi-runtime-64bit:
+intel-mpi-2019.1-053:
   pkg.installed

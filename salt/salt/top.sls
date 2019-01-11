@@ -9,6 +9,12 @@ base:
         - pip
         - fss
         - partitions
-        - gluster
         - nfs
-        
+    'G@roles:gluster':
+        - gluster
+    'G@roles:master':
+        - hosts_file
+    'G@roles:(pbspro_server|pbspro_execution)':
+        - pbspro
+    'G@roles:intelmpi':
+        - intelmpi

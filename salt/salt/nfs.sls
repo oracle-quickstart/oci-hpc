@@ -1,4 +1,4 @@
-{% if grains['host'] is match ('headnode*') %}
+{% if 'master' in grains['roles'] %}
 
 rpcbind_enabled:
   service.enabled:
@@ -41,8 +41,9 @@ add_simple_export:
 
 {% else %}
 
-/mnt/share/:
+mount_share:
   mount.mounted:
+    - name: /mnt/share
     - device: {{ grains['master'] }}:/mnt/share/
     - fstype: nfs
     - mkmnt: True
@@ -52,3 +53,8 @@ add_simple_export:
 
 {% endif %}
 
+share_permissions:
+  file.directory:
+    - name: /mnt/share
+    - user: opc
+    - group: opc

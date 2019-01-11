@@ -4,11 +4,10 @@ variable "fingerprint" {}
 variable "private_key_path" {}
 variable "region" {}
 variable "compartment_ocid" {}
-variable "gluster_role" { default = "gluster" }
-variable "gluster_name" { default = "gluster" }
-variable "headnode_role" { default = "master" }
+variable "storage_name" { default = "storage" }
+variable "headnode_role" { default = ["master"] }
 variable "headnode_name" { default = "headnode" }
-variable "compute_role" { default = "compute" }
+variable "compute_role" { default = ["compute"] }
 variable "compute_name" { default = "compute" }
 variable "fss_share_name" { default = "share" } 
 

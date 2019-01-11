@@ -1,4 +1,4 @@
-{% if grains['host'] is match ('gluster*') %}
+{% if 'gluster' in grains['roles'] and 'storage' in grains['roles'] %}
 
 glusterd_enabled:
   service.enabled:
@@ -11,15 +11,14 @@ glusterd_running:
 /mnt/lvm/brick1:
   file.directory:
     - makedirs: True
+{% set storage_servers = pillar['storage'].split(',') %}
 
-{% endif %}
-
-{% if grains['host'] is match ('gluster-1*') %}
+{% if grains['host'] is match storage_servers[0] %}
 peer-clusters:
   glusterfs.peered:
     - names:
     {% set domain = grains['domain'] %}
-    {% for server in pillar['gluster_servers'].split(',') %}
+    {% for server in storage_servers %}
       - {{ server }}.{{ domain }}
     {% endfor %}
     - retry:
@@ -32,7 +31,7 @@ gfs:
   glusterfs.volume_present:
     - bricks:
     {% set domain = grains['domain'] %}
-    {% for server in pillar['gluster_servers'].split(',') %}
+    {% for server in storage_servers %}
       - {{ server }}.{{ domain }}:/mnt/lvm/brick1
     {% endfor %}
     - start: True
@@ -41,18 +40,20 @@ gfs:
         until: True
         interval: 10
         splay: 10
-
+  {% endif %}
 {% endif %}
 
-{% set gluster_servers = [] %}
-{% for item in pillar['gluster_servers'].split(',') %}
-{% do gluster_servers.append( item + "." + pillar['private_subnet_name']) %}
-{% endfor %}
+{% if 'gluster' in grains['roles'] %}
+
+  {% set storage_servers = [] %}
+  {% for item in pillar['storage'].split(',') %}
+    {% do storage_servers.append( item + "." + pillar['private_subnet_name']) %}
+  {% endfor %}
 
 mount glusterfs volume:
   mount.mounted:
     - name: /mnt/gluster
-    - device: {{ gluster_servers|join(',') }}:/gfs
+    - device: {{ storage_servers|join(',') }}:/gfs
     - fstype: glusterfs
     - opts: _netdev,rw,defaults,direct-io-mode=disable
     - mkmnt: True
@@ -60,9 +61,16 @@ mount glusterfs volume:
     - dump: 0
     - pass_num: 0
     - device_name_regex:
-      - ({{ gluster_servers|join('|') }}):/gfs
+      - ({{ storage_servers|join('|') }}):/gfs
     - retry:
         attempts: 10
         until: True
         interval: 60
         splay: 10
+
+/mnt/gluster:
+  file.directory:
+    - user: opc
+    - group: opc
+
+{% endif %}

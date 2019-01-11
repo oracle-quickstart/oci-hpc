@@ -1,20 +1,14 @@
-mine.update:
-  module.run
-
 {% if 'master' in grains['roles'] %}
   {% set minions = salt.saltutil.runner('mine.get',
                 tgt='*',
                 fun='network.get_fqdn',
                 tgt_type='glob') %}
   {% set minions_compute = salt.saltutil.runner('mine.get',
-                tgt='compute-*',
-                fun='network.get_fqdn',
-                tgt_type='glob') %}
-
-  {% set minions_gluster = salt.saltutil.runner('mine.get',
-                tgt='gluster-*',
-                fun='network.get_fqdn',
-                tgt_type='glob') %}
+                tgt='G@roles:compute',
+                fun='network.get_fqdn') %}
+  {% set minions_storage = salt.saltutil.runner('mine.get',
+                tgt='G@roles:storage',
+                fun='network.get_fqdn') %}
 
 /mnt/share/hosts:
   file.managed:
@@ -30,10 +24,10 @@ mine.update:
       - {{ ip }}
   {% endfor %}
 
-/mnt/share/hosts.gluster:
+/mnt/share/hosts.storage:
   file.managed:
     - contents:
-  {% for ip in minions_gluster %}
+  {% for ip in minions_storager %}
       - {{ ip }}
   {% endfor %}
 {% endif %}
