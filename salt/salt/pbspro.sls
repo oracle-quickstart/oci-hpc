@@ -7,6 +7,23 @@ pbspro_download:
     - group: opc
     - enforce_toplevel: False
 
+{% set headnode = grains['master'].split('.') %}
+
+salt-master:
+  host.present:
+    - ip: {{ salt['dnsutil.A'](grains['master'])[0] }}
+    - names:
+      - {{ grains['master'] }}
+      - {{ headnode[0] }}
+
+
+{% if 'pbspro_execution' in grains['roles'] %}
+set_env:
+  environ.setenv:
+    - name: PBS_SERVER
+    - value: {{ headnode[0] }}
+{% endif %}
+
 pbs_install: 
   pkg.installed:
     - allow_updates: False
@@ -23,10 +40,8 @@ pbs_service_enable:
     - name: pbs
 
 pbs_service_start:
-  service.started:
+  service.running:
     - name: pbs
-
-"config_file: 
-  file.line: 
-    - name: /etc/pbs.conf
-"
+{% if 'pbspro_execution' in grains['roles'] %}
+    - fire_event: pbs/started
+{% endif %}

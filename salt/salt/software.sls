@@ -26,6 +26,7 @@ install_packages:
       - glusterfs-cli
       - glusterfs-fuse
       - glusterfs-server
+      - tmux
 
 Development Tools:
   pkg.group_installed

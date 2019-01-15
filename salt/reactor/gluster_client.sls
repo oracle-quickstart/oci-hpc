@@ -1,4 +1,7 @@
 gluster_mount:
-  local.state.apply:
-    - tgt: 'roles:gluster'
-    - tgt_type: 'grain'
+  local.state.sls:
+    - tgt: 'G@roles:gluster and not G@roles:storage'
+    - tgt_type: 'compound'
+    - queue: True
+    - args:
+      - mods: gluster_mount

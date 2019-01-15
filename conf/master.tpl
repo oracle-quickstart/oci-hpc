@@ -9,6 +9,6 @@ runcmd:
     - curl -L ${par_url} -o salt.zip
     - unzip salt.zip -d /srv/
     - curl -L https://bootstrap.saltstack.com -o install_salt.sh
-    - sudo sh install_salt.sh -X -P -M -A ${master_address} -J '{"auto_accept":"true,","file_roots":{"base":["/srv/salt/"]},"pillar_roots":{"base":["/srv/pillar"]},"reactor":[{"salt/minion/*/start":["/srv/reactor/sync.sls","/srv/reactor/start.sls"]},{"salt/state_result/*/gluster/installed":["/srv/reactor/gluster_client.sls"]}]}' -j '{"default_include":"minion.d/*.conf","conf_file":"/etc/salt/minion","pki_dir":"/etc/salt/pki/minion","grains":{"roles":${role}},"file_roots":{"base":["/srv/salt/"]},"pillar_roots":{"base":["/srv/pillar"]},"autosign_grains":["server_id"]}'
+    - sudo sh install_salt.sh -X -P -M -A ${master_address} -J '{"auto_accept":true,"file_roots":{"base":["/srv/salt/"]},"pillar_roots":{"base":["/srv/pillar"]},"presence_events":true,"reactor":[{"salt/minion/*/start":["/srv/reactor/sync.sls","/srv/reactor/start.sls"]},{"salt/state_result/*/gluster/installed":["/srv/reactor/gluster_client.sls"]},{"salt/state_result/*/pbs/started":["/srv/reactor/pbs.sls"]},{"salt/presence/present":["/srv/reactor/presence.sls"]}]}' -j '{"autosign_grains":["server_id"],"conf_file":"/etc/salt/minion","default_include":"minion.d/*.conf","file_roots":{"base":["/srv/salt/"]},"grains":{"roles":${role}},"pillar_roots":{"base":["/srv/pillar"]},"pki_dir":"/etc/salt/pki/minion","beacons":{"status":[{"interval":10}]}}'
     - sudo systemctl start salt-master
     - sudo systemctl start salt-minion
