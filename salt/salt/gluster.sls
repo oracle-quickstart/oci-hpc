@@ -36,10 +36,9 @@ gfs:
     {% endfor %}
     - start: True
     - retry:
-        attempts: 5
+        attempts: 15
         until: True
-        interval: 10
-        splay: 10
+        interval: 30
     - fire_event: gluster/installed
   {% endif %}
 {% endif %}
