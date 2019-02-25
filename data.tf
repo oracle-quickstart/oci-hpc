@@ -13,7 +13,7 @@ data "template_file" "master_template" {
 		master_address = "${local.master_address}"
 		ssh_key = "${base64encode(tls_private_key.key.private_key_pem)}"
 		par_url = "${local.par_url}"
-		role	= "${jsonencode(concat(var.headnode_role, var.additional_headnode_roles, var.additional_role_all))}"
+		role	= "${jsonencode(concat(local.headnode_role, var.additional_headnode_roles, var.additional_role_all))}"
 
 	}
 }
@@ -23,10 +23,11 @@ data "template_file" "salt_variables" {
 		cluster_name = "${local.cluster_name}"
 		fss_ip = "${module.fss.mt_ip}"
 		vcn_cidr = "${module.network.vcn-cidr}"
-		fss_share_name = "${var.fss_share_name}"
+		fss_share_name = "${local.fss_share_name}"
 		storage_servers = "${join(",", module.storage.instance_name)}"
 		public_subnet_name = "${element(module.network.public-subnet-1-dns, var.ad - 1)}"
 		private_subnet_name = "${element(module.network.private-subnet-1-dns, var.ad - 1)}"
+		storage_type	= "${var.storage_type}"
 	}
 }
 
@@ -44,7 +45,7 @@ data "template_file" "worker_template" {
 	template = "${file("${path.module}/conf/worker.tpl")}"
 	vars { 
 		master_address = "${local.master_address}"
-		role	= "${jsonencode(concat(var.compute_role, var.additional_worker_roles, var.additional_role_all))}"
+		role	= "${jsonencode(concat(local.compute_role, var.additional_worker_roles, var.additional_role_all))}"
 	}
 }
 
@@ -52,7 +53,7 @@ data "template_file" "storage_template" {
 	template = "${file("${path.module}/conf/storage.tpl")}"
 	vars { 
 		master_address = "${local.master_address}"
-role	= "${jsonencode(concat(var.storage_role, var.additional_storage_roles, var.additional_role_all))}"	}
+role	= "${jsonencode(concat(local.storage_role, var.additional_storage_roles, var.additional_role_all))}"	}
 }
 
 resource "random_pet" "server" {

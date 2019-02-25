@@ -4,12 +4,16 @@ variable "fingerprint" {}
 variable "private_key_path" {}
 variable "region" {}
 variable "compartment_ocid" {}
-variable "storage_name" { default = "storage" }
-variable "headnode_role" { default = ["master"] }
-variable "headnode_name" { default = "headnode" }
-variable "compute_role" { default = ["compute"] }
-variable "compute_name" { default = "compute" }
-variable "fss_share_name" { default = "share" } 
+
+locals { 
+  storage_name = "storage"
+  headnode_role = ["master"]
+  headnode_name = "headnode"
+  compute_role = ["compute"]
+  compute_name = "compute"
+  fss_share_name = "share"
+  storage_role = ["storage"]
+}
 
 provider "oci" {
   tenancy_ocid     = "${var.tenancy_ocid}"

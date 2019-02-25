@@ -1,6 +1,6 @@
-gluster_mount:
+beegfs_client:
   local.state.sls:
     - tgt: '*'
     - queue: True
     - args:
-      - mods: hpc.filesystems.gluster_mount
+      - mods: hpc.filesystems.beegfs_client

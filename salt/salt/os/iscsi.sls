@@ -5,4 +5,3 @@ ocid_enabled:
 ocid_running: 
   service.running: 
     - name: ocid
-

@@ -1,6 +1,4 @@
 
-{% if 'gluster' in grains['roles'] %}
-
   {% set storage_servers = [] %}
   {% for item in pillar['storage_servers'].split(',') %}
     {% do storage_servers.append( item + "." + pillar['private_subnet_name']) %}
@@ -31,5 +29,3 @@ mount glusterfs volume:
     - group: opc
 
     {% endif %}
-
-{% endif %}

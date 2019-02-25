@@ -1,3 +1,5 @@
+{% set data = salt.pillar.get('event_data') %}
+
 saltutil.sync_all:
   salt.function:
     - tgt: '*'
@@ -11,7 +13,8 @@ mine.update:
   salt.function:
     - tgt: '*'
 
-highstate_run:
+highstate:
   salt.state:
-    - tgt: '*'
+    - queue: True
+    - tgt: {{ data.id }}
     - highstate: True

@@ -1,3 +1,28 @@
+{% if 'sdb' in grains['disks'] and 'master' in grains['roles'] %}
+/dev/sdb:
+  blockdev.formatted:
+  - fs_type: xfs
+
+/mnt/share:
+  mount.mounted:
+    - device: /dev/sdb
+    - fstype: xfs
+    - mkmnt: True
+    - persist: True
+    - opts:
+      - defaults
+    - require: 
+      - /dev/sdb
+
+{% elif 'master' in grains['roles'] %}
+
+/mnt/share:
+  file.directory:
+    - mode: 755
+    - makedirs: True
+
+{% endif %}
+
 {% if 'master' in grains['roles'] %}
 
 rpcbind_enabled:

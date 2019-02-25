@@ -5,5 +5,5 @@ module "fss" {
   vcn_cidr          = "${module.network.vcn-cidr}"
   ad                = "${var.ad}"
   cluster_name      = "${local.cluster_name}"
-  share_name        = "${var.fss_share_name}"
+  share_name        = "${local.fss_share_name}"
 }

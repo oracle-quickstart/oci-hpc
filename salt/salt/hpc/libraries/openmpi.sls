@@ -3,5 +3,5 @@ openmpi_packages:
     - pkgs:
       - openmpi3
       - openmpi3-devel
-      - openpi
+      - openmpi
       - openmpi-devel

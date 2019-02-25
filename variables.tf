@@ -1,24 +1,24 @@
 variable "ad" { default = "3" } // Availability domain 
 variable "additional_headnode_roles" { 
-	default = ["intelmpi", "pbspro_server", "gluster"]
+	default = [""]
 }
 
 variable "additional_worker_roles" { 
-	default = ["intelmpi", "pbspro_execution", "gluster"]
+	default = [""]
 }
 // Currently gluster. Potentialy other types of storage. 
-variable "storage_role" { default = ["storage", "gluster"] } 
+variable "storage_type" { default = "beegfs" }
 
 variable "additional_storage_roles" { 
-	default = []
+	default = [""]
 }
 variable "additional_role_all" { 
-	default = []
+	default = ["intelmpi", "openmpi"]
 }
 variable "network_cidr" { default = "10.254.0.0/16" }
-variable "headnode_shape" { default = "VM.Standard2.8" } // Shape used for headnode server
-variable "compute_shape" { default = "BM.HPC2.36" } // Shape used by compute workers
-variable "storage_shape" { default = "VM.DenseIO1.8"} // Shape used by gluster workers
+variable "headnode_shape" { default = "VM.Standard2.2" } // Shape used for headnode server
+variable "compute_shape" { default = "VM.Standard2.4" } // Shape used by compute workers
+variable "storage_shape" { default = "VM.DenseIO2.8"} // Shape used by gluster workers
 variable "storage_count" { default = "3" } // Number of gluster nodes 
 variable "compute_count" { default = "2" } // Number of compute nodes
 variable "headnode_volumes" { default = "1" }
@@ -30,9 +30,10 @@ variable "storage_volume_size" { default = "1024" } // Block volume size
 variable "image" { 
 	type = "map" 
 	default = { 
-		us-phoenix-1 	= "ocid1.image.oc1.phx.aaaaaaaaoqj42sokaoh42l76wsyhn3k2beuntrh5maj3gmgmzeyr55zzrwwa"
-		us-ashburn-1 	= "ocid1.image.oc1.iad.aaaaaaaageeenzyuxgia726xur4ztaoxbxyjlxogdhreu3ngfj2gji3bayda"
-		eu-frankfurt-1 	= "ocid1.image.oc1.eu-frankfurt-1.aaaaaaaaitzn6tdyjer7jl34h2ujz74jwy5nkbukbh55ekp6oyzwrtfa4zma"
-		uk-london-1		= "ocid1.image.oc1.uk-london-1.aaaaaaaa32voyikkkzfxyo4xbdmadc2dmvorfxxgdhpnk6dw64fa3l4jh7wa"
+		us-phoenix-1 	= "ocid1.image.oc1.phx.aaaaaaaadjnj3da72bztpxinmqpih62c2woscbp6l3wjn36by2cvmdhjub6a"
+		us-ashburn-1 	= "ocid1.image.oc1.iad.aaaaaaaawufnve5jxze4xf7orejupw5iq3pms6cuadzjc7klojix6vmk42va"
+		eu-frankfurt-1 	= "ocid1.image.oc1.eu-frankfurt-1.aaaaaaaagbrvhganmn7awcr7plaaf5vhabmzhx763z5afiitswjwmzh7upna"
+		uk-london-1		= "ocid1.image.oc1.uk-london-1.aaaaaaaajwtut4l7fo3cvyraate6erdkyf2wdk5vpk6fp6ycng3dv2y3ymvq"
+		ca-toronto-1	= "ocid1.image.oc1.ca-toronto-1.aaaaaaaafozx4cw5fgcnptx6ukgdjjfzvjb2365chtzprratabynb573wria"
 	}
 }

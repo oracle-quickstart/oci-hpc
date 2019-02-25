@@ -5,7 +5,7 @@ module "headnode" {
         instances       = "1" // required
         subnet_id       = "${element(module.network.public-subnet-1-id, var.ad - 1)}" // required
         ad              = "${var.ad}" // required
-        name            = "${var.headnode_name}" // required
+        name            = "${local.headnode_name}" // required
         ssh_key         = "${tls_private_key.key.public_key_openssh}" // required
         shape           = "${var.headnode_shape}" // required
         source_id       = "${lookup(var.image, var.region)}"
@@ -28,7 +28,7 @@ module "compute" {
         instances       = "${var.compute_count}" // required
         subnet_id       = "${element(module.network.private-subnet-1-id, var.ad - 1)}" // required
         ad              = "${var.ad}" // required
-        name            = "${var.compute_name}" // required
+        name            = "${local.compute_name}" // required
         ssh_key         = "${tls_private_key.key.public_key_openssh}" // required
         shape           = "${var.compute_shape}" // required
         source_id       = "${lookup(var.image, var.region)}" // required
@@ -52,7 +52,7 @@ module "storage" {
         instances       = "${var.storage_count}" // required. can be 0 
         subnet_id       = "${element(module.network.private-subnet-1-id, var.ad - 1)}" // required
         ad              = "${var.ad}" // required
-        name            = "${var.storage_name}" // required
+        name            = "${local.storage_name}" // required
         ssh_key         = "${tls_private_key.key.public_key_openssh}" // required
         shape           = "${var.storage_shape}" // required
         source_id       = "${lookup(var.image, var.region)}" // required

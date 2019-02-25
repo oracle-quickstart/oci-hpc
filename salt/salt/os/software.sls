@@ -10,7 +10,6 @@ install_packages:
       - sshpass
       - nmap
       - htop
-      - screen
       - git
       - psmisc
       - axel
@@ -18,14 +17,7 @@ install_packages:
       - libffi-devel
       - python-devel
       - openssl-devel
-      - mariadb
       - python2-pip
-      - docker-engine
-      - python2-gluster
-      - glusterfs
-      - glusterfs-cli
-      - glusterfs-fuse
-      - glusterfs-server
       - tmux
 
 Development Tools:
