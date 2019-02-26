@@ -1,4 +1,4 @@
-install_packages:
+install_gluster_packages:
   pkg.installed:
     - enablerepo: ol7_gluster312
     - pkgs:
@@ -15,7 +15,7 @@ install_packages:
   {% do disks.append(disk) %}
 {% endfor %}
 
-{% if disks != [] and 'storage' in grains['roles'] and grains['storage_type'] == 'gluster' %}
+{% if disks != [] and 'storage' in grains['roles'] and pillar['storage_type'] == 'gluster' %}
 {# role is gluster and nvme disks detected #}
 
   {% for disk in disks %}
@@ -53,7 +53,7 @@ gfs_data:
 
 {% endif %}
 
-{% if 'storage' in grains['roles'] and grains['storage_type'] == 'gluster'}
+{% if 'storage' in grains['roles'] and pillar['storage_type'] == 'gluster' %}
 
 glusterd_enabled:
   service.enabled:

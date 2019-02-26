@@ -1,17 +1,17 @@
 output "public-subnet-1-id" {
-  value = "${oci_core_subnet.public-subnet-1.*.id}"
+  value = "${oci_core_subnet.public-subnet-1.id}"
 }
 
 output "private-subnet-1-id" {
-  value = "${oci_core_subnet.private-subnet-1.*.id}"
+  value = "${oci_core_subnet.private-subnet-1.id}"
 }
 
 output "public-subnet-1-ip" {
-  value = "${oci_core_subnet.public-subnet-1.*.cidr_block}"
+  value = "${oci_core_subnet.public-subnet-1.cidr_block}"
 }
 
 output "private-subnet-1-ip" {
-  value = "${oci_core_subnet.private-subnet-1.*.cidr_block}"
+  value = "${oci_core_subnet.private-subnet-1.cidr_block}"
 }
 
 output "vcn-cidr" { 
@@ -27,9 +27,9 @@ output "vcn-dns" {
 }
 
 output "public-subnet-1-dns" { 
-    value = "${oci_core_subnet.public-subnet-1.*.dns_label}"
+    value = "${oci_core_subnet.public-subnet-1.dns_label}"
 }
 
 output "private-subnet-1-dns" { 
-    value = "${oci_core_subnet.private-subnet-1.*.dns_label}"
+    value = "${oci_core_subnet.private-subnet-1.dns_label}"
 }

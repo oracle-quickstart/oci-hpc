@@ -108,25 +108,25 @@ resource "oci_core_security_list" "custom-public-security-list" {
 }
 
 resource "oci_core_subnet" "public-subnet-1" { 
-    count               = "${length(data.oci_identity_availability_domains.ad.availability_domains)}"
+    #count               = "${length(data.oci_identity_availability_domains.ad.availability_domains)}"
 	display_name	    = "public-sn-${count.index + 1}-${var.cluster_name}"
 	cidr_block	        = "${cidrsubnet(oci_core_vcn.vcn.cidr_block, 8, count.index)}"
 	compartment_id	    = "${var.compartment_ocid}"
 	vcn_id		        = "${oci_core_vcn.vcn.id}"
 	route_table_id	    = "${oci_core_default_route_table.default-route-table.id}"
 	security_list_ids   = ["${oci_core_default_security_list.default-security-list.id}", "${oci_core_security_list.custom-public-security-list.id}"]
-	availability_domain = "${lookup(data.oci_identity_availability_domains.ad.availability_domains[count.index],"name")}"
-	dns_label	        = "ad${count.index + 1}pub1"
+	#availability_domain = "${lookup(data.oci_identity_availability_domains.ad.availability_domains[count.index],"name")}"
+	dns_label	        = "public"
 }
 
 resource "oci_core_subnet" "private-subnet-1" {
-    count               = "${length(data.oci_identity_availability_domains.ad.availability_domains)}"
+    #count               = "${length(data.oci_identity_availability_domains.ad.availability_domains)}"
     display_name        = "private-sn-${count.index + 1}-${var.cluster_name}"
     cidr_block          = "${cidrsubnet(oci_core_vcn.vcn.cidr_block, 8, length(data.oci_identity_availability_domains.ad.availability_domains) + count.index)}"
     compartment_id      = "${var.compartment_ocid}"
     vcn_id              = "${oci_core_vcn.vcn.id}"
     route_table_id      = "${oci_core_route_table.private-route-table.id}"
     security_list_ids   = ["${oci_core_default_security_list.default-security-list.id}", "${oci_core_security_list.custom-private-security-list.id}"]
-    availability_domain = "${lookup(data.oci_identity_availability_domains.ad.availability_domains[count.index],"name")}"
-	dns_label	        = "ad${count.index + 1}priv1"
+    #availability_domain = "${lookup(data.oci_identity_availability_domains.ad.availability_domains[count.index],"name")}"
+	dns_label	        = "private"
 }

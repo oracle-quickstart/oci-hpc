@@ -7,7 +7,7 @@ variable "additional_worker_roles" {
 	default = [""]
 }
 // Currently gluster. Potentialy other types of storage. 
-variable "storage_type" { default = "beegfs" }
+variable "storage_type" { default = "gluster" }
 
 variable "additional_storage_roles" { 
 	default = [""]

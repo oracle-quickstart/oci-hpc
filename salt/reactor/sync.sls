@@ -1,7 +1,7 @@
-startup_orchestrate:
+sync_and_highstate:
   runner.state.orchestrate:
-    - args:
-      - mods: orchestration.startup
-      - pillar:
-          event_tag: {{ tag }}
-          event_data: {{ data }}
+    - arg:
+      - orchestration.startup
+    - kwarg:
+        pillar:
+          event_data: {{ data | json() }}

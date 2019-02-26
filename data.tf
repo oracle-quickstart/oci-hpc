@@ -1,5 +1,5 @@
 locals {
-  master_address = "headnode-1-${local.cluster_name}.${element(module.network.public-subnet-1-dns, var.ad - 1)}.${module.network.vcn-dns}.oraclevcn.com"
+  master_address = "headnode-1-${local.cluster_name}.${module.network.public-subnet-1-dns}.${module.network.vcn-dns}.oraclevcn.com"
 }
 
 
@@ -25,8 +25,8 @@ data "template_file" "salt_variables" {
 		vcn_cidr = "${module.network.vcn-cidr}"
 		fss_share_name = "${local.fss_share_name}"
 		storage_servers = "${join(",", module.storage.instance_name)}"
-		public_subnet_name = "${element(module.network.public-subnet-1-dns, var.ad - 1)}"
-		private_subnet_name = "${element(module.network.private-subnet-1-dns, var.ad - 1)}"
+		public_subnet_name = "${module.network.public-subnet-1-dns}"
+		private_subnet_name = "${module.network.private-subnet-1-dns}"
 		storage_type	= "${var.storage_type}"
 	}
 }
