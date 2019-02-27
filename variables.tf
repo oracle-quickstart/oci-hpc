@@ -1,20 +1,35 @@
 variable "ad" { default = "3" } // Availability domain 
-variable "additional_headnode_roles" { 
-	default = [""]
-}
 
-variable "additional_worker_roles" { 
-	default = [""]
-}
-// Currently gluster. Potentialy other types of storage. 
+# Additional role to be added to headnode. This can be for example an application module
+
+variable "additional_headnode_roles" { default = [""] }
+
+# Additional roles to be added to compute nodes. This can be for example an application module.
+
+variable "additional_worker_roles" { default = [""] }
+
+# storage_type variable configures external scratch filesystem  
+# that will be mounted on all nodes. 
+# This requires storage_count to be greater than 0 and storage_shape to be a DenseIO type instance. 
+# current options: 
+# 	gluster 	- GlusterFS
+# 	beegfs 	- BeeGFS
+
 variable "storage_type" { default = "gluster" }
 
-variable "additional_storage_roles" { 
-	default = [""]
-}
-variable "additional_role_all" { 
-	default = ["intelmpi", "openmpi"]
-}
+# Additional roles to be configured on storage nodes
+variable "additional_storage_roles" { default = [""] } 
+
+# Additional role to be added to ALL nodes in the cluster. 
+# The value is a LIST type variable And can be set to empty list [""]
+# Default value will install openmpi and intelmpi libraries 
+
+variable "additional_role_all" { default = ["intelmpi", "openmpi"] }
+
+#
+#
+#
+
 variable "network_cidr" { default = "10.254.0.0/16" }
 variable "headnode_shape" { default = "VM.Standard2.2" } // Shape used for headnode server
 variable "compute_shape" { default = "VM.Standard2.4" } // Shape used by compute workers
@@ -27,6 +42,8 @@ variable "compute_volumes" { default = "0" }
 variable "compute_volume_size" { default = "1024" }
 variable "storage_volumes" { default = "0" } // Block Volumes to attach for gluster node 
 variable "storage_volume_size" { default = "1024" } // Block volume size
+
+# Default IMAGE is set to Oracle Linux 7.5 installation
 variable "image" { 
 	type = "map" 
 	default = { 
