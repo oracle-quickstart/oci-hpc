@@ -6,3 +6,4 @@ salt/pillar/variables.sls
 salt/salt/id_rsa
 key.pem
 .terraform.tfstate.lock.info
+conf/salt.zip
