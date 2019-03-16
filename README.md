@@ -50,11 +50,14 @@ SSH key is generated each time for the environment in the ./key.pem file.
 #### Filesystems
 
 - GlusterFS (requires storage role)
-  To use BeeGFS set storate_type to beegfs. 
+  
+  To use BeeGFS set storage_type to beegfs. 
   Filesystem will be greated as :/gfs and mounted under /mnt/gluster
 
 - BeeGFS (requires storage role)
-  To use BeeGFS set storate_type to beegfs.
+  To use BeeGFS set storage_type to beegfs.
+  
+  Filesystem will be mounted under /mnt/beegfs
 
 #### NFS
 
