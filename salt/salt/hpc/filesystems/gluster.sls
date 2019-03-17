@@ -11,7 +11,7 @@ install_gluster_packages:
       {% endif %}
 
 {% set disks = [] %}
-{% for disk in grains['SSDs'] if disk is match('nvme*') %}
+{% for disk in grains['SSDs'] if disk is match('nvme[0-9]n[0-9]') %}
   {% do disks.append(disk) %}
 {% endfor %}
 
@@ -23,30 +23,30 @@ install_gluster_packages:
   lvm.pv_present
   {% endfor %}
 
-gfs_vg:
+VolGroup1:
   lvm.vg_present:
     - devices:
   {% for disk in disks %}
       - /dev/{{ disk }}
   {% endfor %}
 
-gfs_data:
+LogVol1:
   lvm.lv_present:
     - vgname: gfs_vg
     - extents: +100%FREE
     - stripes: {{disks|length}}
     - require:
-      - gfs_vg
+      - VolGroup1
 
-/dev/dm-0:
+/dev/mapper/VolGroup1-LogVol1:
   blockdev.formatted:
     - fs_type: xfs
     - require:
-      - gfs_data
+      - VolGroup1
 
 /mnt/lvm:
   mount.mounted:
-    - device: /dev/dm-0
+    - device: /dev/mapper/VolGroup1-LogVol1
     - fstype: xfs
     - persist: True
     - mkmnt: True

@@ -33,7 +33,7 @@ beegfs_packages:
       - beegfs-utils
 
 {% set disks = [] %}
-{% for disk in grains['SSDs'] if disk is match('nvme*') %}
+{% for disk in grains['SSDs'] if disk is match('nvme[0-9]n[0-9]') %}
   {% do disks.append(disk) %}
 {% endfor %}
 
@@ -56,16 +56,12 @@ LogVol1:
   lvm.lv_present:
     - vgname: VolGroup1
     - extents: +100%FREE
-    {% if disks|length > 1 %}
     - stripes: {{disks|length}}
     - type: raid0
-    {% else %}
-    - stripes: {{disks|length}}
-    {% endif %}
     - require:
       - VolGroup1
 
-/dev/dm-0:
+/dev/mapper/VolGroup1-LogVol1:
   blockdev.formatted:
     - fs_type: xfs
     - require:
@@ -73,7 +69,7 @@ LogVol1:
 
 /mnt/nvme_dm0:
   mount.mounted:
-    - device: /dev/dm-0
+    - device: /dev/mapper/VolGroup1-LogVol1
     - fstype: xfs
     - persist: True
     - mkmnt: True
