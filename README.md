@@ -24,42 +24,49 @@ Salt configuration is stored under ./salt directory, containing pillar/ (variabl
 ![Architecture](images/architecture.png)
 
 ### Operations
-
 Salt commands should be executed from the headnode. 
 IntelMPI installation: sudo salt '*' state.apply intelmpi
 
-
 ### SSH Key
-  
 SSH key is generated each time for the environment in the ./key.pem file. 
-
 
 ### Networking 
 
 - Public subnet
-
   Headnode acts a jump host and it's placed in the public subnet. The subnet is open to SSH connections from everywhere. Other ports are closed and can be opened using custom-security-list in the OCI console/cli. 
   All connections from VCN are accepted. Host firewall service is disabled by default. 
 
 - Private subnet
-  
   All connections from VCN are accepted. Public IP's are prohibited in the subnet. Internet access is provided by NAT gateway. 
+  
+### Roles
+
+- intelmpi: provides configured Intel yum repository and installs IntelMPI distribution
+- openmpi: installs OpenMPI from OL repository
 
 ### Storage
+- Storage node require to be DenseIO shape (NVME devices are detected and configured).
+
+#### Filesystems
+
+- GlusterFS (requires storage role)
+  
+  To use BeeGFS set storage_type to beegfs. 
+  Filesystem will be greated as :/gfs and mounted under /mnt/gluster
+
+- BeeGFS (requires storage role)
+  To use BeeGFS set storage_type to beegfs.
+  
+  Filesystem will be mounted under /mnt/beegfs
+
+#### NFS
 
 - Block volumes
-
   Each node type can be configured with block volumes in the variables.tf
   Headnode will export first block volume as NFS share under /mnt/share (configured in salt/salt/nfs.sls)
   Other block volume attachments need to be configured manually after cluster provisioning. 
 
-- GlusterFS 
-
-  To use Gluster specify Gluster shape and node count in the variables.tf
-  Filesystem will be greated as :/gfs and mounted under /mnt/gluster
-
 - FSS
-  
   File system service endpoint will be created in the private subnet and mounted on each node under /mnt/fss
 
   
