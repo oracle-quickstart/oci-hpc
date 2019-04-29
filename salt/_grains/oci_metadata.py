@@ -14,5 +14,9 @@ def main():
                 grains['oci_vnics'] = json.loads(requests.get(_metadata_url + 'vnics').text)
         except Exception:
                 pass
+        try:
+                grains['identity'] = json.loads(requests.get(_metadata_url + 'identity').text)
+        except Exception:
+                pass
 
         return grains

@@ -6,13 +6,15 @@ variable "region" {}
 variable "compartment_ocid" {}
 
 locals { 
-  storage_name = "storage"
-  headnode_role = ["master"]
-  headnode_name = "headnode"
-  compute_role = ["compute"]
-  compute_name = "compute"
-  fss_share_name = "share"
-  storage_role = ["storage"]
+  storage_name 	 =   "storage"
+  storage_role 	 =   ["storage"]
+  headnode_name  =   "headnode"
+  headnode_role  =   ["master"]
+  compute_name 	 =   "compute"
+  compute_role 	 =   ["compute"]
+  gpu_name	 =   "gpu"
+  gpu_role     	 =   ["gpu"]
+  fss_share_name =   "share"
 }
 
 provider "oci" {

@@ -1,6 +1,5 @@
 install_gluster_packages:
   pkg.installed:
-    - enablerepo: ol7_gluster312
     - pkgs:
       - python2-gluster
       - glusterfs

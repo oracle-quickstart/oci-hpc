@@ -17,3 +17,6 @@ base:
         - hpc.filesystems.beegfs
     'I@storage_type:gluster':
         - hpc.filesystems.gluster
+    'Groles:docker':
+        - software.docker
+ 

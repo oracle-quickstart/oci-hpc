@@ -1,6 +1,5 @@
 install_packages:
   pkg.installed:
-    - enablerepo: ol7_gluster312
     - pkgs:
       - pdsh
       - stress

@@ -67,3 +67,27 @@ module "storage" {
         public_ip       = false // optional. default: true
         
 }
+
+module "gpu" { 
+        
+        source          = "modules/instance"
+
+        compartment_ocid  = "${var.compartment_ocid}"
+        instances       = "${var.gpu_count}" // required. can be 0 
+        subnet_id       = "${module.network.private-subnet-1-id}" // required
+        ad              = "${var.ad}" // required
+        name            = "${local.gpu_name}" // required
+        ssh_key         = "${tls_private_key.key.public_key_openssh}" // required
+        shape           = "${var.gpu_shape}" // required
+        source_id       = "${lookup(var.gpu_image, var.region)}" // required
+
+        // Optional parameters
+        
+        bootstrap       = "${data.template_file.gpu_template.rendered}"
+        volumes         = "${var.gpu_volumes}" // optional. default: 0
+        volume_size     = "${var.gpu_volume_size}" // optional. default: 50 
+        source_type     = "image" // optional. default: image
+        cluster_name    = "${local.cluster_name}" // optional. default: cluster
+        public_ip       = false // optional. default: true
+        
+}

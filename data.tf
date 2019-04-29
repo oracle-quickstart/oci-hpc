@@ -56,6 +56,14 @@ data "template_file" "storage_template" {
 role	= "${jsonencode(concat(local.storage_role, var.additional_storage_roles, var.additional_role_all))}"	}
 }
 
+data "template_file" "gpu_template" { 
+	template = "${file("${path.module}/conf/gpu.tpl")}"
+	vars { 
+		master_address = "${local.master_address}"
+role	= "${jsonencode(concat(local.gpu_role, var.additional_gpu_roles, var.additional_role_all))}"	}
+}
+
+
 resource "random_pet" "server" {
     length = 2
     separator = ""
