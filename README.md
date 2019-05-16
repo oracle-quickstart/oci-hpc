@@ -41,6 +41,11 @@ SSH key is generated each time for the environment in the ./key.pem file.
   
 ### Roles
 
+Roles are set in variables.tf as 
+additional_headnode_roles, additional_worker_roles, additional_storage_roles or additional_role_all
+Additional roles provide ability to install and configure applications defined as Salt states. 
+
+Example roles: 
 - intelmpi: provides configured Intel yum repository and installs IntelMPI distribution
 - openmpi: installs OpenMPI from OL repository
 
@@ -48,6 +53,8 @@ SSH key is generated each time for the environment in the ./key.pem file.
 - Storage node require to be DenseIO shape (NVME devices are detected and configured).
 
 #### Filesystems
+
+Storage role servers will be configured as filesystem nodes, while headnode and worker nodes will act as a clients. 
 
 - GlusterFS (requires storage role)
   
