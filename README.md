@@ -23,6 +23,10 @@ Salt configuration is stored under ./salt directory, containing pillar/ (variabl
 
 ![Architecture](images/architecture.png)
 
+### Authentication
+
+terraform.tvars contain required authentication variables
+
 ### Operations
 Salt commands should be executed from the headnode. 
 IntelMPI installation: sudo salt '*' state.apply intelmpi
