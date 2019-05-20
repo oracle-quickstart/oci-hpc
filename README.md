@@ -1,4 +1,4 @@
-# hpc-quickstart
+# oci-quickstart-hpc
 
 <pre>
       `-/+++++++++++++++++/-.`
@@ -7,7 +7,7 @@
  /yyys-                     .oyyy+
 .yyyy`                       `syyy-
 :yyyo                         /yyy/ Oracle Cloud HPC Cluster Demo
-.yyyy`                       `syyy- https://github.com/oracle/hpc-quickstart
+.yyyy`                       `syyy- https://github.com/oracle/oci-quickstart-hpc
  /yyys.                     .oyyyo
   /yyyyo:-...............-:oyyyy/`
    `/syyyyyyyyyyyyyyyyyyyyyyys+.
