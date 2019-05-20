@@ -58,5 +58,4 @@ Storage role servers will be configured as filesystem nodes, while headnode and 
 * Block volumes - Each node type can be configured with block volumes in the variables.tf
   Headnode will export first block volume as NFS share under /mnt/share (configured in salt/salt/nfs.sls)
   Other block volume attachments need to be configured manually after cluster provisioning. 
-
 * FSS - File system service endpoint will be created in the private subnet and mounted on each node under /mnt/fss
