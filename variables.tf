@@ -9,8 +9,7 @@ variable "region" {
 #variable "fingerprint" {
 #}
 variable "image" {
-#  default = "ocid1.image.oc1..aaaaaaaafgzcla4pkskkegec3okzhbtmaylnldbxoa4ln7d6npytnqwu3mca"
-   default = "ocid1.image.oc1.iad.aaaaaaaax54q6wo5tlafxuamun5656kfcodmwaurzt6gykz3syppu2gtytpq"
+    default = "ocid1.image.oc1..aaaaaaaafgzcla4pkskkegec3okzhbtmaylnldbxoa4ln7d6npytnqwu3mca"
 } 
 variable "shape" { 
 	default = "BM.HPC2.36" 
@@ -64,4 +63,20 @@ variable "bastion_image" {
 
 variable "use_marketplace_image" { 
 	default = 1
+}
+
+variable "use_existing_vcn" { 
+	default = 0 
+}
+
+variable "vcn_id" {
+  default = ""
+} 
+
+variable "bastion_subnet_id" { 
+  default = ""
+} 
+
+variable "cluster_subnet_id" { 
+  default = "" 
 } 

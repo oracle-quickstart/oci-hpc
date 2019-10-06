@@ -20,6 +20,10 @@ groupings:
   - ${image} 
 - title: "Network options" 
   variables: 
+  - ${use_existing_vcn}
+  - ${vcn_id}
+  - ${bastion_subnet_id}
+  - ${cluster_subnet_id}
   - ${vcn_subnet}
   - ${private_subnet}
   - ${public_subnet}
@@ -60,12 +64,53 @@ variables:
       not: 
         - ${use_marketplace_image}
       myImageId:
+  use_existing_vcn: 
+    type: boolean
+    title: "Use Existing VCN"
+    description: "Use existing VCN or create new one"
+    default: false
+    required: true
+  vcn_id: 
+    type: oci:core:vcn:id
+    visible:
+      and:
+        - ${use_existing_vcn}
+    title: "Existing network"
+    default: ''
+    required: true
+    dependsOn: 
+      compartmentId: ${compartment_ocid}
+  bastion_subnet_id: 
+    type: oci:core:subnet:id
+    dependsOn:
+      vcnId: ${vcn_id}
+      compartmentId: ${compartment_ocid}
+    default: ''
+    required: true
+    title: "Exiting subnet for Bastion host" 
+    visible:
+      and:
+        - ${use_existing_vcn}
+  cluster_subnet_id: 
+    type: oci:core:subnet:id
+    dependsOn:
+      vcnId: ${vcn_id}
+      compartmentId: ${compartment_ocid}
+    default: ''
+    required: true
+    title: "Exiting subnet for Cluster network" 
+    visible:
+      and:
+        - ${use_existing_vcn}
   vcn_subnet: 
     type: string
     title: "VCN IP range"
     description: "VCN subnet" 
     default: "172.16.0.0/23"
     required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
   bastion_shape:
     type: oci:core:instanceshape:name
     dependsOn:
@@ -78,17 +123,24 @@ variables:
     default: "172.16.0.0/24"
     description: "Must be within VCN subnet" 
     required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
   private_subnet: 
     type: string
     default: "172.16.1.0/24"
     title: "Private subnet IP range"
     description: "Must be within VCN subnet" 
     required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
   private: 
     type: boolean
     default: true
     title: "Private subnet deployment" 
     required: true
+    visible: false
   shape:
     type: enum
     enum:

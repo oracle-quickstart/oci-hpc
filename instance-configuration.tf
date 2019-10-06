@@ -3,6 +3,7 @@ data "template_file" "config" {
 }
 
 resource "oci_core_instance_configuration" "instance_configuration" {
+    depends_on = ["oci_core_app_catalog_subscription.mp_image_subscription"]
     compartment_id = "${var.compartment_ocid}"
     display_name = "${local.cluster_name}"
 

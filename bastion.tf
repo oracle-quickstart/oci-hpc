@@ -1,3 +1,7 @@
+locals { 
+  bastion_subnet_id = "${var.use_existing_vcn ? var.bastion_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, list("")), 0)}"
+}
+
 data "template_file" "bastion_config" {
         template = "${file("config.bastion")}"
         vars = { 
@@ -20,7 +24,7 @@ resource "oci_core_instance" "bastion" {
         source_type = "image"
     } 
     create_vnic_details {
-        subnet_id = "${oci_core_subnet.public-subnet.id}"
+        subnet_id = "${local.bastion_subnet_id}"
     } 
 
     provisioner "file" {
