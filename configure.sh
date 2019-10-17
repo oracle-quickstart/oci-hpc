@@ -31,6 +31,3 @@ arr=($(cat /tmp/hosts))
 scp ${ssh_options} opc@${arr[0]}:/opt/oci-hpc/rpms/oci-hpc-provision-20190906.R-63.10.1.x86_64.rpm /tmp/
 sudo rpm -Uvh /tmp/oci-hpc-provision-20190906.R-63.10.1.x86_64.rpm
 sudo mkdir -p /etc/opt/oci-hpc/
-cp /tmp/hosts /etc/opt/oci-hpc/hostfile
-
-
