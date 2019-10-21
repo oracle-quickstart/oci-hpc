@@ -1,0 +1,14 @@
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPADDR={{ hostvars[inventory_hostname]['rdma_network'] | ipmath(ansible_play_batch.index(inventory_hostname) + 1) }}
+NETMASK={{ hostvars[inventory_hostname]['rdma_netmask'] }}
+DEFROUTE="no"
+PEERDNS="no"
+PEERROUTES="no"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="no"
+IPV6_FAILURE_FATAL="no"
+NAME="System enp94s0f0"
+UUID="{{ hostvars[inventory_hostname]['ansible_fqdn'] | to_uuid }}"
+DEVICE="enp94s0f0"
+ONBOOT="yes"
