@@ -11,6 +11,7 @@ groupings:
   - ${ssh_key}
 - title: "Bastion options" 
   variables: 
+  - ${bastion_ad}
   - ${bastion_shape}
 - title: "Compute Node options"
   variables:
@@ -46,6 +47,14 @@ variables:
     visible: complexExpression
     required: true
     description: "Availability Domain where BM.HPC2.36 shape is available"
+    title: "Availability Domain"
+  bastion_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    visible: complexExpression
+    required: true
+    description: "Availability Domain for bastion host"
     title: "Availability Domain"
   use_marketplace_image: 
     type: boolean
@@ -115,6 +124,7 @@ variables:
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${compartment_ocid}
+      availabilityDomainName: ${ad}
     required: true
     title: "Bastion Host shape"
   public_subnet: 

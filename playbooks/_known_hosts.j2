@@ -11,6 +11,7 @@ bastion ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public
 {{ short_name[0] }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
 hpc-node-{{ loop.index }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
 hpc-node-{{ loop.index }}-rdma ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
+hpc-node-{{ loop.index }}.local.vcn ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
 hostvars[item]['ansible_fqdn'] ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
 hpc-cluster-node-{{ loop.index }}-rdma.local.rdma ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
 hpc-cluster-node-{{ loop.index }}-rdma ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}

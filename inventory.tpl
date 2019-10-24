@@ -4,6 +4,8 @@ ${bastion_name} ansible_host=${bastion_ip} ansible_user=opc role=bastion
 %{ for host, ip in compute ~}
 ${host} ansible_host=${ip} ansible_user=opc role=compute
 %{ endfor ~}
+[nfs]
+${nfs}
 [all:children]
 bastion
 compute

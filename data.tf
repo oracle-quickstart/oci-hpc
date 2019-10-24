@@ -28,7 +28,7 @@ output "cluster_map" {
   value = zipmap(data.oci_core_instance.cluster_instances.*.display_name, data.oci_core_instance.cluster_instances.*.private_ip )
 }
 
-output "inventory" { 
-
-value = templatefile("${path.module}/inventory.tpl", {	bastion_name = oci_core_instance.bastion.display_name, bastion_ip = oci_core_instance.bastion.public_ip, compute = zipmap(data.oci_core_instance.cluster_instances.*.display_name, data.oci_core_instance.cluster_instances.*.private_ip), public_subnet = data.oci_core_subnet.public_subnet.cidr_block, private_subnet = data.oci_core_subnet.private_subnet.cidr_block})
-}  
+#output "inventory" { 
+#value = templatefile("${path.module}/inventory.tpl", { bastion_name = oci_core_instance.bastion.display_name, bastion_ip = oci_core_instance.bastion.public_ip, compute = zipmap(data.oci_core_instance.cluster_instances.*.display_name, data.oci_core_instance.cluster_instances.*.private_ip), public_subnet = data.oci_core_subnet.public_subnet.cidr_block, private_subnet = data.oci_core_subnet.private_subnet.cidr_block, nfs = data.oci_core_cluster_network_instances.cluster_network_instances.instances[0]["display_name"]})
+#
+#}  

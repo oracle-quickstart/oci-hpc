@@ -21,6 +21,9 @@ variable "shape" {
 variable "ad" {
 }
 
+variable "bastion_ad" {
+}
+
 variable "ssh_key" {
 }
 

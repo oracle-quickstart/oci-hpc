@@ -50,10 +50,6 @@
     template: 
       src: _hostfile_tcp.j2
       dest: /etc/opt/oci-hpc/hostfile.tcp
-  - name: Add host to group nfs
-    add_host:
-      name: "{{ groups['compute'][0] }}"
-      groups: nfs
 
 - hosts: compute
   gather_facts: True
@@ -115,7 +111,7 @@
       regexp: '^export NFS_MOUNT_PATH'
       line: 'export NFS_MOUNT_PATH="/mnt/nfs-share"'
 
-- hosts: nfs 
+- hosts: nfs
   become: true
   tasks: 
   - name: create nfs-share export directory
@@ -133,7 +129,7 @@
   - name: restart_nfs
     command: bash -c "systemctl restart nfs-server"
     when: nfs_config.changed
-  
+
 - hosts: all
   become: true
   tasks: 
@@ -151,6 +147,25 @@
       state: directory
       owner: opc
       group: opc
+
+- hosts: nfs
+  become: true
+  tasks:
+  - name: "create /mnt/nfs-share/etc"
+    file: 
+      path: /mnt/nfs-share/etc/
+      state: directory
+      owner: opc
+      group: opc
+    delegate_to: "{{ groups['nfs'][0] }}"
+
+  - name: "Copy global oci-hpc directory to the nfs-share"
+    synchronize:
+      src: /etc/opt/oci-hpc/
+      dest: /mnt/nfs-share/etc/
+      recursive: yes
+    delegate_to: "{{ groups['nfs'][0] }}"
+  
 
 - hosts: compute
   tasks:
@@ -173,3 +188,4 @@
       state: "{% if intel_mpi is sameas true %}present{% else %}absent{% endif %}"
       name: intel-mpi
     when: ( intel_mpi | default(false) )
+
