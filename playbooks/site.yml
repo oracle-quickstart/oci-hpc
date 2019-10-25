@@ -166,7 +166,6 @@
       recursive: yes
     delegate_to: "{{ groups['nfs'][0] }}"
   
-
 - hosts: compute
   tasks:
   - name: Intel RPM key
@@ -189,3 +188,6 @@
       name: intel-mpi
     when: ( intel_mpi | default(false) )
 
+- include: /home/opc/playbooks/pbs.yml
+  when:
+    - scheduler == "PBS"
