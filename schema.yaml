@@ -19,6 +19,7 @@ groupings:
   - ${node_count}
   - ${use_marketplace_image}
   - ${image} 
+  - ${scheduler} 
 - title: "Network options" 
   variables: 
   - ${use_existing_vcn}
@@ -151,6 +152,14 @@ variables:
     title: "Private subnet deployment" 
     required: true
     visible: false
+  scheduler:
+    type: enum
+    enum:
+    - "NONE"
+    - "PBS"
+    title: "Scheduler installation"
+    required: true
+    default: 'NONE' 
   shape:
     type: enum
     enum:

@@ -15,7 +15,7 @@ data "oci_core_subnet" "private_subnet" {
 data "oci_core_subnet" "public_subnet" { 
   subnet_id = local.bastion_subnet_id
 } 
-
+ 
 output "bastion" {
   value = oci_core_instance.bastion.public_ip
 }

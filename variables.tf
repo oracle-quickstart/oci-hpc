@@ -92,3 +92,6 @@ variable "cluster_subnet_id" {
   default = ""
 }
 
+variable "scheduler" { 
+  default = "NONE"
+} 
