@@ -48,7 +48,10 @@ resource "oci_core_instance" "bastion" {
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       nfs = data.oci_core_cluster_network_instances.cluster_network_instances.instances[0]["display_name"],
-      scheduler = var.scheduler
+      scheduler = var.scheduler,
+      pbs_version = var.pbs_version, 
+      intel_mpi_version = var.intel_mpi_version, 
+      intel_mpi = var.intel_mpi
       })
 
     destination   = "/home/opc/playbooks/inventory"
