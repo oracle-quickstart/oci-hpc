@@ -95,3 +95,13 @@ variable "cluster_subnet_id" {
 variable "scheduler" { 
   default = "NONE"
 } 
+
+variable "intel_mpi" { 
+}
+
+variable "pbs_version" { 
+}
+
+variable "intel_mpi_version" {
+}
+
