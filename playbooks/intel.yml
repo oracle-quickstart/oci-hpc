@@ -16,6 +16,6 @@
   - name: intel MPI
     become: true
     package:
-      state: "{% if slurm|bool is sameas true %}present{% else %}absent{% endif %}"
-      name: "ohpc-slurm-server"
-    when: ( slurm | default(false) )
+      state: "{% if intel_mpi|bool is sameas true %}present{% else %}absent{% endif %}"
+      name: "intel-mpi"
+    when: intel_mpi|bool
