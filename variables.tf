@@ -100,6 +100,7 @@ variable "intel_mpi" {
 }
 
 variable "pbs_version" { 
+	default = ""
 }
 
 variable "intel_mpi_version" {

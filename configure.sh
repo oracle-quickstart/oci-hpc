@@ -9,11 +9,9 @@
 
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 sudo cloud-init status --wait
-
 #
 # Install ansible and other required packages
 #
-
 sudo yum makecache
 sudo yum install -y ansible python-netaddr
 

@@ -82,4 +82,21 @@
     with_items: "{{ groups['compute'] }}"
     delegate_to: "{{ groups['bastion'][0] }}"
     run_once: True
+    ignore_errors: yes
 
+  - shell: |
+      /opt/pbs/bin/qstat -Q -f -F json
+    register: queues_output
+    run_once: True
+    delegate_to: "{{ groups['bastion'][0] }}"
+
+  - set_fact:
+     queues: "{{ queues_output.stdout|from_json }}"
+
+  - name: create a queue
+    become: true
+    command: /opt/pbs/bin/qmgr -c "c q batch queue_type=e,enabled=t, started=t"
+    run_once: True
+    delegate_to: "{{ groups['bastion'][0] }}"
+    ignore_errors: yes
+    when: not 'batch' in queues.Queue
