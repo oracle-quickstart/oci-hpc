@@ -198,6 +198,7 @@ variables:
     enum:
     - "NONE"
     - "PBS"
+    - "SLURM"
     title: "Scheduler installation"
     required: true
     default: 'NONE' 
