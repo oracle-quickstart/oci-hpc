@@ -7,7 +7,7 @@
  /yyys-                     .oyyy+
 .yyyy`                       `syyy-
 :yyyo                         /yyy/ Oracle Cloud HPC Cluster Demo
-.yyyy`                       `syyy- https://github.com/oracle/oci-quickstart-hpc
+.yyyy`                       `syyy- https://github.com/oracle-quickstart/oci-hpc
  /yyys.                     .oyyyo
   /yyyyo:-...............-:oyyyy/`
    `/syyyyyyyyyyyyyyyyyyyyyyys+.
