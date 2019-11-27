@@ -21,6 +21,9 @@ variable "shape" {
 variable "ad" {
 }
 
+variable "bastion_ad" {
+}
+
 variable "ssh_key" {
 }
 
@@ -87,5 +90,19 @@ variable "bastion_subnet_id" {
 
 variable "cluster_subnet_id" {
   default = ""
+}
+
+variable "scheduler" { 
+  default = "NONE"
+} 
+
+variable "intel_mpi" { 
+}
+
+variable "pbs_version" { 
+	default = ""
+}
+
+variable "intel_mpi_version" {
 }
 

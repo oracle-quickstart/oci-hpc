@@ -3,7 +3,7 @@ locals {
 }
 
 resource "oci_core_cluster_network" "cluster_network" {
-  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
+  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet]
   compartment_id = var.compartment_ocid
   instance_pools {
     instance_configuration_id = oci_core_instance_configuration.instance_configuration.id

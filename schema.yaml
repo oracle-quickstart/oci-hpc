@@ -11,6 +11,7 @@ groupings:
   - ${ssh_key}
 - title: "Bastion options" 
   variables: 
+  - ${bastion_ad}
   - ${bastion_shape}
 - title: "Compute Node options"
   variables:
@@ -18,6 +19,10 @@ groupings:
   - ${node_count}
   - ${use_marketplace_image}
   - ${image} 
+  - ${scheduler} 
+  - ${pbs_version}
+  - ${intel_mpi}
+  - ${intel_mpi_version}
 - title: "Network options" 
   variables: 
   - ${use_existing_vcn}
@@ -46,6 +51,14 @@ variables:
     visible: complexExpression
     required: true
     description: "Availability Domain where BM.HPC2.36 shape is available"
+    title: "Availability Domain"
+  bastion_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    visible: complexExpression
+    required: true
+    description: "Availability Domain for bastion host"
     title: "Availability Domain"
   use_marketplace_image: 
     type: boolean
@@ -115,6 +128,7 @@ variables:
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${compartment_ocid}
+      availabilityDomainName: ${ad}
     required: true
     title: "Bastion Host shape"
   public_subnet: 
@@ -157,3 +171,45 @@ variables:
     minimum: 2
     title: "Number of Compute Instances"
     default: 2
+  intel_mpi: 
+    type: boolean
+    default: true
+    title: "Install Intel MPI" 
+    required: false
+  intel_mpi_version: 
+    title: "Intel MPI version"
+    type: enum
+    enum: 
+    - "2018.2-046"
+    - "2018.3-051"
+    - "2018.4-057"
+    - "2019.0-045"
+    - "2019.1-053"
+    - "2019.2-057"
+    - "2019.3-062"
+    - "2019.4-070"
+    - "2019.5-075"
+    default: "2018.4-057"
+    visible:
+      and:
+        - ${intel_mpi}
+  scheduler:
+    type: enum
+    enum:
+    - "NONE"
+    - "PBS"
+    - "SLURM"
+    title: "Scheduler installation"
+    required: true
+    default: 'NONE' 
+  pbs_version: 
+    title: "PBS Professional version"
+    type: enum
+    enum: 
+    - "19.1.3"
+    - "18.1.4"
+    visible: 
+      eq: 
+        - ${scheduler}
+        - "PBS"
+    default: "19.1.3"
