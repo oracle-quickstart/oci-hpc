@@ -1,0 +1,9 @@
+- hosts: bastion
+  tasks: 
+  - name: copy examples
+    copy: 
+      src: examples/
+      dest: /mnt/nfs-share
+      owner: opc
+      group: opc
+

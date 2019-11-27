@@ -17,5 +17,13 @@
     become: true
     package:
       state: "{% if intel_mpi|bool is sameas true %}present{% else %}absent{% endif %}"
-      name: "intel-mpi"
+      name: 
+        - environment-modules
+        - intel-mpi-samples-2019.4-243
+        - intel-mpi-2019.4-070
     when: intel_mpi|bool
+  - name: copy module file
+    become: true
+    copy: 
+      src: examples/intel.module
+      dest: /usr/share/Modules/modulefiles/intel_mpi
