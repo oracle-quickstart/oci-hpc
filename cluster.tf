@@ -76,7 +76,7 @@ resource "oci_core_route_table" "private_route_table" {
 
 resource "oci_core_subnet" "public-subnet" {
   count               = var.use_existing_vcn ? 0 : 1
-  availability_domain = var.ad
+  # availability_domain = var.ad
   vcn_id              = oci_core_vcn.vcn[0].id
   compartment_id      = var.compartment_ocid
   cidr_block          = var.public_subnet
@@ -88,7 +88,7 @@ resource "oci_core_subnet" "public-subnet" {
 
 resource "oci_core_subnet" "private-subnet" {
   count                      = var.use_existing_vcn ? 0 : 1
-  availability_domain        = var.ad
+  # availability_domain        = var.ad
   vcn_id                     = oci_core_vcn.vcn[0].id
   compartment_id             = var.compartment_ocid
   cidr_block                 = var.private_subnet

@@ -16,6 +16,7 @@ resource "oci_core_instance_configuration" "instance_configuration" {
       }
       display_name = local.cluster_name
       metadata = {
+# TODO: add user key to the authorized_keys 
         ssh_authorized_keys = tls_private_key.ssh.public_key_openssh
         user_data           = base64encode(data.template_file.config.rendered)
       }

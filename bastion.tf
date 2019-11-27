@@ -10,8 +10,8 @@ data "template_file" "bastion_config" {
 }
 
 resource "oci_core_instance" "bastion" {
-  depends_on          = [oci_core_cluster_network.cluster_network]
-  availability_domain = var.ad
+  depends_on          = [oci_core_cluster_network.cluster_network, oci_core_subnet.public-subnet]
+  availability_domain = var.bastion_ad
   compartment_id      = var.compartment_ocid
   shape               = var.bastion_shape
   display_name        = "${local.cluster_name}-bastion"
@@ -40,7 +40,19 @@ resource "oci_core_instance" "bastion" {
   }
 
   provisioner "file" {
-    content        = templatefile("${path.module}/inventory.tpl", {  bastion_name = oci_core_instance.bastion.display_name, bastion_ip = oci_core_instance.bastion.public_ip, compute = zipmap(data.oci_core_instance.cluster_instances.*.display_name, data.oci_core_instance.cluster_instances.*.private_ip), public_subnet = data.oci_core_subnet.public_subnet.cidr_block, private_subnet = data.oci_core_subnet.private_subnet.cidr_block})
+    content        = templatefile("${path.module}/inventory.tpl", {  
+      bastion_name = oci_core_instance.bastion.display_name, 
+      bastion_ip = oci_core_instance.bastion.private_ip, 
+      compute = zipmap(data.oci_core_instance.cluster_instances.*.display_name, 
+      data.oci_core_instance.cluster_instances.*.private_ip), 
+      public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
+      private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
+      nfs = data.oci_core_cluster_network_instances.cluster_network_instances.instances[0]["display_name"],
+      scheduler = var.scheduler,
+      pbs_version = var.pbs_version, 
+      intel_mpi_version = var.intel_mpi_version, 
+      intel_mpi = var.intel_mpi
+      })
 
     destination   = "/home/opc/playbooks/inventory"
     connection {
