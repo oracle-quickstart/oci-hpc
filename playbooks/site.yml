@@ -90,6 +90,11 @@
       fstype: xfs
       opts: defaults,noatime
       state: mounted
+  - name: Update /etc/oci-hostname.conf
+    lineinfile: 
+      path: /etc/oci-hostname.conf
+      regexp: '^PRESERVE_HOSTINFO=0'
+      line: 'PRESERVE_HOSTINFO=2'
   - name: Update LOCAL_VOLUME_PATH
     lineinfile:
       path: /etc/opt/oci-hpc/bashrc/.bashrc_config
