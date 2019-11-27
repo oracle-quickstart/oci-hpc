@@ -182,3 +182,5 @@
 - import_playbook: slurm.yml
   when:
     - scheduler == "SLURM"
+
+- import_playbook: examples.yml

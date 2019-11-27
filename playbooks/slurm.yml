@@ -42,6 +42,23 @@
       shell: /sbin/nologin
       home: /var/lib/munge
       state: present
+  - name: create slurm group
+    become: true
+    group:
+      name: slurm
+      gid: 802
+      state: present
+      system: yes
+  - name: create slurm user
+    become: true
+    user: 
+      name: slurm
+      comment: "Slurm user"
+      uid: 802
+      group: 802
+      shell: /bin/bash
+      home: /var/lib/slurm
+      state: present
   - name: Repository
     become: true
     yum_repository: 
