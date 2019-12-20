@@ -97,12 +97,14 @@ variable "scheduler" {
 } 
 
 variable "intel_mpi" { 
+  default = true
 }
 
 variable "pbs_version" { 
-	default = ""
+	default = "19.1.3"
 }
 
 variable "intel_mpi_version" {
+  default = "2019.4-070"
 }
 
