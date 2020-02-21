@@ -1,3 +1,13 @@
+- hosts: bastion
+  tasks:
+  - name: Add Intel repository
+    become: true
+   yum_repository:
+      state: "{% if intel_mpi is defined and intel_mpi|bool is sameas true %}present{% else %}absent{% endif %}"
+      name: intel-mpi-repo
+      description: Intel(R) MPI Library
+      baseurl: https://yum.repos.intel.com/mpi
+      gpgkey: https://yum.repos.intel.com/mpi/setup/PUBLIC_KEY.PUB
 - hosts: all
   tasks:
   - name: Intel RPM key
@@ -5,14 +15,6 @@
     rpm_key:
       state: "{% if intel_mpi is defined and intel_mpi|bool is sameas true %}present{% else %}absent{% endif %}"
       key: https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
-#  - name: Add Intel repository
-#    become: true
-#   yum_repository:
-#      state: "{% if intel_mpi is defined and intel_mpi|bool is sameas true %}present{% else %}absent{% endif %}"
-#      name: intel-mpi-repo
-#      description: Intel(R) MPI Library
-#      baseurl: https://yum.repos.intel.com/mpi
-#      gpgkey: https://yum.repos.intel.com/mpi/setup/PUBLIC_KEY.PUB
   - name: intel MPI
     become: true
     package:
