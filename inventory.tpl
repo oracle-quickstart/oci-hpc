@@ -23,4 +23,3 @@ nvme_path=/mnt/localdisk/
 nfs_export_path=/mnt/localdisk/nfs-share
 nfs_mount_path=/mnt/nfs-share
 scheduler=${scheduler}
-pbs_version=${pbs_version}
