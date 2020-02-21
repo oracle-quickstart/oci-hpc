@@ -6,6 +6,7 @@
 #
 # wait for cloud-init completion on the bastion host
 #
+execution=1
 
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 sudo cloud-init status --wait
@@ -27,7 +28,8 @@ for host in $(cat /tmp/hosts) ; do
   while ! ssh ${ssh_options} opc@${host} uptime ; do
 
 	if [[ $r -eq 10 ]] ; then 
-		  exit 1
+		  execution=0
+		  continue
 	fi 
         
 	echo "Still waiting for ${host}"
@@ -40,6 +42,17 @@ done
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 
-#
 
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml -i /home/opc/playbooks/inventory
+sed 's/^forks.*/forks = 128/' /etc/ansible/ansible.cfg
+
+#
+if [[ $execution -eq 1 ]] ; then
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml -i /home/opc/playbooks/inventory
+else
+
+	cat <<- EOF > /etc/motd
+	At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run: 
+	ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml -i /home/opc/playbooks/inventory
+EOF
+
+fi 

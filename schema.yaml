@@ -17,6 +17,7 @@ groupings:
   variables:
   - ${shape}
   - ${node_count}
+  - ${boot_volume_size}
   - ${use_marketplace_image}
   - ${image} 
   - ${scheduler} 
@@ -171,6 +172,12 @@ variables:
     minimum: 2
     title: "Number of Compute Instances"
     default: 2
+  boot_volume_size: 
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 50
   intel_mpi: 
     type: boolean
     default: true

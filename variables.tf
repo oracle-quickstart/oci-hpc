@@ -49,6 +49,9 @@ variable "private" {
 variable "node_count" {
 }
 
+variable "boot_volume_size" { 
+}
+
 variable "bastion_shape" {
   default = "VM.Standard2.1"
 }

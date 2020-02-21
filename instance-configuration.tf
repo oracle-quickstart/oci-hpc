@@ -23,7 +23,7 @@ resource "oci_core_instance_configuration" "instance_configuration" {
       shape = var.shape
       source_details {
         source_type             = "image"
-        boot_volume_size_in_gbs = 700
+        boot_volume_size_in_gbs = var.boot_volume_size
         image_id                = var.image
       }
     }

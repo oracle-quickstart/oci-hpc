@@ -1,22 +1,29 @@
 {% for item in groups['bastion'] %}
-{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-{{ hostvars[item]['ansible_host'] }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }} 
-{{ short_name[0] }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-bastion ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-{{ hostvars[item]['ansible_fqdn']}} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }} 
+
+	{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
+	{% set key = hostvars[item]['ansible_ssh_host_key_ecdsa_public'] %}
+	{{ hostvars[item]['ansible_host'] }} ecdsa-sha2-nistp256 {{ key }} 
+	{{ short_name[0] }} ecdsa-sha2-nistp256 {{ key }}
+	bastion ecdsa-sha2-nistp256 {{ key }}
+	{{ hostvars[item]['ansible_fqdn']}} ecdsa-sha2-nistp256 {{ key }}
+
 {% endfor %}
 
 {% for item in groups['compute'] %}
-{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-{{ hostvars[item]['ansible_host'] }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }} 
-{{ short_name[0] }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hpc-node-{{ loop.index }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hpc-node-{{ loop.index }}-rdma ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hpc-node-{{ loop.index }}.local.vcn ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hostvars[item]['ansible_fqdn'] ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hpc-cluster-node-{{ loop.index }}-rdma.local.rdma ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hpc-cluster-node-{{ loop.index }}-rdma ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hpc-cluster-node-{{ loop.index }}.local.vcn ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-hpc-cluster-node-{{ loop.index }} ecdsa-sha2-nistp256 {{ hostvars[item]['ansible_ssh_host_key_ecdsa_public'] }}
-{% endfor %}
 
+	{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
+	{% set key = hostvars[item]['ansible_ssh_host_key_ecdsa_public'] %}
+	{% set number = loop.index %}
+	{{ hostvars[item]['ansible_host'] }} ecdsa-sha2-nistp256 {{ key }} 
+	{{ short_name[0] }} ecdsa-sha2-nistp256 {{ key }}
+
+	hpc-node-{{ number }} ecdsa-sha2-nistp256 {{ key }}
+	hpc-node-{{ number }}-rdma ecdsa-sha2-nistp256 {{ key }}
+	hpc-node-{{ number }}.local.vcn ecdsa-sha2-nistp256 {{ key }}  
+	{{ hostvars[item]['ansible_fqdn'] }} ecdsa-sha2-nistp256 {{ key }}
+	hpc-cluster-node-{{ number }}-rdma.local.rdma ecdsa-sha2-nistp256 {{ key }}
+	hpc-cluster-node-{{ number }}-rdma ecdsa-sha2-nistp256 {{ key }}
+	hpc-cluster-node-{{ number }}.local.vcn ecdsa-sha2-nistp256 {{ key }}
+	hpc-cluster-node-{{ number }} ecdsa-sha2-nistp256 {{ key }}
+
+{% endfor %}
