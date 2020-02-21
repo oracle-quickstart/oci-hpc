@@ -43,7 +43,7 @@ done
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 
 
-sed 's/^forks.*/forks = 128/' /etc/ansible/ansible.cfg
+sed -i 's/^forks.*/forks = 128/' /etc/ansible/ansible.cfg
 
 #
 if [[ $execution -eq 1 ]] ; then
