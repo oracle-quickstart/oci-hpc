@@ -198,4 +198,4 @@ variables:
     - "SLURM"
     title: "Scheduler installation"
     required: true
-    default: 'SLURM'
+    default: 'NONE'
