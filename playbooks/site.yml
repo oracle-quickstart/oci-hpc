@@ -198,10 +198,6 @@
   when: 
     - intel_mpi|bool
     
-- import_playbook: pbs.yml
-  when:
-    - scheduler == "PBS"
-
 - import_playbook: slurm.yml
   when:
     - scheduler == "SLURM"
