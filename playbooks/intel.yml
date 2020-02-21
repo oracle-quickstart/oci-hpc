@@ -2,7 +2,7 @@
   tasks:
   - name: Add Intel repository
     become: true
-   yum_repository:
+    yum_repository:
       state: "{% if intel_mpi is defined and intel_mpi|bool is sameas true %}present{% else %}absent{% endif %}"
       name: intel-mpi-repo
       description: Intel(R) MPI Library
