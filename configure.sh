@@ -39,14 +39,22 @@ for host in $(cat /tmp/hosts) ; do
   done
 done
 
+# Update the forks to a 8 * threads
+
+threads=$(nproc)
+forks=$(($threads * 8))
+
+sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
+sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
+sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
+
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 
-
-sed -i 's/^forks.*/forks = 128/' /etc/ansible/ansible.cfg
-
 #
+
 if [[ $execution -eq 1 ]] ; then
+  ANSIBLE_HOST_KEY_CHECKING=False ansible all -m setup --tree /tmp/ansible -i /home/opc/playbooks/inventory
   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml -i /home/opc/playbooks/inventory
 else
 
