@@ -3,7 +3,7 @@ resource "random_pet" "name" {
 }
 
 locals {
-  cluster_name = random_pet.name.id
+  cluster_name = var.use_custom_name ? var.cluster_name : random_pet.name.id
 }
 
 resource "tls_private_key" "ssh" {

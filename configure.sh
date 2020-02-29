@@ -29,13 +29,13 @@ for host in $(cat /tmp/hosts) ; do
 
 	if [[ $r -eq 10 ]] ; then 
 		  execution=0
-		  continue
+		  break
 	fi 
-        
-	echo "Still waiting for ${host}"
+    	  
+	  echo "Still waiting for ${host}"
+          sleep 60 
+	  r=$(($r + 1))
 
-	sleep 60 
-	r=$(($r + 1))
   done
 done
 
@@ -44,9 +44,9 @@ done
 threads=$(nproc)
 forks=$(($threads * 8))
 
-sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
-sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
-sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
 
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
@@ -58,9 +58,11 @@ if [[ $execution -eq 1 ]] ; then
   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml -i /home/opc/playbooks/inventory
 else
 
-	cat <<- EOF > /etc/motd
+	cat <<- EOF > /tmp/motd
 	At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run: 
 	ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml -i /home/opc/playbooks/inventory
 EOF
+
+sudo mv /tmp/motd /etc/motd
 
 fi 

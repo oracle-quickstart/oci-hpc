@@ -9,10 +9,14 @@ groupings:
   variables: 
   - ${ad}
   - ${ssh_key}
+  - ${use_custom_name}
+  - ${cluster_name}
 - title: "Bastion options" 
   variables: 
   - ${bastion_ad}
   - ${bastion_shape}
+  - ${use_standard_image} 
+  - ${custom_bastion_image} 
 - title: "Compute Node options"
   variables:
   - ${shape}
@@ -60,6 +64,34 @@ variables:
     required: true
     description: "Availability Domain for bastion host"
     title: "Availability Domain"
+  use_custom_name: 
+    type: boolean
+    title: "use custom cluster namee"
+    description: "Use custom name for the cluster" 
+    required: true
+    default: false
+  cluster_name: 
+    title: "Name of the cluster" 
+    description: "Custom cluster name"
+    type: string
+    visible: 
+      and: 
+        - ${use_custom_name}
+  use_standard_image: 
+    type: boolean
+    title: "use standard bastion image"
+    description: "Use standard bastion image, otherwise provide custom image OCID" 
+    required: true
+    default: true
+  custom_bastion_image: 
+    title: "Bastion Image ID" 
+    description: "Custom image ID for bastion nodes"
+    type: oci:core:image:id
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    visible: 
+      not: 
+        - ${use_standard_image}
   use_marketplace_image: 
     type: boolean
     title: "use marketplace image"
@@ -67,7 +99,6 @@ variables:
     required: true
     default: true
   image: 
-  #    type: string
     title: "Image ID" 
     description: "Custom image ID for compute nodes"
     type: oci:core:image:id
@@ -76,7 +107,6 @@ variables:
     visible: 
       not: 
         - ${use_marketplace_image}
-      myImageId:
   use_existing_vcn: 
     type: boolean
     title: "Use Existing VCN"
