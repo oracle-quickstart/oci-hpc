@@ -20,7 +20,7 @@ resource "oci_core_instance" "bastion" {
     user_data           = base64encode(data.template_file.bastion_config.rendered)
   }
   source_details {
-    source_id   = var.bastion_image[var.region]
+    source_id   = var.use_standard_image ? var.bastion_image[var.region] : var.custom_bastion_image
     source_type = "image"
   }
   create_vnic_details {
