@@ -2,12 +2,7 @@
 
 - hosts: all 
   become: true
-  pre_tasks:
-   - setup:
-      gather_subset:
-        - '!all'
-        - '!any'
-        - 'network'
+  gather_facts: true
   tasks: 
   - name: stop firewalld
     service: 
@@ -16,6 +11,27 @@
       enabled: no
     async: 30
     poll: 0
+  - name: Update /etc/oci-hostname.conf
+    lineinfile: 
+      path: /etc/oci-hostname.conf
+      regexp: '^PRESERVE_HOSTINFO=0'
+      line: 'PRESERVE_HOSTINFO=2'
+  - name: create temporary /etc/hosts file
+    blockinfile:
+      dest: /tmp/hosts
+      content: "{{ lookup('template', '_hosts.j2') }}"
+      state: present
+      create: yes
+    delegate_to: 127.0.0.1
+    run_once: true
+  - name: create /etc/hosts on all servers
+    become: true
+    blockinfile: 
+      dest: /etc/hosts
+      content: "{{ lookup('file', '/tmp/hosts') }}"
+      state: present
+    async: 30 
+    poll: 0 
   - name: update global known_hosts file
     become: true
     template:
@@ -25,14 +41,7 @@
       src: _known_hosts.j2
     tags: known_hosts
     delegate_to: 127.0.0.1
-  - name: update /etc/hosts file
-    become: true
-    blockinfile:
-      dest: /etc/hosts
-      content: "{{ lookup('template', '_hosts.j2') }}"
-      state: present
-    async: 30
-    poll: 0
+    run_once: true
   - name: place the known SSH hosts on every node
     become: true
     copy:
@@ -63,17 +72,36 @@
       path: /etc/opt/oci-hpc
       state: directory
       mode: '0755'
-  - name: create hostfile
+  - name: create rdma hostfile
     template: 
       src: _hostfile_rdma.j2
       dest: /etc/opt/oci-hpc/hostfile.rdma
     tags: hostfile
-  - name: create hostfile
+    delegate_to: 127.0.0.1
+    run_once: true
+  - name: create tcp hostfile
     template: 
       src: _hostfile_tcp.j2
       dest: /etc/opt/oci-hpc/hostfile.tcp
     tags: hostfile
-
+    delegate_to: 127.0.0.1
+    run_once: true
+  - name: place the RDMA hostfile on every node
+    become: true
+    copy:
+      src: /etc/opt/oci-hpc/hostfile.rdma
+      dest: /etc/opt/oci-hpc/hostfile.rdma
+      owner: root
+      group: root
+      mode: 644
+  - name: place the TCP hostfile on every node
+    become: true
+    copy:
+      src: /etc/opt/oci-hpc/hostfile.tcp
+      dest: /etc/opt/oci-hpc/hostfile.tcp
+      owner: root
+      group: root
+      mode: 644
 - hosts: compute
   gather_facts: True
   become: true
@@ -113,11 +141,6 @@
       fstype: xfs
       opts: defaults,noatime
       state: mounted
-  - name: Update /etc/oci-hostname.conf
-    lineinfile: 
-      path: /etc/oci-hostname.conf
-      regexp: '^PRESERVE_HOSTINFO=0'
-      line: 'PRESERVE_HOSTINFO=2'
   - name: Update LOCAL_VOLUME_PATH
     lineinfile:
       path: /etc/opt/oci-hpc/bashrc/.bashrc_config
@@ -198,6 +221,10 @@
   when: 
     - intel_mpi|bool
     
+- import_playbook: pbs.yml
+  when:
+    - scheduler == "PBS"
+
 - import_playbook: slurm.yml
   when:
     - scheduler == "SLURM"
