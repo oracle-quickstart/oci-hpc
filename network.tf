@@ -44,7 +44,7 @@ resource "oci_core_security_list" "public-security-list" {
   compartment_id = var.compartment_ocid
 
   ingress_security_rules {
-    protocol = "6"
+    protocol = "all"
     source   = var.vcn_subnet
   }
 
@@ -126,7 +126,7 @@ resource "oci_core_subnet" "public-subnet" {
   vcn_id              = oci_core_vcn.vcn[0].id
   compartment_id      = var.compartment_ocid
   cidr_block          = var.public_subnet
-  security_list_ids   = [oci_core_vcn.vcn[0].default_security_list_id, oci_core_security_list.internal-security-list[0].id]
+  security_list_ids   = [oci_core_security_list.public-security-list[0].id]
   dns_label           = "public"
   display_name        = "${local.cluster_name}_public_subnet"
   route_table_id      = oci_core_route_table.public_route_table[0].id
@@ -138,7 +138,7 @@ resource "oci_core_subnet" "private-subnet" {
   vcn_id                     = oci_core_vcn.vcn[0].id
   compartment_id             = var.compartment_ocid
   cidr_block                 = var.private_subnet
-  security_list_ids          = [oci_core_vcn.vcn[0].default_security_list_id, oci_core_security_list.internal-security-list[0].id]
+  security_list_ids          = [oci_core_security_list.internal-security-list[0].id]
   dns_label                  = "private"
   display_name               = "${local.cluster_name}_private_subnet"
   prohibit_public_ip_on_vnic = true
