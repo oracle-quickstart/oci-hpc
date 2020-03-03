@@ -36,6 +36,7 @@ groupings:
   - ${vcn_subnet}
   - ${private_subnet}
   - ${public_subnet}
+  - ${ssh_cidr}
 - title: "Pre-Defined"
   variables:
   - ${region}
@@ -194,6 +195,10 @@ variables:
   ssh_key: 
     type: string
     title: "Public SSH key" 
+    required: true
+  ssh_cidr: 
+    type: string
+    title: "Public CIDR for SSH access" 
     required: true
   node_count: 
     type: integer
