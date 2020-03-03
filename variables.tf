@@ -50,6 +50,10 @@ variable "private_subnet" {
   default = "172.16.1.0/24"
 }
 
+variable "ssh_cidr" { 
+  default = "0.0.0.0/0"
+}
+
 variable "private" {
   default = true
 }
