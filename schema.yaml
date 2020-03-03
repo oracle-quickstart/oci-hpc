@@ -67,7 +67,7 @@ variables:
     title: "Availability Domain"
   use_custom_name: 
     type: boolean
-    title: "use custom cluster namee"
+    title: "use custom cluster name"
     description: "Use custom name for the cluster" 
     required: true
     default: false
