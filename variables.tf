@@ -18,6 +18,14 @@ variable "use_custom_name" {
   default = 0 
 } 
 
+variable "configure_nfs" { 
+  default = 1
+}
+
+variable "nfs_mount_path" { 
+  default = "/mnt/nfs-share"
+}
+
 variable "cluster_name" { 
   default = "cluster" 
 } 
