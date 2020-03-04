@@ -125,7 +125,7 @@ resource "oci_core_subnet" "public-subnet" {
   # availability_domain = var.ad
   vcn_id              = oci_core_vcn.vcn[0].id
   compartment_id      = var.compartment_ocid
-  cidr_block          = var.public_subnet
+  cidr_block          = trimspace(var.public_subnet)
   security_list_ids   = [oci_core_security_list.public-security-list[0].id]
   dns_label           = "public"
   display_name        = "${local.cluster_name}_public_subnet"
@@ -137,7 +137,7 @@ resource "oci_core_subnet" "private-subnet" {
   # availability_domain        = var.ad
   vcn_id                     = oci_core_vcn.vcn[0].id
   compartment_id             = var.compartment_ocid
-  cidr_block                 = var.private_subnet
+  cidr_block                 = trimspace(var.private_subnet)
   security_list_ids          = [oci_core_security_list.internal-security-list[0].id]
   dns_label                  = "private"
   display_name               = "${local.cluster_name}_private_subnet"
