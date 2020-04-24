@@ -11,7 +11,7 @@ variable "region" {
 #variable "fingerprint" {
 #}
 variable "image" {
-  default = "ocid1.image.oc1..aaaaaaaafgzcla4pkskkegec3okzhbtmaylnldbxoa4ln7d6npytnqwu3mca"
+  default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
 }
 
 variable "use_custom_name" { 
