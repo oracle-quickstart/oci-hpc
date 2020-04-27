@@ -14,7 +14,9 @@ resource "oci_core_cluster_network" "cluster_network" {
     availability_domain = var.ad
     primary_subnet_id   = local.subnet_id
   }
-
+  timeouts {
+    create = "60m"
+  }
   display_name = local.cluster_name
 }
 
