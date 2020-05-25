@@ -1,0 +1,50 @@
+- hosts: "{{groups.compute[0]}}"
+  gather_facts: no
+  connection: local
+  tasks:
+  - name: mkdir
+    file:
+      path: "{{vars.openfoam_path}}/install"
+      state: directory
+  - name: wget Install
+    get_url:
+      url: https://objectstorage.us-phoenix-1.oraclecloud.com/p/f48lM3aXtcEiCGJihz-sxpH808zie7VEbBHbihuZ2YI/n/hpc/b/HPC_APPS/o/openfoam7_OL77_RDMA.tar
+      dest: "{{vars.openfoam_path}}/install/openfoam7_OL77_RDMA.tar"
+  - name: untar Openfoam
+    unarchive:
+      src: "{{vars.openfoam_path}}/install/openfoam7_OL77_RDMA.tar"
+      dest: "{{vars.openfoam_path}}/install/"
+  - name: mkdir
+    file:
+      path: "{{vars.openfoam_path}}/work"
+      state: directory
+  - name: wget benchmark
+    get_url:
+      url: https://objectstorage.us-phoenix-1.oraclecloud.com/p/V7-M6bL-HWGKNLiZ2iCiKdG3ehzs3nkjwX6_zDNEbSM/n/hpc/b/HPC_BENCHMARKS/o/motorbike_RDMA.tgz
+      dest: "{{vars.openfoam_path}}/work/motorbike_RDMA.tgz"
+  - name: untar Openfoam
+    unarchive:
+      src: "{{vars.openfoam_path}}/work/motorbike_RDMA.tgz"
+      dest: "{{vars.openfoam_path}}/work/"
+- hosts: compute
+  tasks:
+  - name: Add PATH line
+    lineinfile:
+      path: /home/opc/.bashrc
+      line: export PATH=/usr/mpi/gcc/openmpi-3.1.1rc1/bin/:$PATH
+      create: yes
+  - name: Add LIBRARY_PATH line
+    lineinfile:
+      path: /home/opc/.bashrc
+      line: export LD_LIBRARY_PATH=/usr/mpi/gcc/openmpi-3.1.1rc1/lib/:$LD_LIBRARY_PATH
+      create: yes
+  - name: Add source line
+    lineinfile:
+      path: /home/opc/.bashrc
+      line: "source {{vars.openfoam_path}}/install/OpenFOAM/OpenFOAM-7/etc/bashrc"
+      create: yes
+  - name: Add hostname to hostfile
+    lineinfile:
+      path: "{{vars.openfoam_path}}/work/hostfile"
+      line: "{{ansible_host}} cpu=36"
+      create: yes
