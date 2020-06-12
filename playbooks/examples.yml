@@ -6,4 +6,5 @@
       dest: /mnt/nfs-share
       owner: opc
       group: opc
-
+    when:
+            - configure_nfs|bool
