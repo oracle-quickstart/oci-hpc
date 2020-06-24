@@ -2,8 +2,8 @@
 #Eg. Modify accordingly to your Application/Listing
 locals {
   mp_listing_id               = "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
-  mp_listing_resource_id      = "ocid1.image.oc1..aaaaaaaafgzcla4pkskkegec3okzhbtmaylnldbxoa4ln7d6npytnqwu3mca"
-  mp_listing_resource_version = "20190906"
+  mp_listing_resource_id      = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
+  mp_listing_resource_version = "20200229"
 }
 
 #Get Image Agreement 
