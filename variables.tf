@@ -15,11 +15,11 @@ variable "image" {
 }
 
 variable "use_custom_name" { 
-  default = 0 
+  default = true 
 } 
 
 variable "configure_nfs" { 
-  default = 1
+  default = true
 }
 
 variable "nfs_mount_path" { 
@@ -69,7 +69,8 @@ variable "private" {
 variable "node_count" {
 }
 
-variable "boot_volume_size" { 
+variable "boot_volume_size" {
+  default = 50
 }
 
 variable "bastion_shape" {
@@ -106,15 +107,15 @@ variable "custom_bastion_image" {
 } 
 
 variable "use_marketplace_image" {
-  default = 1
+  default = true
 }
 
 variable "use_standard_image" { 
-  default = 1
+  default = true
 } 
 
 variable "use_existing_vcn" {
-  default = 0
+  default = false
 }
 
 variable "vcn_id" {
