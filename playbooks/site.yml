@@ -111,6 +111,8 @@
   - name: restart_interface
     command: bash -c "ifdown enp94s0f0 && ifup enp94s0f0"
     when: rdma_interface.changed
+    async: 30
+    poll: 0
   tasks: 
   - name: Create a symbolic link
     file:
