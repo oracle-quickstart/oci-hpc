@@ -16,9 +16,11 @@
       path: /etc/oci-hostname.conf
       regexp: '^PRESERVE_HOSTINFO=0'
       line: 'PRESERVE_HOSTINFO=2'
+    async: 30
+    poll: 0
   - name: create temporary /etc/hosts file
     blockinfile:
-      dest: /tmp/hosts
+      dest: /tmp/hosts.etc
       content: "{{ lookup('template', '_hosts.j2') }}"
       state: present
       create: yes
@@ -28,7 +30,7 @@
     become: true
     blockinfile: 
       dest: /etc/hosts
-      content: "{{ lookup('file', '/tmp/hosts') }}"
+      content: "{{ lookup('file', '/tmp/hosts.etc') }}"
       state: present
     async: 30 
     poll: 0 
@@ -122,6 +124,8 @@
       group: root
       state: link
       mode: 0644
+    async: 30
+    poll: 0
   - name: create interface files
     register: rdma_interface
     notify: restart_interface
@@ -134,10 +138,14 @@
       number: 1
       state: present
       label: gpt
+    async: 30
+    poll: 0
   - name: create a filesystem
     filesystem: 
       dev: /dev/nvme0n1p1
       fstype: xfs
+    async: 30
+    poll: 0
   - name: Mount local volume
     mount:
       path: /mnt/localdisk/
@@ -145,29 +153,38 @@
       fstype: xfs
       opts: defaults,noatime
       state: mounted
+    async: 30
+    poll: 0
   - name: Update LOCAL_VOLUME_PATH
     lineinfile:
       path: /etc/opt/oci-hpc/bashrc/.bashrc_config
       regexp: '^export LOCAL_VOLUME_PATH'
       line: 'export LOCAL_VOLUME_PATH="/mnt/localdisk"'
+    async: 30
+    poll: 0
   - name: Update NFS_CONFIGURED
     lineinfile:
       path: /etc/opt/oci-hpc/bashrc/.bashrc_config
       regexp: '^export NFS_CONFIGURED'
       line: 'export NFS_CONFIGURED="yes"'
     when: configure_nfs|bool
+    async: 30
+    poll: 0
   - name: Update NFS_EXPORT_PATH
     lineinfile:
       path: /etc/opt/oci-hpc/bashrc/.bashrc_config
       regexp: '^export NFS_EXPORT_PATH'
       line: 'export NFS_EXPORT_PATH="/mnt/localdisk/nfs-share"'
+    async: 30
+    poll: 0
   - name: Update NFS_MOUNT_PATH
     lineinfile:
       path: /etc/opt/oci-hpc/bashrc/.bashrc_config
       regexp: '^export NFS_MOUNT_PATH'
       line: export NFS_MOUNT_PATH="{{ nfs_mount_path }}"
     when: configure_nfs|bool
-
+    async: 30
+    poll: 0
 - hosts: nfs
   become: true
   tasks: 
@@ -208,7 +225,8 @@
       owner: opc
       group: opc
     when: configure_nfs|bool
-
+    async: 30
+    poll: 0
 - hosts: nfs
   become: true
   tasks:
@@ -220,7 +238,6 @@
       group: opc
     delegate_to: "{{ groups['nfs'][0] }}"
     when: configure_nfs|bool
-
   - name: "Copy global oci-hpc directory to the nfs-share"
     synchronize:
       src: /etc/opt/oci-hpc/
