@@ -23,7 +23,7 @@ locale: "en"
 variableGroups:
 	- title: "Cluster configuration" 
     variables: 
-      - targetCompartment
+      - ${targetCompartment}
       - ${ad}
 			- ${ssh_key}
 			- ${use_custom_name}
