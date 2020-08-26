@@ -1,257 +1,60 @@
-# tasks/hosts.yml
-
-- hosts: all 
+- hosts: all
   become: true
   gather_facts: true
-  tasks: 
-  - name: stop firewalld
-    service: 
-      name: firewalld
-      state: stopped
-      enabled: no
-    async: 30
-    poll: 0
-  - name: Update /etc/oci-hostname.conf
-    lineinfile: 
-      path: /etc/oci-hostname.conf
-      regexp: '^PRESERVE_HOSTINFO=0'
-      line: 'PRESERVE_HOSTINFO=2'
-    async: 30
-    poll: 0
-  - name: create temporary /etc/hosts file
-    blockinfile:
-      dest: /tmp/hosts.etc
-      content: "{{ lookup('template', '_hosts.j2') }}"
-      state: present
-      create: yes
-    delegate_to: 127.0.0.1
-    run_once: true
-  - name: create /etc/hosts on all servers
-    become: true
-    blockinfile: 
-      dest: /etc/hosts
-      content: "{{ lookup('file', '/tmp/hosts.etc') }}"
-      state: present
-    async: 30 
-    poll: 0 
-  - name: update global known_hosts file
-    become: true
-    template:
-      force: true
-      backup: true
-      dest: /etc/ssh/ssh_known_hosts
-      src: _known_hosts.j2
-    tags: known_hosts
-    delegate_to: 127.0.0.1
-    run_once: true
-  - name: place the known SSH hosts on every node
-    become: true
-    copy:
-      src: /etc/ssh/ssh_known_hosts
-      dest: /etc/ssh/ssh_known_hosts
-      owner: root
-      group: root
-      mode: 644
-  - name: place the private SSH key on every node
-    become: true
-    copy: 
-      src: /home/opc/.ssh/id_rsa
-      dest: /home/opc/.ssh/id_rsa
-      owner: opc
-      group: opc
-      mode: 0600
-  - name: create nfs-share directory
-    become: true
-    file:
-      path: /mnt/nfs-share
-      state: directory
-      owner: opc
-      group: opc
-    async: 30
-    poll: 0
-    when: 
-      - configure_nfs|bool
-  - name: Create /etc/opt/oci-hpc/ directory if it does not exist
-    file:
-      path: /etc/opt/oci-hpc
-      state: directory
-      mode: '0755'
-  - name: create rdma hostfile
-    template: 
-      src: _hostfile_rdma.j2
-      dest: /etc/opt/oci-hpc/hostfile.rdma
-    tags: hostfile
-    delegate_to: 127.0.0.1
-    run_once: true
-  - name: create tcp hostfile
-    template: 
-      src: _hostfile_tcp.j2
-      dest: /etc/opt/oci-hpc/hostfile.tcp
-    tags: hostfile
-    delegate_to: 127.0.0.1
-    run_once: true
-  - name: place the RDMA hostfile on every node
-    become: true
-    copy:
-      src: /etc/opt/oci-hpc/hostfile.rdma
-      dest: /etc/opt/oci-hpc/hostfile.rdma
-      owner: root
-      group: root
-      mode: 644
-  - name: place the TCP hostfile on every node
-    become: true
-    copy:
-      src: /etc/opt/oci-hpc/hostfile.tcp
-      dest: /etc/opt/oci-hpc/hostfile.tcp
-      owner: root
-      group: root
-      mode: 644
-- hosts: compute
-  gather_facts: True
+  
+  roles: 
+    - firewall 
+    - oci-hostname
+    - etc-hosts
+    - ssh
+    - localdisk
+    - mpi-hostfiles
+
+- hosts: bastion
   become: true
-  handlers:
-  - name: restart_interface
-    command: bash -c "ifdown enp94s0f0 && ifup enp94s0f0"
-    when: rdma_interface.changed
-    async: 30
-    poll: 0
+    
   tasks: 
-  - name: Create a symbolic link
-    file:
-      src: /etc/opt/oci-hpc/hostfile.rdma
-      dest: /etc/opt/oci-hpc/hostfile
-      owner: root
-      group: root
-      state: link
-      mode: 0644
-    async: 30
-    poll: 0
-  - name: create interface files
-    register: rdma_interface
-    notify: restart_interface
-    template: 
-      src: _ifcfg.j2
-      dest: /etc/sysconfig/network-scripts/ifcfg-enp94s0f0
-  - name: Create a new primary partition
-    parted:
-      device: /dev/nvme0n1
-      number: 1
-      state: present
-      label: gpt
-    async: 30
-    poll: 0
-  - name: create a filesystem
-    filesystem: 
-      dev: /dev/nvme0n1p1
-      fstype: xfs
-    async: 30
-    poll: 0
-  - name: Mount local volume
-    mount:
-      path: /mnt/localdisk/
-      src: /dev/nvme0n1p1
-      fstype: xfs
-      opts: defaults,noatime
-      state: mounted
-    async: 30
-    poll: 0
-  - name: Update LOCAL_VOLUME_PATH
-    lineinfile:
-      path: /etc/opt/oci-hpc/bashrc/.bashrc_config
-      regexp: '^export LOCAL_VOLUME_PATH'
-      line: 'export LOCAL_VOLUME_PATH="/mnt/localdisk"'
-    async: 30
-    poll: 0
-  - name: Update NFS_CONFIGURED
-    lineinfile:
-      path: /etc/opt/oci-hpc/bashrc/.bashrc_config
-      regexp: '^export NFS_CONFIGURED'
-      line: 'export NFS_CONFIGURED="yes"'
-    when: configure_nfs|bool
-    async: 30
-    poll: 0
-  - name: Update NFS_EXPORT_PATH
-    lineinfile:
-      path: /etc/opt/oci-hpc/bashrc/.bashrc_config
-      regexp: '^export NFS_EXPORT_PATH'
-      line: 'export NFS_EXPORT_PATH="/mnt/localdisk/nfs-share"'
-    async: 30
-    poll: 0
-  - name: Update NFS_MOUNT_PATH
-    lineinfile:
-      path: /etc/opt/oci-hpc/bashrc/.bashrc_config
-      regexp: '^export NFS_MOUNT_PATH'
-      line: export NFS_MOUNT_PATH="{{ nfs_mount_path }}"
-    when: configure_nfs|bool
-    async: 30
-    poll: 0
+    - include_role: 
+        name: nfs-server
+  vars: 
+    export_path: "{{ bastion_export_path }}"
+    export_name: "{{ bastion_export_name }}"
+    local_path:  "{{ bastion_local_path }}"
+      
 - hosts: nfs
   become: true
+
   tasks: 
-  - name: create nfs-share export directory
-    become: true
-    file:
-      path: /mnt/localdisk/nfs-share
-      state: directory
-    when: configure_nfs|bool
-  - name: create exports file
-    register: nfs_config
-    notify: restart_nfs
-    template: 
-      src: _exports.j2
-      dest: /etc/exports.d/hpc_nfs_share.exports
-    when: configure_nfs|bool
-  handlers:
-  - name: restart_nfs
-    command: bash -c "systemctl restart nfs-server"
-    when: nfs_config.changed
+    - include_role: 
+        name: nfs-server
+  vars:
+     export_path: "{{ nfs_export_path }}"
+     export_name: "{{ nfs_export_name }}"
+     local_path:  "{{ nfs_local_path }}"
+
 
 - hosts: all
   become: true
+  
   tasks: 
-  - name: Mount NFS
-    mount:
-      path: /mnt/nfs-share/
-      src: "{{  hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}:/mnt/localdisk/nfs-share"
-      fstype: nfs
-      opts: defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=none,mountproto=tcp,sec=sys,_netdev
-      state: mounted
-    when: configure_nfs|bool
-  - name: set nfs-share permissions
-    become: true
-    file:
-      path: /mnt/nfs-share
-      state: directory
-      owner: opc
-      group: opc
-    when: configure_nfs|bool
-    async: 30
-    poll: 0
-- hosts: nfs
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ bastion_export_path }}"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "{{ bastion_local_path }}"
+        lock: "all"
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ nfs_export_path }}"
+        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "{{ nfs_local_path }}"
+        lock: "none" 
+
+- hosts: compute
   become: true
-  tasks:
-  - name: "create /mnt/nfs-share/etc"
-    file: 
-      path: /mnt/nfs-share/etc/
-      state: directory
-      owner: opc
-      group: opc
-    delegate_to: "{{ groups['nfs'][0] }}"
-    when: configure_nfs|bool
-  - name: "Copy global oci-hpc directory to the nfs-share"
-    synchronize:
-      src: /etc/opt/oci-hpc/
-      dest: /mnt/nfs-share/etc/
-      recursive: yes
-    delegate_to: "{{ groups['nfs'][0] }}"
-    when: configure_nfs|bool
+  gather_facts: true
 
-- import_playbook: intel.yml
-  when: 
-    - intel_mpi|bool
-    
-- import_playbook: slurm.yml
-  when:
-    - scheduler == "SLURM"
-
-- import_playbook: examples.yml
+  roles:
+    - rdma-interface

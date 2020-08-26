@@ -1,9 +1,0 @@
-{% for item in groups['bastion'] %}
-{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} bastion 
-{% endfor %}
-{% for item in groups['compute'] %}
-{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} hpc-node-{{ loop.index }} hpc-node-{{ loop.index }}.local.vcn hpc-cluster-node-{{ loop.index }} hpc-cluster-node-{{ loop.index }}.local.vcn
-{{ hostvars[inventory_hostname]['rdma_network'] | ipmath(loop.index) }} hpc-cluster-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma.local.rdma
-{% endfor %}

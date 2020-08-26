@@ -1,0 +1,4 @@
+- name: restart_interface
+  command: bash -c "ifdown rdma0 && ifup rdma0"
+  when: rdma_interface.changed
+

@@ -1,0 +1,45 @@
+---
+- name: Update ssh configuration
+  copy: 
+    src: files/ssh_config
+    dest: /etc/ssh/ssh_config
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install ssh keys on all nodes
+  copy:
+    dest: '/home/opc/.ssh/{{ item }}'
+    src: '/home/opc/.ssh/{{ item }}'
+    owner: 'opc'
+    group: 'opc'
+    mode: '0600'
+  with_items:
+    - id_rsa
+
+- name: Generate an OpenSSL public key in OpenSSH v2 format
+  openssl_publickey:
+    path: /home/opc/.ssh/id_rsa.pub
+    privatekey_path: /home/opc/.ssh/id_rsa
+    format: OpenSSH
+    state: present
+    owner: 'opc'
+    group: 'opc'
+    mode: '0644'
+  register: public_key
+  
+- name: Install ssh keys on all nodes
+  copy:
+    dest: '/home/opc/.ssh/{{ item }}'
+    src: '/home/opc/.ssh/{{ item }}'
+    owner: 'opc'
+    group: 'opc'
+    mode: '0644'
+  with_items:
+    - id_rsa.pub
+
+- name: Set authorized key
+  authorized_key:
+    user: opc
+    state: present
+    key: '{{ lookup("file", "/home/opc/.ssh/id_rsa.pub") }}'

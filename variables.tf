@@ -10,6 +10,7 @@ variable "region" {
 #}
 #variable "fingerprint" {
 #}
+
 variable "image" {
   default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
 }
@@ -134,11 +135,4 @@ variable "scheduler" {
   default = "NONE"
 } 
 
-variable "intel_mpi" { 
-  default = true
-}
-
-variable "intel_mpi_version" {
-  default = "2019.4-070"
-}
 
