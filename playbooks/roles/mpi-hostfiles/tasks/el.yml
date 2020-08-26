@@ -1,0 +1,43 @@
+---
+- name: create rdma hostfile
+  template:
+    src: templates/hostfile_rdma.j2
+    dest: /tmp/hostfile.rdma
+    mode: '0644'
+    owner: opc
+    group: opc
+  tags: hostfile
+  delegate_to: 127.0.0.1
+  run_once: true
+- name: create tcp hostfile
+  template:
+    src: templates/hostfile_tcp.j2
+    dest: /tmp/hostfile.tcp
+    mode: '0644'
+    owner: opc
+    group: opc
+  tags: hostfile
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Copy to all hosts
+  copy: 
+    src: /tmp/hostfile.rdma
+    dest: /etc/opt/oci-hpc/hostfile.rdma
+
+- name: Copy to all hosts
+  copy: 
+    src: /tmp/hostfile.tcp
+    dest: /etc/opt/oci-hpc/hostfile.tcp
+
+- name: delete /tmp/hostfile.tcp
+  file: 
+    path: /tmp/hostfile.tcp
+    state: asbent 
+
+- name: delete /tmp/hostfile.rdma
+  file: 
+    path: /tmp/hostfile.rdma
+    state: asbent 
+
+

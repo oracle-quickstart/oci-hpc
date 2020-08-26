@@ -1,136 +1,202 @@
-title: HPC cluster input variables
-description: Automated HPC cluster deployment
-schemaVersion: 1.0.0
-version: "20200302"
+# Title shown in Application Information tab.
+title: HPC cluster 
+# Sub Title shown in Application Information tab.
+description: Oracle Cloud HPC cluster
+schemaVersion: 1.1.0
+version: "20200825"
+
+# URL of Logo Icon used on Application Information tab. Logo must be 130x130 pixels.
+# (Optional)
+logoUrl: https://cloudmarketplace.oracle.com/marketplace/content?contentId=80357668
+
+# Used in Application Information tab to Hyperlink Title and Logo to the Marketplace 
+# Listing.
+# Also used to link to Listing Usage section for "View Instructions".
+# (Optional) If it is missing, Application Information uses the 
+# "marketplace-listing-id" tag for the same purpose.
+source:
+  type: marketplace
+  reference: 67628143
+
 locale: "en"
 
-groupings:
-- title: "General cluster values"
-  variables: 
-  - ${ad}
-  - ${ssh_key}
-  - ${use_custom_name}
-  - ${cluster_name}
-  - ${configure_nfs}
-  - ${nfs_mount_path}
-- title: "Bastion options" 
-  variables: 
-  - ${bastion_ad}
-  - ${bastion_shape}
-  - ${use_standard_image} 
-  - ${custom_bastion_image} 
-- title: "Compute Node options"
-  variables:
-  - ${shape}
-  - ${node_count}
-  - ${boot_volume_size}
-  - ${use_marketplace_image}
-  - ${image} 
-  - ${scheduler} 
-  - ${intel_mpi}
-  - ${intel_mpi_version}
-- title: "Network options" 
-  variables: 
-  - ${use_existing_vcn}
-  - ${vcn_id}
-  - ${bastion_subnet_id}
-  - ${cluster_subnet_id}
-  - ${vcn_subnet}
-  - ${private_subnet}
-  - ${public_subnet}
-  - ${ssh_cidr}
-- title: "Pre-Defined"
-  variables:
-  - ${region}
-  - ${compartment_ocid}
-  - ${tenancy_ocid}
-  - ${user_ocid}
-  - ${fingerprint} 
-  - ${bastion_image}
-  - ${private_key_path}
-  visible: false
+variableGroups:
+	- title: "Cluster configuration" 
+    variables: 
+      - targetCompartment
+      - ${ad}
+			- ${ssh_key}
+			- ${use_custom_name}
+			- ${cluster_name}
+	- title: "Headnode options" 
+		variables:
+			- ${bastion_ad}
+			- ${bastion_shape}
+			- ${use_standard_image}
+			- ${custom_bastion_image}
+			- ${bastion_boot_volume_size}
+	- title: "Compute node options"  
+		variables: 
+			- ${shape}
+			- ${node_count}
+			- ${boot_volume_size}
+			- ${use_marketplace_image}
+			- ${image}
+	- title: "Advanced options" 
+		variables: 
+			- ${use_advanced} 
+			- ${use_cluster_nfs} 
+			- ${use_scratch_nfs}
+			- ${cluster_nfs_path}
+			- ${cluster_nfs_export} 
+			- ${cluster_nfs_mount} 
+			- ${scratch_nfs_path}
+			- ${scratch_nfs_export} 
+			- ${scratch_nfs_mount} 
+  - title: "Network options" 
+      - ${vcn_compartment}
+      - ${vcn_id}
+      - ${use_existing_vcn} 
+      - ${public_subnet_id}
+      - ${private_subnet_id}
+      - ${additional_subnet_id} 
+      - ${vcn}
+      - ${public_subnet}
+      - ${additional_subnet} 
+      - ${private_subnet} 
+      - ${ssh_cidr} 
+  - title: "Software" 
+      - ${slurm} 
 
-variables:
-  ad:
+variables: 
+  ad: 
     type: oci:identity:availabilitydomain:name
     dependsOn:
-      compartmentId: ${compartment_ocid}
+      compartmentId: ${targetCompartment}
     visible: complexExpression
     required: true
-    description: "Availability Domain where BM.HPC2.36 shape is available"
+    description: "Availability Domain"
     title: "Availability Domain"
+  ssh_key:
+    type: string
+    title: "Public SSH key"
+    required: true
+  use_custom_name:
+    type: boolean
+    title: "use custom cluster name"
+    description: "Use custom name for the cluster"
+    required: true
+    default: false
+  cluster_name:
+    title: "Name of the cluster"
+    description: "Custom cluster name"
+    type: string
+    visible:
+      and:
+        - ${use_custom_name}
   bastion_ad:
     type: oci:identity:availabilitydomain:name
     dependsOn:
-      compartmentId: ${compartment_ocid}
+      compartmentId: ${targetCompartment}
     visible: complexExpression
     required: true
     description: "Availability Domain for bastion host"
     title: "Availability Domain"
-  use_custom_name: 
-    type: boolean
-    title: "use custom cluster name"
-    description: "Use custom name for the cluster" 
-    required: true
-    default: false
-  cluster_name: 
-    title: "Name of the cluster" 
-    description: "Custom cluster name"
-    type: string
-    visible: 
-      and: 
-        - ${use_custom_name}
-  configure_nfs: 
-    type: boolean
-    title: "configure NFS share"
-    description: "Configure NFS share accessible on all nodes" 
-    required: true
-    default: true
-  nfs_mount_path: 
-    title: "nfs mountpoint" 
-    description: "Path to NFS share"
-    default: "/mnt/nfs-share"
-    type: string
-    visible: 
-      and: 
-        - ${configure_nfs}
-  use_standard_image: 
+  bastion_shape: 
+    type: oci:core:instanceshape:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+  use_standard_image:
     type: boolean
     title: "use standard bastion image"
-    description: "Use standard bastion image, otherwise provide custom image OCID" 
+    description: "Use standard bastion image, otherwise provide custom image OCID"
     required: true
     default: true
-  custom_bastion_image: 
-    title: "Bastion Image ID" 
+  custom_bastion_image:
+    title: "Bastion Image ID"
     description: "Custom image ID for bastion nodes"
     type: oci:core:image:id
     dependsOn:
-      compartmentId: ${compartment_ocid}
-    visible: 
-      not: 
+      compartmentId: ${targetCompartment}
+    visible:
+      not:
         - ${use_standard_image}
-  use_marketplace_image: 
+  bastion_boot_volume_size: 
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 50
+
+  shape:
+    type: enum
+    enum:
+    - "BM.HPC2.36"
+    title: "Shape of the Compute Nodes"
+    required: true
+  node_count:
+    type: integer
+    required: true
+    minimum: 2
+    title: "Number of Compute Instances"
+    default: 2
+  boot_volume_size:
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 50
+  use_marketplace_image:
     type: boolean
     title: "use marketplace image"
-    description: "Use marketplace image, otherwise provide custom image OCID" 
+    description: "Use marketplace image, otherwise provide custom image OCID"
     required: true
     default: true
-  image: 
-    title: "Image ID" 
+  image:
+    title: "Image ID"
     description: "Custom image ID for compute nodes"
     type: oci:core:image:id
     dependsOn:
-      compartmentId: ${compartment_ocid}
-    visible: 
-      not: 
+      compartmentId: ${targetCompartment}
+    visible:
+      not:
         - ${use_marketplace_image}
-  use_existing_vcn: 
+  use_advanced:
+    type: boolean
+    title: "Show advanced options" 
+  use_cluster_nfs:
+    type: boolean
+    title: "shared NFS volume from bastion"
+  use_scratch_nfs:
+    type: boolean
+    title: "Shared NFS scratch space from NVME disk"
+  cluster_nfs_path:
+    title: "Cluster share mount point"
+    description: "Path to NFS share"
+    default: "/nfs/cluster"
+    type: string
+    visible:
+      and:
+        - ${use_cluster_nfs}
+  scratch_nfs_path:
+    title: "NFS scratch space mount point" 
+    description: "Path to NFS share"
+    default: "/nfs/scratch"
+    type: string
+    visible:
+      and:
+        - ${use_scratch_nfs}
+   use_existing_vcn:
     type: boolean
     title: "Use Existing VCN"
     description: "Use existing VCN or create new one"
     default: false
     required: true
-  vcn_id: 
+  vcn_compartment:
+    title: "VCN compartment" 
+    type: oci:identity:compartment:id
+    visible: ${use_existing_vcn}
+  vcn_id:
     type: oci:core:vcn:id
     visible:
       and:
@@ -139,114 +205,64 @@ variables:
     default: ''
     required: true
     dependsOn: 
-      compartmentId: ${compartment_ocid}
-  bastion_subnet_id: 
+      compartmentId: ${vcn_compartment_id}
+  public_subnet_id:
     type: oci:core:subnet:id
     dependsOn:
+      compartmentId: ${vcn_compartment}
       vcnId: ${vcn_id}
-      compartmentId: ${compartment_ocid}
-    default: ''
-    required: true
-    title: "Exiting subnet for Bastion host" 
-    visible:
-      and:
-        - ${use_existing_vcn}
-  cluster_subnet_id: 
+      hidePrivateSubnet: true
+    visible: ${use_existing_vcn}
+  private_subnet_id:
     type: oci:core:subnet:id
     dependsOn:
+      compartmentId: ${subnet_compartment}
       vcnId: ${vcn_id}
-      compartmentId: ${compartment_ocid}
-    default: ''
-    required: true
-    title: "Exiting subnet for Cluster network" 
-    visible:
-      and:
-        - ${use_existing_vcn}
-  vcn_subnet: 
+      hidePublicSubnet: true
+    visible: ${use_existing_vcn}
+  vcn:
     type: string
     title: "VCN IP range"
-    description: "VCN subnet" 
-    default: "172.16.0.0/23"
+    description: "VCN subnet"
+    default: "172.16.0.0/21"
     required: true
     visible:
       not:
         - ${use_existing_vcn}
-  bastion_shape:
-    type: oci:core:instanceshape:name
-    dependsOn:
-      compartmentId: ${compartment_ocid}
-      availabilityDomainName: ${ad}
-    required: true
-    title: "Bastion Host shape"
-  public_subnet: 
+  public_subnet:
     type: string
     title: "Public subnet IP range"
     default: "172.16.0.0/24"
-    description: "Must be within VCN subnet" 
+    description: "Must be within VCN subnet"
+    required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
+  additional_subnet: 
+    type: string
+    title: "Additional subnet IP range"
+    default: "172.16.1.0/24"
+    description: "Must be within VCN subnet"
     required: true
     visible:
       not:
         - ${use_existing_vcn}
   private_subnet: 
     type: string
-    default: "172.16.1.0/24"
     title: "Private subnet IP range"
-    description: "Must be within VCN subnet" 
+    default: "172.16.4.0/22"
+    description: "Must be within VCN subnet"
     required: true
     visible:
       not:
         - ${use_existing_vcn}
-  private: 
-    type: boolean
-    default: true
-    title: "Private subnet deployment" 
-    required: true
-    visible: false
-  shape:
-    type: enum
-    enum:
-    - "BM.HPC2.36"
-    title: "Shape of the Compute Nodes"
-    required: true
-  ssh_key: 
-    type: string
-    title: "Public SSH key" 
-    required: true
   ssh_cidr: 
     type: string
-    title: "Public CIDR for SSH access" 
+    title: "Initial CIDR range allowed to SSH" 
+    default: "0.0.0.0/0"
+    description: "Allowed SSH network in CIDR notation" 
     required: true
-  node_count: 
-    type: integer
-    required: true
-    minimum: 2
-    title: "Number of Compute Instances"
-    default: 2
-  boot_volume_size: 
-    type: integer
-    required: true
-    minimum: 50
-    title: "Size of the boot volume in GB"
-    default: 50
-  intel_mpi: 
+  slurm: 
     type: boolean
-    default: true
-    title: "Install Intel MPI" 
-    required: false
-  intel_mpi_version: 
-    title: "Intel MPI version"
-    type: enum
-    enum: 
-    - "2019.4-070"
-    default: "2019.4-070"
-    visible:
-      and:
-        - ${intel_mpi}
-  scheduler:
-    type: enum
-    enum:
-    - "NONE"
-    - "SLURM"
-    title: "Scheduler installation"
-    required: true
-    default: 'NONE'
+    title: "Install SLURM" 
+    default: false

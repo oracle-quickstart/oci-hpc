@@ -1,0 +1,25 @@
+---
+#
+# Detecting MLX interface name by PCI ID. 
+# Another option is to detect the mlx5_core driver, but it's harder to tell whch interface can be activated 
+#
+
+- name: detect mellanox interfaces
+  set_fact:
+    ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
+  when: hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] == '0000:5e:00.0'
+  with_items:
+    - "{{ hostvars[inventory_hostname]['ansible_interfaces'] }}"
+
+#- debug: 
+#    msg: "{{ ansible_mlx[0]['device'] }}"
+#
+
+- name: create interface files
+  register: rdma_interface
+  notify: restart_interface
+  template:
+    src: ifcfg.j2
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ ansible_mlx[0]['device'] }}"
+    mode: '0644'
+
