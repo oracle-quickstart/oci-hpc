@@ -1,5 +1,6 @@
+---
 # Title shown in Application Information tab.
-title: HPC cluster 
+title: HPC cluster
 # Sub Title shown in Application Information tab.
 description: Oracle Cloud HPC cluster
 schemaVersion: 1.1.0
@@ -17,58 +18,66 @@ logoUrl: https://cloudmarketplace.oracle.com/marketplace/content?contentId=80357
 source:
   type: marketplace
   reference: 67628143
-
 locale: "en"
 
 variableGroups:
-	- title: "Cluster configuration" 
+  - title: "Cluster configuration" 
     variables: 
       - ${targetCompartment}
       - ${ad}
-			- ${ssh_key}
-			- ${use_custom_name}
-			- ${cluster_name}
-	- title: "Headnode options" 
-		variables:
-			- ${bastion_ad}
-			- ${bastion_shape}
-			- ${use_standard_image}
-			- ${custom_bastion_image}
-			- ${bastion_boot_volume_size}
-	- title: "Compute node options"  
-		variables: 
-			- ${shape}
-			- ${node_count}
-			- ${boot_volume_size}
-			- ${use_marketplace_image}
-			- ${image}
-	- title: "Advanced options" 
-		variables: 
-			- ${use_advanced} 
-			- ${use_cluster_nfs} 
-			- ${use_scratch_nfs}
-			- ${cluster_nfs_path}
-			- ${cluster_nfs_export} 
-			- ${cluster_nfs_mount} 
-			- ${scratch_nfs_path}
-			- ${scratch_nfs_export} 
-			- ${scratch_nfs_mount} 
+      - ${ssh_key}
+      - ${use_custom_name}
+      - ${cluster_name}
+  - title: "Headnode options" 
+    variables:
+      - ${bastion_ad}
+      - ${bastion_shape}
+      - ${use_standard_image}
+      - ${custom_bastion_image}
+      - ${bastion_boot_volume_size}
+  - title: "Compute node options"  
+    variables: 
+      - ${pool_type} 
+      - ${shape}
+      - ${node_count}
+      - ${boot_volume_size}
+      - ${use_marketplace_image}
+      - ${image}
+  - title: "Advanced options" 
+    variables: 
+      - ${use_advanced} 
+      - ${use_cluster_nfs} 
+      - ${cluster_nfs_path}
+      - ${use_scratch_nfs}
+      - ${scratch_nfs_path}
   - title: "Network options" 
+    variables:
+      - ${use_existing_vcn} 
       - ${vcn_compartment}
       - ${vcn_id}
-      - ${use_existing_vcn} 
       - ${public_subnet_id}
       - ${private_subnet_id}
-      - ${additional_subnet_id} 
       - ${vcn}
       - ${public_subnet}
       - ${additional_subnet} 
       - ${private_subnet} 
       - ${ssh_cidr} 
   - title: "Software" 
+    variables:
       - ${slurm} 
+  - title: "Hidden"
+    variables:
+      - ${cluster_nfs_mount} 
+      - ${cluster_nfs_export} 
+      - ${scratch_nfs_export} 
+      - ${scratch_nfs_mount} 
+    visible: false
+
 
 variables: 
+  targetCompartment:
+    title: "target compartment"
+    type: oci:identity:compartment:id
   ad: 
     type: oci:identity:availabilitydomain:name
     dependsOn:
@@ -127,11 +136,25 @@ variables:
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 50
-
+  pool_type: 
+    type: enum
+    required: true
+    enum: 
+      - "Instance Pool"
+      - "Cluster Network":
+          visible:
+            or:
+              - ${shape}:
+                - and:
+                  - and:
+                    - "BM.HPC2.36"
+                - not:
+                  - not:
+                    - "BM.HPC2.36"
   shape:
     type: enum
     enum:
-    - "BM.HPC2.36"
+      - "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
     required: true
   node_count:
@@ -164,12 +187,21 @@ variables:
   use_advanced:
     type: boolean
     title: "Show advanced options" 
+    default: false
   use_cluster_nfs:
     type: boolean
     title: "shared NFS volume from bastion"
+    visible: 
+      and: 
+        - ${use_advanced}
+    default: true
   use_scratch_nfs:
     type: boolean
     title: "Shared NFS scratch space from NVME disk"
+    visible: 
+      and: 
+        - ${use_advanced}
+    default: true
   cluster_nfs_path:
     title: "Cluster share mount point"
     description: "Path to NFS share"
@@ -177,6 +209,7 @@ variables:
     type: string
     visible:
       and:
+        - ${use_advanced}
         - ${use_cluster_nfs}
   scratch_nfs_path:
     title: "NFS scratch space mount point" 
@@ -185,8 +218,9 @@ variables:
     type: string
     visible:
       and:
+        - ${use_advanced}
         - ${use_scratch_nfs}
-   use_existing_vcn:
+  use_existing_vcn:
     type: boolean
     title: "Use Existing VCN"
     description: "Use existing VCN or create new one"
@@ -196,6 +230,7 @@ variables:
     title: "VCN compartment" 
     type: oci:identity:compartment:id
     visible: ${use_existing_vcn}
+    default: ${targetCompartment}
   vcn_id:
     type: oci:core:vcn:id
     visible:
@@ -205,7 +240,7 @@ variables:
     default: ''
     required: true
     dependsOn: 
-      compartmentId: ${vcn_compartment_id}
+      compartmentId: ${vcn_compartment}
   public_subnet_id:
     type: oci:core:subnet:id
     dependsOn:
@@ -216,7 +251,7 @@ variables:
   private_subnet_id:
     type: oci:core:subnet:id
     dependsOn:
-      compartmentId: ${subnet_compartment}
+      compartmentId: ${vcn_compartment}
       vcnId: ${vcn_id}
       hidePublicSubnet: true
     visible: ${use_existing_vcn}
@@ -262,6 +297,9 @@ variables:
     default: "0.0.0.0/0"
     description: "Allowed SSH network in CIDR notation" 
     required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
   slurm: 
     type: boolean
     title: "Install SLURM" 
