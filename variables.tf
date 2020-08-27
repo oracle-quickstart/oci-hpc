@@ -1,3 +1,4 @@
+variable "targetCompartment" {} 
 variable "ad" {}
 variable "ssh_key" {}
 variable "use_custom_name" {}
@@ -26,7 +27,6 @@ variable "vcn_id" {}
 variable "use_existing_vcn" {}
 variable "public_subnet_id" {}
 variable "private_subnet_id" {}
-variable "additional_subnet_id" {}
 variable "vcn" {}
 variable "public_subnet" {}
 variable "additional_subnet" {}
