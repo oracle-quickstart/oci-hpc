@@ -137,20 +137,8 @@ variables:
     title: "Size of the boot volume in GB"
     default: 50
   pool_type: 
-    type: enum
+    type: boolean
     required: true
-    enum: 
-      - "Instance Pool"
-      - "Cluster Network":
-          visible:
-            or:
-              - ${shape}:
-                - and:
-                  - and:
-                    - "BM.HPC2.36"
-                - not:
-                  - not:
-                    - "BM.HPC2.36"
   shape:
     type: enum
     enum:
