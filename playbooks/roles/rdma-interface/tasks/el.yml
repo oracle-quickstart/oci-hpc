@@ -22,4 +22,4 @@
     src: ifcfg.j2
     dest: "/etc/sysconfig/network-scripts/ifcfg-{{ ansible_mlx[0]['device'] }}"
     mode: '0644'
-
+  when: ansible_mlx is defined

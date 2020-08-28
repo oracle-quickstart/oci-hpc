@@ -12,26 +12,27 @@
 
 - hosts: bastion
   become: true
+  vars: 
+    export_path: "{{ cluster_nfs_path }}"
+    export_name: "cluster"
+    local_path:  "/export/cluster"
     
   tasks: 
     - include_role: 
         name: nfs-server
-  vars: 
-    export_path: "{{ bastion_export_path }}"
-    export_name: "{{ bastion_export_name }}"
-    local_path:  "{{ bastion_local_path }}"
+      when: cluster_nfs|bool
       
 - hosts: nfs
   become: true
+  vars:
+     export_path: "{{ scratch_nfs_path }}"
+     export_name: "scratch"
+     local_path:  "/mnt/localdisk/nfs"
 
   tasks: 
     - include_role: 
         name: nfs-server
-  vars:
-     export_path: "{{ nfs_export_path }}"
-     export_name: "{{ nfs_export_name }}"
-     local_path:  "{{ nfs_local_path }}"
-
+      when: scratch_nfs|bool
 
 - hosts: all
   become: true
@@ -40,17 +41,19 @@
     - include_role: 
         name: nfs-client
       vars: 
-        local_path: "{{ bastion_export_path }}"
+        local_path: "{{ cluster_nfs_path }}"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "{{ bastion_local_path }}"
+        export_path: "/export/cluster"
         lock: "all"
+      when: cluster_nfs|bool
     - include_role: 
         name: nfs-client
       vars: 
-        local_path: "{{ nfs_export_path }}"
+        local_path: "{{ scratch_nfs_path }}"
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "{{ nfs_local_path }}"
+        export_path: "/mnt/localdisk/nfs"
         lock: "none" 
+      when: scratch_nfs|bool
 
 - hosts: compute
   become: true

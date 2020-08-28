@@ -1,18 +1,8 @@
-locals {
-  bastion_subnet_id = var.use_existing_vcn ? var.bastion_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
-}
-
-data "template_file" "bastion_config" {
-  template = file("config.bastion")
-  vars = {
-    key = tls_private_key.ssh.private_key_pem
-  }
-}
 
 resource "oci_core_instance" "bastion" {
   depends_on          = [oci_core_cluster_network.cluster_network, oci_core_subnet.public-subnet]
   availability_domain = var.bastion_ad
-  compartment_id      = var.compartment_ocid
+  compartment_id      = var.targetCompartment
   shape               = var.bastion_shape
   display_name        = "${local.cluster_name}-bastion"
   metadata = {
@@ -20,7 +10,7 @@ resource "oci_core_instance" "bastion" {
     user_data           = base64encode(data.template_file.bastion_config.rendered)
   }
   source_details {
-    source_id   = var.use_standard_image ? var.bastion_image[var.region] : var.custom_bastion_image
+    source_id   = var.use_standard_image ? data.oci_core_images.oraclelinux-7-8.images.0.id : var.custom_bastion_image
     source_type = "image"
   }
   create_vnic_details {
@@ -43,16 +33,15 @@ resource "oci_core_instance" "bastion" {
     content        = templatefile("${path.module}/inventory.tpl", {  
       bastion_name = oci_core_instance.bastion.display_name, 
       bastion_ip = oci_core_instance.bastion.private_ip, 
-      compute = zipmap(data.oci_core_instance.cluster_instances.*.display_name, 
-      data.oci_core_instance.cluster_instances.*.private_ip), 
+      compute = zipmap(local.cluster_instances_names, local.cluster_instances_ips)
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
-      nfs = data.oci_core_cluster_network_instances.cluster_network_instances.instances[0]["display_name"],
-      scheduler = var.scheduler,
-      configure_nfs = var.configure_nfs,
-      nfs_mount_path = var.nfs_mount_path,
-      intel_mpi_version = var.intel_mpi_version, 
-      intel_mpi = var.intel_mpi
+      nfs = local.cluster_instances_names[0]
+      scratch_nfs = var.use_scratch_nfs,
+      cluster_nfs = var.use_cluster_nfs,
+      cluster_nfs_path = var.cluster_nfs_path,
+      scratch_nfs_path = var.scratch_nfs_path,
+      cluster_network = var.cluster_network
       })
 
     destination   = "/home/opc/playbooks/inventory"
@@ -87,7 +76,7 @@ resource "oci_core_instance" "bastion" {
   }
 
   provisioner "file" {
-    content     = join("\n", data.oci_core_instance.cluster_instances.*.private_ip)
+    content     = join("\n",local.cluster_instances_ips)
     destination = "/tmp/hosts"
     connection {
       host        = oci_core_instance.bastion.public_ip

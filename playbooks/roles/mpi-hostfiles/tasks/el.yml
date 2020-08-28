@@ -1,4 +1,10 @@
 ---
+- name: Make sure that directory exists
+  file: 
+    state: directory
+    mode: '0755'
+    path: /etc/opt/oci-hpc
+
 - name: create rdma hostfile
   template:
     src: templates/hostfile_rdma.j2
@@ -9,6 +15,8 @@
   tags: hostfile
   delegate_to: 127.0.0.1
   run_once: true
+  when: cluster_network|bool
+
 - name: create tcp hostfile
   template:
     src: templates/hostfile_tcp.j2
@@ -24,20 +32,46 @@
   copy: 
     src: /tmp/hostfile.rdma
     dest: /etc/opt/oci-hpc/hostfile.rdma
+  when: cluster_network|bool
 
 - name: Copy to all hosts
   copy: 
     src: /tmp/hostfile.tcp
     dest: /etc/opt/oci-hpc/hostfile.tcp
 
+- name: Create a symbolic link
+  file:
+    src: "/etc/opt/oci-hpc/{{ item }}"
+    dest: /etc/opt/oci-hpc/hostfile
+    owner: root
+    group: root
+    state: link
+    mode: '0644'
+  with_items: 
+    - "hostfile.rdma"
+  when: cluster_network|bool
+   
+- name: Create a symbolic link
+  file:
+    src: "/etc/opt/oci-hpc/{{ item }}"
+    dest: /etc/opt/oci-hpc/hostfile
+    owner: root
+    group: root
+    state: link
+    mode: '0644'
+  with_items: 
+    - "hostfile.tcp"
+  when: not cluster_network|bool
+
 - name: delete /tmp/hostfile.tcp
   file: 
     path: /tmp/hostfile.tcp
-    state: asbent 
+    state: absent 
 
 - name: delete /tmp/hostfile.rdma
   file: 
     path: /tmp/hostfile.rdma
-    state: asbent 
+    state: absent 
+  when: cluster_network|bool
 
 
