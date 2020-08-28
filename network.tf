@@ -1,7 +1,7 @@
 resource "oci_core_vcn" "vcn" {
   count          = var.use_existing_vcn ? 0 : 1
   cidr_block     = var.vcn_subnet
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}_VCN"
   dns_label      = "cluster"
 }
@@ -9,7 +9,7 @@ resource "oci_core_vcn" "vcn" {
 resource "oci_core_security_list" "internal-security-list" {
   count          = var.use_existing_vcn ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
 
   ingress_security_rules {
     protocol = "all"
@@ -41,7 +41,7 @@ resource "oci_core_security_list" "internal-security-list" {
 resource "oci_core_security_list" "public-security-list" {
   count          = var.use_existing_vcn ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
 
   ingress_security_rules {
     protocol = "all"
@@ -83,20 +83,20 @@ resource "oci_core_security_list" "public-security-list" {
 resource "oci_core_internet_gateway" "ig1" {
   count          = var.use_existing_vcn ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}_internet-gateway"
 }
 
 resource "oci_core_nat_gateway" "ng1" {
   count          = var.use_existing_vcn ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}_nat-gateway"
 }
 
 resource "oci_core_route_table" "public_route_table" {
   count          = var.use_existing_vcn ? 0 : 1
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
   vcn_id         = oci_core_vcn.vcn[0].id
   display_name   = "${local.cluster_name}_public_route_table"
 
@@ -110,7 +110,7 @@ resource "oci_core_route_table" "public_route_table" {
 resource "oci_core_route_table" "private_route_table" {
   count          = var.use_existing_vcn ? 0 : 1
   display_name   = "${local.cluster_name}_private_route_table"
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
   vcn_id         = oci_core_vcn.vcn[0].id
 
   route_rules {
@@ -124,7 +124,7 @@ resource "oci_core_subnet" "public-subnet" {
   count               = var.use_existing_vcn ? 0 : 1
   # availability_domain = var.ad
   vcn_id              = oci_core_vcn.vcn[0].id
-  compartment_id      = var.compartment_ocid
+  compartment_id      = var.targetCompartment
   cidr_block          = trimspace(var.public_subnet)
   security_list_ids   = [oci_core_security_list.public-security-list[0].id]
   dns_label           = "public"
@@ -136,7 +136,7 @@ resource "oci_core_subnet" "private-subnet" {
   count                      = var.use_existing_vcn ? 0 : 1
   # availability_domain        = var.ad
   vcn_id                     = oci_core_vcn.vcn[0].id
-  compartment_id             = var.compartment_ocid
+  compartment_id             = var.targetCompartment
   cidr_block                 = trimspace(var.private_subnet)
   security_list_ids          = [oci_core_security_list.internal-security-list[0].id]
   dns_label                  = "private"

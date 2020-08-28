@@ -17,7 +17,7 @@ resource "oci_core_app_catalog_listing_resource_version_agreement" "mp_image_agr
 #Accept Terms and Subscribe to the image, placing the image in a particular compartment
 resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
   count                    = var.use_marketplace_image ? 1 : 0
-  compartment_id           = var.compartment_ocid
+  compartment_id           = var.targetCompartment
   eula_link                = oci_core_app_catalog_listing_resource_version_agreement.mp_image_agreement[0].eula_link
   listing_id               = oci_core_app_catalog_listing_resource_version_agreement.mp_image_agreement[0].listing_id
   listing_resource_version = oci_core_app_catalog_listing_resource_version_agreement.mp_image_agreement[0].listing_resource_version
@@ -33,7 +33,7 @@ resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
 # Gets the partner image subscription
 data "oci_core_app_catalog_subscriptions" "mp_image_subscription" {
   #Required
-  compartment_id = var.compartment_ocid
+  compartment_id = var.targetCompartment
 
   #Optional
   listing_id = local.mp_listing_id
