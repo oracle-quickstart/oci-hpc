@@ -4,13 +4,21 @@ resource "oci_core_instance" "bastion" {
   availability_domain = var.bastion_ad
   compartment_id      = var.targetCompartment
   shape               = var.bastion_shape
+
+  dynamic "shape_config" {
+    for_each = local.is_bastion_flex_shape
+      content {
+        ocpus = shape_config.value
+      }
+  }
+
   display_name        = "${local.cluster_name}-bastion"
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
     user_data           = base64encode(data.template_file.bastion_config.rendered)
   }
   source_details {
-    source_id   = var.use_standard_image ? data.oci_core_images.oraclelinux-7-8.images.0.id : var.custom_bastion_image
+    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : var.custom_bastion_image
     source_type = "image"
   }
   create_vnic_details {

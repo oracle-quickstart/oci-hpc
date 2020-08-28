@@ -12,6 +12,12 @@ locals {
   bastion_subnet_id = var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
 
   cluster_name = var.use_custom_name ? var.cluster_name : random_pet.name.id
+
+  image = var.cluster_network || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
+  is_bastion_flex_shape = var.bastion_shape == "VM.Standard.E3.Flex" ? [var.bastion_ocpus]:[]
+  is_instance_pool_flex_shape = var.instance_pool_shape == "VM.Standard.E3.Flex" ? [var.instance_pool_ocpus]:[]
+  
 }
+
 
 

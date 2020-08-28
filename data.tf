@@ -37,7 +37,7 @@ data "oci_core_subnet" "public_subnet" {
   subnet_id = local.bastion_subnet_id
 } 
  
-data "oci_core_images" "oraclelinux-7-8" {
+data "oci_core_images" "linux" {
   compartment_id = var.targetCompartment
   operating_system = "Oracle Linux"
   operating_system_version = "7.8"

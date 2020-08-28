@@ -9,7 +9,10 @@ variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
 variable "bastion_shape" {}
 variable "use_standard_image" {}
-variable "custom_bastion_image" {}
+variable "custom_bastion_image" { 
+  type = string
+  default = "image.ocid" 
+}
 variable "bastion_boot_volume_size" {}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
@@ -32,3 +35,5 @@ variable "additional_subnet" {}
 variable "private_subnet" {}
 variable "ssh_cidr" {}
 variable "slurm" { default = false}
+variable "bastion_ocpus" {} 
+variable "instance_pool_ocpus" {} 

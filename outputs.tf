@@ -3,6 +3,6 @@ output "bastion" {
 }
 
 output "private_ips" {
-  value = join(" ", local.cluster_instance_ips)
+  value = join(" ", local.cluster_instances_ips)
 }
 
