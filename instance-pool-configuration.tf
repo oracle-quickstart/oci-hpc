@@ -18,10 +18,18 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
         user_data           = base64encode(data.template_file.config.rendered)
       }
       shape = var.instance_pool_shape
+
+      dynamic "shape_config" {
+        for_each = local.is_instance_pool_flex_shape
+          content {
+            ocpus = shape_config.value
+          }
+      }
+  
       source_details {
         source_type             = "image"
         boot_volume_size_in_gbs = var.boot_volume_size
-        image_id                = var.image
+        image_id                = local.image
       }
     }
   }

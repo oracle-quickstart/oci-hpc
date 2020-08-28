@@ -23,6 +23,7 @@ variableGroups:
     variables:
       - ${bastion_ad}
       - ${bastion_shape}
+      - ${bastion_ocpus}
       - ${use_standard_image}
       - ${custom_bastion_image}
       - ${bastion_boot_volume_size}
@@ -31,6 +32,7 @@ variableGroups:
       - ${cluster_network}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
+      - ${instance_pool_ocpus}
       - ${node_count}
       - ${boot_volume_size}
       - ${use_marketplace_image}
@@ -109,6 +111,17 @@ variables:
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
+  bastion_ocpus:
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 2
+    visible:
+      eq:
+        - ${bastion_shape}
+        - "VM.Standard.E3.Flex"
+    required: false
   use_standard_image:
     type: boolean
     title: "use standard bastion image"
@@ -154,6 +167,18 @@ variables:
     visible:
       not:
         - ${cluster_network}
+  instance_pool_ocpus:
+    title: Cores
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 2
+    visible:
+      eq:
+        - ${instance_pool_shape}
+        - "VM.Standard.E3.Flex"
+    required: false
   node_count:
     required: true
     type: integer
@@ -301,5 +326,3 @@ variables:
     type: boolean
     title: "Install SLURM"
     default: false
-
-
