@@ -21,6 +21,7 @@ resource "oci_core_instance" "bastion" {
     source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : var.custom_bastion_image
     source_type = "image"
   }
+
   create_vnic_details {
     subnet_id = local.bastion_subnet_id
   }
