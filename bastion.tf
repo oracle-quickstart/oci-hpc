@@ -50,7 +50,8 @@ resource "oci_core_instance" "bastion" {
       cluster_nfs = var.use_cluster_nfs,
       cluster_nfs_path = var.cluster_nfs_path,
       scratch_nfs_path = var.scratch_nfs_path,
-      cluster_network = var.cluster_network
+      cluster_network = var.cluster_network,
+      slurm = var.slurm
       })
 
     destination   = "/home/opc/playbooks/inventory"

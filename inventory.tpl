@@ -22,3 +22,4 @@ cluster_nfs = ${cluster_nfs}
 cluster_nfs_path = ${cluster_nfs_path}
 scratch_nfs_path = ${scratch_nfs_path}
 cluster_network = ${cluster_network}
+slurm = ${slurm}
