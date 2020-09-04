@@ -21,7 +21,7 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
       source_details {
         source_type             = "image"
         boot_volume_size_in_gbs = var.boot_volume_size
-        image_id                = local.image
+        image_id                = local.cluster_network_image
       }
     }
   }

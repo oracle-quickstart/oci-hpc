@@ -20,7 +20,7 @@
   tasks: 
     - include_role: 
         name: nfs-server
-      when: cluster_nfs|bool
+      when: cluster_nfs|default(true)|bool
       
 - hosts: nfs
   become: true
@@ -32,7 +32,7 @@
   tasks: 
     - include_role: 
         name: nfs-server
-      when: scratch_nfs|bool
+      when: scratch_nfs|default(true)|bool
 
 - hosts: all
   become: true
@@ -45,7 +45,7 @@
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/export/cluster"
         lock: "all"
-      when: cluster_nfs|bool
+      when: cluster_nfs|default(true)|bool
     - include_role: 
         name: nfs-client
       vars: 
@@ -53,7 +53,7 @@
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/mnt/localdisk/nfs"
         lock: "none" 
-      when: scratch_nfs|bool
+      when: scratch_nfs|default(true)|bool
 
 - hosts: compute
   become: true
@@ -61,3 +61,10 @@
 
   roles:
     - rdma-interface
+
+- hosts: all
+  
+  tasks: 
+    - include_role: 
+        name: spack
+      when: spack|default(false)|bool

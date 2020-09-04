@@ -59,6 +59,7 @@ variableGroups:
   - title: "Software"
     variables:
       - ${slurm}
+      - ${spack} 
   - title: "Hidden"
     variables:
       - ${region}
@@ -201,6 +202,7 @@ variables:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
     type: oci:core:image:id
+    default: "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
     dependsOn:
       compartmentId: ${targetCompartment}
     visible:
@@ -326,3 +328,8 @@ variables:
     type: boolean
     title: "Install SLURM"
     default: false
+  spack:
+    type: boolean
+    title: "Install Spack package manager"
+    default: false
+
