@@ -3,6 +3,7 @@
   gather_facts: true
   
   roles: 
+    - oci-legacy
     - firewall 
     - oci-hostname
     - etc-hosts
