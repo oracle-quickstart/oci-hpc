@@ -9,6 +9,7 @@
     - etc-hosts
     - ssh
     - localdisk
+    - limits
     - mpi-hostfiles
 
 - hosts: bastion
