@@ -1,0 +1,51 @@
+---
+- name: install munge
+  become: true
+  yum:
+    name:
+      - munge
+      - munge-libs
+      - munge-devel
+- name: create munge group
+  become: true
+  group:
+    name: munge
+    gid: 801
+    state: present
+    system: yes
+- name: create munge user
+  become: true
+  user:
+    name: munge
+    comment: "munge"
+    uid: 801
+    group: 801
+    shell: /sbin/nologin
+    home: /var/lib/munge
+    state: present
+- name: create slurm group
+  become: true
+  group:
+    name: slurm
+    gid: 802
+    state: present
+    system: yes
+- name: create slurm user
+  become: true
+  user:
+    name: slurm
+    comment: "Slurm user"
+    uid: 802
+    group: 802
+    shell: /bin/bash
+    home: /var/lib/slurm
+    state: present
+- name: Repository
+  become: true
+  yum_repository:
+    name: oci-hpc
+    description: oci-hpc
+    baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+    gpgcheck: no
+    enabled: yes
+
