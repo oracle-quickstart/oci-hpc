@@ -1,5 +1,7 @@
 ---
 - name: Make sure python OpenSSL is installed
   yum: 
-    name: pyOpenSSL
+    name: 
+      - pyOpenSSL
+      - python2-cryptography
     state: latest
