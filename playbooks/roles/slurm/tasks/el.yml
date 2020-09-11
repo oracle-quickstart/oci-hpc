@@ -1,0 +1,12 @@
+---
+- name: include common tasks
+  include_tasks: common.yml
+
+- name: run server directives
+  include_tasks: server.yml
+  when: "'bastion' in group_names"
+
+- name: run compute directives
+  include_tasks: compute.yml
+  when: "'compute' in group_names"
+
