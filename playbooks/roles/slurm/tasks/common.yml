@@ -48,13 +48,17 @@
     baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
     gpgcheck: no
     enabled: yes
-- name: install slurm server
+- name: install slurm common packages
   become: true
   yum:
     name:
       - slurm
+      - slurm-devel
       - slurm-contribs
-      - slurm-slurmctld
       - slurm-perlapi
       - slurm-devel
+      - slurm-torque
+      - slurm-openlava
+      - slurm-example-configs
+
 

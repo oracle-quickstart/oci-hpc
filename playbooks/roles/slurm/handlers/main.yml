@@ -1,0 +1,13 @@
+
+- name: restart slurm
+  service:
+    name: '{{ item }}'
+    state: restarted
+  with_items:
+    - slurmdbd
+    - slurmctld
+
+- name: restart munge
+  service:
+    name: munge
+    state: restarted

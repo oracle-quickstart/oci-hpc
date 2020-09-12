@@ -1,0 +1,8 @@
+---
+- name: Install SLURM compute packages
+  become: true
+  yum: 
+    name: 
+      - slurm-pam_slurm
+      - slurm-libpmi
+      - slurm-slurmd

@@ -71,3 +71,9 @@
     - include_role: 
         name: spack
       when: spack|default(false)|bool
+
+- hosts: all
+  tasks: 
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
