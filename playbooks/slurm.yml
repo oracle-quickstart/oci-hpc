@@ -1,0 +1,8 @@
+- hosts: all
+  tasks: 
+    - include_role: 
+        name: mariadb
+      when: "'bastion' in group_names"
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
