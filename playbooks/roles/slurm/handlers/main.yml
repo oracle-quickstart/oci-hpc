@@ -1,13 +1,23 @@
 
-- name: restart slurm
+- name: restart slurm server
   service:
     name: '{{ item }}'
     state: restarted
+    enabled: true
   with_items:
     - slurmdbd
     - slurmctld
+
+- name: restart slurm
+  service: 
+    name: '{{ item }}'
+    state: restarted
+    enabled: true
+  with_items: 
+    - slurmd
 
 - name: restart munge
   service:
     name: munge
     state: restarted
+

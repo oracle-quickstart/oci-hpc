@@ -37,7 +37,6 @@
     - slurmdbd
     - slurmctld
 
-
 - name: Render systemd units for slurm, slurmdbd and munge
   become: true
   template:
@@ -61,24 +60,6 @@
         mode: '0750'
         recurse: yes
 
-    - name: Create {{ slurm_spool_path }}
-      become: true
-      file:
-        name: "{{ slurm_spool_path }}"
-        state: directory
-        owner: 'slurm'
-        group: 'slurm'
-        mode: '0750'
-
-
-    - name: Create shared munge dir
-      become: true
-      file:
-        name: '{{ munge_conf_path }}'
-        state: directory
-        owner: munge
-        group: munge
-        mode: 0700
 
     - name: Create munge.key
       become: true
@@ -96,48 +77,16 @@
         mode: 0400
       notify: restart munge
 
-
-- name: Ensure {{ slurm_log_path }} exists
-  become: true
-  file:
-    path: '{{ slurm_log_path }}'
-    owner: slurm
-    group: slurm
-    mode: 0750
-    state: directory
-
-- name: Ensure {{ slurm_conf_path }} exists
-  become: true
-  file:
-    path: '{{ slurm_conf_path }}'
-    state: directory
-
-- name: Ensure {{ munge_run_path }} has the correct permissions
-  become: true
-  file:
-    path: '{{ munge_run_path }}'
-    owner: munge
-    group: munge
-    mode: 0755
-    state: directory
-
-- name: Ensure {{ munge_log_path }} has the correct permissions
-  become: true
-  file:
-    path: '{{ munge_log_path }}'
-    owner: munge
-    group: munge
-    mode: 0755
-    state: directory
-
-- name: Ensure {{ slurm_conf_path }} has the correct permissions
-  become: true
-  file:
-    path: '{{ slurm_conf_path }}'
-    owner: slurm
-    group: slurm
-    mode: 0755
-    state: directory
+    - name: copy munge.key
+      become: true
+      shell:
+        cmd: cp /etc/munge/munge.key /tmp/munge.key
+        warn: false
+    - name: set permissions
+      become: true
+      shell:
+        cmd: chown opc:opc /tmp/munge.key
+        warn: false
 
 - name: Generate slurm.conf
   become: true
@@ -163,6 +112,17 @@
       priv: '{{ slurm_db_name }}.*:ALL'
       state: present
 
+- name: Copy configuration files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '{{ slurm_conf_path }}/{{ item }}'
+    force: no
+    owner: slurm
+    group: slurm
+  with_items: 
+    - cgroup.conf
+
 - name: Generate slurmdbd.conf
   become: true
   template: 
@@ -170,3 +130,4 @@
     dest: /etc/slurm/slurmdbd.conf
     mode: '0640'
     backup: yes
+  notify: restart slurm server
