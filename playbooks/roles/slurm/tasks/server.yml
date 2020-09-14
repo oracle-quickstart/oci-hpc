@@ -1,4 +1,5 @@
 ---
+
 - name: Generate password for DB user and save it to /etc/trinity/passwords
   set_fact:
     tmp_pwd: '{{ lookup("password",
