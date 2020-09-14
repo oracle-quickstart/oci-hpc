@@ -1,8 +1,65 @@
 ---
-- name: Install SLURM compute packages
+- name: install SLURM server packages
   become: true
   yum: 
     name: 
       - slurm-pam_slurm
       - slurm-libpmi
       - slurm-slurmd
+- name: Create systemd unit dirs
+  become: true
+  file:
+    name: '/etc/systemd/system/{{ item }}.service.d'
+    state: directory
+  with_items:
+    - munge
+
+- name: Create munge dir
+  become: true
+  file:
+    name: '{{ munge_conf_path }}'
+    state: directory
+    owner: munge
+    group: munge
+    mode: 0700
+
+- name: Copy munge key
+  become: true
+  copy:
+    src: /tmp/munge.key
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+  notify: restart munge
+
+- name: Create {{ slurm_spool_path }}
+  become: true
+  file:
+    name: "{{ slurm_spool_path }}"
+    state: directory
+    owner: 'slurm'
+    group: 'slurm'
+    mode: '0750'
+
+- name: Copy configuration files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '{{ slurm_conf_path }}/{{ item }}'
+    force: no
+    owner: slurm
+    group: slurm
+  with_items: 
+    - cgroup.conf
+
+
+- name: Generate slurm.conf
+  become: true
+  template: 
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    mode: '0644'
+    backup: yes
+  notify: restart slurm
+ 

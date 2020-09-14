@@ -10,3 +10,6 @@
   include_tasks: compute.yml
   when: "'compute' in group_names"
 
+- name: cleanup
+  include_tasks: cleanup.yml
+

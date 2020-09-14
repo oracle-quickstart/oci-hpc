@@ -61,4 +61,64 @@
       - slurm-openlava
       - slurm-example-configs
 
+- name: Create {{ slurm_spool_path }}
+  become: true
+  file:
+    name: "{{ slurm_spool_path }}"
+    state: directory
+    owner: 'slurm'
+    group: 'slurm'
+    mode: '0750'
+
+- name: Create munge dir
+  become: true
+  file:
+    name: '{{ munge_conf_path }}'
+    state: directory
+    owner: munge
+    group: munge
+    mode: 0700
+
+- name: Ensure {{ slurm_log_path }} exists
+  become: true
+  file:
+    path: '{{ slurm_log_path }}'
+    owner: slurm
+    group: slurm
+    mode: 0750
+    state: directory
+
+- name: Ensure {{ slurm_conf_path }} exists
+  become: true
+  file:
+    path: '{{ slurm_conf_path }}'
+    state: directory
+
+- name: Ensure {{ munge_run_path }} has the correct permissions
+  become: true
+  file:
+    path: '{{ munge_run_path }}'
+    owner: munge
+    group: munge
+    mode: 0755
+    state: directory
+
+- name: Ensure {{ munge_log_path }} has the correct permissions
+  become: true
+  file:
+    path: '{{ munge_log_path }}'
+    owner: munge
+    group: munge
+    mode: 0755
+    state: directory
+
+- name: Ensure {{ slurm_conf_path }} has the correct permissions
+  become: true
+  file:
+    path: '{{ slurm_conf_path }}'
+    owner: slurm
+    group: slurm
+    mode: 0755
+    state: directory
+
 
