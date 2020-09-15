@@ -59,6 +59,20 @@
     backup: yes
   notify: restart mariadb
 
+- name: create configuration directory
+  become: true
+  file: 
+    path: /etc/my.cnf.d/
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Copy innodb.cnf
+  become: true
+  copy: 
+    src: innodb.conf
+    dest: /etc/my.cnf.d/innodb.cnf
+
 - name: Enable MariaDB service
   become: true
   service:

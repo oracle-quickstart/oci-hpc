@@ -24,6 +24,8 @@
     - include_role: 
         name: nfs-server
       when: cluster_nfs|default(true)|bool
+    - include_role: 
+        name: mariadb
       
 - hosts: nfs
   become: true
