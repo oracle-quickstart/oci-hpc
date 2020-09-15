@@ -1,5 +1,6 @@
 
 - name: restart slurm server
+  become: true
   service:
     name: '{{ item }}'
     state: restarted
@@ -9,6 +10,7 @@
     - slurmctld
 
 - name: restart slurm
+  become: true
   service: 
     name: '{{ item }}'
     state: restarted
@@ -17,7 +19,9 @@
     - slurmd
 
 - name: restart munge
+  become: true
   service:
     name: munge
     state: restarted
+    enabled: true
 
