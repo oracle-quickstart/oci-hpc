@@ -1,0 +1,68 @@
+---
+- name: Add influxdb repository
+  become: true
+  yum_repository: 
+    name: influxdb
+    description: InfluxDB Repository - RHEL $releasever
+    baseurl: https://repos.influxdata.com/rhel/{{ ansible_distribution_major_version }}/$basearch/stable
+    enabled: 1
+    gpgcheck: 1
+    gpgkey: https://repos.influxdata.com/influxdb.key
+
+- name: Install pip
+  become: true
+  yum:
+    name: python-pip
+    state: present
+
+- name: install influx pip
+  become: true
+  pip:
+    name: influxdb
+
+- name: Create database
+  influxdb_database:
+      hostname: "{{ hostvars[groups['bastion'][0]]['ansible_fqdn'] }}"
+      database_name: "telegraf"
+  run_once: true
+
+- name: Install telegraf
+  become: true
+  yum: 
+    name: telegraf
+    state: latest
+
+- name: copy telegraf.conf
+  become: true
+  copy: 
+    src: "{{ item }}"
+    dest: /etc/telegraf/{{item}}
+    force: yes
+    backup: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0744
+  with_items: 
+    - telegraf.conf
+
+- name: render conf files
+  become: true
+  template: 
+    src: "{{ item }}.j2"
+    dest: /etc/telegraf/telegraf.d/{{item}}
+    force: yes
+    backup: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0744
+  with_items: 
+    - infiniband.conf
+    - influxdb.conf
+    - net.conf
+- name: restart telegraf
+  become: true
+  service:
+    name: telegraf
+    state: restarted
+    enabled: yes
+
