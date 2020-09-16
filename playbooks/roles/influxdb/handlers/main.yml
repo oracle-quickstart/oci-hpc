@@ -1,0 +1,8 @@
+- name: restart influxdb
+  become: true
+  service:
+    name: influxdb
+    state: started
+    enabled: yes
+  when: influx_config.changed
+

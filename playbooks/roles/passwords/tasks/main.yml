@@ -1,0 +1,10 @@
+---
+- name: Create /etc/opt/oci-hpc/passwords/
+  become: true
+  file:
+    path: /etc/opt/oci-hpc/passwords/
+    state: directory
+    owner: opc
+    mode: 0770
+    group: opc
+    recurse: yes

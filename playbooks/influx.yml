@@ -1,0 +1,6 @@
+---
+- hosts: bastion
+
+  tasks:
+    - include_role:
+        name: grafana
