@@ -73,9 +73,18 @@
     - include_role: 
         name: spack
       when: spack|default(false)|bool
-
-- hosts: all
-  tasks: 
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+    - include_role: 
+        name: telegraf
+
+- hosts: all
+  tasks: 
+
+- hosts: bastion
+  tasks: 
+    - include_role: 
+        name: influxdb
+    - include_role: 
+        name: grafana

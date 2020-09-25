@@ -14,6 +14,7 @@
   git: 
     repo: "{{ spack_repo }}"
     dest: "{{ cluster_nfs_path }}/spack"
+    update: no
   run_once: true
 
 - name: Add SPACK initialization 
