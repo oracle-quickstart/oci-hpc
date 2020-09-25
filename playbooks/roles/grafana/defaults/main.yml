@@ -1,0 +1,8 @@
+grafana_api_keys_dir: /etc/opt/oci-hpc/passwords/grafana
+grafana_api_url: "http://localhost:3000"
+grafana_security:
+  admin_user: admin
+  admin_password: admin
+grafana_api_keys: 
+  - name: "admin"
+    role: "Admin"
