@@ -1,4 +1,3 @@
-
 resource "oci_core_cluster_network" "cluster_network" {
   count = var.cluster_network ? 1 : 0
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet]
@@ -13,7 +12,7 @@ resource "oci_core_cluster_network" "cluster_network" {
     primary_subnet_id   = local.subnet_id
   }
   timeouts {
-    create = "120m"
+    create = "180m"
   }
   display_name = local.cluster_name
 }
