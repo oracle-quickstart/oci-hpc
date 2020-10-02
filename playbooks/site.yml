@@ -67,6 +67,13 @@
   roles:
     - rdma-interface
 
+- hosts: bastion
+  tasks: 
+    - include_role: 
+        name: influxdb
+    - include_role: 
+        name: grafana
+
 - hosts: all
   
   tasks: 
@@ -78,13 +85,3 @@
       when: slurm|default(false)|bool
     - include_role: 
         name: telegraf
-
-- hosts: all
-  tasks: 
-
-- hosts: bastion
-  tasks: 
-    - include_role: 
-        name: influxdb
-    - include_role: 
-        name: grafana
