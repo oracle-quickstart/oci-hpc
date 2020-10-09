@@ -205,8 +205,8 @@ variables:
     description: "Marketplace listing to use" 
     required: true
     enum: 
-      - "Oracle Linux 7.5 OFED4.4" 
-      - "Oracle Linux 7.8 OFED5.0" 
+      - "1. Oracle Linux 7.8 OFED5.0" 
+      - "2. Oracle Linux 7.5 OFED4.4" 
     default: 
       - "Oracle Linux 7.8 OFED5.0" 
     visible: 
