@@ -209,7 +209,7 @@ variables:
     default: 
       - "Oracle Linux 7.8 OFED5.0" 
     visible: 
-      eq: 
+      and: 
         - ${use_marketplace_image}
   image:
     title: "Image ID"
