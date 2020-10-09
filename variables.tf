@@ -38,3 +38,12 @@ variable "slurm" { default = false }
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
 variable "instance_pool_ocpus" { default = 2} 
+variable "marketplace_listing" { default = "" } 
+
+variable "marketplace_listing_id" {
+  type = map(string)
+  default = {
+        "1"  =    "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
+        "2"  =    "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
+  }
+}
