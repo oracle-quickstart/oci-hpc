@@ -15,6 +15,7 @@ locals {
 
   cluster_network_image = var.image
   instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? data.oci_core_images.linux.images.0.id : var.image
+
 //  image = (var.cluster_network && var.use_marketplace_image == true) || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
 
   is_bastion_flex_shape = var.bastion_shape == "VM.Standard.E3.Flex" ? [var.bastion_ocpus]:[]
