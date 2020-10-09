@@ -1,10 +1,16 @@
-#Local variables pointing to the Marketplace catalog resource
-#Eg. Modify accordingly to your Application/Listing
-locals {
-  mp_listing_id               = "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
-  mp_listing_resource_id      = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
-  mp_listing_resource_version = "20200229"
+locals { 
+  get_listing_id = var.use_marketplace_image ? split(",", var.marketplace_listing) : 0
+  mp_listing_id = var.use_marketplace_image ? var.marketplace_listing_id[local.get_listing_id] : 0 
 }
+
+data "oci_marketplace_listing" "test_listing" {
+    #Required
+    listing_id = oci_marketplace_listing.test_listing.id
+
+    #Optional
+    compartment_id = var.compartment_id
+}
+
 
 #Get Image Agreement 
 resource "oci_core_app_catalog_listing_resource_version_agreement" "mp_image_agreement" {
