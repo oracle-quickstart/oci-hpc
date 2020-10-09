@@ -198,6 +198,19 @@ variables:
     description: "Use marketplace image, otherwise provide custom image OCID"
     required: true
     default: true
+  marketplace_listing: 
+    type: enum
+    title: "Image version" 
+    description: "Marketplace listing to use" 
+    required: true
+    enum: 
+      - "Oracle Linux 7.5 OFED4.4" 
+      - "Oracle Linux 7.8 OFED5.0" 
+    default: 
+      - "Oracle Linux 7.8 OFED5.0" 
+    visible: 
+      eq: 
+        - ${use_marketplace_image}
   image:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
