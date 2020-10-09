@@ -36,6 +36,7 @@ variableGroups:
       - ${node_count}
       - ${boot_volume_size}
       - ${use_marketplace_image}
+      - ${marketplace_listing}
       - ${image}
   - title: "Advanced options"
     variables:
