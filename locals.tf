@@ -13,8 +13,9 @@ locals {
 
   cluster_name = var.use_custom_name ? var.cluster_name : random_pet.name.id
 
-  cluster_network_image = var.image
-  instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? data.oci_core_images.linux.images.0.id : var.image
+  cluster_network_image = var.use_marketplace_image : data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].listing_resource_id : var.image
+
+  instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].listing_resource_id : var.image
 
 //  image = (var.cluster_network && var.use_marketplace_image == true) || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
 
