@@ -36,6 +36,7 @@ variableGroups:
       - ${node_count}
       - ${boot_volume_size}
       - ${use_marketplace_image}
+      - ${marketplace_listing}
       - ${image}
   - title: "Advanced options"
     variables:
@@ -59,7 +60,7 @@ variableGroups:
   - title: "Software"
     variables:
       - ${slurm}
-      - ${spack} 
+      - ${spack}
   - title: "Hidden"
     variables:
       - ${region}
@@ -68,8 +69,8 @@ variableGroups:
       - ${cluster_nfs_export}
       - ${scratch_nfs_export}
       - ${scratch_nfs_mount}
+      - ${marketplace_listing_id} 
     visible: false
-
 
 variables:
   targetCompartment:
@@ -198,6 +199,19 @@ variables:
     description: "Use marketplace image, otherwise provide custom image OCID"
     required: true
     default: true
+  marketplace_listing:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "1. Oracle Linux 7.8 OFED5.0"
+      - "2. Oracle Linux 7.5 OFED4.4"
+    default:
+      - "Oracle Linux 7.8 OFED5.0"
+    visible:
+      and:
+        - ${use_marketplace_image
   image:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
@@ -332,4 +346,3 @@ variables:
     type: boolean
     title: "Install Spack package manager"
     default: false
-
