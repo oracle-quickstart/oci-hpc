@@ -43,7 +43,14 @@ resource "oci_core_instance" "bastion" {
   create_vnic_details {
     subnet_id = local.bastion_subnet_id
   }
+} 
 
+resource "null_resource" "cluster" { 
+  depends_on = [ oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  triggers = { 
+    cluster_instances = join(", ", local.cluster_instances_names)
+  } 
+    
   provisioner "file" {
     source        = "playbooks"
     destination   = "/home/opc/"
