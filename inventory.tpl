@@ -24,3 +24,4 @@ scratch_nfs_path = ${scratch_nfs_path}
 cluster_network = ${cluster_network}
 slurm = ${slurm}
 spack = ${spack} 
+bastion_block = ${bastion_block} 

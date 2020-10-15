@@ -1,0 +1,21 @@
+---
+- name: Create a new primary partition
+  parted:
+    device: "{{ device }}"
+    number: 1
+    state: present
+    label: gpt
+  when: bastion_block|default(false)|bool
+- name: create a filesystem
+  filesystem:
+    dev: "{{ device}}1"
+    fstype: xfs
+  when: bastion_block|default(false)|bool
+- name: Mount local volume
+  mount:
+    path: "{{ local_path }}"
+    src: "{{ device }}1"
+    fstype: xfs
+    opts: defaults,noatime,_netdev
+    state: mounted
+  when: bastion_block|default(false)|bool

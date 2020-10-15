@@ -37,9 +37,3 @@
     mode: '0644'
   with_items:
     - id_rsa.pub
-
-- name: Set authorized key
-  authorized_key:
-    user: opc
-    state: present
-    key: '{{ lookup("file", "/home/opc/.ssh/id_rsa.pub") }}'
