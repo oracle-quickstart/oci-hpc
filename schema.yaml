@@ -153,12 +153,13 @@ variables:
   bastion_advanced:
     type: boolean
     title: Show advanced options
+    default: false
   bastion_block:
     type: boolean
     title: Additional block volume for headnode
-  visible:
-    and:
-      - ${bastion_advanced}
+    visible:
+      and:
+        - ${bastion_advanced}
   bastion_block_size:
     type: integer
     title: "Size of the additional volume in GB"
