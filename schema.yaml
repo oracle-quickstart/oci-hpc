@@ -162,7 +162,9 @@ variables:
       and:
         - ${bastion_advanced}
     default: false
+    required: true
   bastion_block_volume_size:
+    required: true
     type: integer
     title: "Size of the additional volume in GB"
     default: 1000
@@ -172,6 +174,7 @@ variables:
   bastion_block_volume_performance: 
     type: enum
     title: "Block folume performance" 
+    required: true
     enum: 
       - "0.  Lower performance"
       - "10. Balanced performance"

@@ -49,7 +49,7 @@ variable "marketplace_listing_id" {
 }
 
 variable "bastion_block_volume_performance" { 
-  default = "10. Balanced performance"
+}
 
 variable "bastion_block" { 
   default = false
