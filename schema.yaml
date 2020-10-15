@@ -166,7 +166,6 @@ variables:
     default: 1000
     visible:
       and:
-        - ${bastion_advanced}
         - ${bastion_block}
   cluster_network:
     title: Use cluster network
