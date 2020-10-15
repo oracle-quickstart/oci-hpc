@@ -176,11 +176,11 @@ variables:
     title: "Block volume performance" 
     required: true
     enum: 
-      - "0.  Lower performance"
-      - "10. Balanced performance"
-      - "20. High Performance" 
+    - "0.  Lower performance"
+    - "10. Balanced performance"
+    - "20. High Performance" 
     default:
-      - "10. Balanced performance"
+    - "10. Balanced performance"
     visible: 
       and: 
         - ${bastion_block} 
@@ -243,10 +243,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "1. Oracle Linux 7.8 OFED5.0"
-      - "2. Oracle Linux 7.5 OFED4.4"
+    - "1. Oracle Linux 7.8 OFED5.0"
+    - "2. Oracle Linux 7.5 OFED4.4"
     default:
-      - "1. Oracle Linux 7.8 OFED5.0"
+    - "1. Oracle Linux 7.8 OFED5.0"
     visible:
       and:
         - ${use_marketplace_image
