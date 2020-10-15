@@ -160,6 +160,7 @@ variables:
     visible:
       and:
         - ${bastion_advanced}
+    default: false
   bastion_block_volume_size:
     type: integer
     title: "Size of the additional volume in GB"
