@@ -192,6 +192,8 @@ variables:
     type: enum
     enum:
       - "BM.HPC2.36"
+      - "BM.GPU4.8"
+    default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
     required: true
     visible:
