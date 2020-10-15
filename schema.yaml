@@ -32,6 +32,7 @@ variableGroups:
       - ${bastion_advanced}
       - ${bastion_block}
       - ${bastion_block_volume_size}
+      - ${bastion_block_volume_performance} 
   - title: "Compute node options"
     variables:
       - ${cluster_network}
@@ -168,6 +169,18 @@ variables:
     visible:
       and:
         - ${bastion_block}
+  bastion_block_volume_performance: 
+    type: enum
+    title: "Block folume performance" 
+    enum: 
+      - "0.  Lower performance"
+      - "10. Balanced performance"
+      - "20. High Performance" 
+    default:
+      - "10. Balanced performance"
+    visible: 
+      and: 
+        - ${bastion_block} 
   cluster_network:
     title: Use cluster network
     type: boolean

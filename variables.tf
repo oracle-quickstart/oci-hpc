@@ -47,3 +47,14 @@ variable "marketplace_listing_id" {
         "2"  =    "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
   }
 }
+
+variable "bastion_block_volume_performance" { 
+  default = "10. Balanced performance"
+
+variable "bastion_block" { 
+  default = false
+} 
+
+variable "bastion_block_volume_size" { 
+  default = 1000
+} 
