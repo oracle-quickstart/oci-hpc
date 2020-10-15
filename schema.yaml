@@ -2,7 +2,7 @@
 title: HPC cluster
 description: Oracle Cloud HPC cluster
 schemaVersion: 1.1.0
-version: "20200825"
+version: "20201015"
 logoUrl: >
   https://cloudmarketplace.oracle.com/marketplace/content?contentId=80357668
 
@@ -27,6 +27,11 @@ variableGroups:
       - ${use_standard_image}
       - ${custom_bastion_image}
       - ${bastion_boot_volume_size}
+  - title: "Advanced headnode options"
+    variables:
+      - ${bastion_advanced}
+      - ${bastion_block}
+      - ${bastion_block_volume_size}
   - title: "Compute node options"
     variables:
       - ${cluster_network}
@@ -69,9 +74,8 @@ variableGroups:
       - ${cluster_nfs_export}
       - ${scratch_nfs_export}
       - ${scratch_nfs_mount}
-      - ${marketplace_listing_id} 
+      - ${marketplace_listing_id}
     visible: false
-
 variables:
   targetCompartment:
     title: "target compartment"
@@ -146,6 +150,23 @@ variables:
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 50
+  bastion_advanced:
+    type: boolean
+    title: Show advanced options
+  bastion_block:
+    type: boolean
+    title: Additional block volume for headnode
+  visible:
+    and:
+      - ${bastion_advanced}
+  bastion_block_size:
+    type: integer
+    title: "Size of the additional volume in GB"
+    default: 1000
+    visible:
+      and:
+        - ${bastion_advanced}
+        - ${bastion_block}
   cluster_network:
     title: Use cluster network
     type: boolean
@@ -216,7 +237,7 @@ variables:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
     type: oci:core:image:id
-    default: "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
+    default: "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"  # yamllint disable-line rule:line-length
     dependsOn:
       compartmentId: ${targetCompartment}
     visible:
