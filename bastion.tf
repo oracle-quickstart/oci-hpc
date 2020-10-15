@@ -1,3 +1,21 @@
+resource "oci_core_volume" "bastion_volume" { 
+  count = var.bastion_block ? 1 : 0
+  availability_domain = var.bastion_ad
+  compartment_id = var.targetCompartment
+  display_name = "${local.cluster_name}-bastion-volume"
+  
+  size_in_gbs = var.bastion_block_volume_size
+  vpus_per_gb = split(".", var.bastion_block_volume_performance)[0]
+} 
+
+resource "oci_core_volume_attachment" "bastion_volume_attachment" { 
+  count = var.bastion_block ? 1 : 0 
+  attachment_type = "paravirtualized"
+  volume_id       = oci_core_volume.bastion_volume[0].id
+  instance_id     = oci_core_instance.bastion.id
+  display_name    = "${local.cluster_name}-bastion-volume-attachment"
+  device          = "/dev/oracleoci/oraclevdb"
+} 
 
 resource "oci_core_instance" "bastion" {
   depends_on          = [oci_core_cluster_network.cluster_network, oci_core_subnet.public-subnet]
@@ -25,8 +43,14 @@ resource "oci_core_instance" "bastion" {
   create_vnic_details {
     subnet_id = local.bastion_subnet_id
   }
+} 
 
-
+resource "null_resource" "cluster" { 
+  depends_on = [ oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  triggers = { 
+    cluster_instances = join(", ", local.cluster_instances_names)
+  } 
+    
   provisioner "file" {
     source        = "playbooks"
     destination   = "/home/opc/"
@@ -52,7 +76,8 @@ resource "oci_core_instance" "bastion" {
       scratch_nfs_path = var.scratch_nfs_path,
       cluster_network = var.cluster_network,
       slurm = var.slurm,
-      spack = var.spack
+      spack = var.spack,
+      bastion_block = var.bastion_block
       })
 
     destination   = "/home/opc/playbooks/inventory"

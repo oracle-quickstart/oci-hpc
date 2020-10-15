@@ -22,6 +22,9 @@
     
   tasks: 
     - include_role: 
+        name: bastion_blockvolume
+      when: bastion_block|default(false)|bool
+    - include_role: 
         name: nfs-server
       when: cluster_nfs|default(true)|bool
     - include_role: 
@@ -67,12 +70,12 @@
   roles:
     - rdma-interface
 
-- hosts: bastion
-  tasks: 
-    - include_role: 
-        name: influxdb
-    - include_role: 
-        name: grafana
+#- hosts: bastion
+#  tasks: 
+#    - include_role: 
+#        name: influxdb
+#    - include_role: 
+#        name: grafana#
 
 - hosts: all
   
@@ -83,5 +86,5 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-    - include_role: 
-        name: telegraf
+#    - include_role: 
+#        name: telegraf

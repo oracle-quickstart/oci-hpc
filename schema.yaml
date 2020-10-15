@@ -2,7 +2,7 @@
 title: HPC cluster
 description: Oracle Cloud HPC cluster
 schemaVersion: 1.1.0
-version: "20200825"
+version: "20201015"
 logoUrl: >
   https://cloudmarketplace.oracle.com/marketplace/content?contentId=80357668
 
@@ -27,6 +27,12 @@ variableGroups:
       - ${use_standard_image}
       - ${custom_bastion_image}
       - ${bastion_boot_volume_size}
+  - title: "Advanced headnode options"
+    variables:
+      - ${bastion_advanced}
+      - ${bastion_block}
+      - ${bastion_block_volume_size}
+      - ${bastion_block_volume_performance}
   - title: "Compute node options"
     variables:
       - ${cluster_network}
@@ -69,9 +75,8 @@ variableGroups:
       - ${cluster_nfs_export}
       - ${scratch_nfs_export}
       - ${scratch_nfs_mount}
-      - ${marketplace_listing_id} 
+      - ${marketplace_listing_id}
     visible: false
-
 variables:
   targetCompartment:
     title: "target compartment"
@@ -146,6 +151,38 @@ variables:
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 50
+  bastion_advanced:
+    type: boolean
+    title: Show advanced options
+    default: false
+  bastion_block:
+    type: boolean
+    title: Additional block volume for headnode
+    visible:
+      and:
+        - ${bastion_advanced}
+    default: false
+    required: true
+  bastion_block_volume_size:
+    required: true
+    type: integer
+    title: "Size of the additional volume in GB"
+    default: 1000
+    visible:
+      and:
+        - ${bastion_block}
+  bastion_block_volume_performance:
+    type: enum
+    title: "Block volume performance"
+    required: true
+    enum:
+      - "0.  Lower performance"
+      - "10. Balanced performance"
+      - "20. High Performance"
+    default: "10. Balanced performance"
+    visible:
+      and:
+        - ${bastion_block}
   cluster_network:
     title: Use cluster network
     type: boolean
@@ -155,6 +192,8 @@ variables:
     type: enum
     enum:
       - "BM.HPC2.36"
+      - "BM.GPU4.8"
+    default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
     required: true
     visible:
@@ -207,8 +246,7 @@ variables:
     enum:
       - "1. Oracle Linux 7.8 OFED5.0"
       - "2. Oracle Linux 7.5 OFED4.4"
-    default:
-      - "Oracle Linux 7.8 OFED5.0"
+    default: "1. Oracle Linux 7.8 OFED5.0"
     visible:
       and:
         - ${use_marketplace_image
@@ -216,7 +254,7 @@ variables:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
     type: oci:core:image:id
-    default: "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
+    default: "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"  # yamllint disable-line rule:line-length
     dependsOn:
       compartmentId: ${targetCompartment}
     visible:
