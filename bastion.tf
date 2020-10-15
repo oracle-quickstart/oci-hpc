@@ -12,6 +12,7 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   count = var.bastion_block ? 1 : 0 
   attachment_type = "paravirtualized"
   volume_id       = oci_core_volume.bastion_volume[0].id
+  instance_id     = oci.core_instance.bastion.id
   display_name    = "${local.cluster_name}-bastion-volume-attachment"
   device          = "/dev/oracleoci/oraclevdb"
 } 
