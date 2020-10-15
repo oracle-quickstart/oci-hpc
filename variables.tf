@@ -38,7 +38,16 @@ variable "slurm" { default = false }
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
 variable "instance_pool_ocpus" { default = 2} 
-variable "marketplace_listing" { default = "" } 
+
+variable "marketplace_listing" { 
+/* 
+  Allowed values
+   "1. Oracle Linux 7.8 OFED5.0"
+   "2. Oracle Linux 7.5 OFED4.4"
+*/ 
+
+  default = "1. Oracle Linux 7.8 OFED5.0" 
+} 
 
 variable "marketplace_listing_id" {
   type = map(string)
@@ -49,6 +58,15 @@ variable "marketplace_listing_id" {
 }
 
 variable "bastion_block_volume_performance" { 
+/* 
+  Allowed values 
+  "0.  Lower performance"
+  "10. Balanced performance"
+  "20. High Performance"
+*/ 
+
+default = "10. Balanced performance" 
+
 }
 
 variable "bastion_block" { 
