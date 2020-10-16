@@ -42,7 +42,7 @@
   tasks: 
     - include_role: 
         name: iscsi
-      when: '{{ scratch_nfs_type == "block" and scratch_nfs|default(true)|bool }}'
+      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
     - include_role: 
         name: nfs-server
       when: scratch_nfs|default(true)|bool
