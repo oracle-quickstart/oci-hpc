@@ -21,13 +21,13 @@
 
 - name: create a filesystem
   filesystem:
-    dev: "{{ target["devicenodes"][0] }}"
+    dev: '{{ target["devicenodes"][0] }}'
     fstype: xfs
 
 - name: Mount local volume
   mount:
     path: "{{ local_path }}"
-    src: "{{ target["devicenodes"][0] }}"
+    src: '{{ target["devicenodes"][0] }}'
     fstype: xfs
     opts: defaults,noatime,_netdev
     state: mounted
