@@ -1,3 +1,23 @@
+resource "oci_core_volume" "nfs-instance-pool-volume" { 
+  count = var.scratch_nfs_type_pool == "block" ? 1 : 0 
+  availability_domain = var.ad
+  compartment_id = var.targetCompartment
+  display_name = "${local.cluster_name}-nfs-volume"
+  
+  size_in_gbs = var.cluster_block_volume_size
+  vpus_per_gb = split(".", var.cluster_block_volume_performance)[0]
+} 
+
+resource "oci_core_volume_attachment" "instance_pool_volume_attachment" { 
+  count = var.scratch_nfs_type_pool == "block" ? 1 : 0
+  attachment_type = "iscsi"
+  volume_id       = oci_core_volume.nfs-instance-pool-volume[0].id
+  instance_id     = local.cluster_instances_ids[0]
+  display_name    = "${local.cluster_name}-instance-pool-volume-attachment"
+  device          = "/dev/oracleoci/oraclevdb"
+} 
+
+
 resource "oci_core_instance_pool" "instance_pool" {
   count = var.cluster_network ? 0 : 1
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet]
