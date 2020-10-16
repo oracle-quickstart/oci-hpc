@@ -30,6 +30,8 @@ variableGroups:
   - title: "Advanced headnode options"
     variables:
       - ${bastion_advanced}
+      - ${use_cluster_nfs}
+      - ${cluster_nfs_path}
       - ${bastion_block}
       - ${bastion_block_volume_size}
       - ${bastion_block_volume_performance}
@@ -47,10 +49,12 @@ variableGroups:
   - title: "Advanced options"
     variables:
       - ${use_advanced}
-      - ${use_cluster_nfs}
-      - ${cluster_nfs_path}
       - ${use_scratch_nfs}
       - ${scratch_nfs_path}
+      - ${scratch_nfs_type_cluster}
+      - ${scratch_nfs_type_pool}
+      - ${cluster_block_volume_size}
+      - ${cluster_block_volume_performance}
   - title: "Network options"
     variables:
       - ${use_existing_vcn}
@@ -157,7 +161,7 @@ variables:
     default: false
   bastion_block:
     type: boolean
-    title: Additional block volume for headnode
+    title: Additional block volume for shared space
     visible:
       and:
         - ${bastion_advanced}
@@ -170,7 +174,9 @@ variables:
     default: 1000
     visible:
       and:
-        - ${bastion_block}
+        - and:
+            - ${bastion_block}
+            - ${bastion_advanced}
   bastion_block_volume_performance:
     type: enum
     title: "Block volume performance"
@@ -182,7 +188,25 @@ variables:
     default: "10. Balanced performance"
     visible:
       and:
-        - ${bastion_block}
+        - and:
+            - ${bastion_block}
+            - ${bastion_advanced}
+  use_cluster_nfs:
+    type: boolean
+    title: "shared NFS volume from bastion"
+    visible:
+      and:
+        - ${bastion_advanced}
+    default: true
+  cluster_nfs_path:
+    title: "Cluster share mount point"
+    description: "Path to NFS share"
+    default: "/nfs/cluster"
+    type: string
+    visible:
+      and:
+        - ${bastion_advanced}
+        - ${use_cluster_nfs}
   cluster_network:
     title: Use cluster network
     type: boolean
@@ -249,12 +273,13 @@ variables:
     default: "1. Oracle Linux 7.8 OFED5.0"
     visible:
       and:
-        - ${use_marketplace_image
+        - ${use_marketplace_image}
   image:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
     type: oci:core:image:id
     default: "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"  # yamllint disable-line rule:line-length
+    required: true
     dependsOn:
       compartmentId: ${targetCompartment}
     visible:
@@ -264,29 +289,93 @@ variables:
     type: boolean
     title: "Show advanced options"
     default: false
-  use_cluster_nfs:
-    type: boolean
-    title: "shared NFS volume from bastion"
-    visible:
-      and:
-        - ${use_advanced}
-    default: true
   use_scratch_nfs:
     type: boolean
-    title: "Shared NFS scratch space from NVME disk"
+    title: "Shared NFS scratch space from NVME or Block volume"
     visible:
       and:
         - ${use_advanced}
     default: true
-  cluster_nfs_path:
-    title: "Cluster share mount point"
-    description: "Path to NFS share"
-    default: "/nfs/cluster"
-    type: string
+  scratch_nfs_type_cluster:
+    type: enum
+    title: "Scratch storage configuration"
+    enum:
+      - "none"
+      - "nvme"
+      - "block"
+    default: "nvme"
     visible:
       and:
+        - ${cluster_network}
         - ${use_advanced}
-        - ${use_cluster_nfs}
+        - ${use_scratch_nfs}
+  scratch_nfs_type_pool:
+    type: enum
+    title: "Scratch storage configuration"
+    enum:
+      - "none"
+      - "block"
+    default: "none"
+    visible:
+      not:
+        - ${cluster_network}
+        - ${use_scratch_nfs}
+  cluster_block_volume_size:
+    required: true
+    type: integer
+    title: "Size of the additional volume in GB"
+    default: 1000
+    visible:
+      and:
+        - or:
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_cluster}
+                    - "block"
+                - and:
+                    - ${use_advanced}
+                    - ${cluster_network}
+                    - ${use_scratch_nfs}
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_pool}
+                    - "block"
+                - and:
+                    - not:
+                        - ${cluster_network}
+                    - and: 
+                        - ${use_scratch_nfs}
+                        - ${use_advanced}
+  cluster_block_volume_performance:
+    type: enum
+    title: "Block volume performance"
+    required: true
+    enum:
+      - "0.  Lower performance"
+      - "10. Balanced performance"
+      - "20. High Performance"
+    default: "10. Balanced performance"
+    visible:
+      and:
+        - or:
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_cluster}
+                    - "block"
+                - and:
+                    - ${cluster_network}
+                    - ${use_scratch_nfs}
+                    - ${use_advanced}
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_pool}
+                    - "block"
+                - and:
+                    - not:
+                        - ${cluster_network}
+                    - and: 
+                        - ${use_scratch_nfs}
+                        - ${use_advanced}
   scratch_nfs_path:
     title: "NFS scratch space mount point"
     description: "Path to NFS share"

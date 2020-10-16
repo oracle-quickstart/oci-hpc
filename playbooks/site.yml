@@ -19,8 +19,12 @@
     export_path: "{{ cluster_nfs_path }}"
     export_name: "cluster"
     local_path:  "/export/cluster"
+    iscsi_ip: "{{ bastion_mount_ip }}"
     
   tasks: 
+    - include_role: 
+        name: iscsi
+      when: bastion_block|default(false)|bool
     - include_role: 
         name: bastion_blockvolume
       when: bastion_block|default(false)|bool
@@ -36,8 +40,12 @@
      export_path: "{{ scratch_nfs_path }}"
      export_name: "scratch"
      local_path:  "/mnt/localdisk/nfs"
+     iscsi_ip: "{{ cluster_mount_ip }}"
 
   tasks: 
+    - include_role: 
+        name: iscsi
+      when: '{{ scratch_nfs_type == "block" and scratch_nfs|default(true)|bool }}'
     - include_role: 
         name: nfs-server
       when: scratch_nfs|default(true)|bool
