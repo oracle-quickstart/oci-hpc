@@ -75,4 +75,8 @@ variable "bastion_block" {
 
 variable "bastion_block_volume_size" { 
   default = 1000
-} 
+}
+variable "scratch_nfs_type_cluster" { default = "nvme"} 
+variable "scratch_nfs_type_pool" { default = "none" }
+variable "cluster_block_volume_size" { default = "1000" }
+variable "cluster_block_volume_performance" { default = "10. Balanced performance"}
