@@ -16,6 +16,8 @@ sudo cloud-init status --wait
 sudo yum makecache
 sudo yum install -y ansible python-netaddr
 
+ansible-galaxy collection install community.general
+
 #
 # A little waiter function to make sure all the nodes are up before we start configure 
 #

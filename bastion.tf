@@ -10,7 +10,7 @@ resource "oci_core_volume" "bastion_volume" {
 
 resource "oci_core_volume_attachment" "bastion_volume_attachment" { 
   count = var.bastion_block ? 1 : 0 
-  attachment_type = "paravirtualized"
+  attachment_type = "iscsi"
   volume_id       = oci_core_volume.bastion_volume[0].id
   instance_id     = oci_core_instance.bastion.id
   display_name    = "${local.cluster_name}-bastion-volume-attachment"
@@ -77,7 +77,10 @@ resource "null_resource" "cluster" {
       cluster_network = var.cluster_network,
       slurm = var.slurm,
       spack = var.spack,
-      bastion_block = var.bastion_block
+      bastion_block = var.bastion_block, 
+      scratch_nfs_type = local.scratch_nfs_type,
+      bastion_mount_ip = local.bastion_mount_ip,
+      cluster_mount_ip = local.mount_ip
       })
 
     destination   = "/home/opc/playbooks/inventory"

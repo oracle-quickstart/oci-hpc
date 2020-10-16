@@ -25,3 +25,6 @@ cluster_network = ${cluster_network}
 slurm = ${slurm}
 spack = ${spack} 
 bastion_block = ${bastion_block} 
+scratch_nfs_type = ${scratch_nfs_type}
+bastion_mount_ip = ${bastion_mount_ip}
+cluster_mount_ip = ${cluster_mount_ip}
