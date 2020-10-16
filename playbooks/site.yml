@@ -26,9 +26,6 @@
         name: iscsi
       when: bastion_block|default(false)|bool
     - include_role: 
-        name: bastion_blockvolume
-      when: bastion_block|default(false)|bool
-    - include_role: 
         name: nfs-server
       when: cluster_nfs|default(true)|bool
     - include_role: 
