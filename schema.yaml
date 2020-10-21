@@ -247,7 +247,7 @@ variables:
   node_count:
     required: true
     type: integer
-    minimum: 2
+    minimum: 1
     title: "Number of Compute Instances"
     default: 2
   boot_volume_size:
