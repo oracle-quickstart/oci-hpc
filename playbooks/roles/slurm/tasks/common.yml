@@ -43,9 +43,9 @@
 - name: Repository
   become: true
   yum_repository:
-    name: oci-hpc
-    description: oci-hpc
-    baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+    name: "{{ slurm_yum_repo_name }}"
+    description: "{{ slurm_yum_repo_name }}"
+    baseurl: "{{ slurm_yum_repo_url }}"
     gpgcheck: no
     enabled: yes
 - name: install slurm common packages
