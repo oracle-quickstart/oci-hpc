@@ -1,3 +1,5 @@
+slurm_yum_repo_url: 'https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/'
+slurm_yum_repo_name: 'oci-hpc'
 munge_conf_path: '/etc/munge'
 slurm_conf_path: '/etc/slurm'
 slurm_spool_path: '/var/spool/slurmd'
