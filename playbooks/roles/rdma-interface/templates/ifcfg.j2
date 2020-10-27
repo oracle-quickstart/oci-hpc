@@ -1,6 +1,6 @@
 TYPE="Ethernet"
 BOOTPROTO="none"
-IPADDR={{ hostvars[inventory_hostname]['rdma_network'] | ipmath(interface_count + ansible_loop.index0 + 1) }}
+IPADDR={{ hostvars[inventory_hostname]['rdma_network'] | ipmath(ansible_play_batch.index(inventory_hostname)*ansible_mlx|count + index + 1) }}
 NETMASK={{ hostvars[inventory_hostname]['rdma_netmask'] }}
 DEFROUTE="no"
 PEERDNS="no"
@@ -12,4 +12,3 @@ NAME="System {{ item['device'] }}"
 UUID="{{ hostvars[inventory_hostname]['ansible_fqdn'] | to_uuid }}"
 DEVICE="{{ item['device'] }}"
 ONBOOT="yes"
-

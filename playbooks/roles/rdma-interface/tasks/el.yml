@@ -23,13 +23,6 @@
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] }}"
 
-#- debug:
-#    msg: "{{ ansible_mlx|count }}"
-
-- name: check counter
-  set_fact:
-    interface_count: 0
-  when: interface_count is not defined
 
 - name: create interface files
   register: rdma_interface
@@ -42,11 +35,3 @@
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
-
-#- debug:
-#    msg: "{{ rdma_interface }}"
-
-- name: set  counter
-  set_fact:
-    interface_count: interface_count + ansible_mlx|count
-  when: interface_count is defined and ansible_mlx is defined
