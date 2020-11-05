@@ -1,6 +1,6 @@
 locals {
   listing_number = split(".", var.marketplace_listing)[0]
-  p_listing_id = var.use_marketplace_image ? var.marketplace_listing_id[local.listing_number] : ""
+  mp_listing_id = var.use_marketplace_image ? var.marketplace_listing_id[local.listing_number] : ""
 }
 
 /* 
