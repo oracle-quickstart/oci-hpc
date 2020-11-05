@@ -9,10 +9,12 @@ output "debug" {
 }
 */ 
 
+/*
 data "oci_core_app_catalog_listing" "app_catalog_listing" {
     count = var.use_marketplace_image ? 1 : 0
     listing_id = local.mp_listing_id
 }
+*/ 
 
 data "oci_core_app_catalog_listing_resource_versions" "app_catalog_listing_resource_versions" {
     count = var.use_marketplace_image ? 1 : 0
