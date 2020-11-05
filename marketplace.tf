@@ -1,6 +1,6 @@
 locals {
   listing_number = split(".", var.marketplace_listing)[0]
-  mp_listing_id = var.use_marketplace_image ? var.marketplace_listing_id[local.listing_number] : ""
+  p_listing_id = var.use_marketplace_image ? var.marketplace_listing_id[local.listing_number] : ""
 }
 
 /* 
@@ -9,11 +9,15 @@ output "debug" {
 }
 */ 
 
+/*
 data "oci_core_app_catalog_listing" "app_catalog_listing" {
+    count = var.use_marketplace_image ? 1 : 0
     listing_id = local.mp_listing_id
 }
+*/ 
 
 data "oci_core_app_catalog_listing_resource_versions" "app_catalog_listing_resource_versions" {
+    count = var.use_marketplace_image ? 1 : 0
     listing_id = local.mp_listing_id
 }
 
