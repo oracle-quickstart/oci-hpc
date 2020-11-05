@@ -19,7 +19,7 @@
 - name: detect mellanox interfaces
   set_fact:
     ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
-  when: hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]
+  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']])
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] }}"
 
