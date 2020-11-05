@@ -10,11 +10,12 @@
   filesystem:
     dev: /dev/nvme0n1p1
     fstype: xfs
+    opts: -L localscratch
   when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
 - name: Mount local volume
   mount:
     path: "{{ nvme_path }}"
-    src: /dev/nvme0n1p1
+    src: label=localscratch
     fstype: xfs
     opts: defaults,noatime
     state: mounted
