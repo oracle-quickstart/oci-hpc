@@ -49,6 +49,9 @@ forks=$(($threads * 8))
 sudo sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
+
 sudo mv /home/opc/playbooks/inventory /etc/ansible/hosts
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
@@ -56,13 +59,13 @@ sudo mv /home/opc/playbooks/inventory /etc/ansible/hosts
 #
 
 if [[ $execution -eq 1 ]] ; then
-  ANSIBLE_HOST_KEY_CHECKING=False ansible all -m setup --tree /tmp/ansible 
+  ANSIBLE_HOST_KEY_CHECKING=False ansible all -m setup --tree /tmp/ansible > /dev/null 2>&1
   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml 
 else
 
 	cat <<- EOF > /tmp/motd
 	At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run: 
-	ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml 
+	ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook /home/opc/playbooks/site.yml 11
 EOF
 
 sudo mv /tmp/motd /etc/motd

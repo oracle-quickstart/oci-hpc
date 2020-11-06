@@ -15,7 +15,7 @@
 - name: Mount local volume
   mount:
     path: "{{ nvme_path }}"
-    src: label=localscratch
+    src: LABEL=localscratch
     fstype: xfs
     opts: defaults,noatime
     state: mounted
