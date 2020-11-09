@@ -1,5 +1,5 @@
 ---
-- name: install SLURM server packages
+- name: install SLURM compute packages
   become: true
   yum: 
     name: 
@@ -33,6 +33,13 @@
     mode: '0400'
   notify: restart munge
 
+- name: restart munge
+  become: true
+  service:
+    name: munge
+    state: restarted
+    enabled: true
+
 - name: Create {{ slurm_spool_path }}
   become: true
   file:
@@ -62,3 +69,12 @@
     backup: yes
   notify: restart slurm
  
+- name: Update node state on bastion
+  become: true
+  command: scontrol update nodename={{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}} state=RESUME
+  when: autoscaling | bool
+
+- name: Update feature on compute node
+  become: true
+  command: scontrol update nodename={{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}} AvailableFeatures=cluster-size-{{ groups['compute'] | length }}
+  when: autoscaling | bool

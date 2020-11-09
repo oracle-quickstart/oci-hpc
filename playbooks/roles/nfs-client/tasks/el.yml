@@ -6,6 +6,7 @@
   tags: install-only
 
 - name: create share directory
+  become: true
   file:
     path: "{{ local_path }}"
     state: directory

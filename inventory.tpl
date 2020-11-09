@@ -5,7 +5,9 @@ ${bastion_name} ansible_host=${bastion_ip} ansible_user=opc role=bastion
 ${host} ansible_host=${ip} ansible_user=opc role=compute
 %{ endfor ~}
 [nfs]
+%{ if scratch_nfs ~}
 ${nfs}
+%{ endif ~}
 [all:children]
 bastion
 compute
@@ -28,3 +30,5 @@ bastion_block = ${bastion_block}
 scratch_nfs_type = ${scratch_nfs_type}
 bastion_mount_ip = ${bastion_mount_ip}
 cluster_mount_ip = ${cluster_mount_ip}
+autoscaling = ${autoscaling}
+cluster_name = ${cluster_name}
