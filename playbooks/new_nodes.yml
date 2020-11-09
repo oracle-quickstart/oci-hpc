@@ -76,7 +76,7 @@
 - hosts: all
   vars:
     destroy: false
-    initial: false
+    intiail: false
   tasks: 
     - include_role: 
         name: spack
