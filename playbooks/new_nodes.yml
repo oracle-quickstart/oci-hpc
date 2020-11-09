@@ -1,0 +1,88 @@
+
+- hosts: compute
+  become: true
+  vars: 
+    destroy: false
+  gather_facts: true
+  roles: 
+    - hostname
+    - packages
+    - oci-legacy
+    - firewall 
+    - oci-hostname
+    - ssh
+    - localdisk
+    - limits
+    - mpi-hostfiles
+
+- hosts: all
+  become: true
+  vars: 
+    destroy: false
+  gather_facts: true
+  roles: 
+    - etc-hosts
+      
+- hosts: nfs
+  become: true
+  vars:
+     export_path: "{{ scratch_nfs_path }}"
+     export_name: "scratch"
+     local_path:  "/mnt/localdisk/nfs"
+     iscsi_ip: "{{ cluster_mount_ip }}"
+
+  tasks: 
+    - include_role: 
+        name: iscsi
+      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-server
+      when: scratch_nfs|default(true)|bool
+
+- hosts: compute
+  become: true
+  
+  tasks: 
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ cluster_nfs_path }}"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/export/cluster"
+        lock: "all"
+      when: cluster_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ scratch_nfs_path }}"
+        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/mnt/localdisk/nfs"
+        lock: "none" 
+      when: scratch_nfs and ( (autoscaling and 'compute' in group_names) or not autoscaling ) |default(true)|bool
+
+- hosts: compute
+  become: true
+  gather_facts: true
+  roles:
+    - rdma-interface
+
+#- hosts: bastion
+#  tasks: 
+#    - include_role: 
+#        name: influxdb
+#    - include_role: 
+#        name: grafana#
+
+- hosts: all
+  vars:
+    destroy: false
+    initial: false
+  tasks: 
+    - include_role: 
+        name: spack
+      when: spack|default(false)|bool
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
+#    - include_role: 
+#        name: telegraf

@@ -27,11 +27,18 @@ AccountingStorageType=accounting_storage/slurmdbd
 AccountingStoreJobComment=YES
 ClusterName=cluster
 JobAcctGatherFrequency=30
-JobAcctGatherType=jobacct_gather/none
+JobAcctGatherType=jobacct_gather/linux
 SlurmctldDebug=info
 SlurmdDebug=info
+PropagateResourceLimitsExcept=MEMLOCK
+{% if autoscaling | bool %}
+CommunicationParameters=NoAddrCache
+TopologyPlugin=topology/tree
+NodeName=cluster-[1-10]-node-[1-20] Sockets=2 CoresPerSocket=18 ThreadsPerCore=2 State=UNKNOWN
+{% else %}
 {% for item in groups['compute'] %}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
 NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=18 ThreadsPerCore=2 State=UNKNOWN
 {% endfor %}
+{% endif %}
 PartitionName=queue Nodes=ALL Default=YES MaxTime=INFINITE State=UP

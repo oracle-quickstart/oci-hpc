@@ -43,9 +43,9 @@
 - name: Repository
   become: true
   yum_repository:
-    name: "{{ slurm_yum_repo_name }}"
-    description: "{{ slurm_yum_repo_name }}"
-    baseurl: "{{ slurm_yum_repo_url }}"
+    name: oci-hpc
+    description: oci-hpc
+    baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
     gpgcheck: no
     enabled: yes
 - name: install slurm common packages
@@ -60,7 +60,6 @@
       - slurm-torque
       - slurm-openlava
       - slurm-example-configs
-
 - name: Create {{ slurm_spool_path }}
   become: true
   file:
@@ -69,7 +68,6 @@
     owner: 'slurm'
     group: 'slurm'
     mode: '0750'
-
 - name: Create munge dir
   become: true
   file:
@@ -78,7 +76,6 @@
     owner: munge
     group: munge
     mode: 0700
-
 - name: Ensure {{ slurm_log_path }} exists
   become: true
   file:
@@ -121,4 +118,11 @@
     mode: 0755
     state: directory
 
-
+- name: Generate topology.conf
+  become: true
+  template: 
+    src: topology.conf.j2
+    dest: /etc/slurm/topology.conf
+    mode: '0644'
+    backup: yes
+  when: autoscaling | bool

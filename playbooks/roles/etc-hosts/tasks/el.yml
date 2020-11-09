@@ -1,15 +1,50 @@
 ---
-- name: create temporary /etc/hosts file
-  template: 
+- name: Take /etc/hosts as a base
+  become: true
+  copy:
     dest: /tmp/hosts.etc
-    src: templates/etc-hosts.j2
+    src: /etc/hosts
+    force: yes
+  when: not destroy|bool
   delegate_to: 127.0.0.1
   run_once: true
 
+- name: create /etc/hosts files for the bastion nodes on
+  blockinfile:
+    dest: /tmp/hosts.etc
+    content: "{{ lookup('template', 'templates/etc-hosts-bastion.j2') }}"
+    state: present
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED BLOCK BASTION"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: not destroy|bool
+ 
+- name: create /etc/hosts files for the compute nodes on
+  blockinfile:
+    dest: /tmp/hosts.etc
+    content: "{{ lookup('template', 'templates/etc-hosts.j2') }}"
+    state: present
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: not destroy|bool
+
 - name: create /etc/hosts on all servers
+  become: true
+  copy:
+    dest: /etc/hosts
+    src: /tmp/hosts.etc
+    force: yes
+  when: not destroy|bool
+
+- name: remove cluster from etc-host
   become: true
   blockinfile:
     dest: /etc/hosts
-    content: "{{ lookup('file', '/tmp/hosts.etc') }}"
-    state: present
-    
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+    state: absent
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: destroy | bool
