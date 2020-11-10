@@ -20,12 +20,12 @@ data "oci_core_instance_pool_instances" "instance_pool_instances" {
 }
 
 data "oci_core_instance" "cluster_network_instances" {
-  count       = var.cluster_network ? var.node_count : 0
+  count       = var.cluster_network ? length(data.oci_core_cluster_network_instances.cluster_network_instances[0].instances) : 0
   instance_id = data.oci_core_cluster_network_instances.cluster_network_instances[0].instances[count.index]["id"]
 }
 
 data "oci_core_instance" "instance_pool_instances" {
-  count       = var.cluster_network ? 0 : var.node_count
+  count       = var.cluster_network ? 0 : length(data.oci_core_instance_pool_instances.instance_pool_instances[0].instances)
   instance_id = data.oci_core_instance_pool_instances.instance_pool_instances[0].instances[count.index]["id"]
 }
 
