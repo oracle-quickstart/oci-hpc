@@ -54,13 +54,15 @@ forks=$(($threads * 8))
 sudo sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 
 #
 
 if [[ $execution -eq 1 ]] ; then
-  ANSIBLE_HOST_KEY_CHECKING=False ansible all -m setup --tree /tmp/ansible 
+  ANSIBLE_HOST_KEY_CHECKING=False ansible all -m setup --tree /tmp/ansible > /dev/null 2>&1
   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook $playbooks_path/new_nodes.yml -i $inventory_path/inventory
 else
 

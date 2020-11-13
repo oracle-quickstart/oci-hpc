@@ -13,7 +13,7 @@
 
 - name: cleanup
   include_tasks: cleanup.yml
-  when: not destroy|bool
+  when: ('compute' in group_names) and not destroy | bool
 
 - name: destroy
   include_tasks: destroy.yml

@@ -32,3 +32,4 @@ bastion_mount_ip = ${bastion_mount_ip}
 cluster_mount_ip = ${cluster_mount_ip}
 autoscaling = ${autoscaling}
 cluster_name = ${cluster_name}
+shape=${shape}

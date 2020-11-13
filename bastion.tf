@@ -82,7 +82,9 @@ resource "null_resource" "cluster" {
       bastion_mount_ip = local.bastion_mount_ip,
       cluster_mount_ip = local.mount_ip,
       autoscaling = var.node_count > 0 ? false : true,
-      cluster_name = local.cluster_name
+      cluster_name = local.cluster_name,
+      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
+
       })
 
     destination   = "/home/opc/playbooks/inventory"
@@ -171,6 +173,23 @@ resource "null_resource" "autoscaling" {
   }
 
   provisioner "file" {
+    content        = templatefile(var.inst_prin ? "${path.module}/autoscaling/provider_inst_prin.tpl" : "${path.module}/autoscaling/provider_user.tpl", {  
+      api_user_ocid = var.api_user_ocid, 
+      api_fingerprint = var.api_fingerprint,
+      private_key_path = "/home/opc/autoscaling/credentials/key.pem",
+      tenancy_ocid = var.tenancy_ocid
+      })
+
+    destination   = "/home/opc/autoscaling/tf_init/provider.tf"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
     content        = templatefile("${path.module}/autoscaling/variables.tpl", {  
       bastion_name = oci_core_instance.bastion.display_name, 
       bastion_ip = oci_core_instance.bastion.private_ip, 
@@ -222,6 +241,17 @@ resource "null_resource" "autoscaling" {
   }
 
   provisioner "file" {
+    content     = var.api_user_key
+    destination   = "/home/opc/autoscaling/credentials/key.initial" 
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
     content     = tls_private_key.ssh.public_key_openssh
     destination   = "/home/opc/.ssh/id_rsa.pub" 
     connection {
@@ -231,11 +261,15 @@ resource "null_resource" "autoscaling" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+
   provisioner "remote-exec" {
     inline = [
       "chmod 755 /home/opc/autoscaling/*.sh",
       "chmod 755 /home/opc/autoscaling/crontab/*.sh",
-      "sudo yum install -y terraform"
+      "sudo yum install -y terraform",
+      "chmod 755 /home/opc/autoscaling/credentials/key.sh",
+      "/home/opc/autoscaling/credentials/key.sh /home/opc/autoscaling/credentials/key.initial /home/opc/autoscaling/credentials/key.pem > /home/opc/autoscaling/credentials/key.log",
+      "chmod 600 /home/opc/autoscaling/credentials/key.pem"
       ]
     connection {
       host        = oci_core_instance.bastion.public_ip
@@ -244,6 +278,5 @@ resource "null_resource" "autoscaling" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-
 }
 
