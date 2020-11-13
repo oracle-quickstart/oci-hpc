@@ -35,7 +35,8 @@ resource "local_file" "inventory" {
     scratch_nfs_type = local.scratch_nfs_type,
     bastion_mount_ip = var.bastion_mount_ip,
     cluster_mount_ip = local.mount_ip,
-    cluster_name = local.cluster_name
+    cluster_name = local.cluster_name,
+    shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
     })
   filename   = "${local.bastion_path}/inventory"
 }

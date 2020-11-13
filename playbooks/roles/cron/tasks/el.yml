@@ -4,5 +4,5 @@
     name: slurm autoscaling
     minute: "0,5,10,15,20,25,30,35,40,45,50,55"
     user: opc
-    job: "/home/opc/autoscaling/crontab/autoscale_slurm.sh >> /home/opc/autoscaling/crontab/slurm.log"
+    job: "/home/opc/autoscaling/crontab/autoscale_slurm.sh >> /home/opc/autoscaling/logs/crontab_slurm.log"
   when: autoscaling | bool

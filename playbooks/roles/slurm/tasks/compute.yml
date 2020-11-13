@@ -23,6 +23,22 @@
     group: munge
     mode: 0700
 
+- name: copy munge.key to tmp
+  become: true
+  shell:
+    cmd: cp /etc/munge/munge.key /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: set permissions
+  become: true
+  shell:
+    cmd: chown opc:opc /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
 - name: Copy munge key
   become: true
   copy:
@@ -69,12 +85,20 @@
     backup: yes
   notify: restart slurm
  
-- name: Update node state on bastion
-  become: true
-  command: scontrol update nodename={{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}} state=RESUME
-  when: autoscaling | bool
-
 - name: Update feature on compute node
   become: true
-  command: scontrol update nodename={{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}} AvailableFeatures=cluster-size-{{ groups['compute'] | length }}
+  command: scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ shape }}
   when: autoscaling | bool
+  register: result
+  retries: 5
+  delay: 5
+  until: result is not failed
+
+- name: Update node state on bastion
+  become: true
+  command: scontrol update nodename={{ ansible_hostname }} state=RESUME
+  when: autoscaling | bool
+  register: result
+  retries: 5
+  delay: 5
+  until: result is not failed

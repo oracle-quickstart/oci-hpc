@@ -9,11 +9,15 @@ output "debug" {
 }
 */ 
 
+/*
 data "oci_core_app_catalog_listing" "app_catalog_listing" {
+    count = var.use_marketplace_image ? 1 : 0
     listing_id = local.mp_listing_id
 }
+*/ 
 
 data "oci_core_app_catalog_listing_resource_versions" "app_catalog_listing_resource_versions" {
+    count = var.use_marketplace_image ? 1 : 0
     listing_id = local.mp_listing_id
 }
 
@@ -21,7 +25,7 @@ resource "oci_core_app_catalog_listing_resource_version_agreement" "mp_image_agr
   count = var.use_marketplace_image ? 1 : 0
 
   listing_id               = local.mp_listing_id
-  listing_resource_version = data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].listing_resource_version
+  listing_resource_version = data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_version
 
 }
 
@@ -39,4 +43,3 @@ resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
     create = "20m"
   }
 }
-

@@ -1,4 +1,4 @@
 - name: restart_interface
-  command: bash -c "ifdown {{ ansible_mlx[0]['device'] }} && ifup {{ ansible_mlx[0]['device'] }}"
-  when: rdma_interface.changed
-
+  command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
+  when: item.changed
+  with_items: "{{ rdma_interface['results'] }}"

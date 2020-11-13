@@ -72,6 +72,13 @@ variableGroups:
     variables:
       - ${slurm}
       - ${spack}
+  - title: "API authentication"
+    variables:
+      - ${inst_prin}
+      - ${api_user_ocid}
+      - ${api_fingerprint}
+      - ${api_user_key}
+    visible: ${autoscaling}
   - title: "Hidden"
     variables:
       - ${region}
@@ -250,7 +257,10 @@ variables:
     type: integer
     minimum: 0
     title: "Number of Compute Instances"
-    default: 0
+    default: 2
+    visible:
+      not:
+        - ${autoscaling}
   boot_volume_size:
     type: integer
     required: true
@@ -478,3 +488,51 @@ variables:
     type: boolean
     title: "Get your cluster to automatically scale up and down"
     default: false
+
+  inst_prin:
+    type: boolean
+    title: "Use Instance Principal" 
+    description: "You will need to set a dynamic group and policy to allow the bastion to authenticate " 
+    default: true
+    visible:
+      and:
+        - ${autoscaling}
+
+  api_user_key:
+    type: string
+    title: "API key"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
+
+  api_fingerprint:
+    type: string
+    title: "API fingerprint"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
+
+  api_user_ocid:
+    type: string
+    title: "API User OCID"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
