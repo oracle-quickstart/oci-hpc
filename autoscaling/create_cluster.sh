@@ -15,7 +15,7 @@ echo "Started to build $2"
 start=`date +%s`
 terraform init > $folder/logs/create_$2_${date}.log
 echo $1 $3 $4 >> currently_building
-terraform apply -auto-approve >> $folder/logs/create_$2_${date}.log
+terraform apply -auto-approve >> $folder/logs/create_$2_${date}.log 2>&1
 status=$?
 end=`date +%s`
 runtime=$((end-start))
@@ -26,5 +26,5 @@ if [ $status -eq 0 ]
   else
     echo "Could not create $2 with $1 nodes in $runtime seconds"
     rm currently_building
-    terraform destroy -auto-approve > $folder/logs/delete_$2_${date}.log
+    terraform destroy -auto-approve > $folder/logs/delete_$2_${date}.log 2>&1
 fi
