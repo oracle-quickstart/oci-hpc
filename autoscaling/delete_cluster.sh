@@ -15,7 +15,7 @@ then
     echo "The cluster is already being destroyed"
 else
   echo $1 >> currently_destroying
-  terraform destroy -auto-approve >> $folder/logs/delete_$1_${date}.log
+  terraform destroy -auto-approve >> $folder/logs/delete_$1_${date}.log 2>&1
 status=$?
 end=`date +%s`
 runtime=$((end-start))
