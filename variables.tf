@@ -38,6 +38,8 @@ variable "slurm" { default = false }
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
 variable "instance_pool_ocpus" { default = 2} 
+variable "instance_pool_memory" {}
+variable "instance_pool_custom_memory" {}
 
 variable "marketplace_listing" { 
 /* 
