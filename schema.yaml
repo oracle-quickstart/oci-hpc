@@ -262,10 +262,10 @@ variables:
     maximum: 1024
     default: 16
     visible:
-    eq:
-      - ${instance_pool_shape}
-      - "VM.Standard.E3.Flex"
-      - ${instance_pool_custom_memory}
+      eq:
+        - ${instance_pool_shape}
+        - "VM.Standard.E3.Flex"
+        - ${instance_pool_custom_memory}
     required: false
   node_count:
     required: true
