@@ -27,6 +27,7 @@ resource "oci_core_instance" "bastion" {
     for_each = local.is_bastion_flex_shape
       content {
         ocpus = shape_config.value
+        memory_in_gbs = var.bastion_custom_memory ? var.bastion_memory : 16 * shape_config.value
       }
   }
 
