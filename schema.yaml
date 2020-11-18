@@ -24,6 +24,8 @@ variableGroups:
       - ${bastion_ad}
       - ${bastion_shape}
       - ${bastion_ocpus}
+      - ${bastion_custom_memory}
+      - ${bastion_memory}
       - ${use_standard_image}
       - ${custom_bastion_image}
       - ${bastion_boot_volume_size}
@@ -39,9 +41,11 @@ variableGroups:
     variables:
       - ${cluster_network}
       - ${cluster_network_shape}
+      - ${node_count}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
-      - ${node_count}
+      - ${instance_pool_custom_memory}
+      - ${instance_pool_memory}
       - ${boot_volume_size}
       - ${use_marketplace_image}
       - ${marketplace_listing}
@@ -132,6 +136,29 @@ variables:
       eq:
         - ${bastion_shape}
         - "VM.Standard.E3.Flex"
+    required: false
+  bastion_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      eq:
+        - ${instance_pool_shape}
+        - "VM.Standard.E3.Flex"
+  bastion_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 16
+    visible:
+      and: 
+        - eq:
+            - ${bastion_shape}
+            - "VM.Standard.E3.Flex"
+        - and: 
+            - ${bastion_custom_memory}
     required: false
   use_standard_image:
     type: boolean
@@ -244,6 +271,29 @@ variables:
         - ${instance_pool_shape}
         - "VM.Standard.E3.Flex"
     required: false
+  instance_pool_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      eq:
+        - ${instance_pool_shape}
+        - "VM.Standard.E3.Flex"
+  instance_pool_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 16
+    visible:
+      and: 
+        - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.E3.Flex"
+        - and: 
+            - ${instance_pool_custom_memory}
+    required: false
   node_count:
     required: true
     type: integer
@@ -317,9 +367,12 @@ variables:
       - "block"
     default: "none"
     visible:
-      not:
-        - ${cluster_network}
-        - ${use_scratch_nfs}
+      and: 
+        - not:
+            - ${cluster_network}
+            - ${use_scratch_nfs}
+        - and: 
+            - ${use_advanced}
   cluster_block_volume_size:
     required: true
     type: integer
