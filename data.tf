@@ -29,7 +29,7 @@ data "oci_core_instance" "cluster_network_instances" {
 data "oci_core_instance" "instance_pool_instances" {
   count       = var.cluster_network ? 0 : oci_core_instance_pool.instance_pool[0].size
   instance_id = data.oci_core_instance_pool_instances.instance_pool_instances[0].instances[count.index]["id"]
-
+}
 data "oci_core_subnet" "private_subnet" { 
   subnet_id = local.subnet_id 
 }
