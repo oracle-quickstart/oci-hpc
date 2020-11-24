@@ -228,7 +228,9 @@ resource "null_resource" "autoscaling" {
       use_cluster_nfs = var.use_cluster_nfs,
       cluster_nfs_path = var.cluster_nfs_path,
       bastion_block = var.bastion_block,
-      bastion_mount_ip = local.bastion_mount_ip
+      bastion_mount_ip = local.bastion_mount_ip,
+      instance_config_id = var.instance_config_id,
+      create_instance_config = var.create_instance_config
       })
 
     destination   = "/home/opc/autoscaling/tf_init/variables.tf"
