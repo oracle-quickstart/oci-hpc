@@ -2,7 +2,7 @@
 - name: Take /etc/hosts as a base
   become: true
   copy:
-    dest: /tmp/hosts.etc
+    dest: /tmp/hosts.etc.{{ cluster_name }}
     src: /etc/hosts
     force: yes
   when: not destroy|bool
@@ -11,7 +11,7 @@
 
 - name: create /etc/hosts files for the bastion nodes on
   blockinfile:
-    dest: /tmp/hosts.etc
+    dest: /tmp/hosts.etc.{{ cluster_name }}
     content: "{{ lookup('template', 'templates/etc-hosts-bastion.j2') }}"
     state: present
     create: yes
@@ -22,7 +22,7 @@
  
 - name: create /etc/hosts files for the compute nodes on
   blockinfile:
-    dest: /tmp/hosts.etc
+    dest: /tmp/hosts.etc.{{ cluster_name }}
     content: "{{ lookup('template', 'templates/etc-hosts.j2') }}"
     state: present
     create: yes
@@ -35,7 +35,7 @@
   become: true
   copy:
     dest: /etc/hosts
-    src: /tmp/hosts.etc
+    src: /tmp/hosts.etc.{{ cluster_name }}
     force: yes
   when: not destroy|bool
 
