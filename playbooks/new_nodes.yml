@@ -1,11 +1,18 @@
 
 - hosts: compute
   become: true
+  gather_facts: true
+  tasks: 
+    - include_role:  
+        name: hostname
+      when: slurm and autoscaling | default(false) | bool
+
+- hosts: compute
+  become: true
   vars: 
     destroy: false
   gather_facts: true
   roles: 
-    - hostname
     - packages
     - oci-legacy
     - firewall 
