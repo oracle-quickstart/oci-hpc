@@ -13,12 +13,12 @@ variable "custom_bastion_image" {
   type = string
   default = "image.ocid" 
 }
-variable "bastion_boot_volume_size" {}
+variable "bastion_boot_volume_size" { default = 50 }
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" {default = 0}
-variable "boot_volume_size" {}
-variable "use_marketplace_image" {}
+variable "boot_volume_size" { default = 50 }
+variable "use_marketplace_image" { default = true}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = true }
@@ -85,3 +85,6 @@ variable "inst_prin" { default = true}
 variable "api_user_key" { default = "None"}
 variable "api_fingerprint" { default = "None"}
 variable "api_user_ocid" { default = "None"} 
+
+variable "create_instance_config" {default = false}
+variable "instance_config_id" {default = ""}

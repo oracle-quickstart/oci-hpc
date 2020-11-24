@@ -1,5 +1,5 @@
 resource "oci_core_instance_configuration" "instance_pool_configuration" {
-  count = var.cluster_network ? 0 : 1
+  count = (! var.cluster_network) && var.create_instance_config ? 1 : 0
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
