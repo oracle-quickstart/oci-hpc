@@ -26,7 +26,7 @@ def getstatus_slurm():
                     if feature.startswith('VM') or feature.startswith('BM'):
                         shape=feature
                         break
-                if shape == "BM.HPC2.36" or shape ==  "BM.GPU4.8":
+                if ( shape == "BM.HPC2.36" or shape ==  "BM.GPU4.8":
                     CN = "true"
                 else:
                     CN = "false"
@@ -54,10 +54,13 @@ def getstatus_slurm():
         available_names[shapes[shape]] = ["cluster-"+str(i) for i in range(1,cluster_names_number+1)]
     available_names['hpc']=["cluster-"+str(i) for i in range(1,hpc_cluster_names_number+1)]
     for clusterName in os.listdir(clusters_path):
-        if clusterName in available_names:
-            clusterType=clusterName.split('-')[-1]
-            clusterNumber='-'.join(clusterName.split('-')[:1])
-            available_names[clusterType].remove(clusterNumber)
+        clusterType=clusterName.split('-')[-1]
+        clusterNumber='-'.join(clusterName.split('-')[:2])
+        try:
+            if clusterNumber in available_names[clusterType]:
+                available_names[clusterType].remove(clusterNumber)
+        except:
+            continue
         if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_building')):
             with open(os.path.join(clusters_path,clusterName,'currently_building'),'r') as f:
                 line = f.read()
@@ -88,7 +91,6 @@ for i in cluster_building:
         if i[0]==j[1] and i[1]==j[2] and i[2]==j[3]:
             cluster_to_build.remove(j)
             break
-
 for cluster in cluster_to_build:
     shape = cluster[2]
     keyworkShape=shapes[shape]
