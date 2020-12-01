@@ -88,7 +88,7 @@ print cluster_destroying,'cluster_destroying'
 
 for i in cluster_building:
     for j in cluster_to_build:
-        if i[0]==j[1] and i[1]==j[2] and i[2]==j[3]:
+        if i[0]==j[0] and i[1]==j[2] and i[2]==j[3]:
             cluster_to_build.remove(j)
             break
 for cluster in cluster_to_build:
