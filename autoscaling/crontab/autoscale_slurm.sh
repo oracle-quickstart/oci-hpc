@@ -26,7 +26,7 @@ def getstatus_slurm():
                     if feature.startswith('VM') or feature.startswith('BM'):
                         shape=feature
                         break
-                if ( shape == "BM.HPC2.36" or shape ==  "BM.GPU4.8":
+                if shape == "BM.HPC2.36" or shape ==  "BM.GPU4.8":
                     CN = "true"
                 else:
                     CN = "false"
