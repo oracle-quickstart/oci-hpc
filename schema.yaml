@@ -170,7 +170,7 @@ variables:
   custom_bastion_image:
     title: "Bastion Image ID"
     description: "Custom image ID for bastion nodes"
-    type: oci:core:image:id
+    type: string
     dependsOn:
       compartmentId: ${targetCompartment}
     visible:
@@ -327,7 +327,7 @@ variables:
   image:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
-    type: oci:core:image:id
+    type: string
     default: "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"  # yamllint disable-line rule:line-length
     required: true
     dependsOn:
