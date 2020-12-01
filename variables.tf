@@ -29,11 +29,11 @@ variable "vcn_id" { default = ""}
 variable "use_existing_vcn" {}
 variable "public_subnet_id" { default = ""}
 variable "private_subnet_id" { default = ""}
-variable "vcn_subnet" {}
-variable "public_subnet" {}
-variable "additional_subnet" {}
-variable "private_subnet" {}
-variable "ssh_cidr" {}
+variable "vcn_subnet" { default = "" }
+variable "public_subnet" { default = "" }
+variable "additional_subnet" { default = "" }
+variable "private_subnet" { default = "" }
+variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
