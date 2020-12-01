@@ -37,8 +37,6 @@ variableGroups:
       - ${bastion_block_volume_performance}
   - title: "Compute node options"
     variables:
-      - ${create_instance_config}
-      - ${instance_config_id}
       - ${cluster_network}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
@@ -233,7 +231,6 @@ variables:
     visible:
       and:
         - ${cluster_network}
-        - ${create_instance_config}
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
     required: true
@@ -241,10 +238,8 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     visible:
-      and:
-        - not:
-          - ${cluster_network}
-        - ${create_instance_config}
+      not:
+        - ${cluster_network}
   instance_pool_ocpus:
     title: Cores
     type: integer
@@ -253,11 +248,9 @@ variables:
     maximum: 64
     default: 2
     visible:
-      and:
-        - eq:
-          - ${instance_pool_shape}
-          - "VM.Standard.E3.Flex"
-        - ${create_instance_config}
+      eq:
+        - ${instance_pool_shape}
+        - "VM.Standard.E3.Flex"
     required: false
   node_count:
     required: true
@@ -274,18 +267,12 @@ variables:
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 50
-    visible:
-      and: 
-        - ${create_instance_config}
   use_marketplace_image:
     type: boolean
     title: "use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     required: true
     default: true
-    visible:
-      and: 
-        - ${create_instance_config}
   marketplace_listing:
     type: enum
     title: "Image version"
@@ -298,7 +285,6 @@ variables:
     visible:
       and:
         - ${use_marketplace_image}
-        - ${create_instance_config}
   image:
     title: "Image ID"
     description: "Custom image ID for compute nodes"
@@ -308,11 +294,8 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     visible:
-      and:
-        - not:
-          - ${use_marketplace_image}
-        - ${create_instance_config}
-        
+      not:
+        - ${use_marketplace_image}
   use_advanced:
     type: boolean
     title: "Show advanced options"
@@ -522,6 +505,11 @@ variables:
     visible:
       not:
         - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
 
   api_fingerprint:
     type: string
@@ -530,6 +518,11 @@ variables:
     visible:
       not:
         - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
 
   api_user_ocid:
     type: string
@@ -538,15 +531,8 @@ variables:
     visible:
       not:
         - ${inst_prin}
-
-  create_instance_config:
-    type: boolean
-    title: "Create an Instance Configuration"
-    default: true
-        
-  instance_config_id:
-    type: string
-    title: "Instance Configuration OCID"
-    visible:
-      not:
-        - ${create_instance_config}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}

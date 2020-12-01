@@ -65,9 +65,4 @@ variable "bastion_block" {default = "${bastion_block}"}
 
 variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
 
-variable "create_instance_config" {default = "${create_instance_config}"}
-variable "instance_config_id" {default = "${instance_config_id}"}
-
-
-
 
