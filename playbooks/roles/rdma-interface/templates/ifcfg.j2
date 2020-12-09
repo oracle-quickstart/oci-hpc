@@ -1,6 +1,6 @@
 {% set first_priv_ip = hostvars[inventory_hostname]['private_subnet'] | ipmath(1) | ansible.netcommon.ipaddr('address') | ansible.netcommon.ipaddr('int')%}
 {% set priv_ip = hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipaddr('address') | ansible.netcommon.ipaddr('int') %}
-{% set ip_offset = ( priv_ip - first_priv_ip + 1)*ansible_mlx|count %}
+{% set ip_offset = ( priv_ip - first_priv_ip + 1) %}
 {% set rdma_address = hostvars[inventory_hostname]['rdma_network'] | ipmath(ip_offset) %}
 
 TYPE="Ethernet"
