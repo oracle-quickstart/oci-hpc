@@ -18,6 +18,16 @@ sudo yum install -y ansible python-netaddr
 
 ansible-galaxy collection install community.general
 
+threads=$(nproc)
+forks=$(($threads * 8))
+
+sudo sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
+
+sudo mv /home/opc/playbooks/inventory /etc/ansible/hosts
 #
 # A little waiter function to make sure all the nodes are up before we start configure 
 #
@@ -43,16 +53,7 @@ done
 
 # Update the forks to a 8 * threads
 
-threads=$(nproc)
-forks=$(($threads * 8))
 
-sudo sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
-
-sudo mv /home/opc/playbooks/inventory /etc/ansible/hosts
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 
