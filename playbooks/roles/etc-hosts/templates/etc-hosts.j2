@@ -5,8 +5,12 @@
 
 {% for item in groups['compute'] %}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
+{% set first_priv_ip = hostvars[item]['private_subnet'] | ipmath(1) | ansible.netcommon.ipaddr('address') | ansible.netcommon.ipaddr('int')%}
+{% set priv_ip = hostvars[item]['ansible_default_ipv4']['address'] | ansible.netcommon.ipaddr('address') | ansible.netcommon.ipaddr('int') %}
+{% set ip_offset = ( priv_ip - first_priv_ip + 1) %}
+{% set rdma_address = hostvars[item]['rdma_network'] | ipmath(ip_offset) %}
 {{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} hpc-node-{{ loop.index }} hpc-node-{{ loop.index }}.local.vcn hpc-cluster-node-{{ loop.index }} hpc-cluster-node-{{ loop.index }}.local.vcn
-{{ hostvars[inventory_hostname]['rdma_network'] | ipmath(loop.index) }} hpc-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma.local.rdma hpc-node-{{ loop.index }}-rdma.local.rdma
+{{ rdma_address }} hpc-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma.local.rdma hpc-node-{{ loop.index }}-rdma.local.rdma
 {% endfor %}
 
 {% for item in groups['nfs'] %}
