@@ -91,10 +91,11 @@ for i in cluster_building:
         if i[0]==j[0] and i[1]==j[2] and i[2]==j[3]:
             cluster_to_build.remove(j)
             break
-for cluster in cluster_to_build:
+for index,cluster in enumerate(cluster_to_build):
     shape = cluster[2]
     keyworkShape=shapes[shape]
-    clusterName=available_names[keyworkShape][0]+'-'+keyworkShape
+    clusterName=available_names[keyworkShape][index]+'-'+keyworkShape
     subprocess.Popen([path+'/create_cluster.sh',str(cluster[0]),clusterName,cluster[2],cluster[3]])
+    time.sleep(10)
 for cluster in cluster_to_destroy:
     subprocess.Popen([path+'/delete_cluster.sh',str(cluster)])
