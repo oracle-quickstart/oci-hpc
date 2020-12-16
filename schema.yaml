@@ -2,7 +2,7 @@
 title: HPC cluster
 description: Oracle Cloud HPC cluster
 schemaVersion: 1.1.0
-version: "20201015"
+version: "20201214"
 logoUrl: >
   https://cloudmarketplace.oracle.com/marketplace/content?contentId=80357668
 
@@ -85,6 +85,9 @@ variableGroups:
       - ${scratch_nfs_mount}
       - ${marketplace_listing_id}
     visible: false
+  - title: "Debug"
+    variables: 
+      - ${configure}
 variables:
   targetCompartment:
     title: "target compartment"
@@ -526,3 +529,8 @@ variables:
     type: boolean
     title: "Install Spack package manager"
     default: false
+  configure: 
+    type: boolean
+    title: "Configure system"
+    default: true
+    description: "If unchecked, cluster will be launched but left unconfigured"

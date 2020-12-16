@@ -28,12 +28,12 @@
     mode: '0644'
   register: public_key
   
-- name: Install ssh keys on all nodes
-  copy:
-    dest: '/home/opc/.ssh/{{ item }}'
-    src: '/home/opc/.ssh/{{ item }}'
-    owner: 'opc'
-    group: 'opc'
-    mode: '0644'
-  with_items:
-    - id_rsa.pub
+#- name: Install ssh keys on all nodes
+#  copy:
+#    dest: '/home/opc/.ssh/{{ item }}'
+#    src: '/home/opc/.ssh/{{ item }}'
+#    owner: 'opc'
+#    group: 'opc'
+#    mode: '0644'
+#  with_items:
+#    - id_rsa.pub

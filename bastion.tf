@@ -63,6 +63,20 @@ resource "null_resource" "cluster" {
     }
   }
 
+
+  provisioner "file" { 
+    content        = templatefile("${path.module}/configure.tpl", { 
+      configure = var.configure
+    })
+    destination   = "/tmp/configure.conf"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "file" {
     content        = templatefile("${path.module}/inventory.tpl", {  
       bastion_name = oci_core_instance.bastion.display_name, 
