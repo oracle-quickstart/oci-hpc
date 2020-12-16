@@ -87,14 +87,6 @@
       shell:
         cmd: chown opc:opc /tmp/munge.key
         warn: false
-
-- name: Generate slurm.conf
-  become: true
-  template: 
-    src: slurm.conf.j2
-    dest: /etc/slurm/slurm.conf
-    mode: '0644'
-    backup: yes
     
 - name: Create DB for accounting
   become: true
@@ -129,5 +121,13 @@
     src: slurmdbd.conf.j2
     dest: /etc/slurm/slurmdbd.conf
     mode: '0640'
+    backup: yes
+  
+- name: Generate slurm.conf
+  become: true
+  template: 
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    mode: '0644'
     backup: yes
   notify: restart slurm server
