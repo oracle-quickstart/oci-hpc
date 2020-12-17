@@ -29,9 +29,14 @@ sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.c
 
 sudo mv /home/opc/playbooks/inventory /etc/ansible/hosts
 
-configure = $(cat /tmp/configure)
+if [ -f /tmp/configure ] ; then 
+	configure = $(cat /tmp/configure)
+else 
+	configure = True
+fi 
 
 if [[ $configure != True ]] ; then
+	echo "Do not configure is set. Exiting"
 	exit
 fi 
 
