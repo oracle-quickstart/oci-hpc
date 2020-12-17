@@ -28,6 +28,13 @@ sudo sed -i "s/^#bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansib
 sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
 
 sudo mv /home/opc/playbooks/inventory /etc/ansible/hosts
+
+configure = $(cat /tmp/configure)
+
+if [[ $configure != True ]] ; then
+	exit
+fi 
+
 #
 # A little waiter function to make sure all the nodes are up before we start configure 
 #
