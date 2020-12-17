@@ -134,7 +134,7 @@ resource "oci_core_route_table" "private_route_table" {
   route_rules {
     destination       = data.oci_core_services.services.services[0]["cidr_block"]
     destination_type  = "SERVICE_CIDR_BLOCK"
-    network_entity_id = oci_core_service_gateway.sg1.id
+    network_entity_id = oci_core_service_gateway.sg1[0].id
   }
 }
 
