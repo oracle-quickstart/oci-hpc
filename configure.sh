@@ -29,16 +29,16 @@ sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.c
 
 sudo mv /home/opc/playbooks/inventory /etc/ansible/hosts
 
-if [ -f /tmp/configure ] ; then 
-	configure = $(cat /tmp/configure)
-else 
-	configure = True
-fi 
+if [ -f /tmp/configure.conf ] ; then
+        configure=$(cat /tmp/configure.conf)
+else
+        configure=true
+fi
 
-if [[ $configure != True ]] ; then
-	echo "Do not configure is set. Exiting"
-	exit
-fi 
+if [[ $configure != true ]] ; then
+        echo "Do not configure is set. Exiting"
+        exit
+fi
 
 #
 # A little waiter function to make sure all the nodes are up before we start configure 
