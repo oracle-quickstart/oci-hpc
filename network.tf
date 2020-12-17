@@ -94,6 +94,18 @@ resource "oci_core_nat_gateway" "ng1" {
   display_name   = "${local.cluster_name}_nat-gateway"
 }
 
+
+resource "oci_core_service_gateway" "sg1" {
+  count          = var.use_existing_vcn ? 0 : 1
+  vcn_id         = oci_core_vcn.vcn[0].id
+  compartment_id = var.targetCompartment
+  display_name   = "${local.cluster_name}_service-gateway"
+
+  services {
+    service_id = data.oci_core_services.services.services[0]["id"]
+  }
+}
+
 resource "oci_core_route_table" "public_route_table" {
   count          = var.use_existing_vcn ? 0 : 1
   compartment_id = var.targetCompartment
@@ -117,6 +129,12 @@ resource "oci_core_route_table" "private_route_table" {
     destination       = "0.0.0.0/0"
     destination_type  = "CIDR_BLOCK"
     network_entity_id = oci_core_nat_gateway.ng1[0].id
+  }
+
+  route_rules {
+    destination       = data.oci_core_services.services.services[0]["cidr_block"]
+    destination_type  = "SERVICE_CIDR_BLOCK"
+    network_entity_id = oci_core_service_gateway.sg1.id
   }
 }
 
