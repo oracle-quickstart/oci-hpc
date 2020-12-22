@@ -45,7 +45,7 @@ resource "local_file" "inventory" {
 resource "null_resource" "configure" {
   depends_on          = [oci_core_cluster_network.cluster_network,local_file.inventory,local_file.hosts]
   provisioner "local-exec" {
-    command = "timeout 15m ${var.scripts_folder}/configure.sh ${local.cluster_name}"  
+    command = "timeout 30m ${var.scripts_folder}/configure.sh ${local.cluster_name}"  
   }
 }
 
