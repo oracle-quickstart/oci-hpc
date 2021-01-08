@@ -13,3 +13,20 @@ Allow dynamic-group instance_principal to use virtual-network-family in compartm
 or:
 
 Allow dynamic-group instance_principal to manage all-resources in compartment comaprtmentName
+
+
+Clusters folders: 
+
+~/autoscaling/clusters/clustername
+
+Logs: 
+
+~/autosclaing/logs
+
+Cronjob: 
+
+~/autoscaling/crontab/
+
+To turn off the cronjob: Comment out the second line in : 
+crontab -e
+
