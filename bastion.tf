@@ -140,20 +140,6 @@ resource "null_resource" "cluster" {
     }
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "chmod 600 /home/opc/.ssh/cluster.key",
-      "chmod 600 /home/opc/.ssh/id_rsa",
-      "chmod a+x /tmp/configure.sh",
-      "/tmp/configure.sh"
-    ]
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 }
 
 resource "null_resource" "autoscaling" {
@@ -269,7 +255,11 @@ resource "null_resource" "autoscaling" {
       "sudo yum install -y terraform",
       "chmod 755 /home/opc/autoscaling/credentials/key.sh",
       "/home/opc/autoscaling/credentials/key.sh /home/opc/autoscaling/credentials/key.initial /home/opc/autoscaling/credentials/key.pem > /home/opc/autoscaling/credentials/key.log",
-      "chmod 600 /home/opc/autoscaling/credentials/key.pem"
+      "chmod 600 /home/opc/autoscaling/credentials/key.pem",
+      "chmod 600 /home/opc/.ssh/cluster.key",
+      "chmod 600 /home/opc/.ssh/id_rsa",
+      "chmod a+x /tmp/configure.sh",
+      "/tmp/configure.sh"
       ]
     connection {
       host        = oci_core_instance.bastion.public_ip
@@ -279,4 +269,3 @@ resource "null_resource" "autoscaling" {
     }
   }
 }
-
