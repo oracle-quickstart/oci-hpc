@@ -18,7 +18,7 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 } 
 
 resource "oci_core_instance" "bastion" {
-  depends_on          = [oci_core_cluster_network.cluster_network, oci_core_subnet.public-subnet]
+# depends_on          = [oci_core_cluster_network.cluster_network, oci_core_subnet.public-subnet]
   availability_domain = var.bastion_ad
   compartment_id      = var.targetCompartment
   shape               = var.bastion_shape
