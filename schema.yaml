@@ -32,6 +32,7 @@ variableGroups:
   - title: "Advanced headnode options"
     variables:
       - ${bastion_advanced}
+      - ${home_nfs} 
       - ${use_cluster_nfs}
       - ${cluster_nfs_path}
       - ${bastion_block}
@@ -221,6 +222,13 @@ variables:
         - and:
             - ${bastion_block}
             - ${bastion_advanced}
+  home_nfs:
+    type: boolean
+    title: "shared NFS /home from bastion"
+    visible:
+      and:
+        - ${bastion_advanced}
+    default: true
   use_cluster_nfs:
     type: boolean
     title: "shared NFS volume from bastion"

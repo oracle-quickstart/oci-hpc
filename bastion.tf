@@ -85,6 +85,7 @@ resource "null_resource" "cluster" {
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       nfs = local.cluster_instances_names[0]
+      home_nfs = var.home_nfs,
       scratch_nfs = var.use_scratch_nfs,
       cluster_nfs = var.use_cluster_nfs,
       cluster_nfs_path = var.cluster_nfs_path,

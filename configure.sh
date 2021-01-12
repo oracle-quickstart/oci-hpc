@@ -17,6 +17,7 @@ sudo yum makecache
 sudo yum install -y ansible python-netaddr
 
 ansible-galaxy collection install community.general
+ansible-galaxy collection install ansible.posix
 
 threads=$(nproc)
 forks=$(($threads * 8))
