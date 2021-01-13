@@ -8,7 +8,7 @@ path = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 clusters_path = os.path.join(path,'clusters')
 cluster_names_number=10
 hpc_cluster_names_number=30
-shapes={'VM.GPU2.1':'gpu2.1','BM.GPU2.2':'gpu2.2','VM.GPU3.1':'gpu3.1','VM.GPU3.2':'gpu3.2','VM.GPU3.4':'gpu3.4','BM.GPU3.8':'gpu3.8','BM.GPU4.8':'gpu4.8',\
+shapes={'VM.GPU2.1':'gpu21','BM.GPU2.2':'gpu22','VM.GPU3.1':'gpu31','VM.GPU3.2':'gpu32','VM.GPU3.4':'gpu34','BM.GPU3.8':'gpu38','BM.GPU4.8':'gpu48',\
     'VM.Standard2.1':'std21','VM.Standard2.2':'std22','VM.Standard2.4':'std24','VM.Standard2.8':'std28','VM.Standard2.16':'std216','VM.Standard2.24':'std224','BM.Standard2.52':'std52',
     'BM.Standard.E2.64':'amd264','BM.Standard.E3.128':'amd3128','BM.HPC2.36':'hpc'}
 
