@@ -1,4 +1,3 @@
 {% for item in groups['compute'] %}
-{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-hpc-cluster-node-{{ loop.index }}.local.vcn
+{{ hostvars[item]['ansible_hostname'] }}.local.vcn
 {% endfor %}

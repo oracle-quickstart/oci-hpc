@@ -1,17 +1,25 @@
-- hosts: all
+
+- hosts: compute
   become: true
   gather_facts: true
-  
+  roles: 
+    - hostname
+
+- hosts: all
+  become: true
+  vars: 
+    destroy: false
+  gather_facts: true
   roles: 
     - packages
     - oci-legacy
     - firewall 
     - oci-hostname
-    - etc-hosts
     - ssh
     - localdisk
     - limits
     - mpi-hostfiles
+    - etc-hosts
 
 - hosts: bastion
   become: true
@@ -48,7 +56,6 @@
     export_name: "cluster"
     local_path:  "/export/cluster"
     iscsi_ip: "{{ bastion_mount_ip }}"
-    
   tasks: 
     - include_role: 
         name: iscsi
@@ -58,6 +65,9 @@
       when: cluster_nfs|default(true)|bool
     - include_role: 
         name: mariadb
+    - include_role: 
+        name: cron
+      when: autoscaling|bool
       
 - hosts: nfs
   become: true
@@ -94,7 +104,7 @@
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/mnt/localdisk/nfs"
         lock: "none" 
-      when: scratch_nfs|default(true)|bool
+      when: scratch_nfs and ( (autoscaling and 'compute' in group_names) or not autoscaling ) |default(true)|bool
 
 - hosts: compute
   become: true
@@ -111,7 +121,9 @@
 #        name: grafana#
 
 - hosts: all
-  
+  vars:
+    destroy: false
+    initial: true
   tasks: 
     - include_role: 
         name: spack

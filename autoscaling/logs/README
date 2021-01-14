@@ -1,0 +1,1 @@
+Each log will be located in this folder. The crontab will be in crontab.log while the Cluster creation and deletion information will be in specific files. 

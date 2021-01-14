@@ -16,7 +16,7 @@ variable "custom_bastion_image" {
 variable "bastion_boot_volume_size" {}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
-variable "node_count" {}
+variable "node_count" {default = 0}
 variable "boot_volume_size" {}
 variable "use_marketplace_image" {}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
@@ -83,5 +83,10 @@ variable "scratch_nfs_type_cluster" { default = "nvme"}
 variable "scratch_nfs_type_pool" { default = "none" }
 variable "cluster_block_volume_size" { default = "1000" }
 variable "cluster_block_volume_performance" { default = "10. Balanced performance"}
+
+variable "inst_prin" { default = true}
+variable "api_user_key" { default = "None"}
+variable "api_fingerprint" { default = "None"}
+variable "api_user_ocid" { default = "None"} 
 variable "home_nfs" { default = true } 
 variable "configure" { default = true }

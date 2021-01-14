@@ -55,8 +55,6 @@
 # Host *.local
 #   CheckHostIP no
 
-UserKnownHostsFile /dev/null
-
 Host *
 	GSSAPIAuthentication yes
 # If this option is set to yes then remote X11 clients will have full access
@@ -68,5 +66,6 @@ Host *
 	SendEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
 	SendEnv LC_IDENTIFICATION LC_ALL LANGUAGE
 	SendEnv XMODIFIERS
-      	StrictHostKeyChecking no
-	LogLevel ERROR
+	StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+        LogLevel QUIET

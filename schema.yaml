@@ -45,6 +45,8 @@ variableGroups:
       - ${node_count}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
+      - ${autoscaling}
+      - ${node_count}
       - ${instance_pool_custom_memory}
       - ${instance_pool_memory}
       - ${boot_volume_size}
@@ -76,6 +78,13 @@ variableGroups:
     variables:
       - ${slurm}
       - ${spack}
+  - title: "API authentication"
+    variables:
+      - ${inst_prin}
+      - ${api_user_ocid}
+      - ${api_fingerprint}
+      - ${api_user_key}
+    visible: ${autoscaling}
   - title: "Hidden"
     variables:
       - ${region}
@@ -308,9 +317,12 @@ variables:
   node_count:
     required: true
     type: integer
-    minimum: 1
+    minimum: 0
     title: "Number of Compute Instances"
     default: 2
+    visible:
+      not:
+        - ${autoscaling}
   boot_volume_size:
     type: integer
     required: true
@@ -532,11 +544,63 @@ variables:
   slurm:
     type: boolean
     title: "Install SLURM"
-    default: false
+    default: true
   spack:
     type: boolean
     title: "Install Spack package manager"
     default: false
+  autoscaling:
+    type: boolean
+    title: "Get your cluster to automatically scale up and down"
+    default: false
+
+  inst_prin:
+    type: boolean
+    title: "Use Instance Principal" 
+    description: "You will need to set a dynamic group and policy to allow the bastion to authenticate " 
+    default: true
+    visible:
+      and:
+        - ${autoscaling}
+
+  api_user_key:
+    type: string
+    title: "API key"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
+
+  api_fingerprint:
+    type: string
+    title: "API fingerprint"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
+
+  api_user_ocid:
+    type: string
+    title: "API User OCID"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+    #required: 
+    #  and:
+    #    - ${autoscaling}
+    #    not:
+    #      - ${inst_prin}
   configure: 
     type: boolean
     title: "Configure system"
