@@ -1,0 +1,12 @@
+- hosts: compute
+  become: true
+  vars:
+    destroy: true
+  roles:
+    - slurm
+- hosts: bastion
+  become: true
+  vars:
+    destroy: true
+  roles:
+    - etc-hosts

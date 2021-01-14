@@ -1,0 +1,1 @@
+Each terraform configuration will be located in this folder. This will be used to destoy the cluster, do not remove live clusters manually. 

@@ -16,26 +16,24 @@ data "oci_core_services" "services" {
 }
 
 data "oci_core_cluster_network_instances" "cluster_network_instances" {
-
-  count = var.cluster_network ? 1 : 0
+  count = var.cluster_network && var.node_count > 0 ? 1 : 0
   cluster_network_id = oci_core_cluster_network.cluster_network[0].id
   compartment_id     = var.targetCompartment
 }
 
 data "oci_core_instance_pool_instances" "instance_pool_instances" {
-  count = var.cluster_network ? 0 : 1
+  count = var.cluster_network || var.node_count == 0 ? 0 : 1
   instance_pool_id = oci_core_instance_pool.instance_pool[0].id
   compartment_id     = var.targetCompartment
 }
 
 data "oci_core_instance" "cluster_network_instances" {
-  #count       = var.cluster_network ? length(data.oci_core_cluster_network_instances.cluster_network_instances[0].instances) : 0
-  count       = var.cluster_network ? oci_core_cluster_network.cluster_network[0].instance_pools[0].size : 0
+  count       = var.cluster_network && var.node_count > 0 ? var.node_count : 0
   instance_id = data.oci_core_cluster_network_instances.cluster_network_instances[0].instances[count.index]["id"]
 }
 
 data "oci_core_instance" "instance_pool_instances" {
-  count       = var.cluster_network ? 0 : oci_core_instance_pool.instance_pool[0].size
+  count       = var.cluster_network || var.node_count == 0 ? 0 : var.node_count
   instance_id = data.oci_core_instance_pool_instances.instance_pool_instances[0].instances[count.index]["id"]
 }
 

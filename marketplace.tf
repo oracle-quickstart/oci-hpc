@@ -30,7 +30,7 @@ resource "oci_core_app_catalog_listing_resource_version_agreement" "mp_image_agr
 }
 
 resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
-  count                    = var.use_marketplace_image ? 1 : 0
+  count                    = var.use_marketplace_image && var.node_count > 0 ? 1 : 0
   compartment_id           = var.targetCompartment
   eula_link                = oci_core_app_catalog_listing_resource_version_agreement.mp_image_agreement[0].eula_link
   listing_id               = oci_core_app_catalog_listing_resource_version_agreement.mp_image_agreement[0].listing_id
@@ -43,4 +43,3 @@ resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
     create = "20m"
   }
 }
-
