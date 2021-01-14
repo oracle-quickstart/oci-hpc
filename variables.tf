@@ -29,16 +29,19 @@ variable "vcn_id" { default = ""}
 variable "use_existing_vcn" {}
 variable "public_subnet_id" { default = ""}
 variable "private_subnet_id" { default = ""}
-variable "vcn_subnet" {}
-variable "public_subnet" {}
-variable "additional_subnet" {}
-variable "private_subnet" {}
-variable "ssh_cidr" {}
+variable "vcn_subnet" { default = "" }
+variable "public_subnet" { default = "" }
+variable "additional_subnet" { default = "" }
+variable "private_subnet" { default = "" }
+variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
 variable "instance_pool_ocpus" { default = 2} 
-
+variable "instance_pool_memory" { default = 16 }
+variable "instance_pool_custom_memory" { default = false }
+variable "bastion_memory" { default = 16 }
+variable "bastion_custom_memory" { default = false }
 variable "marketplace_listing" { 
 /* 
   Allowed values
@@ -85,3 +88,5 @@ variable "inst_prin" { default = true}
 variable "api_user_key" { default = "None"}
 variable "api_fingerprint" { default = "None"}
 variable "api_user_ocid" { default = "None"} 
+variable "home_nfs" { default = true } 
+variable "configure" { default = true }
