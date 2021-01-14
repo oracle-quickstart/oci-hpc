@@ -7,6 +7,14 @@ resource "tls_private_key" "ssh" {
   rsa_bits  = "4096"
 }
 
+data "oci_core_services" "services" {
+  filter {
+    name   = "name"
+    values = ["All .* Services In Oracle Services Network"]
+    regex  = true
+  }
+}
+
 data "oci_core_cluster_network_instances" "cluster_network_instances" {
   count = var.cluster_network && var.node_count > 0 ? 1 : 0
   cluster_network_id = oci_core_cluster_network.cluster_network[0].id
