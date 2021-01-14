@@ -25,6 +25,8 @@ variable "private_subnet" {default = "${private_subnet}"}
 variable "slurm" { default = true }
 variable "spack" { default = ${spack} }
 variable "instance_pool_ocpus" { default = ${instance_pool_ocpus}} 
+variable "instance_pool_memory" { default = ${instance_pool_memory} }
+variable "instance_pool_custom_memory" { default = ${instance_pool_custom_memory} }
 variable "marketplace_listing" { 
 /* 
   Allowed values
@@ -64,5 +66,6 @@ variable "ssh_cidr" {default="${ssh_cidr}"}
 variable "bastion_block" {default = "${bastion_block}"}
 
 variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
-
+variable "home_nfs" { default = ${home_nfs} } 
+variable "configure" { default = true }
 
