@@ -1,6 +1,13 @@
 resource "random_pet" "name" {
   length = 2
 }
+data "oci_core_services" "services" {
+  filter {
+    name   = "name"
+    values = ["All .* Services In Oracle Services Network"]
+    regex  = true
+  }
+}
 
 data "oci_core_cluster_network_instances" "cluster_network_instances" {
   count = var.cluster_network && var.node_count > 0 ? 1 : 0
