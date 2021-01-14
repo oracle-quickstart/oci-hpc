@@ -23,6 +23,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
         for_each = local.is_instance_pool_flex_shape
           content {
             ocpus = shape_config.value
+            memory_in_gbs = var.instance_pool_custom_memory ? var.instance_pool_memory : 16 * shape_config.value
           }
       }
   
