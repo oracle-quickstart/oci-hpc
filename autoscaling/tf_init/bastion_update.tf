@@ -26,6 +26,7 @@ resource "local_file" "inventory" {
     nfs = local.cluster_instances_names[0],
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
+    home_nfs = var.home_nfs,
     cluster_nfs_path = var.cluster_nfs_path,
     scratch_nfs_path = var.scratch_nfs_path,
     cluster_network = var.cluster_network,
