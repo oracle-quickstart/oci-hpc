@@ -20,6 +20,7 @@ public_subnet=${public_subnet}
 private_subnet=${private_subnet}
 nvme_path=/mnt/localdisk/
 scratch_nfs = ${scratch_nfs}
+home_nfs = ${home_nfs} 
 cluster_nfs = ${cluster_nfs}
 cluster_nfs_path = ${cluster_nfs_path}
 scratch_nfs_path = ${scratch_nfs_path}

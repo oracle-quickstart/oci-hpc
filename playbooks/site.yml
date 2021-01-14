@@ -23,6 +23,34 @@
 
 - hosts: bastion
   become: true
+  vars:
+    export_path: "/home"
+    export_name: "home"
+    local_path:  "/home"
+
+  tasks:
+    - include_role:
+        name: nfs-server
+      when: home_nfs|default(true)|bool
+
+- hosts: compute
+  become: true
+
+  tasks:
+    - include_role:
+        name: home_nfs
+      when: home_nfs|default(true)|bool and ansible_selinux.status == "enabled"
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/home"
+        lock: "all"
+      when: home_nfs|default(true)|bool
+ 
+- hosts: bastion
+  become: true
   vars: 
     export_path: "{{ cluster_nfs_path }}"
     export_name: "cluster"
