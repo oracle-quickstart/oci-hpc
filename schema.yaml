@@ -42,7 +42,6 @@ variableGroups:
     variables:
       - ${cluster_network}
       - ${cluster_network_shape}
-      - ${node_count}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
       - ${autoscaling}
