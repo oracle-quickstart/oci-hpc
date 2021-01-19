@@ -1,4 +1,13 @@
 ---
+- name: Repository
+  become: true
+  yum_repository:
+    name: oci-hpc
+    description: oci-hpc
+    baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+    gpgcheck: no
+    enabled: yes
+    
 - name: install SLURM compute packages
   become: true
   yum: 
