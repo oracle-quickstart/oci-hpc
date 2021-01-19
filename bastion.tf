@@ -154,17 +154,31 @@ resource "null_resource" "cluster" {
     }
   }
 
-}
-resource "null_resource" "non-autoscaling" {
-  depends_on = [oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
-
-  count = var.node_count > 0 ? 1 : 0
-
   provisioner "remote-exec" {
     inline = [
       "chmod 600 /home/opc/.ssh/cluster.key",
       "chmod 600 /home/opc/.ssh/id_rsa",
       "chmod a+x /tmp/configure.sh",
+      "echo false > /tmp/configure.conf",
+      "/tmp/configure.sh"
+      ]
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+}
+resource "null_resource" "non-autoscaling" {
+  depends_on = [ null_resource.cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+
+  count = var.node_count > 0 ? 1 : 0
+
+  provisioner "remote-exec" {
+    inline = [
+      "echo true > /tmp/configure.conf",
       "/tmp/configure.sh"
       ]
     connection {
@@ -176,7 +190,7 @@ resource "null_resource" "non-autoscaling" {
   }
 }
 resource "null_resource" "autoscaling" {
-  depends_on = [oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  depends_on = [ null_resource.cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
 
   count = var.node_count > 0 ? 0 : 1 
 
@@ -295,6 +309,7 @@ resource "null_resource" "autoscaling" {
       "chmod 600 /home/opc/.ssh/cluster.key",
       "chmod 600 /home/opc/.ssh/id_rsa",
       "chmod a+x /tmp/configure.sh",
+      "echo true > /tmp/configure.conf",
       "/tmp/configure.sh"
       ]
     connection {
