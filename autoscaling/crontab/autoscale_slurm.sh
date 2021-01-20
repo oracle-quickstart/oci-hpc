@@ -7,6 +7,8 @@ import sys, os
 path = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 clusters_path = os.path.join(path,'clusters')
 max_number_nodes=20
+min_number_nodes=2
+
 cluster_names_number=10
 hpc_cluster_names_number=30
 shapes={'VM.GPU2.1':'gpu21','BM.GPU2.2':'gpu22','VM.GPU3.1':'gpu31','VM.GPU3.2':'gpu32','VM.GPU3.4':'gpu34','BM.GPU3.8':'gpu38','BM.GPU4.8':'gpu48',\
@@ -35,6 +37,8 @@ def getstatus_slurm():
 
     cluster_to_destroy=[]
     current_nodes=0
+    building_nodes=0
+    running_cluster=[]
     out = subprocess.Popen(['sinfo','-r','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
     for line in stdout.split("\n")[1:]:
@@ -46,10 +50,24 @@ def getstatus_slurm():
             clusters = []
             for node in nodes:
                 clustername = '-'.join(node.split('-')[0:3])
-                if not clustername in clusters:
-                    clusters.append(clustername)
-                    cluster_to_destroy.append(clustername)
-
+                out = subprocess.Popen(["scontrol","show","hostnames",node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                stdout,stderr = out.communicate()
+                cluster_exists=False
+                for cluster in cluster_to_destroy:
+                    if cluster[0] == clustername:
+                        cluster[1]=cluster[1]+int(line.split()[2])
+                        cluster_exists=True
+                if not cluster_exists:
+                    cluster_to_destroy.append([clustername,int(line.split()[2])])
+        elif line.split()[0] == '\"allocated':
+            nodes=line.split()[-1].split(',')
+            clusters = []
+            for node in nodes:
+                clustername = '-'.join(node.split('-')[0:3])
+                running_cluster.append(clustername)
+    for cluster in cluster_to_destroy:
+        if cluster[0] in running_cluster:
+            cluster_to_destroy.remove(cluster)
     cluster_building=[]
     cluster_destroying=[]
     available_names = {}
@@ -72,16 +90,16 @@ def getstatus_slurm():
                 CN = line.split()[2]
             try:
                 cluster_building.append([int(nodes),shape,CN])
-                current_nodes+=int(nodes)
+                building_nodes+=int(nodes)
             except ValueError:
                 print 'The cluster '+ clusterName + ' does not have a valid entry for \"currently_building\"'
                 print 'Ignoring'
                 continue
         if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_destroying')):
             cluster_destroying.append(clusterName)
-    return cluster_to_build,cluster_to_destroy,cluster_building,cluster_destroying,available_names,current_nodes
+    return cluster_to_build,cluster_to_destroy,cluster_building,cluster_destroying,available_names,current_nodes,building_nodes
 
-cluster_to_build,cluster_to_destroy,cluster_building,cluster_destroying,available_names,current_nodes=getstatus_slurm()
+cluster_to_build,cluster_to_destroy,cluster_building,cluster_destroying,available_names,current_nodes,building_nodes=getstatus_slurm()
 
 print time.strftime("%Y-%m-%d %H:%M:%S")
 print cluster_to_build,'cluster_to_build'
@@ -89,6 +107,7 @@ print cluster_to_destroy,'cluster_to_destroy'
 print cluster_building,'cluster_building'
 print cluster_destroying,'cluster_destroying'
 print current_nodes,'current_nodes'
+print building_nodes,'building_nodes'
 
 for i in cluster_building:
     for j in cluster_to_build:
@@ -99,11 +118,16 @@ for index,cluster in enumerate(cluster_to_build):
     shape = cluster[2]
     keyworkShape=shapes[shape]
     clusterName=available_names[keyworkShape][index]+'-'+keyworkShape
-    if current_nodes + cluster[0]> max_number_nodes:
+    if current_nodes + building_nodes + cluster[0]> max_number_nodes:
         print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit"
     else:
         current_nodes+=cluster[0]
+        print "Creating cluster "+clusterName+"with "+str(cluster[0])+" nodes"
         subprocess.Popen([path+'/create_cluster.sh',str(cluster[0]),clusterName,cluster[2],cluster[3]])
         time.sleep(10)
 for cluster in cluster_to_destroy:
-    subprocess.Popen([path+'/delete_cluster.sh',str(cluster)])
+    if current_nodes - cluster[1] < min_number_nodes:
+        print "Cluster "+cluster[0]+" won't be deleted, it would go under the minimum number of nodes limit"
+    else:
+        print "Deleting cluster "+cluster[0]
+        subprocess.Popen([path+'/delete_cluster.sh',str(cluster[0])])
