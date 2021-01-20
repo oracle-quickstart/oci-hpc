@@ -35,7 +35,7 @@ def getstatus_slurm():
 
     cluster_to_destroy=[]
     current_nodes=0
-    out = subprocess.Popen(['sinfo','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['sinfo','-r','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
     for line in stdout.split("\n")[1:]:
         if len(line.split()) == 0:
