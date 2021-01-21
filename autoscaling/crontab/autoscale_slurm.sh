@@ -7,7 +7,7 @@ import sys, os
 path = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 clusters_path = os.path.join(path,'clusters')
 max_number_nodes=20
-min_number_nodes=2
+min_number_nodes=0
 
 cluster_names_number=10
 hpc_cluster_names_number=30
