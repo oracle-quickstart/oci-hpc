@@ -124,7 +124,7 @@ for index,cluster in enumerate(cluster_to_build):
         current_nodes+=cluster[0]
         print "Creating cluster "+clusterName+"with "+str(cluster[0])+" nodes"
         subprocess.Popen([path+'/create_cluster.sh',str(cluster[0]),clusterName,cluster[2],cluster[3]])
-        time.sleep(10)
+        time.sleep(5)
 for cluster in cluster_to_destroy:
     if current_nodes - cluster[1] < min_number_nodes:
         print "Cluster "+cluster[0]+" won't be deleted, it would go under the minimum number of nodes limit"
