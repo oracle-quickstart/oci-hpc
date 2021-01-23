@@ -19,6 +19,7 @@ MinJobAge=300
 SlurmctldTimeout=120
 SlurmdTimeout=300
 Waittime=0
+GresTypes=gpu
 SchedulerType=sched/backfill
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core
@@ -56,25 +57,45 @@ NodeName=cluster-[1-10]-amd264-node-[1-30] Sockets=2 CoresPerSocket=32 ThreadsPe
 NodeName=cluster-[1-10]-amd3128-node-[1-30] Sockets=2 CoresPerSocket=64 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
     cluster-size-{{ item }},{%- endfor %}BM.Standard.E3.128
 NodeName=cluster-[1-10]-gpu21-node-[1-10] Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
-    cluster-size-{{ item }},{%- endfor %}VM.GPU2.1
+    cluster-size-{{ item }},{%- endfor %}VM.GPU2.1 Gres=gpu:P100:1
 NodeName=cluster-[1-10]-gpu22-node-[1-10] Sockets=2 CoresPerSocket=14 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
-    cluster-size-{{ item }},{%- endfor %}BM.GPU2.2
+    cluster-size-{{ item }},{%- endfor %}BM.GPU2.2 Gres=gpu:P100:2
 NodeName=cluster-[1-10]-gpu31-node-[1-10] Sockets=1 CoresPerSocket=6 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
-    cluster-size-{{ item }},{%- endfor %}VM.GPU3.1
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.1 Gres=gpu:V100:1
 NodeName=cluster-[1-10]-gpu32-node-[1-10] Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
-    cluster-size-{{ item }},{%- endfor %}VM.GPU3.2
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.2 Gres=gpu:V100:2
 NodeName=cluster-[1-10]-gpu34-node-[1-10] Sockets=1 CoresPerSocket=24 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
-    cluster-size-{{ item }},{%- endfor %}VM.GPU3.4
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.4 Gres=gpu:V100:4
 NodeName=cluster-[1-10]-gpu38-node-[1-10] Sockets=2 CoresPerSocket=26 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
-    cluster-size-{{ item }},{%- endfor %}VM.GPU3.8
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.8 Gres=gpu:V100:8
 NodeName=cluster-[1-10]-gpu48-node-[1-10] Sockets=2 CoresPerSocket=32 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
-    cluster-size-{{ item }},{%- endfor %}BM.GPU4.8
+    cluster-size-{{ item }},{%- endfor %}BM.GPU4.8 Gres=gpu:A100:8
 NodeName=cluster-[1-30]-hpc-node-[1-30] Sockets=2 CoresPerSocket=18 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(31) -%}
     cluster-size-{{ item }},{%- endfor %}BM.HPC2.36
 {% else %}
 {% for item in groups['compute'] %}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=18 ThreadsPerCore=2 State=UNKNOWN
+{% if shape == "BM.GPU2.2"%}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=14 ThreadsPerCore=2 State=UNKNOWN
+{% elif shape == "VM.GPU2.1" %}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN
+{% elif shape == "VM.GPU3.1" %}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=6 ThreadsPerCore=2 State=UNKNOWN
+{% elif shape == "VM.GPU3.2" %}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN
+{% elif shape == "VM.GPU3.4" %}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=24 ThreadsPerCore=2 State=UNKNOWN
+{% elif shape == "BM.GPU3.8" %}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=26 ThreadsPerCore=2 State=UNKNOWN
+{% elif shape == "BM.GPU4.8" %}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=32 ThreadsPerCore=2 State=UNKNOWN
+{% else %}
+{% if "BM" in shape  %}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket={{ shape.split('.')[-1] / 2}} ThreadsPerCore=2 State=UNKNOWN
+{% elif "VM" in shape  %}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket={{ shape.split('.')[-1]}} ThreadsPerCore=2 State=UNKNOWN
+{% endif %}
+{% endif %}
 {% endfor %}
 {% endif %}
 PartitionName=compute Nodes=ALL Default=YES MaxTime=INFINITE State=UP

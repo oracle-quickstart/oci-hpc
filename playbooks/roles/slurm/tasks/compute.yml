@@ -85,6 +85,14 @@
   with_items: 
     - cgroup.conf
 
+- name: Generate gres.conf
+  become: true
+  template: 
+    src: gres.conf.j2
+    dest: /etc/slurm/gres.conf
+    mode: '0644'
+    backup: yes
+
 - name: Generate slurm.conf
   become: true
   template: 
