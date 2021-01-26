@@ -91,9 +91,9 @@ NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=26 ThreadsPerCore=2 State=
 NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=32 ThreadsPerCore=2 State=UNKNOWN
 {% else %}
 {% if "BM" in shape  %}
-NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket={{ shape.split('.')[-1] / 2}} ThreadsPerCore=2 State=UNKNOWN
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket={{ shape.split('.')[-1]|int / 2}} ThreadsPerCore=2 State=UNKNOWN
 {% elif "VM" in shape  %}
-NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket={{ shape.split('.')[-1]}} ThreadsPerCore=2 State=UNKNOWN
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket={{ shape.split('.')[-1]|int }} ThreadsPerCore=2 State=UNKNOWN
 {% endif %}
 {% endif %}
 {% endfor %}
