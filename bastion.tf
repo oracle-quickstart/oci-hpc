@@ -46,12 +46,12 @@ resource "oci_core_instance" "bastion" {
   }
 } 
 
-resource "null_resource" "cluster" { 
-  depends_on = [oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+resource "null_resource" "bastion" { 
+  depends_on = [oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
   triggers = { 
-    cluster_instances = join(", ", local.cluster_instances_names)
+    bastion = oci_core_instance.bastion.id
   } 
-    
+
   provisioner "file" {
     source        = "playbooks"
     destination   = "/home/opc/"
@@ -75,6 +75,64 @@ resource "null_resource" "cluster" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+
+  provisioner "file" {
+    content     = tls_private_key.ssh.private_key_pem
+    destination = "/home/opc/.ssh/cluster.key"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
+    content     = tls_private_key.ssh.private_key_pem
+    destination = "/home/opc/.ssh/id_rsa"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
+    source      = "bastion.sh"
+    destination = "/tmp/bastion.sh"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod 600 /home/opc/.ssh/cluster.key",
+      "chmod 600 /home/opc/.ssh/id_rsa",
+      "chmod a+x /tmp/bastion.sh",
+      "echo false > /tmp/configure.conf",
+      "/tmp/bastion.sh"
+      ]
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+}
+  
+resource "null_resource" "cluster" { 
+  depends_on = [oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  triggers = { 
+    cluster_instances = join(", ", local.cluster_instances_names)
+  } 
+    
+
   provisioner "file" {
     content        = templatefile("${path.module}/inventory.tpl", {  
       bastion_name = oci_core_instance.bastion.display_name, 
@@ -110,27 +168,6 @@ resource "null_resource" "cluster" {
     }
   }
 
-  provisioner "file" {
-    content     = tls_private_key.ssh.private_key_pem
-    destination = "/home/opc/.ssh/cluster.key"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    content     = tls_private_key.ssh.private_key_pem
-    destination = "/home/opc/.ssh/id_rsa"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 
   provisioner "file" {
     content     = var.node_count > 0 ? join("\n",local.cluster_instances_ips) : "\n"
@@ -153,6 +190,7 @@ resource "null_resource" "cluster" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+
 
   provisioner "remote-exec" {
     inline = [
@@ -279,17 +317,6 @@ resource "null_resource" "autoscaling" {
   provisioner "file" {
     content     = var.api_user_key
     destination   = "/home/opc/autoscaling/credentials/key.initial" 
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    content     = tls_private_key.ssh.public_key_openssh
-    destination   = "/home/opc/.ssh/id_rsa.pub" 
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
