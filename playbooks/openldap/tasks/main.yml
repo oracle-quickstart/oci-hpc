@@ -1,2 +1,0 @@
-- include: el7.yml
-  when: ansible_os_family == 'RedHat'
