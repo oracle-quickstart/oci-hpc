@@ -49,8 +49,6 @@
     path: "{{ influxdb_configuration_dir }}"
     state: directory
 
-
-
 - name: Set templatized InfluxDB configuration
   become: true
   template: 
