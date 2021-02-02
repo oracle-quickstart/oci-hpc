@@ -32,6 +32,10 @@
     - include_role:
         name: nfs-server
       when: home_nfs|default(true)|bool
+    - include_role: 
+        name: ssl
+    - include_role: 
+        name: openldap
 
 - hosts: compute
   become: true
@@ -57,6 +61,8 @@
     local_path:  "/export/cluster"
     iscsi_ip: "{{ bastion_mount_ip }}"
   tasks: 
+    - include_role: 
+        name: passwords
     - include_role: 
         name: iscsi
       when: bastion_block|default(false)|bool
@@ -105,6 +111,8 @@
         export_path: "/mnt/localdisk/nfs"
         lock: "none" 
       when: scratch_nfs and ( (autoscaling and 'compute' in group_names) or not autoscaling ) |default(true)|bool
+    - include_role: 
+        name: sssd
 
 - hosts: compute
   become: true
