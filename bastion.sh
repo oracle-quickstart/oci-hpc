@@ -10,6 +10,7 @@ execution=1
 
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 sudo cloud-init status --wait
+sleep 30
 #
 # Install ansible and other required packages
 #
