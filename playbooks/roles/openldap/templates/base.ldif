@@ -1,0 +1,17 @@
+dn: dc=cluster,dc=local
+dc: cluster
+objectClass: top
+objectClass: domain
+
+dn: cn=manager ,dc=cluster,dc=local
+objectClass: organizationalRole
+cn: manager
+description: LDAP Manager
+
+dn: ou=People,dc=cluster,dc=local
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Group,dc=cluster,dc=local
+objectClass: organizationalUnit
+ou: Group
