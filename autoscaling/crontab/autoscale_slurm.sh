@@ -50,6 +50,8 @@ def getstatus_slurm():
             clusters = []
             for node in nodes:
                 clustername = '-'.join(node.split('-')[0:3])
+                if not os.path.isdir(os.path.join(clusters_path,clusterName)):
+                    continue
                 out = subprocess.Popen(["scontrol","show","hostnames",node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 stdout,stderr = out.communicate()
                 cluster_exists=False
