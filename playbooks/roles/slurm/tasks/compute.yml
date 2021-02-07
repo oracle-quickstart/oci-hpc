@@ -134,17 +134,17 @@
   until: result.stdout.find("slurm_load_partitions") == -1
   retries: 5
   delay: 10
-  when: initial | bool
+  when: not initial | bool
 
 - name: Update feature on compute node
   become: true
-  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length ) -%}
+  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }}"
   register: result
   until: result.stdout.find("slurm_load_partitions") == -1
   retries: 20
   delay: 10
-  when: not initial | bool
+  when: initial | bool
 
 - name: Grab Node State
   shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'

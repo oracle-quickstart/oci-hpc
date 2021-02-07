@@ -75,32 +75,32 @@ NodeName=cluster-[1-30]-hpc-node-[1-30] Sockets=2 CoresPerSocket=18 ThreadsPerCo
 {% for item in groups['compute'] %}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
 {% if shape == "BM.GPU2.2"%}
-NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=14 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=14 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:P100:2
 {% elif shape == "VM.GPU2.1" %}
-NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:P100:1
 {% elif shape == "VM.GPU3.1" %}
-NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=6 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=6 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:1
 {% elif shape == "VM.GPU3.2" %}
-NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=12 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:2
 {% elif shape == "VM.GPU3.4" %}
-NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=24 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket=24 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:4
 {% elif shape == "BM.GPU3.8" %}
-NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=26 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=26 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:8
 {% elif shape == "BM.GPU4.8" %}
-NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=32 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket=32 ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:A100:8
 {% else %}
 {% if "BM" in shape  %}
-NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket={{ (shape.split('.')[-1]|int / 2)|int}} ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=2 CoresPerSocket={{ (shape.split('.')[-1]|int / 2)|int}} ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %},{{ shape }}
 {% elif "VM" in shape  %}
-NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket={{ shape.split('.')[-1]|int }} ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length) -%}
+NodeName={{ short_name[0] }} Sockets=1 CoresPerSocket={{ shape.split('.')[-1]|int }} ThreadsPerCore=2 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %},{{ shape }}
 {% endif %}
 {% endif %}
