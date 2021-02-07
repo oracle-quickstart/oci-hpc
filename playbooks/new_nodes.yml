@@ -94,7 +94,7 @@
 #    - include_role: 
 #        name: grafana#
 
-- hosts: all
+- hosts: compute
   vars:
     destroy: false
     initial: false
