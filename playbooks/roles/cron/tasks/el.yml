@@ -6,3 +6,11 @@
     user: opc
     job: "/home/opc/autoscaling/crontab/autoscale_slurm.sh >> /home/opc/autoscaling/logs/crontab_slurm.log"
   when: autoscaling | bool
+
+- name: Creates a cron file under /etc/cron.d
+  cron:
+    name: slurm autoscaling
+    minute: "#*"
+    user: opc
+    job: "/home/opc/autoscaling/crontab/autoscale_slurm.sh >> /home/opc/autoscaling/logs/crontab_slurm.log"
+  when: not autoscaling | bool
