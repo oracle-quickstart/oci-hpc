@@ -22,7 +22,7 @@ data "oci_core_cluster_network_instances" "cluster_network_instances" {
 }
 
 data "oci_core_instance_pool_instances" "instance_pool_instances" {
-  count = var.cluster_network || var.node_count == 0 ? 0 : 1
+  count = ( ! var.cluster_network ) && ( var.node_count > 0 ) ? 1 : 0
   instance_pool_id = oci_core_instance_pool.instance_pool[0].id
   compartment_id     = var.targetCompartment
 }
