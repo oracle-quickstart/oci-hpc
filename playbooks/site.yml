@@ -67,7 +67,6 @@
         name: mariadb
     - include_role: 
         name: cron
-      when: autoscaling|bool
       
 - hosts: nfs
   become: true
