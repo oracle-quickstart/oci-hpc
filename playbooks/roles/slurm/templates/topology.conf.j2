@@ -38,4 +38,9 @@ SwitchName=gpu-cluster-7 Nodes=cluster-7-gpu48-node-[1-10]
 SwitchName=gpu-cluster-8 Nodes=cluster-8-gpu48-node-[1-10]
 SwitchName=gpu-cluster-9 Nodes=cluster-9-gpu48-node-[1-10]
 SwitchName=gpu-cluster-10 Nodes=cluster-10-gpu48-node-[1-10]
-SwitchName=TCP Nodes=cluster-[1-10]-std2[1,2,4,8,16,24,52]-node-[1-30],cluster-[1-10]-amd[264,3128]-node-[1-30],cluster-[1-10]-gpu2[1,2]-node-[1-10],cluster-[1-10]-gpu3[1,2,4,8]-node-[1-10]
+SwitchName=TCP Nodes=cluster-[1-10]-std2[1,2,4,8,16,24,52]-node-[1-30],cluster-[1-10]-amd[264,3128]-node-[1-30],cluster-[1-10]-gpu2[1,2]-node-[1-10],cluster-[1-10]-gpu3[1,2,4,8]-node-[1-10]{% if shape != "BM.GPU4.8" and shape != "BM.HPC2.36" %},{% for item in groups['compute'] -%}
+    {{ hostvars[item]['ansible_fqdn'].split('.')[0] }},{%- endfor %}{% endif %}
+{% if shape == "BM.GPU4.8" or shape == "BM.HPC2.36"%}
+SwitchName=Permanent Nodes={% for item in groups['compute'] -%}
+    {{hostvars[item]['ansible_fqdn'].split('.')[0] }},{%- endfor %}
+{% endif %}

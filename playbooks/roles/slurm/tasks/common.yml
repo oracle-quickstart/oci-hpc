@@ -40,26 +40,47 @@
     shell: /bin/bash
     home: /var/lib/slurm
     state: present
-- name: Repository
-  become: true
-  yum_repository:
-    name: oci-hpc
-    description: oci-hpc
-    baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-    gpgcheck: no
-    enabled: yes
-- name: install slurm common packages
-  become: true
-  yum:
-    name:
-      - slurm
-      - slurm-devel
-      - slurm-contribs
-      - slurm-perlapi
-      - slurm-devel
-      - slurm-torque
-      - slurm-openlava
-      - slurm-example-configs
+
+
+- name: install Slurm Common Packages
+  block:
+    - name: install SLURM server packages
+      become: true
+      yum: 
+        name: 
+          - /nfs/cluster/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm
+          - /nfs/cluster/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm
+          - /nfs/cluster/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm
+          - /nfs/cluster/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm
+          - /nfs/cluster/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm
+          - /nfs/cluster/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm
+          - /nfs/cluster/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm
+          - /nfs/cluster/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm
+
+  rescue:
+    - name: Repository
+      become: true
+      yum_repository:
+        name: oci-hpc
+        description: oci-hpc
+        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+        gpgcheck: no
+        enabled: yes
+        retries: 3
+      
+    - name: install SLURM server packages
+      become: true
+      yum:
+        name:
+          - slurm
+          - slurm-devel
+          - slurm-contribs
+          - slurm-perlapi
+          - slurm-devel
+          - slurm-torque
+          - slurm-openlava
+          - slurm-example-configs
+          
 - name: Create {{ slurm_spool_path }}
   become: true
   file:
@@ -125,4 +146,13 @@
     dest: /etc/slurm/topology.conf
     mode: '0644'
     backup: yes
-  when: autoscaling | bool
+  delegate_to: 127.0.0.1
+  when: initial | bool
+
+- name: move topology.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/topology.conf
+    src: /etc/slurm/topology.conf
+    force: yes
+  when: not destroy|bool
