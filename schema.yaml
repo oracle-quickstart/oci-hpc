@@ -319,9 +319,6 @@ variables:
     minimum: 0
     title: "Number of Compute Instances"
     default: 2
-    visible:
-      not:
-        - ${autoscaling}
   boot_volume_size:
     type: integer
     required: true
@@ -552,7 +549,7 @@ variables:
     type: boolean
     title: "Get your cluster to automatically scale up and down"
     default: false
-
+    
   inst_prin:
     type: boolean
     title: "Use Instance Principal" 
