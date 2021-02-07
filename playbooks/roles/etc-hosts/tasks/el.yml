@@ -31,7 +31,7 @@
   run_once: true
   when: not destroy|bool
 
-- name: create /etc/hosts on all servers
+- name: move /etc/hosts on all servers
   become: true
   copy:
     dest: /etc/hosts
