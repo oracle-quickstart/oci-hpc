@@ -63,6 +63,17 @@ resource "null_resource" "bastion" {
     }
   }
 
+  provisioner "file" {
+    source      = "autoscaling"
+    destination = "/home/opc/"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "file" { 
     content        = templatefile("${path.module}/configure.tpl", { 
       configure = var.configure
@@ -109,12 +120,22 @@ resource "null_resource" "bastion" {
     }
   }
 
+  provisioner "file" {
+    source      = "configure.sh"
+    destination = "/tmp/configure.sh"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod 600 /home/opc/.ssh/cluster.key",
       "chmod 600 /home/opc/.ssh/id_rsa",
       "chmod a+x /tmp/bastion.sh",
-      "echo false > /tmp/configure.conf",
       "/tmp/bastion.sh"
       ]
     connection {
@@ -127,11 +148,10 @@ resource "null_resource" "bastion" {
 }
   
 resource "null_resource" "cluster" { 
-  depends_on = [oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  depends_on = [null_resource.bastion, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
-    
 
   provisioner "file" {
     content        = templatefile("${path.module}/inventory.tpl", {  
@@ -172,69 +192,6 @@ resource "null_resource" "cluster" {
   provisioner "file" {
     content     = var.node_count > 0 ? join("\n",local.cluster_instances_ips) : "\n"
     destination = "/tmp/hosts"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    source      = "configure.sh"
-    destination = "/tmp/configure.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-
-  provisioner "remote-exec" {
-    inline = [
-      "chmod 600 /home/opc/.ssh/cluster.key",
-      "chmod 600 /home/opc/.ssh/id_rsa",
-      "chmod a+x /tmp/configure.sh",
-      "echo false > /tmp/configure.conf",
-      "/tmp/configure.sh"
-      ]
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-}
-resource "null_resource" "non-autoscaling" {
-  depends_on = [ null_resource.cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
-
-  count = var.node_count > 0 ? 1 : 0
-
-  provisioner "remote-exec" {
-    inline = [
-      "echo true > /tmp/configure.conf",
-      "/tmp/configure.sh"
-      ]
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-}
-resource "null_resource" "autoscaling" {
-  depends_on = [ null_resource.cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
-
-  count = var.node_count > 0 ? 0 : 1 
-
-  provisioner "file" {
-    source      = "autoscaling"
-    destination = "/home/opc/"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
@@ -333,10 +290,8 @@ resource "null_resource" "autoscaling" {
       "chmod 755 /home/opc/autoscaling/credentials/key.sh",
       "/home/opc/autoscaling/credentials/key.sh /home/opc/autoscaling/credentials/key.initial /home/opc/autoscaling/credentials/key.pem > /home/opc/autoscaling/credentials/key.log",
       "chmod 600 /home/opc/autoscaling/credentials/key.pem",
-      "chmod 600 /home/opc/.ssh/cluster.key",
-      "chmod 600 /home/opc/.ssh/id_rsa",
       "chmod a+x /tmp/configure.sh",
-      "echo true > /tmp/configure.conf",
+      "echo ${var.configure} > /tmp/configure.conf",
       "/tmp/configure.sh"
       ]
     connection {
