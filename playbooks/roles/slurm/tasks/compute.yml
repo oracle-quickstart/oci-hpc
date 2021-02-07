@@ -124,14 +124,14 @@
   become: true
   service:
     name: slurmd
-    state: started
+    state: restarted
     enabled: true
  
 - name: Update feature on compute node
   become: true
   command: scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ shape }}
   register: result
-  until: result.stdout.find("slurm_load_partitions") == -1
+  until: result.stdout.find("failure") == -1
   retries: 5
   delay: 10
   when: not initial | bool
@@ -141,7 +141,7 @@
   command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }}"
   register: result
-  until: result.stdout.find("slurm_load_partitions") == -1
+  until: result.stdout.find("failure") == -1
   retries: 20
   delay: 10
   when: initial | bool
@@ -150,7 +150,7 @@
   shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
   register: node_state
   delegate_to: 127.0.0.1
-  until: node_state.stdout.find("slurm_load_partitions") == -1
+  until: node_state.stdout.find("failure") == -1
   retries: 20
   delay: 10
 
