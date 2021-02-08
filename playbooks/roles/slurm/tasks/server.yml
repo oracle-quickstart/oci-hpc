@@ -153,3 +153,6 @@
     backup: yes
   notify: restart slurm server
   when: initial | bool
+
+- name: run handlers
+  meta: flush_handlers

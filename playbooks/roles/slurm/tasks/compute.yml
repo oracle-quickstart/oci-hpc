@@ -130,20 +130,20 @@
 - name: Update feature on compute node
   become: true
   command: scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ shape }}
-  register: result
-  until: result.stdout.find("failure") == -1
-  retries: 5
+  retries: 20
   delay: 10
+  register: result
+  until: result.rc == 0
   when: not initial | bool
 
 - name: Update feature on compute node
   become: true
   command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
     cluster-size-{{ item }},{%- endfor %}{{ shape }}"
-  register: result
-  until: result.stdout.find("failure") == -1
   retries: 20
   delay: 10
+  register: result
+  until: result.rc == 0
   when: initial | bool
 
 - name: Grab Node State
@@ -151,8 +151,8 @@
   register: node_state
   delegate_to: 127.0.0.1
   until: node_state.stdout.find("failure") == -1
-  retries: 20
-  delay: 10
+  retries: 10
+  delay: 5
 
 - set_fact: 
     node_state2={{ node_state.stdout }}
