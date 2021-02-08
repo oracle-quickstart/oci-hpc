@@ -1,4 +1,13 @@
 ---
+- name: Install required packages
+  yum: 
+    state: present
+    name: 
+      - openldap
+      - openldap-servers
+      - openldap-clients
+      - python-ldap
+
 - name: Ensure OpenLDAP has access to the ssl certificates
   user:
     name: 'ldap'
@@ -35,6 +44,14 @@
   copy:
     src: '{{ openldap_tls_cacrt }}'
     dest: '/etc/openldap/certs/'
+
+- name: edit slapd
+  lineinfile: 
+    dest: /etc/sysconfig/slapd
+    regexp: "^SLAPD_URLS=.*"
+    line: "SLAPD_URLS=\"ldapi:/// ldap:/// ldaps:///\""
+    state: present
+    backup: yes
 
 - name: Start LDAP 
   service: 
