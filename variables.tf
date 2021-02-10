@@ -90,3 +90,13 @@ variable "api_fingerprint" { default = "None"}
 variable "api_user_ocid" { default = "None"} 
 variable "home_nfs" { default = true } 
 variable "configure" { default = true }
+
+variable "autoscaling" { default = false } 
+variable "add_nfs" { default = false}
+variable "create_ffs" { default = false }
+variable "fss_compartment" {default = ""}
+variable "fss_ad" {default = ""}
+variable "nfs_target_path" { default = "/app"}
+variable "nfs_source_IP" { default = ""}
+variable "nfs_source_path" { default = "/app"}
+variable "nfs_options" {default = ""}
