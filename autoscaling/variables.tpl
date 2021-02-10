@@ -69,3 +69,8 @@ variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "configure" { default = true }
 
+variable "add_nfs" { default = ${add_nfs}}
+variable "nfs_target_path" { default = "${nfs_target_path}"}
+variable "nfs_source_IP" { default = "${nfs_source_IP}"}
+variable "nfs_source_path" { default = "${nfs_source_path}"}
+variable "nfs_options" { default = "${nfs_options}"}
