@@ -4,12 +4,12 @@
   block:    
     - name: Create Slurm directory
       file:
-        path: /nfs/cluster/slurm_rpms
+        path: "{{ shared_drive }}/slurm_rpms"
         state: directory
     - name: Download slurm RPMs.
       get_url:
         url: "https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/{{ item }}"
-        dest: /nfs/cluster/slurm_rpms/
+        dest: "{{ shared_drive }}/slurm_rpms"
       with_items:
         - slurm-20.02.4-1.el7.x86_64.rpm
         - slurm-contribs-20.02.4-1.el7.x86_64.rpm
