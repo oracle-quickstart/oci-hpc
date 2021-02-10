@@ -24,9 +24,9 @@
       become: true
       yum: 
         name: 
-          - /nfs/cluster/slurm_rpms/slurm-slurmctld-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm
+          - "{{ shared_drive }}/slurm_rpms/slurm-slurmctld-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm"
 
   rescue:
     - name: Repository

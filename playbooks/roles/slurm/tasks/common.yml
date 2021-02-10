@@ -48,14 +48,14 @@
       become: true
       yum: 
         name: 
-          - /nfs/cluster/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm
-          - /nfs/cluster/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm
+          - "{{ shared_drive }}/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm"
 
   rescue:
     - name: Repository
