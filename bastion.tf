@@ -166,6 +166,11 @@ resource "null_resource" "cluster" {
       cluster_nfs = var.use_cluster_nfs,
       cluster_nfs_path = var.cluster_nfs_path,
       scratch_nfs_path = var.scratch_nfs_path,
+      add_nfs = var.add_nfs,
+      nfs_target_path = var.nfs_target_path,
+      nfs_source_IP = local.nfs_source_IP,
+      nfs_source_path = var.nfs_source_path,
+      nfs_options = var.nfs_options,
       cluster_network = var.cluster_network,
       slurm = var.slurm,
       spack = var.spack,
@@ -173,7 +178,7 @@ resource "null_resource" "cluster" {
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
       cluster_mount_ip = local.mount_ip,
-      autoscaling = var.node_count > 0 ? false : true,
+      autoscaling = var.autoscaling,
       cluster_name = local.cluster_name,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
 
@@ -259,7 +264,12 @@ resource "null_resource" "cluster" {
       bastion_mount_ip = local.bastion_mount_ip,
       instance_pool_memory = var.instance_pool_memory,
       instance_pool_custom_memory = var.instance_pool_custom_memory,
-      home_nfs = var.home_nfs
+      home_nfs = var.home_nfs,
+      add_nfs = var.add_nfs,
+      nfs_target_path = var.nfs_target_path,
+      nfs_source_IP = local.nfs_source_IP,
+      nfs_source_path = var.nfs_source_path,
+      nfs_options = var.nfs_options
       })
 
     destination   = "/home/opc/autoscaling/tf_init/variables.tf"
