@@ -42,8 +42,6 @@
     line: PasswordAuthentication yes
   notify: restart sshd
 
-
-
 - name: Setting up the system to use sssd for authentication
   command: authconfig --enablemkhomedir --enablesssd --enablesssdauth --update
   changed_when: false

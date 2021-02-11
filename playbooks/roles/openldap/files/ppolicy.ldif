@@ -1,0 +1,18 @@
+dn: cn=module{0},cn=config
+changetype: add
+objectClass: olcModuleList
+cn: module{0}
+olcModuleLoad: ppolicy
+
+dn: olcOverlay={0}ppolicy,olcDatabase={2}hdb,cn=config
+changetype: add
+objectClass: olcConfig
+objectClass: olcPPolicyConfig
+objectClass: olcOverlayConfig
+objectClass: top
+olcOverlay: ppolicy
+olcPPolicyDefault: cn=pwdDefaultPolicy,ou=Policies,dc=local
+olcPPolicyHashCleartext: FALSE
+olcPPolicyUseLockout: FALSE
+olcPPolicyForwardUpdates: FALSE
+
