@@ -28,7 +28,7 @@ entry_cache_timeout = 600
 
 ldap_uri = ldaps://{{ hostvars[groups['bastion'][0]]['ansible_fqdn'] }}
 
-ldap_search_base = dc=cluster,dc=local
+ldap_search_base = dc=local
 ldap_network_timeout = 30
 
 ldap_access_order = expire
