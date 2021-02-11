@@ -129,7 +129,7 @@
  
 - name: Update feature on compute node
   become: true
-  command: scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ shape }}
+  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
   retries: 20
   delay: 10
   register: result
@@ -139,7 +139,7 @@
 - name: Update feature on compute node
   become: true
   command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
-    cluster-size-{{ item }},{%- endfor %}{{ shape }}"
+    cluster-size-{{ item }},{%- endfor %}{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
   retries: 20
   delay: 10
   register: result

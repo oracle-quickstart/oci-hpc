@@ -44,10 +44,10 @@ variableGroups:
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
-      - ${autoscaling}
-      - ${node_count}
       - ${instance_pool_custom_memory}
       - ${instance_pool_memory}
+      - ${autoscaling}
+      - ${node_count}
       - ${boot_volume_size}
       - ${use_marketplace_image}
       - ${marketplace_listing}
@@ -328,7 +328,7 @@ variables:
     required: true
     type: integer
     minimum: 0
-    title: "Number of Compute Instances"
+    title: "Number of Compute Instances (Permanent Cluster when autoscaling)"
     default: 2
   boot_volume_size:
     type: integer
@@ -552,6 +552,8 @@ variables:
     type: boolean
     title: "Install SLURM"
     default: true
+    description: "Needed for autoscaling" 
+
   spack:
     type: boolean
     title: "Install Spack package manager"
@@ -559,7 +561,7 @@ variables:
 
   autoscaling:
     type: boolean
-    title: "Get your cluster to automatically scale up and down"
+    title: "Use Slurm to launch additional clusters"
     default: false
     
   inst_prin:
