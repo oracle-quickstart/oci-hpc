@@ -180,8 +180,8 @@ resource "null_resource" "cluster" {
       cluster_mount_ip = local.mount_ip,
       autoscaling = var.autoscaling,
       cluster_name = local.cluster_name,
-      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
-
+      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      instance_pool_ocpus = var.instance_pool_ocpus
       })
 
     destination   = "/home/opc/playbooks/inventory"
@@ -244,7 +244,6 @@ resource "null_resource" "cluster" {
       scratch_nfs_type_pool = var.scratch_nfs_type_pool,
       bastion_block_volume_performance = var.bastion_block_volume_performance,
       marketplace_listing = var.marketplace_listing,
-      instance_pool_ocpus = var.instance_pool_ocpus,
       image = var.image,
       use_marketplace_image = var.use_marketplace_image,
       boot_volume_size = var.boot_volume_size,
