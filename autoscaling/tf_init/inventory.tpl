@@ -34,6 +34,7 @@ cluster_mount_ip = ${cluster_mount_ip}
 autoscaling = true
 cluster_name = ${cluster_name}
 shape=${shape}
+instance_pool_ocpus=${instance_pool_ocpus}
 add_nfs=${add_nfs}
 nfs_target_path=${nfs_target_path}
 nfs_source_IP=${nfs_source_IP}

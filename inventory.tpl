@@ -39,3 +39,4 @@ nfs_target_path=${nfs_target_path}
 nfs_source_IP=${nfs_source_IP}
 nfs_source_path=${nfs_source_path}
 nfs_options=${nfs_options}
+instance_pool_ocpus=${instance_pool_ocpus}

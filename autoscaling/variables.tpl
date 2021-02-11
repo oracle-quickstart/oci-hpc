@@ -24,7 +24,7 @@ variable "private_subnet_id" { default = "${private_subnet_id}"}
 variable "private_subnet" {default = "${private_subnet}"}
 variable "slurm" { default = true }
 variable "spack" { default = ${spack} }
-variable "instance_pool_ocpus" { default = ${instance_pool_ocpus}} 
+variable "instance_pool_ocpus" { default = "##OCPU##"}
 variable "instance_pool_memory" { default = ${instance_pool_memory} }
 variable "instance_pool_custom_memory" { default = ${instance_pool_custom_memory} }
 variable "marketplace_listing" { 
