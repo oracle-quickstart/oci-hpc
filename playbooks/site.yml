@@ -42,6 +42,8 @@
         name: ssl
     - include_role: 
         name: openldap
+    - include_role: 
+        name: cluster-cli
 
 - hosts: compute
   become: true
