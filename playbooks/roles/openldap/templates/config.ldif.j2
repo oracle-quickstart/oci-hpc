@@ -1,3 +1,4 @@
+# Global parameters
 dn: cn=config
 changetype: modify
 replace: olcTLSCACertificateFile
@@ -24,17 +25,11 @@ olcWriteTimeout: 120
 replace: olcTimeLimit
 olcTimeLimit: 60
 
-dn: olcDatabase={2}hdb,cn=config
-changetype: modify
-replace: olcSuffix
-olcSuffix: dc=cluster,dc=local
-
-dn: olcDatabase={2}hdb,cn=config
+# config backend: access configuration
+dn: olcDatabase={0}config,cn=config
 changetype: modify
 replace: olcRootDN
-olcRootDN: cn=manager,dc=cluster,dc=local
-
-dn: olcDatabase={2}hdb,cn=config
-changetype: modify
+olcRootDN: cn=config
+-
 replace: olcRootPW
-olcRootPW: {{ ldap_password_hash.stdout }}
+olcRootPW: {{ openldap_root_pwd_hash.stdout }}

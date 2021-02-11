@@ -1,0 +1,73 @@
+# local database configuration
+#dn: cn=module{0},cn=config
+#changetype: add
+#objectClass: olcModuleList
+#cn: module{0}
+#olcModuleLoad: back_hdb.la
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcSuffix
+olcSuffix: dc=local
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcRootDN
+olcRootDN: cn=Manager,dc=local
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcRootPW
+olcRootPW: {{ openldap_root_pwd_hash.stdout }}
+
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcDbIndex
+olcDbIndex: default eq,sub
+olcDbIndex: cn eq,sub
+olcDbIndex: uid eq
+olcDbIndex: mail eq,sub
+olcDbIndex: givenName eq,sub
+olcDbIndex: sn eq,sub
+olcDbIndex: ou eq
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: {1}to attrs=userPassword,givenName,sn by self write by anonymous auth by dn.base="cn=manager,dc=local" write by * none
+olcAccess: {2}to * by self read by dn.base="cn=manager,dc=local" write by * read
+olcAccess: {3}to * by dn.base="cn=manager,dc=local" read by * none
+
+#dn: olcDatabase={2}hdb,cn=config
+#changetype: modify
+##objectClass: olcDatabaseConfig
+#objectClass: olcHdbConfig
+#olcDatabase: {2}hdb
+#olcSuffix: dc=local
+#olcAccess: to attrs=userPassword,givenName,sn 
+# by self write 
+# by anonymous auth 
+# by dn.base="cn=manager,dc=local" write 
+# by * none
+#olcAccess: to * 
+# by self read 
+# by dn.base="cn=manager,dc=local" write 
+# by * read
+#olcAccess: to * 
+# by dn.base="cn=manager,dc=local" read 
+# by * none
+#olcRootDN: cn=Manager,dc=local
+#olcRootPW: {{ openldap_root_pwd_hash.stdout }}
+#olcMonitoring: TRUE
+#olcDbDirectory: {{ openldap_server_dir_path }}
+#olcDbCacheSize: 10000
+#olcDbCheckpoint: 128 15
+#olcDbIndex: default eq,sub
+#olcDbIndex: cn eq,sub
+#olcDbIndex: uid eq
+#olcDbIndex: mail eq,sub
+#olcDbIndex: givenName eq,sub
+#olcDbIndex: sn eq,sub
+#olcDbIndex: ou eq
+
