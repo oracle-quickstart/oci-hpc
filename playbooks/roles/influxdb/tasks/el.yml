@@ -37,6 +37,13 @@
     name: influxdb
     state: latest
 
+- name Start InfluxDB
+  become: true
+  service: 
+    name: influxdb
+    state: started
+    enabled: true
+
 - name: Install any necessary PIP dependencies
   become: true
   yum: 
