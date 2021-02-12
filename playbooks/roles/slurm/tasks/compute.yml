@@ -160,7 +160,7 @@
 - name: Update node state on bastion
   become: true
   command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-  when: ( node_state2 != "idle" ) | bool
+  when: ( node_state2 != "idle" ) and  ( node_state2 != "alloc" ) | bool
   register: result
   retries: 5
   delay: 5
