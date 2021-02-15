@@ -5,6 +5,31 @@ import time
 import sys, os
 import traceback
 lockfile = "/tmp/autoscaling_lock"
+idle_time=600 #seconds
+
+def getJobs():
+    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:50,NUMNODES'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout,stderr = out.communicate()
+    return stdout.split("\n")[1:]
+
+def getClusters():
+    out = subprocess.Popen(['sinfo','-r','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout,stderr = out.communicate()
+    return stdout.split("\n")[1:]
+
+def getIdleTime(node):
+    out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
+    stdout,stderr = out.communicate()
+    last_end_time = None
+    try:
+        last_end_time = datetime.datetime.strptime(stdout.strip(),"%Y-%m-%dT%H:%M:%S")
+        return ( datetime.datetime.now() - last_end_time ).total_seconds()
+    except:
+        out = subprocess.Popen(["scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
+        stdout,stderr = out.communicate()
+        cluster_start_time=datetime.datetime.strptime(stdout.split("\n")[0].split("=")[1],"%Y-%m-%dT%H:%M:%S")
+        return ( datetime.datetime.now() - cluster_start_time ).total_seconds()
+
 if os.path.isfile(lockfile):
     print("Lockfile "+lockfile + " is present, exiting")
     exit()
@@ -36,11 +61,8 @@ try:
     shapes['BM.HPC2.36']='hpc'
 
     def getstatus_slurm():
-        out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:50,NUMNODES'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout,stderr = out.communicate()
-
         cluster_to_build=[]
-        for line in stdout.split("\n")[1:]:
+        for line in getJobs():
             if len(line.split())>3:
                 if line.split()[0].strip() == 'PENDING':
                     features=line.split()[2].split('&')
@@ -59,9 +81,8 @@ try:
         current_nodes=0
         building_nodes=0
         running_cluster=[]
-        out = subprocess.Popen(['sinfo','-r','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout,stderr = out.communicate()
-        for line in stdout.split("\n")[1:]:
+
+        for line in getClusters():
             if len(line.split()) == 0:
                 break
             current_nodes+=int(line.split()[2])
@@ -69,11 +90,15 @@ try:
                 nodes=line.split()[-1].split(',')
                 clusters = []
                 for node in nodes:
+                    if node[-1]=="\"":
+                        node=node[:-1]
+                    if node[0]=="\"":
+                        node=node[1:]
                     clustername = '-'.join(node.split('-')[0:3])
                     if not os.path.isdir(os.path.join(clusters_path,clustername)):
                         continue
-                    out = subprocess.Popen(["scontrol","show","hostnames",node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                    stdout,stderr = out.communicate()
+                    if getIdleTime(node)<idle_time:
+                        continue
                     cluster_exists=False
                     for cluster in cluster_to_destroy:
                         if cluster[0] == clustername:
