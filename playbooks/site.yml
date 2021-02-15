@@ -1,6 +1,8 @@
 
 - hosts: compute
   become: true
+  vars: 
+    initial: true
   gather_facts: true
   roles: 
     - hostname
@@ -9,6 +11,7 @@
   become: true
   vars: 
     destroy: false
+    initial: true
   gather_facts: true
   roles: 
     - packages
