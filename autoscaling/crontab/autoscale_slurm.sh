@@ -87,7 +87,21 @@ try:
                 break
             current_nodes+=int(line.split()[2])
             if line.split()[0] == '\"idle':
-                nodes=line.split()[-1].split(',')
+                old_nodes=line.split()[-1].split(',')
+                brokenListOfNodes=False
+                nodes=[]
+                for node in old_nodes:
+                    if brokenListOfNodes:
+                        if ']' in node:
+                            brokenListOfNodes=False
+                            nodes.append(currentNode+','+node)
+                        else:
+                            currentNode=currentNode+','+node
+                    elif '[' in node and not ']' in node:
+                        brokenListOfNodes=True
+                        currentNode=node
+                    else:
+                        nodes.append(node)
                 clusters = []
                 for node in nodes:
                     if node[-1]=="\"":
