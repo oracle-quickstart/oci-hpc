@@ -142,6 +142,8 @@
     src: slurmdbd.conf.j2
     dest: /etc/slurm/slurmdbd.conf
     mode: '0640'
+    owner: slurm
+    group: slurm
     backup: yes
   
 - name: Generate slurm.conf
@@ -151,6 +153,8 @@
     dest: /etc/slurm/slurm.conf
     mode: '0644'
     backup: yes
+    owner: slurm
+    group: slurm
   notify: restart slurm server
   when: initial | bool
 
