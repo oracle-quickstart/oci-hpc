@@ -54,7 +54,7 @@ try:
     shapes['BM.Standard2.52']='std252'
     for i in 1,2,4,8,16,32:
         shapes['VM.Standard.E2.'+str(i)]='amd2'+str(i)
-    shapes['BM.Standard.E2.64']='std264'
+    shapes['BM.Standard.E2.64']='amd264'
     for i in range(1,65):
         shapes['VM.Standard.E3.'+str(i)]='amd3'+str(i)
     shapes['BM.Standard.E3.128']='amd3128'
