@@ -156,7 +156,6 @@ resource "null_resource" "cluster" {
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
 
       })
->>>>>>> 7bb08df (Split and parallelize provisioning)
 
   provisioner "file" { 
     content        = templatefile("${path.module}/configure.tpl", { 
@@ -170,7 +169,6 @@ resource "null_resource" "cluster" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-
 
   provisioner "file" {
     source      = "bastion.sh"
