@@ -14,8 +14,8 @@
 {%- set rdma_address = subnets|last | ansible.netcommon.ipmath(host_index | int -1) -%}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
 {% if not initial | bool %}
-{{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['inventory_hostname'] }} 
-{{rdma_address}} {{ hostvars[item]['ansible_hostname'] }}-rdma {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma
+{{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['inventory_hostname'] }} {{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}}
+{{rdma_address}} {{ hostvars[item]['ansible_hostname'] }}-rdma {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma {{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}}-rdma
 {% else %}
 {{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} hpc-node-{{ loop.index }} hpc-node-{{ loop.index }}.local.vcn hpc-cluster-node-{{ loop.index }} hpc-cluster-node-{{ loop.index }}.local.vcn
 {{rdma_address}} hpc-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma.local.rdma hpc-node-{{ loop.index }}-rdma.local.rdma {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma {{ hostvars[item]['ansible_hostname'] }}-rdma
