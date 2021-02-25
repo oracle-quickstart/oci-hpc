@@ -74,7 +74,20 @@ resource "null_resource" "bastion" {
     }
   }
 
-provisioner "file" {
+  provisioner "file" { 
+    content        = templatefile("${path.module}/configure.tpl", { 
+      configure = var.configure
+    })
+    destination   = "/tmp/configure.conf"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
     content     = tls_private_key.ssh.private_key_pem
     destination = "/home/opc/.ssh/cluster.key"
     connection {
@@ -107,80 +120,6 @@ provisioner "file" {
     }
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "chmod 600 /home/opc/.ssh/cluster.key",
-      "chmod 600 /home/opc/.ssh/id_rsa",
-      "chmod a+x /tmp/bastion.sh",
-      "echo false > /tmp/configure.conf",
-      "/tmp/bastion.sh"
-      ]
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-}
-  
-resource "null_resource" "cluster" { 
-  depends_on = [oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
-  triggers = { 
-    cluster_instances = join(", ", local.cluster_instances_names)
-  } 
-    
-
-  provisioner "file" {
-    content        = templatefile("${path.module}/inventory.tpl", {  
-      bastion_name = oci_core_instance.bastion.display_name, 
-      bastion_ip = oci_core_instance.bastion.private_ip, 
-      compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
-      public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
-      private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
-      nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
-      home_nfs = var.home_nfs,
-      scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
-      cluster_nfs = var.use_cluster_nfs,
-      cluster_nfs_path = var.cluster_nfs_path,
-      scratch_nfs_path = var.scratch_nfs_path,
-      cluster_network = var.cluster_network,
-      slurm = var.slurm,
-      spack = var.spack,
-      bastion_block = var.bastion_block, 
-      scratch_nfs_type = local.scratch_nfs_type,
-      bastion_mount_ip = local.bastion_mount_ip,
-      cluster_mount_ip = local.mount_ip,
-      autoscaling = var.node_count > 0 ? false : true,
-      cluster_name = local.cluster_name,
-      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
-
-      })
-
-  provisioner "file" { 
-    content        = templatefile("${path.module}/configure.tpl", { 
-      configure = var.configure
-    })
-    destination   = "/tmp/configure.conf"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    source      = "bastion.sh"
-    destination = "/tmp/bastion.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
   provisioner "file" {
     source      = "configure.sh"
     destination = "/tmp/configure.sh"
@@ -191,7 +130,6 @@ resource "null_resource" "cluster" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-
 
   provisioner "remote-exec" {
     inline = [
