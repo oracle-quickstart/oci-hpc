@@ -10,11 +10,20 @@ execution=1
 
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 sudo cloud-init status --wait
+
+source /etc/os-release
+
+if [ $ID == "ol" ] ; then
+  repo="ol7_developer_EPEL"
+else
+  repo="epel"
+fi
+
 #
 # Install ansible and other required packages
 #
-sudo yum makecache
-sudo yum install -y ansible python-netaddr
+sudo yum makecache --enablerepo=$repo
+sudo yum install --enablerepo=$repo -y ansible python-netaddr
 
 ansible-galaxy collection install ansible.netcommon > /dev/null
 ansible-galaxy collection install community.general > /dev/null
