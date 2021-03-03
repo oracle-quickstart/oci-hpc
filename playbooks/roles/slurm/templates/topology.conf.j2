@@ -1,41 +1,37 @@
-SwitchName=cluster-1 Nodes=cluster-1-hpc-node-[1-30]
-SwitchName=cluster-2 Nodes=cluster-2-hpc-node-[1-30]
-SwitchName=cluster-3 Nodes=cluster-3-hpc-node-[1-30]
-SwitchName=cluster-4 Nodes=cluster-4-hpc-node-[1-30]
-SwitchName=cluster-5 Nodes=cluster-5-hpc-node-[1-30]
-SwitchName=cluster-6 Nodes=cluster-6-hpc-node-[1-30]
-SwitchName=cluster-7 Nodes=cluster-7-hpc-node-[1-30]
-SwitchName=cluster-8 Nodes=cluster-8-hpc-node-[1-30]
-SwitchName=cluster-9 Nodes=cluster-9-hpc-node-[1-30]
-SwitchName=cluster-10 Nodes=cluster-10-hpc-node-[1-30]
-SwitchName=cluster-11 Nodes=cluster-11-hpc-node-[1-30]
-SwitchName=cluster-12 Nodes=cluster-12-hpc-node-[1-30]
-SwitchName=cluster-13 Nodes=cluster-13-hpc-node-[1-30]
-SwitchName=cluster-14 Nodes=cluster-14-hpc-node-[1-30]
-SwitchName=cluster-15 Nodes=cluster-15-hpc-node-[1-30]
-SwitchName=cluster-16 Nodes=cluster-16-hpc-node-[1-30]
-SwitchName=cluster-17 Nodes=cluster-17-hpc-node-[1-30]
-SwitchName=cluster-18 Nodes=cluster-18-hpc-node-[1-30]
-SwitchName=cluster-19 Nodes=cluster-19-hpc-node-[1-30]
-SwitchName=cluster-20 Nodes=cluster-20-hpc-node-[1-30]
-SwitchName=cluster-21 Nodes=cluster-21-hpc-node-[1-30]
-SwitchName=cluster-22 Nodes=cluster-22-hpc-node-[1-30]
-SwitchName=cluster-23 Nodes=cluster-23-hpc-node-[1-30]
-SwitchName=cluster-24 Nodes=cluster-24-hpc-node-[1-30]
-SwitchName=cluster-25 Nodes=cluster-25-hpc-node-[1-30]
-SwitchName=cluster-26 Nodes=cluster-26-hpc-node-[1-30]
-SwitchName=cluster-27 Nodes=cluster-27-hpc-node-[1-30]
-SwitchName=cluster-28 Nodes=cluster-28-hpc-node-[1-30]
-SwitchName=cluster-29 Nodes=cluster-29-hpc-node-[1-30]
-SwitchName=cluster-30 Nodes=cluster-30-hpc-node-[1-30]
-SwitchName=gpu-cluster-1 Nodes=cluster-1-gpu48-node-[1-10]
-SwitchName=gpu-cluster-2 Nodes=cluster-2-gpu48-node-[1-10]
-SwitchName=gpu-cluster-3 Nodes=cluster-3-gpu48-node-[1-10]
-SwitchName=gpu-cluster-4 Nodes=cluster-4-gpu48-node-[1-10]
-SwitchName=gpu-cluster-5 Nodes=cluster-5-gpu48-node-[1-10]
-SwitchName=gpu-cluster-6 Nodes=cluster-6-gpu48-node-[1-10]
-SwitchName=gpu-cluster-7 Nodes=cluster-7-gpu48-node-[1-10]
-SwitchName=gpu-cluster-8 Nodes=cluster-8-gpu48-node-[1-10]
-SwitchName=gpu-cluster-9 Nodes=cluster-9-gpu48-node-[1-10]
-SwitchName=gpu-cluster-10 Nodes=cluster-10-gpu48-node-[1-10]
-SwitchName=TCP Nodes=cluster-[1-10]-std2[1,2,4,8,16,24,52]-node-[1-30],cluster-[1-10]-amd[264,3128]-node-[1-30],cluster-[1-10]-gpu2[1,2]-node-[1-10],cluster-[1-10]-gpu3[1,2,4,8]-node-[1-10]
+{% for index in range(1,51) %}
+SwitchName=cluster-hpc-{{ index }} Nodes=cluster-{{ index }}-hpc-node-[1-100]
+{% endfor %}
+{% for cluster_type in "gpu48", "amd3128", "std252", "amd264" -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-{{ cluster_type }}-{{ index }} Nodes=cluster-{{ index }}-{{ cluster_type }}-node-[1-20]
+{% endfor %}
+{%- endfor %}
+{% for ocpu in 1,2,4,8,16,32 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-amd2{{ ocpu }}-{{ index }} Nodes=cluster-{{ index }}-amd2{{ ocpu }}-node-[1-10]
+{% endfor %}
+{%- endfor %}
+{% for ocpu in 1,2,4,8,16,24 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-std2{{ ocpu }}-{{ index }} Nodes=cluster-{{ index }}-std2{{ ocpu }}-node-[1-10]
+{% endfor %}
+{%- endfor %}
+{% for ocpu in range(1,65) -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-amd3{{ ocpu }}-{{ index }} Nodes=cluster-{{ index }}-amd3{{ ocpu }}-node-[1-10]
+{% endfor %}
+{%- endfor %}
+{% for gpu in 1,2 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-gpu2{{ gpu }}-{{ index }} Nodes=cluster-{{ index }}-gpu2{{ gpu }}-node-[1-20]
+{% endfor %}
+{%- endfor %}
+{% for gpu in 1,2,4,8 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-gpu3{{ gpu }}-{{ index }} Nodes=cluster-{{ index }}-gpu3{{ gpu }}-node-[1-20]
+{% endfor %}
+{%- endfor %}
+{% if groups['compute'] | length > 0 %}
+SwitchName=Permanent Nodes={% for item in groups['compute'] -%}
+    {{hostvars[item]['ansible_fqdn'].split('.')[0] }},{%- endfor %}
+{% endif %}

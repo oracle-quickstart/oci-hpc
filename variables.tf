@@ -16,7 +16,7 @@ variable "custom_bastion_image" {
 variable "bastion_boot_volume_size" {}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
-variable "node_count" {default = 0}
+variable "node_count" {}
 variable "boot_volume_size" {}
 variable "use_marketplace_image" {}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
@@ -90,3 +90,13 @@ variable "api_fingerprint" { default = "None"}
 variable "api_user_ocid" { default = "None"} 
 variable "home_nfs" { default = true } 
 variable "configure" { default = true }
+
+variable "autoscaling" { default = false } 
+variable "add_nfs" { default = false}
+variable "create_ffs" { default = false }
+variable "fss_compartment" {default = ""}
+variable "fss_ad" {default = ""}
+variable "nfs_target_path" { default = "/app"}
+variable "nfs_source_IP" { default = ""}
+variable "nfs_source_path" { default = "/app"}
+variable "nfs_options" {default = ""}

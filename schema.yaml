@@ -44,14 +44,24 @@ variableGroups:
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
-      - ${autoscaling}
-      - ${node_count}
       - ${instance_pool_custom_memory}
       - ${instance_pool_memory}
+      - ${autoscaling}
+      - ${node_count}
       - ${boot_volume_size}
       - ${use_marketplace_image}
       - ${marketplace_listing}
       - ${image}
+  - title: "Additional Shared Drive"
+    variables:
+      - ${add_nfs}
+      - ${create_ffs}
+      - ${nfs_target_path}
+      - ${nfs_source_IP}
+      - ${nfs_source_path}
+      - ${nfs_options}
+      - ${fss_compartment}
+      - ${fss_ad}
   - title: "Advanced options"
     variables:
       - ${use_advanced}
@@ -258,6 +268,7 @@ variables:
     type: boolean
     description: Use ROCEv2 cluster network
     default: true
+
   cluster_network_shape:
     type: enum
     enum:
@@ -317,11 +328,8 @@ variables:
     required: true
     type: integer
     minimum: 0
-    title: "Number of Compute Instances"
+    title: "Number of Compute Instances (Permanent Cluster when autoscaling)"
     default: 2
-    visible:
-      not:
-        - ${autoscaling}
   boot_volume_size:
     type: integer
     required: true
@@ -544,15 +552,18 @@ variables:
     type: boolean
     title: "Install SLURM"
     default: true
+    description: "Needed for autoscaling" 
+
   spack:
     type: boolean
     title: "Install Spack package manager"
     default: false
+
   autoscaling:
     type: boolean
-    title: "Get your cluster to automatically scale up and down"
+    title: "Use Slurm to launch additional clusters"
     default: false
-
+    
   inst_prin:
     type: boolean
     title: "Use Instance Principal" 
@@ -605,3 +616,72 @@ variables:
     title: "Configure system"
     default: true
     description: "If unchecked, cluster will be launched but left unconfigured"
+
+  add_nfs:
+    type: boolean
+    title: "Add another NFS filesystem"
+    default: false
+    description: "For FSS, leave options filed empty."
+    visible: true
+
+  create_ffs:
+    type: boolean
+    title: "Create FSS"
+    default: false
+    description: "For FSS, leave options filed empty."
+    visible: ${add_nfs}
+
+  fss_compartment:
+    title: "FSS compartment"
+    description: "Compartment to add the FSS Mount Target and File System"
+    type: oci:identity:compartment:id
+    visible: 
+      and:
+        - ${add_nfs}
+        - ${create_ffs}
+
+  fss_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${fss_compartment}
+    visible: 
+      and:
+        - ${add_nfs}
+        - ${create_ffs}
+    description: "FSS Availability Domain"
+    title: "FSS Availability Domain"
+        
+  nfs_target_path:
+    type: string
+    title: "NFS Path"
+    default: "/app"
+    description: "Value of the path on which you can mount the drive"
+    visible: 
+      and:
+        - ${add_nfs}
+  nfs_source_IP:
+    type: string
+    title: "NFS server IP"
+    default: "0.0.0.0"
+    description: "IP address of the NFS server"
+    visible: 
+      and:
+        - ${add_nfs} 
+        - not:
+          - ${create_ffs}
+  nfs_source_path:
+    type: string
+    title: "NFS server Path"
+    default: "/app"
+    description: "Value of the path on the NFS server"
+    visible: ${add_nfs}
+  nfs_options:
+    type: string
+    title: "Options"
+    default: ""
+    description: "Mount options, FSS requires empty string"
+    visible: 
+      and:
+        - ${add_nfs} 
+        - not:
+          - ${create_ffs}

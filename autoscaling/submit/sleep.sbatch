@@ -6,7 +6,7 @@
 #SBATCH --constraint cluster-size-2,BM.HPC2.36
 
 
-cd /mnt/nfs-share
+cd /nfs/scratch
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 MACHINEFILE="hostfile"

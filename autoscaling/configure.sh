@@ -13,16 +13,6 @@ execution=1
 playbooks_path=$folder/../playbooks/
 inventory_path=$folder/clusters/$1
 
-ssh_options="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
-sudo cloud-init status --wait
-#
-# Install ansible and other required packages
-#
-sudo yum makecache
-sudo yum install -y ansible python-netaddr
-
-ansible-galaxy collection install community.general
-
 #
 # A little waiter function to make sure all the nodes are up before we start configure 
 #
@@ -46,16 +36,6 @@ for host in $(cat $inventory_path/hosts_$1) ; do
   done
 done
 
-# Update the forks to a 8 * threads
-
-threads=$(nproc)
-forks=$(($threads * 8))
-
-sudo sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 
@@ -68,9 +48,6 @@ else
 
 	cat <<- EOF > /tmp/motd
 	At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run: 
-    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook $playbooks_path/site.yml -i $inventory_path/inventory
+    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook $playbooks_path/new_nodes.yml -i $inventory_path/inventory
 EOF
-
-sudo mv /tmp/motd /etc/motd
-
 fi 
