@@ -166,4 +166,3 @@
     path: /home/opc/.bashrc
     line: alias status='tail /home/opc/autoscaling/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
     state: present
-    when: initial | bool
