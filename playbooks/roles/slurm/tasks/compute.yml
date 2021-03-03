@@ -1,20 +1,33 @@
 ---
-- name: Repository
-  become: true
-  yum_repository:
-    name: oci-hpc
-    description: oci-hpc
-    baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-    gpgcheck: no
-    enabled: yes
-    
-- name: install SLURM compute packages
-  become: true
-  yum: 
-    name: 
-      - slurm-pam_slurm
-      - slurm-libpmi
-      - slurm-slurmd
+- name: install Slurm Comon Packages
+  block:    
+    - name: install SLURM server packages
+      become: true
+      yum: 
+        name: 
+          - "{{ shared_drive }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
+
+  rescue:
+    - name: Repository
+      become: true
+      yum_repository:
+        name: oci-hpc
+        description: oci-hpc
+        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+        gpgcheck: no
+        enabled: yes
+        retries: 3
+      
+    - name: install SLURM server packages
+      become: true
+      yum:
+        name:
+          - slurm-pam_slurm
+          - slurm-libpmi
+          - slurm-slurmd
+
 - name: Create systemd unit dirs
   become: true
   file:
@@ -22,6 +35,13 @@
     state: directory
   with_items:
     - munge
+
+#- name: Modify slurmd.service file
+#  become: true
+#  replace:
+#    path: "/usr/lib/systemd/system/slurmd.service"
+#    regexp: 'ExecStart=/usr/sbin/slurmd \$SLURMD_OPTIONS'
+#    replace: 'ExecStart=/usr/sbin/slurmd --conf-server bastion:6817 $SLURMD_OPTIONS'
 
 - name: Create munge dir
   become: true
@@ -73,7 +93,7 @@
     owner: 'slurm'
     group: 'slurm'
     mode: '0750'
-
+ 
 - name: Copy configuration files
   become: true
   copy: 
@@ -93,28 +113,54 @@
     mode: '0644'
     backup: yes
 
-- name: Generate slurm.conf
+- name: move slurm.conf on all servers
   become: true
-  template: 
-    src: slurm.conf.j2
+  copy:
     dest: /etc/slurm/slurm.conf
-    mode: '0644'
-    backup: yes
-  notify: restart slurm
+    src: /etc/slurm/slurm.conf
+    force: yes
+
+- name: start slurmd
+  become: true
+  service:
+    name: slurmd
+    state: restarted
+    enabled: true
  
 - name: Update feature on compute node
   become: true
-  command: scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ shape }}
-  when: autoscaling | bool
+  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
+  retries: 20
+  delay: 10
   register: result
-  retries: 5
+  until: result.rc == 0
+  when: not initial | bool
+
+- name: Update feature on compute node
+  become: true
+  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
+  retries: 20
+  delay: 10
+  register: result
+  until: result.rc == 0
+  when: initial | bool
+
+- name: Grab Node State
+  shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
+  register: node_state
+  delegate_to: 127.0.0.1
+  until: node_state.stdout.find("failure") == -1
+  retries: 10
   delay: 5
-  until: result is not failed
+
+- set_fact: 
+    node_state2={{ node_state.stdout }}
 
 - name: Update node state on bastion
   become: true
   command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-  when: autoscaling | bool
+  when: ( node_state2 != "idle" ) and  ( node_state2 != "alloc" ) | bool
   register: result
   retries: 5
   delay: 5

@@ -24,7 +24,7 @@ variable "private_subnet_id" { default = "${private_subnet_id}"}
 variable "private_subnet" {default = "${private_subnet}"}
 variable "slurm" { default = true }
 variable "spack" { default = ${spack} }
-variable "instance_pool_ocpus" { default = ${instance_pool_ocpus}} 
+variable "instance_pool_ocpus" { default = "##OCPU##"}
 variable "instance_pool_memory" { default = ${instance_pool_memory} }
 variable "instance_pool_custom_memory" { default = ${instance_pool_custom_memory} }
 variable "marketplace_listing" { 
@@ -69,3 +69,8 @@ variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "configure" { default = true }
 
+variable "add_nfs" { default = ${add_nfs}}
+variable "nfs_target_path" { default = "${nfs_target_path}"}
+variable "nfs_source_IP" { default = "${nfs_source_IP}"}
+variable "nfs_source_path" { default = "${nfs_source_path}"}
+variable "nfs_options" { default = "${nfs_options}"}

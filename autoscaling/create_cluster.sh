@@ -10,7 +10,12 @@ scripts=`realpath $0`
 folder=`dirname $scripts`
 cp -r $folder/tf_init $folder/clusters/$2
 cd $folder/clusters/$2
-sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/$3/g;s/##CN##/$4/g" $folder/tf_init/variables.tf > variables.tf
+if [[ $3 == VM.Standard.E3.* ]]
+then  
+  sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/VM.Standard.E3.Flex/g;s/##CN##/$4/g;s/##OCPU##/${3:15}/g" $folder/tf_init/variables.tf > variables.tf
+else
+  sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/$3/g;s/##CN##/$4/g" $folder/tf_init/variables.tf > variables.tf
+fi
 echo "Started to build $2"
 start=`date +%s`
 terraform init > $folder/logs/create_$2_${date}.log
@@ -26,5 +31,5 @@ if [ $status -eq 0 ]
   else
     echo "Could not create $2 with $1 nodes in $runtime seconds"
     rm currently_building
-    terraform destroy -auto-approve > $folder/logs/delete_$2_${date}.log 2>&1
+    $folder/delete_cluster.sh $2
 fi
