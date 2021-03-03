@@ -17,7 +17,7 @@ resource "local_file" "hosts" {
 
 resource "local_file" "inventory" {
   depends_on          = [oci_core_cluster_network.cluster_network]
-  content        = templatefile("${path.module}/inventory.tpl", {  
+  content        = templatefile("${local.bastion_path}/inventory.tpl", {  
     bastion_name = var.bastion_name,
     bastion_ip = var.bastion_ip, 
     compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
