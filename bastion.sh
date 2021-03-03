@@ -11,6 +11,9 @@ execution=1
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 sudo cloud-init status --wait
 
+# TODO: investigate repository issues. 
+sleep 30
+
 source /etc/os-release
 
 if [ $ID == "ol" ] ; then
