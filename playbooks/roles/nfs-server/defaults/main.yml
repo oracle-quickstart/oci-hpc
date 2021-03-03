@@ -5,5 +5,5 @@ nfs_packages:
 nfs_rpcbind_state: started
 nfs_rpcbind_enabled: true
 
-nfs_options: "rw,sync,no_root_squash"
+home_nfs_options: "rw,sync,no_root_squash"
 

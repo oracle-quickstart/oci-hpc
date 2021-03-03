@@ -63,6 +63,17 @@ resource "null_resource" "bastion" {
     }
   }
 
+  provisioner "file" {
+    source      = "autoscaling"
+    destination = "/home/opc/"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "file" { 
     content        = templatefile("${path.module}/configure.tpl", { 
       configure = var.configure
@@ -109,12 +120,22 @@ resource "null_resource" "bastion" {
     }
   }
 
+  provisioner "file" {
+    source      = "configure.sh"
+    destination = "/tmp/configure.sh"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = "opc"
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod 600 /home/opc/.ssh/cluster.key",
       "chmod 600 /home/opc/.ssh/id_rsa",
       "chmod a+x /tmp/bastion.sh",
-      "echo false > /tmp/configure.conf",
       "/tmp/bastion.sh"
       ]
     connection {
@@ -127,11 +148,10 @@ resource "null_resource" "bastion" {
 }
   
 resource "null_resource" "cluster" { 
-  depends_on = [null_resource.bastion,oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  depends_on = [null_resource.bastion, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
-    
 
   provisioner "file" {
     content        = templatefile("${path.module}/inventory.tpl", {  
@@ -146,6 +166,11 @@ resource "null_resource" "cluster" {
       cluster_nfs = var.use_cluster_nfs,
       cluster_nfs_path = var.cluster_nfs_path,
       scratch_nfs_path = var.scratch_nfs_path,
+      add_nfs = var.add_nfs,
+      nfs_target_path = var.nfs_target_path,
+      nfs_source_IP = local.nfs_source_IP,
+      nfs_source_path = var.nfs_source_path,
+      nfs_options = var.nfs_options,
       cluster_network = var.cluster_network,
       slurm = var.slurm,
       spack = var.spack,
@@ -153,10 +178,10 @@ resource "null_resource" "cluster" {
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
       cluster_mount_ip = local.mount_ip,
-      autoscaling = var.node_count > 0 ? false : true,
+      autoscaling = var.autoscaling,
       cluster_name = local.cluster_name,
-      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
-
+      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      instance_pool_ocpus = var.instance_pool_ocpus
       })
 
     destination   = "/home/opc/playbooks/inventory"
@@ -172,69 +197,6 @@ resource "null_resource" "cluster" {
   provisioner "file" {
     content     = var.node_count > 0 ? join("\n",local.cluster_instances_ips) : "\n"
     destination = "/tmp/hosts"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    source      = "configure.sh"
-    destination = "/tmp/configure.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-
-  provisioner "remote-exec" {
-    inline = [
-      "chmod 600 /home/opc/.ssh/cluster.key",
-      "chmod 600 /home/opc/.ssh/id_rsa",
-      "chmod a+x /tmp/configure.sh",
-      "echo false > /tmp/configure.conf",
-      "/tmp/configure.sh"
-      ]
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-}
-resource "null_resource" "non-autoscaling" {
-  depends_on = [ null_resource.cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
-
-  count = var.node_count > 0 ? 1 : 0
-
-  provisioner "remote-exec" {
-    inline = [
-      "echo true > /tmp/configure.conf",
-      "/tmp/configure.sh"
-      ]
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-}
-resource "null_resource" "autoscaling" {
-  depends_on = [ null_resource.cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
-
-  count = var.node_count > 0 ? 0 : 1 
-
-  provisioner "file" {
-    source      = "autoscaling"
-    destination = "/home/opc/"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
@@ -282,7 +244,6 @@ resource "null_resource" "autoscaling" {
       scratch_nfs_type_pool = var.scratch_nfs_type_pool,
       bastion_block_volume_performance = var.bastion_block_volume_performance,
       marketplace_listing = var.marketplace_listing,
-      instance_pool_ocpus = var.instance_pool_ocpus,
       image = var.image,
       use_marketplace_image = var.use_marketplace_image,
       boot_volume_size = var.boot_volume_size,
@@ -302,7 +263,12 @@ resource "null_resource" "autoscaling" {
       bastion_mount_ip = local.bastion_mount_ip,
       instance_pool_memory = var.instance_pool_memory,
       instance_pool_custom_memory = var.instance_pool_custom_memory,
-      home_nfs = var.home_nfs
+      home_nfs = var.home_nfs,
+      add_nfs = var.add_nfs,
+      nfs_target_path = var.nfs_target_path,
+      nfs_source_IP = local.nfs_source_IP,
+      nfs_source_path = var.nfs_source_path,
+      nfs_options = var.nfs_options
       })
 
     destination   = "/home/opc/autoscaling/tf_init/variables.tf"
@@ -333,10 +299,8 @@ resource "null_resource" "autoscaling" {
       "chmod 755 /home/opc/autoscaling/credentials/key.sh",
       "/home/opc/autoscaling/credentials/key.sh /home/opc/autoscaling/credentials/key.initial /home/opc/autoscaling/credentials/key.pem > /home/opc/autoscaling/credentials/key.log",
       "chmod 600 /home/opc/autoscaling/credentials/key.pem",
-      "chmod 600 /home/opc/.ssh/cluster.key",
-      "chmod 600 /home/opc/.ssh/id_rsa",
       "chmod a+x /tmp/configure.sh",
-      "echo true > /tmp/configure.conf",
+      "echo ${var.configure} > /tmp/configure.conf",
       "/tmp/configure.sh"
       ]
     connection {
