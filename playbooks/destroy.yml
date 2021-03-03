@@ -2,11 +2,13 @@
   become: true
   vars:
     destroy: true
+    initial: false
   roles:
     - slurm
 - hosts: bastion
   become: true
   vars:
     destroy: true
+    initial: false
   roles:
     - etc-hosts

@@ -1,0 +1,47 @@
+---
+- name: Install sssd packages
+  yum:
+    name: 
+      - sssd
+      - authconfig
+    state: present
+
+- name: Add configuration file to /etc/sssd/sssd.conf
+  template:
+    src: 'sssd.conf.j2'
+    dest: '/etc/sssd/sssd.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+  notify: restart sssd
+
+- name: Copy CA certificate
+  copy:
+    src: "{{ ssl_ca_cert }}"
+    dest: /etc/openldap/certs/cluster-ca.crt
+
+- name: Adjust OpenLDAP client TLS configuration
+  lineinfile:
+    path: '/etc/openldap/ldap.conf'
+    line: 'TLS_CACERT   /etc/openldap/certs/cluster-ca.crt'
+
+- name: Enable sssd service
+  systemd:
+    name: sssd
+    enabled: "yes"
+
+- name: Start sssd service
+  systemd:
+    name: sssd
+    state: started
+
+- name: Update sshd configuration
+  lineinfile: 
+    path: /etc/ssh/sshd_config
+    regexp: '^PasswordAuthentication'
+    line: PasswordAuthentication yes
+  notify: restart sshd
+
+- name: Setting up the system to use sssd for authentication
+  command: authconfig --enablemkhomedir --enablesssd --enablesssdauth --update
+  changed_when: false

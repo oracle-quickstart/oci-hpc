@@ -1,0 +1,3 @@
+ssl_cert_path: '/etc/ssl/certs'
+ssl_ca_cert: '{{ ssl_cert_path }}/cluster-ca.crt'
+ssl_cert_group: ssl

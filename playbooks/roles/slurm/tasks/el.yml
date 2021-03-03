@@ -1,4 +1,8 @@
 ---
+- name: download slurm Packages
+  include_tasks: download.yml
+  when: ('bastion' in group_names) and not destroy and initial| bool
+
 - name: include common tasks
   include_tasks: common.yml
   when: (not destroy) and ((initial) or (not initial and ('compute' in group_names)))|bool
