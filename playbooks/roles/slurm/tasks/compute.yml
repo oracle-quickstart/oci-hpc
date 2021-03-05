@@ -5,9 +5,9 @@
       become: true
       yum: 
         name: 
-          - "{{ shared_drive }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
-          - "{{ shared_drive }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
-          - "{{ shared_drive }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
+          - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
+          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+          - "{{ download_path }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
 
   rescue:
     - name: Repository
