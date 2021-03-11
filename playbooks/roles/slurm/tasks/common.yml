@@ -10,7 +10,7 @@
   become: true
   group:
     name: munge
-    gid: 801
+    gid: "{{ munge_gid }}"
     state: present
     system: yes
 - name: create munge user
@@ -18,8 +18,8 @@
   user:
     name: munge
     comment: "munge"
-    uid: 801
-    group: 801
+    uid: "{{ munge_uid }}"
+    group: "{{ munge_gid }}"
     shell: /sbin/nologin
     home: /var/lib/munge
     state: present
@@ -27,7 +27,7 @@
   become: true
   group:
     name: slurm
-    gid: 802
+    gid: "{{ slurm_gid }}"
     state: present
     system: yes
 - name: create slurm user
@@ -35,8 +35,8 @@
   user:
     name: slurm
     comment: "Slurm user"
-    uid: 802
-    group: 802
+    uid: "{{ slurm_uid }}"
+    group: "{{ slurm_gid }}"
     shell: /bin/bash
     home: /var/lib/slurm
     state: present
