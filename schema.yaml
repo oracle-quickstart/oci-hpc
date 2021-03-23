@@ -87,6 +87,7 @@ variableGroups:
     variables:
       - ${slurm}
       - ${spack}
+      - ${monitoring}
   - title: "API authentication"
     variables:
       - ${inst_prin}
