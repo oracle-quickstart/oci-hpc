@@ -148,12 +148,12 @@
   roles:
     - rdma-interface
 
-#- hosts: bastion
-#  tasks: 
-#    - include_role: 
-#        name: influxdb
-#    - include_role: 
-#        name: grafana#
+- hosts: bastion
+  tasks: 
+    - include_role: 
+        name: influxdb
+    - include_role: 
+        name: grafana#
 
 - hosts: all
   vars:
@@ -167,5 +167,5 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-#    - include_role: 
-#        name: telegraf
+    - include_role: 
+        name: telegraf
