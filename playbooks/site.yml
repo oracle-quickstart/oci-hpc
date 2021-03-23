@@ -152,8 +152,10 @@
   tasks: 
     - include_role: 
         name: influxdb
+      when: monitoring|default(false)|bool
     - include_role: 
         name: grafana
+      when: monitoring|default(false)|bool
 
 - hosts: all
   vars:
@@ -169,3 +171,4 @@
       when: slurm|default(false)|bool
     - include_role: 
         name: telegraf
+      when: monitoring|default(false)|bool

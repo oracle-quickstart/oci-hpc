@@ -559,6 +559,11 @@ variables:
     title: "Install Spack package manager"
     default: false
 
+  monitoring:
+    type: boolean
+    title: "Install HPC Cluster Monitoring"
+    default: false
+
   autoscaling:
     type: boolean
     title: "Use Slurm to launch additional clusters"
@@ -580,11 +585,6 @@ variables:
     visible:
       not:
         - ${inst_prin}
-    #required: 
-    #  and:
-    #    - ${autoscaling}
-    #    not:
-    #      - ${inst_prin}
 
   api_fingerprint:
     type: string
@@ -593,11 +593,6 @@ variables:
     visible:
       not:
         - ${inst_prin}
-    #required: 
-    #  and:
-    #    - ${autoscaling}
-    #    not:
-    #      - ${inst_prin}
 
   api_user_ocid:
     type: string
@@ -606,11 +601,7 @@ variables:
     visible:
       not:
         - ${inst_prin}
-    #required: 
-    #  and:
-    #    - ${autoscaling}
-    #    not:
-    #      - ${inst_prin}
+        
   configure: 
     type: boolean
     title: "Configure system"
