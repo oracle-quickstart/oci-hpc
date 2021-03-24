@@ -562,8 +562,9 @@ variables:
 
   monitoring:
     type: boolean
-    title: "Install HPC Cluster Monitoring"
+    title: "Install HPC Cluster Monitoring Tools"
     default: false
+    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
 
   autoscaling:
     type: boolean
