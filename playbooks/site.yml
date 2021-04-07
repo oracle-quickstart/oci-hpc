@@ -54,7 +54,7 @@
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool and ansible_selinux.status == "enabled"
+      when: home_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
@@ -82,7 +82,7 @@
         name: nfs-server
       when: cluster_nfs|default(true)|bool
     - include_role: 
-        name: mariadb
+        name: mysql
     - include_role: 
         name: cron
       
