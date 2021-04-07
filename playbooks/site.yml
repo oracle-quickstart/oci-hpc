@@ -14,6 +14,7 @@
     initial: true
   gather_facts: true
   roles: 
+    - oci-cloud-agent
     - packages
     - oci-legacy
     - firewall 
