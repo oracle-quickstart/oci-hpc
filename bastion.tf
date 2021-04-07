@@ -30,7 +30,9 @@ resource "oci_core_instance" "bastion" {
         memory_in_gbs = var.bastion_custom_memory ? var.bastion_memory : 16 * shape_config.value
       }
   }
-
+  agent_config {
+    is_management_disabled = true
+    }
   display_name        = "${local.cluster_name}-bastion"
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
