@@ -14,6 +14,7 @@
 - name: Install PyMSQL
   become: true
   yum:
+    enablerepo: ol7_developer_EPEL
     name: 
       - python2-PyMySQL
     state: installed
