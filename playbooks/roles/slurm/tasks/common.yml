@@ -2,6 +2,7 @@
 - name: install munge
   become: true
   yum:
+    enablerepo: ol7_developer_EPEL
     name:
       - munge
       - munge-libs
