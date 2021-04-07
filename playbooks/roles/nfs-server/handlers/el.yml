@@ -1,2 +1,9 @@
-- name: restart_nfs
-  command: 'exportfs -ra'
+#- name: restart_nfs
+#  command: 'exportfs -ra'
+
+- name: reload_nfs
+  service:
+    name: nfs-server
+    state: reloaded
+    enabled: true
+
