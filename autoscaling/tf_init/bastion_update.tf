@@ -64,8 +64,8 @@ resource "null_resource" "on_destroy" {
     bastion_path = local.bastion_path
   }
   provisioner "local-exec" {
-    command = "${self.triggers.scripts_folder}/cleanup.sh ${self.triggers.cluster_name}; rm -rf ${self.triggers.bastion_path}"
+    command = "${self.triggers.scripts_folder}/cleanup.sh ${self.triggers.cluster_name}"
     when    = destroy
-    on_failure = continue
+    on_failure = fail
   }
 }
