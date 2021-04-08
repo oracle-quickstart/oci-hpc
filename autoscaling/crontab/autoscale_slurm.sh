@@ -8,7 +8,7 @@ lockfile = "/tmp/autoscaling_lock"
 idle_time=600 #seconds
 
 def getJobs():
-    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:50,NUMNODES'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:50,NUMNODES,Dependency'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
 
@@ -64,7 +64,7 @@ try:
         cluster_to_build=[]
         for line in getJobs():
             if len(line.split())>3:
-                if line.split()[0].strip() == 'PENDING':
+                if line.split()[0].strip() == 'PENDING' and 'null' in line.split()[-1].strip():
                     features=line.split()[2].split('&')
                     shape = "BM.HPC2.36"
                     for feature in features:
