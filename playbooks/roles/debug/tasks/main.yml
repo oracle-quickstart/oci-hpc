@@ -1,9 +1,0 @@
----
-
-- name: Display all interfaces
-  debug: 
-    msg: "{{ ansible_facts.interfaces }}"
-
-- debug: 
-    msg: "present!"
-  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
