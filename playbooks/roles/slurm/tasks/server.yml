@@ -46,7 +46,7 @@
     name: 
       - slurm-slurmctld
       - slurm-slurmdbd
-      - slurm-slurmrestd
+#      - slurm-slurmrestd
   
 - name: Create systemd unit dirs
   become: true
