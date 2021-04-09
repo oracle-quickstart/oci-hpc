@@ -183,7 +183,8 @@ resource "null_resource" "cluster" {
       autoscaling = var.autoscaling,
       cluster_name = local.cluster_name,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
-      instance_pool_ocpus = var.instance_pool_ocpus
+      instance_pool_ocpus = var.instance_pool_ocpus,
+      monitoring = var.monitoring
       })
 
     destination   = "/home/opc/playbooks/inventory"
