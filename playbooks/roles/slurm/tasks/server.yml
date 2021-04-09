@@ -14,40 +14,40 @@
 - name: Install PyMSQL
   become: true
   yum:
-    enablerepo: ol7_developer_EPEL
+    enablerepo: "epel,ol7_developer_EPEL"
     name: 
       - python2-PyMySQL
     state: installed
 
-- name: install Slurm Server
-  block:    
-    - name: install SLURM server packages
-      become: true
-      yum: 
-        name: 
-          - "{{ download_path }}/slurm_rpms/slurm-slurmctld-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm" 
-  rescue:
-    - name: Repository
-      become: true
-      yum_repository:
-        name: oci-hpc
-        description: oci-hpc
-        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-        gpgcheck: no
-        enabled: yes
-        retries: 3
+#- name: install Slurm Server
+#  block:    
+#    - name: install SLURM server packages
+#      become: true
+#      yum: 
+#        name: 
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmctld-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm" 
+#  rescue:
+#    - name: Repository
+#      become: true
+#      yum_repository:
+#        name: oci-hpc
+#        description: oci-hpc
+#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+#        gpgcheck: no
+#        enabled: yes
+#        retries: 3
       
-    - name: install SLURM server packages
-      become: true
-      yum:
-        name: 
-          - slurm-slurmctld
-          - slurm-slurmdbd
-          - slurm-slurmrestd
+- name: install SLURM server packages
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name: 
+      - slurm-slurmctld
+      - slurm-slurmdbd
+      - slurm-slurmrestd
   
-
 - name: Create systemd unit dirs
   become: true
   file:
