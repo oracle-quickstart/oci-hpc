@@ -29,7 +29,7 @@
     name: mysql-release-el7
     state: present
 
-- name: Install MariaDB packages
+- name: Install MySQL packages
   become: true
   yum:
    enablerepo: ol7_MySQL80

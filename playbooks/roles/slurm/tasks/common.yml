@@ -2,7 +2,7 @@
 - name: install munge
   become: true
   yum:
-    enablerepo: ol7_developer_EPEL
+    enablerepo: "epel,ol7_developer_EPEL"
     name:
       - munge
       - munge-libs
@@ -43,44 +43,45 @@
     state: present
 
 
-- name: install Slurm Common Packages
-  block:
-    - name: install SLURM server packages
-      become: true
-      yum: 
-        name: 
-          - "{{ download_path }}/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm"
-          - "{{ download_path }}/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm"
+#- name: install Slurm Common Packages
+#  block:
+#    - name: install SLURM server packages
+#      become: true
+#      yum: 
+#        name: 
+#          - "{{ download_path }}/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm"
 
-  rescue:
-    - name: Repository
-      become: true
-      yum_repository:
-        name: oci-hpc
-        description: oci-hpc
-        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-        gpgcheck: no
-        enabled: yes
-        retries: 3
+#  rescue:
+#    - name: Repository
+#      become: true
+#      yum_repository:
+#        name: oci-hpc
+#        description: oci-hpc
+#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+#        gpgcheck: no
+#        enabled: yes
+#        retries: 3
       
-    - name: install SLURM server packages
-      become: true
-      yum:
-        name:
-          - slurm
-          - slurm-devel
-          - slurm-contribs
-          - slurm-perlapi
-          - slurm-devel
-          - slurm-torque
-          - slurm-openlava
-          - slurm-example-configs
+- name: install SLURM server packages
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name:
+      - slurm
+      - slurm-devel
+      - slurm-contribs
+      - slurm-perlapi
+      - slurm-devel
+      - slurm-torque
+      - slurm-openlava
+#     - slurm-example-configs
           
 - name: Create {{ slurm_spool_path }}
   become: true
