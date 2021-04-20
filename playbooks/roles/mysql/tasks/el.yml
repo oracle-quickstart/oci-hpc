@@ -108,13 +108,13 @@
 #      state: present
 #
   - name: check if DB exists
-    shell: mysql --user root --password="{{ mysql_root_pwd }}" -e 'SHOW DATABASES;'
+    shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
     register: dbstatus
     ignore_errors: true
     no_log: yes
       
   - name: fix user password
-    command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ m_root_password.stdout }}';"
+    command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ m_root_password.stdout }}';"
     when: dbstatus.rc != 0 
     
   - name: fix password policy
