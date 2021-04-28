@@ -22,14 +22,14 @@ else
   repo="epel"
 fi
 
-#
-# Install ansible and other required packages
-#
-# sudo yum makecache --enablerepo=$repo
-# sudo yum install --enablerepo=$repo -y ansible python-netaddr
 
-sudo yum makecache
-sudo yum install -y ansible python-netaddr
+# Install ansible and other required packages
+
+sudo yum makecache --enablerepo=$repo
+sudo yum install --enablerepo=$repo -y ansible python-netaddr
+
+#sudo yum makecache
+#sudo yum install -y ansible python-netaddr
 
 ansible-galaxy collection install ansible.netcommon > /dev/null
 ansible-galaxy collection install community.general > /dev/null

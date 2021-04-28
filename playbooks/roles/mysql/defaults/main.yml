@@ -1,0 +1,12 @@
+---
+mariadb_packages:
+  - mariadb
+  - mariadb-server
+  - MySQL-python
+
+mysql_packages:
+  - mysql-community-server
+  - mysql-community-client
+  - MySQL-python
+
+mysql_db_path: '/var/lib/mysql'

@@ -100,3 +100,4 @@ variable "nfs_target_path" { default = "/app"}
 variable "nfs_source_IP" { default = ""}
 variable "nfs_source_path" { default = "/app"}
 variable "nfs_options" {default = ""}
+variable "monitoring" { default = true }

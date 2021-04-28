@@ -34,7 +34,7 @@ for host in $(cat /tmp/hosts) ; do
   echo "validating connection to: ${host}"
   while ! ssh ${ssh_options} opc@${host} uptime ; do
 
-        if [[ $r -eq 10 ]] ; then
+        if [[ $r -eq 30 ]] ; then
                   execution=0
                   break
         fi
