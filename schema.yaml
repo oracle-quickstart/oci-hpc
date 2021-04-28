@@ -112,6 +112,7 @@ variableGroups:
       - ${scratch_nfs_mount}
       - ${marketplace_listing_id}
       - ${ssh_cidr}
+      - ${marketplace_source_images}
     visible: false
   - title: "Debug"
     variables: 
