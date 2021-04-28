@@ -27,7 +27,8 @@ fi
 
 sudo yum makecache --enablerepo=$repo
 sudo yum install --enablerepo=$repo -y ansible python-netaddr
-
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+sudo yum install -y terraform
 #sudo yum makecache
 #sudo yum install -y ansible python-netaddr
 

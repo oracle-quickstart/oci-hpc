@@ -298,7 +298,6 @@ resource "null_resource" "cluster" {
     inline = [
       "chmod 755 /home/opc/autoscaling/*.sh",
       "chmod 755 /home/opc/autoscaling/crontab/*.sh",
-      "sudo yum install -y terraform",
       "chmod 755 /home/opc/autoscaling/credentials/key.sh",
       "/home/opc/autoscaling/credentials/key.sh /home/opc/autoscaling/credentials/key.initial /home/opc/autoscaling/credentials/key.pem > /home/opc/autoscaling/credentials/key.log",
       "chmod 600 /home/opc/autoscaling/credentials/key.pem",
