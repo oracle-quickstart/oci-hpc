@@ -22,6 +22,7 @@
         state: directory
         setype: cert_t
         seuser: system_u
+        recurse: yes
 
     - name: Generate a certificate authority for the cluster
       command: >

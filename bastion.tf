@@ -30,7 +30,9 @@ resource "oci_core_instance" "bastion" {
         memory_in_gbs = var.bastion_custom_memory ? var.bastion_memory : 16 * shape_config.value
       }
   }
-
+  agent_config {
+    is_management_disabled = true
+    }
   display_name        = "${local.cluster_name}-bastion"
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
@@ -181,7 +183,8 @@ resource "null_resource" "cluster" {
       autoscaling = var.autoscaling,
       cluster_name = local.cluster_name,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
-      instance_pool_ocpus = var.instance_pool_ocpus
+      instance_pool_ocpus = var.instance_pool_ocpus,
+      monitoring = var.monitoring
       })
 
     destination   = "/home/opc/playbooks/inventory"
