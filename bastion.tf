@@ -34,6 +34,12 @@ resource "oci_core_instance" "bastion" {
     is_management_disabled = true
     }
   display_name        = "${local.cluster_name}-bastion"
+
+  freeform_tags = {
+    "cluster_name" = "local.cluster_name"
+    "parent_cluster" = "local.cluster_name"
+  }
+
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
     user_data           = base64encode(data.template_file.bastion_config.rendered)
