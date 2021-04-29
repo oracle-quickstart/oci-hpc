@@ -11,7 +11,7 @@ allow group user to manage all-resources in compartment compartmentName
 ## What is cluster resizing (resize.py) ?
 TODO
 
-## What is cluster autoscaling (resize.py) ?
+## What is cluster autoscaling ?
 TODO
 
 ## How is resizing different from autoscaling ?
