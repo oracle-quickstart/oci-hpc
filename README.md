@@ -7,7 +7,17 @@ allow service compute_management to manage compute-management-family in tenancy
 allow service compute_management to read app-catalog-listing in tenancy
 allow group user to manage all-resources in compartment compartmentName
 ```
-## Policies for autoscaling:
+
+## What is cluster resizing (resize.py) ?
+TODO
+
+## What is cluster autoscaling (resize.py) ?
+TODO
+
+## How is resizing different from autoscaling ?
+TODO
+
+## Policies for autoscaling or resizing:
 As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group and give the following policies to it: 
 ```
 Allow dynamic-group instance_principal to read app-catalog-listing in tenancy
@@ -23,6 +33,11 @@ Allow dynamic-group instance_principal to use virtual-network-family in compartm
 or:
 
 `Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName`
+
+
+# Resizing (via resize.py or OCI console)
+TODO
+
 
 # Autoscaling
 
