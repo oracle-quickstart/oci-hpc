@@ -12,6 +12,10 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       create_vnic_details {
       }
       display_name = local.cluster_name
+      freeform_tags = {
+        "cluster_name" = "local.cluster_name"
+        "parent_cluster" = "local.cluster_name"
+      }
       metadata = {
 # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
