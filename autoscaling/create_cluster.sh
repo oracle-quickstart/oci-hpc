@@ -31,5 +31,5 @@ if [ $status -eq 0 ]
   else
     echo "Could not create $2 with $1 nodes in $runtime seconds"
     rm currently_building
-    $folder/delete_cluster.sh $2
+    $folder/delete_cluster.sh $2 FORCE
 fi
