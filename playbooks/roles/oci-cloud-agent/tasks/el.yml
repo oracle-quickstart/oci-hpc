@@ -40,3 +40,24 @@
 - name: Unregister agent
   command: osms unregister
   when: agent_file.stat.exists
+
+# Present in OL images prior to May/June 2020, later replaced with oracle cloud agent
+- name: Check if osms-agent service exist
+  shell: service osms-agent status
+  register: osms_agent_status
+  failed_when: not(osms_agent_status.rc == 3 or osms_agent_status.rc == 0 or osms_agent_status.rc == 4)
+
+- name: disable osms-agent.service
+  service:
+    name: osms-agent
+    state: stopped
+    enabled: no
+  when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
+
+- name: Unregister agent
+  command: osms unregister
+  when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
+
+# incase it takes time to get all repo ready after osms unregister
+- name: Sleep 5 seconds
+  command: "sleep 5s"

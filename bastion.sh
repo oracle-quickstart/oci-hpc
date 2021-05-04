@@ -22,6 +22,8 @@ else
   repo="epel"
 fi
 
+# to ensure existing enabled repos are available. 
+sudo osms unregister 
 
 # Install ansible and other required packages
 
