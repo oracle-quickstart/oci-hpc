@@ -190,7 +190,8 @@ resource "null_resource" "cluster" {
       cluster_name = local.cluster_name,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
       instance_pool_ocpus = var.instance_pool_ocpus,
-      monitoring = var.monitoring
+      monitoring = var.monitoring,
+      hyperthreading = var.hyperthreading
       })
 
     destination   = "/home/opc/playbooks/inventory"
@@ -277,7 +278,9 @@ resource "null_resource" "cluster" {
       nfs_target_path = var.nfs_target_path,
       nfs_source_IP = local.nfs_source_IP,
       nfs_source_path = var.nfs_source_path,
-      nfs_options = var.nfs_options
+      nfs_options = var.nfs_options,
+      monitoring = var.monitoring,
+      hyperthreading = var.hyperthreading
       })
 
     destination   = "/home/opc/autoscaling/tf_init/variables.tf"
