@@ -1,5 +1,6 @@
 {% for index in range(1,51) %}
 SwitchName=cluster-hpc-{{ index }} Nodes=cluster-{{ index }}-hpc-node-[1-100]
+SwitchName=cluster-hpc2-{{ index }} Nodes=cluster-{{ index }}-hpc2-node-[1-100]
 {% endfor %}
 {% for cluster_type in "gpu48", "amd3128", "std252", "amd264" -%}
 {% for index in range(1,21) %}

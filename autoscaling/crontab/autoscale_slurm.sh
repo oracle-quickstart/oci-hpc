@@ -59,6 +59,7 @@ try:
         shapes['VM.Standard.E3.'+str(i)]='amd3'+str(i)
     shapes['BM.Standard.E3.128']='amd3128'
     shapes['BM.HPC2.36']='hpc'
+    shapes['BM.Optimized3.36']='hpc2'
 
     def getstatus_slurm():
         cluster_to_build=[]
@@ -71,7 +72,7 @@ try:
                         if feature.startswith('VM') or feature.startswith('BM'):
                             shape=feature
                             break
-                    if shape == "BM.HPC2.36" or shape ==  "BM.GPU4.8":
+                    if shape == "BM.HPC2.36" or shape ==  "BM.GPU4.8" or shape ==  "BM.Optimized3.36":
                         CN = "true"
                     else:
                         CN = "false"
@@ -135,6 +136,8 @@ try:
         for shape in shapes.keys():
             available_names[shapes[shape]] = ["cluster-"+str(i) for i in range(1,cluster_names_number+1)]
         available_names['hpc']=["cluster-"+str(i) for i in range(1,hpc_cluster_names_number+1)]
+        available_names['hpc2']=["cluster-"+str(i) for i in range(1,hpc_cluster_names_number+1)]
+
         for clusterName in os.listdir(clusters_path):
             clusterType=clusterName.split('-')[-1]
             clusterNumber='-'.join(clusterName.split('-')[:2])
