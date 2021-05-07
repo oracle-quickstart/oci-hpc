@@ -19,7 +19,7 @@ else
   status_initial_deletion=$?
   if [ $status_initial_deletion -eq 0 ] || [[ $2 == FORCE ]]
   then
-    $folder/cleanup.sh $1 FORCE >> $folder/logs/delete_${cluster_id}.log 2>&1
+    $folder/cleanup.sh $1 FORCE >> $folder/logs/delete_$1_${date}.log 2>&1
     terraform destroy -auto-approve >> $folder/logs/delete_$1_${date}.log 2>&1
     status=$?
     end=`date +%s`
