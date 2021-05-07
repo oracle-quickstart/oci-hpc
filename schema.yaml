@@ -55,6 +55,7 @@ variableGroups:
       - ${instance_pool_memory}
       - ${autoscaling}
       - ${node_count}
+      - ${hyperthreading}
       - ${boot_volume_size}
       - ${use_marketplace_image}
       - ${marketplace_listing}
@@ -380,6 +381,12 @@ variables:
     minimum: 0
     title: "Number of Compute Instances (Permanent Cluster when autoscaling)"
     default: 2
+  hyperthreading:
+    required: true
+    type: boolean
+    title: "Keep Hyperthreading enabled"
+    default: true
+
   boot_volume_size:
     type: integer
     required: true

@@ -91,6 +91,8 @@ variable "api_user_ocid" { default = "None"}
 variable "home_nfs" { default = true } 
 variable "configure" { default = true }
 
+variable "hyperthreading" { default = true }
+
 variable "autoscaling" { default = false } 
 variable "add_nfs" { default = false}
 variable "create_ffs" { default = false }

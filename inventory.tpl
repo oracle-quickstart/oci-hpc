@@ -39,3 +39,4 @@ nfs_source_path=${nfs_source_path}
 nfs_options=${nfs_options}
 instance_pool_ocpus=${instance_pool_ocpus}
 monitoring=${monitoring}
+hyperthreading=${hyperthreading}
