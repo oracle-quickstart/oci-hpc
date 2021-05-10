@@ -13,7 +13,7 @@ cd $folder/clusters/$2
 if [[ $3 == VM.Standard.E3.* ]]
 then  
   sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/VM.Standard.E3.Flex/g;s/##CN##/$4/g;s/##OCPU##/${3:15}/g" $folder/tf_init/variables.tf > variables.tf
-if [[ $3 == VM.Standard.E4.* ]]
+elif [[ $3 == VM.Standard.E4.* ]]
 then  
   sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/VM.Standard.E4.Flex/g;s/##CN##/$4/g;s/##OCPU##/${3:15}/g" $folder/tf_init/variables.tf > variables.tf
 else
