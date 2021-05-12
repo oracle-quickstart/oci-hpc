@@ -44,10 +44,13 @@
   tasks:
     - include_role: 
         name: ssl
+      when: ldap|default(true)|bool
     - include_role: 
         name: openldap
+      when: ldap|default(true)|bool
     - include_role: 
         name: cluster-cli
+      when: ldap|default(true)|bool
 
 - hosts: compute
   become: true
@@ -141,6 +144,7 @@
   tasks: 
     - include_role: 
         name: sssd
+      when: ldap|default(true)|bool
 
 - hosts: compute
   become: true
