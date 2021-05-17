@@ -246,6 +246,7 @@ resource "null_resource" "cluster" {
       scratch_nfs_path = var.scratch_nfs_path,
       cluster_network = var.cluster_network,
       spack = var.spack,
+      ldap = var.ldap,
       bastion_block = var.bastion_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,

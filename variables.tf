@@ -35,6 +35,7 @@ variable "additional_subnet" { default = "" }
 variable "private_subnet" { default = "" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
+variable "ldap" { default = true } 
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
 variable "instance_pool_ocpus" { default = 2} 

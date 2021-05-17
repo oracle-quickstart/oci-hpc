@@ -25,6 +25,7 @@ variableGroups:
       - ${ssh_key}
       - ${use_custom_name}
       - ${cluster_name}
+      - ${ldap}
   - title: "Headnode options"
     variables:
       - ${bastion_ad}
@@ -141,6 +142,12 @@ variables:
     description: "Use custom name for the cluster"
     required: true
     default: false
+  ldap:
+    type: boolean
+    title: "Configure LDAP authentication from bastion"
+    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using "cluster" commands."
+    required: true
+    default: true
   cluster_name:
     title: "Name of the cluster"
     description: "Custom cluster name"
