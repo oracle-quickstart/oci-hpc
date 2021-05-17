@@ -18,7 +18,7 @@ source /etc/os-release
 
 if [ $ID == "ol" ] ; then
   repo="ol7_developer_EPEL"
-else
+elif [ $ID == "centos" ] ; then 
   repo="epel"
 fi
 
@@ -27,12 +27,16 @@ sudo osms unregister
 
 # Install ansible and other required packages
 
-sudo yum makecache --enablerepo=$repo
-sudo yum install --enablerepo=$repo -y ansible python-netaddr
-sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
-sudo yum install -y terraform
-#sudo yum makecache
-#sudo yum install -y ansible python-netaddr
+if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
+  sudo yum makecache --enablerepo=$repo
+  sudo yum install --enablerepo=$repo -y ansible python-netaddr
+  sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+  sudo yum install -y terraform
+
+elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
+  sudo apt-get -y install ansible python-netaddr
+
+fi 
 
 ansible-galaxy collection install ansible.netcommon > /dev/null
 ansible-galaxy collection install community.general > /dev/null
