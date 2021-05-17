@@ -1,0 +1,9 @@
+- name: reload_nfs
+  service:
+    name: nfs-kernel-server
+    state: reloaded
+    enabled: true
+  notify: restart_nfs
+
+- name: restart_nfs
+  command: 'exportfs -ra'
