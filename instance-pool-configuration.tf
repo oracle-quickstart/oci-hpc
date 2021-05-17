@@ -13,8 +13,8 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       }
       display_name = local.cluster_name
       freeform_tags = {
-        "cluster_name" = "local.cluster_name"
-        "parent_cluster" = "local.cluster_name"
+        "cluster_name" = local.cluster_name
+        "parent_cluster" = local.cluster_name
       }
       metadata = {
 # TODO: add user key to the authorized_keys 
