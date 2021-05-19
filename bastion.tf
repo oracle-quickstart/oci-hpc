@@ -255,7 +255,7 @@ resource "null_resource" "cluster" {
       scratch_nfs_type_pool = var.scratch_nfs_type_pool,
       bastion_block_volume_performance = var.bastion_block_volume_performance,
       marketplace_listing = var.marketplace_listing,
-      image = var.image,
+      image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
       boot_volume_size = var.boot_volume_size,
       instance_pool_shape = var.instance_pool_shape,

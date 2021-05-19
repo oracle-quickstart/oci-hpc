@@ -20,6 +20,7 @@ variable "node_count" {}
 variable "boot_volume_size" {}
 variable "use_marketplace_image" {}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
+variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = true }
 variable "cluster_nfs_path" { default = "/nfs/cluster" } 
