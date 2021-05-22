@@ -10,8 +10,7 @@
   {{ subnets.append(ns) }}
 {%- endfor -%}
 {%- set rdma_address = subnets|last | ansible.netcommon.ipmath(host_index | int -1) -%}
-
-allow-hotplug "{{ item['device'] }}"
+auto "{{ item['device'] }}"
 iface "{{ item['device'] }}" inet static
       address {{ rdma_address }}
       netmask {{ hostvars[inventory_hostname]['rdma_netmask'] }}
