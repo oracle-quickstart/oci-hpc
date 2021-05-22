@@ -105,3 +105,5 @@ variable "nfs_source_IP" { default = ""}
 variable "nfs_source_path" { default = "/app"}
 variable "nfs_options" {default = ""}
 variable "monitoring" { default = true }
+variable "image_id" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" } 
+variable "unsupported" { default = "false" } 
