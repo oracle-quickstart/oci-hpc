@@ -23,7 +23,7 @@
 
 - name: create exports file
   register: nfs_config
-  notify: restart_nfs
+  notify: reload_nfs
   template:
       src: exports.j2
       dest: "/etc/exports.d/{{ export_name }}.exports"

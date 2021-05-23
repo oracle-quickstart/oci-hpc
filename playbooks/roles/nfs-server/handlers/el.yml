@@ -1,2 +1,0 @@
-- name: restart_nfs
-  command: 'exportfs -ra'

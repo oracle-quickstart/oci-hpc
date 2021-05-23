@@ -1,32 +1,33 @@
 ---
-- name: install Slurm Comon Packages
-  block:    
-    - name: install SLURM server packages
-      become: true
-      yum: 
-        name: 
-          - "{{ shared_drive }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
-          - "{{ shared_drive }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
-          - "{{ shared_drive }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
+#- name: install Slurm Comon Packages
+#  block:    
+#    - name: install SLURM server packages
+#      become: true
+#      yum: 
+#        name: 
+#          - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
 
-  rescue:
-    - name: Repository
-      become: true
-      yum_repository:
-        name: oci-hpc
-        description: oci-hpc
-        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-        gpgcheck: no
-        enabled: yes
-        retries: 3
+#  rescue:
+#    - name: Repository
+#      become: true
+#      yum_repository:
+#        name: oci-hpc
+#        description: oci-hpc
+#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+#        gpgcheck: no
+#        enabled: yes
+#        retries: 3
       
-    - name: install SLURM server packages
-      become: true
-      yum:
-        name:
-          - slurm-pam_slurm
-          - slurm-libpmi
-          - slurm-slurmd
+- name: install SLURM server packages
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name:
+      - slurm-pam_slurm
+      - slurm-pmi
+      - slurm-slurmd
 
 - name: Create systemd unit dirs
   become: true
@@ -160,8 +161,8 @@
 - name: Update node state on bastion
   become: true
   command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-  when: ( node_state2 != "idle" ) and  ( node_state2 != "alloc" ) | bool
+  when: node_state2 != "idle" and node_state2 != "alloc"
   register: result
-  retries: 5
+  retries: 10
   delay: 5
   until: result is not failed

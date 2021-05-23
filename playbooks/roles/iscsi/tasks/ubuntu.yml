@@ -1,0 +1,33 @@
+---
+- name: "Perform a discovery on {{ iscsi_ip }} and show available target nodes"
+  community.general.open_iscsi:
+    show_nodes: yes
+    discover: yes
+    portal: '{{ iscsi_ip }}'
+  register: nodes
+
+- name: Connect to the named target, after updating the local persistent database (cache)
+  community.general.open_iscsi:
+    login: yes
+    target: '{{ nodes["nodes"][0] }}'
+  register: target
+      
+- name: create local storage directory
+  file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+
+- name: create a filesystem
+  filesystem:
+    dev: '{{ target["devicenodes"][0] }}'
+    fstype: ext4
+
+- name: Mount local volume
+  mount:
+    path: "{{ local_path }}"
+    src: '{{ target["devicenodes"][0] }}'
+    fstype: ext4
+    opts: defaults,noatime,_netdev
+    state: mounted
