@@ -1,0 +1,145 @@
+---
+# tasks for mysqld role
+
+- name: Create /etc/opt/oci-hpc/passwords/mysql
+  become: true
+  file: 
+    path: /etc/opt/oci-hpc/passwords/mysql
+    state: directory
+    owner: opc
+    mode: 0770
+    group: opc
+    recurse: yes
+
+- name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords 
+  set_fact:
+    tmp_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
+                           chars=ascii_letters,digits') }}"
+
+- name: Get root password from /etc/opt/oci-hpc/passwords
+  set_fact:
+    mysql_root_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
+                           chars=ascii_letters,digits') }}"
+
+- name: Install MySQL packages
+  become: true
+  yum: 
+    name: mysql-release-el7
+    state: present
+
+- name: Install MySQL packages
+  become: true
+  yum:
+   enablerepo: ol7_MySQL80
+   name: '{{ mysql_packages }}'
+   state: present
+  tags: install-only
+
+- name: Update SELinux context for {{ mysql_db_path }}
+  become: true
+  sefcontext:
+    target: '{{ mysql_db_path }}(/.*)?'
+    setype: mysqld_db_t
+    seuser: system_u
+    state: present
+  when: ansible_selinux.status == "enabled"
+
+- name: Ensure {{ mysql_db_path }} exists
+  become: true
+  file:
+    path: '{{ mysql_db_path }}'
+    owner: mysql
+    group: mysql
+    state: directory
+    setype: mysqld_db_t
+    seuser: system_u
+
+- name: Render /etc/my.cnf
+  become: true
+  template:
+    src: 'mysqld_etc_my.cnf.j2'
+    dest: '/etc/my.cnf'
+    backup: yes
+  notify: restart mysqld
+
+- name: create configuration directory
+  become: true
+  file: 
+    path: /etc/my.cnf.d/
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Copy innodb.cnf
+  become: true
+  copy: 
+    src: innodb.cnf
+    dest: /etc/my.cnf.d/innodb.cnf
+
+- name: Enable MySQL service
+  become: true
+  service:
+    name: mysqld
+    enabled: yes
+
+- block:
+
+  - name: Start MySQL service
+    become: true
+    service:
+      name: mysqld
+      state: started
+  
+  - meta: flush_handlers
+
+  - name: get root password
+    shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
+    register: m_root_password
+
+#  - name: Set MySQL root pasword
+#    become: true
+#    mysql_user: 
+#      name: root
+#      password: '{{ mysql_root_pwd }}'
+#      host_all: yes
+#      check_implicit_admin: yes
+#      state: present
+#
+  - name: check if DB exists
+    shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
+    register: dbstatus
+    ignore_errors: true
+    no_log: yes
+      
+  - name: fix user password
+    command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ m_root_password.stdout }}';"
+    when: dbstatus.rc != 0 
+    
+  - name: fix password policy
+    command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
+    when: dbstatus.rc != 0 
+
+  - name: update expired root user password
+    command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
+    when: dbstatus.rc != 0 
+  
+  - name: Render /root/.my.cnf
+    become: true
+    template:
+      src: my.cnf.j2
+      dest: /root/.my.cnf
+      owner: root
+      group: root
+      mode: 0600
+
+  - name: Remove test db
+    become: true
+    mysql_db:
+      config_file: '/root/.my.cnf'
+      name: test
+      state: absent
+      login_password: "{{ mysql_root_pwd }}"
+      login_user: root
+  

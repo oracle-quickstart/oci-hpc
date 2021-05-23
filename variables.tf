@@ -21,7 +21,6 @@ variable "boot_volume_size" {}
 variable "use_marketplace_image" {}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
-variable "unsupported_bastion_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = true }
 variable "cluster_nfs_path" { default = "/nfs/cluster" } 
@@ -106,23 +105,5 @@ variable "nfs_source_IP" { default = ""}
 variable "nfs_source_path" { default = "/app"}
 variable "nfs_options" {default = ""}
 variable "monitoring" { default = true }
-
-variable "unsupported" { 
-  type=bool
-  default = "false" 
-} 
-
-variable "unsupported_bastion" { 
-  type=bool
-  default = "false" 
-}
-
-variable "bastion_username" { 
-  type = string 
-  default = "opc" 
-} 
-
-variable "compute_username" { 
-  type = string
-  default = "opc" 
-} 
+variable "image_id" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" } 
+variable "unsupported" { default = "false" } 

@@ -38,7 +38,6 @@ variableGroups:
       - ${bastion_image_compartment}
       - ${custom_bastion_image}
       - ${unsupported_bastion_image}
-      - ${bastion_username}
       - ${bastion_boot_volume_size}
   - title: "Advanced headnode options"
     variables:
@@ -62,7 +61,6 @@ variableGroups:
       - ${hyperthreading}
       - ${boot_volume_size}
       - ${use_marketplace_image}
-      - ${compute_username}
       - ${marketplace_listing}
       - ${unsupported}
       - ${compute_image_compartment}
@@ -236,15 +234,6 @@ variables:
     description: "Custom image ID for Bastion"
     type: boolean
     default: false
-    visible:
-      not:
-        - ${use_standard_image}
-
-  bastion_username: 
-    title: "Default username for bastion" 
-    description: "Custom image ID for Bastion"
-    type: string
-    default: "opc"
     visible:
       not:
         - ${use_standard_image}
@@ -499,15 +488,6 @@ variables:
             - ${use_marketplace_image}
         - not:
             - ${unsupported}
-
-  compute_username: 
-    title: "Default username for compute hosts" 
-    description: "Custom image ID for compute hosts"
-    type: string
-    default: "opc"
-    visible:
-      not:
-        - ${use_marketplace_image}
 
   unsupported: 
     title: "Use unsupported image" 
