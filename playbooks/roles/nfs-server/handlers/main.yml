@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 - name: reload_nfs
   service:
     name: nfs-server
@@ -11,7 +10,3 @@
     state: reloaded
     enabled: true
 
-=======
-- include: el.yml
-  when: ansible_os_family == 'RedHat'
->>>>>>> parent of c740346 (Revert "Debian/Ubuntu support")

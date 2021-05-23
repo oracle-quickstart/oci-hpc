@@ -37,7 +37,7 @@
     name: influxdb
     state: latest
 
-- name Start InfluxDB
+- name: Start InfluxDB
   become: true
   service: 
     name: influxdb

@@ -11,8 +11,8 @@
   copy:
     dest: '/home/opc/.ssh/{{ item }}'
     src: '/home/opc/.ssh/{{ item }}'
-    owner: 'opc'
-    group: 'opc'
+    owner: 'ubuntu'
+    group: 'ubuntu'
     mode: '0600'
   with_items:
     - id_rsa
@@ -23,7 +23,7 @@
     privatekey_path: /home/opc/.ssh/id_rsa
     format: OpenSSH
     state: present
-    owner: 'opc'
-    group: 'opc'
+    owner: 'ubuntu'
+    group: 'ubuntu'
     mode: '0644'
   register: public_key

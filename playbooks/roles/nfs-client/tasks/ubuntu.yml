@@ -1,0 +1,30 @@
+---
+- name: Install nfs packages
+  ansible.builtin.package:
+    name: '{{ deb_packages }}'
+    state: present
+  tags: install-only
+
+- name: create share directory
+  become: true
+  file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+
+- name: Mount NFS with options
+  mount:
+    path: "{{ local_path }}"
+    src: "{{ export_host }}:{{ export_path | trim() }}"
+    fstype: nfs
+    opts: "{{ options }}"
+    state: mounted
+  when: options!=""
+- name: Mount NFS without options
+  mount:
+    path: "{{ local_path }}"
+    src: "{{ export_host }}:{{ export_path | trim() }}"
+    fstype: nfs
+    state: mounted
+  when: options==""

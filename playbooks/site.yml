@@ -14,6 +14,7 @@
     initial: true
   gather_facts: true
   roles: 
+    - oci-cloud-agent
     - packages
     - oci-legacy
     - firewall 
@@ -43,10 +44,13 @@
   tasks:
     - include_role: 
         name: ssl
+      when: ldap|default(true)|bool
     - include_role: 
         name: openldap
+      when: ldap|default(true)|bool
     - include_role: 
         name: cluster-cli
+      when: ldap|default(true)|bool
 
 - hosts: compute
   become: true
@@ -54,7 +58,7 @@
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool and ansible_selinux.status == "enabled"
+      when: home_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
@@ -82,7 +86,7 @@
         name: nfs-server
       when: cluster_nfs|default(true)|bool
     - include_role: 
-        name: mariadb
+        name: mysql
     - include_role: 
         name: cron
       
@@ -123,7 +127,7 @@
         export_path: "/mnt/localdisk/nfs"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
-      when: scratch_nfs and ( (autoscaling and 'compute' in group_names) or not autoscaling ) |default(true)|bool
+      when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
     - include_role:
         name: nfs-client
       vars:
@@ -140,25 +144,32 @@
   tasks: 
     - include_role: 
         name: sssd
+      when: ldap|default(true)|bool
 
 - hosts: compute
   become: true
   gather_facts: true
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+    - include_role: 
+        name: hyperthreading
+      when: not hyperthreading|default(true)|bool
 
-  roles:
-    - rdma-interface
-
-#- hosts: bastion
-#  tasks: 
-#    - include_role: 
-#        name: influxdb
-#    - include_role: 
-#        name: grafana#
+- hosts: bastion
+  tasks: 
+    - include_role: 
+        name: influxdb
+      when: monitoring|default(false)|bool
+    - include_role: 
+        name: grafana
+      when: monitoring|default(false)|bool
 
 - hosts: all
   vars:
     destroy: false
     initial: true
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
   tasks: 
     - include_role: 
         name: spack
@@ -166,5 +177,6 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-#    - include_role: 
-#        name: telegraf
+    - include_role: 
+        name: telegraf
+      when: monitoring|default(false)|bool
