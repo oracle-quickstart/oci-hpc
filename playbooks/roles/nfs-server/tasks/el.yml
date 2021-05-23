@@ -18,8 +18,8 @@
   file: 
     path: "{{ local_path }}"
     state: directory
-    owner: opc
-    group: opc
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: create exports file
   register: nfs_config
@@ -27,3 +27,6 @@
   template:
       src: exports.j2
       dest: "/etc/exports.d/{{ export_name }}.exports"
+
+- name: export folders
+  command: 'exportfs -ra'

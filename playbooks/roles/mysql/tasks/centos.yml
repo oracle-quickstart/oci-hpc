@@ -67,6 +67,7 @@
     mode: '0755'
     owner: root
     group: root
+    state: directory
 
 - name: Copy innodb.cnf
   become: true

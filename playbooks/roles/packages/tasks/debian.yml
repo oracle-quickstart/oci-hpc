@@ -1,0 +1,9 @@
+---
+- name: Make sure python OpenSSL is installed
+  yum: 
+    name: 
+      - python-openssl
+      - python-cryptography
+      - parted
+    state: latest
+

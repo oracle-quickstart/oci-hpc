@@ -14,4 +14,5 @@ deb_mariadb_packages:
   - mariadb-common
   - python-mysqldb
 
+mariadb_db_path: '/var/lib/mysql'
 mysql_db_path: '/var/lib/mysql'
