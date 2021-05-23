@@ -2,7 +2,7 @@
 - name: install munge
   become: true
   yum:
-    enablerepo: "epel,ol7_developer_EPEL"
+    enablerepo: ol7_developer_EPEL,epel
     name:
       - munge
       - munge-libs
@@ -11,7 +11,7 @@
   become: true
   group:
     name: munge
-    gid: "{{ munge_gid }}"
+    gid: 801
     state: present
     system: yes
 - name: create munge user
@@ -19,8 +19,8 @@
   user:
     name: munge
     comment: "munge"
-    uid: "{{ munge_uid }}"
-    group: "{{ munge_gid }}"
+    uid: 801
+    group: 801
     shell: /sbin/nologin
     home: /var/lib/munge
     state: present
@@ -28,7 +28,7 @@
   become: true
   group:
     name: slurm
-    gid: "{{ slurm_gid }}"
+    gid: 802
     state: present
     system: yes
 - name: create slurm user
@@ -36,52 +36,51 @@
   user:
     name: slurm
     comment: "Slurm user"
-    uid: "{{ slurm_uid }}"
-    group: "{{ slurm_gid }}"
+    uid: 802
+    group: 802
     shell: /bin/bash
     home: /var/lib/slurm
     state: present
 
 
-#- name: install Slurm Common Packages
-#  block:
-#    - name: install SLURM server packages
-#      become: true
-#      yum: 
-#        name: 
-#          - "{{ download_path }}/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm"
+- name: install Slurm Common Packages
+  block:
+    - name: install SLURM server packages
+      become: true
+      yum: 
+        name: 
+          - "{{ shared_drive }}/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm"
+          - "{{ shared_drive }}/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm"
 
-#  rescue:
-#    - name: Repository
-#      become: true
-#      yum_repository:
-#        name: oci-hpc
-#        description: oci-hpc
-#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-#        gpgcheck: no
-#        enabled: yes
-#        retries: 3
+  rescue:
+    - name: Repository
+      become: true
+      yum_repository:
+        name: oci-hpc
+        description: oci-hpc
+        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+        gpgcheck: no
+        enabled: yes
+        retries: 3
       
-- name: install SLURM server packages
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name:
-      - slurm
-      - slurm-devel
-      - slurm-contribs
-      - slurm-perlapi
-      - slurm-devel
-      - slurm-torque
-      - slurm-openlava
-#     - slurm-example-configs
+    - name: install SLURM server packages
+      become: true
+      yum:
+        name:
+          - slurm
+          - slurm-devel
+          - slurm-contribs
+          - slurm-perlapi
+          - slurm-devel
+          - slurm-torque
+          - slurm-openlava
+          - slurm-example-configs
           
 - name: Create {{ slurm_spool_path }}
   become: true
@@ -149,7 +148,7 @@
     mode: '0644'
     backup: yes
   delegate_to: 127.0.0.1
-  when: initial|bool
+  when: initial | bool
 
 - name: move topology.conf on all servers
   become: true

@@ -2,9 +2,12 @@
 nfs_packages:
   - nfs-utils
 
+<<<<<<< HEAD
 deb_packages: 
   - nfs-kernel-server
 
+=======
+>>>>>>> parent of c740346 (Revert "Debian/Ubuntu support")
 nfs_rpcbind_state: started
 nfs_rpcbind_enabled: true
 

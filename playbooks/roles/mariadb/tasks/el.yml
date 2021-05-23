@@ -32,20 +32,19 @@
   tags: install-only
 
 
-- name: Update SELinux context for {{ mysql_db_path }}
+- name: Update SELinux context for {{ mariadb_db_path }}
   become: true
   sefcontext:
-    target: '{{ mysql_db_path }}(/.*)?'
+    target: '{{ mariadb_db_path }}(/.*)?'
     setype: mysqld_db_t
     seuser: system_u
     state: present
-  when: ansible_selinux.status == "enabled"
 
 
-- name: Ensure {{ mysql_db_path }} exists
+- name: Ensure {{ mariadb_db_path }} exists
   become: true
   file:
-    path: '{{ mysql_db_path }}'
+    path: '{{ mariadb_db_path }}'
     owner: mysql
     group: mysql
     state: directory
@@ -55,7 +54,7 @@
 - name: Render /etc/my.cnf
   become: true
   template:
-    src: 'mariadb_etc_my.cnf.j2'
+    src: 'etc_my.cnf.j2'
     dest: '/etc/my.cnf'
     backup: yes
   notify: restart mariadb

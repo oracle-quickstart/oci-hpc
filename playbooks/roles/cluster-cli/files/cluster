@@ -30,7 +30,7 @@ def exists(key, value):
         return False
 
 def find_next_gid(): 
-  base_gid = 10005
+  base_gid = 1005
   search_base = groups_dn
   search_filter = '(gidNumber=*)'
   attrs = ['*']

@@ -1,0 +1,8 @@
+- hosts: all
+  vars:
+    destroy: false
+    initial: true
+  tasks: 
+    - include_role: 
+        name: spack
+      when: spack|default(false)|bool
