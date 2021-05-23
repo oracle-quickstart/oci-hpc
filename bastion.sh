@@ -20,7 +20,9 @@ elif [ $ID == "centos" ] ; then
 fi
 
 # to ensure existing enabled repos are available. 
-sudo osms unregister 
+if [ $ID == "ol" ] ; then 
+  sudo osms unregister 
+fi 
 
 # Install ansible and other required packages
 

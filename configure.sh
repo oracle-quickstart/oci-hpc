@@ -10,7 +10,13 @@ execution=1
 
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
-sudo mv ~/playbooks/inventory /etc/ansible/hosts
+sudo mkdir -p /opt/oci-hpc/bin
+sudo mkdir -p /opt/oci-hpc/playbooks
+sudo cp /tmp/configure.sh /opt/oci-hpc/bin
+
+if [ -f ~/playbooks/inventory ] ; then 
+  sudo mv ~/playbooks/inventory /etc/ansible/hosts
+fi 
 
 if [ -f /tmp/configure.conf ] ; then
         configure=$(cat /tmp/configure.conf)
