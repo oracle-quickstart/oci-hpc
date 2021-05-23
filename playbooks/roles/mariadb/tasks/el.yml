@@ -11,6 +11,7 @@
     group: opc
     recurse: yes
 
+
 - name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords 
   set_fact:
     tmp_pwd: "{{ lookup('password',
@@ -25,22 +26,35 @@
 
 - name: Install MariaDB packages
   become: true
-  apt:
-   name: '{{ deb_mariadb_packages }}'
+  yum:
+   name: '{{ mariadb_packages }}'
    state: present
+  tags: install-only
 
-- name: Ensure {{ mysql_db_path }} exists
+
+- name: Update SELinux context for {{ mariadb_db_path }}
+  become: true
+  sefcontext:
+    target: '{{ mariadb_db_path }}(/.*)?'
+    setype: mysqld_db_t
+    seuser: system_u
+    state: present
+
+
+- name: Ensure {{ mariadb_db_path }} exists
   become: true
   file:
-    path: '{{ mysql_db_path }}'
+    path: '{{ mariadb_db_path }}'
     owner: mysql
     group: mysql
     state: directory
+    setype: mysqld_db_t
+    seuser: system_u
 
 - name: Render /etc/my.cnf
   become: true
   template:
-    src: 'mariadb_etc_my.cnf.j2'
+    src: 'etc_my.cnf.j2'
     dest: '/etc/my.cnf'
     backup: yes
   notify: restart mariadb

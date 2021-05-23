@@ -70,25 +70,14 @@
         export_path: "/mnt/localdisk/nfs"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
-      when: scratch_nfs|default(true)|bool
-
-- hosts: compute
-  become: true
-
-  tasks:
-    - include_role:
-        name: sssd
-      when: ldap|default(true)|bool
+      when: scratch_nfs and ( (autoscaling and 'compute' in group_names) or not autoscaling ) |default(true)|bool
 
 - hosts: compute
   become: true
   gather_facts: true
-  tasks: 
-    - include_role: 
-        name: rdma-interface
-    - include_role: 
-        name: hyperthreading
-      when: not hyperthreading|default(true)|bool 
+  roles:
+    - rdma-interface
+
 - hosts: compute
   become: true
   tasks:
@@ -125,7 +114,6 @@
   vars:
     destroy: false
     initial: false
-    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
   tasks: 
     - include_role: 
         name: spack
