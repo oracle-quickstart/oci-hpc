@@ -1,12 +1,6 @@
 ---
 # handler file for mariadb
 
-- name: restart mysqld
-  become: true
-  service:
-    name: mysqld
-    state: restarted
-
 - name: restart mariadb
   become: true
   service:

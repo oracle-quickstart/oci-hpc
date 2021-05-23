@@ -11,9 +11,6 @@ execution=1
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 sudo cloud-init status --wait
 
-# TODO: investigate repository issues. 
-sleep 30
-
 source /etc/os-release
 
 if [ $ID == "ol" ] ; then
@@ -34,7 +31,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   sudo yum install -y terraform
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
-  if [ $ID == "debian ] && [ $VERSION_ID == "9" ] ; then 
+  if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] ; then 
     echo deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main | sudo tee -a /etc/apt/sources.list
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
