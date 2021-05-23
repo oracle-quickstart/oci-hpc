@@ -1,0 +1,10 @@
+- hosts: all
+  vars:
+    destroy: false
+    initial: true
+  tasks: 
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
+#    - include_role: 
+#        name: telegraf

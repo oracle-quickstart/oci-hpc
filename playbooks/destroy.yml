@@ -1,5 +1,4 @@
 - hosts: compute
-  gather_facts: true
   become: true
   vars:
     destroy: true
@@ -7,7 +6,6 @@
   roles:
     - slurm
 - hosts: bastion
-  gather_facts: true
   become: true
   vars:
     destroy: true
