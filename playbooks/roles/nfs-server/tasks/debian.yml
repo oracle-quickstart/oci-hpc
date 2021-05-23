@@ -1,8 +1,7 @@
 ---
 - name: Ensure NFS utilities are installed.
   package: 
-    name: 
-      - "{{ deb_packages }}"
+    name: "{{ deb_packages }}"
     state: present
 
 - name: Start NFS server
@@ -21,12 +20,23 @@
   file: 
     path: "{{ local_path }}"
     state: directory
-    owner: debian
-    group: debian
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: create exports.d 
+  file: 
+    path: /etc/exports.d
+    owner: root
+    group: root
+    state: directory
 
 - name: create exports file
   register: nfs_config
-  notify: reload_nfs
+  notify: debian_reload_nfs
   template:
       src: exports.j2
       dest: "/etc/exports.d/{{ export_name }}.exports"
+
+- name: export folders
+  command: 'exportfs -ra'
+
