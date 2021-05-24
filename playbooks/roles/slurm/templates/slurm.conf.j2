@@ -59,11 +59,12 @@ NodeName=cluster-[1-20]-amd3{{ ocpu }}-node-[1-10] Boards=1 SocketsPerBoard=1 Co
 {% endfor %}
 NodeName=cluster-[1-20]-amd3128-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
     cluster-size-{{ item }},{%- endfor %}BM.Standard.E3.128
+{% for ocpu in range(1,65) -%}
 NodeName=cluster-[1-20]-amd4{{ ocpu }}-node-[1-10] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ ocpu }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
-    cluster-size-{{ item }},{%- endfor %}VM.Standard.E3.{{ ocpu }}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard.E4.{{ ocpu }}
 {% endfor %}
 NodeName=cluster-[1-20]-amd4128-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
-    cluster-size-{{ item }},{%- endfor %}BM.Standard.E3.128
+    cluster-size-{{ item }},{%- endfor %}BM.Standard.E4.128
 NodeName=cluster-[1-20]-gpu21-node-[1-20] Boards=1 SocketsPerBoard=1 CoresPerSocket=12 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
     cluster-size-{{ item }},{%- endfor %}VM.GPU2.1 Gres=gpu:P100:1
 NodeName=cluster-[1-20]-gpu22-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=14 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
