@@ -1,9 +1,0 @@
-- hosts: all
-  vars:
-    destroy: false
-    initial: true
-    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
-  tasks: 
-    - include_role: 
-        name: spack
-      when: spack|default(false)|bool
