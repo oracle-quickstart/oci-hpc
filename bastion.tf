@@ -46,6 +46,7 @@ resource "oci_core_instance" "bastion" {
   }
   source_details {
     source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_bastion_image_ocid
+    boot_volume_size_in_gbs = var.bastion_boot_volume_size
     source_type = "image"
   }
 
