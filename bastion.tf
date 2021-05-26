@@ -34,12 +34,19 @@ resource "oci_core_instance" "bastion" {
     is_management_disabled = true
     }
   display_name        = "${local.cluster_name}-bastion"
+
+  freeform_tags = {
+    "cluster_name" = "local.cluster_name"
+    "parent_cluster" = "local.cluster_name"
+  }
+
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
     user_data           = base64encode(data.template_file.bastion_config.rendered)
   }
   source_details {
-    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : var.custom_bastion_image
+    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_bastion_image_ocid
+    boot_volume_size_in_gbs = var.bastion_boot_volume_size
     source_type = "image"
   }
 
@@ -56,22 +63,22 @@ resource "null_resource" "bastion" {
 
   provisioner "file" {
     source        = "playbooks"
-    destination   = "/home/opc/"
+    destination   = "/home/${var.bastion_username}/"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
 
   provisioner "file" {
     source      = "autoscaling"
-    destination = "/home/opc/"
+    destination = "/home/${var.bastion_username}/"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -84,29 +91,18 @@ resource "null_resource" "bastion" {
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_pem
-    destination = "/home/opc/.ssh/cluster.key"
+    destination = "/home/${var.bastion_username}/.ssh/cluster.key"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    content     = tls_private_key.ssh.private_key_pem
-    destination = "/home/opc/.ssh/id_rsa"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -117,7 +113,7 @@ resource "null_resource" "bastion" {
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -128,22 +124,22 @@ resource "null_resource" "bastion" {
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
 
   provisioner "remote-exec" {
     inline = [
-      "chmod 600 /home/opc/.ssh/cluster.key",
-      "chmod 600 /home/opc/.ssh/id_rsa",
+      "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
+      "chmod 600 /home/${var.bastion_username}/.ssh/id_rsa",
       "chmod a+x /tmp/bastion.sh",
       "/tmp/bastion.sh"
       ]
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -176,6 +172,7 @@ resource "null_resource" "cluster" {
       cluster_network = var.cluster_network,
       slurm = var.slurm,
       spack = var.spack,
+      ldap = var.ldap,
       bastion_block = var.bastion_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
@@ -184,14 +181,17 @@ resource "null_resource" "cluster" {
       cluster_name = local.cluster_name,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
       instance_pool_ocpus = var.instance_pool_ocpus,
-      monitoring = var.monitoring
+      monitoring = var.monitoring,
+      hyperthreading = var.hyperthreading
+      bastion_username = var.bastion_username
+      compute_username = var.compute_username
       })
 
-    destination   = "/home/opc/playbooks/inventory"
+    destination   = "/home/${var.bastion_username}/playbooks/inventory"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -203,7 +203,7 @@ resource "null_resource" "cluster" {
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -212,15 +212,15 @@ resource "null_resource" "cluster" {
     content        = templatefile(var.inst_prin ? "${path.module}/autoscaling/provider_inst_prin.tpl" : "${path.module}/autoscaling/provider_user.tpl", {  
       api_user_ocid = var.api_user_ocid, 
       api_fingerprint = var.api_fingerprint,
-      private_key_path = "/home/opc/autoscaling/credentials/key.pem",
+      private_key_path = "/home/${var.bastion_username}/autoscaling/credentials/key.pem",
       tenancy_ocid = var.tenancy_ocid
       })
 
-    destination   = "/home/opc/autoscaling/tf_init/provider.tf"
+    destination   = "/home/${var.bastion_username}/autoscaling/tf_init/provider.tf"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -239,6 +239,7 @@ resource "null_resource" "cluster" {
       scratch_nfs_path = var.scratch_nfs_path,
       cluster_network = var.cluster_network,
       spack = var.spack,
+      ldap = var.ldap,
       bastion_block = var.bastion_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
@@ -247,7 +248,7 @@ resource "null_resource" "cluster" {
       scratch_nfs_type_pool = var.scratch_nfs_type_pool,
       bastion_block_volume_performance = var.bastion_block_volume_performance,
       marketplace_listing = var.marketplace_listing,
-      image = var.image,
+      image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
       boot_volume_size = var.boot_volume_size,
       instance_pool_shape = var.instance_pool_shape,
@@ -271,36 +272,38 @@ resource "null_resource" "cluster" {
       nfs_target_path = var.nfs_target_path,
       nfs_source_IP = local.nfs_source_IP,
       nfs_source_path = var.nfs_source_path,
-      nfs_options = var.nfs_options
+      nfs_options = var.nfs_options,
+      monitoring = var.monitoring,
+      hyperthreading = var.hyperthreading
       })
 
-    destination   = "/home/opc/autoscaling/tf_init/variables.tf"
+    destination   = "/home/${var.bastion_username}/autoscaling/tf_init/variables.tf"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
 
   provisioner "file" {
     content     = var.api_user_key
-    destination   = "/home/opc/autoscaling/credentials/key.initial" 
+    destination   = "/home/${var.bastion_username}/autoscaling/credentials/key.initial" 
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
 
   provisioner "remote-exec" {
     inline = [
-      "chmod 755 /home/opc/autoscaling/*.sh",
-      "chmod 755 /home/opc/autoscaling/crontab/*.sh",
-      "chmod 755 /home/opc/autoscaling/credentials/key.sh",
-      "/home/opc/autoscaling/credentials/key.sh /home/opc/autoscaling/credentials/key.initial /home/opc/autoscaling/credentials/key.pem > /home/opc/autoscaling/credentials/key.log",
-      "chmod 600 /home/opc/autoscaling/credentials/key.pem",
+      "chmod 755 /home/${var.bastion_username}/autoscaling/*.sh",
+      "chmod 755 /home/${var.bastion_username}/autoscaling/crontab/*.sh",
+      "chmod 755 /home/${var.bastion_username}/autoscaling/credentials/key.sh",
+      "/home/${var.bastion_username}/autoscaling/credentials/key.sh /home/${var.bastion_username}/autoscaling/credentials/key.initial /home/${var.bastion_username}/autoscaling/credentials/key.pem > /home/${var.bastion_username}/autoscaling/credentials/key.log",
+      "chmod 600 /home/${var.bastion_username}/autoscaling/credentials/key.pem",
       "chmod a+x /tmp/configure.sh",
       "echo ${var.configure} > /tmp/configure.conf",
       "/tmp/configure.sh"
@@ -308,7 +311,7 @@ resource "null_resource" "cluster" {
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
-      user        = "opc"
+      user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }

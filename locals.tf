@@ -2,7 +2,10 @@ locals {
 // display names of instances 
   cluster_instances_ids = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.id : data.oci_core_instance.instance_pool_instances.*.id
   cluster_instances_names = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
- 
+
+  image_ocid = var.unsupported ? var.image_ocid : var.image
+  custom_bastion_image_ocid = var.unsupported_bastion ? var.unsupported_bastion_image : var.custom_bastion_image
+
 // ips of the instances
   cluster_instances_ips = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
 
@@ -18,9 +21,9 @@ locals {
 
   cluster_name = var.use_custom_name ? var.cluster_name : random_pet.name.id
 
-  cluster_network_image = var.use_marketplace_image ? data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_id : var.image
+  cluster_network_image = var.use_marketplace_image ? data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_id : local.image_ocid
 
-  instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_id : var.image
+  instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_id : local.image_ocid
 
 //  image = (var.cluster_network && var.use_marketplace_image == true) || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
 

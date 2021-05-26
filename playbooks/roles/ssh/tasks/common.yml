@@ -9,21 +9,21 @@
 
 - name: Install ssh keys on all nodes
   copy:
-    dest: '/home/opc/.ssh/{{ item }}'
-    src: '/home/opc/.ssh/{{ item }}'
-    owner: 'opc'
-    group: 'opc'
+    dest: "/home/{{ ansible_user }}/.ssh/id_rsa"
+    src: "/home/{{ ansible_user }}/.ssh/{{ item }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: '0600'
   with_items:
-    - id_rsa
+    - cluster.key
 
 - name: Generate an OpenSSL public key in OpenSSH v2 format
   openssl_publickey:
-    path: /home/opc/.ssh/id_rsa.pub
-    privatekey_path: /home/opc/.ssh/id_rsa
+    path: "/home/{{ ansible_user }}/.ssh/id_rsa.pub"
+    privatekey_path: "/home/{{ ansible_user }}/.ssh/id_rsa"
     format: OpenSSH
     state: present
-    owner: 'opc'
-    group: 'opc'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: '0644'
   register: public_key

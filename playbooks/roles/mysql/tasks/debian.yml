@@ -6,11 +6,10 @@
   file: 
     path: /etc/opt/oci-hpc/passwords/mysql
     state: directory
-    owner: opc
+    owner: "{{ ansible_user }}"
     mode: 0770
-    group: opc
+    group: "{{ ansible_user }}"
     recurse: yes
-
 
 - name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords 
   set_fact:
@@ -26,21 +25,9 @@
 
 - name: Install MariaDB packages
   become: true
-  yum:
-   name: '{{ mariadb_packages }}'
+  apt:
+   name: '{{ deb_mariadb_packages }}'
    state: present
-  tags: install-only
-
-
-- name: Update SELinux context for {{ mysql_db_path }}
-  become: true
-  sefcontext:
-    target: '{{ mysql_db_path }}(/.*)?'
-    setype: mysqld_db_t
-    seuser: system_u
-    state: present
-  when: ansible_selinux.status == "enabled"
-
 
 - name: Ensure {{ mysql_db_path }} exists
   become: true
@@ -49,31 +36,6 @@
     owner: mysql
     group: mysql
     state: directory
-    setype: mysqld_db_t
-    seuser: system_u
-
-- name: Render /etc/my.cnf
-  become: true
-  template:
-    src: 'mariadb_etc_my.cnf.j2'
-    dest: '/etc/my.cnf'
-    backup: yes
-  notify: restart mariadb
-
-- name: create configuration directory
-  become: true
-  file: 
-    path: /etc/my.cnf.d/
-    mode: '0755'
-    owner: root
-    group: root
-    state: directory
-
-- name: Copy innodb.cnf
-  become: true
-  copy: 
-    src: innodb.cnf
-    dest: /etc/my.cnf.d/innodb.cnf
 
 - name: Enable MariaDB service
   become: true
@@ -103,7 +65,7 @@
   - name: Render /root/.my.cnf
     become: true
     template:
-      src: my.cnf.j2
+      src: debian_my.cnf.j2
       dest: /root/.my.cnf
       owner: root
       group: root

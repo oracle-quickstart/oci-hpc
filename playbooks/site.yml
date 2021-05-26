@@ -44,10 +44,13 @@
   tasks:
     - include_role: 
         name: ssl
+      when: ldap|default(true)|bool
     - include_role: 
         name: openldap
+      when: ldap|default(true)|bool
     - include_role: 
         name: cluster-cli
+      when: ldap|default(true)|bool
 
 - hosts: compute
   become: true
@@ -141,13 +144,17 @@
   tasks: 
     - include_role: 
         name: sssd
+      when: ldap|default(true)|bool
 
 - hosts: compute
   become: true
   gather_facts: true
-
-  roles:
-    - rdma-interface
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+    - include_role: 
+        name: hyperthreading
+      when: not hyperthreading|default(true)|bool
 
 - hosts: bastion
   tasks: 

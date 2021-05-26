@@ -25,6 +25,7 @@ variableGroups:
       - ${ssh_key}
       - ${use_custom_name}
       - ${cluster_name}
+      - ${ldap}
   - title: "Headnode options"
     variables:
       - ${bastion_ad}
@@ -33,8 +34,11 @@ variableGroups:
       - ${bastion_custom_memory}
       - ${bastion_memory}
       - ${use_standard_image}
+      - ${unsupported_bastion}
       - ${bastion_image_compartment}
       - ${custom_bastion_image}
+      - ${unsupported_bastion_image}
+      - ${bastion_username}
       - ${bastion_boot_volume_size}
   - title: "Advanced headnode options"
     variables:
@@ -55,11 +59,15 @@ variableGroups:
       - ${instance_pool_memory}
       - ${autoscaling}
       - ${node_count}
+      - ${hyperthreading}
       - ${boot_volume_size}
       - ${use_marketplace_image}
+      - ${compute_username}
       - ${marketplace_listing}
+      - ${unsupported}
       - ${compute_image_compartment}
       - ${image}
+      - ${image_ocid}
   - title: "Additional file system"
     variables:
       - ${add_nfs}
@@ -70,7 +78,7 @@ variableGroups:
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
-  - title: "Advanced options"
+  - title: "Advanced storage options"
     variables:
       - ${use_advanced}
       - ${use_scratch_nfs}
@@ -140,6 +148,12 @@ variables:
     description: "Use custom name for the cluster"
     required: true
     default: false
+  ldap:
+    type: boolean
+    title: "Configure LDAP authentication from bastion"
+    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
+    required: true
+    default: true
   cluster_name:
     title: "Name of the cluster"
     description: "Custom cluster name"
@@ -216,13 +230,47 @@ variables:
       "Use standard bastion image, otherwise provide custom image OCID"
     required: true
     default: true
+
+  unsupported_bastion: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for Bastion"
+    type: boolean
+    default: false
+    visible:
+      not:
+        - ${use_standard_image}
+
+  bastion_username: 
+    title: "Default username for bastion" 
+    description: "Custom image ID for Bastion"
+    type: string
+    default: "opc"
+    visible:
+      not:
+        - ${use_standard_image}
+ 
+  unsupported_bastion_image:
+    title: "Image OCID"
+    description: "Custom image ID for compute nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported_bastion}
+        - not: 
+            - ${use_standard_image}
+  
   bastion_image_compartment:
     title: "bastion image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
-      not:
-        - ${use_standard_image}
+      and: 
+          - not:
+              - ${use_standard_image}
+          - not: 
+              - ${unsupported_bastion}
+
   custom_bastion_image:
     title: "Bastion Image ID"
     description: "Custom image ID for bastion nodes. Please note that only Oracle Linux is supported as bastion image at this moment. "
@@ -230,8 +278,12 @@ variables:
     dependsOn:
       compartmentId: ${bastion_image_compartment}
     visible:
-      not:
-        - ${use_standard_image}
+      and: 
+          - not:
+              - ${use_standard_image}
+          - not: 
+              - ${unsupported_bastion}
+
   bastion_boot_volume_size:
     type: integer
     required: true
@@ -311,10 +363,12 @@ variables:
       - "BM.Optimized3.36"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
+    description: "Shape of compute nodes used in permanent/initial cluster"
     required: true
     visible:
       and:
         - ${cluster_network}
+
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
     required: true
@@ -324,6 +378,8 @@ variables:
     visible:
       not:
         - ${cluster_network}
+    description: "Shape of compute nodes used in permanent/initial cluster"
+
   instance_pool_ocpus:
     title: Cores
     type: integer
@@ -341,6 +397,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
     required: false
+
   instance_pool_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -374,24 +431,37 @@ variables:
         - and: 
             - ${instance_pool_custom_memory}
     required: false
+
   node_count:
     required: true
     type: integer
     minimum: 0
-    title: "Number of Compute Instances (Permanent Cluster when autoscaling)"
+    title: "Initial cluster size"
     default: 2
+    description: "Number of Compute Instances (Permanent Cluster when autoscaling)"
+
+  hyperthreading:
+    required: true
+    type: boolean
+    title: "Keep Hyperthreading enabled"
+    default: true
+    description: "When unchecked SMT will be disabled" 
+
   boot_volume_size:
     type: integer
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 50
+    description: "Boot volume size in GB of each compute node" 
+
   use_marketplace_image:
     type: boolean
     title: "use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     required: true
     default: true
+
   marketplace_listing:
     type: enum
     title: "Image version"
@@ -404,23 +474,59 @@ variables:
     visible:
       and:
         - ${use_marketplace_image}
+
   compute_image_compartment:
     title: "compute image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
-      not:
-        - ${use_marketplace_image}
+      and: 
+        - not:
+            - ${use_marketplace_image}
+        - not:
+            - ${unsupported}
+
   image:
-    title: "Image ID"
+    title: "Image"
     description: "Custom image ID for compute nodes"
     type: oci:core:image:id
     required: true
     dependsOn:
       compartmentId: ${compute_image_compartment}
     visible:
+      and: 
+        - not:
+            - ${use_marketplace_image}
+        - not:
+            - ${unsupported}
+
+  compute_username: 
+    title: "Default username for compute hosts" 
+    description: "Custom image ID for compute hosts"
+    type: string
+    default: "opc"
+    visible:
       not:
         - ${use_marketplace_image}
+
+  unsupported: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for compute nodes"
+    type: boolean
+    default: false
+    visible:
+      not:
+        - ${use_marketplace_image}
+ 
+  image_ocid:
+    title: "Image OCID"
+    description: "Custom image ID for compute nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported}
+
   use_advanced:
     type: boolean
     title: "Show advanced options"
@@ -614,6 +720,7 @@ variables:
     type: boolean
     title: "Install Spack package manager"
     default: false
+    description: "Install Spack package manager. Requires shared folder" 
 
   monitoring:
     type: boolean
@@ -623,8 +730,9 @@ variables:
 
   autoscaling:
     type: boolean
-    title: "Use Slurm to launch additional clusters"
+    title: "Scheduler based autoscaling"
     default: false
+    description: "Requires SLURM installation. Scheduler will launch new clusters based on job requirements"
     
   inst_prin:
     type: boolean

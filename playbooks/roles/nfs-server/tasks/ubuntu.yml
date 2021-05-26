@@ -1,10 +1,13 @@
 ---
 - name: Ensure NFS utilities are installed.
-  package: name=nfs-utils state=present
+  package: 
+    name: 
+      - "{{ deb_packages }}"
+    state: present
 
 - name: Start NFS server
   service: 
-    name: nfs-server
+    name: nfs-kernel-server
     state: started
     enabled: true
 

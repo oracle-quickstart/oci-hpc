@@ -20,6 +20,8 @@ variable "node_count" {}
 variable "boot_volume_size" {}
 variable "use_marketplace_image" {}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
+variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
+variable "unsupported_bastion_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = true }
 variable "cluster_nfs_path" { default = "/nfs/cluster" } 
@@ -35,6 +37,7 @@ variable "additional_subnet" { default = "" }
 variable "private_subnet" { default = "" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
+variable "ldap" { default = true } 
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
 variable "instance_pool_ocpus" { default = 2} 
@@ -91,6 +94,8 @@ variable "api_user_ocid" { default = "None"}
 variable "home_nfs" { default = true } 
 variable "configure" { default = true }
 
+variable "hyperthreading" { default = true }
+
 variable "autoscaling" { default = false } 
 variable "add_nfs" { default = false}
 variable "create_ffs" { default = false }
@@ -101,3 +106,23 @@ variable "nfs_source_IP" { default = ""}
 variable "nfs_source_path" { default = "/app"}
 variable "nfs_options" {default = ""}
 variable "monitoring" { default = true }
+
+variable "unsupported" { 
+  type=bool
+  default = "false" 
+} 
+
+variable "unsupported_bastion" { 
+  type=bool
+  default = "false" 
+}
+
+variable "bastion_username" { 
+  type = string 
+  default = "opc" 
+} 
+
+variable "compute_username" { 
+  type = string
+  default = "opc" 
+} 

@@ -15,13 +15,13 @@
   set_fact:
     tmp_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/mysql/root.txt  
-                           chars=ascii_letters,digits,punctuation') }}"
+                           chars=ascii_letters,digits') }}"
 
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
     mysql_root_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/mysql/root.txt  
-                           chars=ascii_letters,digits,punctuation') }}"
+                           chars=ascii_letters,digits') }}"
 
 - name: Install MySQL packages
   become: true
