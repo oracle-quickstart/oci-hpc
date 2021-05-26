@@ -1,5 +1,8 @@
 # Stack to create an HPC cluster. 
 
+[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/oracle-quickstart/oci-hpc/archive/refs/heads/master.zip)
+
+
 ## Policies to deploy the stack: 
 ```
 allow service compute_management to use tag-namespace in tenancy
@@ -83,7 +86,6 @@ sleep 1000
 - shape: You can specify the OCI shape that you’d like to run on as a constraint. This will make sure that you run on the right shape and also generate the right cluster. Shapes are expected to be written in OCI format: BM.HPC2.36, BM.Standard.E3.128, BM.GPU4.8,… 
 If you’d like to use flex shapes, you can use VM.Standard.E3.x with x the number of cores that you would like. 
 
-
 ## Clusters folders: 
 ```
 ~/autoscaling/clusters/clustername
@@ -127,3 +129,8 @@ BM.GPU4.8: cluster-i-gpu48
 ```
 /home/opc/autoscaling/create_cluster.sh clustername
 ```
+
+
+## LDAP 
+If selected bastion host will act as an LDAP server for the cluster. It's strongly recommended to leave default, shared home directory. 
+User management can be performed from the bastion using ``` cluster ``` command. 
