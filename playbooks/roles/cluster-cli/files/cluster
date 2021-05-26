@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+import ldap3
+from ldap3 import MODIFY_ADD
+import click
+import grp
+import pwd
+
+host = 'bastion'
+bind_dn = 'cn=manager,dc=local'
+groups_dn = 'ou=Group,dc=local'
+people_dn = 'ou=People,dc=local'
+ 
+#bind_pass = 'zEEUM6Vrqtfl4hBz0ebF'
+
+with open('/etc/opt/oci-hpc/passwords/openldap/root.txt', 'r') as f: 
+  bind_pass = f.read().splitlines()[0]
+
+def exists(key, value):
+    try:
+        if key == 'uid':
+            return pwd.getpwuid(int(value)).pw_uid
+        elif key == 'username':
+            return pwd.getpwnam(value).pw_uid
+        elif key == 'gid':
+            return grp.getgrgid(int(value)).gr_gid
+        elif key == 'groupname':
+            return grp.getgrnam(value).gr_gid
+
+    except KeyError:
+        return False
+
+def find_next_gid(): 
+  base_gid = 10005
+  search_base = groups_dn
+  search_filter = '(gidNumber=*)'
+  attrs = ['*']
+
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.search(search_base, search_filter, attributes=attrs)
+    for entry in conn.entries:
+      if int(entry.gidNumber.raw_values[0]) > base_gid: 
+        base_gid = int(entry.gidNumber.raw_values[0])
+
+    return base_gid + 1
+     
+def find_next_uid(): 
+  base_uid = 10005
+  search_base = people_dn
+  search_filter = '(uidNumber=*)'
+  attrs = ['*']
+
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.search(search_base, search_filter, attributes=attrs)
+    if len(conn.entries) == 0: 
+      base_uid = 10000
+    for entry in conn.entries:
+      if int(entry.uidNumber.raw_values[0]) > base_uid: 
+        base_uid = int(entry.uidNumber.raw_values[0])
+
+    return base_uid + 1
+     
+@click.group()
+def main(): 
+  pass
+
+@click.group()
+def group(): 
+  """ group commands """
+  pass
+
+@group.command()
+@click.argument('group')
+@click.argument('user')
+def add(group,user): 
+  """ add user to group """
+  search_base = groups_dn
+  search_filter = '(cn=*)'
+  attrs = ['*']
+  
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.modify("cn={},{}".format(group,search_base), {'member': [(MODIFY_ADD, ["cn={},{}".format(user, people_dn)])]})
+# conn.add('cn={},{}'.format(group,search_base), {'memberUid': user })
+
+  print(conn.result)
+
+@group.command()
+def list(): 
+  """ list groups """
+  search_base = groups_dn
+  search_filter = '(cn=*)'
+  attrs = ['*']
+
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.search(search_base, search_filter, attributes=attrs)
+    if len(conn.entries) == 0: 
+      print("No LDAP groups found")
+    else: 
+      for entry in conn.entries:
+        print(entry)
+
+@group.command()
+@click.argument('group')
+@click.option('-i', '--gid', default=None)
+def create(group, gid): 
+  """ Add group """
+  if gid:
+
+      # Ensure gid's uniqueness
+      if exists('gid', gid) is not False:
+          raise Exception('GID %s already exists' % gid)
+      gidNumber = gid
+
+  else:
+      gidNumber = find_next_gid()
+
+  search_base = groups_dn
+
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.add("cn={},{}".format(group, search_base), ['top', 'groupOfMembers', 'posixgroup'], { 'cn': [group], 'gidNumber': [gidNumber] } )
+    print(conn.result)
+
+@group.command()
+@click.argument('group')
+def delete(group):
+  """ delete user """
+  search_base = groups_dn
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.delete("cn={},{}".format(group, search_base))
+
+
+@click.group()
+def user(): 
+  """ user commands """
+
+@user.command()
+def list(): 
+  """ list users """
+  search_base = people_dn
+  search_filter = '(uid=*)'
+  attrs = ['cn', 'uid', 'uidNumber', 'gidNumber', 'homeDirectory', 'sn', 'gecos', 'loginShell', 'displayName']
+
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.search(search_base, search_filter, attributes=attrs)
+    if len(conn.entries) == 0: 
+      print("No LDAP users found")
+    else: 
+      for entry in conn.entries:
+        print(entry)
+
+@user.command()
+@click.argument('user')
+@click.option('-p', '--password', prompt='Password', required=True, hide_input=True,
+              confirmation_prompt=True)
+@click.option('-n', '--name', prompt='Full Name', required=True)
+@click.option('-i', '--uid', default=None)
+@click.option('-g', '--gid', default=None)
+def add(user, password, uid, gid, name): 
+  """ add user """
+  search_base = people_dn
+  if uid is None: 
+    uid = find_next_uid()
+  if gid is None: 
+    gid = find_next_gid()
+
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.add("cn={},{}".format(user, search_base), ['inetOrgPerson', 'posixAccount', 'top', 'shadowAccount'], { 'sn': user, 'uid': user, 'uidNumber': uid, 'gidNumber': gid, 'userPassword': password, 'gecos': name, 'homeDirectory': '/home/{}'.format(user), 'displayName': name, 'loginShell': '/bin/bash' } )
+  if(conn.result['result'] != 0): 
+    print(conn.result)
+
+  if exists('gid', gid) is False:
+
+    click.echo('Creating group')
+    conn.add("cn={},{}".format(user, groups_dn), ['top', 'groupOfMembers', 'posixgroup'], { 'cn': [user], 'gidNumber': [gid] } )
+    if(conn.result['result'] != 0): 
+      print(conn.result)
+
+@user.command()
+@click.argument('user')
+def delete(user):
+  """ delete user """
+  search_base = people_dn
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.delete("cn={},{}".format(user, search_base))
+
+  
+  
+main.add_command(group)
+main.add_command(user)
+
+if __name__ == "__main__":
+    main()

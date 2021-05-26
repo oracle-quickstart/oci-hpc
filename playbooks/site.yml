@@ -1,0 +1,182 @@
+
+- hosts: compute
+  become: true
+  vars: 
+    initial: true
+  gather_facts: true
+  roles: 
+    - hostname
+
+- hosts: all
+  become: true
+  vars: 
+    destroy: false
+    initial: true
+  gather_facts: true
+  roles: 
+    - oci-cloud-agent
+    - packages
+    - oci-legacy
+    - firewall 
+    - oci-hostname
+    - ssh
+    - localdisk
+    - limits
+    - mpi-hostfiles
+    - etc-hosts
+
+- hosts: bastion
+  become: true
+  vars:
+    export_path: "/home"
+    export_name: "home"
+    local_path:  "/home"
+
+  tasks:
+    - include_role:
+        name: nfs-server
+      when: home_nfs|default(true)|bool
+
+- hosts: bastion
+  become: true
+  vars:
+
+  tasks:
+    - include_role: 
+        name: ssl
+      when: ldap|default(true)|bool
+    - include_role: 
+        name: openldap
+      when: ldap|default(true)|bool
+    - include_role: 
+        name: cluster-cli
+      when: ldap|default(true)|bool
+
+- hosts: compute
+  become: true
+
+  tasks:
+    - include_role:
+        name: home_nfs
+      when: home_nfs|default(true)|bool
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/home"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "all"
+      when: home_nfs|default(true)|bool
+ 
+- hosts: bastion
+  become: true
+  vars: 
+    export_path: "{{ cluster_nfs_path }}"
+    export_name: "cluster"
+    local_path:  "/export/cluster"
+    iscsi_ip: "{{ bastion_mount_ip }}"
+  tasks: 
+    - include_role: 
+        name: passwords
+    - include_role: 
+        name: iscsi
+      when: bastion_block|default(false)|bool
+    - include_role: 
+        name: nfs-server
+      when: cluster_nfs|default(true)|bool
+    - include_role: 
+        name: mysql
+    - include_role: 
+        name: cron
+      
+- hosts: nfs
+  become: true
+  vars:
+     export_path: "{{ scratch_nfs_path }}"
+     export_name: "scratch"
+     local_path:  "/mnt/localdisk/nfs"
+     iscsi_ip: "{{ cluster_mount_ip }}"
+
+  tasks: 
+    - include_role: 
+        name: iscsi
+      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-server
+      when: scratch_nfs|default(true)|bool
+
+- hosts: all
+  become: true
+  
+  tasks: 
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ cluster_nfs_path }}"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        export_path: "/export/cluster"
+        lock: "all"
+      when: cluster_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ scratch_nfs_path }}"
+        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/mnt/localdisk/nfs"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "none" 
+      when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "{{ nfs_target_path }}"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{{ nfs_source_path }} "
+        options: "{{ nfs_options }}"
+        lock: "none"
+      when: add_nfs|default(false)|bool
+
+- hosts: all
+  become: true
+  
+  tasks: 
+    - include_role: 
+        name: sssd
+      when: ldap|default(true)|bool
+
+- hosts: compute
+  become: true
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+    - include_role: 
+        name: hyperthreading
+      when: not hyperthreading|default(true)|bool
+
+- hosts: bastion
+  tasks: 
+    - include_role: 
+        name: influxdb
+      when: monitoring|default(false)|bool
+    - include_role: 
+        name: grafana
+      when: monitoring|default(false)|bool
+
+- hosts: all
+  vars:
+    destroy: false
+    initial: true
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+  tasks: 
+    - include_role: 
+        name: spack
+      when: spack|default(false)|bool
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
+    - include_role: 
+        name: telegraf
+      when: monitoring|default(false)|bool

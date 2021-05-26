@@ -1,0 +1,11 @@
+{% if public_subnet is not defined %}
+{% set address = ansible_default_ipv4.network %}
+{% set mask = ansible_default_ipv4.netmask %}
+{% set network = address + '/' + mask %}
+{% set public_subnet = network | ipaddr('net') %}
+{% endif %}
+
+{{ local_path }} {{ public_subnet }}({{ home_nfs_options }})
+{% if private_subnet is defined %}
+{{ local_path }} {{ private_subnet }}({{ home_nfs_options }})
+{% endif %}

@@ -1,0 +1,27 @@
+{%- set rdma_subnet = hostvars[inventory_hostname]['rdma_network'] + '/' + hostvars[inventory_hostname]['rdma_netmask'] -%}
+{%- set rdma_subnet_prefix = rdma_subnet | ansible.netcommon.ipaddr('prefix') -%}
+{%- set rdma_subnet_cidr = rdma_subnet | ansible.netcommon.ipaddr('network/prefix') -%}
+{%- set host_index = hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet'])  -%}
+{# THIS WHOLE ROUTINE IS USED TO FIND THE NEXT SUBNET #}
+{%- set subnets = [rdma_subnet_cidr] -%}
+{%- for i in range(index) -%}
+  {%- set nsip = subnets|last | ansible.netcommon.ipaddr('net') | ansible.netcommon.ipaddr('-1') | ansible.netcommon.ipmath(1) -%}
+  {%- set ns = nsip + '/' + rdma_subnet_prefix|string -%}
+  {{ subnets.append(ns) }}
+{%- endfor -%}
+{%- set rdma_address = subnets|last | ansible.netcommon.ipmath(host_index | int -1) -%}
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPADDR={{ rdma_address }}
+NETMASK={{ hostvars[inventory_hostname]['rdma_netmask'] }}
+DEFROUTE="no"
+PEERDNS="no"
+PEERROUTES="no"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="no"
+IPV6_FAILURE_FATAL="no"
+NAME="System {{ item['device'] }}"
+UUID="{{ hostvars[inventory_hostname]['ansible_fqdn'] | to_uuid }}"
+DEVICE="{{ item['device'] }}"
+ONBOOT="yes"
+NM_CONTROLLED="no"

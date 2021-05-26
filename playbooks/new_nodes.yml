@@ -1,0 +1,137 @@
+
+- hosts: compute
+  become: true
+  gather_facts: true
+  vars: 
+    initial: false
+  tasks: 
+    - include_role:  
+        name: hostname
+      when: slurm and autoscaling | default(false) | bool
+
+- hosts: compute
+  become: true
+  vars: 
+    destroy: false
+  gather_facts: true
+  roles: 
+    - packages
+    - oci-legacy
+    - firewall 
+    - oci-hostname
+    - ssh
+    - localdisk
+    - limits
+    - mpi-hostfiles
+
+- hosts: all
+  become: true
+  vars: 
+    destroy: false
+    initial: false
+  gather_facts: true
+  roles: 
+    - etc-hosts
+      
+- hosts: nfs
+  become: true
+  vars:
+     export_path: "{{ scratch_nfs_path }}"
+     export_name: "scratch"
+     local_path:  "/mnt/localdisk/nfs"
+     iscsi_ip: "{{ cluster_mount_ip }}"
+
+  tasks: 
+    - include_role: 
+        name: iscsi
+      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-server
+      when: scratch_nfs|default(true)|bool
+
+- hosts: compute
+  become: true
+  
+  tasks: 
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ cluster_nfs_path }}"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/export/cluster"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "all"
+      when: cluster_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ scratch_nfs_path }}"
+        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/mnt/localdisk/nfs"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "none" 
+      when: scratch_nfs|default(true)|bool
+
+- hosts: compute
+  become: true
+
+  tasks:
+    - include_role:
+        name: sssd
+      when: ldap|default(true)|bool
+
+- hosts: compute
+  become: true
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+    - include_role: 
+        name: hyperthreading
+      when: not hyperthreading|default(true)|bool 
+- hosts: compute
+  become: true
+  tasks:
+    - include_role:
+        name: home_nfs
+      when: home_nfs|default(true)|bool and ansible_selinux.status == "enabled"
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/home"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "all"
+      when: home_nfs|default(true)|bool
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "{{ nfs_target_path }}"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{{ nfs_source_path }} "
+        options: "{{ nfs_options }}"
+        lock: "none"
+      when: add_nfs|default(false)|bool
+      
+#- hosts: bastion
+#  tasks: 
+#    - include_role: 
+#        name: influxdb
+#    - include_role: 
+#        name: grafana#
+
+- hosts: compute
+  vars:
+    destroy: false
+    initial: false
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+  tasks: 
+    - include_role: 
+        name: spack
+      when: spack|default(false)|bool
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
+#    - include_role: 
+#        name: telegraf

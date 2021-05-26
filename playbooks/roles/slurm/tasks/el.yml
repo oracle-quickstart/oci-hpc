@@ -1,0 +1,31 @@
+---
+#- name: download slurm Packages
+#  include_tasks: download.yml
+#  when: ('bastion' in group_names) and (not destroy|bool) and (initial|bool) and (cluster_nfs|bool)
+
+#- name: download slurm Packages
+#  include_tasks: download.yml
+#  when: (not destroy|bool) and (not cluster_nfs|bool)
+
+- debug: 
+    msg: "{{ (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names))) }}"
+
+- name: include common tasks
+  include_tasks: common.yml
+  when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
+
+- name: run server directives
+  include_tasks: server.yml
+  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
+
+- name: run compute directives
+  include_tasks: compute.yml
+  when: ('compute' in group_names) and (not destroy|bool)
+
+- name: cleanup
+  include_tasks: cleanup.yml
+  when: ('compute' in group_names) and (not destroy|bool)
+
+- name: destroy
+  include_tasks: destroy.yml
+  when: ('compute' in group_names) and (destroy|bool)

@@ -1,0 +1,12 @@
+---
+nfs_packages:
+  - nfs-utils
+
+deb_packages: 
+  - nfs-kernel-server
+
+nfs_rpcbind_state: started
+nfs_rpcbind_enabled: true
+
+home_nfs_options: "rw,sync,no_root_squash"
+

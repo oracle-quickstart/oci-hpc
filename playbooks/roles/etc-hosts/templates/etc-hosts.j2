@@ -1,0 +1,33 @@
+{% for item in groups['compute'] %}
+
+{%- set rdma_subnet = hostvars[item]['rdma_network'] + '/' + hostvars[item]['rdma_netmask'] -%}
+{%- set rdma_subnet_prefix = rdma_subnet | ansible.netcommon.ipaddr('prefix') -%}
+{%- set rdma_subnet_cidr = rdma_subnet | ansible.netcommon.ipaddr('network/prefix') -%}
+{%- set host_index = hostvars[item]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet'])  -%}
+{# THIS WHOLE ROUTINE IS USED TO FIND THE NEXT SUBNET #}
+{%- set subnets = [rdma_subnet_cidr] -%}
+{%- for i in range(0) -%}
+  {%- set nsip = subnets|last | ansible.netcommon.ipaddr('net') | ansible.netcommon.ipaddr('-1') | ansible.netcommon.ipmath(1) -%}
+  {%- set ns = nsip + '/' + rdma_subnet_prefix|string -%}
+  {{ subnets.append(ns) }}
+{%- endfor -%}
+{%- set rdma_address = subnets|last | ansible.netcommon.ipmath(host_index | int -1) -%}
+{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
+{% if not initial | bool %}
+{{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['inventory_hostname'] }} {{ cluster_name }}-node-{{groups['compute'].index(hostvars[item]['inventory_hostname'])+1}}
+{{rdma_address}} {{ hostvars[item]['ansible_hostname'] }}-rdma {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma {{ cluster_name }}-node-{{groups['compute'].index(hostvars[item]['inventory_hostname'])+1}}-rdma
+{% else %}
+{{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} hpc-node-{{ loop.index }} hpc-node-{{ loop.index }}.local.vcn hpc-cluster-node-{{ loop.index }} hpc-cluster-node-{{ loop.index }}.local.vcn
+{{rdma_address}} hpc-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma hpc-cluster-node-{{ loop.index }}-rdma.local.rdma hpc-node-{{ loop.index }}-rdma.local.rdma {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma {{ hostvars[item]['ansible_hostname'] }}-rdma
+{% endif %}
+{% endfor %}
+
+{% if initial | bool %}
+{% for item in groups['nfs'] %}
+{{ hostvars[item]['ansible_host'] }} nfs-server
+{% endfor %}
+{% endif %}
+
+
+
+

@@ -1,0 +1,160 @@
+---
+- name: install munge
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name:
+      - munge
+      - munge-libs
+      - munge-devel
+- name: create munge group
+  become: true
+  group:
+    name: munge
+    gid: "{{ munge_gid }}"
+    state: present
+    system: yes
+- name: create munge user
+  become: true
+  user:
+    name: munge
+    comment: "munge"
+    uid: "{{ munge_uid }}"
+    group: "{{ munge_gid }}"
+    shell: /sbin/nologin
+    home: /var/lib/munge
+    state: present
+- name: create slurm group
+  become: true
+  group:
+    name: slurm
+    gid: "{{ slurm_gid }}"
+    state: present
+    system: yes
+- name: create slurm user
+  become: true
+  user:
+    name: slurm
+    comment: "Slurm user"
+    uid: "{{ slurm_uid }}"
+    group: "{{ slurm_gid }}"
+    shell: /bin/bash
+    home: /var/lib/slurm
+    state: present
+
+
+#- name: install Slurm Common Packages
+#  block:
+#    - name: install SLURM server packages
+#      become: true
+#      yum: 
+#        name: 
+#          - "{{ download_path }}/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm"
+
+#  rescue:
+#    - name: Repository
+#      become: true
+#      yum_repository:
+#        name: oci-hpc
+#        description: oci-hpc
+#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+#        gpgcheck: no
+#        enabled: yes
+#        retries: 3
+      
+- name: install SLURM server packages
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name:
+      - slurm
+      - slurm-devel
+      - slurm-contribs
+      - slurm-perlapi
+      - slurm-devel
+      - slurm-torque
+      - slurm-openlava
+#     - slurm-example-configs
+          
+- name: Create {{ slurm_spool_path }}
+  become: true
+  file:
+    name: "{{ slurm_spool_path }}"
+    state: directory
+    owner: 'slurm'
+    group: 'slurm'
+    mode: '0750'
+- name: Create munge dir
+  become: true
+  file:
+    name: '{{ munge_conf_path }}'
+    state: directory
+    owner: munge
+    group: munge
+    mode: 0700
+- name: Ensure {{ slurm_log_path }} exists
+  become: true
+  file:
+    path: '{{ slurm_log_path }}'
+    owner: slurm
+    group: slurm
+    mode: 0750
+    state: directory
+
+- name: Ensure {{ slurm_conf_path }} exists
+  become: true
+  file:
+    path: '{{ slurm_conf_path }}'
+    state: directory
+
+- name: Ensure {{ munge_run_path }} has the correct permissions
+  become: true
+  file:
+    path: '{{ munge_run_path }}'
+    owner: munge
+    group: munge
+    mode: 0755
+    state: directory
+
+- name: Ensure {{ munge_log_path }} has the correct permissions
+  become: true
+  file:
+    path: '{{ munge_log_path }}'
+    owner: munge
+    group: munge
+    mode: 0755
+    state: directory
+
+- name: Ensure {{ slurm_conf_path }} has the correct permissions
+  become: true
+  file:
+    path: '{{ slurm_conf_path }}'
+    owner: slurm
+    group: slurm
+    mode: 0755
+    state: directory
+
+- name: Generate topology.conf
+  become: true
+  template: 
+    src: topology.conf.j2
+    dest: /etc/slurm/topology.conf
+    mode: '0644'
+    backup: yes
+  delegate_to: 127.0.0.1
+  when: initial|bool
+
+- name: move topology.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/topology.conf
+    src: /etc/slurm/topology.conf
+    force: yes
+  when: not destroy|bool

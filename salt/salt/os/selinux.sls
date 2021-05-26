@@ -1,2 +1,0 @@
-disabled:
-  selinux.mode

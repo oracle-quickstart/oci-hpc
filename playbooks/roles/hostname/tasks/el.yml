@@ -1,0 +1,5 @@
+---
+- name: update hostname for HPC cluster
+  hostname: 
+    name: "{{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}}"
+  when: ('compute' in group_names ) and ( not initial | bool ) | bool

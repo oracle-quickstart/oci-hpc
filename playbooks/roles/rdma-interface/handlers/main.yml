@@ -1,0 +1,4 @@
+- name: restart_interface
+  command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
+  when: item.changed
+  with_items: "{{ rdma_interface['results'] }}"

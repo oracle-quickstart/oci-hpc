@@ -1,0 +1,168 @@
+---
+- name: Generate password for DB user and save it to /etc/trinity/passwords
+  set_fact:
+    tmp_pwd: '{{ lookup("password",
+                           "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
+                            chars=ascii_letters,digits,hexdigits") }}'
+
+- name: Get password for DB user from /etc/trinity/passwords)
+  set_fact:
+    slurmdbd_sql_pwd: '{{ lookup("password",
+                           "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
+                            chars=ascii_letters,digits,hexdigits") }}'
+
+- name: Install PyMSQL
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name: 
+      - python2-PyMySQL
+    state: installed
+
+#- name: install Slurm Server
+#  block:    
+#    - name: install SLURM server packages
+#      become: true
+#      yum: 
+#        name: 
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmctld-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm" 
+#  rescue:
+#    - name: Repository
+#      become: true
+#      yum_repository:
+#        name: oci-hpc
+#        description: oci-hpc
+#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+#        gpgcheck: no
+#        enabled: yes
+#        retries: 3
+      
+- name: install SLURM server packages
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name: 
+      - slurm-slurmctld
+      - slurm-slurmdbd
+#      - slurm-slurmrestd
+  
+- name: Create systemd unit dirs
+  become: true
+  file:
+    name: '/etc/systemd/system/{{ item }}.service.d'
+    state: directory
+  with_items:
+    - munge
+    - slurmdbd
+    - slurmctld
+
+- name: Render systemd units for slurm, slurmdbd and munge
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
+    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
+    backup: "yes"
+  with_items:
+    - munge
+    - slurmdbd
+    - slurmctld
+
+- block:
+
+    - name: Create {{ cluster_nfs_path }}/spool/slurm
+      become: true
+      file:
+        name: "{{ cluster_nfs_path }}/spool/slurm"
+        state: directory
+        owner: 'slurm'
+        group: 'slurm'
+        mode: '0750'
+        recurse: yes
+
+
+    - name: Create munge.key
+      become: true
+      command: 'dd if=/dev/urandom bs=1 count=1024 of={{ munge_conf_path }}/munge.key'
+      args:
+        creates: '{{ munge_conf_path }}/munge.key'
+
+    - name: Set munge.key permissions
+      become: true
+      file:
+        name: '{{ munge_conf_path }}/munge.key'
+        state: file
+        owner: munge
+        group: munge
+        mode: 0400
+      notify: restart munge
+
+    - name: copy munge.key
+      become: true
+      shell:
+        cmd: cp /etc/munge/munge.key /tmp/munge.key
+        warn: false
+    - name: set permissions
+      become: true
+      shell:
+        cmd: chown opc:opc /tmp/munge.key
+        warn: false
+    
+- name: Create DB for accounting
+  become: true
+  mysql_db:
+      config_file: '/root/.my.cnf'
+      name: '{{ slurm_db_name }}'
+      state: present
+
+- name: Create DB user for accounting
+  become: true
+  mysql_user:
+      config_file: '/root/.my.cnf'
+      name: '{{ slurm_db_user }}'
+      password: '{{ slurmdbd_sql_pwd }}'
+      priv: '{{ slurm_db_name }}.*:ALL'
+      state: present
+
+- name: Copy configuration files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '{{ slurm_conf_path }}/{{ item }}'
+    force: no
+    owner: slurm
+    group: slurm
+  with_items: 
+    - cgroup.conf
+
+- name: Generate slurmdbd.conf
+  become: true
+  template: 
+    src: slurmdbd.conf.j2
+    dest: /etc/slurm/slurmdbd.conf
+    mode: '0600'
+    owner: slurm
+    group: slurm
+    backup: yes
+  
+- name: Generate slurm.conf
+  become: true
+  template: 
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    mode: '0644'
+    backup: yes
+    owner: slurm
+    group: slurm
+  notify: restart slurm server
+  when: initial | bool
+
+- name: run handlers
+  meta: flush_handlers
+
+- name: add alias for node status
+  lineinfile:
+    path: /home/opc/.bashrc
+    line: alias status='tail /home/opc/autoscaling/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
+    state: present

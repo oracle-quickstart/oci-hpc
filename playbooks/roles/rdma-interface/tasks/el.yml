@@ -1,0 +1,37 @@
+---
+#
+# Detecting MLX interface name by PCI ID. 
+# Another option is to detect the mlx5_core driver, but it's harder to tell whch interface can be activated 
+#
+- name: detect shape
+  uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    headers:
+      Authorization: 'Bearer Oracle'
+    return_content: yes
+  register: i_metadata
+
+- name: set fact
+  set_fact:
+    instance_metadata: "{{ i_metadata['content'] }}"
+
+- name: detect mellanox interfaces
+  set_fact:
+    ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
+  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']])
+  with_items:
+    - "{{ hostvars[inventory_hostname]['ansible_interfaces'] | sort }}"
+
+
+- name: create interface files
+  register: rdma_interface
+  notify: restart_interface
+  template:
+    src: ifcfg.j2
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item['device'] }}"
+    mode: '0644'
+  when: ansible_mlx is defined
+  loop: "{{ ansible_mlx }}"
+  loop_control:
+    index_var: index

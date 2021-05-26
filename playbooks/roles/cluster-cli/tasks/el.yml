@@ -1,0 +1,17 @@
+---
+
+- name: install required packages
+  yum: 
+    enablerepo: "epel,ol7_developer_EPEL"
+    name: 
+      - python36-click
+      - python36-ldap3
+    state: present
+
+- name: copy cluster cli 
+  copy: 
+    src: cluster
+    dest: /usr/bin/
+    owner: root
+    group: root
+    mode: '0755'

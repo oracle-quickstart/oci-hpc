@@ -1,0 +1,18 @@
+#
+## HPC limits increased per recommendations in:
+##
+## https://windows.epfl.ch/info/linux.pdf
+## http://openhpc.community/wp-content/uploads/Install_guide-CentOS7.1-1.0.pdf
+##
+## Also increased max number of open files
+##
+*               hard    memlock         unlimited
+*               soft    memlock         unlimited
+####
+#### these numbers yield very jittery results -- more testing is needed before enabling them
+####
+####*               hard    nofile          16384
+####*               soft    nofile          16384
+####*               hard    stack           1048576
+####*               soft    stack           1048576
+####

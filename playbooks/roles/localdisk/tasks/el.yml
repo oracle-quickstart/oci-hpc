@@ -1,0 +1,22 @@
+---
+- name: Create a new primary partition
+  parted:
+    device: /dev/nvme0n1
+    number: 1
+    state: present
+    label: gpt
+  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+- name: create a filesystem
+  filesystem:
+    dev: /dev/nvme0n1p1
+    fstype: xfs
+    opts: -L localscratch
+  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+- name: Mount local volume
+  mount:
+    path: "{{ nvme_path }}"
+    src: LABEL=localscratch
+    fstype: xfs
+    opts: defaults,noatime
+    state: mounted
+  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"

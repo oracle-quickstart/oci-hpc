@@ -1,0 +1,3 @@
+- include: el-7.yml
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7'
+

@@ -1,0 +1,27 @@
+---
+- name: install GIT
+  yum: 
+    name: git
+    state: latest
+  become: true
+
+- name: Development Tools" 
+  yum: 
+    name: "@Development Tools"
+  become: true
+
+- name: Clone SPACK
+  git: 
+    repo: "{{ spack_repo }}"
+    dest: "{{ cluster_nfs_path }}/spack"
+    update: no
+  run_once: true
+
+- name: Add SPACK initialization 
+  template: 
+    src: templates/spack.j2
+    dest: /etc/profile.d/spack.sh
+    owner: root
+    group: root
+    mode: '0755' 
+  become: true

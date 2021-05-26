@@ -1,0 +1,62 @@
+---
+- name: create bastion part of the /etc/hosts files for the compute nodes
+  blockinfile:
+    dest: /tmp/hosts.etc.{{ cluster_name }}
+    content: "{{ lookup('template', 'templates/etc-hosts-bastion.j2') }}"
+    state: present
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED BLOCK BASTION"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: not destroy|bool
+
+- name: create bastion part of the /etc/hosts files for the bastion
+  blockinfile:
+    dest: /etc/hosts
+    content: "{{ lookup('template', 'templates/etc-hosts-bastion.j2') }}"
+    state: present
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED BLOCK BASTION"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: not destroy|bool
+ 
+- name: add cluster nodes to the /etc/hosts file for the compute nodes
+  blockinfile:
+    dest: /tmp/hosts.etc.{{ cluster_name }}
+    content: "{{ lookup('template', 'templates/etc-hosts.j2') }}"
+    state: present
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: not destroy|bool
+
+- name: add cluster nodes to the /etc/hosts file of the bastion
+  blockinfile:
+    dest: /etc/hosts
+    content: "{{ lookup('template', 'templates/etc-hosts.j2') }}"
+    state: present
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: not destroy|bool
+
+- name: move /etc/hosts on all compute nodes
+  become: true
+  copy:
+    dest: /etc/hosts
+    src: /tmp/hosts.etc.{{ cluster_name }}
+    force: yes
+  when: ( not destroy|bool ) and ('compute' in group_names)
+
+- name: remove cluster from etc-host
+  become: true
+  blockinfile:
+    dest: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+    state: absent
+  delegate_to: 127.0.0.1
+  run_once: true
+  when: destroy | bool

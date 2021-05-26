@@ -1,0 +1,88 @@
+---
+# tasks for mariadb role
+
+- name: Create /etc/opt/oci-hpc/passwords/mysql
+  become: true
+  file: 
+    path: /etc/opt/oci-hpc/passwords/mysql
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: 0770
+    group: "{{ ansible_user }}"
+    recurse: yes
+
+- name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords 
+  set_fact:
+    tmp_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
+                           chars=ascii_letters,digits,hexdigits') }}"
+
+- name: Get root password from /etc/opt/oci-hpc/passwords
+  set_fact:
+    mysql_root_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
+                           chars=ascii_letters,digits,hexdigits') }}"
+
+- name: Install MariaDB packages
+  become: true
+  apt:
+   name: '{{ deb_mariadb_packages }}'
+   state: present
+
+- name: Ensure {{ mysql_db_path }} exists
+  become: true
+  file:
+    path: '{{ mysql_db_path }}'
+    owner: mysql
+    group: mysql
+    state: directory
+
+- name: Enable MariaDB service
+  become: true
+  service:
+    name: mariadb
+    enabled: yes
+
+- block:
+
+  - name: Start MariaDB service
+    become: true
+    service:
+      name: mariadb
+      state: started
+  
+  - meta: flush_handlers
+
+  - name: Set MariaDB's root pasword
+    become: true
+    mysql_user: 
+      name: root
+      password: '{{ mysql_root_pwd }}'
+      host_all: yes
+      check_implicit_admin: yes
+      state: present
+  
+  - name: Render /root/.my.cnf
+    become: true
+    template:
+      src: debian_my.cnf.j2
+      dest: /root/.my.cnf
+      owner: root
+      group: root
+      mode: 0600
+
+  - name: Remove anonymous users
+    become: true
+    mysql_user:
+      config_file: '/root/.my.cnf'
+      name: ''
+      host_all: yes
+      state: absent
+  
+  - name: Remove test db
+    become: true
+    mysql_db:
+      config_file: '/root/.my.cnf'
+      name: test
+      state: absent
+  

@@ -1,0 +1,845 @@
+---
+title: HPC cluster
+description: Oracle Cloud HPC cluster
+schemaVersion: 1.1.0
+version: "2021040901"
+informationalText: Automated HPC cluster deployment
+logoUrl: https://cloudmarketplace.oracle.com/marketplace/content?contentId=80357668
+
+source:
+  type: marketplace
+  reference: 67628143
+locale: "en"
+
+outputs:
+  bastion:
+    title: "Bastion Instance Public IP"
+    type: copyableString
+    visible: true
+
+variableGroups:
+  - title: "Cluster configuration"
+    variables:
+      - ${targetCompartment}
+      - ${ad}
+      - ${ssh_key}
+      - ${use_custom_name}
+      - ${cluster_name}
+      - ${ldap}
+  - title: "Headnode options"
+    variables:
+      - ${bastion_ad}
+      - ${bastion_shape}
+      - ${bastion_ocpus}
+      - ${bastion_custom_memory}
+      - ${bastion_memory}
+      - ${use_standard_image}
+      - ${unsupported_bastion}
+      - ${bastion_image_compartment}
+      - ${custom_bastion_image}
+      - ${unsupported_bastion_image}
+      - ${bastion_username}
+      - ${bastion_boot_volume_size}
+  - title: "Advanced headnode options"
+    variables:
+      - ${bastion_advanced}
+      - ${home_nfs} 
+      - ${use_cluster_nfs}
+      - ${cluster_nfs_path}
+      - ${bastion_block}
+      - ${bastion_block_volume_size}
+      - ${bastion_block_volume_performance}
+  - title: "Compute node options"
+    variables:
+      - ${cluster_network}
+      - ${cluster_network_shape}
+      - ${instance_pool_shape}
+      - ${instance_pool_ocpus}
+      - ${instance_pool_custom_memory}
+      - ${instance_pool_memory}
+      - ${autoscaling}
+      - ${node_count}
+      - ${hyperthreading}
+      - ${boot_volume_size}
+      - ${use_marketplace_image}
+      - ${compute_username}
+      - ${marketplace_listing}
+      - ${unsupported}
+      - ${compute_image_compartment}
+      - ${image}
+      - ${image_ocid}
+  - title: "Additional file system"
+    variables:
+      - ${add_nfs}
+      - ${create_ffs}
+      - ${nfs_target_path}
+      - ${nfs_source_IP}
+      - ${nfs_source_path}
+      - ${nfs_options}
+      - ${fss_compartment}
+      - ${fss_ad}
+  - title: "Advanced storage options"
+    variables:
+      - ${use_advanced}
+      - ${use_scratch_nfs}
+      - ${scratch_nfs_path}
+      - ${scratch_nfs_type_cluster}
+      - ${scratch_nfs_type_pool}
+      - ${cluster_block_volume_size}
+      - ${cluster_block_volume_performance}
+  - title: "Network options"
+    variables:
+      - ${use_existing_vcn}
+      - ${vcn_compartment}
+      - ${vcn_id}
+      - ${public_subnet_id}
+      - ${private_subnet_id}
+      - ${vcn_subnet}
+      - ${public_subnet}
+      - ${additional_subnet}
+      - ${private_subnet}
+  - title: "Software"
+    variables:
+      - ${slurm}
+      - ${spack}
+      - ${monitoring}
+  - title: "API authentication"
+    variables:
+      - ${inst_prin}
+      - ${api_user_ocid}
+      - ${api_fingerprint}
+      - ${api_user_key}
+    visible: ${autoscaling}
+  - title: "Hidden"
+    variables:
+      - ${region}
+      - ${tenancy_ocid}
+      - ${cluster_nfs_mount}
+      - ${cluster_nfs_export}
+      - ${scratch_nfs_export}
+      - ${scratch_nfs_mount}
+      - ${marketplace_listing_id}
+      - ${ssh_cidr}
+      - ${marketplace_source_images}
+    visible: false
+  - title: "Debug"
+    variables: 
+      - ${configure}
+variables:
+  targetCompartment:
+    title: "target compartment"
+    type: oci:identity:compartment:id
+    default: ${compartment_ocid}
+  ad:
+    type: oci:identity:availabilitydomain:name
+    visible: complexExpression
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: true
+    description: "Availability Domain"
+    title: "Availability Domain"
+  ssh_key:
+    type: oci:core:ssh:publickey
+    title: "Public SSH key"
+    required: true
+  use_custom_name:
+    type: boolean
+    title: "use custom cluster name"
+    description: "Use custom name for the cluster"
+    required: true
+    default: false
+  ldap:
+    type: boolean
+    title: "Configure LDAP authentication from bastion"
+    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
+    required: true
+    default: true
+  cluster_name:
+    title: "Name of the cluster"
+    description: "Custom cluster name"
+    type: string
+    visible:
+      and:
+        - ${use_custom_name}
+  bastion_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    visible: complexExpression
+    required: true
+    description: "Availability Domain for bastion host"
+    title: "Availability Domain"
+    default: ${ad}
+  bastion_shape:
+    type: oci:core:instanceshape:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+  bastion_ocpus:
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 2
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${bastion_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${bastion_shape}
+            - "VM.Standard.E4.Flex"
+    required: false
+  bastion_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${bastion_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${bastion_shape}
+            - "VM.Standard.E4.Flex"
+  bastion_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 16
+    visible:
+      and: 
+        - and: 
+          - or: 
+            - eq:
+              - ${bastion_shape}
+              - "VM.Standard.E3.Flex"
+            - eq: 
+              - ${bastion_shape}
+              - "VM.Standard.E4.Flex"
+        - and: 
+            - ${bastion_custom_memory}
+    required: false
+  use_standard_image:
+    type: boolean
+    title: "use standard bastion image"
+    description: >
+      "Use standard bastion image, otherwise provide custom image OCID"
+    required: true
+    default: true
+
+  unsupported_bastion: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for Bastion"
+    type: boolean
+    default: false
+    visible:
+      not:
+        - ${use_standard_image}
+
+  bastion_username: 
+    title: "Default username for bastion" 
+    description: "Custom image ID for Bastion"
+    type: string
+    default: "opc"
+    visible:
+      not:
+        - ${use_standard_image}
+ 
+  unsupported_bastion_image:
+    title: "Image OCID"
+    description: "Custom image ID for compute nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported_bastion}
+        - not: 
+            - ${use_standard_image}
+  
+  bastion_image_compartment:
+    title: "bastion image compartment"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible:
+      and: 
+          - not:
+              - ${use_standard_image}
+          - not: 
+              - ${unsupported_bastion}
+
+  custom_bastion_image:
+    title: "Bastion Image ID"
+    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux is supported as bastion image at this moment. "
+    type: oci:core:image:id
+    dependsOn:
+      compartmentId: ${bastion_image_compartment}
+    visible:
+      and: 
+          - not:
+              - ${use_standard_image}
+          - not: 
+              - ${unsupported_bastion}
+
+  bastion_boot_volume_size:
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 50
+  bastion_advanced:
+    type: boolean
+    title: Show advanced options
+    default: false
+  bastion_block:
+    type: boolean
+    title: Additional block volume for shared space
+    visible:
+      and:
+        - ${bastion_advanced}
+    default: false
+    required: true
+  bastion_block_volume_size:
+    required: true
+    type: integer
+    title: "Size of the additional volume in GB"
+    default: 1000
+    visible:
+      and:
+        - and:
+            - ${bastion_block}
+            - ${bastion_advanced}
+  bastion_block_volume_performance:
+    type: enum
+    title: "Block volume performance"
+    required: true
+    enum:
+      - "0.  Lower performance"
+      - "10. Balanced performance"
+      - "20. High Performance"
+    default: "10. Balanced performance"
+    visible:
+      and:
+        - and:
+            - ${bastion_block}
+            - ${bastion_advanced}
+  home_nfs:
+    type: boolean
+    title: "shared NFS /home from bastion"
+    visible:
+      and:
+        - ${bastion_advanced}
+    default: true
+  use_cluster_nfs:
+    type: boolean
+    title: "shared NFS volume from bastion"
+    visible:
+      and:
+        - ${bastion_advanced}
+    default: true
+  cluster_nfs_path:
+    title: "Cluster share mount point"
+    description: "Path to NFS share"
+    default: "/nfs/cluster"
+    type: string
+    visible:
+      and:
+        - ${bastion_advanced}
+        - ${use_cluster_nfs}
+  cluster_network:
+    title: Use cluster network
+    type: boolean
+    description: Use ROCEv2 cluster network
+    default: true
+
+  cluster_network_shape:
+    type: enum
+    enum:
+      - "BM.HPC2.36"
+      - "BM.GPU4.8"
+      - "BM.Optimized3.36"
+    default: "BM.HPC2.36"
+    title: "Shape of the Compute Nodes"
+    description: "Shape of compute nodes used in permanent/initial cluster"
+    required: true
+    visible:
+      and:
+        - ${cluster_network}
+
+  instance_pool_shape:
+    title: "Shape of the Compute Nodes"
+    required: true
+    type: oci:core:instanceshape:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    visible:
+      not:
+        - ${cluster_network}
+    description: "Shape of compute nodes used in permanent/initial cluster"
+
+  instance_pool_ocpus:
+    title: Cores
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 2
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${instance_pool_shape}
+            - "VM.Standard.E4.Flex"
+    required: false
+
+  instance_pool_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${instance_pool_shape}
+            - "VM.Standard.E4.Flex"
+  instance_pool_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 16
+    visible:
+      and: 
+        - and: 
+          - or: 
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.E3.Flex"
+            - eq: 
+              - ${instance_pool_shape}
+              - "VM.Standard.E4.Flex"
+        - and: 
+            - ${instance_pool_custom_memory}
+    required: false
+
+  node_count:
+    required: true
+    type: integer
+    minimum: 0
+    title: "Initial cluster size"
+    default: 2
+    description: "Number of Compute Instances (Permanent Cluster when autoscaling)"
+
+  hyperthreading:
+    required: true
+    type: boolean
+    title: "Keep Hyperthreading enabled"
+    default: true
+    description: "When unchecked SMT will be disabled" 
+
+  boot_volume_size:
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 50
+    description: "Boot volume size in GB of each compute node" 
+
+  use_marketplace_image:
+    type: boolean
+    title: "use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID"
+    required: true
+    default: true
+
+  marketplace_listing:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "1. Oracle Linux 7.8 OFED5.0"
+      - "2. Oracle Linux 7.5 OFED4.4"
+    default: "1. Oracle Linux 7.8 OFED5.0"
+    visible:
+      and:
+        - ${use_marketplace_image}
+
+  compute_image_compartment:
+    title: "compute image compartment"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible:
+      and: 
+        - not:
+            - ${use_marketplace_image}
+        - not:
+            - ${unsupported}
+
+  image:
+    title: "Image"
+    description: "Custom image ID for compute nodes"
+    type: oci:core:image:id
+    required: true
+    dependsOn:
+      compartmentId: ${compute_image_compartment}
+    visible:
+      and: 
+        - not:
+            - ${use_marketplace_image}
+        - not:
+            - ${unsupported}
+
+  compute_username: 
+    title: "Default username for compute hosts" 
+    description: "Custom image ID for compute hosts"
+    type: string
+    default: "opc"
+    visible:
+      not:
+        - ${use_marketplace_image}
+
+  unsupported: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for compute nodes"
+    type: boolean
+    default: false
+    visible:
+      not:
+        - ${use_marketplace_image}
+ 
+  image_ocid:
+    title: "Image OCID"
+    description: "Custom image ID for compute nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported}
+
+  use_advanced:
+    type: boolean
+    title: "Show advanced options"
+    default: false
+  use_scratch_nfs:
+    type: boolean
+    title: "Shared NFS scratch space from NVME or Block volume"
+    visible:
+      and:
+        - ${use_advanced}
+    default: true
+  scratch_nfs_type_cluster:
+    type: enum
+    title: "Scratch storage configuration"
+    enum:
+      - "none"
+      - "nvme"
+      - "block"
+    default: "nvme"
+    visible:
+      and:
+        - ${cluster_network}
+        - ${use_advanced}
+        - ${use_scratch_nfs}
+  scratch_nfs_type_pool:
+    type: enum
+    title: "Scratch storage configuration"
+    enum:
+      - "none"
+      - "block"
+    default: "none"
+    visible:
+      and: 
+        - not:
+            - ${cluster_network}
+            - ${use_scratch_nfs}
+        - and: 
+            - ${use_advanced}
+  cluster_block_volume_size:
+    required: true
+    type: integer
+    title: "Size of the additional volume in GB"
+    default: 1000
+    visible:
+      and:
+        - or:
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_cluster}
+                    - "block"
+                - and:
+                    - ${use_advanced}
+                    - ${cluster_network}
+                    - ${use_scratch_nfs}
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_pool}
+                    - "block"
+                - and:
+                    - not:
+                        - ${cluster_network}
+                    - and: 
+                        - ${use_scratch_nfs}
+                        - ${use_advanced}
+  cluster_block_volume_performance:
+    type: enum
+    title: "Block volume performance"
+    required: true
+    enum:
+      - "0.  Lower performance"
+      - "10. Balanced performance"
+      - "20. High Performance"
+    default: "10. Balanced performance"
+    visible:
+      and:
+        - or:
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_cluster}
+                    - "block"
+                - and:
+                    - ${cluster_network}
+                    - ${use_scratch_nfs}
+                    - ${use_advanced}
+            - and: 
+                - eq:
+                    - ${scratch_nfs_type_pool}
+                    - "block"
+                - and:
+                    - not:
+                        - ${cluster_network}
+                    - and: 
+                        - ${use_scratch_nfs}
+                        - ${use_advanced}
+  scratch_nfs_path:
+    title: "NFS scratch space mount point"
+    description: "Path to NFS share"
+    default: "/nfs/scratch"
+    type: string
+    visible:
+      and:
+        - ${use_advanced}
+        - ${use_scratch_nfs}
+  use_existing_vcn:
+    type: boolean
+    title: "Use Existing VCN"
+    description: "Use existing VCN or create new one"
+    default: false
+    required: true
+  vcn_compartment:
+    title: "VCN compartment"
+    type: oci:identity:compartment:id
+    visible: ${use_existing_vcn}
+    default: ${targetCompartment}
+  vcn_id:
+    type: oci:core:vcn:id
+    visible:
+      and:
+        - ${use_existing_vcn}
+    title: "Existing network"
+    default: ''
+    required: true
+    dependsOn:
+      compartmentId: ${vcn_compartment}
+  public_subnet_id:
+    type: oci:core:subnet:id
+    dependsOn:
+      compartmentId: ${vcn_compartment}
+      vcnId: ${vcn_id}
+      hidePrivateSubnet: true
+    visible: ${use_existing_vcn}
+  private_subnet_id:
+    type: oci:core:subnet:id
+    dependsOn:
+      compartmentId: ${vcn_compartment}
+      vcnId: ${vcn_id}
+      hidePublicSubnet: true
+    visible: ${use_existing_vcn}
+  vcn_subnet:
+    type: string
+    title: "VCN IP range"
+    description: "VCN subnet"
+    default: "172.16.0.0/21"
+    required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
+  public_subnet:
+    type: string
+    title: "Public subnet IP range"
+    default: "172.16.0.0/24"
+    description: "Must be within VCN subnet"
+    required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
+  additional_subnet:
+    type: string
+    title: "Additional subnet IP range"
+    default: "172.16.1.0/24"
+    description: "Must be within VCN subnet"
+    required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
+  private_subnet:
+    type: string
+    title: "Private subnet IP range"
+    default: "172.16.4.0/22"
+    description: "Must be within VCN subnet"
+    required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
+  ssh_cidr:
+    type: string
+    title: "Initial CIDR range allowed to SSH"
+    default: "0.0.0.0/0"
+    description: "Allowed SSH network in CIDR notation"
+    required: true
+    visible:
+      not:
+        - ${use_existing_vcn}
+  slurm:
+    type: boolean
+    title: "Install SLURM"
+    default: true
+    description: "Needed for autoscaling" 
+
+  spack:
+    type: boolean
+    title: "Install Spack package manager"
+    default: false
+    description: "Install Spack package manager. Requires shared folder" 
+
+  monitoring:
+    type: boolean
+    title: "Install HPC Cluster Monitoring Tools"
+    default: false
+    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
+
+  autoscaling:
+    type: boolean
+    title: "Scheduler based autoscaling"
+    default: false
+    description: "Requires SLURM installation. Scheduler will launch new clusters based on job requirements"
+    
+  inst_prin:
+    type: boolean
+    title: "Use Instance Principal" 
+    description: "You will need to set a dynamic group and policy to allow the bastion to authenticate " 
+    default: true
+    visible:
+      and:
+        - ${autoscaling}
+
+  api_user_key:
+    type: string
+    title: "API key"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+
+  api_fingerprint:
+    type: string
+    title: "API fingerprint"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+
+  api_user_ocid:
+    type: string
+    title: "API User OCID"
+    default: ""
+    visible:
+      not:
+        - ${inst_prin}
+        
+  configure: 
+    type: boolean
+    title: "Configure system"
+    default: true
+    description: "If unchecked, cluster will be launched but left unconfigured"
+
+  add_nfs:
+    type: boolean
+    title: "Add another NFS filesystem"
+    default: false
+    description: "For FSS, leave options filed empty."
+    visible: true
+
+  create_ffs:
+    type: boolean
+    title: "Create FSS"
+    default: false
+    description: "For FSS, leave options filed empty."
+    visible: ${add_nfs}
+
+  fss_compartment:
+    title: "FSS compartment"
+    description: "Compartment to add the FSS Mount Target and File System"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible: 
+      and:
+        - ${add_nfs}
+        - ${create_ffs}
+
+  fss_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${fss_compartment}
+    visible: 
+      and:
+        - ${add_nfs}
+        - ${create_ffs}
+    default: ${ad}
+    description: "FSS Availability Domain"
+    title: "FSS Availability Domain"
+        
+  nfs_target_path:
+    type: string
+    title: "NFS Path"
+    default: "/app"
+    description: "Value of the path on which you can mount the drive"
+    visible: 
+      and:
+        - ${add_nfs}
+  nfs_source_IP:
+    type: string
+    title: "NFS server IP"
+    default: "0.0.0.0"
+    description: "IP address of the NFS server"
+    visible: 
+      and:
+        - ${add_nfs} 
+        - not:
+          - ${create_ffs}
+  nfs_source_path:
+    type: string
+    title: "NFS server Path"
+    default: "/app"
+    description: "Value of the path on the NFS server"
+    visible: ${add_nfs}
+  nfs_options:
+    type: string
+    title: "Options"
+    default: ""
+    description: "Mount options, FSS requires empty string"
+    visible: 
+      and:
+        - ${add_nfs} 
+        - not:
+          - ${create_ffs}

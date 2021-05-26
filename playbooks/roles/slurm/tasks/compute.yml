@@ -1,0 +1,168 @@
+---
+#- name: install Slurm Comon Packages
+#  block:    
+#    - name: install SLURM server packages
+#      become: true
+#      yum: 
+#        name: 
+#          - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
+#          - "{{ download_path }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
+
+#  rescue:
+#    - name: Repository
+#      become: true
+#      yum_repository:
+#        name: oci-hpc
+#        description: oci-hpc
+#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+#        gpgcheck: no
+#        enabled: yes
+#        retries: 3
+      
+- name: install SLURM server packages
+  become: true
+  yum:
+    enablerepo: "epel,ol7_developer_EPEL"
+    name:
+      - slurm-pam_slurm
+      - slurm-pmi
+      - slurm-slurmd
+
+- name: Create systemd unit dirs
+  become: true
+  file:
+    name: '/etc/systemd/system/{{ item }}.service.d'
+    state: directory
+  with_items:
+    - munge
+
+#- name: Modify slurmd.service file
+#  become: true
+#  replace:
+#    path: "/usr/lib/systemd/system/slurmd.service"
+#    regexp: 'ExecStart=/usr/sbin/slurmd \$SLURMD_OPTIONS'
+#    replace: 'ExecStart=/usr/sbin/slurmd --conf-server bastion:6817 $SLURMD_OPTIONS'
+
+- name: Create munge dir
+  become: true
+  file:
+    name: '{{ munge_conf_path }}'
+    state: directory
+    owner: munge
+    group: munge
+    mode: 0700
+
+- name: copy munge.key to tmp
+  become: true
+  shell:
+    cmd: cp /etc/munge/munge.key /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: set permissions
+  become: true
+  shell:
+    cmd: chown opc:opc /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Copy munge key
+  become: true
+  copy:
+    src: /tmp/munge.key
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+  notify: restart munge
+
+- name: restart munge
+  become: true
+  service:
+    name: munge
+    state: restarted
+    enabled: true
+
+- name: Create {{ slurm_spool_path }}
+  become: true
+  file:
+    name: "{{ slurm_spool_path }}"
+    state: directory
+    owner: 'slurm'
+    group: 'slurm'
+    mode: '0750'
+ 
+- name: Copy configuration files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '{{ slurm_conf_path }}/{{ item }}'
+    force: no
+    owner: slurm
+    group: slurm
+  with_items: 
+    - cgroup.conf
+
+- name: Generate gres.conf
+  become: true
+  template: 
+    src: gres.conf.j2
+    dest: /etc/slurm/gres.conf
+    mode: '0644'
+    backup: yes
+
+- name: move slurm.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/slurm.conf
+    src: /etc/slurm/slurm.conf
+    force: yes
+
+- name: start slurmd
+  become: true
+  service:
+    name: slurmd
+    state: restarted
+    enabled: true
+ 
+- name: Update feature on compute node
+  become: true
+  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
+  retries: 20
+  delay: 10
+  register: result
+  until: result.rc == 0
+  when: not initial | bool
+
+- name: Update feature on compute node
+  become: true
+  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
+  retries: 20
+  delay: 10
+  register: result
+  until: result.rc == 0
+  when: initial | bool
+
+- name: Grab Node State
+  shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
+  register: node_state
+  delegate_to: 127.0.0.1
+  until: node_state.stdout.find("failure") == -1
+  retries: 10
+  delay: 5
+
+- set_fact: 
+    node_state2={{ node_state.stdout }}
+
+- name: Update node state on bastion
+  become: true
+  command: scontrol update nodename={{ ansible_hostname }} state=RESUME
+  when: node_state2 != "idle" and node_state2 != "alloc"
+  register: result
+  retries: 10
+  delay: 5
+  until: result is not failed

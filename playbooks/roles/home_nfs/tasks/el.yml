@@ -1,0 +1,9 @@
+---
+- name: set use_nfs_home_dirs if SELINUX is enabled
+  ansible.posix.seboolean:
+    name: use_nfs_home_dirs
+    state: yes
+    persistent: yes
+  when: ansible_selinux.status == "enabled"
+
+

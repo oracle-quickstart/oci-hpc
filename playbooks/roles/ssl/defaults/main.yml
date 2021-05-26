@@ -1,0 +1,15 @@
+---
+ssl_cert_path: '/etc/ssl/certs'
+ssl_cert_country: 'US'
+ssl_cert_locality: 'Seattle'
+ssl_cert_organization: 'Oracle Cloud'
+ssl_cert_state: 'WA'
+ssl_cert_altname: 'bastion.cluster'
+
+ssl_cert_days: '3650'
+
+ssl_cert_owner: 'root'
+ssl_cert_owner_id: 0
+
+ssl_cert_group: 'ssl'
+ssl_cert_group_id: 1502

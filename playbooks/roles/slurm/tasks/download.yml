@@ -1,0 +1,37 @@
+---
+
+- name: Download Packages
+  block:    
+    - name: Create Slurm directory
+      file:
+        path: "{{ download_path }}/slurm_rpms"
+        state: directory
+    - name: Download slurm RPMs.
+      get_url:
+        url: "https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/{{ item }}"
+        dest: "{{ download_path }}/slurm_rpms"
+      with_items:
+        - slurm-20.02.4-1.el7.x86_64.rpm
+        - slurm-contribs-20.02.4-1.el7.x86_64.rpm
+        - slurm-devel-20.02.4-1.el7.x86_64.rpm
+        - slurm-example-configs-20.02.4-1.el7.x86_64.rpm
+        - slurm-libpmi-20.02.4-1.el7.x86_64.rpm
+        - slurm-openlava-20.02.4-1.el7.x86_64.rpm
+        - slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm
+        - slurm-perlapi-20.02.4-1.el7.x86_64.rpm
+        - slurm-slurmctld-20.02.4-1.el7.x86_64.rpm
+        - slurm-slurmd-20.02.4-1.el7.x86_64.rpm
+        - slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm
+        - slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm
+        - slurm-torque-20.02.4-1.el7.x86_64.rpm
+
+  rescue:
+    - name: Repository
+      become: true
+      yum_repository:
+        name: oci-hpc
+        description: oci-hpc
+        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
+        gpgcheck: no
+        enabled: yes
+        retries: 3

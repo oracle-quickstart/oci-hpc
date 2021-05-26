@@ -1,75 +1,61 @@
-locals {
-  master_address = "headnode-1-${local.cluster_name}.${module.network.public-subnet-1-dns}.${module.network.vcn-dns}.oraclevcn.com"
+resource "random_pet" "name" {
+  length = 2
 }
 
+resource "tls_private_key" "ssh" {
+  algorithm = "RSA"
+  rsa_bits  = "4096"
+}
 
-data "oci_identity_availability_domains" "ad" { 
-	compartment_id = "${var.compartment_ocid}"
+data "oci_core_services" "services" {
+  filter {
+    name   = "name"
+    values = ["All .* Services In Oracle Services Network"]
+    regex  = true
+  }
+}
+data "oci_core_cluster_network_instances" "cluster_network_instances" {
+  count = var.cluster_network && var.node_count > 0 ? 1 : 0
+  cluster_network_id = oci_core_cluster_network.cluster_network[0].id
+  compartment_id     = var.targetCompartment
+}
+
+data "oci_core_instance_pool_instances" "instance_pool_instances" {
+  count = ( ! var.cluster_network ) && ( var.node_count > 0 ) ? 1 : 0
+  instance_pool_id = oci_core_instance_pool.instance_pool[0].id
+  compartment_id     = var.targetCompartment
+}
+
+data "oci_core_instance" "cluster_network_instances" {
+  count       = var.cluster_network && var.node_count > 0 ? var.node_count : 0
+  instance_id = data.oci_core_cluster_network_instances.cluster_network_instances[0].instances[count.index]["id"]
+}
+
+data "oci_core_instance" "instance_pool_instances" {
+  count       = var.cluster_network || var.node_count == 0 ? 0 : var.node_count
+  instance_id = data.oci_core_instance_pool_instances.instance_pool_instances[0].instances[count.index]["id"]
+}
+
+data "oci_core_vcn" "vcn" { 
+  vcn_id = local.vcn_id
 } 
-
-data "template_file" "master_template" { 
-	template = "${file("${path.module}/conf/master.tpl")}"
-	vars {
-		master_address = "${local.master_address}"
-		ssh_key = "${base64encode(tls_private_key.key.private_key_pem)}"
-		par_url = "${local.par_url}"
-		role	= "${jsonencode(concat(local.headnode_role, var.additional_headnode_roles, var.additional_role_all))}"
-
-	}
-}
-data "template_file" "salt_variables" { 
-	template = "${file("${path.module}/conf/variables.tpl")}"
-	vars { 
-		cluster_name = "${local.cluster_name}"
-		fss_ip = "${module.fss.mt_ip}"
-		vcn_cidr = "${module.network.vcn-cidr}"
-		fss_share_name = "${local.fss_share_name}"
-		storage_servers = "${join(",", module.storage.instance_name)}"
-		public_subnet_name = "${module.network.public-subnet-1-dns}"
-		private_subnet_name = "${module.network.private-subnet-1-dns}"
-		storage_type	= "${var.storage_type}"
-	}
+data "oci_core_subnet" "private_subnet" { 
+  subnet_id = local.subnet_id 
 }
 
-resource "local_file" "salt_variables" { 
-	filename = "${path.module}/salt/pillar/variables.sls"
-	content = "${data.template_file.salt_variables.rendered}"
-}
-
-resource "local_file" "key_sls" { 
-	filename = "${path.module}/salt/salt/id_rsa" 
-	content = "${tls_private_key.key.private_key_pem}"
+data "oci_core_subnet" "public_subnet" { 
+  subnet_id = local.bastion_subnet_id
 } 
-
-data "template_file" "worker_template" { 
-	template = "${file("${path.module}/conf/worker.tpl")}"
-	vars { 
-		master_address = "${local.master_address}"
-		role	= "${jsonencode(concat(local.compute_role, var.additional_worker_roles, var.additional_role_all))}"
-	}
+ 
+data "oci_core_images" "linux" {
+  compartment_id = var.targetCompartment
+  operating_system = "Oracle Linux"
+  operating_system_version = "7.9"
+  filter {
+    name = "display_name"
+    values = ["^([a-zA-z]+)-([a-zA-z]+)-([\\.0-9]+)-([\\.0-9-]+)$"]
+    regex = true
+  }
 }
 
-data "template_file" "storage_template" { 
-	template = "${file("${path.module}/conf/storage.tpl")}"
-	vars { 
-		master_address = "${local.master_address}"
-role	= "${jsonencode(concat(local.storage_role, var.additional_storage_roles, var.additional_role_all))}"	}
-}
-
-data "template_file" "gpu_template" { 
-	template = "${file("${path.module}/conf/gpu.tpl")}"
-	vars { 
-		master_address = "${local.master_address}"
-role	= "${jsonencode(concat(local.gpu_role, var.additional_gpu_roles, var.additional_role_all))}"	}
-}
-
-
-resource "random_pet" "server" {
-    length = 2
-    separator = ""
-}
-
-locals { 
-    cluster_name = "${substr(random_pet.server.id, 0, min(15, length(random_pet.server.id)))}"
-}
 

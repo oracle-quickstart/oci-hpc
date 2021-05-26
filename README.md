@@ -1,61 +1,114 @@
-# oci-quickstart-hpc
+# Stack to create an HPC cluster. 
 
-<pre>
-      `-/+++++++++++++++++/-.`
-   `/syyyyyyyyyyyyyyyyyyyyyyys/.
-  :yyyyo/-...............-/oyyyy/
- /yyys-                     .oyyy+
-.yyyy`                       `syyy-
-:yyyo                         /yyy/ Oracle Cloud HPC Cluster Demo
-.yyyy`                       `syyy- https://github.com/oracle-quickstart/oci-hpc
- /yyys.                     .oyyyo
-  /yyyyo:-...............-:oyyyy/`
-   `/syyyyyyyyyyyyyyyyyyyyyyys+.
-     `.:/+ooooooooooooooo+/:.`
-`
-</pre>
+## Policies to deploy the stack: 
+```
+allow service compute_management to use tag-namespace in tenancy
+allow service compute_management to manage compute-management-family in tenancy
+allow service compute_management to read app-catalog-listing in tenancy
+allow group user to manage all-resources in compartment compartmentName
+```
+## Policies for autoscaling:
+As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group and give the following policies to it: 
+```
+Allow dynamic-group instance_principal to read app-catalog-listing in tenancy
+Allow dynamic-group instance_principal to use tag-namespace in tenancy
+```
+And also either:
 
-High Performance Computing and storage in the cloud can be very confusing and it can be difficult to determine where to start. This repository is designed to be a first step in expoloring a cloud based HPC storage and compute architecture. There are many different configurations and deployment methods that could be used, but this repository focuses on a bare metal compute system deployed with Terraform. After deployment fully independant and functioning IaaS HPC compute cluster has been deployed based on the architecture below.
+```
+Allow dynamic-group instance_principal to manage compute-management-family in compartment compartmentName
+Allow dynamic-group instance_principal to manage instance-family in compartment compartmentName
+Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
+```
+or:
 
-This deployment is an example of cluster provisioning using Terraform and SaltStack. Terraform is used to provision infrastructure, while Salt is a configuration and cluster management system. 
+`Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName`
 
-Salt configuration is stored under ./salt directory, containing pillar/ (variables) and salt/ (state) information. Read more about salt in the documentation: https://docs.saltstack.com/en/latest/
+# Autoscaling
 
-## Architecture
-![Architecture](images/architecture.png)
+The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next. 
 
-## Authentication
-terraform.tvars contain required authentication variables
+To turn on autoscaling: 
+Uncomment the line in `crontab -e`:
+```
+* * * * * /home/opc/autoscaling/crontab/autoscale_slurm.sh >> /home/opc/autoscaling/logs/crontab_slurm.log 2>&1
+```
 
-## Operations
-Salt commands should be executed from the headnode. 
-IntelMPI installation: sudo salt '*' state.apply intelmpi
+# Submit
+How to submit jobs: 
+Slurm jobs can be submitted as always but a few more constraints can be set: 
+Example in `autoscaling/submit/sleep.sbatch`: 
 
-## SSH Key
-SSH key is generated each time for the environment in the ./key.pem file. 
+```
+#!/bin/sh
+#SBATCH -n 72
+#SBATCH --ntasks-per-node 36
+#SBATCH --exclusive
+#SBATCH --job-name sleep_job
+#SBATCH --constraint cluster-size-2,BM.HPC2.36
 
-## Networking 
-* Public subnet - Headnode acts a jump host and it's placed in the public subnet. The subnet is open to SSH connections from everywhere. Other ports are closed and can be opened using custom-security-list in the OCI console/cli.  All connections from VCN are accepted. Host firewall service is disabled by default. 
-* Private subnet - All connections from VCN are accepted. Public IP's are prohibited in the subnet. Internet access is provided by NAT gateway. 
-  
-## Roles
-Roles are set in variables.tf as additional_headnode_roles, additional_worker_roles, additional_storage_roles or additional_role_all Additional roles provide ability to install and configure applications defined as Salt states. 
+cd /nfs/scratch
+mkdir $SLURM_JOB_ID
+cd $SLURM_JOB_ID
+MACHINEFILE="hostfile"
 
-Example roles:
-* intelmpi: provides configured Intel yum repository and installs IntelMPI distribution
-* openmpi: installs OpenMPI from OL repository
+# Generate Machinefile for mpi such that hosts are in the same
+#  order as if run via srun
+#
+srun -N$SLURM_NNODES -n$SLURM_NNODES  hostname  > $MACHINEFILE
+sed -i 's/$/:36/' $MACHINEFILE
 
-## Storage
-* Storage node require to be DenseIO shape (NVME devices are detected and configured).
+cat $MACHINEFILE
+# Run using generated Machine file:
+sleep 1000
+```
 
-### Filesystems
+- cluster-size: Since clusters can be reused, you can decide to only use a cluster of exactly the right size. Created cluster will have a feature cluster-size-x. You can set the constraint cluster-size-x to make sure this matches and avoid having a 1 node job using a 16 nodes cluster. 
 
-Storage role servers will be configured as filesystem nodes, while headnode and worker nodes will act as a clients. 
-* GlusterFS (requires storage role) - To use GlusterFS set storage_type to glusterfs.  Filesystem will be greated as :/gfs and mounted under /mnt/gluster
-* BeeGFS (requires storage role) - To use BeeGFS set storage_type to beegfs.  Filesystem will be mounted under /mnt/beegfs
+- shape: You can specify the OCI shape that you’d like to run on as a constraint. This will make sure that you run on the right shape and also generate the right cluster. Shapes are expected to be written in OCI format: BM.HPC2.36, BM.Standard.E3.128, BM.GPU4.8,… 
+If you’d like to use flex shapes, you can use VM.Standard.E3.x with x the number of cores that you would like. 
 
-### NFS
-* Block volumes - Each node type can be configured with block volumes in the variables.tf
-  Headnode will export first block volume as NFS share under /mnt/share (configured in salt/salt/nfs.sls)
-  Other block volume attachments need to be configured manually after cluster provisioning. 
-* FSS - File system service endpoint will be created in the private subnet and mounted on each node under /mnt/fss
+
+## Clusters folders: 
+```
+~/autoscaling/clusters/clustername
+```
+
+## Logs: 
+```
+~/autoscaling/logs
+```
+
+Each cluster will have his own log with name: `create_clustername_date.log` and `delete_clustername_date.log`
+The log of the crontab will be in `crontab_slurm.log`
+
+
+## Manual clusters: 
+You can create and delete your clusters manually. 
+### Cluster Creation
+```
+/home/opc/autoscaling/create_cluster.sh NodeNumber clustername shape Cluster-network-enabled
+```
+Example: 
+```
+/home/opc/autoscaling/create_cluster.sh 4 cluster-6-amd3128 BM.Standard.E3.128 false
+```
+
+To be registered in slurm, the cluster names must be as such: 
+BM.HPC2.36: cluster-i-hpc
+BM.Standard2.52: cluster-i-std252
+VM.Standard2.x: cluster-i-std2x
+BM.Standard.E2.64: cluster-i-amd264
+VM.Standard.E2.x: cluster-i-amd2x
+BM.Standard.E3.128: cluster-i-amd3128
+VM.Standard.E3.x: cluster-i-amd3x
+BM.GPU2.2: cluster-i-gpu22
+VM.GPU2.1: cluster-i-gpu21
+BM.GPU3.8: cluster-i-gpu38
+VM.GPU3.x: cluster-i-gpu3x
+BM.GPU4.8: cluster-i-gpu48
+
+### Cluster Deletion: 
+```
+/home/opc/autoscaling/create_cluster.sh clustername
+```

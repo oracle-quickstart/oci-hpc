@@ -1,0 +1,12 @@
+- name: reload_nfs
+  service:
+    name: nfs-server
+    state: reloaded
+    enabled: true
+
+- name: debian_reload_nfs
+  service:
+    name: nfs-kernel-server
+    state: reloaded
+    enabled: true
+

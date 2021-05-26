@@ -1,0 +1,18 @@
+{% if shape == "BM.GPU2.2" %}
+Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-13]
+Name=gpu File=/dev/nvidia1 Type=P100 Cores=[14-27]
+{% elif shape == "VM.GPU2.1" %}
+Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-11]
+{% elif shape == "VM.GPU3.1" %}
+Name=gpu File=/dev/nvidia0 Type=V100 Cores=[0-5]
+{% elif shape == "VM.GPU3.2" %}
+Name=gpu File=/dev/nvidia[0-1] Type=V100 Cores=[0-11]
+{% elif shape == "VM.GPU3.4" %}
+Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-23]
+{% elif shape == "BM.GPU3.8" %}
+Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-25]
+Name=gpu File=/dev/nvidia[4-7] Type=V100 Cores=[26-51]
+{% elif shape == "BM.GPU4.8" %}
+Name=gpu File=/dev/nvidia[0-3] Type=A100 Cores=[0-31]
+Name=gpu File=/dev/nvidia[4-7] Type=A100 Cores=[32-63]
+{% endif %}

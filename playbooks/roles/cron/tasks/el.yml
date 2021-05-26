@@ -1,0 +1,16 @@
+---
+- name: Creates a cron file under /etc/cron.d
+  cron:
+    name: slurm autoscaling
+    minute: "*"
+    user: opc
+    job: "/home/opc/autoscaling/crontab/autoscale_slurm.sh >> /home/opc/autoscaling/logs/crontab_slurm.log 2>&1"
+  when: autoscaling | bool
+
+- name: Creates a commented cron file under /etc/cron.d
+  cron:
+    name: slurm autoscaling
+    minute: "#*"
+    user: opc
+    job: "/home/opc/autoscaling/crontab/autoscale_slurm.sh >> /home/opc/autoscaling/logs/crontab_slurm.log 2>&1"
+  when: not autoscaling | bool

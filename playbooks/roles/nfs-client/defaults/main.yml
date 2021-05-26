@@ -1,0 +1,6 @@
+---
+nfs_packages:
+  - nfs-utils
+
+deb_packages: 
+  - nfs-common
