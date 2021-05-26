@@ -9,4 +9,10 @@ mysql_packages:
   - mysql-community-client
   - MySQL-python
 
+deb_mariadb_packages:
+  - mariadb-server
+  - mariadb-common
+  - python-mysqldb
+
+mariadb_db_path: '/var/lib/mysql'
 mysql_db_path: '/var/lib/mysql'

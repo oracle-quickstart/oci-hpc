@@ -55,17 +55,3 @@ resource "null_resource" "configure" {
     command = "timeout 30m ${var.scripts_folder}/configure.sh ${local.cluster_name}"  
   }
 }
-
-resource "null_resource" "on_destroy" {
-  depends_on = [local_file.inventory]
-  triggers = {
-    scripts_folder = var.scripts_folder
-    cluster_name = local.cluster_name
-    bastion_path = local.bastion_path
-  }
-  provisioner "local-exec" {
-    command = "${self.triggers.scripts_folder}/cleanup.sh ${self.triggers.cluster_name}"
-    when    = destroy
-    on_failure = fail
-  }
-}

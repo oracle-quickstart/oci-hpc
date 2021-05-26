@@ -1,2 +1,12 @@
-- include: el.yml
-  when: ansible_os_family == 'RedHat'
+- name: reload_nfs
+  service:
+    name: nfs-server
+    state: reloaded
+    enabled: true
+
+- name: debian_reload_nfs
+  service:
+    name: nfs-kernel-server
+    state: reloaded
+    enabled: true
+

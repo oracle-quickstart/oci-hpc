@@ -17,6 +17,9 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
         ssh_authorized_keys = file("/home/opc/.ssh/id_rsa.pub")
         user_data           = base64encode(data.template_file.config.rendered)
       }
+      agent_config {
+        is_management_disabled = true
+        }
       shape = var.instance_pool_shape
 
       dynamic "shape_config" {

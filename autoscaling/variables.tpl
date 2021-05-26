@@ -74,3 +74,5 @@ variable "nfs_target_path" { default = "${nfs_target_path}"}
 variable "nfs_source_IP" { default = "${nfs_source_IP}"}
 variable "nfs_source_path" { default = "${nfs_source_path}"}
 variable "nfs_options" { default = "${nfs_options}"}
+
+variable "hyperthreading" { default = ${hyperthreading} }

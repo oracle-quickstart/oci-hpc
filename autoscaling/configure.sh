@@ -13,6 +13,8 @@ execution=1
 playbooks_path=$folder/../playbooks/
 inventory_path=$folder/clusters/$1
 
+ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
+
 #
 # A little waiter function to make sure all the nodes are up before we start configure 
 #
