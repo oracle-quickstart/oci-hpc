@@ -25,7 +25,6 @@
 
 - name: create interface files
   register: rdma_interface
-  notify: restart_interface
   template:
     src: interface.j2
     dest: "/etc/network/interfaces.d/{{ item['device'] }}"
@@ -34,3 +33,8 @@
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
+
+- name: restart_interface
+  command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
+  when: item.changed
+  with_items: "{{ rdma_interface['results'] }}"
