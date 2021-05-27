@@ -23,10 +23,8 @@
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] | sort }}"
 
-
 - name: create interface files
   register: rdma_interface
-  notify: restart_interface
   template:
     src: ifcfg.j2
     dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item['device'] }}"
@@ -35,3 +33,8 @@
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
+
+- name: restart_interface
+  command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
+  when: item.changed
+  with_items: "{{ rdma_interface['results'] }}"
