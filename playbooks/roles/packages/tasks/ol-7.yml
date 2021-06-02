@@ -1,0 +1,13 @@
+---
+- name: Make sure python OpenSSL is installed
+  yum: 
+    name: 
+      - pyOpenSSL
+      - python2-cryptography
+    state: latest
+
+- name: Make sure python3-oci-cli is installed
+  yum:
+    name:
+      - python36-oci-cli
+    state: latest
