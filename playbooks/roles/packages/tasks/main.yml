@@ -1,5 +1,8 @@
-- include: el-7.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7'
+- include: ol-7.yml
+  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '7'
+
+- include: centos-7.yml
+  when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7'
 
 - include: ubuntu.yml
   when: ansible_distribution == 'Ubuntu'
