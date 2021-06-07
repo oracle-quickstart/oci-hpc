@@ -5,7 +5,9 @@ ${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role
 ${host} ansible_host=${ip} ansible_user=${compute_username} role=compute
 %{ endfor ~}
 [nfs]
+%{ if nfs != "" }
 ${nfs} ansible_user=${compute_username} role=nfs
+%{ endif }
 [all:children]
 bastion
 compute
