@@ -46,21 +46,20 @@ variable "instance_pool_custom_memory" { default = false }
 variable "bastion_memory" { default = 16 }
 variable "bastion_custom_memory" { default = false }
 variable "marketplace_listing" { 
-/* 
-  Allowed values
-   "1. Oracle Linux 7.8 OFED5.0"
-   "2. Oracle Linux 7.5 OFED4.4"
-*/ 
-
-  default = "1. Oracle Linux 7.8 OFED5.0" 
+  default = "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
 } 
 
-variable "marketplace_listing_id" {
-  type = map(string)
-  default = {
-        "1"  =    "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
-        "2"  =    "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
+variable "marketplace_version_id" { 
+  type = map(string) 
+  default = { 
+       "1" = "OL7.9-OFED5.3-1.0.0.1-RHCK-20210607"
+       "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
+       "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
   }
+}
+
+variable "marketplace_listing_id" {
+    default = "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
 }
 
 variable "bastion_block_volume_performance" { 
@@ -109,12 +108,12 @@ variable "monitoring" { default = true }
 
 variable "unsupported" { 
   type=bool
-  default = "false" 
+  default = false
 } 
 
 variable "unsupported_bastion" { 
   type=bool
-  default = "false" 
+  default = false 
 }
 
 variable "bastion_username" { 

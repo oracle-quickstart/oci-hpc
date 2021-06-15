@@ -27,21 +27,22 @@ variable "spack" { default = ${spack} }
 variable "instance_pool_ocpus" { default = "##OCPU##"}
 variable "instance_pool_memory" { default = ${instance_pool_memory} }
 variable "instance_pool_custom_memory" { default = ${instance_pool_custom_memory} }
-variable "marketplace_listing" { 
-/* 
-  Allowed values
-   "1. Oracle Linux 7.8 OFED5.0"
-   "2. Oracle Linux 7.5 OFED4.4"
-*/ 
-  default = "${marketplace_listing}" 
-} 
 
-variable "marketplace_listing_id" {
+variable "marketplace_listing" {
+  default = "${marketplace_listing}"
+}
+
+variable "marketplace_version_id" {
   type = map(string)
   default = {
-        "1"  =    "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
-        "2"  =    "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
+       "1" = "OL7.9-OFED5.3-1.0.0.1-RHCK-20210607"
+       "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
+       "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
   }
+}
+
+variable "marketplace_listing_id" {
+    default = "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
 }
 
 variable "bastion_block_volume_performance" { 
@@ -76,3 +77,5 @@ variable "nfs_source_path" { default = "${nfs_source_path}"}
 variable "nfs_options" { default = "${nfs_options}"}
 
 variable "hyperthreading" { default = ${hyperthreading} }
+variable "unsupported" { default = ${unsupported} }
+variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
