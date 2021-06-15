@@ -30,7 +30,7 @@
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
   delegate_to: 127.0.0.1
   run_once: true
-  when: not destroy|bool
+  when: not destroy|bool and groups['compute']|length > 0
 
 - name: add cluster nodes to the /etc/hosts file of the bastion
   blockinfile:
@@ -41,7 +41,7 @@
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
   delegate_to: 127.0.0.1
   run_once: true
-  when: not destroy|bool
+  when: not destroy|bool and groups['compute']|length > 0
 
 - name: move /etc/hosts on all compute nodes
   become: true

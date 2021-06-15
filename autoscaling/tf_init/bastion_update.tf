@@ -43,7 +43,8 @@ resource "local_file" "inventory" {
     cluster_mount_ip = local.mount_ip,
     cluster_name = local.cluster_name,
     shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
-    instance_pool_ocpus=var.instance_pool_ocpus
+    instance_pool_ocpus=var.instance_pool_ocpus,
+    unsupported = var.unsupported
     })
   filename   = "${local.bastion_path}/inventory"
 }
