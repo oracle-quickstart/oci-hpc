@@ -127,7 +127,7 @@ BM.GPU4.8: cluster-i-gpu48
 
 ### Cluster Deletion: 
 ```
-/home/opc/autoscaling/create_cluster.sh clustername
+/home/opc/autoscaling/delete_cluster.sh clustername
 ```
 
 
