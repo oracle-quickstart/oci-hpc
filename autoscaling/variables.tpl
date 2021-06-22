@@ -77,9 +77,5 @@ variable "nfs_source_path" { default = "${nfs_source_path}"}
 variable "nfs_options" { default = "${nfs_options}"}
 
 variable "hyperthreading" { default = ${hyperthreading} }
-<<<<<<< HEAD
 variable "unsupported" { default = ${unsupported} }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
-=======
-Variable “ldap” { default = “${ldap}” } 
->>>>>>> a90a58f (add ldap variable to autoscaling)
