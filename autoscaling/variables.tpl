@@ -76,3 +76,4 @@ variable "nfs_source_path" { default = "${nfs_source_path}"}
 variable "nfs_options" { default = "${nfs_options}"}
 
 variable "hyperthreading" { default = ${hyperthreading} }
+Variable “ldap” { default = “${ldap}” } 
