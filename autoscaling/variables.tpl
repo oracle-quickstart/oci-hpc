@@ -79,3 +79,4 @@ variable "nfs_options" { default = "${nfs_options}"}
 variable "hyperthreading" { default = ${hyperthreading} }
 variable "unsupported" { default = ${unsupported} }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
+variable "ldap" { default = "${ldap}" }
