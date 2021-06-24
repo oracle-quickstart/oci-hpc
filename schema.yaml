@@ -101,8 +101,10 @@ variableGroups:
   - title: "Software"
     variables:
       - ${slurm}
+      - ${queue}
       - ${spack}
       - ${monitoring}
+      - ${autoscaling_monitoring}
   - title: "API authentication"
     variables:
       - ${inst_prin}
@@ -125,6 +127,16 @@ variableGroups:
   - title: "Debug"
     variables: 
       - ${configure}
+
+  - title: "Monitoring"
+    variables: 
+      - ${monitoring_shape_name}
+      - ${admin_username}
+      - ${admin_password}
+    visible: 
+      and:
+        - ${autoscaling_monitoring}
+        - ${autoscaling}
 variables:
   targetCompartment:
     title: "target compartment"
@@ -716,6 +728,13 @@ variables:
     default: true
     description: "Needed for autoscaling" 
 
+  queue:
+    type: String
+    title: "Queue Name"
+    default: "compute"
+    description: "Add the permanent cluster to a specific queue, workq is the default queue" 
+    visible:
+        - ${slurm}
   spack:
     type: boolean
     title: "Install Spack package manager"
@@ -843,3 +862,25 @@ variables:
         - ${add_nfs} 
         - not:
           - ${create_ffs}
+  monitoring_shape_name:
+    type: string
+    title: "MySQL Shape Name"
+    default: "MySQL.VM.Standard.E3.1.16GB"
+    description: "MySQL Shape Name"
+
+  admin_username:
+    type: string
+    title: "MySQL Monitoring username"
+    default: "admin"
+    description: ""
+
+  admin_password:
+    title: "MySQL Monitoring password"
+    default: "Monitor2021!"
+    description: "" 
+
+  autoscaling_monitoring:
+    type: boolean
+    title: "Monitor the autoscaling"
+    default: false
+    description: ""
