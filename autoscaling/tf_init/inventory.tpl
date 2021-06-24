@@ -12,8 +12,8 @@ compute
 [all:vars]
 ansible_connection=ssh
 ansible_user=opc
-rdma_network=192.168.168.0
-rdma_netmask=255.255.252.0
+rdma_network=192.168.128.0
+rdma_netmask=255.255.240.0
 public_subnet=${public_subnet} 
 private_subnet=${private_subnet}
 nvme_path=/mnt/localdisk/
@@ -30,6 +30,7 @@ scratch_nfs_type = ${scratch_nfs_type}
 bastion_mount_ip = ${bastion_mount_ip}
 cluster_mount_ip = ${cluster_mount_ip}
 autoscaling = true
+force = no
 cluster_name = ${cluster_name}
 shape=${shape}
 instance_pool_ocpus=${instance_pool_ocpus}
@@ -38,3 +39,6 @@ nfs_target_path=${nfs_target_path}
 nfs_source_IP=${nfs_source_IP}
 nfs_source_path=${nfs_source_path}
 nfs_options=${nfs_options}
+ldap=${ldap}
+queue=${queue}
+instance_type=${instance_type}

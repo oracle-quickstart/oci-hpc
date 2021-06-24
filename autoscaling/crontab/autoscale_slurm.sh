@@ -4,11 +4,19 @@ import datetime
 import time
 import sys, os
 import traceback
+import json
+import copy
+import yaml
+
 lockfile = "/tmp/autoscaling_lock"
+queues_conf_file = "/opt/oci-hpc/autoscaling/queues.conf"
+
+# seconds for a cluster to stay alive
 idle_time=600 #seconds
 
+# Get the list of Jobs in all states
 def getJobs():
-    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:50,NUMNODES,Dependency'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Dependency,Partition'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
 
@@ -30,6 +38,202 @@ def getIdleTime(node):
         cluster_start_time=datetime.datetime.strptime(stdout.split("\n")[0].split("=")[1],"%Y-%m-%dT%H:%M:%S")
         return ( datetime.datetime.now() - cluster_start_time ).total_seconds()
 
+# Get the last time a node state was changed. This is used to get how long a cluster has been idle for
+def getQueueConf(file):
+    with open(queues_conf_file) as file:
+        data = yaml.load(file)
+        return data["queues"]
+
+def getQueue(config,queue_name):
+    for queue in config:
+        if queue["name"]==queue_name:
+            return queue
+    return None
+
+def getDefaultsConfig(config,queue_name):
+    for partition in config:
+        if queue_name == partition["name"]:
+            for instance_type in partition["instance_types"]:
+                if "default" in instance_type.keys():
+                    if instance_type["default"]:
+                        return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
+            if len(partition["instance_types"])>0:
+                instance_type=partition["instance_types"][0]
+                print "No default configuration was found, there may be a problem in your queues.conf file"
+                print "Selecting "+instance_type["name"]+" as default"
+                return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
+    print "The queue "+queue_name+" was not found in the queues.conf file"
+    return None
+
+def getJobConfig(config,queue_name,instance_type_name):
+    for partition in config:
+        if queue_name == partition["name"]:
+            for instance_type in partition["instance_types"]:
+                if instance_type_name == instance_type["name"]:
+                    return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
+    return None
+
+def getQueueLimits(config,queue_name,instance_type_name):
+    for partition in config:
+        if queue_name == partition["name"]:
+            for instance_type in partition["instance_types"]:
+                if instance_type_name == instance_type["name"]:
+                    return {"max_number_nodes": int(instance_type["max_number_nodes"]), "max_cluster_size": int(instance_type["max_cluster_size"]),"max_cluster_count": int(instance_type["max_cluster_count"])}
+    return {"max_number_nodes": 0, "max_cluster_size": 0,"max_cluster_count": 0}
+
+def getInstanceType(config,queue_name,instance_keyword):
+    for partition in config:
+        if queue_name == partition["name"]:
+            for instance_type in partition["instance_types"]:
+                if instance_keyword == instance_type["instance_keyword"]:
+                    return instance_type["name"]
+    return None
+
+def isPermanent(config,queue_name,instance_type_name):
+    for partition in config:
+        if queue_name == partition["name"]:
+            for instance_type in partition["instance_types"]:
+                if instance_type_name == instance_type["name"]:
+                    return instance_type["permanent"]
+    return None
+
+def getAllClusterNames(config):
+    availableNames={}
+    for partition in config:
+        availableNames[partition["name"]]={}
+        for instance_type in partition["instance_types"]:
+            availableNames[partition["name"]][instance_type["name"]]=range(1,int(instance_type["max_cluster_count"])+1)
+    return availableNames
+
+def getstatus_slurm():
+    cluster_to_build=[]
+
+    for line in getJobs():
+        if len(line.split())>3:
+            if line.split()[0].strip() == 'PENDING' and 'null' in line.split()[4].strip():
+                queue = line.split()[5].strip()
+                features=line.split()[2].split('&')
+                instanceType= None
+                possible_types=[inst_type["name"] for inst_type in getQueue(config,queue)["instance_types"]]
+                if len(features)>1:
+                    if features[-2] in possible_types:
+                        instanceType=feature
+                        break
+                default_config=getDefaultsConfig(config,queue)
+                if instanceType is None:
+                    instanceType = default_config["instance_type"]
+                    for feature in features:
+                        if feature in possible_types:
+                            instanceType=feature
+                            break
+
+                nodes=int(line.split()[3])
+                jobID=int(line.split()[1])
+                cluster_to_build.append([nodes,instanceType,queue,jobID])
+
+    cluster_to_destroy=[]
+
+    current_nodes={}
+    building_nodes={}
+    running_cluster=[]
+
+    for line in getClusters():
+        if len(line.split()) == 0:
+            break
+        old_nodes=line.split()[-1].split(',')
+        brokenListOfNodes=False
+        nodes=[]
+        for node in old_nodes:
+            if brokenListOfNodes:
+                if ']' in node:
+                    brokenListOfNodes=False
+                    nodes.append(currentNode+','+node)
+                else:
+                    currentNode=currentNode+','+node
+            elif '[' in node and not ']' in node:
+                brokenListOfNodes=True
+                currentNode=node
+            else:
+                nodes.append(node)
+        clusters = []
+        for node in nodes:
+            if node[-1]=="\"":
+                node=node[:-1]
+            if node[0]=="\"":
+                node=node[1:]
+            clustername = '-'.join(node.split('-')[0:3])
+            queue = node.split('-')[0]
+            instance_keyword=node.split('-')[-1]
+            instanceType=getInstanceType(config,queue,instance_keyword)
+            if queue in current_nodes.keys():
+                if instanceType in current_nodes[queue].keys():
+                    current_nodes[queue][instanceType]+=1
+                else:
+                    current_nodes[queue][instanceType]=1
+            else:
+                current_nodes[queue]={instanceType:1}
+            if line.split()[0] == '\"idle':
+                if not os.path.isdir(os.path.join(clusters_path,clustername)):
+                    continue
+                if getIdleTime(node)<idle_time:
+                    continue
+                if isPermanent(config,queue,instanceType):
+                    continue
+                cluster_exists=False
+                for cluster in cluster_to_destroy:
+                    if cluster[0] == clustername:
+                        cluster[1]=cluster[1]+int(line.split()[2])
+                        cluster_exists=True
+                if not cluster_exists:
+                    cluster_to_destroy.append([clustername,int(line.split()[2]),queue,instanceType])
+            elif line.split()[0] == '\"allocated':
+                running_cluster.append(clustername)
+    cluster_to_destroy_temp=copy.deepcopy(cluster_to_destroy)
+    for cluster in cluster_to_destroy_temp:
+        if cluster[0] in running_cluster:
+            cluster_to_destroy.remove(cluster)
+    cluster_building=[]
+    cluster_destroying=[]
+
+    available_names=getAllClusterNames(config)
+    for clusterName in os.listdir(clusters_path):
+        if len(clusterName.split('-')) < 3:
+            continue
+        instance_keyword=clusterName.split('-')[-1]
+        clusterNumber=clusterName.split('-')[1]
+        queue=clusterName.split('-')[0]
+        instanceType=getInstanceType(config,queue,instance_keyword)
+        if queue == "inst": # For permanent nodes
+            continue
+        try:
+            if clusterNumber in available_names[queue][instanceType]:
+                available_names[queue][instanceType].remove(clusterNumber)
+        except:
+            print "Some nodes have different names than expected",queue,instanceType,available_names
+            continue
+        if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_building')):
+            with open(os.path.join(clusters_path,clusterName,'currently_building'),'r') as f:
+                line = f.read()
+                nodes = line.split()[0]
+                instance_type = line.split()[1]
+                queue = line.split()[2]
+            try:
+                cluster_building.append([int(nodes),instance_type,queue])
+                if queue in building_nodes.keys():
+                    if instance_type in building_nodes[queue].keys():
+                        building_nodes[queue][instance_type]+=int(nodes)
+                    else:
+                        building_nodes[queue][instance_type]=int(nodes)
+                else:
+                    building_nodes[queue]={instance_type:int(nodes)}
+            except ValueError:
+                print 'The cluster '+ clusterName + ' does not have a valid entry for \"currently_building\"'
+                print 'Ignoring'
+                continue
+        if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_destroying')):
+            cluster_destroying.append(clusterName)
+    return cluster_to_build,cluster_to_destroy,cluster_building,cluster_destroying,available_names,current_nodes,building_nodes
+
 if os.path.isfile(lockfile):
     print("Lockfile "+lockfile + " is present, exiting")
     exit()
@@ -37,133 +241,7 @@ open(lockfile,'w').close()
 try:
     path = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
     clusters_path = os.path.join(path,'clusters')
-    max_number_nodes=20
-    min_number_nodes=0
-
-    cluster_names_number=20
-    hpc_cluster_names_number=50
-    shapes={}
-    shapes['VM.GPU2.1']='gpu21'
-    shapes['BM.GPU2.2']='gpu22'
-    for i in 1,2,4:
-        shapes['VM.GPU3.'+str(i)]='gpu3'+str(i)
-    shapes['BM.GPU3.8']='gpu38'
-    shapes['BM.GPU4.8']='gpu48'
-    for i in 1,2,4,8,16,24:
-        shapes['VM.Standard2.'+str(i)]='std2'+str(i)
-    shapes['BM.Standard2.52']='std252'
-    for i in 1,2,4,8,16,32:
-        shapes['VM.Standard.E2.'+str(i)]='amd2'+str(i)
-    shapes['BM.Standard.E2.64']='amd264'
-    for i in range(1,65):
-        shapes['VM.Standard.E3.'+str(i)]='amd3'+str(i)
-        shapes['VM.Standard.E4.'+str(i)]='amd4'+str(i)
-    shapes['BM.Standard.E3.128']='amd3128'
-    shapes['BM.Standard.E3.128']='amd4128'
-    shapes['BM.HPC2.36']='hpc'
-    shapes['BM.Optimized3.36']='hpc2'
-
-    def getstatus_slurm():
-        cluster_to_build=[]
-        for line in getJobs():
-            if len(line.split())>3:
-                if line.split()[0].strip() == 'PENDING' and 'null' in line.split()[-1].strip():
-                    features=line.split()[2].split('&')
-                    shape = "BM.HPC2.36"
-                    for feature in features:
-                        if feature.startswith('VM') or feature.startswith('BM'):
-                            shape=feature
-                            break
-                    if shape == "BM.HPC2.36" or shape ==  "BM.GPU4.8" or shape ==  "BM.Optimized3.36":
-                        CN = "true"
-                    else:
-                        CN = "false"
-                    cluster_to_build.append([int(line.split()[3]),int(line.split()[1]),shape,CN])
-
-        cluster_to_destroy=[]
-        current_nodes=0
-        building_nodes=0
-        running_cluster=[]
-
-        for line in getClusters():
-            if len(line.split()) == 0:
-                break
-            current_nodes+=int(line.split()[2])
-            if line.split()[0] == '\"idle':
-                old_nodes=line.split()[-1].split(',')
-                brokenListOfNodes=False
-                nodes=[]
-                for node in old_nodes:
-                    if brokenListOfNodes:
-                        if ']' in node:
-                            brokenListOfNodes=False
-                            nodes.append(currentNode+','+node)
-                        else:
-                            currentNode=currentNode+','+node
-                    elif '[' in node and not ']' in node:
-                        brokenListOfNodes=True
-                        currentNode=node
-                    else:
-                        nodes.append(node)
-                clusters = []
-                for node in nodes:
-                    if node[-1]=="\"":
-                        node=node[:-1]
-                    if node[0]=="\"":
-                        node=node[1:]
-                    clustername = '-'.join(node.split('-')[0:3])
-                    if not os.path.isdir(os.path.join(clusters_path,clustername)):
-                        continue
-                    if getIdleTime(node)<idle_time:
-                        continue
-                    cluster_exists=False
-                    for cluster in cluster_to_destroy:
-                        if cluster[0] == clustername:
-                            cluster[1]=cluster[1]+int(line.split()[2])
-                            cluster_exists=True
-                    if not cluster_exists:
-                        cluster_to_destroy.append([clustername,int(line.split()[2])])
-            elif line.split()[0] == '\"allocated':
-                nodes=line.split()[-1].split(',')
-                clusters = []
-                for node in nodes:
-                    clustername = '-'.join(node.split('-')[0:3])
-                    running_cluster.append(clustername)
-        for cluster in cluster_to_destroy:
-            if cluster[0] in running_cluster:
-                cluster_to_destroy.remove(cluster)
-        cluster_building=[]
-        cluster_destroying=[]
-        available_names = {}
-        for shape in shapes.keys():
-            available_names[shapes[shape]] = ["cluster-"+str(i) for i in range(1,cluster_names_number+1)]
-        available_names['hpc']=["cluster-"+str(i) for i in range(1,hpc_cluster_names_number+1)]
-        available_names['hpc2']=["cluster-"+str(i) for i in range(1,hpc_cluster_names_number+1)]
-
-        for clusterName in os.listdir(clusters_path):
-            clusterType=clusterName.split('-')[-1]
-            clusterNumber='-'.join(clusterName.split('-')[:2])
-            try:
-                if clusterNumber in available_names[clusterType]:
-                    available_names[clusterType].remove(clusterNumber)
-            except:
-                continue
-            if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_building')):
-                with open(os.path.join(clusters_path,clusterName,'currently_building'),'r') as f:
-                    line = f.read()
-                    nodes = line.split()[0]
-                    shape = line.split()[1]
-                    CN = line.split()[2]
-                try:
-                    cluster_building.append([int(nodes),shape,CN])
-                    building_nodes+=int(nodes)
-                except ValueError:
-                    print 'The cluster '+ clusterName + ' does not have a valid entry for \"currently_building\"'
-                    print 'Ignoring'
-                    continue
-            if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_destroying')):
-                cluster_destroying.append(clusterName)
-        return cluster_to_build,cluster_to_destroy,cluster_building,cluster_destroying,available_names,current_nodes,building_nodes
+    config = getQueueConf(queues_conf_file)
 
     cluster_to_build,cluster_to_destroy,cluster_building,cluster_destroying,available_names,current_nodes,building_nodes=getstatus_slurm()
 
@@ -177,26 +255,45 @@ try:
 
     for i in cluster_building:
         for j in cluster_to_build:
-            if i[0]==j[0] and i[1]==j[2] and i[2]==j[3]:
+            if i[0]==j[0] and i[1]==j[1] and i[2]==j[2]:
                 cluster_to_build.remove(j)
                 break
     for index,cluster in enumerate(cluster_to_build):
-        shape = cluster[2]
-        keyworkShape=shapes[shape]
-        clusterName=available_names[keyworkShape][index]+'-'+keyworkShape
-        if current_nodes + building_nodes + cluster[0]> max_number_nodes:
+        nodes=cluster[0]
+        instance_type = cluster[1]
+        queue=cluster[2]
+        jobconfig=getJobConfig(config,queue,instance_type)
+        if len(available_names[queue][instance_type]) == 0:
+            print "No More available names, you have reached the max number of clusters"
+            continue
+        clusterName=queue+'-'+str(available_names[queue][instance_type][0])+'-'+jobconfig["instance_keyword"]
+        available_names[queue][instance_type]=available_names[queue][instance_type][1:]
+        limits=getQueueLimits(config,queue,instance_type)
+        if not queue in current_nodes.keys():
+            current_nodes[queue]={instance_type:0}
+        else:
+            if not instance_type in current_nodes[queue].keys():
+                current_nodes[queue][instance_type]=0
+        if not queue in building_nodes.keys():
+            building_nodes[queue]={instance_type:0}
+        else:
+            if not instance_type in building_nodes[queue].keys():
+                building_nodes[queue][instance_type]=0
+        if nodes > limits["max_cluster_size"]:
+            print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes per cluster limit"
+        print current_nodes[queue][instance_type],building_nodes[queue][instance_type],nodes,limits["max_number_nodes"]
+        if current_nodes[queue][instance_type] + building_nodes[queue][instance_type] + nodes > limits["max_number_nodes"]:
             print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit"
         else:
-            current_nodes+=cluster[0]
-            print "Creating cluster "+clusterName+"with "+str(cluster[0])+" nodes"
-            subprocess.Popen([path+'/create_cluster.sh',str(cluster[0]),clusterName,cluster[2],cluster[3]])
+            current_nodes[queue][instance_type]+=nodes
+            print "Creating cluster "+clusterName+"with "+str(nodes)+" nodes"
+            subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue])
             time.sleep(5)
     for cluster in cluster_to_destroy:
-        if current_nodes - cluster[1] < min_number_nodes:
-            print "Cluster "+cluster[0]+" won't be deleted, it would go under the minimum number of nodes limit"
-        else:
-            print "Deleting cluster "+cluster[0]
-            subprocess.Popen([path+'/delete_cluster.sh',str(cluster[0])])
+        cluster_name=cluster[0]
+        print "Deleting cluster "+cluster_name
+        subprocess.Popen([path+'/delete_cluster.sh',cluster_name])
+        time.sleep(1)
 except Exception:
     traceback.print_exc()
 os.remove(lockfile)
