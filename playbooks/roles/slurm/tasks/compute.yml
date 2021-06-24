@@ -128,19 +128,19 @@
     state: restarted
     enabled: true
  
-- name: Update feature on compute node
+- name: Update feature on compute node for Autoscaling
   become: true
-  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
+  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ instance_type }},{% if instance_type != shape%}{{ shape }}{% endif %}"
   retries: 20
   delay: 10
   register: result
   until: result.rc == 0
   when: not initial | bool
 
-- name: Update feature on compute node
+- name: Update feature on compute node for permanent cluster
   become: true
   command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
-    cluster-size-{{ item }},{%- endfor %}{{ 'VM.Standard.E3.'~instance_pool_ocpus if shape == 'VM.Standard.E3.Flex' else shape }}"
+    cluster-size-{{ item }},{%- endfor %}{{ shape }}"
   retries: 20
   delay: 10
   register: result
