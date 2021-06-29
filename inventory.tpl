@@ -45,3 +45,5 @@ hyperthreading=${hyperthreading}
 ldap=${ldap}
 autoscaling_monitoring=${autoscaling_monitoring}
 monitoring_mysql_ip=${monitoring_mysql_ip}
+admin_password = ${admin_password}
+admin_username = ${admin_username}

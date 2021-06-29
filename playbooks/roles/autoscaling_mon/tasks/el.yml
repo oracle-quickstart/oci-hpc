@@ -1,13 +1,42 @@
- "chmod 755 /opt/oci-hpc/monitoring/initial.sh",
-      "chmod 755 /opt/oci-hpc/monitoring/monitor_PBS.sh",
-      "chmod 755 /opt/oci-hpc/monitoring/monitor_oci.sh",
-      "cd /opt/oci-hpc/monitoring/; /opt/oci-hpc/monitoring/initial.sh",
-      "sed -i 's/IP_MYSQL/${oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address}/' /opt/oci-hpc/monitoring/env",
-      "mysqlsh ${var.admin_username}@${oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address} -p${var.admin_password} --sql --file /opt/oci-hpc/monitoring/initial.sql"
-      ]
-
-
 ---
+- name: Ensure monitoring directory exists
+  file:
+    path: "/opt/oci-hpc/monitoring"
+    state: directory
+    owner: opc
+    group: opc
+
+- name: Copy files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '/opt/oci-hpc/monitoring/{{ item }}'
+    force: no
+    owner: opc
+    group: opc
+  with_items: 
+    - dashboard.json
+    - initial.sql
+
+- name: Copy scripts
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '/opt/oci-hpc/monitoring/{{ item }}'
+    force: no
+    owner: opc
+    group: opc
+    mode: 0755
+  with_items:
+    - initial.sh
+    - monitor_oci.sh
+    - monitor_slurm.sh
+
+- name: Generate env file
+  template: 
+    src: env.j2
+    dest: /opt/oci-hpc/monitoring/env
+
 - name: add grafana repository
   become: true
   yum_repository: 
@@ -50,35 +79,58 @@
   no_log: false
   register: existing_api_keys
 
-- name: Create influxdb datasource
-  grafana_datasource:
-    name: "InfluxDB"
-    grafana_url: "{{ grafana_api_url }}"
-    grafana_user: "{{ grafana_security.admin_user }}"
-    grafana_password: "{{ grafana_security.admin_password }}"
-    org_id: "1"
-    ds_type: "influxdb"
-    ds_url: "http://localhost:8086"
-    database: "telegraf"
-    time_interval: ">10s"
+- name: install mysql
+  become: true
+  yum: 
+    name: https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
 
-- name: Import grafana dashboards through API
-  uri:
-    url: "{{ grafana_api_url }}/api/dashboards/db"
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    method: POST
-    body_format: json
-    body: >
-      {
-        "dashboard": {{ lookup("file", item) }},
-        "overwrite": true,
-        "message": "Updated by ansible"
-      }
-  no_log: false
-  with_fileglob:
-    - files/cluster.json
+- name: install mysql
+  become: true
+  yum: 
+    name: mysql-shell
+
+- name: install mysql connector
+  become: true
+  pip:
+    name: mysql-connector-python
+    executable: pip-3
+
+- name: Monitoring activated
+  shell: "echo OK >> /opt/oci-hpc/monitoring/activated"
+
+- name: Monitoring activated
+  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ admin_password }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
+
+
+#- name: Create influxdb datasource
+#  grafana_datasource:
+#    name: "InfluxDB"
+#    grafana_url: "{{ grafana_api_url }}"
+#    grafana_user: "{{ grafana_security.admin_user }}"
+#    grafana_password: "{{ grafana_security.admin_password }}"
+#    org_id: "1"
+#    ds_type: "influxdb"
+#    ds_url: "http://localhost:8086"
+#    database: "telegraf"
+#    time_interval: ">10s"
+
+#- name: Import grafana dashboards through API
+#  uri:
+#    url: "{{ grafana_api_url }}/api/dashboards/db"
+#    user: "{{ grafana_security.admin_user }}"
+#    password: "{{ grafana_security.admin_password }}"
+#    force_basic_auth: true
+#    method: POST
+#    body_format: json
+#    body: >
+#      {
+#        "dashboard": {{ lookup("file", item) }},
+#        "overwrite": true,
+#        "message": "Updated by ansible"
+#      }
+#  no_log: false
+#  with_fileglob:
+#    - files/cluster.json
 
 #- name: Import Grafana dashboard foo
 #  community.grafana.grafana_dashboard:

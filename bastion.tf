@@ -200,7 +200,9 @@ resource "null_resource" "cluster" {
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
       autoscaling_monitoring = var.autoscaling_monitoring,
-      monitoring_mysql_ip = var.autoscaling_monitoring ? oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address : ""
+      monitoring_mysql_ip = var.autoscaling_monitoring ? oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address : "",
+      admin_password = var.admin_password,
+      admin_username = var.admin_username
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -305,8 +307,7 @@ resource "null_resource" "cluster" {
       nfs_source_path = var.nfs_source_path,
       nfs_options = var.nfs_options,
       monitoring = var.monitoring,      
-      autoscaling_monitoring = var.autoscaling_monitoring,
-      monitoring_mysql_ip = var.autoscaling_monitoring ? oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address : ""
+      autoscaling_monitoring = var.autoscaling_monitoring
       })
 
     destination   = "/opt/oci-hpc/autoscaling/tf_init/variables.tf"
