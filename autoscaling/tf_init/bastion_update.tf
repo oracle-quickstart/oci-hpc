@@ -47,8 +47,7 @@ resource "local_file" "inventory" {
     instance_pool_ocpus=var.instance_pool_ocpus,
     queue=var.queue,
     instance_type=var.instance_type,
-    autoscaling_monitoring = var.autoscaling_monitoring,
-    monitoring_mysql_ip = var.monitoring_mysql_ip
+    autoscaling_monitoring = var.autoscaling_monitoring
     })
   filename   = "${local.bastion_path}/inventory"
 }

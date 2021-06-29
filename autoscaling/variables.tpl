@@ -80,5 +80,4 @@ variable "hyperthreading" { default = ##HT## }
 variable "unsupported" { default = false }
 
 variable "ldap" { default = ${ldap} } 
-variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} } 
-variable "monitoring_mysql_ip" { default = "${monitoring_mysql_ip}" } 
+variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
