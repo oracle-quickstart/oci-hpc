@@ -1,5 +1,5 @@
 ---
-- name: Download slurm RPMs.
+- name: Download yq RPMs.
   get_url:
     url: "https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64.tar.gz"
     dest: "/tmp"
@@ -12,3 +12,5 @@
   copy:
     src: "/tmp/yq_linux_amd64"
     dest: "/usr/bin/yq"
+    mode: "0755"
+
