@@ -262,6 +262,7 @@ try:
         nodes=cluster[0]
         instance_type = cluster[1]
         queue=cluster[2]
+        jobID=cluster[3]
         jobconfig=getJobConfig(config,queue,instance_type)
         if len(available_names[queue][instance_type]) == 0:
             print "No More available names, you have reached the max number of clusters"
@@ -287,7 +288,7 @@ try:
         else:
             current_nodes[queue][instance_type]+=nodes
             print "Creating cluster "+clusterName+"with "+str(nodes)+" nodes"
-            subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue])
+            subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID])
             time.sleep(5)
     for cluster in cluster_to_destroy:
         cluster_name=cluster[0]
