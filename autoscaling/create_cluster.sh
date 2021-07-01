@@ -33,13 +33,13 @@ echo $2_${date} > cluster_id
 if [ -f $folder/../monitoring/activated ]
 then
   source $folder/../monitoring/env
-  mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,creation_log,nodes,trigger_job_id,class_name,shape,CN,cpu_per_node,cluster_name,state,started_creation) VALUES ('$2_${date}','create_$2_${date}.log','$1','$6','$5','$3',$4,36,'$2','creating','$start_timestamp');" >> $folder/logs/create_$2_${date}.log 2>&1
+  mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,creation_log,nodes,trigger_job_id,class_name,shape,CN,cpu_per_node,cluster_name,state,started_creation) VALUES ('$2_${date}','create_$2_${date}.log','$1','$6','$5','$3','$4',36,'$2','creating','$start_timestamp');" >> $folder/logs/create_$2_${date}.log 2>&1
   for i in $(eval echo "{1..$1}"); do
     mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,started_creation,state,class_name,shape) VALUES ('$2_${date}',$i,36,'$start_timestamp','provisioning','$5','$3');" >> $folder/logs/create_$2_${date}.log 2>&1
   done
 fi
 
-terraform init > $folder/logs/create_$2_${date}.log 2>&1
+terraform init >> $folder/logs/create_$2_${date}.log 2>&1
 echo $1 $3 $4 >> currently_building
 terraform apply -auto-approve -parallelism $1 >> $folder/logs/create_$2_${date}.log 2>&1
 status=$?
