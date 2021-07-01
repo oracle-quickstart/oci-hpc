@@ -1,7 +1,7 @@
 #!/bin/bash
 if [ $# -eq 0 ] || [ $# -eq 1 ]
 then
-  echo "No enough arguments supplied, please supply number of nodes, cluster name, instance type, and queue name"
+  echo "No enough arguments supplied, please supply number of nodes, cluster name, instance type, queue name and trigger Job ID"
   exit
 fi
 date=`date '+%Y%m%d%H%M'`
@@ -33,9 +33,9 @@ echo $2_${date} > cluster_id
 if [ -f $folder/../monitoring/activated ]
 then
   source $folder/../monitoring/env
-  mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,creation_log,nodes,trigger_job_id,class_name,shape,CN,cpu_per_node,cluster_name,state,started_creation) VALUES ('$2_${date}','create_$2_${date}.log','$1','$6','$5','$3','$4',36,'$2','creating','$start_timestamp');" >> $folder/logs/create_$2_${date}.log 2>&1
+  mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,creation_log,nodes,trigger_job_id,class_name,shape,CN,cpu_per_node,cluster_name,state,started_creation) VALUES ('$2_${date}','create_$2_${date}.log','$1','$5','$4','$shape',$cluster_network,36,'$2','creating','$start_timestamp');" >> $folder/logs/create_$2_${date}.log 2>&1
   for i in $(eval echo "{1..$1}"); do
-    mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,started_creation,state,class_name,shape) VALUES ('$2_${date}',$i,36,'$start_timestamp','provisioning','$5','$3');" >> $folder/logs/create_$2_${date}.log 2>&1
+    mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,started_creation,state,class_name,shape) VALUES ('$2_${date}',$i,36,'$start_timestamp','provisioning','$4','$shape');" >> $folder/logs/create_$2_${date}.log 2>&1
   done
 fi
 
