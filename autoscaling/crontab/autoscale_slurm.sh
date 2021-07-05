@@ -41,7 +41,7 @@ def getIdleTime(node):
 # Get the last time a node state was changed. This is used to get how long a cluster has been idle for
 def getQueueConf(file):
     with open(queues_conf_file) as file:
-        data = yaml.load(file)
+        data = yaml.load(file,Loader=yaml.FullLoader)
         return data["queues"]
 
 def getQueue(config,queue_name):
@@ -262,7 +262,7 @@ try:
         nodes=cluster[0]
         instance_type = cluster[1]
         queue=cluster[2]
-        jobID=cluster[3]
+        jobID=str(cluster[3])
         jobconfig=getJobConfig(config,queue,instance_type)
         if len(available_names[queue][instance_type]) == 0:
             print "No More available names, you have reached the max number of clusters"
