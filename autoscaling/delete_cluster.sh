@@ -55,13 +55,14 @@ else
     if [ $status_terraform_deletion -eq 0 ]
     then
       echo "Successfully deleted cluster $1 in $runtime seconds"
-      cd
-      rm -rf $folder/clusters/$1 | tee -a $folder/logs/delete_${cluster_id}.log 2>&1
       if [ -f $folder/../monitoring/activated ]
       then
         mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET deleted='$end_timestamp',state='deleted',deletion_time=SEC_TO_TIME($runtime),deletion_log='$folder/logs/delete_${cluster_id}.log',deletion_tries=deletion_tries+1 WHERE id='$cluster_id'" >> $folder/logs/delete_${cluster_id}.log 2>&1
         mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id'" >> $folder/logs/delete_${cluster_id}.log 2>&1
       fi
+      cd
+      rm -rf $folder/clusters/$1 | tee -a $folder/logs/delete_${cluster_id}.log 2>&1
+
     else
       echo "Could not delete cluster $1 in 10 tries (Time: $runtime seconds)"
       rm currently_destroying
