@@ -18,7 +18,7 @@ def getAllJobs():
 
 # Get the list of all nodes registered in Slurm
 def getClusters():
-    out = subprocess.Popen(['sinfo','-h','-N','-r','-O','NodeList,CPUsState,StateLong'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
+    out = subprocess.Popen(['sinfo','-h','-N','-r','-O','NodeList:50,CPUsState,StateLong'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
     stdout,stderr = out.communicate()
     print(stdout)
     return stdout.split("\n")
@@ -114,7 +114,7 @@ for line in getAllJobs():
 for line in getClusters():
     if len(line.split()) == 0:
         continue
-          
+    print(line)
     node=line.split()[0]
     total_used_cpus=line.split()[1].split('/')[0]
     actual_state=line.split()[2]
