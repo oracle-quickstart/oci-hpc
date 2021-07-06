@@ -96,12 +96,55 @@
     executable: pip-3
 
 - name: Monitoring activated
-  shell: "echo OK >> /opt/oci-hpc/monitoring/activated"
+  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ admin_password }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
+  ignore_errors: yes
 
 - name: Monitoring activated
-  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ admin_password }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
+  shell: "echo OK >> /opt/oci-hpc/monitoring/activated"
 
+- name: Create mysql datasource
+  grafana_datasource:
+    name: "autoscaling"
+    grafana_url: "{{ grafana_api_url }}"
+    grafana_user: "{{ grafana_security.admin_user }}"
+    grafana_password: "{{ grafana_security.admin_password }}"
+    org_id: "1"
+    ds_type: "mysql"
+    ds_url: "{{ monitoring_mysql_ip }}:3306"
+    database: "cluster_log"
+    password: "Monitor2021!"
+    user: "logger"
+  ignore_errors: yes
 
+#- name: Import Grafana dashboard
+#  grafana_dashboard:
+#    grafana_url: "{{ grafana_api_url }}"
+#    grafana_user: "{{ grafana_security.admin_user }}"
+#    grafana_password: "{{ grafana_security.admin_password }}"
+#    state: present
+#    commit_message: Updated by ansible
+#    overwrite: yes
+#    path: files/dashboard.json
+#  ignore_error: yes
+
+- name: Import grafana dashboards through API
+  uri:
+    url: "{{ grafana_api_url }}/api/dashboards/db"
+    user: "{{ grafana_security.admin_user }}"
+    password: "{{ grafana_security.admin_password }}"
+    force_basic_auth: true
+    method: POST
+    body_format: json
+    body: >
+      {
+        "dashboard": {{ lookup("file", item) }},
+        "overwrite": true,
+        "message": "Updated by ansible"
+      }
+  no_log: false
+  with_fileglob:
+    - files/dashboard.json
+  ignore_errors: yes
 #- name: Create influxdb datasource
 #  grafana_datasource:
 #    name: "InfluxDB"
