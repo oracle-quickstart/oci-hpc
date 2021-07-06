@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS cluster_log.nodes (
     deleted TIMESTAMP,
     state ENUM('provisioning', 'running', 'deleting', 'deleted'),
     oci_state ENUM('provisioning', 'running', 'deleting', 'deleted'),
-    PBS_state ENUM('idle', 'busy'),
+    sched_state ENUM('idle', 'busy'),
     class_name VARCHAR(64),
     hostname VARCHAR(64) UNIQUE,
     ip VARCHAR(32),
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS cluster_log.jobs (
     finished TIMESTAMP,
     queue_time TIME,
     run_time TIME,
-    state ENUM('queued', 'running', 'done', 'failed'),
+    state ENUM('queued', 'running', 'done', 'failed', 'cancelled'),
     class_name VARCHAR(64),
     FOREIGN KEY (cluster_id) REFERENCES cluster_log.clusters(id)
 );
