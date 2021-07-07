@@ -196,13 +196,16 @@ def getstatus_slurm():
     cluster_destroying=[]
 
     available_names=getAllClusterNames(config)
+    print available_names
     for clusterName in os.listdir(clusters_path):
+        print  clusterName
         if len(clusterName.split('-')) < 3:
             continue
         instance_keyword=clusterName.split('-')[-1]
-        clusterNumber=clusterName.split('-')[1]
+        clusterNumber=int(clusterName.split('-')[1])
         queue=clusterName.split('-')[0]
         instanceType=getInstanceType(config,queue,instance_keyword)
+        print instance_keyword,clusterNumber,queue,instanceType
         if queue == "inst": # For permanent nodes
             continue
         try:
