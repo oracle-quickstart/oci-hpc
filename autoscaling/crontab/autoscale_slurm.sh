@@ -161,9 +161,9 @@ def getstatus_slurm():
                 node=node[:-1]
             if node[0]=="\"":
                 node=node[1:]
-            clustername = '-'.join(node.split('-')[0:3])
-            queue = node.split('-')[0]
-            instance_keyword=node.split('-')[-1]
+            clustername = '-'.join(node.split('[')[0].split('-')[:-2])
+            queue = clustername.split('-')[0]
+            instance_keyword='-'.join(clustername.split('-')[2:])
             instanceType=getInstanceType(config,queue,instance_keyword)
             if queue in current_nodes.keys():
                 if instanceType in current_nodes[queue].keys():
@@ -196,16 +196,13 @@ def getstatus_slurm():
     cluster_destroying=[]
 
     available_names=getAllClusterNames(config)
-    print available_names
     for clusterName in os.listdir(clusters_path):
-        print  clusterName
         if len(clusterName.split('-')) < 3:
             continue
-        instance_keyword=clusterName.split('-')[-1]
+        instance_keyword='-'.join(clusterName.split('-')[2:])
         clusterNumber=int(clusterName.split('-')[1])
         queue=clusterName.split('-')[0]
         instanceType=getInstanceType(config,queue,instance_keyword)
-        print instance_keyword,clusterNumber,queue,instanceType
         if queue == "inst": # For permanent nodes
             continue
         try:
@@ -285,7 +282,6 @@ try:
                 building_nodes[queue][instance_type]=0
         if nodes > limits["max_cluster_size"]:
             print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes per cluster limit"
-        print current_nodes[queue][instance_type],building_nodes[queue][instance_type],nodes,limits["max_number_nodes"]
         if current_nodes[queue][instance_type] + building_nodes[queue][instance_type] + nodes > limits["max_number_nodes"]:
             print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit"
         else:
