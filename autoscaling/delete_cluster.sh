@@ -19,6 +19,7 @@ else
   echo $1 >> currently_destroying
   if [ -f $folder/../monitoring/activated ]
   then
+    source $folder/../monitoring/env
     mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET started_deletion='$start_timestamp',state='deleting',deletion_tries=deletion_tries+1 WHERE id='$cluster_id'" >> $folder/logs/delete_${cluster_id}.log 2>&1
   fi
   if [ -f inventory ] 
