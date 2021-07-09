@@ -274,7 +274,8 @@ resource "null_resource" "cluster" {
       nfs_source_path = var.nfs_source_path,
       nfs_options = var.nfs_options,
       monitoring = var.monitoring,
-      hyperthreading = var.hyperthreading
+      hyperthreading = var.hyperthreading,
+      unsupported = var.unsupported
       })
 
     destination   = "/home/${var.bastion_username}/autoscaling/tf_init/variables.tf"
