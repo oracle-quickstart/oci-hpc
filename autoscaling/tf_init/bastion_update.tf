@@ -48,6 +48,7 @@ resource "local_file" "inventory" {
     queue=var.queue,
     instance_type=var.instance_type,
     autoscaling_monitoring = var.autoscaling_monitoring
+    unsupported = var.unsupported
     })
   filename   = "${local.bastion_path}/inventory"
 }

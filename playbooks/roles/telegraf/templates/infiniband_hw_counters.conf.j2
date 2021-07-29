@@ -1,0 +1,113 @@
+
+
+[[inputs.multifile]]
+  name_override = "infiniband_mlx5_2_hw_counters"
+  base_dir = "/sys/class/infiniband"
+  interval = "60s"
+
+  [[inputs.multifile.tags]]
+    device="mlx5_2"
+    port="1"
+    type="hw_counters"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/duplicate_request"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/implied_nak_seq_err"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/lifespan"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/local_ack_timeout_err"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/np_cnp_sent"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/np_ecn_marked_roce_packets"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/out_of_buffer"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/out_of_sequence"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/packet_seq_err"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/req_cqe_error"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/req_cqe_flush_error"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/req_remote_access_errors"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/req_remote_invalid_request"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/resp_cqe_error"
+    conversion = "int"
+    
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/resp_cqe_flush_error"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/resp_local_length_error"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/resp_remote_access_errors"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/rnr_nak_retry_err"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/rp_cnp_handled"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/rp_cnp_ignored"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/rx_atomic_requests"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+    file = "mlx5_2/ports/1/hw_counters/rx_dct_connect"
+    conversion = "int"
+
+  [[inputs.multifile.file]]
+  file = "mlx5_2/ports/1/hw_counters/rx_icrc_encapsulated"
+  conversion = "int"
+
+  [[inputs.multifile.file]]
+  file = "mlx5_2/ports/1/hw_counters/rx_read_requests"
+  conversion = "int"
+
+  [[inputs.multifile.file]]
+  file = "mlx5_2/ports/1/hw_counters/rx_write_requests"
+  conversion = "int"
+  
+  

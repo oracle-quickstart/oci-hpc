@@ -129,6 +129,12 @@ NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=2 CoresPerSocket=32 Thread
 {% elif shape == "VM.Standard.E3.Flex" %}
 NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance_pool_ocpus }} ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
     cluster-size-{{ item }},{%- endfor %}VM.Standard.E3.{{ instance_pool_ocpus }}
+{% elif shape == "VM.Optimized3.Flex" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance_pool_ocpus }} ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Optimized3.{{ instance_pool_ocpus }}
+{% elif shape == "VM.Standard.E4.Flex" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance_pool_ocpus }} ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard.E4.{{ instance_pool_ocpus }}
 {% else %}
 {% if "BM" in shape  %}
 NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=2 CoresPerSocket={{ (shape.split('.')[-1]|int / 2)|int}} ThreadsPerCore=1 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}

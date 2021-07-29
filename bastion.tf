@@ -306,7 +306,9 @@ resource "null_resource" "cluster" {
       nfs_source_IP = local.nfs_source_IP,
       nfs_source_path = var.nfs_source_path,
       nfs_options = var.nfs_options,
-      monitoring = var.monitoring,      
+      monitoring = var.monitoring,
+      hyperthreading = var.hyperthreading,
+      unsupported = var.unsupported,
       autoscaling_monitoring = var.autoscaling_monitoring
       })
 
