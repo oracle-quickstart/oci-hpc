@@ -59,6 +59,7 @@
     - infiniband.conf
     - influxdb.conf
     - net.conf
+    - infiniband_hw_counters.conf
 - name: restart telegraf
   become: true
   service:

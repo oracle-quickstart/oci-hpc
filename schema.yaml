@@ -21,7 +21,6 @@ variableGroups:
   - title: "Cluster configuration"
     variables:
       - ${targetCompartment}
-      - ${ad}
       - ${ssh_key}
       - ${use_custom_name}
       - ${cluster_name}
@@ -51,6 +50,7 @@ variableGroups:
       - ${bastion_block_volume_performance}
   - title: "Compute node options"
     variables:
+      - ${ad}
       - ${cluster_network}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
@@ -68,6 +68,13 @@ variableGroups:
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
+  - title: "API authentication"
+    variables:
+      - ${inst_prin}
+      - ${api_user_ocid}
+      - ${api_fingerprint}
+      - ${api_user_key}
+    visible: ${autoscaling}
   - title: "Additional file system"
     variables:
       - ${add_nfs}
@@ -123,6 +130,7 @@ variableGroups:
       - ${marketplace_listing_id}
       - ${ssh_cidr}
       - ${marketplace_source_images}
+      - ${marketplace_version_id}
     visible: false
   - title: "Debug"
     variables: 
@@ -201,6 +209,9 @@ variables:
           - eq: 
             - ${bastion_shape}
             - "VM.Standard.E4.Flex"
+          - eq:
+            - ${bastion_shape}
+            - "VM.Optimized3.Flex"
     required: false
   bastion_custom_memory: 
     title: Use custom memory size
@@ -212,6 +223,9 @@ variables:
           - eq:
             - ${bastion_shape}
             - "VM.Standard.E3.Flex"
+          - eq:
+            - ${bastion_shape}
+            - "VM.Optimized3.Flex"
           - eq: 
             - ${bastion_shape}
             - "VM.Standard.E4.Flex"
@@ -229,6 +243,9 @@ variables:
             - eq:
               - ${bastion_shape}
               - "VM.Standard.E3.Flex"
+            - eq:
+              - ${bastion_shape}
+              - "VM.Optimized3.Flex"
             - eq: 
               - ${bastion_shape}
               - "VM.Standard.E4.Flex"
@@ -405,6 +422,9 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E3.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Optimized3.Flex"
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
@@ -420,6 +440,9 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E3.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Optimized3.Flex"
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
@@ -437,6 +460,9 @@ variables:
             - eq:
               - ${instance_pool_shape}
               - "VM.Standard.E3.Flex"
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Optimized3.Flex"
             - eq: 
               - ${instance_pool_shape}
               - "VM.Standard.E4.Flex"
@@ -480,9 +506,11 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "1. Oracle Linux 7.8 OFED5.0"
-      - "2. Oracle Linux 7.5 OFED4.4"
-    default: "1. Oracle Linux 7.8 OFED5.0"
+      - "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
+      - "2. Oracle Linux 7.8 OFED 5.0-1.0.0.0 UEK 20200826"
+      - "3. Oracle Linux 7.7 OFED 4.4-2.0.7.0 UEK 20200229"
+      - "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
     visible:
       and:
         - ${use_marketplace_image}

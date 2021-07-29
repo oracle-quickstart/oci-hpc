@@ -1,6 +1,6 @@
 locals {
-  listing_number = split(".", var.marketplace_listing)[0]
-  mp_listing_id = var.use_marketplace_image ? var.marketplace_listing_id[local.listing_number] : ""
+    mp_listing_id = var.use_marketplace_image ? var.marketplace_listing_id : ""
+    mp_version_id = split(".", var.marketplace_listing)[0]
 }
 
 /* 
@@ -25,12 +25,11 @@ resource "oci_core_app_catalog_listing_resource_version_agreement" "mp_image_agr
   count = var.use_marketplace_image ? 1 : 0
 
   listing_id               = local.mp_listing_id
-  listing_resource_version = data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_version
-
+  listing_resource_version = var.marketplace_version_id[local.mp_version_id]
 }
 
 resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
-  count                    = var.use_marketplace_image ? 1 : 0
+  count                    = var.use_marketplace_image && var.node_count > 0 ? 1 : 0
   compartment_id           = var.targetCompartment
   eula_link                = oci_core_app_catalog_listing_resource_version_agreement.mp_image_agreement[0].eula_link
   listing_id               = oci_core_app_catalog_listing_resource_version_agreement.mp_image_agreement[0].listing_id
@@ -43,4 +42,3 @@ resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
     create = "20m"
   }
 }
-

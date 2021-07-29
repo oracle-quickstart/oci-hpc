@@ -21,14 +21,14 @@ locals {
 
   cluster_name = var.use_custom_name ? var.cluster_name : random_pet.name.id
 
-  cluster_network_image = var.use_marketplace_image ? data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_id : local.image_ocid
+  cluster_network_image = var.use_marketplace_image ? oci_core_app_catalog_subscription.mp_image_subscription[0].listing_resource_id : local.image_ocid
 
-  instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? data.oci_core_app_catalog_listing_resource_versions.app_catalog_listing_resource_versions[0].app_catalog_listing_resource_versions[0].listing_resource_id : local.image_ocid
+  instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? oci_core_app_catalog_subscription.mp_image_subscription[0].listing_resource_id : local.image_ocid
 
 //  image = (var.cluster_network && var.use_marketplace_image == true) || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
 
-  is_bastion_flex_shape = length(regexall(".*VM.*E[3-4].*Flex$", var.bastion_shape)) > 0 ? [var.bastion_ocpus]:[]
-  is_instance_pool_flex_shape = length(regexall(".*VM.*E[3-4].*Flex$", var.instance_pool_shape)) > 0 ? [var.instance_pool_ocpus]:[]
+  is_bastion_flex_shape = length(regexall(".*VM.*[3-4].*Flex$", var.bastion_shape)) > 0 ? [var.bastion_ocpus]:[]
+  is_instance_pool_flex_shape = length(regexall(".*VM.*[3-4].*Flex$", var.instance_pool_shape)) > 0 ? [var.instance_pool_ocpus]:[]
 
   bastion_mount_ip = var.bastion_block ? element(concat(oci_core_volume_attachment.bastion_volume_attachment.*.ipv4, [""]), 0) : "none"
 
