@@ -1,5 +1,5 @@
 resource "oci_core_volume" "nfs-cluster-network-volume" { 
-  count = var.scratch_nfs_type_cluster == "block" ? 1 : 0 
+  count = var.scratch_nfs_type_cluster == "block" && var.node_count > 0 ? 1 : 0 
   availability_domain = var.ad
   compartment_id = var.targetCompartment
   display_name = "${local.cluster_name}-nfs-volume"
@@ -9,7 +9,7 @@ resource "oci_core_volume" "nfs-cluster-network-volume" {
 }
 
 resource "oci_core_volume_attachment" "cluster_network_volume_attachment" { 
-  count = var.scratch_nfs_type_cluster == "block" ? 1 : 0
+  count = var.scratch_nfs_type_cluster == "block" && var.node_count > 0 ? 1 : 0 
   attachment_type = "iscsi"
   volume_id       = oci_core_volume.nfs-cluster-network-volume[0].id
   instance_id     = local.cluster_instances_ids[0]
