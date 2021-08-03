@@ -74,6 +74,9 @@ NodeName={{partition.name}}-[1-{{instance.max_cluster_count}}]-{{instance.instan
 {% elif instance.shape == "VM.Optimized3.Flex" %}
 NodeName={{partition.name}}-[1-{{instance.max_cluster_count}}]-{{instance.instance_keyword}}-node-[1-{{instance.max_cluster_size}}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range( instance.max_cluster_size | int +1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ instance.name }}{% if instance.shape != instance.name%},{{ instance.shape }}{% endif %}
+{% elif instance.shape == "VM.Standard.A1.Flex" %}
+NodeName={{partition.name}}-[1-{{instance.max_cluster_count}}]-{{instance.instance_keyword}}-node-[1-{{instance.max_cluster_size}}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore=1 State=FUTURE Features={% for item in range( instance.max_cluster_size | int +1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ instance.name }}{% if instance.shape != instance.name%},{{ instance.shape }}{% endif %}
 {% elif instance.shape == "BM.Standard.E3.128" %}
 NodeName={{partition.name}}-[1-{{instance.max_cluster_count}}]-{{instance.instance_keyword}}-node-[1-{{instance.max_cluster_size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range( instance.max_cluster_size | int +1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ instance.name }}{% if instance.shape != instance.name%},{{ instance.shape }}{% endif %}
@@ -97,6 +100,9 @@ NodeName={{partition.name}}-[1-{{instance.max_cluster_count}}]-{{instance.instan
     cluster-size-{{ item }},{%- endfor %}{{ instance.name }}{% if instance.shape != instance.name%},{{ instance.shape }}{% endif %}
 {% elif instance.shape == "BM.Standard.E2.64" %}
 NodeName={{partition.name}}-[1-{{instance.max_cluster_count}}]-{{instance.instance_keyword}}-node-[1-{{instance.max_cluster_size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range( instance.max_cluster_size | int +1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ instance.name }}{% if instance.shape != instance.name%},{{ instance.shape }}{% endif %}
+{% elif instance.shape == "BM.Standard.A1.160" %}
+NodeName={{partition.name}}-[1-{{instance.max_cluster_count}}]-{{instance.instance_keyword}}-node-[1-{{instance.max_cluster_size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=80 ThreadsPerCore=1 State=FUTURE Features={% for item in range( instance.max_cluster_size | int +1) -%}
     cluster-size-{{ item }},{%- endfor %}{{ instance.name }}{% if instance.shape != instance.name%},{{ instance.shape }}{% endif %}
 {% endif %}
 
