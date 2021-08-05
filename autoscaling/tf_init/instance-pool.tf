@@ -26,9 +26,6 @@ resource "oci_core_instance_pool" "instance_pool" {
   size                      = var.node_count
   display_name              = local.cluster_name
   freeform_tags = {
-      split("=", var.tags)[0] = split("=", var.tags)[1]
-  }
-  freeform_tags = {
       "user" = var.tags
   }
   placement_configurations {

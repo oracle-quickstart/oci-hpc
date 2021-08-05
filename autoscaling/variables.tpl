@@ -85,4 +85,4 @@ variable "ldap" { default = ${ldap} }
 variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 
-variable "tags" { default = ##TAGS## }
+variable "tags" { default = "##TAGS##" }
