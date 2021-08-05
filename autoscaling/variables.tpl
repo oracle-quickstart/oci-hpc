@@ -28,7 +28,7 @@ variable "spack" { default = ${spack} }
 variable "instance_pool_ocpus" { default = "##OCPU##"}
 variable "instance_pool_memory" { default = "##MEM##" }
 variable "instance_pool_custom_memory" { default = ##CUSTOM_MEM## }
-variable "marketplace_listing" { 
+variable "marketplace_listing" {
   default = "##MP_LIST##" 
 } 
 
