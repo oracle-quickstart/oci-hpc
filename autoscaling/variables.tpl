@@ -84,3 +84,5 @@ variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm
 variable "ldap" { default = ${ldap} }
 variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
+
+variable "tags" { default = ##TAGS## }

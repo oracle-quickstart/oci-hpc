@@ -16,7 +16,7 @@ idle_time=600 #seconds
 
 # Get the list of Jobs in all states
 def getJobs():
-    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Dependency,Partition'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Dependency,Partition,UserName'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
 
@@ -112,6 +112,7 @@ def getstatus_slurm():
         if len(line.split())>3:
             if line.split()[0].strip() == 'PENDING' and 'null' in line.split()[4].strip():
                 queue = line.split()[5].strip()
+                user = line.split()[6].strip()
                 features=line.split()[2].split('&')
                 instanceType= None
                 possible_types=[inst_type["name"] for inst_type in getQueue(config,queue)["instance_types"]]
@@ -129,7 +130,7 @@ def getstatus_slurm():
 
                 nodes=int(line.split()[3])
                 jobID=int(line.split()[1])
-                cluster_to_build.append([nodes,instanceType,queue,jobID])
+                cluster_to_build.append([nodes,instanceType,queue,jobID,user])
 
     cluster_to_destroy=[]
 
@@ -263,6 +264,7 @@ try:
         instance_type = cluster[1]
         queue=cluster[2]
         jobID=str(cluster[3])
+        user=str(cluster[4])
         jobconfig=getJobConfig(config,queue,instance_type)
         if len(available_names[queue][instance_type]) == 0:
             print "No More available names, you have reached the max number of clusters"
@@ -287,7 +289,7 @@ try:
         else:
             current_nodes[queue][instance_type]+=nodes
             print "Creating cluster "+clusterName+"with "+str(nodes)+" nodes"
-            subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID])
+            subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
             time.sleep(5)
     for cluster in cluster_to_destroy:
         cluster_name=cluster[0]

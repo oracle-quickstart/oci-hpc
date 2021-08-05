@@ -1,7 +1,7 @@
 #!/bin/bash
 if [ $# -eq 0 ] || [ $# -eq 1 ]
 then
-  echo "No enough arguments supplied, please supply number of nodes, cluster name, instance type, queue name and trigger Job ID"
+  echo "No enough arguments supplied, please supply number of nodes, cluster name, instance type, queue name, trigger Job ID and comma separated list of tags"
   exit
 fi
 date=`date '+%Y%m%d%H%M'`
@@ -24,7 +24,7 @@ instance_pool_custom_memory=`yq eval ".queues.[] | select(.name == \"$4\") | .in
 marketplace_listing=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.marketplace_listing " $folder/queues.conf`
 hyperthreading=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.hyperthreading " $folder/queues.conf`
 
-sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/$shape/g;s/##CN##/$cluster_network/g;s/##QUEUE##/${4}/g;s/##COMP##/${targetCompartment}/g;s/##AD##/${ad}/g;s/##BOOT##/${boot_volume_size}/g;s/##USEMP##/${use_marketplace_image}/g;s/##IMAGE##/${image}/g;s/##OCPU##/${instance_pool_ocpus}/g;s/##MEM##/${instance_pool_memory}/g;s/##CUSTOM_MEM##/${instance_pool_custom_memory}/g;s/##MP_LIST##/${marketplace_listing}/g;s/##HT##/${hyperthreading}/g;s/##INST_TYPE##/$3/g" $folder/tf_init/variables.tf > variables.tf
+sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/$shape/g;s/##CN##/$cluster_network/g;s/##QUEUE##/${4}/g;s/##COMP##/${targetCompartment}/g;s/##AD##/${ad}/g;s/##BOOT##/${boot_volume_size}/g;s/##USEMP##/${use_marketplace_image}/g;s/##IMAGE##/${image}/g;s/##OCPU##/${instance_pool_ocpus}/g;s/##MEM##/${instance_pool_memory}/g;s/##CUSTOM_MEM##/${instance_pool_custom_memory}/g;s/##MP_LIST##/${marketplace_listing}/g;s/##HT##/${hyperthreading}/g;s/##INST_TYPE##/$3/g;s/##TAGS##/$6/g" $folder/tf_init/variables.tf > variables.tf
 
 echo "Started to build $2"
 start=`date -u +%s`
