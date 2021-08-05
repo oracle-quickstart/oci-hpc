@@ -212,6 +212,9 @@ variables:
           - eq:
             - ${bastion_shape}
             - "VM.Optimized3.Flex"
+          - eq: 
+            - ${bastion_shape}
+            - "VM.Standard.A1.Flex"
     required: false
   bastion_custom_memory: 
     title: Use custom memory size
@@ -229,6 +232,9 @@ variables:
           - eq: 
             - ${bastion_shape}
             - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${bastion_shape}
+            - "VM.Standard.A1.Flex"
   bastion_memory:
     title: Memory in GBS
     type: integer
@@ -249,6 +255,9 @@ variables:
             - eq: 
               - ${bastion_shape}
               - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${bastion_shape}
+              - "VM.Standard.A1.Flex"
         - and: 
             - ${bastion_custom_memory}
     required: false
@@ -428,6 +437,9 @@ variables:
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${instance_pool_shape}
+            - "VM.Standard.A1.Flex"
     required: false
 
   instance_pool_custom_memory: 
@@ -446,6 +458,9 @@ variables:
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${instance_pool_shape}
+            - "VM.Standard.A1.Flex"
   instance_pool_memory:
     title: Memory in GBS
     type: integer
@@ -466,6 +481,9 @@ variables:
             - eq: 
               - ${instance_pool_shape}
               - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${instance_pool_shape}
+              - "VM.Standard.A1.Flex"
         - and: 
             - ${instance_pool_custom_memory}
     required: false
