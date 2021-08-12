@@ -89,7 +89,7 @@ if [ $status -eq 0 ]
         requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region ap-osaka-1 --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="CreateClusterNetworkReservation") | .id'` >> $folder/logs/create_$2_${date}.log 2>&1
         cn_work_request_error_messages=`oci work-requests work-request-log-entry list --work-request-id ${requestID:1:-1} --auth instance_principal --region ap-osaka-1 --all | jq '.data | .[] | .message '` >> $folder/logs/create_$2_${date}.log 2>&1
     fi
-    echo '$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages' >> $folder/logs/create_$2_${date}.log 2>&1
+    echo "$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages" >> $folder/logs/create_$2_${date}.log 2>&1
     echo "Could not create $2 with $1 nodes in $runtime seconds"
     
     if [ -f $folder/../monitoring/activated ]
