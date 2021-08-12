@@ -39,6 +39,7 @@ then
   done
 fi
 
+echo `date -u '+%Y%m%d%H%M'` >> $folder/logs/create_$2_${date}.log 2>&1
 terraform init >> $folder/logs/create_$2_${date}.log 2>&1
 echo $1 $3 $4 >> currently_building
 terraform apply -auto-approve -parallelism $1 >> $folder/logs/create_$2_${date}.log 2>&1

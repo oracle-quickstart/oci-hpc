@@ -12,6 +12,7 @@ scripts=`realpath $0`
 folder=`dirname $scripts`
 cd $folder/clusters/$1
 cluster_id=`cat cluster_id`
+echo $date >> $folder/logs/delete_${cluster_id}.log 2>&1
 if [ -f "currently_destroying" ] && [[ $2 != FORCE ]]
 then 
     echo "The cluster is already being destroyed"
@@ -24,6 +25,7 @@ else
   fi
   if [ -f inventory ] 
   then
+    echo `date -u '+%Y%m%d%H%M'` >> $folder/logs/delete_${cluster_id}.log 2>&1
     $folder/cleanup.sh $1 >> $folder/logs/delete_${cluster_id}.log 2>&1
     status_initial_deletion=$?
   else
@@ -34,13 +36,16 @@ else
   then
     if [ $status_initial_deletion -ne 0 ]
     then
+        echo `date -u '+%Y%m%d%H%M'` >> $folder/logs/delete_${cluster_id}.log 2>&1
         $folder/cleanup.sh $1 FORCE >> $folder/logs/delete_${cluster_id}.log 2>&1
     fi
     i=0
+    echo `date -u '+%Y%m%d%H%M'` >> $folder/logs/delete_${cluster_id}.log 2>&1
     terraform destroy -auto-approve >> $folder/logs/delete_${cluster_id}.log 2>&1
     status_terraform_deletion=$? 
     while [ $i -lt 10 ] && [ $status_terraform_deletion -ne 0 ]
     do
+      echo `date -u '+%Y%m%d%H%M'` >> $folder/logs/delete_${cluster_id}.log 2>&1
       terraform init >> $folder/logs/delete_${cluster_id}.log 2>&1
       terraform destroy -auto-approve >> $folder/logs/delete_${cluster_id}.log 2>&1
       status_terraform_deletion=$?
