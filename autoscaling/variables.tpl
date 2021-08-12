@@ -80,7 +80,7 @@ variable "queue" { default = "##QUEUE##"}
 variable "hyperthreading" { default = ##HT## }
 
 variable "unsupported" { default = ${unsupported} }
-variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
+variable "image_ocid" { default = "##IMAGE##" }
 variable "ldap" { default = ${ldap} }
 variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
