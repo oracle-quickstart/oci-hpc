@@ -1,4 +1,41 @@
 ---
-- name: disable Hyperthreading
+- name: Make sure directory exist
   become: true
-  shell: "echo off | sudo tee /sys/devices/system/cpu/smt/control"
+  file: 
+    path: /opt/oci-hpc/sbin
+    state: directory
+    mode: '0755'
+
+- name: Copy script
+  become: true
+  copy: 
+    src: control_hyperthreading.sh
+    dest: /opt/oci-hpc/sbin/control_hyperthreading.sh
+    mode: '0755'
+
+- name: Copy service unit
+  become: true
+  copy: 
+    src: disable-hyperthreading.service
+    dest: /etc/systemd/system/disable-hyperthreading.service
+
+- name: Create a unit file
+  become: true
+  copy: 
+    src: disable-hyperthreading.service
+    dest: /etc/systemd/system/disable-hyperthreading.service
+
+- name: Force systemd to reread configs
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: 
+  ansible.builtin.systemd:
+    name: disable-hyperthreading.service
+    state: started
+    enabled: yes
+  when: not hyperthreading|default(true)|bool
+
+      #- name: disable Hyperthreading
+      #  become: true
+      #  shell: "echo off | sudo tee /sys/devices/system/cpu/smt/control"

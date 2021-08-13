@@ -159,7 +159,6 @@
   tasks: 
     - include_role: 
         name: hyperthreading
-      when: not hyperthreading|default(true)|bool
 
 - hosts: bastion
   tasks: 
