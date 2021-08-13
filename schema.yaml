@@ -108,8 +108,17 @@ variableGroups:
   - title: "Software"
     variables:
       - ${slurm}
+      - ${queue}
       - ${spack}
       - ${monitoring}
+      - ${autoscaling_monitoring}
+  - title: "API authentication"
+    variables:
+      - ${inst_prin}
+      - ${api_user_ocid}
+      - ${api_fingerprint}
+      - ${api_user_key}
+    visible: ${autoscaling}
   - title: "Hidden"
     variables:
       - ${region}
@@ -126,6 +135,16 @@ variableGroups:
   - title: "Debug"
     variables: 
       - ${configure}
+
+  - title: "Monitoring"
+    variables: 
+      - ${monitoring_shape_name}
+      - ${admin_username}
+      - ${admin_password}
+    visible: 
+      and:
+        - ${autoscaling_monitoring}
+        - ${autoscaling}
 variables:
   targetCompartment:
     title: "target compartment"
@@ -193,6 +212,9 @@ variables:
           - eq:
             - ${bastion_shape}
             - "VM.Optimized3.Flex"
+          - eq: 
+            - ${bastion_shape}
+            - "VM.Standard.A1.Flex"
     required: false
   bastion_custom_memory: 
     title: Use custom memory size
@@ -210,6 +232,9 @@ variables:
           - eq: 
             - ${bastion_shape}
             - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${bastion_shape}
+            - "VM.Standard.A1.Flex"
   bastion_memory:
     title: Memory in GBS
     type: integer
@@ -230,6 +255,9 @@ variables:
             - eq: 
               - ${bastion_shape}
               - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${bastion_shape}
+              - "VM.Standard.A1.Flex"
         - and: 
             - ${bastion_custom_memory}
     required: false
@@ -409,6 +437,9 @@ variables:
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${instance_pool_shape}
+            - "VM.Standard.A1.Flex"
     required: false
 
   instance_pool_custom_memory: 
@@ -427,6 +458,9 @@ variables:
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${instance_pool_shape}
+            - "VM.Standard.A1.Flex"
   instance_pool_memory:
     title: Memory in GBS
     type: integer
@@ -447,6 +481,9 @@ variables:
             - eq: 
               - ${instance_pool_shape}
               - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${instance_pool_shape}
+              - "VM.Standard.A1.Flex"
         - and: 
             - ${instance_pool_custom_memory}
     required: false
@@ -737,6 +774,13 @@ variables:
     default: true
     description: "Needed for autoscaling" 
 
+  queue:
+    type: String
+    title: "Queue Name"
+    default: "compute"
+    description: "Add the permanent cluster to a specific queue, workq is the default queue" 
+    visible:
+        - ${slurm}
   spack:
     type: boolean
     title: "Install Spack package manager"
@@ -864,3 +908,28 @@ variables:
         - ${add_nfs} 
         - not:
           - ${create_ffs}
+  monitoring_shape_name:
+    type: string
+    title: "MySQL Shape Name"
+    default: "MySQL.VM.Standard.E3.1.16GB"
+    description: "MySQL Shape Name"
+
+  admin_username:
+    type: string
+    title: "MySQL Monitoring username"
+    default: "admin"
+    description: ""
+
+  admin_password:
+    title: "MySQL Monitoring password"
+    default: "Monitor2021!"
+    description: "" 
+
+  autoscaling_monitoring:
+    type: boolean
+    title: "Monitor the autoscaling"
+    default: false
+    description: ""
+    visible: 
+      and:
+        - ${autoscaling}

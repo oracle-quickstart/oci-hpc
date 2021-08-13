@@ -1,0 +1,2385 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_AUTOSCALING",
+      "label": "autoscaling",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "mysql",
+      "pluginName": "MySQL"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "8.0.4"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph (old)",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "mysql",
+      "name": "MySQL",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 29,
+      "panels": [],
+      "title": "Scheduler",
+      "type": "row"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 0,
+        "y": 1
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  sched_state <> 'busy' and state = 'running'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Idle nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 3,
+        "y": 1
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  sched_state = 'busy' and state = 'running'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Busy nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 6,
+        "y": 1
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'provisioning'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Provisioning nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 9,
+        "y": 1
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'deleting'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Deleting nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "noValue": "No Nodes",
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 7,
+        "x": 12,
+        "y": 1
+      },
+      "id": 21,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT \n\t((SELECT count(distinct id) FROM nodes WHERE sched_state='busy' and state='running') /\n\t(SELECT count(distinct id) FROM nodes WHERE state='running')) * 100",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Current Node Utilization",
+      "type": "gauge"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 19,
+        "y": 1
+      },
+      "id": 19,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM jobs\nWHERE\n  state = 'queued'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Queued Jobs",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 6
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'running'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Live Clusters",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 6,
+        "y": 6
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'creating'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Provisioning Clusters",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 9,
+        "y": 6
+      },
+      "id": 17,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'deleting'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Deleting Clusters",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 19,
+        "y": 6
+      },
+      "id": 18,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM jobs\nWHERE\n  state = 'running'",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Running Jobs",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 27,
+      "title": "Time Series",
+      "type": "row"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_AUTOSCALING}",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 23,
+        "x": 0,
+        "y": 12
+      },
+      "hiddenSeries": false,
+      "id": 8,
+      "interval": "1m",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "maxDataPoints": null,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.0.4",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {}
+      ],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": true,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "$__interval",
+                "0"
+              ],
+              "type": "time"
+            }
+          ],
+          "hide": false,
+          "metricColumn": "state_m",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(created_on_m,$__interval,0),\n  state_m AS metric,\n  count(distinct node_id) AS \"node_id\"\nFROM nodes_timeserie\nWHERE\n  $__timeFilter(created_on_m)\nGROUP BY 1,2\nORDER BY $__timeGroup(created_on_m,$__interval,0)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "id"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "id"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "nodes_timeserie",
+          "timeColumn": "created_on_m",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Node history",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transformations": [],
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_AUTOSCALING}",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 23,
+        "x": 0,
+        "y": 20
+      },
+      "hiddenSeries": false,
+      "id": 37,
+      "interval": "1m",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "maxDataPoints": null,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.0.4",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {}
+      ],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": true,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "$__interval",
+                "0"
+              ],
+              "type": "time"
+            }
+          ],
+          "hide": false,
+          "metricColumn": "state_m",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(created_on_m,$__interval,0),\n  state AS metric,\n  count(distinct id) AS \"error_id\"\nFROM errors_timeserie\nWHERE\n  $__timeFilter(created_on_m)\nGROUP BY 1,2\nORDER BY $__timeGroup(created_on_m,$__interval,0)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "id"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "id"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "nodes_timeserie",
+          "timeColumn": "created_on_m",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Errors",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transformations": [],
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_AUTOSCALING}",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 11,
+        "x": 0,
+        "y": 28
+      },
+      "hiddenSeries": false,
+      "id": 24,
+      "interval": "1d",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.0.4",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(submitted,$__interval,0),\n  avg(TIME_TO_SEC(queue_time))/60 AS \"job_wait_time\"\nFROM jobs\nWHERE\n  $__timeFilter(submitted) AND (queue_time IS NOT NULL and (state = \"running\" OR state = \"done\"))\nGROUP BY 1\nORDER BY $__timeGroup(submitted,$__interval,0)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Average Daily Queue Time (In Minutes)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_AUTOSCALING}",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 11,
+        "y": 28
+      },
+      "hiddenSeries": false,
+      "id": 25,
+      "interval": "1d",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.0.4",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(submitted,$__interval,0),\n  avg(TIME_TO_SEC(run_time))/60 AS \"job_run_time\"\nFROM jobs\nWHERE\n  $__timeFilter(submitted) AND (run_time IS NOT NULL and (state = \"done\"))\nGROUP BY 1\nORDER BY $__timeGroup(submitted,$__interval,0)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Average Daily Run Time (In Minutes)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "id": 2,
+      "title": "Deleted",
+      "type": "row"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "displayMode": "auto",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nodes"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 15
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Deletion time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 98
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "state"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 96
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Creation time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 116
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cluster_name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 122
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 37
+      },
+      "id": 31,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Creation time"
+          }
+        ]
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "cluster_name",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  cluster_name,\n  nodes,\n  state,\n  TIMEDIFF(NOW(),started_creation) as \"Creation time\",\n  TIMEDIFF(NOW(),started_deletion) as \"Deletion time\",\n  class_name\nFROM clusters\nWHERE\n  state = 'creating' or state = 'deleting'\nORDER BY state",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "nodes"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "enum",
+              "name": "",
+              "params": [
+                "state",
+                "=",
+                "'creating'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "title": "Clusters Creating or Deleting",
+      "type": "table"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "displayMode": "auto",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nodes"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 78
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cpus"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 20
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 119
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "submitted"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 164
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 11,
+        "y": 37
+      },
+      "id": 32,
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "cluster_name",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  job_id,\n  cpus,\n  nodes,\n  TIMEDIFF(NOW(),submitted) as \"queue time\",\n  class_name\nFROM jobs\nWHERE\n  state = 'queued'\nORDER BY class_name,state",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "nodes"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "enum",
+              "name": "",
+              "params": [
+                "state",
+                "=",
+                "'creating'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "title": "Jobs queued",
+      "type": "table"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "displayMode": "auto",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nodes"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 81
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cluster_name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 127
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "state"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 156
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 11,
+        "x": 0,
+        "y": 43
+      },
+      "id": 33,
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "cluster_name",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  cluster_name,\n  nodes,\n  state,\n  class_name\nFROM clusters\nWHERE\n  state = 'running'\nORDER BY cluster_name",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "nodes"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "enum",
+              "name": "",
+              "params": [
+                "state",
+                "=",
+                "'creating'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "title": "Clusters Running",
+      "type": "table"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "displayMode": "auto",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nodes"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 66
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cpus"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 76
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "queue_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "started"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 182
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 117
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 11,
+        "y": 43
+      },
+      "id": 34,
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "cluster_name",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  job_id,\n  cpus,\n  nodes,\n  TIMEDIFF(NOW(),started) as \"runtime\",\n  queue_time,\n  class_name,\n  cluster_id\nFROM jobs\nWHERE\n  state = 'running'\nORDER BY class_name,job_id",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "nodes"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "enum",
+              "name": "",
+              "params": [
+                "state",
+                "=",
+                "'creating'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "title": "Jobs Running",
+      "type": "table"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 0,
+        "y": 49
+      },
+      "id": 22,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'deleted' and deleted >= ( CURDATE() - INTERVAL 1 DAY )",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Deleted Clusters over the last 24h",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 3,
+        "y": 49
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'deleted' and deleted >= ( CURDATE() - INTERVAL 1 DAY )",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Deleted nodes over the last 24h",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "displayMode": "auto",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 15,
+        "x": 6,
+        "y": 49
+      },
+      "id": 35,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n id,\n state,\n oci_state,\n cluster_name,\n class_name\nFROM clusters\nWHERE\n  oci_state <> 'terminated' and ( state <> \"running\" and state <>\"creating\" and state <>\"deleting\") ",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Clusters not accounted for",
+      "type": "table"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 21,
+        "y": 49
+      },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n count( distinct id)\nFROM clusters\nWHERE\n  oci_state <> 'terminated' and ( state <> \"running\" and state <>\"creating\" and state <>\"deleting\") ",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Cluster Not Accounted for",
+      "type": "stat"
+    },
+    {
+      "datasource": "${DS_AUTOSCALING}",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "displayMode": "auto",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cluster_OCID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 96
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cluster_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 136
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error_type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 556
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "created_on_m"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 185
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 23,
+        "x": 0,
+        "y": 54
+      },
+      "id": 38,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "created_on_m"
+          }
+        ]
+      },
+      "pluginVersion": "8.0.4",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n cluster_id,\n error_type,\n created_on_m,\n error_log\nFROM errors_timeserie\nWHERE\n  state <> 'oci' and created_on_m >= ( CURDATE() - INTERVAL 7 DAY )",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "sql_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "clusters",
+          "timeColumn": "started_creation",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Errors in the last 7 days",
+      "type": "table"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "Asia/Tokyo",
+  "title": "Initial Dashboard 2",
+  "uid": "wkfwsgm7k",
+  "version": 1
+}

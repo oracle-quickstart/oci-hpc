@@ -24,17 +24,14 @@ echo "Waiting for SSH to come up"
 for host in $(cat $inventory_path/hosts_$1) ; do
   r=0 
   echo "validating connection to: ${host}"
-  while ! ssh ${ssh_options} opc@${host} uptime ; do
-
+  while ! ssh ${ssh_options} -o ConnectTimeout=30 opc@${host} uptime ; do
 	if [[ $r -eq 10 ]] ; then 
 		  execution=0
 		  break
 	fi 
-    	  
 	  echo "Still waiting for ${host}"
-          sleep 60 
+          sleep 30 
 	  r=$(($r + 1))
-
   done
 done
 
@@ -52,4 +49,5 @@ else
 	At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run: 
     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook $playbooks_path/new_nodes.yml -i $inventory_path/inventory
 EOF
+  exit 1
 fi 

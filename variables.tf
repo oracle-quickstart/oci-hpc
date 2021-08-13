@@ -112,6 +112,7 @@ variable "unsupported" {
   default = false
 } 
 
+variable "queue" {default = "compute"}
 variable "unsupported_bastion" { 
   type=bool
   default = false 
@@ -126,3 +127,22 @@ variable "compute_username" {
   type = string
   default = "opc" 
 } 
+
+variable "autoscaling_monitoring" { 
+  type= bool
+  default = true
+} 
+variable "monitoring_shape_name" { 
+  type = string
+  default = "MySQL.VM.Standard.E3.1.16GB"
+} 
+
+variable "admin_username" { 
+  type = string
+  default = "admin"
+} 
+
+variable "admin_password" { 
+  type = string
+  default = "Monitor2021!"
+}
