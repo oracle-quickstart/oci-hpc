@@ -50,7 +50,7 @@ There is a configuration file at `/opt/oci-hpc/autoscaling/queues.conf` with an 
 
 You will be able to use the instance type name as a feature in the job definition to make sure it runs/create the right kind of node. 
 
-After a modification, you can run 
+After a modification of the `/opt/oci-hpc/autoscaling/queues.conf`, you need to run 
 `/opt/oci-hpc/autoscaling/slurm_config.sh`
 
 To turn on autoscaling: 
@@ -88,7 +88,7 @@ cat $MACHINEFILE
 sleep 1000
 ```
 
-- cluster-size: Since clusters can be reused, you can decide to only use a cluster of exactly the right size. Created cluster will have a feature cluster-size-x. You can set the constraint cluster-size-x to make sure this matches and avoid having a 1 node job using a 16 nodes cluster. 
+- cluster-size: Since clusters can be reused, you can decide to only use a cluster of exactly the right size. Created cluster will have a feature cluster-size-x. You can set the constraint cluster-size-x to make sure this matches and avoid having a 1 node job using a 16 nodes cluster. You do not need to set this feature if you don't mind having small jobs running on large clusters.  
 
 - Instance Type: You can specify the OCI instance type that you’d like to run on as a constraint. This will make sure that you run on the right shape and also generate the right cluster. Instance types are defined in the `/opt/oci-hpc/autoscaling/queues.conf` file in yml format. Leave all of the field in there even if they are not used. You can define multiple queues and multiple instance type in each queue. If you do not select an instance type when creating your job, it will use the default one.
 
@@ -132,6 +132,15 @@ In case something goes wrong during the deletion, you can force the deletion wit
 ```
 When the cluster is already being destroyed, it will have a file `/opt/oci-hpc/autoscaling/clusters/clustername/currently_destroying` 
 
-## LDAP 
+## Autoscaling Monitoring
+If you selected the autoscaling monitoring, you can see what nodes are spinning up and down as well as running and queued jobs. Everything will run automatically except the import of the Dashboard in Grafana due to a problem in the Grafana API. 
+
+To do it manually, in your browser of choice, navigate to bastionIP:3000. Username and password are admin/admin, you can change those during your first login. Click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
+
+You will now see the dashboard. 
+
+
+# LDAP 
 If selected bastion host will act as an LDAP server for the cluster. It's strongly recommended to leave default, shared home directory. 
 User management can be performed from the bastion using ``` cluster ``` command. 
+
