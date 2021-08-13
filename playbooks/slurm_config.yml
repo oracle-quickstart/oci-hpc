@@ -1,0 +1,11 @@
+- hosts: all
+  vars:
+    destroy: false
+    initial: true
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+  vars_files:
+    - "/opt/oci-hpc/autoscaling/queues.conf"
+  tasks:
+    - include_role:
+        name: slurm
+      when: slurm|default(true)|bool

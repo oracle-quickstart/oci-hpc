@@ -10,4 +10,3 @@ output "ocids" {
 output "cluster_ocid" {
   value = var.cluster_network ? oci_core_cluster_network.cluster_network[0].id : oci_core_instance_pool.instance_pool[0].id
 }
-

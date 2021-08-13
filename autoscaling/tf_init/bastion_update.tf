@@ -37,6 +37,7 @@ resource "local_file" "inventory" {
     cluster_network = var.cluster_network,
     slurm = var.slurm,
     spack = var.spack,
+    ldap = var.ldap,
     bastion_block = var.bastion_block,
     scratch_nfs_type = local.scratch_nfs_type,
     bastion_mount_ip = var.bastion_mount_ip,
@@ -44,6 +45,9 @@ resource "local_file" "inventory" {
     cluster_name = local.cluster_name,
     shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
     instance_pool_ocpus=var.instance_pool_ocpus,
+    queue=var.queue,
+    instance_type=var.instance_type,
+    autoscaling_monitoring = var.autoscaling_monitoring,
     unsupported = var.unsupported
     })
   filename   = "${local.bastion_path}/inventory"

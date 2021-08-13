@@ -10,12 +10,8 @@ execution=1
 
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
-sudo mkdir -p /opt/oci-hpc/bin
-sudo mkdir -p /opt/oci-hpc/playbooks
-sudo cp /tmp/configure.sh /opt/oci-hpc/bin
-
-if [ -f ~/playbooks/inventory ] ; then 
-  sudo mv ~/playbooks/inventory /etc/ansible/hosts
+if [ -f /opt/oci-hpc/playbooks/inventory ] ; then 
+  sudo mv /opt/oci-hpc/playbooks/inventory /etc/ansible/hosts
 fi 
 
 if [ -f /tmp/configure.conf ] ; then
@@ -62,12 +58,12 @@ done
 
 if [[ $execution -eq 1 ]] ; then
   ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key ~/playbooks/site.yml
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /opt/oci-hpc/playbooks/site.yml
 else
 
         cat <<- EOF > /tmp/motd
         At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run:
-        ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key ~/playbooks/site.yml
+        ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /opt/oci-hpc/playbooks/site.yml
 EOF
 
 sudo mv /tmp/motd /etc/motd
