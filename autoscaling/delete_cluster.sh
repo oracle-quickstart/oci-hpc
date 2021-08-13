@@ -43,7 +43,7 @@ else
     echo `date -u '+%Y%m%d%H%M'` >> $folder/logs/delete_${cluster_id}.log 2>&1
     terraform destroy -auto-approve >> $folder/logs/delete_${cluster_id}.log 2>&1
     status_terraform_deletion=$? 
-    while [ $i -lt 10 ] && [ $status_terraform_deletion -ne 0 ]
+    while [ $i -lt 5 ] && [ $status_terraform_deletion -ne 0 ]
     do
       echo `date -u '+%Y%m%d%H%M'` >> $folder/logs/delete_${cluster_id}.log 2>&1
       terraform init >> $folder/logs/delete_${cluster_id}.log 2>&1
@@ -70,7 +70,7 @@ else
       rm -rf $folder/clusters/$1 | tee -a $folder/logs/delete_${cluster_id}.log 2>&1
 
     else
-      echo "Could not delete cluster $1 in 10 tries (Time: $runtime seconds)"
+      echo "Could not delete cluster $1 in 5 tries (Time: $runtime seconds)"
       rm currently_destroying
       if [ -f $folder/../monitoring/activated ]
       then
