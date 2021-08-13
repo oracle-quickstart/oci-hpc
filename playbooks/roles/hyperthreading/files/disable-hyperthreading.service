@@ -1,0 +1,12 @@
+[Unit]
+Description=Start this service to disable Hyperthreading, stop it to enable Hyperthreading.
+After=syslog.target irqbalance.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/opt/oci-hpc/sbin/control_hyperthreading.sh off
+ExecStop=/opt/oci-hpc/sbin/control_hyperthreading.sh on
+
+[Install]
+WantedBy=multi-user.target
