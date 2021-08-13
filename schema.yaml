@@ -930,3 +930,6 @@ variables:
     title: "Monitor the autoscaling"
     default: false
     description: ""
+    visible: 
+      and:
+        - ${autoscaling}
