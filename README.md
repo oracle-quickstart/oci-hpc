@@ -46,7 +46,7 @@ TODO
 
 The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next. 
 
-There is a configuration file at `/opt/oci-hpc/autoscaling/queues.conf` with an example at `/opt/oci-hpc/autoscaling/queues.conf.example`to show how to add multiple queues and multiple instance types. 
+There is a configuration file at `/opt/oci-hpc/autoscaling/queues.conf` with an example at `/opt/oci-hpc/autoscaling/queues.conf.example`to show how to add multiple queues and multiple instance types. Examples are included for HPC, GPU or Flex VMs. 
 
 You will be able to use the instance type name as a feature in the job definition to make sure it runs/create the right kind of node. 
 
