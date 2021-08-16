@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node 36
 #SBATCH --exclusive
 #SBATCH --job-name sleep_job
-#SBATCH --constraint cluster-size-2,hpc-intel
+#SBATCH --constraint cluster-size-2,hpc-default
 
 
 cd /nfs/scratch
