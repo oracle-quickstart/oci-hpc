@@ -123,7 +123,7 @@ resource "null_resource" "bastion" {
 
   provisioner "file" {
     source      = "bastion.sh"
-    destination = "timeout 60m /opt/oci-hpc/bin/bastion.sh"
+    destination = "/opt/oci-hpc/bin/bastion.sh"
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
@@ -342,7 +342,7 @@ resource "null_resource" "cluster" {
       "chmod a+x /opt/oci-hpc/bin/configure.sh",
       "chmod a+x /opt/oci-hpc/autoscaling/slurm_config.sh",
       "echo ${var.configure} > /tmp/configure.conf",
-      "/opt/oci-hpc/bin/configure.sh"
+      "timeout 2h /opt/oci-hpc/bin/configure.sh"
       ]
     connection {
       host        = oci_core_instance.bastion.public_ip
