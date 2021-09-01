@@ -8,7 +8,7 @@ variable "use_custom_name" {}
 variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
 variable "bastion_shape" {}
-variable "use_standard_image" {}
+variable "use_standard_image" { default= true }
 variable "custom_bastion_image" { 
   type = string
   default = "image.ocid" 
@@ -45,8 +45,12 @@ variable "instance_pool_memory" { default = 16 }
 variable "instance_pool_custom_memory" { default = false }
 variable "bastion_memory" { default = 16 }
 variable "bastion_custom_memory" { default = false }
+variable "bastion_listing" { 
+  default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+} 
+
 variable "marketplace_listing" { 
-  default = "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
+  default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
 } 
 
 variable "marketplace_version_id" { 
