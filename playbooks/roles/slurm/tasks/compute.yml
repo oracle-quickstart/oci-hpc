@@ -28,6 +28,9 @@
       - slurm-pam_slurm
       - slurm-pmi
       - slurm-slurmd
+  register: slurm_install_packages
+  retries: 5
+  until: slurm_install_packages is not failed
 
 - name: Create systemd unit dirs
   become: true

@@ -36,16 +36,23 @@
     name: oracle-cloud-agent
     state: restarted
   when: agent_file.stat.exists
+  retries: 5
+  register: restart_cloud_agent
+  until: restart_cloud_agent is not failed
 
 - name: Unregister agent
   command: osms unregister
   when: agent_file.stat.exists
+  retries: 5
+  register: unregister_cloud_agent
+  until: unregister_cloud_agent is not failed
 
 # Present in OL images prior to May/June 2020, later replaced with oracle cloud agent
 - name: Check if osms-agent service exist
   shell: service osms-agent status
   register: osms_agent_status
   failed_when: not(osms_agent_status.rc == 3 or osms_agent_status.rc == 0 or osms_agent_status.rc == 4)
+  ignore_errors: True
 
 - name: disable osms-agent.service
   service:
@@ -59,5 +66,8 @@
   when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
 
 # incase it takes time to get all repo ready after osms unregister
+
 - name: Sleep 5 seconds
-  command: "sleep 5s"
+  pause: 
+    seconds: 5
+
