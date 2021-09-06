@@ -35,8 +35,8 @@ cursor.execute("use cluster_log;")
 cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid).data
 for cn_summary in cn_summaries:
     state=cn_summary.lifecycle_state
-    createdBy=cn_summary.defined_tags['Oracle-Tags']['CreatedBy']
-    createdOn=cn_summary.defined_tags['Oracle-Tags']['CreatedOn']
+    createdBy=cn_summary.defined_tags['Oracle-Tag']['CreatedBy']
+    createdOn=cn_summary.defined_tags['Oracle-Tag']['CreatedOn']
     createdOn_dt=datetime.datetime.strptime(createdOn,"%Y-%m-%dT%H:%M:%S.%fZ")
     seconds_created=(now_utc.replace(tzinfo=None)-createdOn_dt).total_seconds()
     if createdBy == cli_node_ocid :
