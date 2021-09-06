@@ -10,4 +10,7 @@ resource "oci_mysql_mysql_db_system" "monitoring_mysql_db_system" {
     display_name = "autoscaling_monitoring"
     is_highly_available = false
     data_storage_size_in_gb= "50"
+    backup_policy {
+        is_enabled = false
+    }
 }
