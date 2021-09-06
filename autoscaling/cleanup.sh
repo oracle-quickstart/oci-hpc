@@ -15,13 +15,19 @@ then
 else
     ANSIBLE_HOST_KEY_CHECKING=False timeout 2m ansible-playbook $playbooks_path/destroy.yml -i $inventory_path/inventory
     status_cleanup=$?
+    initial_status_cleanup=$status_cleanup
 fi
 i=0
-while [ $i -lt 10 ] && [ $status_cleanup -eq 124 ]
+while [ $i -lt 5 ] && [ $status_cleanup -ne 0 ]
 do
   ANSIBLE_HOST_KEY_CHECKING=False timeout 2m ansible-playbook $playbooks_path/destroy.yml -i $inventory_path/inventory -e "force=yes"
   status_cleanup=$?
   ((i++))
-  echo $i
+  sleep 5
 done
-exit $status_cleanup
+if [[ "$2" == "FORCE" ]]
+then
+    exit $status_cleanup
+else
+    exit $initial_status_cleanup
+fi
