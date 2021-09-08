@@ -45,18 +45,26 @@ for cn_summary in cn_summaries:
         cursor.execute("SELECT state from clusters where cluster_OCID='"""+cn_summary.id+"""';""")
         result = cursor.fetchone()
         if result is None:
-            if seconds_created > 120 and state.lower() != 'terminated':
-                print(seconds_created)
-                print(cn_summary)
+            if seconds_created > 3600 and state.lower() != 'terminated':
                 mySql_insert_query="""INSERT INTO errors_timeserie (cluster_OCID,state,error_type,created_on_m) VALUES ('"""+cn_summary.id+"""','oci','The Cluster does not exist in the DB but is referenced in OCI Console.','"""+now_utc_TS+"""');"""
                 print(mySql_insert_query)
                 cursor.execute(mySql_insert_query)
-        else:
+        elif result[0] != state.lower() and result[0] != 'deleted' and  state.lower() != 'terminated':
             mySql_insert_query="""UPDATE clusters SET oci_state='"""+state.lower()+"""' where cluster_OCID='"""+cn_summary.id+"""';"""
             if state.lower() != "terminated":
                 print(mySql_insert_query)
             cursor.execute(mySql_insert_query)
-
+cursor.execute("SELECT cluster_OCID from clusters where oci_state <> 'terminated' and state='deleted';")
+results = cursor.fetchall()
+for i in results:
+    try:
+        if computeManagementClient.get_cluster_network(i[0]).data.lifecycle_state != 'TERMINATED':
+            continue
+    except:
+        print('Cluster is unknown by OCI')
+    mySql_insert_query="""UPDATE clusters SET oci_state='terminated' where cluster_OCID='"""+i[0]+"""';"""
+    print(mySql_insert_query)
+    cursor.execute(mySql_insert_query)
 connection.commit()
 cursor.close()
 connection.close()
