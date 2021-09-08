@@ -41,7 +41,10 @@ def getIdleTime(node):
 # Get the last time a node state was changed. This is used to get how long a cluster has been idle for
 def getQueueConf(file):
     with open(queues_conf_file) as file:
-        data = yaml.load(file,Loader=yaml.FullLoader)
+        try:
+            data = yaml.load(file,Loader=yaml.FullLoader)
+        except:
+            data = yaml.load(file)
         return data["queues"]
 
 def getQueue(config,queue_name):
