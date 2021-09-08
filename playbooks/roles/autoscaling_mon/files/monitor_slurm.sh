@@ -11,23 +11,23 @@ import os
 # Get the list of Jobs in all states
 def getAllJobs():
     delay="2days"
-    out = subprocess.Popen(['sacct','-S','now-'+delay,"-o",'JobID,Partition,State,Submit,Start,End,NNodes,Ncpus,NodeList',"-X","-n","--parsable2"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
+    out = subprocess.Popen(['sacct -S now-'+delay+" -o JobID,Partition,State,Submit,Start,End,NNodes,Ncpus,NodeList -X -n --parsable2"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
 # Get the list of all nodes registered in Slurm
 def getClusters():
-    out = subprocess.Popen(['sinfo','-h','-N','-r','-O','NodeList:50,CPUsState,StateLong'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
+    out = subprocess.Popen(['sinfo -h -N -r -O NodeList:50,CPUsState,StateLong'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
 def getNodesFromQueuedJob(jobID):
-    out = subprocess.Popen(['squeue','-j',jobID,'-o','%D','-h'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
+    out = subprocess.Popen(['squeue -j '+jobID+' -o %D -h'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")[0]
 
 def getListOfNodes(nodelist):
-    out = subprocess.Popen(['scontrol','show','hostnames',nodelist], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
+    out = subprocess.Popen(['scontrol show hostnames '+' '.join(nodelist)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
