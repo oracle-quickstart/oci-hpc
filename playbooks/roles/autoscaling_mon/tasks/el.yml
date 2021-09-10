@@ -84,7 +84,7 @@
   yum: 
     name: https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
 
-- name: install mysql
+- name: install mysql-shell
   become: true
   yum: 
     name: mysql-shell
@@ -95,8 +95,50 @@
     name: mysql-connector-python
     executable: pip-3
 
-- name: Monitoring activated
-  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ admin_password }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
+- name: Get root password from /etc/opt/oci-hpc/passwords
+  set_fact:
+    mysql_root_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
+                           chars=ascii_letters,digits') }}"
+  when: not autoscaling_mysql_service | bool
+
+- name: Get root password from configuration
+  set_fact:
+    mysql_root_pwd: "{{ admin_password }}"
+  when: autoscaling_mysql_service | bool
+
+
+- name: Generate mysql_service_initial file
+  template: 
+    src: mysql_service_initial.j2
+    dest: /opt/oci-hpc/monitoring/mysql_service_initial.sql
+  when: autoscaling_mysql_service | bool
+
+- name: Create database 'cluster_log'
+  mysql_db:
+    login_user: "{{ admin_username }}"
+    login_password: "{{ mysql_root_pwd }}"
+    name: cluster_log
+    state: present
+  when: not autoscaling_mysql_service | bool
+
+- name: Create database user with name 'logger' and password
+  mysql_user:
+    login_user: "{{ admin_username }}"
+    login_password: "{{ mysql_root_pwd }}"
+    name: logger
+    password: Monitor2021!
+    priv: cluster_log.*:SELECT,INSERT,UPDATE
+    state: present
+  when: not autoscaling_mysql_service | bool
+
+- name: Create initial DB
+  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/mysql_service_initial.sql"
+  ignore_errors: yes
+  when: autoscaling_mysql_service | bool
+
+- name: Create initial DB
+  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
   ignore_errors: yes
 
 - name: Monitoring activated

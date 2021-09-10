@@ -65,6 +65,7 @@ variableGroups:
     visible: ${autoscaling}
   - title: "Monitoring"
     variables: 
+      - ${autoscaling_mysql_service}
       - ${monitoring_shape_name}
       - ${admin_username}
       - ${admin_password}
@@ -930,17 +931,27 @@ variables:
     title: "MySQL Shape Name"
     default: "MySQL.VM.Standard.E3.1.16GB"
     description: "MySQL Shape Name"
+    visible: 
+      and:
+        - ${autoscaling_mysql_service} 
+    
 
   admin_username:
     type: string
     title: "MySQL Monitoring username"
     default: "admin"
     description: ""
+    visible: 
+      and:
+        - ${autoscaling_mysql_service}
 
   admin_password:
     title: "MySQL Monitoring password"
     default: "Monitor2021!"
     description: "" 
+    visible: 
+      and:
+        - ${autoscaling_mysql_service}
 
   autoscaling_monitoring:
     type: boolean
@@ -950,3 +961,13 @@ variables:
     visible: 
       and:
         - ${autoscaling}
+
+  autoscaling_mysql_service:
+    type: boolean
+    title: "Create a Mysql Service"
+    default: false
+    description: "false will use the bastion as mysqlDB"
+    visible: 
+      and:
+        - ${autoscaling}
+        - ${autoscaling_monitoring}

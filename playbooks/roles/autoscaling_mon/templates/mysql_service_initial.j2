@@ -1,0 +1,6 @@
+CREATE DATABASE cluster_log;
+
+CREATE USER 'logger' IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_pwd }}';
+GRANT SELECT ON cluster_log.* TO 'logger'@'%';
+GRANT INSERT ON cluster_log.* TO 'logger'@'%';
+GRANT UPDATE ON cluster_log.* TO 'logger'@'%';
