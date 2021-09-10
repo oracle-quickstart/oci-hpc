@@ -44,11 +44,17 @@ TODO
 
 # Autoscaling
 
-The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next. 
+The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next.
+
+Initial cluster deployed through the stack will never be spun down.
 
 There is a configuration file at `/opt/oci-hpc/autoscaling/queues.conf` with an example at `/opt/oci-hpc/autoscaling/queues.conf.example`to show how to add multiple queues and multiple instance types. Examples are included for HPC, GPU or Flex VMs. 
 
 You will be able to use the instance type name as a feature in the job definition to make sure it runs/create the right kind of node. 
+
+You can only have one default instance-type per queue and one default queue. To submit to a non default queue, either add this line to the SBATCH file: `#SBATCH --partition compute` or in the command line: `sbatch -p queuename job.sh`
+
+The key word `permanent` allows will spin up clusters but not delete them untill it is set to false. It is not needed to reconfigure slurm after you change that value. 
 
 After a modification of the `/opt/oci-hpc/autoscaling/queues.conf`, you need to run 
 `/opt/oci-hpc/autoscaling/slurm_config.sh`
