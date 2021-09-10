@@ -82,7 +82,8 @@ for line in getAllJobs():
             nodes=getNodesFromQueuedJob(jobID)
             mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,state,class_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','queued','"""+queue+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         elif end == "Unknown":
-            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,queue_time,state,class_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','running','"""+queue+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
+            clustername = '-'.join(nodelist[0].split('[')[0].split('-')[:-2])
+            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,queue_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','running','"""+queue+"""','"""+clustername+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         else:
             if 'failed' in state.lower():
                 db_state = 'failed'
@@ -93,7 +94,11 @@ for line in getAllJobs():
             else:
                 print(state+" was not failed, cancelled or completed")
                 continue
-            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,finished,queue_time,run_time,state,class_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+end_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','"""+str(end_datetime-start_datetime).split('.')[0]+"""','"""+db_state+"""','"""+queue+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
+            try:
+                clustername = '-'.join(nodelist[0].split('[')[0].split('-')[:-2])
+            except:
+                clustername= ''
+            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,finished,queue_time,run_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+end_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','"""+str(end_datetime-start_datetime).split('.')[0]+"""','"""+db_state+"""','"""+queue+"""','"""+clustername+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
     else:
         current_sql_state = result[0]
         if start == "Unknown":
@@ -112,8 +117,9 @@ for line in getAllJobs():
                 else:
                     print(state+" was not failed, cancelled or completed")
                     continue
-                mySql_insert_query="""UPDATE jobs SET started='"""+start_TS+"""',finished='"""+end_TS+"""',queue_time='"""+str(start_datetime-submit_datetime).split('.')[0]+"""',run_time='"""+str(end_datetime-start_datetime).split('.')[0]+"""',state='"""+db_state+"""' where job_id='"""+jobID+"""';"""    
+                mySql_insert_query="""UPDATE jobs SET started='"""+start_TS+"""',finished='"""+end_TS+"""',queue_time='"""+str(start_datetime-submit_datetime).split('.')[0]+"""',run_time='"""+str(end_datetime-start_datetime).split('.')[0]+"""',state='"""+db_state+"""' where job_id='"""+jobID+"""';"""
     if not mySql_insert_query is None:
+        print(mySql_insert_query)
         cursor.execute(mySql_insert_query)
     for node_name in getListOfNodes(nodelist):
         cpus_per_node = str(int(float(cpus)/float(nodes)))
