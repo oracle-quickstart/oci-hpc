@@ -4,7 +4,7 @@
     name: slurm autoscaling
     minute: "*"
     user: opc
-    job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/autoscaling/logs/crontab_slurm.log 2>&1"
+    job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/autoscaling/logs/crontab_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: autoscaling | bool
 
 - name: Create a slurm monitoring cron file under /etc/cron.d
@@ -12,7 +12,7 @@
     name: slurm monitoring
     minute: "*"
     user: opc
-    job: "source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_slurm.sh >> /opt/oci-hpc/monitoring/monitor_slurm.log 2>&1"
+    job: "source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_slurm.sh >> /opt/oci-hpc/monitoring/monitor_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: autoscaling_monitoring | bool
 
 - name: Create a  OCI monitoring cron file under /etc/cron.d
@@ -20,7 +20,7 @@
     name: OCI monitoring
     minute: "*"
     user: opc
-    job: "source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_oci.sh >> /opt/oci-hpc/monitoring/monitor_oci.log 2>&1"
+    job: "source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_oci.sh >> /opt/oci-hpc/monitoring/monitor_oci_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: autoscaling_monitoring | bool
 
 - name: Creates a commented cron file under /etc/cron.d
@@ -28,7 +28,7 @@
     name: slurm autoscaling
     minute: "#*"
     user: opc
-    job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/autoscaling/logs/crontab_slurm.log 2>&1"
+    job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/autoscaling/logs/crontab_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: not autoscaling | bool
 
 
@@ -37,7 +37,7 @@
     name: slurm monitoring
     minute: "*"
     user: opc
-    job: "#source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_slurm.sh >> /opt/oci-hpc/monitoring/monitor_slurm.log 2>&1"
+    job: "#source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_slurm.sh >> /opt/oci-hpc/monitoring/monitor_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: not autoscaling_monitoring | bool
 
 - name: Create a commented OCI monitoring cron file under /etc/cron.d
@@ -45,5 +45,5 @@
     name: OCI monitoring
     minute: "*"
     user: opc
-    job: "#source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_oci.sh >> /opt/oci-hpc/monitoring/monitor_oci.log 2>&1"
+    job: "#source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_oci.sh >> /opt/oci-hpc/monitoring/monitor_oci_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: not autoscaling_monitoring | bool
