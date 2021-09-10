@@ -87,8 +87,6 @@
       when: cluster_nfs|default(true)|bool
     - include_role: 
         name: mysql
-    - include_role: 
-        name: cron
       
 - hosts: nfs
   become: true
@@ -177,6 +175,8 @@
     - include_role: 
         name: autoscaling_mon
       when: autoscaling_monitoring|default(false)|bool
+    - include_role: 
+        name: cron
       
 - hosts: all
   vars:
