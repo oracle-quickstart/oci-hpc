@@ -1,9 +1,12 @@
 ---
 - name: Install nfs packages
   yum:
-    name: '{{ nfs_packages }}'
+    name: "{{ nfs_rpm_packages }}"
     state: present
   tags: install-only
+  register: nfs_packages_output
+  retries: 5
+  until: nfs_packages_output is not failed
 
 - name: create share directory
   become: true
