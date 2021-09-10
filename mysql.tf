@@ -1,6 +1,6 @@
 resource "oci_mysql_mysql_db_system" "monitoring_mysql_db_system" {
     #Required
-    count          = var.autoscaling_monitoring ? 1 : 0
+    count          = var.autoscaling_monitoring && var.autoscaling_mysql_service ? 1 : 0
     admin_password = var.admin_password
     admin_username = var.admin_username
     availability_domain = var.bastion_ad

@@ -136,6 +136,12 @@ variable "autoscaling_monitoring" {
   type= bool
   default = true
 } 
+
+variable "autoscaling_mysql_service" { 
+  type= bool
+  default = false
+} 
+
 variable "monitoring_shape_name" { 
   type = string
   default = "MySQL.VM.Standard.E3.1.16GB"

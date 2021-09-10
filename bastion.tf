@@ -201,9 +201,10 @@ resource "null_resource" "cluster" {
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
       autoscaling_monitoring = var.autoscaling_monitoring,
-      monitoring_mysql_ip = var.autoscaling_monitoring ? oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address : "",
+      autoscaling_mysql_service = var.autoscaling_mysql_service,
+      monitoring_mysql_ip = var.autoscaling_monitoring && var.autoscaling_mysql_service ? oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address : "localhost",
       admin_password = var.admin_password,
-      admin_username = var.admin_username
+      admin_username = var.autoscaling_mysql_service ? var.admin_username : "root"
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"

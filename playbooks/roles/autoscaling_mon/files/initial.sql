@@ -1,13 +1,3 @@
-CREATE DATABASE cluster_log;
-
-GRANT ALL PRIVILEGES ON cluster_log.* TO 'admin'@'%';
-
-CREATE USER 'logger' IDENTIFIED WITH mysql_native_password BY 'Monitor2021!';
-GRANT SELECT ON cluster_log.* TO 'logger'@'%';
-GRANT INSERT ON cluster_log.* TO 'logger'@'%';
-GRANT UPDATE ON cluster_log.* TO 'logger'@'%';
-
-
 CREATE TABLE IF NOT EXISTS cluster_log.clusters (
     sql_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     id VARCHAR(64) UNIQUE,
