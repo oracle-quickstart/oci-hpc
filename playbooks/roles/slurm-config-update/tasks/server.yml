@@ -1,0 +1,22 @@
+---
+  
+- name: Generate slurm.conf
+  become: true
+  template: 
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    mode: '0644'
+    backup: yes
+    owner: slurm
+    group: slurm
+  notify: restart slurm server
+  when: initial | bool
+
+- name: run handlers
+  meta: flush_handlers
+
+- name: add alias for node status
+  lineinfile:
+    path: /home/opc/.bashrc
+    line: alias status='tail /home/opc/autoscaling/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
+    state: present

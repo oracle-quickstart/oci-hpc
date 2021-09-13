@@ -1,0 +1,166 @@
+
+- hosts: compute:!exclude
+  become: true
+  vars: 
+    initial: true
+  gather_facts: true
+  roles: 
+    - hostname
+
+- hosts: all:!exclude:!bastion
+  become: true
+  vars: 
+    destroy: false
+    initial: true
+  gather_facts: true
+  roles: 
+    - oci-cloud-agent
+    - packages
+    - oci-legacy
+    - firewall 
+    - oci-hostname
+    - ssh
+    - localdisk
+    - limits
+
+
+- hosts: compute
+  become: true
+  vars:
+    destroy: false
+    initial: true
+  gather_facts: true
+  roles:
+    - mpi-hostfiles
+
+- hosts: all
+  become: true
+  vars:
+    destroy: false
+    initial: true
+  gather_facts: true
+  roles:
+    - etc-hosts
+
+
+
+- hosts: compute:!exclude
+  become: true
+
+  tasks:
+    - include_role:
+        name: home_nfs
+      when: home_nfs|default(true)|bool
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/home"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "all"
+      when: home_nfs|default(true)|bool
+ 
+      
+- hosts: nfs:!exclude
+  become: true
+  vars:
+     export_path: "{{ scratch_nfs_path }}"
+     export_name: "scratch"
+     local_path:  "/mnt/localdisk/nfs"
+     iscsi_ip: "{{ cluster_mount_ip }}"
+
+  tasks: 
+    - include_role: 
+        name: iscsi
+      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-server
+      when: scratch_nfs|default(true)|bool
+
+- hosts: all:!exclude:!bastion
+  become: true
+  
+  tasks: 
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ cluster_nfs_path }}"
+        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        export_path: "/export/cluster"
+        lock: "all"
+      when: cluster_nfs|default(true)|bool
+    - include_role: 
+        name: nfs-client
+      vars: 
+        local_path: "{{ scratch_nfs_path }}"
+        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
+        export_path: "/mnt/localdisk/nfs"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "none" 
+      when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "{{ nfs_target_path }}"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{{ nfs_source_path }} "
+        options: "{{ nfs_options }}"
+        lock: "none"
+      when: add_nfs|default(false)|bool
+
+- hosts: all:!exclude:!bastion
+  become: true
+  
+  tasks: 
+    - include_role: 
+        name: sssd
+      when: ldap|default(true)|bool
+
+- hosts: compute:!exclude
+  become: true
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+
+- hosts: compute:!exclude
+  become: true
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: hyperthreading
+      when: not hyperthreading|default(true)|bool
+
+
+- hosts: all:!exclude:!bastion
+  vars:
+    destroy: false
+    initial: true
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+  tasks:
+    - include_role:
+        name: slurm-install-addnode
+      when: slurm|default(false)|bool
+
+- hosts: all
+  vars:
+    destroy: false
+    initial: true
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+  tasks:
+    - include_role:
+        name: slurm-config-update
+      when: slurm|default(false)|bool
+
+- hosts: compute:!exclude
+  vars:
+    destroy: false
+    initial: true
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+  tasks: 
+    - include_role:
+        name: telegraf
+      when: monitoring|default(false)|bool
+

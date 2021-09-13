@@ -1,0 +1,132 @@
+{% set bastion = hostvars[groups['bastion'][0]]['ansible_fqdn'].split('.') %}
+{% if hyperthreading | bool %}
+{% set threadspercore = 2 %}
+{% else %}
+{% set threadspercore = 1 %}
+{% endif %}
+SlurmctldHost={{ bastion[0] }}
+MpiDefault=none
+ProctrackType=proctrack/cgroup
+ReturnToService=1
+SlurmctldPidFile=/var/run/slurmctld.pid
+SlurmctldPort=6817
+SlurmdPidFile=/var/run/slurmd.pid
+SlurmdPort=6818
+SlurmdSpoolDir=/var/spool/slurmd
+SlurmUser=slurm
+SlurmctldLogFile=/var/log/slurm/slurmctld.log
+SlurmdLogFile=/var/log/slurm/slurmd.log
+StateSaveLocation={{ cluster_nfs_path }}/spool/slurm
+SwitchType=switch/none
+TaskPlugin=task/affinity
+InactiveLimit=0
+KillWait=30
+MinJobAge=300
+SlurmctldTimeout=120
+SlurmdTimeout=300
+Waittime=0
+GresTypes=gpu
+SchedulerType=sched/backfill
+SelectType=select/cons_tres
+SelectTypeParameters=CR_Core
+AccountingStorageHost={{ bastion[0] }}
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStoreJobComment=YES
+ClusterName=cluster
+JobAcctGatherFrequency=30
+JobAcctGatherType=jobacct_gather/linux
+SlurmctldDebug=info
+SlurmdDebug=info
+EnforcePartLimits=NO
+PropagateResourceLimitsExcept=MEMLOCK
+CommunicationParameters=NoAddrCache
+TopologyPlugin=topology/tree
+{% for ocpu in 1,2,4,8,16,24 -%}
+NodeName=cluster-[1-20]-std2{{ ocpu }}-node-[1-10] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ ocpu }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard2.{{ ocpu }}
+{% endfor %}
+NodeName=cluster-[1-20]-std252-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=26 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.Standard2.52
+{% for ocpu in 1,2,4,8,16,32 -%}
+NodeName=cluster-[1-20]-amd2{{ ocpu }}-node-[1-10] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ ocpu }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard.E2.{{ ocpu }}
+{% endfor %}
+NodeName=cluster-[1-20]-amd264-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.Standard.E2.64
+{% for ocpu in range(1,65) -%}
+NodeName=cluster-[1-20]-amd3{{ ocpu }}-node-[1-10] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ ocpu }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard.E3.{{ ocpu }}
+{% endfor %}
+NodeName=cluster-[1-20]-amd3128-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.Standard.E3.128
+{% for ocpu in range(1,18) -%}
+NodeName=cluster-[1-20]-optimized3{{ ocpu }}-node-[1-10] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ ocpu }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Optimized3.{{ ocpu }}
+{% endfor %}
+{% for ocpu in range(1,65) -%}
+NodeName=cluster-[1-20]-amd4{{ ocpu }}-node-[1-10] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ ocpu }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard.E4.{{ ocpu }}
+{% endfor %}
+NodeName=cluster-[1-20]-amd4128-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.Standard.E4.128
+NodeName=cluster-[1-20]-gpu21-node-[1-20] Boards=1 SocketsPerBoard=1 CoresPerSocket=12 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.GPU2.1 Gres=gpu:P100:1
+NodeName=cluster-[1-20]-gpu22-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=14 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.GPU2.2 Gres=gpu:P100:2
+NodeName=cluster-[1-20]-gpu31-node-[1-20] Boards=1 SocketsPerBoard=1 CoresPerSocket=6 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.1 Gres=gpu:V100:1
+NodeName=cluster-[1-20]-gpu32-node-[1-20] Boards=1 SocketsPerBoard=1 CoresPerSocket=12 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.2 Gres=gpu:V100:2
+NodeName=cluster-[1-20]-gpu34-node-[1-20] Boards=1 SocketsPerBoard=1 CoresPerSocket=24 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.4 Gres=gpu:V100:4
+NodeName=cluster-[1-20]-gpu38-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=26 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.GPU3.8 Gres=gpu:V100:8
+NodeName=cluster-[1-20]-gpu48-node-[1-20] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.GPU4.8 Gres=gpu:A100:8
+NodeName=cluster-[1-50]-hpc-node-[1-100] Boards=1 SocketsPerBoard=2 CoresPerSocket=18 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.HPC2.36
+NodeName=cluster-[1-50]-hpc2-node-[1-100] Boards=1 SocketsPerBoard=2 CoresPerSocket=18 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% for item in range(51) -%}
+    cluster-size-{{ item }},{%- endfor %}BM.Optimized3.36
+{% for item in groups['compute'] %}
+{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
+{% if shape == "BM.GPU2.2"%}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=2 CoresPerSocket=14 ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:P100:2
+{% elif shape == "VM.GPU2.1" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket=12 ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:P100:1
+{% elif shape == "VM.GPU3.1" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket=6 ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:1
+{% elif shape == "VM.GPU3.2" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket=12 ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:2
+{% elif shape == "VM.GPU3.4" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket=24 ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:4
+{% elif shape == "BM.GPU3.8" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=2 CoresPerSocket=26 ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:V100:8
+{% elif shape == "BM.GPU4.8" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }} Gres=gpu:A100:8
+{% elif shape == "VM.Standard.E3.Flex" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance_pool_ocpus }} ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard.E3.{{ instance_pool_ocpus }}
+{% elif shape == "VM.Optimized3.Flex" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance_pool_ocpus }} ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Optimized3.{{ instance_pool_ocpus }}
+{% elif shape == "VM.Standard.E4.Flex" %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance_pool_ocpus }} ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}VM.Standard.E4.{{ instance_pool_ocpus }}
+{% else %}
+{% if "BM" in shape  %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=2 CoresPerSocket={{ (shape.split('.')[-1]|int / 2)|int}} ThreadsPerCore=1 State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }}
+{% elif "VM" in shape  %}
+NodeName={{ short_name[0] }} Boards=1 SocketsPerBoard=1 CoresPerSocket={{ shape.split('.')[-1]|int }} ThreadsPerCore={{threadspercore}} State=UNKNOWN Features={% for item in range(groups['compute'] | length + 1) -%}
+    cluster-size-{{ item }},{%- endfor %}{{ shape }}
+{% endif %}
+{% endif %}
+{% endfor %}
+PartitionName=compute Nodes=ALL Default=YES MaxTime=INFINITE State=UP
