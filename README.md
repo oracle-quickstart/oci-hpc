@@ -54,6 +54,44 @@ The resize.py is deployed on the bastion node as part of the HPC cluster Stack d
 
 ```
 playbooks/resize.py
+
+python3 playbooks/resize.py -h
+usage: resize.py [-h] [--compartment_ocid COMPARTMENT_OCID]
+                 [--cluster_name CLUSTER_NAME] [--nodes NODES [NODES ...]]
+                 [--slurm_only_update [{true,false}]]
+                 [{add,remove,list,reconfigure}] [number]
+
+Script to resize the CN
+
+positional arguments:
+  {add,remove,list,reconfigure}
+                        Mode type. add/remove node options, implicitly
+                        configures newly added nodes. Also implicitly
+                        reconfigure/restart services like Slurm to recognize
+                        new nodes. Similarly for remove option, terminates
+                        nodes and implicitly reconfigure/restart services like
+                        Slurm on rest of the cluster nodes to remove reference
+                        to deleted nodes.
+  number                Number of nodes to add or delete if a list of
+                        hostnames is not defined
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --compartment_ocid COMPARTMENT_OCID
+                        OCID of the compartment, defaults to the Compartment
+                        OCID of the localhost
+  --cluster_name CLUSTER_NAME
+                        Name of the cluster to resize. Defaults to the name
+                        included in the bastion
+  --nodes NODES [NODES ...]
+                        Number of nodes to add or delete if a list of
+                        hostnames is not defined
+  --slurm_only_update [{true,false}]
+                        To update /etc/hosts, slurm config and restart slurm
+                        services.
+[opc@assuring-woodcock-bastion ~]$
+
+
 ```
 
 **Add nodes** 
@@ -64,11 +102,18 @@ Consist of the following sub-steps:
   -  Configures newly added nodes to be ready to run the jobs
   -  Reconfigure services like Slurm to recognize new nodes on all nodes
 
- 
+Add one node 
 ```
-python3 playbooks/resize.py.aug15 add 1
+python3 playbooks/resize.py add 1
 
 ```
+
+Add three node 
+```
+python3 playbooks/resize.py add 3
+
+```
+
 
 **Remove nodes** 
 
@@ -80,23 +125,23 @@ Consist of the following sub-steps:
 
 Remove specific node:  
 ```
-python3 playbooks/resize.py.aug15 remove --nodes inst-dpi8e-assuring-woodcock
+python3 playbooks/resize.py remove --nodes inst-dpi8e-assuring-woodcock
 ```
 or 
 
 Remove a list of nodes (space seperated):  
 ```
-python3 playbooks/resize.py.aug15 remove --nodes inst-dpi8e-assuring-woodcock inst-ed5yh-assuring-woodcock
+python3 playbooks/resize.py remove --nodes inst-dpi8e-assuring-woodcock inst-ed5yh-assuring-woodcock
 ```
 or 
 Remove one node randomly:  
 ```
-python3 playbooks/resize.py.aug15 remove 1
+python3 playbooks/resize.py remove 1
 ```
 or 
 Remove 3 nodes randomly:  
 ```
-python3 playbooks/resize.py.aug15 remove 3
+python3 playbooks/resize.py remove 3
 
 ```
 
@@ -104,23 +149,23 @@ python3 playbooks/resize.py.aug15 remove 3
 
 This allows users to reconfigure nodes (Ansible tasks) of the cluster.  
 
-If you would like to do a slurm config update on all nodes of the cluster.   
+If you would like to do a **slurm config update ONLY** on all nodes of the cluster.   
 
 ```
-python3  playbooks/resize.py.aug15 reconfigure --slurm_only_update true
+python3  playbooks/resize.py reconfigure --slurm_only_update true
 ```
 
-Full reconfiguration of all nodes of the cluster.   This runs the same steps, which are ran when a new cluster is created.   If you manually updated configs which are created/updated as part of cluster configuration, then this command will overwrite your manual changes.   
+Full reconfiguration of all nodes of the cluster.   This will run the same steps, which are ran when a new cluster is created.   If you manually updated configs which are created/updated as part of cluster configuration, then this command will overwrite your manual changes.   
 
 ```
-python3 playbooks/resize.py.aug15 reconfigure
+python3 playbooks/resize.py reconfigure
 ```
 
-If you would like to fully reconfigure ONLY a specific node/nodes. 
+If you would like to fully reconfigure ONLY a specific node/nodes (space seperated).
 
 ```
- python3  playbooks/resize.py.aug15  reconfigure [--nodes NODES [NODES ...]]
- Example:  python3  resize.py.aug15 reconfigure --nodes inst-gsezk-topical-goblin inst-jvpps-topical-goblin inst-ytuqj-topical-goblin
+ python3  playbooks/resize.py  reconfigure [--nodes NODES [NODES ...]]
+ Example:  python3  resize.py reconfigure --nodes inst-gsezk-topical-goblin inst-jvpps-topical-goblin 
 ```
 
 
