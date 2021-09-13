@@ -1,0 +1,43 @@
+{% for index in range(1,51) %}
+SwitchName=cluster-hpc-{{ index }} Nodes=cluster-{{ index }}-hpc-node-[1-100]
+SwitchName=cluster-hpc2-{{ index }} Nodes=cluster-{{ index }}-hpc2-node-[1-100]
+{% endfor %}
+{% for cluster_type in "gpu48", "amd3128", "amd4128", "std252", "amd264" -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-{{ cluster_type }}-{{ index }} Nodes=cluster-{{ index }}-{{ cluster_type }}-node-[1-20]
+{% endfor %}
+{%- endfor %}
+{% for ocpu in 1,2,4,8,16,32 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-amd2{{ ocpu }}-{{ index }} Nodes=cluster-{{ index }}-amd2{{ ocpu }}-node-[1-10]
+{% endfor %}
+{%- endfor %}
+{% for ocpu in 1,2,4,8,16,24 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-std2{{ ocpu }}-{{ index }} Nodes=cluster-{{ index }}-std2{{ ocpu }}-node-[1-10]
+{% endfor %}
+{%- endfor %}
+{% for ocpu in range(1,65) -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-amd3{{ ocpu }}-{{ index }} Nodes=cluster-{{ index }}-amd3{{ ocpu }}-node-[1-10]
+{% endfor %}
+{%- endfor %}
+{% for ocpu in range(1,65) -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-amd4{{ ocpu }}-{{ index }} Nodes=cluster-{{ index }}-amd4{{ ocpu }}-node-[1-10]
+{% endfor %}
+{%- endfor %}
+{% for gpu in 1,2 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-gpu2{{ gpu }}-{{ index }} Nodes=cluster-{{ index }}-gpu2{{ gpu }}-node-[1-20]
+{% endfor %}
+{%- endfor %}
+{% for gpu in 1,2,4,8 -%}
+{% for index in range(1,21) %}
+SwitchName=cluster-gpu3{{ gpu }}-{{ index }} Nodes=cluster-{{ index }}-gpu3{{ gpu }}-node-[1-20]
+{% endfor %}
+{%- endfor %}
+{% if groups['compute'] | length > 0 %}
+SwitchName=Permanent Nodes={% for item in groups['compute'] -%}
+    {{hostvars[item]['ansible_fqdn'].split('.')[0] }},{%- endfor %}
+{% endif %}

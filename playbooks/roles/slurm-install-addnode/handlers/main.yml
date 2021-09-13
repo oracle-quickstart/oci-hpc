@@ -1,0 +1,27 @@
+
+- name: restart slurm server
+  become: true
+  service:
+    name: '{{ item }}'
+    state: restarted
+    enabled: true
+  with_items:
+    - slurmdbd
+    - slurmctld
+
+- name: restart slurm
+  become: true
+  service: 
+    name: '{{ item }}'
+    state: restarted
+    enabled: true
+  with_items: 
+    - slurmd
+
+- name: restart munge
+  become: true
+  service:
+    name: munge
+    state: restarted
+    enabled: true
+
