@@ -232,9 +232,9 @@ def update_cluster(mode,hostnames=[],slurm_only_update='false'):
             shutil.move(tmp_file_do_not_edit, "/tmp/etc_ansible_hosts.do_not_edit.old")
         print("Resolve the issue which caused ansible playbook to fail (hint: look for word fatal in above output). Then run the below command to only run the reconfigure step (ansible playbook) without again adding or removing node from HPC/GPU cluster.")
         if mode == 'add':
-            print("Command:  python3 resize.py.aug15 reconfigure --nodes newly_added_node1_hostname newly_added_node2_hostname ")
+            print("Command:  python3 playbooks/resize.py reconfigure --nodes newly_added_node1_hostname newly_added_node2_hostname ")
         if mode == 'remove':
-            print("Command:  python3 resize.py.aug15 reconfigure --slurm_only_update true ")
+            print("Command:  python3 playbooks/resize.py reconfigure --slurm_only_update true ")
 
 
 batchsize=12
