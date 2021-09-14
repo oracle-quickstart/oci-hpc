@@ -11,7 +11,7 @@ execution=1
 if [ -n "$1" ]; then
   playbook=$1
 else
-  playbook="site.yml"
+  playbook="/opt/oci-hpc/playbooks/site.yml"
 fi
 
 if [ -n "$2" ]; then
@@ -70,12 +70,7 @@ done
 
 if [[ $execution -eq 1 ]] ; then
   ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1
-<<<<<<< HEAD
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /opt/oci-hpc/playbooks/site.yml
-=======
-  #ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key ~/playbooks/site.yml
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key ~/playbooks/$playbook -i $inventory
->>>>>>> 4aa1dc76224e3f24af0461d8e9264dd2c25be136
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key $playbook -i $inventory
 else
 
         cat <<- EOF > /tmp/motd
