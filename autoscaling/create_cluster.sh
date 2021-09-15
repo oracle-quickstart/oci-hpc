@@ -78,10 +78,10 @@ if [ $status -eq 0 ]
     then
         ERROR_MSG=`cat $folder/logs/create_$2_${date}.log | grep Error:`
     fi
-    comp_tmp=`curl -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .compartmentId`
+    comp_tmp=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .compartmentId`
     compartment_ocid=${comp_tmp:1:-1}
 
-    region_tmp=`curl -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .region`
+    region_tmp=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .region`
     region=${region_tmp:1:-1}
     inst_pool_ocid=`oci compute-management instance-pool list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $folder/logs/create_$2_${date}.log 2>&1
     requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="LaunchInstancesInPool") | .id'` >> $folder/logs/create_$2_${date}.log 2>&1
