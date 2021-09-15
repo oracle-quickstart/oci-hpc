@@ -262,6 +262,12 @@ try:
             if i[0]==j[0] and i[1]==j[1] and i[2]==j[2]:
                 cluster_to_build.remove(j)
                 break
+    for cluster in cluster_to_destroy:
+        cluster_name=cluster[0]
+        print "Deleting cluster "+cluster_name
+        subprocess.Popen([path+'/delete_cluster.sh',cluster_name])
+        time.sleep(1)
+
     for index,cluster in enumerate(cluster_to_build):
         nodes=cluster[0]
         instance_type = cluster[1]
@@ -294,11 +300,7 @@ try:
             print "Creating cluster "+clusterName+"with "+str(nodes)+" nodes"
             subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
             time.sleep(5)
-    for cluster in cluster_to_destroy:
-        cluster_name=cluster[0]
-        print "Deleting cluster "+cluster_name
-        subprocess.Popen([path+'/delete_cluster.sh',cluster_name])
-        time.sleep(1)
+    
 except Exception:
     traceback.print_exc()
 os.remove(lockfile)
