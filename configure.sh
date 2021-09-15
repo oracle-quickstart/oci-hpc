@@ -8,6 +8,18 @@
 #
 execution=1
 
+if [ -n "$1" ]; then
+  playbook=$1
+else
+  playbook="/opt/oci-hpc/playbooks/site.yml"
+fi
+
+if [ -n "$2" ]; then
+  inventory=$2
+else
+  inventory="/etc/ansible/hosts"
+fi
+
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
 if [ -f /opt/oci-hpc/playbooks/inventory ] ; then 
@@ -58,7 +70,7 @@ done
 
 if [[ $execution -eq 1 ]] ; then
   ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /opt/oci-hpc/playbooks/site.yml
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key $playbook -i $inventory
 else
 
         cat <<- EOF > /tmp/motd

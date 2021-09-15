@@ -1,0 +1,12 @@
+munge_conf_path: '/etc/munge'
+slurm_conf_path: '/etc/slurm'
+slurm_spool_path: '/var/spool/slurmd'
+slurm_log_path: '/var/log/slurm'
+munge_log_path: '/var/log/munge'
+munge_run_path: '/var/run/munge'
+slurm_db_user: 'slurm_accounting' 
+slurm_db_name: 'slurm_accounting'
+slurm_gid: 1501
+slurm_uid: 1501
+munge_gid: 1500
+munge_uid: 1500

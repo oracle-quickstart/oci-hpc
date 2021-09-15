@@ -1,7 +1,7 @@
 ---
 - name: Install nfs packages
   ansible.builtin.package:
-    name: '{{ deb_packages }}'
+    name: "{{ nfs_deb_packages }}"
     state: present
   tags: install-only
 
