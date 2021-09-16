@@ -36,8 +36,8 @@ resource "oci_core_instance" "bastion" {
   display_name        = "${local.cluster_name}-bastion"
 
   freeform_tags = {
-    "cluster_name" = "local.cluster_name"
-    "parent_cluster" = "local.cluster_name"
+    "cluster_name" = local.cluster_name
+    "parent_cluster" = local.cluster_name
   }
 
   metadata = {
