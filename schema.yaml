@@ -116,8 +116,9 @@ variableGroups:
       - ${private_subnet_id}
       - ${vcn_subnet}
       - ${public_subnet}
-      - ${additional_subnet}
       - ${private_subnet}
+      - ${rdma_subnet}
+      - ${additional_subnet}
   - title: "Software"
     variables:
       - ${slurm}
@@ -146,6 +147,7 @@ variables:
     title: "target compartment"
     type: oci:identity:compartment:id
     default: ${compartment_ocid}
+    required: true
   ad:
     type: oci:identity:availabilitydomain:name
     visible: complexExpression
@@ -162,13 +164,11 @@ variables:
     type: boolean
     title: "use custom cluster name"
     description: "Use custom name for the cluster"
-    required: true
     default: false
   ldap:
     type: boolean
     title: "Configure LDAP authentication from bastion"
     description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
-    required: true
     default: true
   cluster_name:
     title: "Name of the cluster"
@@ -191,6 +191,7 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
+    default: VM.Standard2.4
   bastion_ocpus:
     type: integer
     description: Number of OCPU's for flex shape
@@ -212,7 +213,7 @@ variables:
           - eq: 
             - ${bastion_shape}
             - "VM.Standard.A1.Flex"
-    required: false
+    required: true
   bastion_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -257,16 +258,13 @@ variables:
               - "VM.Standard.A1.Flex"
         - and: 
             - ${bastion_custom_memory}
-    required: false
+    required: true
 
-
-    
   use_standard_image:
     type: boolean
     title: "use standard bastion image"
     description: >
       "Use standard bastion image, otherwise provide custom image OCID"
-    required: true
     default: true
     visible: 
       and: 
@@ -287,6 +285,7 @@ variables:
     description: "Custom image ID for Bastion"
     type: string
     default: "opc"
+    required: true
     visible:
       not:
         - ${use_standard_image}
@@ -301,6 +300,7 @@ variables:
         - ${unsupported_bastion}
         - not: 
             - ${use_standard_image}
+    default: "image.ocid"
   
   bastion_image_compartment:
     title: "bastion image compartment"
@@ -339,7 +339,6 @@ variables:
       and:
         - ${use_advanced}
     default: false
-    required: true
   bastion_block_volume_size:
     required: true
     type: integer
@@ -387,6 +386,7 @@ variables:
       and:
         - ${use_advanced}
         - ${use_cluster_nfs}
+    reguired: true
   cluster_network:
     title: Use cluster network
     type: boolean
@@ -410,6 +410,7 @@ variables:
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
     required: true
+    default: "VM.Standard2.4"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -440,7 +441,7 @@ variables:
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
-    required: false
+    required: true
 
   instance_pool_custom_memory: 
     title: Use custom memory size
@@ -486,7 +487,7 @@ variables:
               - "VM.Standard.A1.Flex"
         - and: 
             - ${instance_pool_custom_memory}
-    required: false
+    required: true
 
   node_count:
     required: true
@@ -497,9 +498,8 @@ variables:
     description: "Number of Compute Instances (Permanent Cluster when autoscaling)"
 
   hyperthreading:
-    required: true
     type: boolean
-    title: "Keep Hyperthreading enabled"
+    title: "Hyperthreading enabled"
     default: true
     description: "When unchecked SMT will be disabled" 
 
@@ -515,7 +515,6 @@ variables:
     type: boolean
     title: "use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
-    required: true
     default: true
 
   marketplace_listing:
@@ -628,6 +627,7 @@ variables:
         - ${cluster_network}
         - ${use_advanced}
         - ${use_scratch_nfs}
+    required: true
   scratch_nfs_type_pool:
     type: enum
     title: "Scratch storage configuration"
@@ -635,6 +635,7 @@ variables:
       - "none"
       - "block"
     default: "none"
+    required: true
     visible:
       and: 
         - not:
@@ -702,6 +703,7 @@ variables:
     title: "NFS scratch space mount point"
     description: "Path to NFS share"
     default: "/nfs/scratch"
+    required: true
     type: string
     visible:
       and:
@@ -712,7 +714,6 @@ variables:
     title: "Use Existing VCN"
     description: "Use existing VCN or create new one"
     default: false
-    required: true
   vcn_compartment:
     title: "VCN compartment"
     type: oci:identity:compartment:id
@@ -735,6 +736,7 @@ variables:
       vcnId: ${vcn_id}
       hidePrivateSubnet: true
     visible: ${use_existing_vcn}
+    required: true
   private_subnet_id:
     type: oci:core:subnet:id
     dependsOn:
@@ -742,6 +744,7 @@ variables:
       vcnId: ${vcn_id}
       hidePublicSubnet: true
     visible: ${use_existing_vcn}
+    required: true
   vcn_subnet:
     type: string
     title: "VCN IP range"
@@ -769,6 +772,12 @@ variables:
     visible:
       not:
         - ${use_existing_vcn}
+  rdma_subnet:
+    type: string
+    title: "RDMA subnet IP range"
+    default: "192.168.168.0/22"
+    description: "Must be the same size as private subnet"
+    required: true
   private_subnet:
     type: string
     title: "Private subnet IP range"
@@ -784,9 +793,9 @@ variables:
     default: "0.0.0.0/0"
     description: "Allowed SSH network in CIDR notation"
     required: true
-    visible:
-      not:
-        - ${use_existing_vcn}
+#   visible:
+#     not:
+#       - ${use_existing_vcn}
   slurm:
     type: boolean
     title: "Install SLURM"
@@ -797,6 +806,7 @@ variables:
     type: String
     title: "Queue Name"
     default: "compute"
+    required: true
     description: "Add the permanent cluster to a specific queue, workq is the default queue" 
     visible:
         - ${slurm}
@@ -876,6 +886,7 @@ variables:
     description: "Compartment to add the FSS Mount Target and File System"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
+    required: true
     visible: 
       and:
         - ${add_nfs}
@@ -892,6 +903,7 @@ variables:
     default: ${ad}
     description: "FSS Availability Domain"
     title: "FSS Availability Domain"
+    required: true
         
   nfs_target_path:
     type: string
@@ -901,10 +913,12 @@ variables:
     visible: 
       and:
         - ${add_nfs}
+    required: true
   nfs_source_IP:
     type: string
     title: "NFS server IP"
     default: "0.0.0.0"
+    required: true
     description: "IP address of the NFS server"
     visible: 
       and:
@@ -917,6 +931,7 @@ variables:
     default: "/app"
     description: "Value of the path on the NFS server"
     visible: ${add_nfs}
+    required: true
   nfs_options:
     type: string
     title: "Options"
@@ -931,16 +946,17 @@ variables:
     type: string
     title: "MySQL Shape Name"
     default: "MySQL.VM.Standard.E3.1.16GB"
+    required: true
     description: "MySQL Shape Name"
     visible: 
       and:
         - ${autoscaling_mysql_service} 
     
-
   admin_username:
     type: string
     title: "MySQL Monitoring username"
     default: "admin"
+    required: true
     description: ""
     visible: 
       and:
@@ -953,6 +969,7 @@ variables:
     visible: 
       and:
         - ${autoscaling_mysql_service}
+    required: true
 
   autoscaling_monitoring:
     type: boolean
