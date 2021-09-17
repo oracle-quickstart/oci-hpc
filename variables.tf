@@ -2,7 +2,7 @@ variable "region" {}
 variable "tenancy_ocid" {} 
 variable "targetCompartment" {} 
 variable "ad" {}
-variable "ssh_key" {}
+variable "ssh_key" { }
 variable "cluster_network" { default = true } 
 variable "use_custom_name" { default = false }
 variable "cluster_name" { default = "" }
@@ -157,3 +157,4 @@ variable "admin_password" {
   type = string
   default = "Monitor2021!"
 }
+

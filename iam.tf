@@ -32,5 +32,4 @@ resource "oci_identity_dynamic_group" "cluster_group" {
     description = "Dynamic group for cluster ${local.cluster_name}"
     name = local.dynamic_group_name
     matching_rule = "Any { instance.id = '${oci_core_instance.bastion.id}' }"
-    ]
 }
