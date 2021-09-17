@@ -190,6 +190,7 @@ variables:
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
+    required: true
   bastion_ocpus:
     type: integer
     description: Number of OCPU's for flex shape
