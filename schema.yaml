@@ -159,6 +159,7 @@ variables:
   ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key"
+    description: "Public SSH key"
     required: true
   use_custom_name:
     type: boolean
@@ -989,3 +990,4 @@ variables:
       and:
         - ${autoscaling}
         - ${autoscaling_monitoring}
+
