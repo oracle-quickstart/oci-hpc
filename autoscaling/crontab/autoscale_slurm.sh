@@ -24,6 +24,23 @@ def getClusters():
     out = subprocess.Popen(['sinfo','-r','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
+    
+def getIdleTime(node):
+    out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
+    stdout,stderr = out.communicate()
+    last_end_time = None
+    try:
+        last_end_time = datetime.datetime.strptime(stdout.strip(),"%Y-%m-%dT%H:%M:%S")
+    except:
+        pass
+    out = subprocess.Popen(["scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
+    stdout,stderr = out.communicate()
+    cluster_start_time=datetime.datetime.strptime(stdout.split("\n")[0].split("=")[1],"%Y-%m-%dT%H:%M:%S")
+    if last_end_time is None:
+        right_time=cluster_start_time
+    else:
+        right_time=max([cluster_start_time,last_end_time])
+    return ( datetime.datetime.now() - right_time ).total_seconds()
 
 def getIdleTime(node):
     out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
