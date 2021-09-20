@@ -1,5 +1,0 @@
----
-- name: delete temporary key
-  file: 
-    path: /tmp/munge.key
-    state: absent
