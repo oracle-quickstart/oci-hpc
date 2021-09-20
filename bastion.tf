@@ -36,8 +36,8 @@ resource "oci_core_instance" "bastion" {
   display_name        = "${local.cluster_name}-bastion"
 
   freeform_tags = {
-    "cluster_name" = "local.cluster_name"
-    "parent_cluster" = "local.cluster_name"
+    "cluster_name" = local.cluster_name
+    "parent_cluster" = local.cluster_name
   }
 
   metadata = {
@@ -172,6 +172,8 @@ resource "null_resource" "cluster" {
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
+      rdma_network = cidrhost(var.rdma_subnet, 0),
+      rdma_netmask = cidrnetmask(var.rdma_subnet),
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       home_nfs = var.home_nfs,
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,

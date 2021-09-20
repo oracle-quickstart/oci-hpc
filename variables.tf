@@ -2,12 +2,12 @@ variable "region" {}
 variable "tenancy_ocid" {} 
 variable "targetCompartment" {} 
 variable "ad" {}
-variable "ssh_key" {}
+variable "ssh_key" { }
 variable "cluster_network" { default = true } 
-variable "use_custom_name" {}
+variable "use_custom_name" { default = false }
 variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
-variable "bastion_shape" {}
+variable "bastion_shape" { default = "VM.Standard2.4" }
 variable "use_standard_image" { default= true }
 variable "custom_bastion_image" { 
   type = string
@@ -16,9 +16,9 @@ variable "custom_bastion_image" {
 variable "bastion_boot_volume_size" {}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
-variable "node_count" {}
-variable "boot_volume_size" {}
-variable "use_marketplace_image" {}
+variable "node_count" { default = 2 }
+variable "boot_volume_size" { default = 50 }
+variable "use_marketplace_image" { default = true}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "unsupported_bastion_image" { default = "" } 
@@ -28,13 +28,14 @@ variable "cluster_nfs_path" { default = "/nfs/cluster" }
 variable "scratch_nfs_path" { default = "/nfs/scratch" } 
 variable "vcn_compartment" { default = ""}
 variable "vcn_id" { default = ""}
-variable "use_existing_vcn" {}
+variable "use_existing_vcn" { default = false}
 variable "public_subnet_id" { default = ""}
 variable "private_subnet_id" { default = ""}
-variable "vcn_subnet" { default = "" }
-variable "public_subnet" { default = "" }
-variable "additional_subnet" { default = "" }
-variable "private_subnet" { default = "" }
+variable "vcn_subnet" { default = "172.16.0.0/21" }
+variable "public_subnet" { default = "172.16.0.0/24" }
+variable "additional_subnet" { default = "172.16.1.0/24" }
+variable "rdma_subnet" { default = "192.168.168.0/22" }
+variable "private_subnet" { default = "172.16.4.0/22" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "ldap" { default = true } 
@@ -156,3 +157,4 @@ variable "admin_password" {
   type = string
   default = "Monitor2021!"
 }
+
