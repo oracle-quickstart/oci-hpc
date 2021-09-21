@@ -42,19 +42,6 @@ def getIdleTime(node):
         right_time=max([cluster_start_time,last_end_time])
     return ( datetime.datetime.now() - right_time ).total_seconds()
 
-def getIdleTime(node):
-    out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
-    stdout,stderr = out.communicate()
-    last_end_time = None
-    try:
-        last_end_time = datetime.datetime.strptime(stdout.strip(),"%Y-%m-%dT%H:%M:%S")
-        return ( datetime.datetime.now() - last_end_time ).total_seconds()
-    except:
-        out = subprocess.Popen(["scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
-        stdout,stderr = out.communicate()
-        cluster_start_time=datetime.datetime.strptime(stdout.split("\n")[0].split("=")[1],"%Y-%m-%dT%H:%M:%S")
-        return ( datetime.datetime.now() - cluster_start_time ).total_seconds()
-
 # Get the last time a node state was changed. This is used to get how long a cluster has been idle for
 def getQueueConf(file):
     with open(queues_conf_file) as file:
