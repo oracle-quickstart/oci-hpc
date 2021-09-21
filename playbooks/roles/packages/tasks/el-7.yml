@@ -5,10 +5,17 @@
       - pyOpenSSL
       - python2-cryptography
     state: latest
-
+  register: packages_output
+  retries: 5
+  delay: 10
+  until: packages_output is not failed
 
 - name: Make sure python3-oci-cli is installed
   yum:
     name:
       - python3-oci-cli
     state: latest
+  register: oci_cli_output
+  retries: 5
+  delay: 10
+  until: oci_cli_output is not failed
