@@ -107,7 +107,6 @@
     mysql_root_pwd: "{{ admin_password }}"
   when: autoscaling_mysql_service | bool
 
-
 - name: Generate mysql_service_initial file
   template: 
     src: mysql_service_initial.j2
@@ -128,7 +127,7 @@
     login_password: "{{ mysql_root_pwd }}"
     name: logger
     password: Monitor2021!
-    priv: cluster_log.*:SELECT,INSERT,UPDATE
+    priv: cluster_log.*:SELECT,INSERT,UPDATE,DELETE
     state: present
   when: not autoscaling_mysql_service | bool
 
