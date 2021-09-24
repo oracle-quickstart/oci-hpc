@@ -326,7 +326,7 @@ resource "null_resource" "cluster" {
   }
 
   provisioner "file" {
-    content     = var.api_user_key
+    content     = base64decode(var.api_user_key)
     destination   = "/opt/oci-hpc/autoscaling/credentials/key.initial" 
     connection {
       host        = oci_core_instance.bastion.public_ip
