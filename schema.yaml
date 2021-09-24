@@ -62,7 +62,6 @@ variableGroups:
       - ${api_user_ocid}
       - ${api_fingerprint}
       - ${api_user_key}
-    visible: ${autoscaling}
   - title: "Monitoring"
     variables: 
       - ${autoscaling_mysql_service}
@@ -838,12 +837,9 @@ variables:
     
   inst_prin:
     type: boolean
-    title: "Use Instance Principal" 
-    description: "You will need to set a dynamic group and policy to allow the bastion to authenticate " 
+    title: "Use Instance Principal (required for autoscaling)" 
+    description: "You will need to set a dynamic group and policy to allow the bastion to authenticate. This will not be created automatically." 
     default: true
-    visible:
-      and:
-        - ${autoscaling}
 
   api_user_key:
     type: file
