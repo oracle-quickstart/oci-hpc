@@ -156,6 +156,7 @@ variables:
     required: true
     description: "Availability Domain"
     title: "Availability Domain"
+    
   ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key"
@@ -174,10 +175,12 @@ variables:
   cluster_name:
     title: "Name of the cluster"
     description: "Custom cluster name"
+    default: ""
     type: string
     visible:
       and:
         - ${use_custom_name}
+    required: true
   bastion_ad:
     type: oci:identity:availabilitydomain:name
     dependsOn:
@@ -186,7 +189,7 @@ variables:
     required: true
     description: "Availability Domain for bastion host"
     title: "Availability Domain"
-    default: ${ad}
+    #default: ${ad}
   bastion_shape:
     type: oci:core:instanceshape:name
     dependsOn:
@@ -313,6 +316,7 @@ variables:
               - ${use_standard_image}
           - not: 
               - ${unsupported_bastion}
+    required: true
 
   custom_bastion_image:
     title: "Bastion Image ID"
@@ -326,6 +330,7 @@ variables:
               - ${use_standard_image}
           - not: 
               - ${unsupported_bastion}
+    required: true
 
   bastion_boot_volume_size:
     type: integer
@@ -720,6 +725,7 @@ variables:
     type: oci:identity:compartment:id
     visible: ${use_existing_vcn}
     default: ${targetCompartment}
+    required: true
   vcn_id:
     type: oci:core:vcn:id
     visible:
@@ -811,6 +817,7 @@ variables:
     description: "Add the permanent cluster to a specific queue, workq is the default queue" 
     visible:
         - ${slurm}
+
   spack:
     type: boolean
     title: "Install Spack package manager"
@@ -839,12 +846,13 @@ variables:
         - ${autoscaling}
 
   api_user_key:
-    type: string
-    title: "API key"
+    type: file
+    title: "API private key"
     default: ""
     visible:
       not:
         - ${inst_prin}
+    required: true
 
   api_fingerprint:
     type: string
@@ -853,6 +861,7 @@ variables:
     visible:
       not:
         - ${inst_prin}
+    required: true
 
   api_user_ocid:
     type: string
@@ -861,6 +870,7 @@ variables:
     visible:
       not:
         - ${inst_prin}
+    required: true
         
   configure: 
     type: boolean
@@ -943,6 +953,7 @@ variables:
         - ${add_nfs} 
         - not:
           - ${create_ffs}
+    required: true
   monitoring_shape_name:
     type: string
     title: "MySQL Shape Name"
