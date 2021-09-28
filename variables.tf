@@ -93,9 +93,9 @@ variable "cluster_block_volume_size" { default = "1000" }
 variable "cluster_block_volume_performance" { default = "10. Balanced performance"}
 
 variable "inst_prin" { default = true}
-variable "api_user_key" { default = "None"}
-variable "api_fingerprint" { default = "None"}
-variable "api_user_ocid" { default = "None"} 
+variable "api_user_key" { default = ""}
+variable "api_fingerprint" { default = ""}
+variable "api_user_ocid" { default = ""} 
 variable "home_nfs" { default = true } 
 variable "configure" { default = true }
 
