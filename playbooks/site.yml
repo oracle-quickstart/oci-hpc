@@ -183,6 +183,7 @@
     destroy: false
     initial: true
     download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+    resize: false
   vars_files:
     - "/opt/oci-hpc/autoscaling/queues.conf"
   tasks: 

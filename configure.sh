@@ -20,7 +20,6 @@ else
   inventory="/etc/ansible/hosts"
 fi
 
-ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
 if [ -f /opt/oci-hpc/playbooks/inventory ] ; then 
   sudo mv /opt/oci-hpc/playbooks/inventory /etc/ansible/hosts
@@ -37,28 +36,7 @@ if [[ $configure != true ]] ; then
         exit
 fi
 
-#
-# A little waiter function to make sure all the nodes are up before we start configure
-#
-
-echo "Waiting for SSH to come up"
-
-for host in $(cat /tmp/hosts) ; do
-  r=0
-  echo "validating connection to: ${host}"
-  while ! ssh ${ssh_options} ${host} uptime ; do
-
-        if [[ $r -eq 30 ]] ; then
-                  execution=0
-                  break
-        fi
-
-          echo "Still waiting for ${host}"
-          sleep 60
-          r=$(($r + 1))
-
-  done
-done
+/opt/oci-hpc/bin/wait_for_hosts.sh /tmp/hosts
 
 # Update the forks to a 8 * threads
 

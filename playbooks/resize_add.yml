@@ -1,15 +1,4 @@
-
-- hosts: compute
-  become: true
-  gather_facts: true
-  vars: 
-    initial: false
-  tasks: 
-    - include_role:  
-        name: hostname
-      when: slurm and autoscaling | default(false) | bool
-
-- hosts: compute
+- hosts: compute_to_add
   become: true
   vars: 
     destroy: false
@@ -22,16 +11,16 @@
     - ssh
     - localdisk
     - limits
-    - mpi-hostfiles
 
 - hosts: bastion,compute
   become: true
   vars: 
     destroy: false
-    initial: false
+    initial: true
   gather_facts: true
   roles: 
     - etc-hosts
+    - mpi-hostfiles
       
 - hosts: nfs
   become: true
@@ -49,7 +38,7 @@
         name: nfs-server
       when: scratch_nfs|default(true)|bool
 
-- hosts: compute
+- hosts: compute_to_add
   become: true
   
   tasks: 
@@ -72,15 +61,17 @@
         lock: "none" 
       when: scratch_nfs|default(true)|bool
 
-- hosts: compute
+- hosts: compute_to_add
   become: true
-
   tasks:
     - include_role:
         name: sssd
       when: ldap|default(true)|bool
+    - include_role: 
+        name: spack
+      when: spack|default(false)|bool
 
-- hosts: compute
+- hosts: compute_to_add
   become: true
   gather_facts: true
   tasks: 
@@ -89,7 +80,8 @@
     - include_role: 
         name: hyperthreading
       when: not hyperthreading|default(true)|bool 
-- hosts: compute
+
+- hosts: compute_to_add
   become: true
   tasks:
     - include_role:
@@ -121,17 +113,14 @@
 #    - include_role: 
 #        name: grafana#
 
-- hosts: compute
+- hosts: bastion,compute
   vars:
     destroy: false
-    initial: false
+    initial: true
     download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
   vars_files:
     - "/opt/oci-hpc/autoscaling/queues.conf"
   tasks:
-    - include_role: 
-        name: spack
-      when: spack|default(false)|bool
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool

@@ -1,16 +1,16 @@
 [bastion]
 ${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion
-[compute]
+[compute_to_add]
+[compute_configured]
 %{ for host, ip in compute ~}
 ${host} ansible_host=${ip} ansible_user=${compute_username} role=compute
 %{ endfor ~}
+[compute_to_destroy]
 [nfs]
-%{ if nfs != "" }
-${nfs} ansible_user=${compute_username} role=nfs
-%{ endif }
-[all:children]
-bastion
-compute
+%{ if nfs != "" }${nfs} ansible_user=${compute_username} role=nfs%{ endif }
+[compute:children]
+compute_to_add
+compute_configured
 [all:vars]
 ansible_connection=ssh
 rdma_network=${rdma_network}
