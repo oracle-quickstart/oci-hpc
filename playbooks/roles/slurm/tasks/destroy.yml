@@ -1,5 +1,5 @@
 ---
 - name: change Node Status
   become: true
-  command: "scontrol update nodename={{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}} state=future reason=terminating"
+  command: "scontrol update nodename={{ ansible_hostname }} state=future reason=terminating"
   ignore_errors: force
