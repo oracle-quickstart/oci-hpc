@@ -28,4 +28,4 @@
 
 - name: destroy
   include_tasks: destroy.yml
-  when: ('compute' in group_names) and (destroy|bool)
+  when: ('compute' in group_names or 'compute_to_destroy' in group_names) and (destroy|bool)

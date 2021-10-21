@@ -20,7 +20,7 @@
 #        enabled: yes
 #        retries: 3
       
-- name: install SLURM server packages
+- name: install SLURM compute packages
   become: true
   yum:
     enablerepo: "epel,ol7_developer_EPEL"
@@ -138,7 +138,7 @@
   delay: 10
   register: result
   until: result.rc == 0
-  when: not initial | bool
+  when: not ( initial | bool )
 
 - name: Update feature on compute node for permanent cluster
   become: true

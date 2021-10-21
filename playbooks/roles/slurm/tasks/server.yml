@@ -70,7 +70,6 @@
     - slurmctld
 
 - block:
-
     - name: Create {{ cluster_nfs_path }}/spool/slurm
       become: true
       file:
@@ -80,7 +79,6 @@
         group: 'slurm'
         mode: '0750'
         recurse: yes
-
 
     - name: Create munge.key
       become: true
