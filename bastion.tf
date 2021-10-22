@@ -367,7 +367,8 @@ resource "null_resource" "cluster" {
       "chmod a+x /opt/oci-hpc/autoscaling/slurm_config.sh",
       "chmod a+x /opt/oci-hpc/bin/wait_for_hosts.sh",
       "echo ${var.configure} > /tmp/configure.conf",
-      "timeout 2h /opt/oci-hpc/bin/configure.sh"
+      "timeout 2h /opt/oci-hpc/bin/configure.sh",
+      "echo 'alias resize=\"python3 /opt/oci-hpc/bin/resize.py\"' >> ~/.bashrc"
       ]
     connection {
       host        = oci_core_instance.bastion.public_ip
