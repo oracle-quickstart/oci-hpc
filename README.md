@@ -10,16 +10,6 @@ allow service compute_management to manage compute-management-family in tenancy
 allow service compute_management to read app-catalog-listing in tenancy
 allow group user to manage all-resources in compartment compartmentName
 ```
-
-## What is cluster resizing (resize.py) ?
-TODO
-
-## What is cluster autoscaling ?
-TODO
-
-## How is resizing different from autoscaling ?
-TODO
-
 ## Policies for autoscaling or resizing:
 As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group and give the following policies to it: 
 ```
@@ -37,9 +27,142 @@ or:
 
 `Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName`
 
+## How is resizing different from autoscaling ?
+Autoscaling is the idea of launching new clusters for jobs in the queue. 
+Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
+So while there may be capacity available in the DC, you may not be able to grow your current cluster.  
 
-# Resizing (via resize.py or OCI console)
-TODO
+# Cluster Network Resizing (via resize.py)
+
+Cluster resizing refers to ability to add or remove nodes from an existing cluster network.  It only applies to nodes with RDMA RoCEv2 (aka: cluster network) NICs, so HPC clusters created using BM.HPC2.36, BM.Optimized3.36 and BM.GPU4.8.  Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
+
+Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
+- Add/Remove node (IaaS provisioning) to cluster – uses OCI Python SDK 
+- Configure the nodes (uses Ansible)
+  -  Configures newly added nodes to be ready to run the jobs
+  -  Reconfigure services like Slurm to recognize new nodes on all nodes
+  -  Update rest of the nodes, when any node/s are removed (eg: Slurm config, /etc/hosts, etc.)
+
+  Cluster created by the autoscaling script can also be resized by using the flag --cluster_name cluster-1-hpc
+ 
+## resize.py usage 
+
+The resize.py is deployed on the bastion node as part of the HPC cluster Stack deployment.  
+
+```
+python3 /opt/oci-hpc/bin/resize.py -h
+usage: resize.py [-h] [--compartment_ocid COMPARTMENT_OCID]
+                 [--cluster_name CLUSTER_NAME] [--nodes NODES [NODES ...]]
+                 [--no_reconfigure] [--user_logging] [--force]
+                 [{add,remove,list,reconfigure}] [number]
+
+Script to resize the CN
+
+positional arguments:
+  {add,remove,list,reconfigure}
+                        Mode type. add/remove node options, implicitly
+                        configures newly added nodes. Also implicitly
+                        reconfigure/restart services like Slurm to recognize
+                        new nodes. Similarly for remove option, terminates
+                        nodes and implicitly reconfigure/restart services like
+                        Slurm on rest of the cluster nodes to remove reference
+                        to deleted nodes.
+  number                Number of nodes to add or delete if a list of
+                        hostnames is not defined
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --compartment_ocid COMPARTMENT_OCID
+                        OCID of the compartment, defaults to the Compartment
+                        OCID of the localhost
+  --cluster_name CLUSTER_NAME
+                        Name of the cluster to resize. Defaults to the name
+                        included in the bastion
+  --nodes NODES [NODES ...]
+                        List of nodes to delete
+  --no_reconfigure      If present. Does not rerun the playbooks
+  --user_logging        If present. Use the default settings in ~/.oci/config
+                        to connect to the API. Default is using
+                        instance_principal
+  --force               If present. Nodes will be removed even if the destroy
+                        playbook failed
+
+```
+
+**Add nodes** 
+
+Consist of the following sub-steps:
+- Add node (IaaS provisioning) to cluster – uses OCI Python SDK 
+- Configure the nodes (uses Ansible)
+  -  Configures newly added nodes to be ready to run the jobs
+  -  Reconfigure services like Slurm to recognize new nodes on all nodes
+
+Add one node 
+```
+python3 /opt/oci-hpc/bin/resize.py add 1
+
+```
+
+Add three nodes
+```
+python3 /opt/oci-hpc/bin/resize.py add 3
+
+```
+
+
+**Remove nodes** 
+
+Consist of the following sub-steps:
+- Remove node/s (IaaS termination) from cluster – uses OCI Python SDK 
+- Reconfigure rest of the nodes in the cluster  (uses Ansible)
+  -  Remove reference to removed node/s on rest of the nodes (eg: update /etc/hosts, slurm configs, etc.)
+ 
+
+Remove specific node:  
+```
+python3 /opt/oci-hpc/bin/resize.py remove --nodes inst-dpi8e-assuring-woodcock
+```
+or 
+
+Remove a list of nodes (space seperated):  
+```
+python3 /opt/oci-hpc/bin/resize.py remove --nodes inst-dpi8e-assuring-woodcock inst-ed5yh-assuring-woodcock
+```
+or 
+Remove one node randomly:  
+```
+python3 /opt/oci-hpc/bin/resize.py remove 1
+```
+or 
+Remove 3 nodes randomly:  
+```
+python3 /opt/oci-hpc/bin/resize.py remove 3
+
+```
+
+**Reconfigure nodes** 
+
+This allows users to reconfigure nodes (Ansible tasks) of the cluster.  
+
+Full reconfiguration of all nodes of the cluster.   This will run the same steps, which are ran when a new cluster is created.   If you manually updated configs which are created/updated as part of cluster configuration, then this command will overwrite your manual changes.   
+
+```
+python3 /opt/oci-hpc/bin/resize.py reconfigure
+```
+
+#If you would like to fully reconfigure ONLY a specific node/nodes (space seperated).
+
+#```
+# python3 /opt/oci-hpc/bin/resize.py  reconfigure [--nodes NODES [NODES ...]]
+# Example:  python3 /opt/oci-hpc/bin/resize.py reconfigure --nodes inst-gsezk-topical-goblin #inst-jvpps-topical-goblin 
+#```
+
+
+
+## Resizing (via OCI console)
+**Things to consider:**  
+- If you resize from OCI console to reduce cluster network/instance pool size(scale down),  the OCI platform decides which node to terminate (oldest node first)
+- OCI console only resizes the Cluster Network/Instance Pool, but it doesn't execute the ansible tasks (HPC Cluster Stack) required to configure the newly added nodes or to update the existing nodes when a node is removed (eg: updating /etc/hosts, slurm config, etc).   
 
 
 # Autoscaling
