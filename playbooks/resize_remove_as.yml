@@ -12,10 +12,11 @@
 
 - hosts: compute_to_destroy
   become: true
-  gather_facts: true
   vars:
     destroy: true
     initial: false
+  vars_files:
+    - "/opt/oci-hpc/autoscaling/queues.conf"
   tasks:
     - include_role: 
         name: slurm

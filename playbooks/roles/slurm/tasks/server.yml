@@ -164,3 +164,12 @@
     path: /home/opc/.bashrc
     line: alias status='tail /opt/oci-hpc/autoscaling/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
     state: present
+
+- name: Generate topology.conf
+  become: true
+  template: 
+    src: topology.conf.j2
+    dest: /etc/slurm/topology.conf
+    mode: '0644'
+    force: no
+  delegate_to: 127.0.0.1

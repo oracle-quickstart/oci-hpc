@@ -1,10 +1,10 @@
 ---
 #- name: install Slurm Comon Packages
-#  block:    
+#  block:
 #    - name: install SLURM server packages
 #      become: true
-#      yum: 
-#        name: 
+#      yum:
+#        name:
 #          - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
 #          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
 #          - "{{ download_path }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
@@ -19,7 +19,7 @@
 #        gpgcheck: no
 #        enabled: yes
 #        retries: 3
-      
+
 - name: install SLURM compute packages
   become: true
   yum:
@@ -97,21 +97,21 @@
     owner: 'slurm'
     group: 'slurm'
     mode: '0750'
- 
+
 - name: Copy configuration files
   become: true
-  copy: 
+  copy:
     src: '{{ item }}'
     dest: '{{ slurm_conf_path }}/{{ item }}'
     force: no
     owner: slurm
     group: slurm
-  with_items: 
+  with_items:
     - cgroup.conf
 
 - name: Generate gres.conf
   become: true
-  template: 
+  template:
     src: gres.conf.j2
     dest: /etc/slurm/gres.conf
     mode: '0644'
@@ -124,31 +124,101 @@
     src: /etc/slurm/slurm.conf
     force: yes
 
+- name: Get nodes from Cluster Switch
+  block:
+    - name: Get nodes from topology.conf
+      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}\""
+      register: cluster_switch
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Create existing cluster list
+      set_fact:
+        cluster_list: "{{cluster_switch.stdout.split('Nodes=')[1].split(',')}}"
+  rescue:
+    - name: Create existing cluster list
+      set_fact:
+        cluster_list: []
+
+- name: Get nodes from Inactive Switch
+  shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive_{{queue}}_{{instance_type}}\""
+  register: inactive_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Get hostnames
+  set_fact:
+    nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) }}"
+  run_once: true
+  register: nodes_to_add_temp_results
+
+- name: Make a list
+  set_fact: nodes_to_add="{{nodes_to_add_temp_results.results | map(attribute='ansible_facts.nodes_to_add_temp') | list}}"
+  run_once: true
+
+- name: add nodes to Switch
+  become: true
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName={{cluster_name}}\\sNodes.*"
+    line: "SwitchName={{cluster_name}} Nodes={{cluster_list | union(nodes_to_add) | join(',')}}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: remove nodes from inactive
+  become: true
+  vars:
+    inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName=inactive_{{queue}}_{{instance_type}}\\sNodes.*"
+    line: "SwitchName=inactive_{{queue}}_{{instance_type}} Nodes={{inactive_list | difference(nodes_to_add)  | join(',')}}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: move topology.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/topology.conf
+    src: /etc/slurm/topology.conf
+    force: yes
+
+- name: Update feature on compute node for Autoscaling
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
+
 - name: start slurmd
   become: true
   service:
     name: slurmd
     state: restarted
     enabled: true
- 
+
 - name: Update feature on compute node for Autoscaling
+  vars:
+    max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
   become: true
-  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ instance_type }},{% if instance_type != shape%}{{ shape }}{% endif %}"
+  shell: "scontrol update nodename={{ ansible_hostname }} AvailableFeatures={% for item in range( max_cluster_size | int ) -%}cluster-size-{{ item }},{%- endfor %}{% if shape != instance_type%}{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}; scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }}{% if shape != instance_type%},{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}"
   retries: 20
   delay: 10
   register: result
   until: result.rc == 0
   when: not ( initial | bool )
 
-- name: Update feature on compute node for permanent cluster
+- name: Update feature on compute node for Autoscaling
+  vars:
+    max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
   become: true
-  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
-    cluster-size-{{ item }},{%- endfor %}{{ shape }}"
+  shell: "scontrol update nodename={{ ansible_hostname }} AvailableFeatures={% for item in range( max_cluster_size | int ) -%}cluster-size-{{ item }},{%- endfor %}{% if shape != instance_type%}{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}"  
   retries: 20
   delay: 10
   register: result
   until: result.rc == 0
-  when: initial | bool
+  when:  initial | bool
+
 
 - name: Grab Node State
   shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
@@ -158,7 +228,7 @@
   retries: 10
   delay: 5
 
-- set_fact: 
+- set_fact:
     node_state2={{ node_state.stdout }}
 
 - name: Update node state on bastion

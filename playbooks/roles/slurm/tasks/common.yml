@@ -141,20 +141,20 @@
     mode: 0755
     state: directory
 
-- name: Generate topology.conf
-  become: true
-  template: 
-    src: topology.conf.j2
-    dest: /etc/slurm/topology.conf
-    mode: '0644'
-    backup: yes
-  delegate_to: 127.0.0.1
-  when: initial|bool
+#- name: Generate topology.conf
+#  become: true
+#  template: 
+#    src: topology.conf.j2
+#    dest: /etc/slurm/topology.conf
+#    mode: '0644'
+#    backup: yes
+#  delegate_to: 127.0.0.1
+#  when: initial|bool
 
-- name: move topology.conf on all servers
-  become: true
-  copy:
-    dest: /etc/slurm/topology.conf
-    src: /etc/slurm/topology.conf
-    force: yes
-  when: not destroy|bool
+#- name: move topology.conf on all servers
+#  become: true
+#  copy:
+#    dest: /etc/slurm/topology.conf
+#    src: /etc/slurm/topology.conf
+#    force: yes
+#  when: not destroy|bool

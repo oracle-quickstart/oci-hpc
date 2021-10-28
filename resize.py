@@ -36,9 +36,13 @@ def wait_for_running_status(cluster_name,comp_ocid,cn_ocid,expected_size=None):
             break
     return True
 
-def get_instances(comp_ocid,cn_ocid):
+def get_instances(comp_ocid,cn_ocid,CN):
     cn_instances=[]
-    for instance_summary in oci.pagination.list_call_get_all_results(computeManagementClient.list_cluster_network_instances,comp_ocid,cn_ocid).data:
+    if CN:
+        instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_cluster_network_instances,comp_ocid,cn_ocid).data
+    else:
+        instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_instance_pool_instances,comp_ocid,cn_ocid).data
+    for instance_summary in instance_summaries:
         try:
             instance=computeClient.get_instance(instance_summary.id).data
             vnic_attachment = oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data[0]
@@ -49,7 +53,10 @@ def get_instances(comp_ocid,cn_ocid):
     return cn_instances
 
 def parse_inventory(inventory):
-    inv = open(inventory,"r")
+    try:
+        inv = open(inventory,"r")
+    except:
+        return None
     inventory_dict = {}
     current_section = None
     for line in inv:
@@ -91,6 +98,7 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
     inventory_dict['compute_to_destroy']=[]
     for host in nodes_to_remove:
         compute_to_remove=[]
+        nfs_to_remove=[]
         for line in inventory_dict['compute_configured']:
             if host in line:
                 inventory_dict['compute_to_destroy'].append(line)
@@ -99,8 +107,13 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
             if host in line:
                 inventory_dict['compute_to_destroy'].append(line)
                 compute_to_remove.append(line)
+        for line in inventory_dict['nfs']:
+            if host in line:
+                nfs_to_remove.append(line)
         for line in compute_to_remove:
             inventory_dict['compute_configured'].remove(line)
+        for line in nfs_to_remove:
+            inventory_dict['nfs'].remove(line)
     tmp_inventory_destroy="/tmp/"+inventory.replace('/','_')+"_destroy"
     write_inventory(inventory_dict,tmp_inventory_destroy)
     update_flag = update_cluster(tmp_inventory_destroy,playbook)
@@ -112,8 +125,8 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
         os.system('sudo mv '+tmp_inventory+' '+inventory)
     return update_flag
 
-def add_reconfigure(comp_ocid,cn_ocid,inventory):
-    instances = get_instances(comp_ocid,cn_ocid)
+def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
+    instances = get_instances(comp_ocid,cn_ocid,CN)
     if not os.path.isfile(inventory):
         print("There is no inventory file, are you on the bastion? The cluster has been resized but not reconfigured")
         exit()
@@ -130,8 +143,19 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory):
                 break
         if not configured:
             nodeline=name+" ansible_host="+ip+" ansible_user=opc role=compute\n"
-            inventory_dict['compute_to_add'].append(nodeline)
+            if not specific_hosts is None:
+                if name in specific_hosts:
+                    inventory_dict['compute_to_add'].append(nodeline)
+                else:
+                    inventory_dict['compute_configured'].append(nodeline)
+            else:
+                inventory_dict['compute_to_add'].append(nodeline)
             host_to_wait_for.append(ip)
+    if len(inventory_dict['nfs'])==0:
+        if len(inventory_dict['compute_to_add']) > 0:
+            inventory_dict['nfs'].append(inventory_dict['compute_to_add'][0])
+        elif len(inventory_dict['compute_configured']) > 0:
+            inventory_dict['nfs'].append(inventory_dict['compute_configured'][0])
     hostfile=open("/tmp/hosts",'w')
     hostfile.write("\n".join(host_to_wait_for))
     hostfile.close()
@@ -150,8 +174,8 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory):
         print("The reconfiguration to add the node(s) had an error")
         print("Try rerunning this command: ansible-playbook -i "+tmp_inventory_add+' '+playbooks_dir+"resize_add.yml" )
 
-def reconfigure(comp_ocid,cn_ocid,inventory):
-    instances = get_instances(comp_ocid,cn_ocid)
+def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
+    instances = get_instances(comp_ocid,cn_ocid,CN)
     if not os.path.isfile(inventory):
         print("There is no inventory file, are you on the bastion? Reconfigure did not happen")
         exit()
@@ -166,6 +190,11 @@ def reconfigure(comp_ocid,cn_ocid,inventory):
         nodeline=name+" ansible_host="+ip+" ansible_user=opc role=compute\n"
         inventory_dict['compute_configured'].append(nodeline)
         host_to_wait_for.append(ip)
+    if len(inventory_dict['nfs'])==0:
+        if len(inventory_dict['compute_to_add']) > 0:
+            inventory_dict['nfs'].append(inventory_dict['compute_to_add'][0])
+        elif len(inventory_dict['compute_configured']) > 0:
+            inventory_dict['nfs'].append(inventory_dict['compute_configured'][0])
     hostfile=open("/tmp/hosts",'w')
     hostfile.write("\n".join(host_to_wait_for))
     hostfile.close()
@@ -173,9 +202,13 @@ def reconfigure(comp_ocid,cn_ocid,inventory):
     write_inventory(inventory_dict,tmp_inventory_reconfig)
     if autoscaling:
         playbook=playbooks_dir+"new_nodes.yml"
+        if crucial:
+            playbook=playbooks_dir+"resize_remove_as.yml"
     else:
         playbook=playbooks_dir+"site.yml"
-    update_flag = update_cluster(tmp_inventory_reconfig,playbook,hostfile="/tmp/hosts")
+        if crucial:
+            playbook=playbooks_dir+"resize_remove.yml"
+    update_flag = update_cluster(tmp_inventory_reconfig,playbook,hostfile="/tmp/hosts",crucial=crucial)
     if update_flag == 0:
         os.system('sudo mv '+tmp_inventory_reconfig+' '+inventory)
     else:
@@ -224,6 +257,35 @@ def update_cluster(inventory,playbook,hostfile=None):
         #if mode == 'remove':
         #    print("Command:  python3 playbooks/resize.py reconfigure --slurm_only_update true ")
 
+def getNFSnode(inventory):
+    dict = parse_inventory(inventory)
+    if dict is None:
+        return ''
+    return dict['nfs'][0].split()[0]
+
+def get_summary(comp_ocid,cluster_name):
+    CN = True
+    cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
+    if len(cn_summaries) == 0:
+        cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
+        if len(cn_summaries) > 0:
+            CN = False
+        else:
+            print("The cluster was not found")
+    running_clusters = 0
+    for cn_summary_tmp in cn_summaries:
+        if cn_summary_tmp.lifecycle_state == "RUNNING":
+            cn_summary = cn_summary_tmp
+            running_clusters = running_clusters + 1
+    if running_clusters == 0:
+        print("The cluster was not found")
+    elif running_clusters > 1:
+        print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
+    if CN:
+        ip_summary=cn_summary.instance_pools[0]
+    else:
+        ip_summary=cn_summary
+    return cn_summary,ip_summary,CN
 batchsize=12
 inventory="/etc/ansible/hosts"
 playbooks_dir="/opt/oci-hpc/playbooks/"
@@ -237,6 +299,7 @@ parser.add_argument('--nodes', help="List of nodes to delete",nargs='+')
 parser.add_argument('--no_reconfigure', help='If present. Does not rerun the playbooks',action='store_true',default=False)
 parser.add_argument('--user_logging', help='If present. Use the default settings in ~/.oci/config to connect to the API. Default is using instance_principal',action='store_true',default=False)
 parser.add_argument('--force', help='If present. Nodes will be removed even if the destroy playbook failed',action='store_true',default=False)
+parser.add_argument('--ansible_crucial', help='If present during reconfiguration, only crucial ansible playbooks will be executed on the live nodes. Non live nodes will be removed',action='store_true',default=False)
 
 args = parser.parse_args()
 print(args)
@@ -286,6 +349,11 @@ if args.force is None:
 else:
     force=args.user_logging
 
+if args.ansible_crucial is None:
+    ansible_crucial=False
+else:
+    ansible_crucial=args.ansible_crucial
+
 if user_logging:
     config_oci = oci.config.from_file()
     computeClient = oci.core.ComputeClient(config_oci)
@@ -299,29 +367,28 @@ else:
     ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
     virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
 
-cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
-running_clusters = 0
-for cn_summary_tmp in cn_summaries:
-    if cn_summary_tmp.lifecycle_state == "RUNNING":
-        cn_summary = cn_summary_tmp
-        running_clusters = running_clusters + 1
-if running_clusters == 0:
-    print("The cluster was not found")
-elif running_clusters > 1:
-    print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
-
+cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
 cn_ocid =cn_summary.id
-ipa_ocid = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data[0].instance_pools[0].id
-current_size = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data[0].instance_pools[0].size
+current_size=ip_summary.size
+if CN:
+    ipa_ocid = cn_summary.instance_pools[0].id
+else:
+    ipa_ocid = cn_ocid
 
 if args.mode == 'list':
-    state=computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data[0].lifecycle_state
+    cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
+    state = cn_summary.lifecycle_state
+
     print("Cluster is in state:"+state )
-    cn_instances = get_instances(comp_ocid,cn_ocid)
+    cn_instances = get_instances(comp_ocid,cn_ocid,CN)
     for cn_instance in cn_instances:
         print(cn_instance['display_name']+' '+cn_instance['ip'])
 elif args.mode == 'reconfigure':
-    reconfigure(comp_ocid,cn_ocid,inventory)
+    if len(hostnames)>0:
+        add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=hostnames)
+    else:
+        reconfigure(comp_ocid,cn_ocid,inventory,CN,crucial=ansible_crucial)
+
 else:
     wait_for_running_status(cluster_name,comp_ocid,cn_ocid)
     if args.mode == 'add':
@@ -329,11 +396,16 @@ else:
         update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
         ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'])
         if not no_reconfigure:
-            add_reconfigure(comp_ocid,cn_ocid,inventory)
+            add_reconfigure(comp_ocid,cn_ocid,inventory,CN)
     elif args.mode == 'remove':
         if len(hostnames) == 0:
-            cn_instances = get_instances(comp_ocid,cn_ocid)
-            hostnames=[cn_instances[i]['display_name'] for i in range(len(cn_instances)-args.number,len(cn_instances))]
+            cn_instances = get_instances(comp_ocid,cn_ocid,CN)
+            nfsNode=getNFSnode(inventory)
+            non_nfs=[i for i in cn_instances if i['display_name'] != nfsNode]
+            if args.number < len(cn_instances):
+                hostnames=[non_nfs[i]['display_name'] for i in range(len(non_nfs)-args.number,len(non_nfs))]
+            else:
+                hostnames=[cn_instances[i]['display_name'] for i in range(len(cn_instances))]
         if not no_reconfigure:
             if autoscaling:
                 playbook = playbooks_dir+"resize_remove_as.yml"
@@ -366,8 +438,9 @@ else:
             hostnames=hostnames[batchsize:]
             if len(hostnames)>0:
                 time.sleep(100)
-        newsize = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data[0].instance_pools[0].size
+        cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
+        newsize=ip_summary.size
         print("Resized to "+str(newsize)+" instances")
         if error_code != 0 and force:
             print("The nodes were forced deleted, trying to reconfigure the left over nodes")
-            reconfigure(comp_ocid,cn_ocid,inventory)
+            reconfigure(comp_ocid,cn_ocid,inventory,CN)

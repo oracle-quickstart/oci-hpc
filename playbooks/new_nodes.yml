@@ -4,6 +4,8 @@
   gather_facts: true
   vars: 
     initial: false
+  vars_files:
+    - "/opt/oci-hpc/autoscaling/queues.conf"
   tasks: 
     - include_role:  
         name: hostname

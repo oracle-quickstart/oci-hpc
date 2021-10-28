@@ -2,6 +2,8 @@
   become: true
   vars: 
     destroy: false
+  vars_files:
+    - "/opt/oci-hpc/autoscaling/queues.conf"
   gather_facts: true
   roles: 
     - packages
