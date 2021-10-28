@@ -21,9 +21,14 @@ def getJobs():
     return stdout.split("\n")[1:]
 
 def getClusters():
-    out = subprocess.Popen(['sinfo','-r','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['sinfo','-h','-r','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
-    return stdout.split("\n")[1:]
+    return stdout.split("\n")
+
+def getNodeDetails(node):
+    out = subprocess.Popen(['sinfo','-h','-n',node,'-o','\"%f %R\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout,stderr = out.communicate()
+    return stdout.split("\n")[0]
     
 def getIdleTime(node):
     out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
@@ -123,10 +128,6 @@ def getstatus_slurm():
                 features=line.split()[2].split('&')
                 instanceType= None
                 possible_types=[inst_type["name"] for inst_type in getQueue(config,queue)["instance_types"]]
-                if len(features)>1:
-                    if features[-2] in possible_types:
-                        instanceType=feature
-                        break
                 default_config=getDefaultsConfig(config,queue)
                 if instanceType is None:
                     instanceType = default_config["instance_type"]
@@ -169,10 +170,13 @@ def getstatus_slurm():
                 node=node[:-1]
             if node[0]=="\"":
                 node=node[1:]
-            clustername = '-'.join(node.split('[')[0].split('-')[:-2])
-            queue = clustername.split('-')[0]
-            instance_keyword='-'.join(clustername.split('-')[2:])
-            instanceType=getInstanceType(config,queue,instance_keyword)
+            details=getNodeDetails(node).split(' ')
+            features=details[0].split(',')
+            queue=details[-1]
+            for feature in features:
+              if feature.starswith('CLUSTER_NAME_'):
+                clustername=feature.split('CLUSTER_NAME_')[1]
+            instanceType=features[-1]
             if queue in current_nodes.keys():
                 if instanceType in current_nodes[queue].keys():
                     current_nodes[queue][instanceType]+=1
@@ -211,8 +215,6 @@ def getstatus_slurm():
         clusterNumber=int(clusterName.split('-')[1])
         queue=clusterName.split('-')[0]
         instanceType=getInstanceType(config,queue,instance_keyword)
-        if queue == "inst": # For permanent nodes
-            continue
         try:
             if clusterNumber in available_names[queue][instanceType]:
                 available_names[queue][instanceType].remove(clusterNumber)
@@ -301,7 +303,7 @@ try:
             print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit"
         else:
             current_nodes[queue][instance_type]+=nodes
-            print "Creating cluster "+clusterName+"with "+str(nodes)+" nodes"
+            print "Creating cluster "+clusterName+" with "+str(nodes)+" nodes"
             subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
             time.sleep(5)
     

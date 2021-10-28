@@ -3,6 +3,25 @@
     - name: compute
       default: true
       instance_types:
+        - name: permanent
+          default: true
+          shape: BM.HPC2.36
+          instance_keyword: permanent
+          permanent: true
+          cluster_network: true
+          max_number_nodes: 1000
+          max_cluster_size: 50
+          max_cluster_count: 100
+          ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
+          image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
+          targetCompartment: ocid1.compartment.oc1.. #TO EDIT
+          boot_volume_size: 50
+          use_marketplace_image: true
+          instance_pool_ocpus: 2
+          instance_pool_memory: 16
+          instance_pool_custom_memory: false
+          marketplace_listing: 1. Oracle Linux 7.8 OFED5.0
+          hyperthreading: true
         - name: HPC
           default: true
           shape: BM.HPC2.36

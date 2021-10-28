@@ -48,3 +48,4 @@ autoscaling_mysql_service=${autoscaling_mysql_service}
 monitoring_mysql_ip=${monitoring_mysql_ip}
 admin_password = ${admin_password}
 admin_username = ${admin_username}
+instance_type=permanent

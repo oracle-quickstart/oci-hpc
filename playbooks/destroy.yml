@@ -3,6 +3,8 @@
   vars:
     destroy: true
     initial: false
+  vars_files:
+    - "/opt/oci-hpc/autoscaling/queues.conf"
   roles:
     - slurm
   when: slurm|default(false)|bool
