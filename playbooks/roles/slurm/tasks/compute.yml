@@ -140,7 +140,9 @@
         cluster_list: []
 
 - name: Get nodes from Inactive Switch
-  shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive_{{queue}}_{{instance_type}}\""
+  vars:
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive_{{queue}}_{{keyword}}\""
   register: inactive_switch
   run_once: true
   delegate_to: 127.0.0.1
@@ -169,11 +171,12 @@
 - name: remove nodes from inactive
   become: true
   vars:
-    inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
+    - inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
   lineinfile:
     path: "/etc/slurm/topology.conf"
-    regexp: "SwitchName=inactive_{{queue}}_{{instance_type}}\\sNodes.*"
-    line: "SwitchName=inactive_{{queue}}_{{instance_type}} Nodes={{inactive_list | difference(nodes_to_add)  | join(',')}}"
+    regexp: "SwitchName=inactive_{{queue}}_{{keyword}}\\sNodes.*"
+    line: "SwitchName=inactive_{{queue}}_{{keyword}} Nodes={{inactive_list | difference(nodes_to_add)  | join(',')}}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
