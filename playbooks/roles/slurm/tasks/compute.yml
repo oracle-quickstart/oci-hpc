@@ -154,7 +154,7 @@
   run_once: true
   register: nodes_to_add_temp_results
 
-- name: Make a list
+- name: Make a list of nodes to add
   set_fact: nodes_to_add="{{nodes_to_add_temp_results.results | map(attribute='ansible_facts.nodes_to_add_temp') | list}}"
   run_once: true
 
