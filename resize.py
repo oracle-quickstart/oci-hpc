@@ -18,10 +18,14 @@ def get_metadata():
     request_url = metadata_url + "v" + metadata_ver + "/instance/"
     return requests.get(request_url, headers=headers).json()
 
-def wait_for_running_status(cluster_name,comp_ocid,cn_ocid,expected_size=None):
+def wait_for_running_status(cluster_name,comp_ocid,cn_ocid,CN,expected_size=None):
     while True:
-        state=computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data[0].lifecycle_state
-        instances=computeManagementClient.list_cluster_network_instances(comp_ocid,cn_ocid).data
+        if CN: 
+            state = computeManagementClient.get_cluster_network(cn_ocid).data.lifecycle_state
+            instances=computeManagementClient.list_cluster_network_instances(comp_ocid,cn_ocid).data
+        else:
+            state = computeManagementClient.get_instance_pool(cn_ocid).data.lifecycle_state
+            instances=computeManagementClient.list_instance_pool_instances(comp_ocid,cn_ocid).data
         if state != 'RUNNING':
             print("Cluster state is "+state+", cannot add or remove nodes")
             print ("Waiting...")
@@ -208,7 +212,7 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
         playbook=playbooks_dir+"site.yml"
         if crucial:
             playbook=playbooks_dir+"resize_remove.yml"
-    update_flag = update_cluster(tmp_inventory_reconfig,playbook,hostfile="/tmp/hosts",crucial=crucial)
+    update_flag = update_cluster(tmp_inventory_reconfig,playbook,hostfile="/tmp/hosts")
     if update_flag == 0:
         os.system('sudo mv '+tmp_inventory_reconfig+' '+inventory)
     else:
@@ -216,7 +220,6 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
         print("Try rerunning this command: ansible-playbook -i "+tmp_inventory_reconfig+' '+inventory )
 
 def update_cluster(inventory,playbook,hostfile=None):
-    print("update_cluster",inventory,playbook,hostfile)
     my_env = os.environ.copy()
     my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
     rc = 0
@@ -302,7 +305,6 @@ parser.add_argument('--force', help='If present. Nodes will be removed even if t
 parser.add_argument('--ansible_crucial', help='If present during reconfiguration, only crucial ansible playbooks will be executed on the live nodes. Non live nodes will be removed',action='store_true',default=False)
 
 args = parser.parse_args()
-print(args)
 
 metadata=get_metadata()
 if args.compartment_ocid is None:
@@ -390,7 +392,7 @@ elif args.mode == 'reconfigure':
         reconfigure(comp_ocid,cn_ocid,inventory,CN,crucial=ansible_crucial)
 
 else:
-    wait_for_running_status(cluster_name,comp_ocid,cn_ocid)
+    wait_for_running_status(cluster_name,comp_ocid,cn_ocid,CN)
     if args.mode == 'add':
         size = current_size + args.number
         update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
@@ -425,7 +427,8 @@ else:
                 batch = hostnames[:batchsize]
             else:
                 batch = hostnames
-            current_size = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data[0].instance_pools[0].size
+            cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
+            current_size = ip_summary.size
             for instanceName in batch:
                 try:
                     instance_id = computeClient.list_instances(comp_ocid,display_name=instanceName).data[0].id
