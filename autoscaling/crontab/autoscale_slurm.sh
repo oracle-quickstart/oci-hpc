@@ -174,7 +174,7 @@ def getstatus_slurm():
             features=details[0].split(',')
             queue=details[-1]
             for feature in features:
-              if feature.starswith('CLUSTER_NAME_'):
+              if feature.startswith('CLUSTER_NAME_'):
                 clustername=feature.split('CLUSTER_NAME_')[1]
             instanceType=features[-1]
             if queue in current_nodes.keys():
