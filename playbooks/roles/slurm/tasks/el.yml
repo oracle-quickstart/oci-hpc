@@ -7,9 +7,6 @@
 #  include_tasks: download.yml
 #  when: (not destroy|bool) and (not cluster_nfs|bool)
 
-- debug: 
-    msg: "{{ (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names))) }}"
-
 - name: include common tasks
   include_tasks: common.yml
   when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
