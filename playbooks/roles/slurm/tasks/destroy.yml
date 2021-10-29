@@ -31,7 +31,7 @@
 - name: Get nodes from Inactive Switch
   block:
     - name: Get nodes from Inactive Switch
-      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive_{{queue}}\""
+      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive_{{queue}}_{{instance_type}}\""
       register: inactive_switch
       run_once: true
       delegate_to: 127.0.0.1
@@ -94,3 +94,8 @@
   delay: 10
   register: result
   until: result.rc == 0
+
+- name: Update feature on compute node for Autoscaling
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
