@@ -1,9 +1,19 @@
 - hosts: compute_to_add
   become: true
+  gather_facts: true
   vars: 
-    destroy: false
+    initial: true
   vars_files:
     - "/opt/oci-hpc/autoscaling/queues.conf"
+  tasks: 
+    - include_role:  
+        name: hostname
+      when: slurm  | default(false) | bool
+
+- hosts: compute_to_add
+  become: true
+  vars: 
+    destroy: false
   gather_facts: true
   roles: 
     - packages
@@ -115,7 +125,7 @@
 #    - include_role: 
 #        name: grafana#
 
-- hosts: bastion,compute
+- hosts: compute_to_add
   vars:
     destroy: false
     initial: true
