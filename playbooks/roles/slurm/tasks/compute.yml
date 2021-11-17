@@ -191,6 +191,7 @@
 - name: Update feature on compute node for Autoscaling
   become: true
   command: "scontrol reconfigure"
+  run_once: true
   delegate_to: 127.0.0.1
 
 - name: start slurmd
@@ -200,27 +201,39 @@
     state: restarted
     enabled: true
 
-- name: Update feature on compute node for Autoscaling
-  vars:
-    max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
-  become: true
-  shell: "scontrol update nodename={{ ansible_hostname }} AvailableFeatures={% for item in range( max_cluster_size | int ) -%}cluster-size-{{ item }},{%- endfor %}{% if shape != instance_type%}{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}; scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }}{% if shape != instance_type%},{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}"
-  retries: 20
-  delay: 10
-  register: result
-  until: result.rc == 0
-  when: not ( initial | bool )
+# - name: Update Available feature on compute node for Autoscaling
+#   vars:
+#     max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
+#   become: true
+#   shell: "scontrol update nodename={{ ansible_hostname }} AvailableFeatures={% for item in range( max_cluster_size | int ) -%}cluster-size-{{ item }},{%- endfor %}{% if shape != instance_type%}{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}" 
+#   retries: 20
+#   delay: 10
+#   register: result
+#   until: result.rc == 0
+#   when: not ( initial | bool )
 
-- name: Update feature on compute node for Autoscaling
-  vars:
-    max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
-  become: true
-  shell: "scontrol update nodename={{ ansible_hostname }} AvailableFeatures={% for item in range( max_cluster_size | int ) -%}cluster-size-{{ item }},{%- endfor %}{% if shape != instance_type%}{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}"  
-  retries: 20
-  delay: 10
-  register: result
-  until: result.rc == 0
-  when:  initial | bool
+# - name: Update Active feature on compute node for Autoscaling
+#   vars:
+#     max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
+#   become: true
+#   shell: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }}{% if shape != instance_type%},{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}" 
+#   retries: 20
+#   delay: 10
+#   register: result
+#   until: result.rc == 0
+#   when: not ( initial | bool )
+
+
+# - name: Update feature on compute node for initial cluster
+#   vars:
+#     max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
+#   become: true
+#   shell: "scontrol update nodename={{ ansible_hostname }} AvailableFeatures={% for item in range( max_cluster_size | int ) -%}cluster-size-{{ item }},{%- endfor %}{% if shape != instance_type%}{{ shape }}{% endif %},CLUSTER_NAME_{{cluster_name}},{{ instance_type }}"  
+#   retries: 20
+#   delay: 10
+#   register: result
+#   until: result.rc == 0
+#   when:  initial | bool
 
 
 - name: Grab Node State
