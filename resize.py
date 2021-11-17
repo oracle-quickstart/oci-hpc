@@ -269,26 +269,55 @@ def getNFSnode(inventory):
 def get_summary(comp_ocid,cluster_name):
     CN = True
     cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
-    if len(cn_summaries) == 0:
-        cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
-        if len(cn_summaries) > 0:
-            CN = False
-        else:
-            print("The cluster was not found")
     running_clusters = 0
+    cn_summary=None
     for cn_summary_tmp in cn_summaries:
         if cn_summary_tmp.lifecycle_state == "RUNNING":
             cn_summary = cn_summary_tmp
             running_clusters = running_clusters + 1
     if running_clusters == 0:
-        print("The cluster was not found")
-    elif running_clusters > 1:
+        cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
+        if len(cn_summaries) > 0:
+            CN = False
+            for cn_summary_tmp in cn_summaries:
+                if cn_summary_tmp.lifecycle_state == "RUNNING":
+                    cn_summary = cn_summary_tmp
+                    running_clusters = running_clusters + 1
+        if running_clusters == 0:
+            print("The cluster was not found")
+            return None,None,True
+    if running_clusters > 1:
         print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
     if CN:
         ip_summary=cn_summary.instance_pools[0]
     else:
         ip_summary=cn_summary
     return cn_summary,ip_summary,CN
+
+def updateTFState(inventory,cluster_name,size):
+    try:
+        TFStateName = os.path.join(os.path.dirname(inventory),'terraform.tfstate')
+        if not os.path.isfile(TFStateName) or inventory == "/etc/ansible/hosts":
+            return 0
+        tmpTFStateName = '/tmp/'+cluster_name+'.tfstate'
+        TFState=open(TFStateName,'r')
+        tmpTFState=open(tmpTFStateName,'w')
+        for line in TFState:
+            if line.strip().startswith('"serial":'):
+                serial=int(line.strip().split('"serial":')[1].split(',')[0])
+                tmpTFState.write(line.replace(str(serial),str(serial+1)))
+            elif line.strip().startswith('"size":'):
+                currentsize=int(line.strip().split('"size":')[1].split(',')[0])
+                tmpTFState.write(line.replace(str(currentsize),str(size)))
+            else:
+                tmpTFState.write(line)
+        tmpTFState.close()
+        TFState.close()
+        os.system("cd "+os.path.dirname(inventory)+";terraform state push "+tmpTFStateName)
+        return 1
+    except:
+        return 0
+
 batchsize=12
 inventory="/etc/ansible/hosts"
 playbooks_dir="/opt/oci-hpc/playbooks/"
@@ -370,6 +399,8 @@ else:
     virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
 
 cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
+if cn_summary is None:
+    exit()
 cn_ocid =cn_summary.id
 current_size=ip_summary.size
 if CN:
@@ -378,9 +409,7 @@ else:
     ipa_ocid = cn_ocid
 
 if args.mode == 'list':
-    cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
     state = cn_summary.lifecycle_state
-
     print("Cluster is in state:"+state )
     cn_instances = get_instances(comp_ocid,cn_ocid,CN)
     for cn_instance in cn_instances:
@@ -397,6 +426,7 @@ else:
         size = current_size + args.number
         update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
         ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'])
+        updateTFState(inventory,cluster_name,size)
         if not no_reconfigure:
             add_reconfigure(comp_ocid,cn_ocid,inventory,CN)
     elif args.mode == 'remove':
@@ -443,6 +473,7 @@ else:
                 time.sleep(100)
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
         newsize=ip_summary.size
+        updateTFState(inventory,cluster_name,newsize)
         print("Resized to "+str(newsize)+" instances")
         if error_code != 0 and force:
             print("The nodes were forced deleted, trying to reconfigure the left over nodes")
