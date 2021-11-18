@@ -62,7 +62,6 @@ def getIdleTime(node):
         right_time=cluster_start_time
     else:
         right_time=max([cluster_start_time,last_end_time])
-    print node, ( datetime.datetime.now() - right_time ).total_seconds()
     return ( datetime.datetime.now() - right_time ).total_seconds()
 
 # Get the last time a node state was changed. This is used to get how long a cluster has been idle for
