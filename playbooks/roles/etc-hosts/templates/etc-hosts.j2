@@ -1,5 +1,4 @@
 {% for item in groups['compute'] %}
-
 {%- set rdma_subnet = hostvars[item]['rdma_network'] + '/' + hostvars[item]['rdma_netmask'] -%}
 {%- set rdma_subnet_prefix = rdma_subnet | ansible.netcommon.ipaddr('prefix') -%}
 {%- set rdma_subnet_cidr = rdma_subnet | ansible.netcommon.ipaddr('network/prefix') -%}
