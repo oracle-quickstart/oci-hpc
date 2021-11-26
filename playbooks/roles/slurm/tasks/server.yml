@@ -173,3 +173,28 @@
     mode: '0644'
     force: no
   delegate_to: 127.0.0.1
+  register: initial_topology
+  run_once: true
+  notify: reconfigure slurm
+
+- name: Generate a list of types to check
+  vars:
+    temp_list: "{% for partition in queues %}{% for instancetype in partition.instance_types %}{{partition.name}}-{{instancetype.instance_keyword}},{% endfor %}{% endfor %}"
+  set_fact:
+    nodesname_list: "{{temp_list.split(',')[:-1] }}"
+  when: not initial_topology.changed
+
+- name: Add new shapes to existing topology.conf
+  become: true
+  vars:
+    size: "{{ hostvars[inventory_hostname]['private_subnet'] | ipaddr('size') }}"
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName=inactive-{{item}}\\sNodes.*"
+    line: "SwitchName=inactive-{{item}} Nodes={% for index in range( size | int ) -%}{{item}}-node-{{ index }}{{ ',' if not loop.last else ''}}{%- endfor %}"
+    state: present
+  with_items: "{{nodesname_list}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: not initial_topology.changed
+  notify: reconfigure slurm
