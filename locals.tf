@@ -40,4 +40,7 @@ locals {
 
   mount_ip = local.scratch_nfs_type == "block" ? local.iscsi_ip : "none" 
 
+// Cluster OCID
+
+  cluster_ocid = var.cluster_network ? oci_core_cluster_network.cluster_network[0].id : oci_core_instance_pool.instance_pool[0].id
 }
