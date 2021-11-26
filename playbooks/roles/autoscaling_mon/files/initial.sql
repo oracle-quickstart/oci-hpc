@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS cluster_log.nodes (
     node_OCID VARCHAR(128) UNIQUE,
     shape VARCHAR(64),
     FOREIGN KEY (cluster_id) REFERENCES cluster_log.clusters(id),
-    CONSTRAINT cluster_key UNIQUE(cluster_id,cluster_index)
+    CONSTRAINT cluster_key UNIQUE(cluster_id,node_OCID)
 );
 
 CREATE TABLE IF NOT EXISTS cluster_log.jobs (
@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS cluster_log.nodes_timeserie (
 	oci_state_m TEXT,
 	created_on_m TIMESTAMP,
 	used_cpus INT,
+    class_name VARCHAR(64),
 	FOREIGN KEY (node_id) REFERENCES cluster_log.nodes(id)
 );
 
@@ -81,6 +82,7 @@ CREATE TABLE IF NOT EXISTS cluster_log.jobs_timeserie (
 	job_id VARCHAR(64),
 	used_cpus INT,
 	created_on_m TIMESTAMP,
+    class_name VARCHAR(64),
 	FOREIGN KEY (node_id) REFERENCES cluster_log.nodes(id),
 	FOREIGN KEY (job_id) REFERENCES cluster_log.jobs(job_id),
 	UNIQUE(node_id, job_id, created_on_m)
@@ -95,6 +97,7 @@ CREATE TABLE IF NOT EXISTS cluster_log.errors_timeserie (
     error_type VARCHAR(512),
     nodes INT,
 	created_on_m TIMESTAMP,
+    class_name VARCHAR(64),
     FOREIGN KEY (cluster_id) REFERENCES cluster_log.clusters(id),
 	UNIQUE(id)
 );
