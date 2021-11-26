@@ -53,7 +53,7 @@ def get_instances(comp_ocid,cn_ocid,CN):
             vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
         except:
             continue
-        cn_instances.append({'display_name':instance_summary.display_name,'ip':vnic.private_ip})
+        cn_instances.append({'display_name':instance_summary.display_name,'ip':vnic.private_ip,'ocid':instance_summary.id})
     return cn_instances
 
 def parse_inventory(inventory):
@@ -317,6 +317,7 @@ def updateTFState(inventory,cluster_name,size):
         return 1
     except:
         return 0
+    
 
 batchsize=12
 inventory="/etc/ansible/hosts"
@@ -413,7 +414,7 @@ if args.mode == 'list':
     print("Cluster is in state:"+state )
     cn_instances = get_instances(comp_ocid,cn_ocid,CN)
     for cn_instance in cn_instances:
-        print(cn_instance['display_name']+' '+cn_instance['ip'])
+        print(cn_instance['display_name']+' '+cn_instance['ip']+' '+cn_instance['ocid'])
 elif args.mode == 'reconfigure':
     if len(hostnames)>0:
         add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=hostnames)

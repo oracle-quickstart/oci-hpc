@@ -164,6 +164,28 @@ resource "null_resource" "bastion" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+
+  provisioner "file" {
+    source      = "resize.sh"
+    destination = "/opt/oci-hpc/bin/resize.sh"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
+    source      = "initial_monitoring.sh"
+    destination = "/opt/oci-hpc/bin/initial_monitoring.sh"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
   provisioner "remote-exec" {
     inline = [
       "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
@@ -345,6 +367,25 @@ resource "null_resource" "cluster" {
     }
   }
 
+provisioner "file" {
+    content        = templatefile("${path.module}/initial_mon.tpl", {  
+      cluster_ocid=local.cluster_ocid,
+      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      queue=var.queue,
+      cluster_network = var.cluster_network,
+      ocids = join(",", local.cluster_instances_ids),
+      hostnames = join(",", local.cluster_instances_names),
+      ips = join(",", local.cluster_instances_ips)
+      })
+
+    destination   = "/tmp/initial.mon"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
   provisioner "file" {
     content     = base64decode(var.api_user_key)
     destination   = "/opt/oci-hpc/autoscaling/credentials/key.initial" 
@@ -366,10 +407,11 @@ resource "null_resource" "cluster" {
       "chmod a+x /opt/oci-hpc/bin/configure.sh",
       "chmod a+x /opt/oci-hpc/autoscaling/slurm_config.sh",
       "chmod a+x /opt/oci-hpc/bin/wait_for_hosts.sh",
+      "chmod a+x /opt/oci-hpc/bin/resize.sh",
+      "chmod a+x /opt/oci-hpc/bin/initial_monitoring.sh",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh",
-      "echo 'alias resize=\"python3 /opt/oci-hpc/bin/resize.py\"' >> ~/.bashrc"
-      ]
+      "/opt/oci-hpc/bin/initial_monitoring.sh"     ]
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
