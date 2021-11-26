@@ -17,7 +17,7 @@ def getAllJobs():
 
 # Get the list of all nodes registered in Slurm
 def getClusters():
-    out = subprocess.Popen(['sinfo -h -N -r -O NodeList:50,CPUsState,StateLong'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
+    out = subprocess.Popen(['sinfo -h -N -r -O NodeList:50,CPUsState,StateLong,PartitionName'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
@@ -35,6 +35,29 @@ def getOrigHostname(hostname):
     output = subprocess.check_output("cat /etc/hosts | grep \" "+hostname+" \" | awk '{print $4}'", shell=True,encoding='utf8')
     return output.split("\n")[0]
 
+def getAllHosts(rangedHost):
+    output = subprocess.check_output("scontrol show hostname "+rangedHost, shell=True,encoding='utf8')
+    return output.split("\n")
+
+def getTopology():
+    topology={}
+    if os.path.isfile("/etc/slurm/topology.conf"):
+        topologyfile=open("/etc/slurm/topology.conf",'r')
+        for line in topologyfile:
+            splittedline=line.strip().split(" Nodes=")
+            try:
+                clusterName=splittedline[0].split('SwitchName=')[1]
+            except:
+                continue
+            topology[clusterName]=splittedline[1].split(',')
+    return topology
+
+def getClusterName(topology,node):
+    for key in topology.keys():
+        if node in topology[key]:
+            return key
+    return None
+
 #def getCPUsDetails(job):
 #    out = subprocess.Popen(['scontrol','show','job',job,'-d','|','grep','\" Nodes=.*CPU_IDs\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
 #    stdout,stderr = out.communicate()
@@ -46,6 +69,7 @@ cursor=connection.cursor()
 cursor.execute("use cluster_log;")
 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 now_utc=datetime.datetime.now().astimezone(pytz.utc).strftime("%Y-%m-%d %H:%M:%S")
+topology=getTopology()
 
 for line in getAllJobs():
     splittedLine=line.split('|')
@@ -60,6 +84,10 @@ for line in getAllJobs():
     nodes=splittedLine[6]
     cpus=splittedLine[7]
     nodelist=splittedLine[8]
+    if not 'None assigned' in nodelist:
+        nodenames=getAllHosts(nodelist)
+    else:
+        nodenames=[]
 
     if submit != "Unknown":
         submit_datetime=datetime.datetime.strptime(submit,"%Y-%m-%dT%H:%M:%S")
@@ -82,7 +110,7 @@ for line in getAllJobs():
             nodes=getNodesFromQueuedJob(jobID)
             mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,state,class_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','queued','"""+queue+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         elif end == "Unknown":
-            clustername = '-'.join(nodelist[0].split('[')[0].split('-')[:-2])
+            clustername = getClusterName(topology,nodenames[0])
             mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,queue_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','running','"""+queue+"""','"""+clustername+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         else:
             if 'failed' in state.lower():
@@ -95,7 +123,7 @@ for line in getAllJobs():
                 print(state+" was not failed, cancelled or completed")
                 continue
             try:
-                clustername = '-'.join(nodelist[0].split('[')[0].split('-')[:-2])
+                clustername = getClusterName(topology,nodenames[0])
             except:
                 clustername= ''
             mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,finished,queue_time,run_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+end_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','"""+str(end_datetime-start_datetime).split('.')[0]+"""','"""+db_state+"""','"""+queue+"""','"""+clustername+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
@@ -123,7 +151,7 @@ for line in getAllJobs():
         cursor.execute(mySql_insert_query)
     for node_name in getListOfNodes(nodelist):
         cpus_per_node = str(int(float(cpus)/float(nodes)))
-        mySql_insert_query="""INSERT INTO jobs_timeserie (node_id,job_id,created_on_m,used_cpus) select id,'"""+jobID+"""','"""+now_utc+"""',"""+cpus_per_node+""" from nodes where hostname='"""+node_name+"""';"""
+        mySql_insert_query="""INSERT INTO jobs_timeserie (node_id,job_id,created_on_m,used_cpus,class_name) select id,'"""+jobID+"""','"""+now_utc+"""',"""+cpus_per_node+""",'"""+queue+"""' from nodes where hostname='"""+node_name+"""';"""
     cursor.execute(mySql_insert_query)
 
 for line in getClusters():
@@ -132,17 +160,18 @@ for line in getClusters():
     nodename=line.split()[0]
     total_used_cpus=line.split()[1].split('/')[0]
     actual_state=line.split()[2]
+    queue=line.split()[3]
     alloc_states=['alloc','allocated','comp','completing','drain','draining','drained','mix','mixed']
     if actual_state.lower() in alloc_states:
         state='busy'
     else:
         state='idle'
     hostname_orig=getOrigHostname(nodename)
-    mySql_insert_query="""INSERT INTO nodes_timeserie (node_id,state_m,created_on_m,used_cpus) select id,'"""+state+"""','"""+now_utc+"""','"""+total_used_cpus+"""' from nodes where hostname='"""+hostname_orig+"""';"""
+    mySql_insert_query="""INSERT INTO nodes_timeserie (node_id,state_m,created_on_m,used_cpus,class_name) select id,'"""+state+"""','"""+now_utc+"""','"""+total_used_cpus+"""','"""+queue+"""' from nodes where hostname='"""+hostname_orig+"""';"""
     cursor.execute(mySql_insert_query)
     mySql_insert_query="""UPDATE nodes SET sched_state='"""+state+"""' WHERE hostname='"""+hostname_orig+"""';"""
     cursor.execute(mySql_insert_query)
-mySql_insert_query="""insert into nodes_timeserie (node_id,state_m,created_on_m) select id,state,'"""+now_utc+"""' from nodes where state='provisioning';"""
+mySql_insert_query="""insert into nodes_timeserie (node_id,state_m,created_on_m,class_name) select id,state,'"""+now_utc+"""','"""+queue+"""' from nodes where state='provisioning';"""
 cursor.execute(mySql_insert_query)
 
 connection.commit()
