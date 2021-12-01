@@ -21,6 +21,15 @@
   run_once: true
   when: not destroy|bool
  
+- name: Make sure the IP for each node was not left over in another cluster
+  become: true
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "^{{ansible_host}}\\s((?!{{inventory_hostname}}).)*$"
+    state: absent
+  delegate_to: 127.0.0.1
+  when: not destroy|bool and ('compute' in group_names) | bool
+
 - name: add cluster nodes to the /etc/hosts file for the compute nodes
   blockinfile:
     dest: /tmp/hosts.etc.{{ cluster_name }}
