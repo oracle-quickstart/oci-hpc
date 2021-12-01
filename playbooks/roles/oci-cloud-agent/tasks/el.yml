@@ -71,3 +71,11 @@
   pause: 
     seconds: 5
 
+- name: Grab leftover yum process in case it is still there
+  shell: "ps -ef | grep 'yum --disablerepo=* install -y /var/lib/oracle-cloud-agent/plugins/unifiedmonitoring/temp-unified-monitoring.rpm' | grep -v 'grep' | awk '{print $2}'"
+  register: leftOverYum
+
+- name: Kill left Over Yum process
+  become: true
+  shell: "kill -9 {{leftOverYum.stdout}}"
+  when: leftOverYum.stdout
