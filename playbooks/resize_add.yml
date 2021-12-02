@@ -1,8 +1,6 @@
 - hosts: compute_to_add
   become: true
   gather_facts: true
-  vars: 
-    initial: true
   vars_files:
     - "/opt/oci-hpc/autoscaling/queues.conf"
   tasks: 
@@ -29,7 +27,6 @@
   become: true
   vars: 
     destroy: false
-    initial: true
   gather_facts: true
   roles: 
     - etc-hosts
@@ -119,17 +116,11 @@
         lock: "none"
       when: add_nfs|default(false)|bool
       
-#- hosts: bastion
-#  tasks: 
-#    - include_role: 
-#        name: influxdb
-#    - include_role: 
-#        name: grafana#
 
 - hosts: compute_to_add
   vars:
     destroy: false
-    initial: true
+    initial: false
     download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
   vars_files:
     - "/opt/oci-hpc/autoscaling/queues.conf"
@@ -137,5 +128,6 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-#    - include_role: 
-#        name: telegraf
+    - include_role: 
+        name: telegraf
+      when: monitoring|default(false)|bool

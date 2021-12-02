@@ -3,7 +3,6 @@
   gather_facts: true
   vars:
     destroy: false
-    initial: true
   tasks:
     - include_role:
         name: mpi-hostfiles
@@ -14,7 +13,7 @@
   become: true
   vars:
     destroy: true
-    initial: true
+    initial: false
   vars_files:
     - "/opt/oci-hpc/autoscaling/queues.conf"
   tasks:

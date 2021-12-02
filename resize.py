@@ -206,12 +206,10 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
     write_inventory(inventory_dict,tmp_inventory_reconfig)
     if autoscaling:
         playbook=playbooks_dir+"new_nodes.yml"
-        if crucial:
-            playbook=playbooks_dir+"resize_remove_as.yml"
     else:
         playbook=playbooks_dir+"site.yml"
-        if crucial:
-            playbook=playbooks_dir+"resize_remove.yml"
+    if crucial:
+        playbook=playbooks_dir+"resize_remove.yml"
     update_flag = update_cluster(tmp_inventory_reconfig,playbook,hostfile="/tmp/hosts")
     if update_flag == 0:
         os.system('sudo mv '+tmp_inventory_reconfig+' '+inventory)
@@ -440,10 +438,7 @@ else:
             else:
                 hostnames=[cn_instances[i]['display_name'] for i in range(len(cn_instances))]
         if not no_reconfigure:
-            if autoscaling:
-                playbook = playbooks_dir+"resize_remove_as.yml"
-            else:
-                playbook = playbooks_dir+"resize_remove.yml"
+            playbook = playbooks_dir+"resize_remove.yml"
             error_code = destroy_reconfigure(inventory,hostnames,playbook)
             if error_code != 0:
                 print("The nodes could not be removed. Try running this with Force")
