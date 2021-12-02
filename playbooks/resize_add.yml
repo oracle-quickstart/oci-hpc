@@ -16,6 +16,7 @@
     destroy: false
   gather_facts: true
   roles: 
+    - oci-cloud-agent
     - packages
     - oci-legacy
     - firewall 
