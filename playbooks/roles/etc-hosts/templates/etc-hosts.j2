@@ -12,23 +12,11 @@
 {%- endfor -%}
 {%- set rdma_address = subnets|last | ansible.netcommon.ipmath(host_index | int -1) -%}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-{% if not initial | bool %}
-{{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['inventory_hostname'] }}
-{% if cluster_network | bool %}
-{{rdma_address}} {{ hostvars[item]['ansible_hostname'] }}-rdma {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma {{ hostvars[item]['inventory_hostname'] }}-rdma
-{% endif %}
-{% else %}
 {{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['inventory_hostname'] }} {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }}
 {% if cluster_network | bool %}
 {{rdma_address}}  {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma {{ hostvars[item]['ansible_hostname'] }}-rdma {{ hostvars[item]['inventory_hostname'] }}-rdma {{ hostvars[item]['inventory_hostname'] }}-rdma.local.rdma
 {% endif %}
-{% endif %}
 {% endfor %}
-{% if initial | bool %}
-{% for item in groups['nfs'] %}
-{{ hostvars[item]['ansible_host'] }} nfs-server
-{% endfor %}
-{% endif %}
 
 
 
