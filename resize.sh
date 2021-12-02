@@ -16,6 +16,7 @@ resize_type=default
 permanent=1
 bastionName=`hostname`
 cluster_name=${bastionName/-bastion/}
+nodes=NULL
 for (( i=1; i<=$#; i++)); do
     if [ ${!i} == "--cluster_name" ]
     then
@@ -31,6 +32,10 @@ for (( i=1; i<=$#; i++)); do
     elif [ ${!i} == "remove" ]
     then
       resize_type=remove
+    elif [ ${!i} == "--nodes" ]
+    then
+      j=$((i+1))
+      nodes=${@:j}
     fi
 done
 
@@ -58,7 +63,6 @@ then
     log=$folder/../autoscaling/logs/resize_${cluster_id}.log
   fi
 
-
   if [ -f $folder/../monitoring/activated ]
   then
     source $folder/../monitoring/env
@@ -76,25 +80,45 @@ then
     echo "Successfully Resized cluster $1 in $runtime seconds"
     if [ -f $folder/../monitoring/activated ]
     then
-      newSize=`python3 $folder/../bin/resize.py --cluster_name $cluster_name list | grep inst- | wc -l`
+      nodes_list=`python3 $folder/../bin/resize.py --cluster_name $cluster_name list | grep ocid1.instance`
+
+      length=`echo $nodes_list | wc -w`
+      newSize=$((length/3))
+      existing_nodes=`mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; select hostname from nodes WHERE cluster_id='$cluster_id' and state <> 'deleted ';" 2>&1 | grep inst`
+      max_index=`mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; select max(cluster_index) from nodes WHERE cluster_id='$cluster_id';" 2>&1 | tail -n 1`
       mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET nodes=$newSize,state='running',resize_log='$folder/logs/resize_${cluster_id}.log' WHERE id='$cluster_id'" >> $log 2>&1
       if [ $resize_type == "remove" ]
       then
-        for node in ${@:2}; do
-          echo $node Deleted
-          mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id' AND hostname='$node'" >> $log 2>&1
-        done
+        if [ "$nodes" == "NULL" ]
+        then
+          for node in $existing_nodes; do
+            if [ `echo $nodes_list | grep $node | wc -l` == 0 ]
+            then
+              echo $node Deleted
+              mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id' AND hostname='$node'" >> $log 2>&1
+            fi
+          done
+        else
+          for node in $nodes; do
+            echo $node Deleted
+            mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id' AND hostname='$node'" >> $log 2>&1
+          done
+        fi
       else
-        nodes_list=`python3 $folder/../bin/resize.py --cluster_name $cluster_name list | grep ocid1.instance`
         for node in ${nodes_list}; do
-          nl_array+=( $node )
+            nl_array+=( $node )
         done
         length=`echo $nodes_list | wc -w`
-        for (( c=1; c<=$length; c=c+3 )); do
-          ip=`echo ${nl_array[$c]}`
-          hostname=`echo ${nl_array[$((c+2))]}`
-          ocid=`echo ${nl_array[$((c+1))]}`
-          mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT IGNORE INTO cluster_log.nodes (cluster_id,cpus,created,state,class_name,shape,hostname,ip,node_OCID) VALUES ('$cluster_name',36,'$end_timestamp','running','$queue','$shape','${hostname}','${ip}','${ocid}');"  >> $log 2>&1
+        for (( c=0; c<=$((length-1)); c=c+3 )); do
+          max_index=$((max_index+1))
+          ip=`echo ${nl_array[$c+1]}`
+          hostname=`echo ${nl_array[$((c))]}`
+          ocid=`echo ${nl_array[$((c+2))]}`
+          if [ `echo $existing_nodes | grep $hostname | wc -l` == 0 ]
+          then
+            max_index=$((max_index+1))
+            mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT IGNORE INTO cluster_log.nodes (cluster_id,cluster_index,cpus,created,state,class_name,shape,hostname,ip,node_OCID) VALUES ('$cluster_name',$max_index,36,'$end_timestamp','running','$queue','$shape','${hostname}','${ip}','${ocid}');"  >> $log 2>&1
+          fi
         done
       fi
     fi
