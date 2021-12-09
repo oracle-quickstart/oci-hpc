@@ -67,7 +67,7 @@
   delegate_to: 127.0.0.1
   when: cluster_list | difference(nodes_to_add) | join(',') != ''
 
-- name: remove nodes from Switch
+- name: remove cluster from Switch
   become: true
   lineinfile:
     path: "/etc/slurm/topology.conf"
