@@ -60,7 +60,8 @@ variable "scratch_nfs_type_cluster" { default = "${scratch_nfs_type_cluster}"}
 variable "scratch_nfs_type_pool" { default = "${scratch_nfs_type_pool}" }
 variable "bastion_name" {default = "${bastion_name}"}
 variable "bastion_ip" {default = "${bastion_ip}"}
-variable "scripts_folder" {default = "/opt/oci-hpc/autoscaling/"}
+variable "scripts_folder" {default = "/opt/oci-hpc/bin/"}
+variable "autoscaling_folder" {default = "/opt/oci-hpc/autoscaling/"}
 variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
 variable "cluster_block_volume_performance" {default="${cluster_block_volume_performance}"}
 

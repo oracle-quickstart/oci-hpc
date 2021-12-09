@@ -14,6 +14,8 @@ queues_conf_file = "/opt/oci-hpc/autoscaling/queues.conf"
 # seconds for a cluster to stay alive
 idle_time=600 #seconds
 
+script_path='/opt/oci-hpc/bin'
+
 def getTopology():
     topology={}
     if os.path.isfile("/etc/slurm/topology.conf"):
@@ -217,7 +219,6 @@ def getstatus_slurm():
                     continue
                 if isPermanent(config,queue,instanceType):
                     continue
-                cluster_exists=False
                 if not clustername in nodes_to_destroy_temp.keys():
                     nodes_to_destroy_temp[clustername]=[]
                 nodes_to_destroy_temp[clustername].append(node)
@@ -307,16 +308,19 @@ try:
     for cluster in cluster_to_destroy:
         cluster_name=cluster[0]
         print "Deleting cluster "+cluster_name
-        subprocess.Popen([path+'/delete_cluster.sh',cluster_name])
+        subprocess.Popen([script_path+'/delete_cluster.sh',cluster_name])
         time.sleep(1)
 
     for cluster_name in nodes_to_destroy.keys():
         print "Resizing cluster "+cluster_name
         initial_nodes=[]
         for node in nodes_to_destroy[cluster_name]:
-            init_node=subprocess.check_output(["cat /etc/hosts | grep "+node+" | awk {'print $NF'}"],shell=True)
-            initial_nodes.append(init_node.split("\n")[0])
-        subprocess.Popen([path+'/resize_cluster.sh',cluster_name]+initial_nodes)
+            alt_names=subprocess.check_output(["cat /etc/hosts | grep "+node],shell=True)
+            for alt_name in alt_names.split("\n")[0].split():
+                if alt_name.startswith('inst-'):
+                    initial_nodes.append(alt_name)
+                    break
+        subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove','--nodes']+initial_nodes)
         time.sleep(1)
 
     for index,cluster in enumerate(cluster_to_build):
@@ -363,7 +367,7 @@ try:
             current_nodes[queue][instance_type]+=nodes
             clusterCount+=1
             print "Creating cluster "+clusterName+" with "+str(nodes)+" nodes"
-            subprocess.Popen([path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
+            subprocess.Popen([script_path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
             time.sleep(5)
     
 except Exception:

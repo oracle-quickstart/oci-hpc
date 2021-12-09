@@ -1,6 +1,6 @@
 
 locals {
-  bastion_path = "${var.scripts_folder}/clusters/${var.cluster_name}"
+  bastion_path = "${var.autoscaling_folder}/clusters/${var.cluster_name}"
 }
 
 resource "null_resource" "create_path" {
@@ -57,6 +57,6 @@ resource "local_file" "inventory" {
 resource "null_resource" "configure" {
   depends_on          = [oci_core_cluster_network.cluster_network,local_file.inventory,local_file.hosts]
   provisioner "local-exec" {
-    command = "timeout 30m ${var.scripts_folder}/configure.sh ${local.cluster_name}"  
+    command = "timeout 30m ${var.scripts_folder}/configure_as.sh ${local.cluster_name}"  
   }
 }

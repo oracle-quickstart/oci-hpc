@@ -11,30 +11,9 @@ scripts=`realpath $0`
 folder=`dirname $scripts`
 execution=1
 playbooks_path=$folder/../playbooks/
-inventory_path=$folder/clusters/$1
+inventory_path=$folder/../autoscaling/clusters/$1
 
-ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
-
-#
-# A little waiter function to make sure all the nodes are up before we start configure 
-#
-
-echo "Waiting for SSH to come up" 
-
-for host in $(cat $inventory_path/hosts_$1) ; do
-  r=0 
-  echo "validating connection to: ${host}"
-  while ! ssh ${ssh_options} -o ConnectTimeout=30 opc@${host} uptime ; do
-	if [[ $r -eq 10 ]] ; then 
-		  execution=0
-		  break
-	fi 
-	  echo "Still waiting for ${host}"
-          sleep 30 
-	  r=$(($r + 1))
-  done
-done
-
+/opt/oci-hpc/bin/wait_for_hosts.sh $inventory_path/hosts_$1
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 

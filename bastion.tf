@@ -98,6 +98,16 @@ resource "null_resource" "bastion" {
     }
   }
 
+  provisioner "file" {
+    source      = "bin"
+    destination = "/opt/oci-hpc/"
+    connection {
+      host        = oci_core_instance.bastion.public_ip
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
   provisioner "file" { 
     content        = templatefile("${path.module}/configure.tpl", { 
       configure = var.configure
@@ -122,75 +132,12 @@ resource "null_resource" "bastion" {
     }
   }
 
-  provisioner "file" {
-    source      = "bastion.sh"
-    destination = "/opt/oci-hpc/bin/bastion.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = var.bastion_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 
-  provisioner "file" {
-    source      = "configure.sh"
-    destination = "/opt/oci-hpc/bin/configure.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = var.bastion_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-  provisioner "file" {
-    source      = "wait_for_hosts.sh"
-    destination = "/opt/oci-hpc/bin/wait_for_hosts.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = var.bastion_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    source      = "resize.py"
-    destination = "/opt/oci-hpc/bin/resize.py"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = var.bastion_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    source      = "resize.sh"
-    destination = "/opt/oci-hpc/bin/resize.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = var.bastion_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    source      = "initial_monitoring.sh"
-    destination = "/opt/oci-hpc/bin/initial_monitoring.sh"
-    connection {
-      host        = oci_core_instance.bastion.public_ip
-      type        = "ssh"
-      user        = var.bastion_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
   provisioner "remote-exec" {
     inline = [
       "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
       "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
-      "chmod a+x /opt/oci-hpc/bin/bastion.sh",
+      "chmod a+x /opt/oci-hpc/bin/*.sh",
       "timeout 60m /opt/oci-hpc/bin/bastion.sh"
       ]
     connection {
@@ -404,11 +351,6 @@ provisioner "file" {
       "chmod 755 /opt/oci-hpc/autoscaling/credentials/key.sh",
       "/opt/oci-hpc/autoscaling/credentials/key.sh /opt/oci-hpc/autoscaling/credentials/key.initial /opt/oci-hpc/autoscaling/credentials/key.pem > /opt/oci-hpc/autoscaling/credentials/key.log",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
-      "chmod a+x /opt/oci-hpc/bin/configure.sh",
-      "chmod a+x /opt/oci-hpc/autoscaling/slurm_config.sh",
-      "chmod a+x /opt/oci-hpc/bin/wait_for_hosts.sh",
-      "chmod a+x /opt/oci-hpc/bin/resize.sh",
-      "chmod a+x /opt/oci-hpc/bin/initial_monitoring.sh",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh",
       "/opt/oci-hpc/bin/initial_monitoring.sh"     ]
