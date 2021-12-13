@@ -47,3 +47,4 @@ nfs_options=${nfs_options}
 ldap=${ldap}
 queue=${queue}
 instance_type=${instance_type}
+hyperthreading=${hyperthreading}
