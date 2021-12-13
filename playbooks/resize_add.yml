@@ -89,7 +89,6 @@
         name: rdma-interface
     - include_role: 
         name: hyperthreading
-      when: not hyperthreading|default(true)|bool 
 
 - hosts: compute_to_add
   become: true
