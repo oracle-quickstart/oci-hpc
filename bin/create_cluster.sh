@@ -87,16 +87,21 @@ if [ $status -eq 0 ]
     region_tmp=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .region`
     region=${region_tmp:1:-1}
     inst_pool_ocid=`oci compute-management instance-pool list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
-    requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="LaunchInstancesInPool") | .id'` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
-    inst_pool_work_request_error_messages=`oci work-requests work-request-error list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
+    if [ "$inst_pool_ocid" == "" ]
+    then
+        inst_pool_work_request_error_messages=""
+    else
+        requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="LaunchInstancesInPool") | .id'` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
+        inst_pool_work_request_error_messages=`oci work-requests work-request-error list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
+    fi
     if [ "$inst_pool_work_request_error_messages" == "" ]
     then
         cn_ocid=`oci compute-management cluster-network list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
         requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${cn_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="CreateClusterNetworkReservation") | .id'` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
         cn_work_request_error_messages=`oci work-requests work-request-log-entry list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
     fi
-    echo "$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages" >> $autoscaling_folder/logs/create_$2_${date}.log 2>&1
     echo "Could not create $2 with $1 nodes in $runtime seconds"
+    echo "$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages" | tee -a  $autoscaling_folder/logs/create_$2_${date}.log 2>&1
     
     if [ -f $monitoring_folder/activated ]
     then
