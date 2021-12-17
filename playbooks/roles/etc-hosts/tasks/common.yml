@@ -28,7 +28,7 @@
     regexp: "^{{ansible_host}}\\s((?!{{inventory_hostname}}).)*$"
     state: absent
   delegate_to: 127.0.0.1
-  when: not destroy|bool and ('compute' in group_names) | bool
+  when: not destroy|bool and ( ('compute' in group_names) | bool or ('compute_to_add' in group_names) | bool )
 
 - name: add cluster nodes to the /etc/hosts file for the compute nodes
   blockinfile:
