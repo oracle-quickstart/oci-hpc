@@ -125,6 +125,9 @@
     - "/opt/oci-hpc/autoscaling/queues.conf"
   tasks:
     - include_role: 
+        name: spack
+      when: spack|default(false)|bool
+    - include_role: 
         name: slurm
       when: slurm|default(false)|bool
     - include_role: 
