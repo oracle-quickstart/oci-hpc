@@ -215,7 +215,9 @@ def getstatus_slurm():
             if line.split()[0] == '\"idle':
                 if not os.path.isdir(os.path.join(clusters_path,clustername)):
                     continue
-                if getIdleTime(node)<idle_time:
+                node_idle_time=getIdleTime(node)
+                if node_idle_time<idle_time:
+                    print clustername + " is too young to die : "+str(node_idle_time) + " : "+node
                     continue
                 if isPermanent(config,queue,instanceType):
                     continue
