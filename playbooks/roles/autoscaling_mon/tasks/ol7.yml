@@ -79,14 +79,14 @@
   no_log: false
   register: existing_api_keys
 
-- name: install mysql
+- name: install OL7 mysql release file
   become: true
-  yum: 
-    name: https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+  yum:
+    name: mysql-release-el7
 
 - name: install mysql-shell
   become: true
-  yum: 
+  yum:
     name: mysql-shell
 
 - name: install mysql connector
