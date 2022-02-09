@@ -219,7 +219,9 @@ def getstatus_slurm():
                 if node_idle_time<idle_time:
                     print clustername + " is too young to die : "+str(node_idle_time) + " : "+node
                     continue
-                if isPermanent(config,queue,instanceType):
+                if isPermanent(config,queue,instanceType) is None :
+                    continue
+                elif isPermanent(config,queue,instanceType):
                     continue
                 if not clustername in nodes_to_destroy_temp.keys():
                     nodes_to_destroy_temp[clustername]=[]
@@ -363,7 +365,7 @@ try:
                 building_nodes[queue][instance_type]=0
         if nodes > limits["max_cluster_size"]:
             print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes per cluster limit"
-        if current_nodes[queue][instance_type] + building_nodes[queue][instance_type] + nodes > limits["max_number_nodes"]:
+        elif current_nodes[queue][instance_type] + building_nodes[queue][instance_type] + nodes > limits["max_number_nodes"]:
             print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit"
         else:
             current_nodes[queue][instance_type]+=nodes
