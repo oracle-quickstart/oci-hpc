@@ -135,7 +135,7 @@ variable "compute_username" {
 
 variable "autoscaling_monitoring" { 
   type= bool
-  default = true
+  default = false
 } 
 
 variable "autoscaling_mysql_service" { 

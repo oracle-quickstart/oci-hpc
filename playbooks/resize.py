@@ -213,7 +213,7 @@ def update_cluster(mode,hostnames=[],slurm_only_update='false'):
     my_env = os.environ.copy()
     my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
     rc = 0
-    p = subprocess.Popen(["/tmp/configure.sh",playbook,inv_file],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
+    p = subprocess.Popen(["/opt/oci-hpc/bin/configure.sh",playbook,inv_file],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
     while True:
         output = p.stdout.readline().decode()
         if output == '' and p.poll() is not None:
