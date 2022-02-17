@@ -79,15 +79,22 @@
   no_log: false
   register: existing_api_keys
 
-- name: install mysql
+- name: install EL7 mysql release file
   become: true
-  yum: 
-    name: https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+  yum:
+    name: https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
+
+- name: Ensure GPG key is installed for the repository
+  become: true
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 
 - name: install mysql-shell
   become: true
-  yum: 
+  yum:
     name: mysql-shell
+    update_cache: yes
 
 - name: install mysql connector
   become: true

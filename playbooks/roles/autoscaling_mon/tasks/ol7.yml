@@ -1,0 +1,224 @@
+---
+- name: Ensure monitoring directory exists
+  file:
+    path: "/opt/oci-hpc/monitoring"
+    state: directory
+    owner: opc
+    group: opc
+
+- name: Copy files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '/opt/oci-hpc/monitoring/{{ item }}'
+    force: no
+    owner: opc
+    group: opc
+  with_items: 
+    - dashboard.json
+    - initial.sql
+
+- name: Copy scripts
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '/opt/oci-hpc/monitoring/{{ item }}'
+    force: no
+    owner: opc
+    group: opc
+    mode: 0755
+  with_items:
+    - initial.sh
+    - monitor_oci.sh
+    - monitor_slurm.sh
+
+- name: Generate env file
+  template: 
+    src: env.j2
+    dest: /opt/oci-hpc/monitoring/env
+
+- name: add grafana repository
+  become: true
+  yum_repository: 
+    name: grafana
+    description: grafana
+    baseurl: https://packages.grafana.com/oss/rpm
+    repo_gpgcheck: 1
+    enabled: 1
+    gpgcheck: 1
+    gpgkey: https://packages.grafana.com/gpg.key
+    sslverify: 1
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+
+- name: install grafana
+  become: true
+  yum: 
+    name: grafana
+    state: latest
+
+- name: start grafana
+  become: true
+  service: 
+    name: grafana-server
+    state: restarted
+    enabled: true
+
+- name: Ensure grafana key directory exists
+  file:
+    path: "/etc/opt/oci-hpc/passwords/grafana"
+    state: directory
+  delegate_to: localhost
+
+- name: Check api key list
+  uri:
+    url: "{{ grafana_api_url }}/api/auth/keys"
+    user: "{{ grafana_security.admin_user }}"
+    password: "{{ grafana_security.admin_password }}"
+    force_basic_auth: true
+    return_content: true
+  no_log: false
+  register: existing_api_keys
+
+- name: install EL7 mysql release file
+  become: true
+  yum:
+    name: https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
+
+- name: Ensure GPG key is installed for the repository
+  become: true
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+- name: install mysql-shell
+  become: true
+  yum:
+    name: mysql-shell
+    update_cache: yes
+
+- name: install mysql connector
+  become: true
+  pip:
+    name: mysql-connector-python
+    executable: pip-3
+
+- name: Get root password from /etc/opt/oci-hpc/passwords
+  set_fact:
+    mysql_root_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
+                           chars=ascii_letters,digits') }}"
+  when: not autoscaling_mysql_service | bool
+
+- name: Get root password from configuration
+  set_fact:
+    mysql_root_pwd: "{{ admin_password }}"
+  when: autoscaling_mysql_service | bool
+
+- name: Generate mysql_service_initial file
+  template: 
+    src: mysql_service_initial.j2
+    dest: /opt/oci-hpc/monitoring/mysql_service_initial.sql
+  when: autoscaling_mysql_service | bool
+
+- name: Create database 'cluster_log'
+  mysql_db:
+    login_user: "{{ admin_username }}"
+    login_password: "{{ mysql_root_pwd }}"
+    name: cluster_log
+    state: present
+  when: not autoscaling_mysql_service | bool
+
+- name: Create database user with name 'logger' and password
+  mysql_user:
+    login_user: "{{ admin_username }}"
+    login_password: "{{ mysql_root_pwd }}"
+    name: logger
+    password: Monitor2021!
+    priv: cluster_log.*:SELECT,INSERT,UPDATE,DELETE
+    state: present
+  when: not autoscaling_mysql_service | bool
+
+- name: Create initial DB
+  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/mysql_service_initial.sql"
+  ignore_errors: yes
+  when: autoscaling_mysql_service | bool
+
+- name: Create initial DB
+  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
+  ignore_errors: yes
+
+- name: Monitoring activated
+  shell: "echo OK >> /opt/oci-hpc/monitoring/activated"
+
+- name: Create mysql datasource
+  grafana_datasource:
+    name: "autoscaling"
+    grafana_url: "{{ grafana_api_url }}"
+    grafana_user: "{{ grafana_security.admin_user }}"
+    grafana_password: "{{ grafana_security.admin_password }}"
+    org_id: "1"
+    ds_type: "mysql"
+    ds_url: "{{ monitoring_mysql_ip }}:3306"
+    database: "cluster_log"
+    password: "Monitor2021!"
+    user: "logger"
+  ignore_errors: yes
+
+# - name: Import grafana dashboards through API
+#   uri:
+#     url: "{{ grafana_api_url }}/api/dashboards/db"
+#     user: "{{ grafana_security.admin_user }}"
+#     password: "{{ grafana_security.admin_password }}"
+#     force_basic_auth: true
+#     method: POST
+#     body_format: json
+#     body: >
+#       {
+#         "dashboard": {{ lookup("file", item) }},
+#         "overwrite": true,
+#         "message": "Updated by ansible"
+#       }
+#   no_log: false
+#   with_fileglob:
+#     - files/dashboard.json
+#   ignore_errors: yes
+
+#- name: Create influxdb datasource
+#  grafana_datasource:
+#    name: "InfluxDB"
+#    grafana_url: "{{ grafana_api_url }}"
+#    grafana_user: "{{ grafana_security.admin_user }}"
+#    grafana_password: "{{ grafana_security.admin_password }}"
+#    org_id: "1"
+#    ds_type: "influxdb"
+#    ds_url: "http://localhost:8086"
+#    database: "telegraf"
+#    time_interval: ">10s"
+
+#- name: Import grafana dashboards through API
+#  uri:
+#    url: "{{ grafana_api_url }}/api/dashboards/db"
+#    user: "{{ grafana_security.admin_user }}"
+#    password: "{{ grafana_security.admin_password }}"
+#    force_basic_auth: true
+#    method: POST
+#    body_format: json
+#    body: >
+#      {
+#        "dashboard": {{ lookup("file", item) }},
+#        "overwrite": true,
+#        "message": "Updated by ansible"
+#      }
+#  no_log: false
+#  with_fileglob:
+#    - files/cluster.json
+
+#- name: Import Grafana dashboard foo
+#  community.grafana.grafana_dashboard:
+#    grafana_url: "{{ grafana_api_url }}"
+#    grafana_user: "{{ grafana_security.admin_user }}"
+#    grafana_password: "{{ grafana_security.admin_password }}"
+#    state: present
+#    message: Updated by ansible
+#    overwrite: yes
+#    path: files/cluster.json

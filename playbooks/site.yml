@@ -174,7 +174,7 @@
       when: slurm|default(false)|bool    
     - include_role: 
         name: autoscaling_mon
-      when: autoscaling_monitoring|default(false)|bool
+      when: autoscaling_monitoring|default(false)|bool and autoscaling|default(false)|bool
     - include_role: 
         name: cron
       
