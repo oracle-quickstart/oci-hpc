@@ -17,8 +17,8 @@ TaskPlugin=task/affinity
 InactiveLimit=0
 KillWait=30
 MinJobAge=300
-SlurmctldTimeout=120
-SlurmdTimeout=300
+SlurmctldTimeout=300
+SlurmdTimeout=600
 Waittime=0
 GresTypes=gpu
 SchedulerType=sched/backfill
@@ -36,6 +36,7 @@ EnforcePartLimits=NO
 PropagateResourceLimitsExcept=MEMLOCK
 CommunicationParameters=NoAddrCache
 TopologyPlugin=topology/tree
+TreeWidth=2048
 
 {% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
 {% for partition in queues %}
