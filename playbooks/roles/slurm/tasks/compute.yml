@@ -189,6 +189,10 @@
     dest: /etc/slurm/topology.conf
     src: /etc/slurm/topology.conf
     force: yes
+  register: topology_copied
+  until: topology_copied is not failed
+  retries: 10
+  delay: 5
 
 - name: start slurmd
   become: true
