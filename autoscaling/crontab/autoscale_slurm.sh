@@ -226,7 +226,7 @@ def getstatus_slurm():
                 if not clustername in nodes_to_destroy_temp.keys():
                     nodes_to_destroy_temp[clustername]=[]
                 nodes_to_destroy_temp[clustername].append(node)
-            elif line.split()[0] == '\"allocated':
+            elif line.split()[0] == '\"allocated' or line.split()[0] == '\"mixed':
                 if not clustername in running_cluster:
                     running_cluster.append(clustername)
     cluster_to_destroy=[]
