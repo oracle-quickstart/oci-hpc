@@ -46,6 +46,7 @@ resource "local_file" "inventory" {
     shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
     instance_pool_ocpus=var.instance_pool_ocpus,
     queue=var.queue,
+    hyperthreading=var.hyperthreading,
     instance_type=var.instance_type,
     autoscaling_monitoring = var.autoscaling_monitoring,
     unsupported = var.unsupported
