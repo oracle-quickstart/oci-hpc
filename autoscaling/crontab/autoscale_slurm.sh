@@ -9,7 +9,7 @@ import copy
 import yaml
 
 lockfile = "/tmp/autoscaling_lock"
-queues_conf_file = "/opt/oci-hpc/autoscaling/queues.conf"
+queues_conf_file = "/opt/oci-hpc/conf/queues.conf"
 
 # seconds for a cluster to stay alive
 idle_time=600 #seconds
