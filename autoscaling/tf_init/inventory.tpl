@@ -1,5 +1,7 @@
 [bastion]
 ${bastion_name} ansible_host=${bastion_ip} ansible_user=opc role=bastion
+[slurm_backup]
+%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=opc role=bastion%{ endif }
 [compute_to_add]
 [compute_configured]
 %{ for host, ip in compute ~}
@@ -24,8 +26,10 @@ private_subnet=${private_subnet}
 nvme_path=/mnt/localdisk/
 scratch_nfs = ${scratch_nfs}
 home_nfs = ${home_nfs} 
+home_fss = ${home_fss} 
 cluster_nfs = ${cluster_nfs}
 cluster_nfs_path = ${cluster_nfs_path}
+slurm_nfs_path = ${slurm_nfs_path}
 scratch_nfs_path = ${scratch_nfs_path}
 cluster_network = ${cluster_network}
 slurm = ${slurm}

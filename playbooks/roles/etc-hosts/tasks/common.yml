@@ -58,7 +58,7 @@
     dest: /etc/hosts
     src: /tmp/hosts.etc.{{ cluster_name }}
     force: yes
-  when: ( not destroy|bool ) and ('compute' in group_names)
+  when: ( not destroy|bool ) and (not 'bastion' in group_names)
 
 - name: remove cluster from etc-host
   become: true
@@ -69,3 +69,13 @@
   delegate_to: 127.0.0.1
   run_once: true
   when: destroy | bool
+
+- name: remove cluster from etc-host
+  become: true
+  blockinfile:
+    dest: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+    state: absent
+  delegate_to: "{{ groups['slurm_backup'][0] }}"
+  run_once: true
+  when: destroy|bool and (groups['slurm_backup']|length > 0)|bool

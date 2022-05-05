@@ -15,6 +15,10 @@
   include_tasks: server.yml
   when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
 
+- name: run backup server directives
+  include_tasks: backup_server.yml
+  when: ('slurm_backup' in group_names) and (not destroy|bool) and (initial| bool)
+
 - name: run compute directives
   include_tasks: compute.yml
   when: ('compute' in group_names) and (not destroy|bool)

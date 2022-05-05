@@ -3,7 +3,7 @@
   become: true
   gather_facts: true
   vars_files:
-    - "/opt/oci-hpc/autoscaling/queues.conf"
+    - "/opt/oci-hpc/conf/queues.conf"
   tasks: 
     - include_role:  
         name: hostname
@@ -25,7 +25,7 @@
     - limits
     - mpi-hostfiles
 
-- hosts: bastion,compute
+- hosts: bastion,slurm_backup,compute
   become: true
   vars: 
     destroy: false
@@ -59,7 +59,7 @@
         local_path: "{{ cluster_nfs_path }}"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/export/cluster"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: cluster_nfs|default(true)|bool
     - include_role: 
@@ -68,7 +68,7 @@
         local_path: "{{ scratch_nfs_path }}"
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
       when: scratch_nfs|default(true)|bool
 
@@ -88,22 +88,32 @@
         name: rdma-interface
     - include_role: 
         name: hyperthreading
-      
+      when: not hyperthreading|default(true)|bool 
+
 - hosts: compute
   become: true
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool and ansible_selinux.status == "enabled"
+      when: home_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
         local_path: "/home"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/home"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
-      when: home_nfs|default(true)|bool
+      when: home_nfs|bool and (not home_fss|bool)
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "/home"
+        options: ""
+        lock: "none"
+      when: home_nfs|bool and home_fss|bool
     - include_role:
         name: nfs-client
       vars:
@@ -120,7 +130,7 @@
     initial: false
     download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
   vars_files:
-    - "/opt/oci-hpc/autoscaling/queues.conf"
+    - "/opt/oci-hpc/conf/queues.conf"
   tasks:
     - include_role: 
         name: spack
