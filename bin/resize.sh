@@ -7,6 +7,7 @@ scripts=`realpath $0`
 folder=`dirname $scripts`
 autoscaling_folder=$folder/../autoscaling
 monitoring_folder=$folder/../monitoring
+logs_folder=$folder/../logs
 
 if [ $# -eq 0 ]
 then
@@ -49,7 +50,7 @@ then
     cluster_id=`cat cluster_id`
     shape=`cat inventory | grep shape= | awk -F  "=" '{print $2}'`
     queue=`cat inventory | grep queue= | awk -F  "=" '{print $2}'`
-    log=$autoscaling_folder/logs/resize_${cluster_id}.log
+    log=$logs_folder/resize_${cluster_id}.log
     echo $date >> ${log} 2>&1
     if [ -f "currently_resizing" ] && [[ $2 != FORCE ]]
     then
@@ -62,7 +63,7 @@ then
     cluster_id=$cluster_name
     shape=`cat /etc/ansible/hosts | grep shape= | awk -F  "=" '{print $2}'`
     queue=`cat /etc/ansible/hosts | grep queue= | awk -F  "=" '{print $2}'`
-    log=$autoscaling_folder/logs/resize_${cluster_id}.log
+    log=$logs_folder/resize_${cluster_id}.log
   fi
 
   if [ -f $monitoring_folder/activated ]
@@ -88,7 +89,7 @@ then
       newSize=$((length/3))
       existing_nodes=`mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; select hostname from nodes WHERE cluster_id='$cluster_id' and state <> 'deleted';" 2>&1 | grep inst`
       max_index=`mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; select max(cluster_index) from nodes WHERE cluster_id='$cluster_id';" 2>&1 | tail -n 1`
-      mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET nodes=$newSize,state='running',resize_log='$autoscaling_folder/logs/resize_${cluster_id}.log' WHERE id='$cluster_id'" >> $log 2>&1
+      mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET nodes=$newSize,state='running',resize_log='$logs_folder/resize_${cluster_id}.log' WHERE id='$cluster_id'" >> $log 2>&1
       if [ $resize_type == "remove" ]
       then
         if [ "$nodes" == "NULL" ]
@@ -128,7 +129,7 @@ then
     echo "Could not resize cluster $cluster_name in 5 tries (Time: $runtime seconds)"
     if [ -f $monitoring_folder/activated ]
     then
-      mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,created_on_m) VALUES ('$cluster_id','resize','$autoscaling_folder/logs/resize_${cluster_id}.log','`tail $log | grep Error`','$end_timestamp');" >> $log 2>&1
+      mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,created_on_m) VALUES ('$cluster_id','resize','$logs_folder/resize_${cluster_id}.log','`tail $log | grep Error`','$end_timestamp');" >> $log 2>&1
       mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET started_resizing=NULL,state='running' WHERE id='$cluster_id'" >> $log 2>&1
     fi
   fi

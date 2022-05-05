@@ -24,6 +24,7 @@ variable "public_subnet" {default = "${public_subnet}"}
 variable "private_subnet_id" { default = "${private_subnet_id}"}
 variable "private_subnet" {default = "${private_subnet}"}
 variable "slurm" { default = ${slurm} }
+variable "slurm_nfs_path" { default = "${slurm_nfs_path}" }
 variable "spack" { default = ${spack} }
 variable "instance_pool_ocpus" { default = "##OCPU##"}
 variable "instance_pool_memory" { default = "##MEM##" }
@@ -60,6 +61,8 @@ variable "scratch_nfs_type_cluster" { default = "${scratch_nfs_type_cluster}"}
 variable "scratch_nfs_type_pool" { default = "${scratch_nfs_type_pool}" }
 variable "bastion_name" {default = "${bastion_name}"}
 variable "bastion_ip" {default = "${bastion_ip}"}
+variable "backup_name" {default = "${backup_name}"}
+variable "backup_ip" {default = "${backup_ip}"}
 variable "scripts_folder" {default = "/opt/oci-hpc/bin/"}
 variable "autoscaling_folder" {default = "/opt/oci-hpc/autoscaling/"}
 variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
@@ -70,6 +73,7 @@ variable "bastion_block" {default = "${bastion_block}"}
 
 variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
+variable "home_fss" { default = ${home_fss} } 
 variable "configure" { default = true }
 
 variable "add_nfs" { default = ${add_nfs}}
