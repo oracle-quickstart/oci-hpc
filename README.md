@@ -171,7 +171,7 @@ The autoscaling will work in a “cluster per job” approach. This means that f
 
 Initial cluster deployed through the stack will never be spun down.
 
-There is a configuration file at `/opt/oci-hpc/autoscaling/queues.conf` with an example at `/opt/oci-hpc/autoscaling/queues.conf.example`to show how to add multiple queues and multiple instance types. Examples are included for HPC, GPU or Flex VMs. 
+There is a configuration file at `/opt/oci-hpc/conf/queues.conf` with an example at `/opt/oci-hpc/conf/queues.conf.example`to show how to add multiple queues and multiple instance types. Examples are included for HPC, GPU or Flex VMs. 
 
 You will be able to use the instance type name as a feature in the job definition to make sure it runs/create the right kind of node. 
 
@@ -179,19 +179,19 @@ You can only have one default instance-type per queue and one default queue. To 
 
 The key word `permanent` allows will spin up clusters but not delete them untill it is set to false. It is not needed to reconfigure slurm after you change that value. 
 
-After a modification of the `/opt/oci-hpc/autoscaling/queues.conf`, you need to run 
-`/opt/oci-hpc/autoscaling/slurm_config.sh`
+After a modification of the `/opt/oci-hpc/conf/queues.conf`, you need to run 
+`/opt/oci-hpc/bin/slurm_config.sh`
 
 To turn on autoscaling: 
 Uncomment the line in `crontab -e`:
 ```
-* * * * * /opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/autoscaling/logs/crontab_slurm.log 2>&1
+* * * * * /opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm.log 2>&1
 ```
 
 # Submit
 How to submit jobs: 
 Slurm jobs can be submitted as always but a few more constraints can be set: 
-Example in `/opt/oci-hpc/autoscaling/submit/`: 
+Example in `/opt/oci-hpc/samples/submit/`: 
 
 ```
 #!/bin/sh
@@ -219,7 +219,7 @@ sleep 1000
 
 - cluster-size: Since clusters can be reused, you can decide to only use a cluster of exactly the right size. Created cluster will have a feature cluster-size-x. You can set the constraint cluster-size-x to make sure this matches and avoid having a 1 node job using a 16 nodes cluster. You do not need to set this feature if you don't mind having small jobs running on large clusters.  
 
-- Instance Type: You can specify the OCI instance type that you’d like to run on as a constraint. This will make sure that you run on the right shape and also generate the right cluster. Instance types are defined in the `/opt/oci-hpc/autoscaling/queues.conf` file in yml format. Leave all of the field in there even if they are not used. You can define multiple queues and multiple instance type in each queue. If you do not select an instance type when creating your job, it will use the default one.
+- Instance Type: You can specify the OCI instance type that you’d like to run on as a constraint. This will make sure that you run on the right shape and also generate the right cluster. Instance types are defined in the `/opt/oci-hpc/conf/queues.conf` file in yml format. Leave all of the field in there even if they are not used. You can define multiple queues and multiple instance type in each queue. If you do not select an instance type when creating your job, it will use the default one.
 
 ## Clusters folders: 
 ```
@@ -228,7 +228,7 @@ sleep 1000
 
 ## Logs: 
 ```
-/opt/oci-hpc/autoscaling/logs
+/opt/oci-hpc/logs
 ```
 
 Each cluster will have his own log with name: `create_clustername_date.log` and `delete_clustername_date.log`
@@ -239,25 +239,25 @@ The log of the crontab will be in `crontab_slurm.log`
 You can create and delete your clusters manually. 
 ### Cluster Creation
 ```
-/opt/oci-hpc/autoscaling/create_cluster.sh NodeNumber clustername instance_type queue_name
+/opt/oci-hpc/bin/create_cluster.sh NodeNumber clustername instance_type queue_name
 ```
 Example: 
 ```
-/opt/oci-hpc/autoscaling/create_cluster.sh 4 compute2-1-hpc HPC_instance compute2
+/opt/oci-hpc/bin/create_cluster.sh 4 compute2-1-hpc HPC_instance compute2
 ```
 The name of the cluster must be
 queueName-clusterNumber-instanceType_keyword
 
-The keyword will need to match the one from /opt/oci-hpc/autoscaling/queues.conf to be regirstered in Slurm
+The keyword will need to match the one from /opt/oci-hpc/conf/queues.conf to be regirstered in Slurm
 
 ### Cluster Deletion: 
 ```
-/opt/oci-hpc/autoscaling/delete_cluster.sh clustername
+/opt/oci-hpc/bin/delete_cluster.sh clustername
 ```
 
 In case something goes wrong during the deletion, you can force the deletion with 
 ```
-/opt/oci-hpc/autoscaling/delete_cluster.sh clustername FORCE
+/opt/oci-hpc/bin/delete_cluster.sh clustername FORCE
 ```
 When the cluster is already being destroyed, it will have a file `/opt/oci-hpc/autoscaling/clusters/clustername/currently_destroying` 
 
