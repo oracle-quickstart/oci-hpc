@@ -20,6 +20,8 @@ resource "local_file" "inventory" {
   content        = templatefile("${local.bastion_path}/inventory.tpl", {  
     bastion_name = var.bastion_name,
     bastion_ip = var.bastion_ip, 
+    backup_name = var.backup_name,
+    backup_ip = var.backup_ip,
     compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
     public_subnet = var.public_subnet, 
     private_subnet = var.private_subnet, 
@@ -27,7 +29,9 @@ resource "local_file" "inventory" {
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
     home_nfs = var.home_nfs,
+    home_fss = var.home_fss,
     add_nfs = var.add_nfs,
+    slurm_nfs_path = var.slurm_nfs_path,
     nfs_target_path = var.nfs_target_path,
     nfs_source_IP = var.nfs_source_IP,
     nfs_source_path = var.nfs_source_path,

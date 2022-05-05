@@ -75,7 +75,7 @@ variableGroups:
   - title: "Additional file system"
     variables:
       - ${add_nfs}
-      - ${create_ffs}
+      - ${create_fss}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
@@ -94,7 +94,8 @@ variableGroups:
   - title: "Advanced storage options"
     variables:
       - ${use_advanced}
-      - ${home_nfs} 
+      - ${home_nfs}
+      - ${home_fss}
       - ${use_cluster_nfs}
       - ${cluster_nfs_path}
       - ${bastion_block}
@@ -121,6 +122,7 @@ variableGroups:
   - title: "Software"
     variables:
       - ${slurm}
+      - ${slurm_ha}
       - ${queue}
       - ${spack}
       - ${monitoring}
@@ -384,6 +386,15 @@ variables:
       and:
         - ${use_advanced}
     default: true
+  home_fss:
+    type: boolean
+    title: "Use the mounted FSS as /home"
+    visible:
+      and:
+        - ${use_advanced}
+        - ${home_nfs}
+        - ${create_fss}
+    default: false
   use_cluster_nfs:
     type: boolean
     title: "shared NFS volume from bastion"
@@ -826,12 +837,21 @@ variables:
     default: true
     description: "Needed for autoscaling" 
 
+  slurm_ha:
+    type: boolean
+    title: "Create a back-up Slurm Controller"
+    default: false
+    required: true
+    description: "Add a second master of the same shape as the bastion as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
+    visible:
+        - ${slurm}
+
   queue:
     type: String
     title: "Queue Name"
     default: "compute"
     required: true
-    description: "Add the permanent cluster to a specific queue, workq is the default queue" 
+    description: "Add the permanent cluster to a specific queue, compute is the default queue" 
     visible:
         - ${slurm}
 
@@ -899,7 +919,7 @@ variables:
     description: "For FSS, leave options filed empty."
     visible: true
 
-  create_ffs:
+  create_fss:
     type: boolean
     title: "Create FSS"
     default: false
@@ -915,7 +935,7 @@ variables:
     visible: 
       and:
         - ${add_nfs}
-        - ${create_ffs}
+        - ${create_fss}
 
   fss_ad:
     type: oci:identity:availabilitydomain:name
@@ -924,7 +944,7 @@ variables:
     visible: 
       and:
         - ${add_nfs}
-        - ${create_ffs}
+        - ${create_fss}
     default: ${ad}
     description: "FSS Availability Domain"
     title: "FSS Availability Domain"
@@ -949,7 +969,7 @@ variables:
       and:
         - ${add_nfs} 
         - not:
-          - ${create_ffs}
+          - ${create_fss}
   nfs_source_path:
     type: string
     title: "NFS server Path"
@@ -966,7 +986,7 @@ variables:
       and:
         - ${add_nfs} 
         - not:
-          - ${create_ffs}
+          - ${create_fss}
     required: true
   monitoring_shape_name:
     type: string

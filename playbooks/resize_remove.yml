@@ -1,4 +1,4 @@
-- hosts: bastion, compute
+- hosts: bastion, slurm_backup, compute
   become: true
   gather_facts: true
   vars:
@@ -15,7 +15,7 @@
     destroy: true
     initial: false
   vars_files:
-    - "/opt/oci-hpc/autoscaling/queues.conf"
+    - "/opt/oci-hpc/conf/queues.conf"
   tasks:
     - include_role: 
         name: slurm

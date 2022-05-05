@@ -70,10 +70,10 @@
     - slurmctld
 
 - block:
-    - name: Create {{ cluster_nfs_path }}/spool/slurm
+    - name: Create {{ slurm_nfs_path }}/spool/slurm
       become: true
       file:
-        name: "{{ cluster_nfs_path }}/spool/slurm"
+        name: "{{ slurm_nfs_path }}/spool/slurm"
         state: directory
         owner: 'slurm'
         group: 'slurm'
@@ -162,7 +162,7 @@
 - name: add alias for node status
   lineinfile:
     path: /home/opc/.bashrc
-    line: alias status='tail /opt/oci-hpc/autoscaling/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
+    line: alias status='tail /opt/oci-hpc/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
     state: present
 
 - name: Generate topology.conf

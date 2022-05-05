@@ -38,6 +38,7 @@ variable "rdma_subnet" { default = "192.168.168.0/22" }
 variable "private_subnet" { default = "172.16.4.0/22" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
+variable "slurm_ha" { default = false }
 variable "ldap" { default = true } 
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
@@ -97,13 +98,14 @@ variable "api_user_key" { default = ""}
 variable "api_fingerprint" { default = ""}
 variable "api_user_ocid" { default = ""} 
 variable "home_nfs" { default = true } 
+variable "home_fss" { default = false } 
 variable "configure" { default = true }
 
 variable "hyperthreading" { default = true }
 
 variable "autoscaling" { default = false } 
 variable "add_nfs" { default = false}
-variable "create_ffs" { default = false }
+variable "create_fss" { default = false }
 variable "fss_compartment" {default = ""}
 variable "fss_ad" {default = ""}
 variable "nfs_target_path" { default = "/app"}
