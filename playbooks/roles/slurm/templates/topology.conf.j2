@@ -2,7 +2,7 @@
 {% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
-SwitchName=inactive-{{partition.name}}-{{instance.instance_keyword}} Nodes={% for item in range( size | int ) -%}{{partition.name}}-{{instance.instance_keyword}}-node-{{ item }}{{ "," if not loop.last else ''}}{%- endfor %}
+SwitchName=inactive-{{partition.name}}-{{instance.instance_keyword}} Nodes={% for item in range(1, size | int + 1 ) -%}{{partition.name}}-{{instance.instance_keyword}}-node-{{ item }}{{ "," if not loop.last else ''}}{%- endfor %}
 
 {% endfor %}
 {% endfor %}
