@@ -1,0 +1,5 @@
+SwitchName=rack1 Nodes=inst-ak7vo-sure-walleye,inst-dersc-sure-walleye
+SwitchName=rack2 Nodes=inst-ak7vo-sure-walleye
+SwitchName=rack3 Nodes=inst-cjaee-sure-walleye
+SwitchName=permanent Switches=rack[1-3]
+
