@@ -423,6 +423,7 @@ variables:
     enum:
       - "BM.HPC2.36"
       - "BM.GPU4.8"
+      - "BM.GPU.B4.8"
       - "BM.Optimized3.36"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
