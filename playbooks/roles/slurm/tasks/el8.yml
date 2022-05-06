@@ -8,11 +8,11 @@
 #  when: (not destroy|bool) and (not cluster_nfs|bool)
 
 - name: include common tasks
-  include_tasks: common.yml
+  include_tasks: common-el8.yml
   when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
 
 - name: run server directives
-  include_tasks: server-el8.yml
+  include_tasks: server.yml
   when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
 
 - name: run backup server directives
