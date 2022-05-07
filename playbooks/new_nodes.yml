@@ -24,6 +24,7 @@
     - localdisk
     - limits
     - mpi-hostfiles
+    - boot-volume
 
 - hosts: bastion,slurm_backup,compute
   become: true
@@ -59,7 +60,7 @@
         local_path: "{{ cluster_nfs_path }}"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/export/cluster"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: cluster_nfs|default(true)|bool
     - include_role: 
@@ -123,7 +124,22 @@
         options: "{{ nfs_options }}"
         lock: "none"
       when: add_nfs|default(false)|bool
+     
+- hosts: compute
+  become: true
+  vars:
 
+  tasks:
+    - include_role: 
+        name: docker
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-container
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-enroot
+      when: enroot|default(true)|bool
+      
 - hosts: compute
   vars:
     destroy: false
@@ -141,3 +157,12 @@
     - include_role: 
         name: telegraf
       when: monitoring|default(false)|bool
+
+- hosts: compute
+  become: true
+  vars:
+
+  tasks:
+    - include_role: 
+        name: nvidia-pyxis
+      when: pyxis|default(true)|bool

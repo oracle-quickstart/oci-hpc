@@ -233,7 +233,9 @@ resource "null_resource" "cluster_backup" {
       autoscaling_mysql_service = var.autoscaling_mysql_service,
       monitoring_mysql_ip = var.autoscaling_monitoring && var.autoscaling_mysql_service ? oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address : "localhost",
       admin_password = var.admin_password,
-      admin_username = var.autoscaling_mysql_service ? var.admin_username : "root"
+      admin_username = var.autoscaling_mysql_service ? var.admin_username : "root",
+      enroot = var.enroot,
+      pyxis = var.pyxis
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -345,7 +347,9 @@ resource "null_resource" "cluster_backup" {
       monitoring = var.monitoring,
       hyperthreading = var.hyperthreading,
       unsupported = var.unsupported,
-      autoscaling_monitoring = var.autoscaling_monitoring
+      autoscaling_monitoring = var.autoscaling_monitoring,
+      enroot = var.enroot,
+      pyxis = var.pyxis
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"

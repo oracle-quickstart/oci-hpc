@@ -123,9 +123,12 @@ variableGroups:
     variables:
       - ${slurm}
       - ${slurm_ha}
+      - ${pyxis}
       - ${queue}
       - ${spack}
       - ${monitoring}
+      - ${enroot}
+
   - title: "Hidden"
     variables:
       - ${region}
@@ -847,6 +850,12 @@ variables:
     visible:
         - ${slurm}
 
+  pyxis:
+    type: boolean
+    title: "Install Nvidia Pyxis plugin for Slurm"
+    default: false
+    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
+
   queue:
     type: String
     title: "Queue Name"
@@ -862,11 +871,18 @@ variables:
     default: false
     description: "Install Spack package manager. Requires shared folder" 
 
+  enroot:
+    type: boolean
+    title: "Install Nvidia Enroot for containerized GPU workloads"
+    default: false
+    description: "Install Enroot, Nvidia Container Toolkit, and docker."
+
   monitoring:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: false
     description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
+
 
   autoscaling:
     type: boolean
