@@ -231,7 +231,24 @@
       when: autoscaling_monitoring|default(false)|bool
     - include_role: 
         name: cron
-      
+
+
+- hosts: compute
+  become: true
+  vars:
+
+  tasks:
+    - include_role: 
+        name: docker
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-container
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-enroot
+      when: enroot|default(true)|bool
+
+
 - hosts: all
   vars:
     destroy: false
@@ -250,3 +267,13 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+
+- hosts: all
+  become: true
+  vars:
+
+  tasks:
+    - include_role: 
+        name: nvidia-pyxis
+      when: pyxis|default(true)|bool
+

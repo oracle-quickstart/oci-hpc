@@ -53,3 +53,5 @@ monitoring_mysql_ip=${monitoring_mysql_ip}
 admin_password = ${admin_password}
 admin_username = ${admin_username}
 instance_type=permanent
+enroot=${enroot}
+pyxis=${pyxis}
