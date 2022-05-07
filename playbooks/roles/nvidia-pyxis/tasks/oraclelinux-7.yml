@@ -1,0 +1,31 @@
+---
+- block:
+
+# Should be already installed: yum list installed | grep slurm-devel
+
+  - name: install required packages
+    yum: 
+      enablerepo: "epel,ol7_developer_EPEL"
+      name: 
+        - gcc-c++
+      state: present
+
+  - name: clone pyxis repo
+    ansible.builtin.git:
+      repo: https://github.com/NVIDIA/pyxis.git
+      dest: /tmp/pyxis
+
+  - name: compile 
+    command: bash -c "sudo make install"
+    args:
+      chdir: /tmp/pyxis/
+
+  - name: create /etc/slurm/plugstack.conf
+    copy:
+      dest: "/etc/slurm/plugstack.conf"
+      content: |
+        required /usr/local/lib/slurm/spank_pyxis.so
+      mode: '0755'
+      owner: opc
+      group: opc
+
