@@ -1,0 +1,22 @@
+
+- hosts: all
+  become: true
+  tasks:
+    - name: create groupname group (gid 9876)
+      group:
+        name: groupname
+        gid: 9876
+        state: present
+    - name: allow groupname group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%groupname'
+        line: '%groupname ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+    - name: add opc user to groupname group
+      user:
+        name: opc
+        groups: groupname
+        append: yes
+
