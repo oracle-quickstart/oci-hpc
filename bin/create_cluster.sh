@@ -43,6 +43,14 @@ instance_pool_custom_memory=`yq eval ".queues.[] | select(.name == \"$4\") | .in
 marketplace_listing=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.marketplace_listing " $queues_conf`
 hyperthreading=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.hyperthreading " $queues_conf`
 
+if [ "$shape" == "" ]
+then
+  echo "There wan't an instance type with name $3 in the queue $4 defined in the file $queues_conf"
+  echo "Please fix it and rerun /opt/oci-hpc/bin.slurm_config.sh"
+  rm -rf $autoscaling_folder/clusters/$2
+  exit
+fi
+
 sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/$shape/g;s/##CN##/$cluster_network/g;s/##QUEUE##/${4}/g;s/##COMP##/${targetCompartment}/g;s/##AD##/${ad}/g;s/##BOOT##/${boot_volume_size}/g;s/##USEMP##/${use_marketplace_image}/g;s/##IMAGE##/${image}/g;s/##OCPU##/${instance_pool_ocpus}/g;s/##MEM##/${instance_pool_memory}/g;s/##CUSTOM_MEM##/${instance_pool_custom_memory}/g;s/##MP_LIST##/${marketplace_listing}/g;s/##HT##/${hyperthreading}/g;s/##INST_TYPE##/$3/g;s/##TAGS##/$tags/g" $conf_folder/variables.tf > variables.tf
 
 echo "Started to build $2"
