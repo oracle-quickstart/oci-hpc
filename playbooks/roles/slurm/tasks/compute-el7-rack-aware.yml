@@ -175,7 +175,7 @@
 - name: Add the nodes in the rack switches
   become: true
   vars:
-    new_line: "SwitchName={{item.item}} Nodes={{item.stdout}}{% if item.stdout != ''%},{% endif%}{% for node in groups['compute'] %}{% if hostvars[node]['rackID'] == item.item.split(':')[1] and (not ((hostvars[node]['ansible_hostname'] in item.stdout.split(',')|list)|bool)) %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+    new_line: "SwitchName={{item.item}} Nodes={{item.stdout}}{% if item.stdout != ''%},{% endif%}{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if hostvars[node]['rackID'] == item.item.split(':')[1] and (not ((hostvars[node]['ansible_hostname'] in item.stdout.split(',')|list)|bool)) %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   lineinfile:
     path: "/etc/slurm/topology.conf"
     regexp: "SwitchName={{item.item}}\\sNodes.*"

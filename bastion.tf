@@ -210,6 +210,7 @@ resource "null_resource" "cluster" {
       nfs_options = var.nfs_options,
       cluster_network = var.cluster_network,
       slurm = var.slurm,
+      rack_aware = var.rack_aware,
       slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack = var.spack,
       ldap = var.ldap,
@@ -314,6 +315,7 @@ resource "null_resource" "cluster" {
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path = var.scratch_nfs_path,
       slurm = var.slurm,
+      rack_aware = var.rack_aware,
       slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack = var.spack,
       ldap = var.ldap,
