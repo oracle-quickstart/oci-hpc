@@ -29,6 +29,7 @@ slurm_nfs_path = ${slurm_nfs_path}
 scratch_nfs_path = ${scratch_nfs_path}
 cluster_network = ${cluster_network}
 slurm = ${slurm}
+rack_aware = ${rack_aware}
 spack = ${spack} 
 bastion_block = ${bastion_block} 
 scratch_nfs_type = ${scratch_nfs_type}

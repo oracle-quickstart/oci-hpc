@@ -39,6 +39,7 @@ variable "private_subnet" { default = "172.16.4.0/22" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "slurm_ha" { default = false }
+variable "rack_aware" { default = false }
 variable "ldap" { default = true } 
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 

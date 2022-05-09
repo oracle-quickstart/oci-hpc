@@ -123,6 +123,7 @@ variableGroups:
     variables:
       - ${slurm}
       - ${slurm_ha}
+      - ${rack_aware}
       - ${pyxis}
       - ${queue}
       - ${spack}
@@ -855,6 +856,16 @@ variables:
     title: "Install Nvidia Pyxis plugin for Slurm"
     default: false
     description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
+  
+  rack_aware:
+    type: boolean
+    title: "Create Rack aware topology"
+    default: false
+    required: true
+    description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted" 
+    visible:
+        - ${slurm}
+
 
   queue:
     type: String
