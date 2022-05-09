@@ -60,7 +60,7 @@
         local_path: "{{ cluster_nfs_path }}"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/export/cluster"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: cluster_nfs|default(true)|bool
     - include_role: 
