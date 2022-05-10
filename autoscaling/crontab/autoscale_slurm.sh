@@ -16,17 +16,41 @@ idle_time=600 #seconds
 
 script_path='/opt/oci-hpc/bin'
 
+def israckaware():
+    rackware=False
+    if os.path.isfile("/opt/oci-hpc/conf/variables.tf"):
+        variablefile=open("/opt/oci-hpc/conf/variables.tf",'r')
+        for line in variablefile:
+            if "\"rack_aware\"" in line and ("true" in line or "True" in line or "yes" in line or "Yes" in line) :
+                rackware=True
+                break
+    return rackware
+
 def getTopology():
     topology={}
     if os.path.isfile("/etc/slurm/topology.conf"):
         topologyfile=open("/etc/slurm/topology.conf",'r')
         for line in topologyfile:
-            splittedline=line.strip().split(" Nodes=")
-            try:
-                clusterName=splittedline[0].split('SwitchName=')[1]
-            except:
-                continue
-            topology[clusterName]=splittedline[1].split(',')
+            if israckaware:
+                splittedline=line.strip().split(" Nodes=")
+                if len(splittedline)==1:
+                    continue
+                switchName=splittedline[0].split('SwitchName=')[1]
+                if len(switchName.split(':')) == 1:
+                    clusterName=switchName.split
+                else :
+                    clusterName=':'.join(splittedline[0].split('SwitchName=')[1].split(':')[:-1])
+                if clusterName in topology.keys():
+                    topology[clusterName]=topology[clusterName]+splittedline[1].split(',')
+                else:
+                    topology[clusterName]=splittedline[1].split(',')
+            else:
+                splittedline=line.strip().split(" Nodes=")
+                try:
+                    clusterName=splittedline[0].split('SwitchName=')[1]
+                except:
+                    continue
+                topology[clusterName]=splittedline[1].split(',')
     return topology
 # Get the list of Jobs in all states
 def getJobs():
@@ -46,9 +70,9 @@ def getNodeDetails(node):
     if output[0] == '"':
         output=output[1:]
     if output[-1] == '"':
-        output=output[:-1]   
+        output=output[:-1]
     return output
-    
+
 def getIdleTime(node):
     out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
     stdout,stderr = out.communicate()
@@ -373,7 +397,7 @@ try:
             print "Creating cluster "+clusterName+" with "+str(nodes)+" nodes"
             subprocess.Popen([script_path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
             time.sleep(5)
-    
+
 except Exception:
     traceback.print_exc()
 os.remove(lockfile)
