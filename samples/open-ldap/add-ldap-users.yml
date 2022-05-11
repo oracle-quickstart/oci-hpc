@@ -55,5 +55,7 @@
         group=groupname
         owner="{{username}}"
         content="Host inst-*
+            IdentityFile ~/.ssh/id_rsa_cluster
+            Host compute-permanent-node-*
             IdentityFile ~/.ssh/id_rsa_cluster"
 
