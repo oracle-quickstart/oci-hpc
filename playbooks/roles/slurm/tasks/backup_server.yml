@@ -6,7 +6,7 @@
       - slurm-pam_slurm
       - slurm-pmi
       - slurm-slurmd
-    enablerepo: "epel,ol7_developer_EPEL"
+    package_repo: "epel,ol7_developer_EPEL"
   include_role: 
     name: safe_yum
   

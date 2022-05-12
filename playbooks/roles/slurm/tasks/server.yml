@@ -15,7 +15,7 @@
   vars: 
     package_name:
       - python2-PyMySQL
-    enablerepo: "epel,ol7_developer_EPEL"
+    package_repo: "epel,ol7_developer_EPEL"
     package_state: installed
   include_role: 
     name: safe_yum
@@ -26,7 +26,7 @@
       - slurm-slurmctld
       - slurm-slurmdbd
   #    - slurm-slurmrestd
-    enablerepo: "epel,ol7_developer_EPEL"
+    package_repo: "epel,ol7_developer_EPEL"
   include_role: 
     name: safe_yum
   
