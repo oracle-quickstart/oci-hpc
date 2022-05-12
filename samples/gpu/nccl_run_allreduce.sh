@@ -13,6 +13,17 @@ else
   hostfile="/tmp/ordered_hostfile_system_name"
 fi
 
+ORDEREDMACHINEFILE="ordered_hostfile_system_name"
+echo INPUTFILE
+cat $hostfile
+
+# will generate rack-aware ordered host file
+python3 /home/opc/node_ordering_by_rack.py --input_file $hostfile > /dev/null
+hostfile=$ORDEREDMACHINEFILE
+
+echo ORDEREDMACHINEFILE
+cat $ORDEREDMACHINEFILE
+
 # The number of GPUs to use for the test.  Has to be multiplier of 8.  If not passed, all GPUs will be used. 
 if [ -n "$3" ]; then
   np=$3

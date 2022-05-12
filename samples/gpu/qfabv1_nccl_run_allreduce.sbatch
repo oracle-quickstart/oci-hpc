@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=nccl-allreduce-slurm
-#SBATCH --nodes=32
+#SBATCH --nodes=2
 #SBATCH --gpus-per-node=8
 #SBATCH --ntasks-per-node=8
 #SBATCH --exclusive
@@ -11,24 +11,20 @@ cd /nfs/scratch
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 
-
 MACHINEFILE="hostfile"
 ORDEREDMACHINEFILE="ordered_hostfile_system_name"
+ORDEREDRANKMACHINEFILE="rankfile_system_name"
 
 scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
+echo MACHINEFILE
 cat $MACHINEFILE
 
 python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
-# openmpi
-#sed -i "s/$/ slots=${SLURM_NTASKS_PER_NODE}/" $ORDEREDMACHINEFILE
-
 
 echo ORDEREDMACHINEFILE
 cat $ORDEREDMACHINEFILE
-echo ORDEREDMACHINEFILE
-
-#y="" ; for x in `less $ORDEREDMACHINEFILE` ; do  y="$y$x:8," ; echo $y ; host_list=`echo $y | sed  's|,$||g'` ;   done ;  echo $host_list
-y="" ; for x in `less $ORDEREDMACHINEFILE` ; do  y="$y$x," ; echo $y ; host_list=`echo $y | sed  's|,$||g'` ;   done ;  echo $host_list
+echo ORDEREDRANKMACHINEFILE
+cat $ORDEREDRANKMACHINEFILE
 
 if [ -f /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh ]; then
   source /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh
@@ -69,6 +65,6 @@ fi
   -x NCCL_IB_GID_INDEX=3 \
   -x NCCL_ALGO=Ring \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
-  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile rankfile_system_name  /home/opc/nccl-tests/build/all_reduce_perf -b8  -e 4G -f 2 -n 100
+  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /home/opc/nccl-tests/build/all_reduce_perf -b8  -e 4G -f 2 -n 100
 
 
