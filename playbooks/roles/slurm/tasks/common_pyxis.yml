@@ -1,0 +1,12 @@
+---
+- name: copy files
+  become: true
+  become_method: sudo
+  template:
+    src: prolog.sh.j2
+    dest: "/etc/slurm/prolog.sh"
+    owner: root
+    group: root
+    mode: 0755
+    force: yes
+    backup: yes  
