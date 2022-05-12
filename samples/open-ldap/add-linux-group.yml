@@ -20,3 +20,15 @@
         groups: groupname
         append: yes
 
+- hosts: compute
+  become: true
+  tasks:
+    - name: update permission to allow groupname rw access /tmp/enroot-data directory
+      file:
+        path: "/tmp/enroot-data"
+        state: directory
+        mode: '0775'
+        owner: opc
+        group: groupname
+        recurse: no
+        
