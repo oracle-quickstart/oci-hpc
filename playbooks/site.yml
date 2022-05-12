@@ -270,8 +270,6 @@
 
 - hosts: all
   become: true
-  vars:
-
   tasks:
     - include_role: 
         name: nvidia-pyxis
