@@ -51,4 +51,14 @@
       enabled: yes
 
 
+  - name: create docker group
+    group:
+      name: docker
+      state: present
+  - name: add opc user to docker group
+    user:
+      name: opc
+      groups: docker
+      append: yes
+
 

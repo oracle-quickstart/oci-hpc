@@ -49,11 +49,14 @@
         key: "{{id_rsa_cluster_pub.content | b64decode}}"
 
     - name: Configure ~/.ssh/config to use new RSA key
+      become: true
+      become_user: "{{username}}"
       blockinfile: |
         dest="/home/{{username}}/.ssh/config"
         create=yes
-        group=groupname
         owner="{{username}}"
         content="Host inst-*
+            IdentityFile ~/.ssh/id_rsa_cluster
+            Host compute-permanent-node-*
             IdentityFile ~/.ssh/id_rsa_cluster"
 
