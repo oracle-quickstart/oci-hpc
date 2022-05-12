@@ -4,14 +4,16 @@
 # Should be already installed: yum list installed | grep slurm-devel
 
   - name: install required packages
-    yum: 
-      enablerepo: "epel,ol7_developer_EPEL"
-      name: 
+    vars: 
+      package_name: 
         - gcc-c++
-      state: present
+        - git
+      package_repo: "epel,ol7_developer_EPEL"
+    include_role: 
+      name: safe_yum
 
   - name: clone pyxis repo
-    ansible.builtin.git:
+    git:
       repo: https://github.com/NVIDIA/pyxis.git
       dest: /tmp/pyxis
 

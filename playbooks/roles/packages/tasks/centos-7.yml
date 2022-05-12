@@ -1,7 +1,9 @@
 ---
 - name: Make sure python OpenSSL is installed
-  yum: 
-    name: 
+  vars: 
+    package_name: 
       - pyOpenSSL
       - python2-cryptography
-    state: latest
+    package_state: latest
+  include_role: 
+    name: safe_yum

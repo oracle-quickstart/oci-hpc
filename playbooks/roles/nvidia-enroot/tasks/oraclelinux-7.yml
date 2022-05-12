@@ -3,22 +3,14 @@
 
 
   - name: install required packages
-    yum: 
-      enablerepo: "epel,ol7_developer_EPEL"
-      name: 
+    vars: 
+      package_name: 
         - zstd
-      state: present
-
-  - name: Install enroot
-    yum:
-      name: https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el7.{{ ansible_architecture }}.rpm
-      state: present
-
-  - name: Install enroot+caps
-    yum:
-      name: https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el7.{{ ansible_architecture }}.rpm
-      state: present
-
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
+      enablerepo: "epel,ol7_developer_EPEL"
+    include_role: 
+      name: safe_yum
   # needs reboot
   - name: update namespace.unpriv_enable=1 kernel parameters 
     command: bash -c "sudo grubby --args="namespace.unpriv_enable=1" --update-kernel=`sudo grubby --default-kernel`"

@@ -12,41 +12,23 @@
                             chars=ascii_letters,digits,hexdigits") }}'
 
 - name: Install PyMSQL
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name: 
+  vars: 
+    package_name:
       - python2-PyMySQL
-    state: installed
-
-#- name: install Slurm Server
-#  block:    
-#    - name: install SLURM server packages
-#      become: true
-#      yum: 
-#        name: 
-#          - "{{ download_path }}/slurm_rpms/slurm-slurmctld-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm" 
-#  rescue:
-#    - name: Repository
-#      become: true
-#      yum_repository:
-#        name: oci-hpc
-#        description: oci-hpc
-#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-#        gpgcheck: no
-#        enabled: yes
-#        retries: 3
+    enablerepo: "epel,ol7_developer_EPEL"
+    package_state: installed
+  include_role: 
+    name: safe_yum
       
 - name: install SLURM server packages
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name: 
+  vars: 
+    package_name: 
       - slurm-slurmctld
       - slurm-slurmdbd
-#      - slurm-slurmrestd
+  #    - slurm-slurmrestd
+    enablerepo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
   
 - name: Create systemd unit dirs
   become: true

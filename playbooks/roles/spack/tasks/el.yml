@@ -1,14 +1,17 @@
 ---
 - name: install GIT
-  yum: 
-    name: git
-    state: latest
-  become: true
+  vars: 
+    package_name: 
+      - git
+  include_role: 
+    name: safe_yum
 
 - name: Development Tools" 
-  yum: 
-    name: "@Development Tools"
-  become: true
+  vars: 
+    package_name: 
+      - "@Development Tools"
+  include_role: 
+    name: safe_yum
 
 - name: Clone SPACK
   git: 

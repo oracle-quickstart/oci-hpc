@@ -32,10 +32,13 @@
     gpgkey: https://repos.influxdata.com/influxdb.key
 
 - name: Install InfluxDB
-  become: true
-  yum: 
-    name: influxdb
-    state: latest
+    vars: 
+      package_name: 
+        - influxdb
+        - python-pip
+      package_state: latest
+    include_role: 
+      name: safe_yum
 
 - name: Start InfluxDB
   become: true
@@ -44,11 +47,6 @@
     state: started
     enabled: true
 
-- name: Install any necessary PIP dependencies
-  become: true
-  yum: 
-    name: python-pip
-    state: present
 
 - name: Set configuration directory path
   become: true

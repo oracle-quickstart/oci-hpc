@@ -2,9 +2,12 @@
 - block:
 
   - name: Install yum utils
-    yum:
-      name: yum-utils
-      state: latest
+    vars: 
+      package_name: 
+        - yum-utils
+      package_state: latest
+    include_role: 
+      name: safe_yum
 
   - name: Add centos-extras repo required for docker-ce
     become: true
@@ -26,13 +29,15 @@
       gpgkey: https://download.docker.com/linux/centos/gpg
 
   - name: Install Docker
-    ansible.builtin.yum:
-      name:
+    vars: 
+      package_name: 
         - docker-ce
         - docker-ce-cli
         - containerd.io
-      state: latest
-      update_cache: true
+      package_state: latest
+      package_cache: true
+    include_role: 
+      name: safe_yum
 
   - name: Start Docker
     ansible.builtin.service:
