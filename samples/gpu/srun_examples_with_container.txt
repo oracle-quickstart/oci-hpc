@@ -1,0 +1,8 @@
+# assuming nodes have enroot and pyxis configured and ngc container downloaded and sqsh created. 
+srun --container-name=pytorch --container-image=nvcr.io+nvidia+pytorch+22.04-py3.sqsh  bash -c "cat /etc/*rel*"
+
+# non-NGC container
+enroot create -n pyxis_ubuntu /home/opc/ubuntu.sqsh
+enroot start pyxis_ubuntu
+srun --container-name=ubuntu   bash -c "cat /etc/*rel*"
+
