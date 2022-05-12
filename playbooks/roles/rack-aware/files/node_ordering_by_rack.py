@@ -26,16 +26,6 @@ def write_ordered_rankfile(ordered_hosts=[],hostfile=None):
     fhandler.close()
 
 
-
-def write_slurm_topology_data(data=[],topo_file=None):
-   #topo_file="slurm_topology_data"
-   if os.path.isfile(topo_file):
-      os.remove(topo_file)
-   fhandler = open(topo_file,"w")
-   for h in data:
-      fhandler.write(h+"\n")
-   fhandler.close()
-
 gpus=8
 parser = argparse.ArgumentParser(description='Script to order hostnames for optimal performance based on rack Id')
 parser.add_argument('--input_file', help='Path of the input file which has host names. One hostname on each line in the file')
@@ -79,7 +69,6 @@ for host_out in hostname_output:
 
 ordered_hosts = []
 ordered_hosts_friendly_name = []
-slurm_topology_data = []
 # sort racks by amount of hosts (descending)
 racks_sorted = sorted(r.items(), key=lambda x: len(x[1]), reverse=True)
 i = 0
@@ -94,13 +83,6 @@ for k, v in racks_sorted:
     ordered_hosts_friendly_name.append(friendly_name_to_system_hostname[h])
     rack_nodes.append(friendly_name_to_system_hostname[h])
   rack_data = rack_data_prefix + ','.join([str(node) for node in rack_nodes])
-  #print(rack_data)
-  slurm_topology_data.append(rack_data)
-
-slurm_topology_data.append("SwitchName=permanent Switches=rack[1-"+str(len(racks_sorted))+"]")
-print(slurm_topology_data)
-topo_file="slurm_topology_data"
-write_slurm_topology_data(slurm_topology_data,topo_file)
 
 hostfile="ordered_hostfile"
 write_ordered_hostfile(ordered_hosts,hostfile)
