@@ -61,5 +61,23 @@
       line: 'ENROOT_DATA_PATH        /tmp/enroot-data/user-$(id -u)'
       backup: yes
 
+  - name: set permissions on /tmp
+    become: true
+    file:
+      path: /tmp
+      state: directory
+      owner: opc
+      mode: 0777
+      group: opc
+      recurse: no
+
+  - name: Make sure /tmp/enroot-data directory exist
+    file:
+      path: "/tmp/enroot-data"
+      state: directory
+      mode: '0775'
+      owner: opc
+      group: opc
+      recurse: no
 
 
