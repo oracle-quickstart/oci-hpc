@@ -25,10 +25,10 @@
                            chars=ascii_letters,digits,hexdigits') }}"
 
 - name: Install MariaDB packages
-  become: true
-  yum:
-   name: '{{ mariadb_packages }}'
-   state: present
+  vars: 
+    package_name: '{{ mariadb_packages }}'
+  include_role: 
+    name: safe_yum
   tags: install-only
 
 

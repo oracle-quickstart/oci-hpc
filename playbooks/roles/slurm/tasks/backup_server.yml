@@ -1,16 +1,14 @@
 ---   
 - name: install SLURM server packages
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name: 
+  vars: 
+    package_name: 
       - slurm-slurmctld
       - slurm-pam_slurm
       - slurm-pmi
       - slurm-slurmd
-  register: slurm_install_packages
-  retries: 5
-  until: slurm_install_packages is not failed
+    enablerepo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
   
 - name: Create systemd unit dirs
   become: true

@@ -51,10 +51,12 @@
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
 - name: install grafana
-  become: true
-  yum: 
-    name: grafana
-    state: latest
+  vars: 
+    package_name: 
+      - grafana
+    package_state: latest
+  include_role: 
+    name: safe_yum
 
 - name: start grafana
   become: true
@@ -86,20 +88,13 @@
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 
 - name: install mysql
-  become: true
-  yum: 
-    name: https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
-
-- name: install mysql-shell
-  become: true
-  yum: 
-    name: mysql-shell
-
-- name: install mysql connector
-  become: true
-  pip:
-    name: mysql-connector-python
-    executable: pip-3
+  vars: 
+    package_name: 
+      - https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+      - mysql-shell
+      - mysql-connector-python
+  include_role: 
+    name: safe_yum
 
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:

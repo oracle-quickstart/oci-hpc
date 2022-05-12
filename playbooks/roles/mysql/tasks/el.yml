@@ -24,17 +24,18 @@
                            chars=ascii_letters,digits') }}"
 
 - name: Install MySQL packages
-  become: true
-  yum: 
-    name: mysql-release-el7
-    state: present
+  vars: 
+    package_name: 
+      - mysql-release-el7
+  include_role: 
+    name: safe_yum
 
 - name: Install MySQL packages
-  become: true
-  yum:
-   enablerepo: ol7_MySQL80
-   name: '{{ mysql_packages }}'
-   state: present
+  vars: 
+    package_name: '{{ mysql_packages }}'
+    package_repo: ol7_MySQL80
+  include_role: 
+    name: safe_yum
   tags: install-only
 
 - name: Update SELinux context for {{ mysql_db_path }}

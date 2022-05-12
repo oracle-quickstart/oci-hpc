@@ -10,10 +10,11 @@
     gpgkey: https://repos.influxdata.com/influxdb.key
 
 - name: Install pip
-  become: true
-  yum:
-    name: python-pip
-    state: present
+  vars: 
+    package_name: 
+      - python-pip
+  include_role: 
+    name: safe_yum
 
 - name: install influx pip
   become: true
@@ -27,10 +28,12 @@
   run_once: true
 
 - name: Install telegraf
-  become: true
-  yum: 
-    name: telegraf
-    state: latest
+  vars: 
+    package_name: 
+      - telegraf
+    package_state: latest
+  include_role: 
+    name: safe_yum
 
 - name: copy telegraf.conf
   become: true

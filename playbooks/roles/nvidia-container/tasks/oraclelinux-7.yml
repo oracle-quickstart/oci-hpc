@@ -25,11 +25,13 @@
       warn: no
 
   - name: Install nvidia-container-toolkit
-    ansible.builtin.yum:
-      name:
+    vars: 
+      package_name: 
         - nvidia-container-toolkit
-      state: latest
-      update_cache: true
+      package_state: latest
+      package_cache: true
+    include_role: 
+      name: safe_yum
 
   - name: Start Docker
     ansible.builtin.service:

@@ -1,22 +1,11 @@
 ---
 - name: Make sure python OpenSSL is installed
-  yum: 
-    name: 
+  vars: 
+    package_name: 
       - pyOpenSSL
       - python2-cryptography
-    state: latest
-  register: packages_output
-  retries: 5
-  delay: 10
-  until: packages_output is not failed
-  ignore_errors: true
-
-- name: Make sure python3-oci-cli is installed
-  yum:
-    name:
       - python3-oci-cli
-    state: latest
-  register: oci_cli_output
-  retries: 5
-  delay: 10
-  until: oci_cli_output is not failed
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
