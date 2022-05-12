@@ -8,7 +8,7 @@
         - zstd
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
-      enablerepo: "epel,ol7_developer_EPEL"
+      package_repo: "epel,ol7_developer_EPEL"
     include_role: 
       name: safe_yum
   # needs reboot

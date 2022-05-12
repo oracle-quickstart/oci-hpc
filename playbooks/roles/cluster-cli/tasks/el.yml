@@ -5,7 +5,7 @@
     package_name: 
       - python36-click
       - python36-ldap3
-    enablerepo: "epel,ol7_developer_EPEL"
+    package_repo: "epel,ol7_developer_EPEL"
   include_role: 
     name: safe_yum
 

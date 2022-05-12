@@ -5,7 +5,7 @@
       - munge
       - munge-libs
       - munge-devel
-    enablerepo: "{{slurm_repos}}"
+    package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
 
@@ -55,7 +55,7 @@
       - slurm-torque
       - slurm-openlava
 #     - slurm-example-configs
-    enablerepo: "{{slurm_repos}}"
+    package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
           
