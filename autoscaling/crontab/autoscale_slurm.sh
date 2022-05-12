@@ -37,7 +37,7 @@ def getTopology():
                     continue
                 switchName=splittedline[0].split('SwitchName=')[1]
                 if len(switchName.split(':')) == 1:
-                    clusterName=switchName.split
+                    clusterName=switchName
                 else :
                     clusterName=':'.join(splittedline[0].split('SwitchName=')[1].split(':')[:-1])
                 if clusterName in topology.keys():
