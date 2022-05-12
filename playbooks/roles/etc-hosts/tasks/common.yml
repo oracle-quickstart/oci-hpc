@@ -52,13 +52,21 @@
   run_once: true
   when: not destroy|bool and groups['compute']|length > 0
 
+- name: move /etc/hosts on backup slurm
+  become: true
+  copy:
+    dest: /etc/hosts
+    src: /etc/hosts
+    force: yes
+  when: ( not destroy|bool ) and ('slurm_backup' in group_names)
+
 - name: move /etc/hosts on all compute nodes
   become: true
   copy:
     dest: /etc/hosts
     src: /tmp/hosts.etc.{{ cluster_name }}
     force: yes
-  when: ( not destroy|bool ) and (not 'bastion' in group_names)
+  when: ( not destroy|bool ) and (not 'bastion' in group_names) and (not 'slurm_backup' in group_names)
 
 - name: remove cluster from etc-host
   become: true
