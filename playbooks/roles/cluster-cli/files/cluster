@@ -160,9 +160,9 @@ def list():
 @click.option('-p', '--password', prompt='Password', required=True, hide_input=True,
               confirmation_prompt=True)
 @click.option('-n', '--name', prompt='Full Name', required=True)
-@click.option('-i', '--uid', default=None)
-@click.option('-g', '--gid', default=None)
-@click.option('-ssh', '--ssh', is_flag=True, default=False)
+@click.option('-i', '--uid', default=None, help='Select the userID')
+@click.option('-g', '--gid', default=None, help='Add to this groupID')
+@click.option('-ssh', '--ssh', is_flag=True, default=False, help='Flag to generate a user-specific ssh-key pair for passwordless ssh.')
 def add(user, password, uid, gid, name, ssh): 
   """ add user """
   search_base = people_dn
