@@ -1,15 +1,13 @@
 ---
 - name: install SLURM compute packages
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name:
+  vars: 
+    package_name: 
       - slurm-pam_slurm
       - slurm-pmi
       - slurm-slurmd
-  register: slurm_install_packages
-  retries: 5
-  until: slurm_install_packages is not failed
+    enablerepo: "{{slurm_repos}}"
+  include_role: 
+    name: safe_yum
 
 - name: Create systemd unit dirs
   become: true
@@ -95,36 +93,6 @@
     dest: /etc/slurm/slurm.conf
     src: /etc/slurm/slurm.conf
     force: yes
-
-# - name: Get nodes from Cluster Switch
-#   block:
-#     - name: Get nodes from topology.conf
-#       shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}\" | grep Nodes | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'"
-#       register: cluster_switch
-#       run_once: true
-#       delegate_to: 127.0.0.1
-#     - name: Create existing cluster list
-#       set_fact:
-#         cluster_list: "{{cluster_switch.stdout.split('Nodes=')[1].split(',')}}"
-#   rescue:
-#     - name: Create existing cluster list
-#       set_fact:
-#         cluster_list: []
-
-# - name: Get racks from Cluster Switch
-#   block:
-#     - name: Get racks from topology.conf
-#       shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}\""
-#       register: racks_switch
-#       run_once: true
-#       delegate_to: 127.0.0.1
-#     - name: Create existing cluster list
-#       set_fact:
-#         racks_list: "{{racks_switch.stdout.split('Switches=')[1].split(',')}}"
-#   rescue:
-#     - name: Create existing cluster list
-#       set_fact:
-#         racks_list: []
 
 - name: Run the script to get the RackID
   shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host | jq .rackId'

@@ -1,12 +1,14 @@
 ---
 - name: install munge
-  become: true
-  yum:
-    enablerepo: "ol8_developer_EPEL,ol8_codeready_builder"
-    name:
+  vars: 
+    package_name: 
       - munge
       - munge-libs
       - munge-devel
+    enablerepo: "{{slurm_repos}}"
+  include_role: 
+    name: safe_yum
+
 - name: create munge group
   become: true
   group:
@@ -41,39 +43,10 @@
     shell: /bin/bash
     home: /var/lib/slurm
     state: present
-
-
-#- name: install Slurm Common Packages
-#  block:
-#    - name: install SLURM server packages
-#      become: true
-#      yum: 
-#        name: 
-#          - "{{ download_path }}/slurm_rpms/slurm-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-contribs-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-devel-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-example-configs-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-openlava-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-perlapi-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-torque-20.02.4-1.el7.x86_64.rpm"
-
-#  rescue:
-#    - name: Repository
-#      become: true
-#      yum_repository:
-#        name: oci-hpc
-#        description: oci-hpc
-#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-#        gpgcheck: no
-#        enabled: yes
-#        retries: 3
       
 - name: install SLURM server packages
-  become: true
-  yum:
-    enablerepo: "ol8_developer_EPEL,ol8_codeready_builder"
-    name:
+  vars: 
+    package_name: 
       - slurm
       - slurm-devel
       - slurm-contribs
@@ -82,6 +55,9 @@
       - slurm-torque
       - slurm-openlava
 #     - slurm-example-configs
+    enablerepo: "{{slurm_repos}}"
+  include_role: 
+    name: safe_yum
           
 - name: Create {{ slurm_spool_path }}
   become: true
@@ -141,20 +117,6 @@
     mode: 0755
     state: directory
 
-#- name: Generate topology.conf
-#  become: true
-#  template: 
-#    src: topology.conf.j2
-#    dest: /etc/slurm/topology.conf
-#    mode: '0644'
-#    backup: yes
-#  delegate_to: 127.0.0.1
-#  when: initial|bool
-
-#- name: move topology.conf on all servers
-#  become: true
-#  copy:
-#    dest: /etc/slurm/topology.conf
-#    src: /etc/slurm/topology.conf
-#    force: yes
-#  when: not destroy|bool
+- name: Include pyxis prolog files
+  include: common_pyxis.yml
+  when: pyxis
