@@ -56,3 +56,4 @@ admin_username = ${admin_username}
 instance_type=permanent
 enroot=${enroot}
 pyxis=${pyxis}
+privilege_sudo=${privilege_sudo}

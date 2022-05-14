@@ -121,6 +121,7 @@ variableGroups:
       - ${additional_subnet}
   - title: "Software"
     variables:
+      - ${privilege_sudo} 
       - ${slurm}
       - ${slurm_ha}
       - ${rack_aware}
@@ -1064,3 +1065,8 @@ variables:
         - ${autoscaling}
         - ${autoscaling_monitoring}
 
+  privilege_sudo:
+    type: boolean
+    title: "Sudo Access"
+    default: true
+    description: "Give sudo access to the privilege group"

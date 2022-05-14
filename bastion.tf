@@ -233,7 +233,8 @@ resource "null_resource" "cluster" {
       admin_password = var.admin_password,
       admin_username = var.autoscaling_mysql_service ? var.admin_username : "root",
       enroot = var.enroot,
-      pyxis = var.pyxis
+      pyxis = var.pyxis,
+      privilege_sudo = var.privilege_sudo
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -348,7 +349,8 @@ resource "null_resource" "cluster" {
       unsupported = var.unsupported,
       autoscaling_monitoring = var.autoscaling_monitoring,
       enroot = var.enroot,
-      pyxis = var.pyxis
+      pyxis = var.pyxis,
+      privilege_sudo = var.privilege_sudo
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"

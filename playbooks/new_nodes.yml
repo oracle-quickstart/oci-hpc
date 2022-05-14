@@ -25,6 +25,7 @@
     - limits
     - mpi-hostfiles
     - boot-volume
+    - privilege_group
 
 - hosts: bastion,slurm_backup,compute
   become: true
