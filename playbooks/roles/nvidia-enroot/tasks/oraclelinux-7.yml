@@ -69,7 +69,6 @@
       state: directory
       mode: '0775'
       owner: opc
-      group: opc
+      group: privilege
       recurse: no
-
 
