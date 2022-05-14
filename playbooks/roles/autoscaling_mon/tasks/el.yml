@@ -91,6 +91,12 @@
   vars: 
     package_name: 
       - https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+  include_role: 
+    name: safe_yum
+
+- name: install mysql
+  vars: 
+    package_name: 
       - mysql-shell
       - mysql-connector-python
   include_role: 
