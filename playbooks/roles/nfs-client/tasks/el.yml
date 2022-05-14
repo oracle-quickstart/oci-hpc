@@ -13,6 +13,7 @@
     state: directory
     owner: opc
     group: privilege
+    mode: '0775'
 
 - name: Mount NFS with options
   mount:
