@@ -119,4 +119,4 @@
 
 - name: Include pyxis prolog files
   include: common_pyxis.yml
-  when: pyxis
+  when: pyxis|bool
