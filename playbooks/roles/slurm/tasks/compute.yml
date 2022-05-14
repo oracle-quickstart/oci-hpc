@@ -121,7 +121,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
   run_once: true
   register: nodes_to_add_temp_results
 
