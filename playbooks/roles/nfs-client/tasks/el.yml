@@ -12,7 +12,7 @@
     path: "{{ local_path }}"
     state: directory
     owner: opc
-    group: opc
+    group: privilege
 
 - name: Mount NFS with options
   mount:

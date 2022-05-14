@@ -27,6 +27,7 @@
     - mpi-hostfiles
     - etc-hosts
     - boot-volume
+    - privilege_group
 
 - hosts: bastion
   become: true
