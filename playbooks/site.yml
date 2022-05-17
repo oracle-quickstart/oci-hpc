@@ -17,8 +17,9 @@
   gather_facts: true
   roles: 
     - oci-cloud-agent
-    - packages
+    - privilege_group
     - oci-legacy
+    - packages
     - firewall 
     - oci-hostname
     - ssh
@@ -27,7 +28,6 @@
     - mpi-hostfiles
     - etc-hosts
     - boot-volume
-    - privilege_group
 
 - hosts: bastion
   become: true
@@ -44,13 +44,14 @@
   become: true
   vars:
     tmp_home: "/tmp/home_tmp/"
+    remote_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}{% endif %}"
   tasks:
     - include_role:
         name: nfs-client
       vars:
         local_path: "{{tmp_home}}"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "/home"
+        export_path: "{{ remote_path }}"
         options: ""
         lock: "none"
       when: add_nfs|bool and home_fss|bool 
@@ -59,15 +60,13 @@
       when: add_nfs|bool and home_fss|bool
 - hosts: bastion, slurm_backup
   become: true
-  vars:
-    tmp_home: "/tmp/home_tmp/"
   tasks:
     - include_role:
         name: nfs-client
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "/home"
+        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
         options: ""
         lock: "none"
       when: add_nfs|bool and home_fss|bool
@@ -108,7 +107,7 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "/home"
+        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool

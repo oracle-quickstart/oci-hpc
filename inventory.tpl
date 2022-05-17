@@ -22,6 +22,7 @@ private_subnet=${private_subnet}
 nvme_path=/mnt/localdisk/
 scratch_nfs = ${scratch_nfs}
 home_nfs = ${home_nfs} 
+create_fss = ${create_fss} 
 home_fss = ${home_fss} 
 cluster_nfs = ${cluster_nfs}
 cluster_nfs_path = ${cluster_nfs_path}

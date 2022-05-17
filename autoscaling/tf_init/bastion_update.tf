@@ -29,6 +29,7 @@ resource "local_file" "inventory" {
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
     home_nfs = var.home_nfs,
+    create_fss = var.create_fss,
     home_fss = var.home_fss,
     add_nfs = var.add_nfs,
     slurm_nfs_path = var.slurm_nfs_path,

@@ -16,8 +16,9 @@
   gather_facts: true
   roles: 
     - oci-cloud-agent
-    - packages
+    - privilege_group
     - oci-legacy
+    - packages
     - firewall 
     - oci-hostname
     - ssh
@@ -25,7 +26,6 @@
     - limits
     - mpi-hostfiles
     - boot-volume
-    - privilege_group
 
 - hosts: bastion,slurm_backup,compute
   become: true
@@ -91,6 +91,9 @@
     - include_role: 
         name: hyperthreading
       when: not hyperthreading|default(true)|bool 
+    - include_role: 
+        name: latency_check
+      when: cluster_network|bool and not 'GPU' in shape 
 
 - hosts: compute
   become: true
@@ -112,7 +115,7 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "/home"
+        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool

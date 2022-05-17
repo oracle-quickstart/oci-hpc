@@ -198,6 +198,7 @@ resource "null_resource" "cluster" {
       rdma_netmask = cidrnetmask(var.rdma_subnet),
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       home_nfs = var.home_nfs,
+      create_fss = var.create_fss,
       home_fss = var.home_fss,
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       cluster_nfs = var.use_cluster_nfs,
@@ -338,6 +339,7 @@ resource "null_resource" "cluster" {
       bastion_block = var.bastion_block,
       bastion_mount_ip = local.bastion_mount_ip,
       home_nfs = var.home_nfs,
+      create_fss = var.create_fss,
       home_fss = var.home_fss,
       add_nfs = var.add_nfs,
       nfs_target_path = var.nfs_target_path,
@@ -401,7 +403,9 @@ provisioner "file" {
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh",
-      "/opt/oci-hpc/bin/initial_monitoring.sh"     ]
+      "exit_code=$?",
+      "/opt/oci-hpc/bin/initial_monitoring.sh",
+      "exit $exit_code"     ]
     connection {
       host        = oci_core_instance.bastion.public_ip
       type        = "ssh"
