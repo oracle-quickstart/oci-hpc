@@ -3,8 +3,8 @@
     src: install.sh
     dest: /opt/oci-hpc/bin/
     owner: opc
-    group: opc
-    mode: '0755'
+    group: privilege
+    mode: '0775'
 
 - name: install dependencies
   command: bash -c "/opt/oci-hpc/bin/install.sh"
