@@ -1,0 +1,19 @@
+---
+- name: copy script
+  template:
+    src: latency_check.sh.j2
+    dest: '/tmp/latency_check.sh'
+    backup: yes
+    owner: opc
+    group: opc
+    mode: 0775
+  run_once: true
+
+- name: Run Latency test
+  command: "/tmp/latency_check.sh"
+  register: latency_check
+  failed_when: "'KO' in latency_check.stdout"
+  run_once: true
+  retries: 3
+  delay: 10
+  until: latency_check is not failed
