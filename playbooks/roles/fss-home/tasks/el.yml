@@ -5,9 +5,16 @@
     state: directory
     mode: '0755'
 
+- name: Make sure the remote home directory exist
+  file:
+    path: "{{tmp_home}}/home"
+    state: directory
+    mode: '0755'
+  when: not create_fss|bool
+
 - name: Report if opc dir exist
   file:
-    path: "{{tmp_home}}/opc/"
+    path: "{{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/opc/"
     state: directory
     mode: '0700'
     owner: opc
@@ -15,7 +22,7 @@
   register: opc_directory
 
 - name: copy opc/ dir
-  command: "cp -rpT /home/opc {{tmp_home}}/opc"
+  command: "cp -rpT /home/opc {{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/opc"
   when: opc_directory.changed
 
 #- name: copy opc/.bash* dir

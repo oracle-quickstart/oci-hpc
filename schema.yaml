@@ -386,7 +386,7 @@ variables:
             - ${use_advanced}
   home_nfs:
     type: boolean
-    title: "shared NFS /home from bastion. To use FSS, make sure you created one earlier and check the next box"
+    title: "shared NFS /home from bastion. To use FSS, make sure you created one or added NFS mount information"
     visible:
       and:
         - ${use_advanced}
@@ -398,7 +398,7 @@ variables:
       and:
         - ${use_advanced}
         - ${home_nfs}
-        - ${create_fss}
+        - ${add_nfs}
     default: false
   use_cluster_nfs:
     type: boolean
@@ -1016,7 +1016,6 @@ variables:
         - ${add_nfs} 
         - not:
           - ${create_fss}
-    required: true
   monitoring_shape_name:
     type: string
     title: "MySQL Shape Name"
