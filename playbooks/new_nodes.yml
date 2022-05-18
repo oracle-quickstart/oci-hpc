@@ -145,15 +145,6 @@
     - include_role: 
         name: nvidia-enroot
       when: enroot|default(true)|bool
-
-- hosts: compute
-  become: true
-  vars:
-
-  tasks:
-    - include_role: 
-        name: nvidia-pyxis
-      when: pyxis|default(true)|bool
           
 - hosts: compute
   vars:

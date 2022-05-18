@@ -11,6 +11,25 @@
     force: yes
     backup: yes  
 
+- name: install required packages
+  vars: 
+    package_name: 
+      - gcc-c++
+      - git
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+
+- name: clone pyxis repo
+  git:
+    repo: https://github.com/NVIDIA/pyxis.git
+    dest: /tmp/pyxis
+
+- name: compile 
+  command: bash -c "sudo make install"
+  args:
+    chdir: /tmp/pyxis/
+
 - name: create /etc/slurm/plugstack.conf
   become: true
   copy:
