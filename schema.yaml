@@ -56,6 +56,7 @@ variableGroups:
     variables:
       - ${autoscaling}
       - ${autoscaling_monitoring}
+      - ${latency_check}
   - title: "API authentication"
     variables:
       - ${inst_prin}
@@ -895,12 +896,17 @@ variables:
     default: false
     description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
 
-
   autoscaling:
     type: boolean
     title: "Scheduler based autoscaling"
     default: false
     description: "Requires SLURM installation. Scheduler will launch new clusters based on job requirements"
+    
+  latency_check:
+    type: boolean
+    title: "RDMA Latency check"
+    default: true
+    description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shape during autoscaling"
     
   inst_prin:
     type: boolean

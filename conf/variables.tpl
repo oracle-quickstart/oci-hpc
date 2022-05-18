@@ -78,6 +78,7 @@ variable "bastion_block" {default = "${bastion_block}"}
 variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "home_fss" { default = ${home_fss} } 
+variable "latency_check" { default = ${latency_check} } 
 variable "create_fss" { default = ${create_fss} } 
 variable "configure" { default = true }
 

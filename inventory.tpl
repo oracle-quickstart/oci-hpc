@@ -58,3 +58,4 @@ instance_type=permanent
 enroot=${enroot}
 pyxis=${pyxis}
 privilege_sudo=${privilege_sudo}
+latency_check=${latency_check}
