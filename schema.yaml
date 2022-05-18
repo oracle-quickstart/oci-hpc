@@ -392,15 +392,18 @@ variables:
       and:
         - ${use_advanced}
     default: true
+
   home_fss:
     type: boolean
-    title: "Use the mounted FSS as /home"
+    title: "Use the mounted FSS/NFS as /home."
+    description: "If not creating a new FSS, it will create a nfs_source_path/home directory"
     visible:
       and:
         - ${use_advanced}
         - ${home_nfs}
         - ${add_nfs}
     default: false
+    
   use_cluster_nfs:
     type: boolean
     title: "shared NFS volume from bastion"
@@ -951,7 +954,7 @@ variables:
     type: boolean
     title: "Add another NFS filesystem"
     default: false
-    description: "For FSS, leave options filed empty."
+    description: "For FSS, leave options filed empty. Do not mount /home from here. There is a flag to do that in the Advanced Storage Options."
     visible: true
 
   create_fss:
