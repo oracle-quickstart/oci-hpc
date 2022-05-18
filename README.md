@@ -22,6 +22,7 @@ And also either:
 Allow dynamic-group instance_principal to manage compute-management-family in compartment compartmentName
 Allow dynamic-group instance_principal to manage instance-family in compartment compartmentName
 Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
+Allow dynamic-group instance_principal to use volumes in compartment compartmentName
 ```
 or:
 
@@ -32,7 +33,7 @@ Autoscaling is the idea of launching new clusters for jobs in the queue.
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
 So while there may be capacity available in the DC, you may not be able to grow your current cluster.  
 
-# Cluster Network Resizing (via resize.py)
+# Cluster Network Resizing (via resize.sh)
 
 Cluster resizing refers to ability to add or remove nodes from an existing cluster network.  It only applies to nodes with RDMA RoCEv2 (aka: cluster network) NICs, so HPC clusters created using BM.HPC2.36, BM.Optimized3.36 and BM.GPU4.8.  Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
 
@@ -45,13 +46,13 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
 
   Cluster created by the autoscaling script can also be resized by using the flag --cluster_name cluster-1-hpc
  
-## resize.py usage 
+## resize.sh usage 
 
 The resize.py is deployed on the bastion node as part of the HPC cluster Stack deployment.  
 
 ```
-python3 /opt/oci-hpc/bin/resize.py -h
-usage: resize.py [-h] [--compartment_ocid COMPARTMENT_OCID]
+/opt/oci-hpc/bin/resize.sh -h
+usage: resize.sh [-h] [--compartment_ocid COMPARTMENT_OCID]
                  [--cluster_name CLUSTER_NAME] [--nodes NODES [NODES ...]]
                  [--no_reconfigure] [--user_logging] [--force]
                  [{add,remove,list,reconfigure}] [number]
@@ -99,13 +100,13 @@ Consist of the following sub-steps:
 
 Add one node 
 ```
-python3 /opt/oci-hpc/bin/resize.py add 1
+/opt/oci-hpc/bin/resize.sh add 1
 
 ```
 
 Add three nodes
 ```
-python3 /opt/oci-hpc/bin/resize.py add 3
+/opt/oci-hpc/bin/resize.sh add 3
 
 ```
 
@@ -120,23 +121,23 @@ Consist of the following sub-steps:
 
 Remove specific node:  
 ```
-python3 /opt/oci-hpc/bin/resize.py remove --nodes inst-dpi8e-assuring-woodcock
+/opt/oci-hpc/bin/resize.sh remove --nodes inst-dpi8e-assuring-woodcock
 ```
 or 
 
 Remove a list of nodes (space seperated):  
 ```
-python3 /opt/oci-hpc/bin/resize.py remove --nodes inst-dpi8e-assuring-woodcock inst-ed5yh-assuring-woodcock
+/opt/oci-hpc/bin/resize.sh remove --nodes inst-dpi8e-assuring-woodcock inst-ed5yh-assuring-woodcock
 ```
 or 
 Remove one node randomly:  
 ```
-python3 /opt/oci-hpc/bin/resize.py remove 1
+/opt/oci-hpc/bin/resize.sh remove 1
 ```
 or 
 Remove 3 nodes randomly:  
 ```
-python3 /opt/oci-hpc/bin/resize.py remove 3
+/opt/oci-hpc/bin/resize.sh remove 3
 
 ```
 
@@ -147,14 +148,14 @@ This allows users to reconfigure nodes (Ansible tasks) of the cluster.
 Full reconfiguration of all nodes of the cluster.   This will run the same steps, which are ran when a new cluster is created.   If you manually updated configs which are created/updated as part of cluster configuration, then this command will overwrite your manual changes.   
 
 ```
-python3 /opt/oci-hpc/bin/resize.py reconfigure
+/opt/oci-hpc/bin/resize.sh reconfigure
 ```
 
 #If you would like to fully reconfigure ONLY a specific node/nodes (space seperated).
 
 #```
-# python3 /opt/oci-hpc/bin/resize.py  reconfigure [--nodes NODES [NODES ...]]
-# Example:  python3 /opt/oci-hpc/bin/resize.py reconfigure --nodes inst-gsezk-topical-goblin #inst-jvpps-topical-goblin 
+# /opt/oci-hpc/bin/resize.sh  reconfigure [--nodes NODES [NODES ...]]
+# Example:  /opt/oci-hpc/bin/resize.sh reconfigure --nodes inst-gsezk-topical-goblin #inst-jvpps-topical-goblin 
 #```
 
 
@@ -168,6 +169,8 @@ python3 /opt/oci-hpc/bin/resize.py reconfigure
 # Autoscaling
 
 The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next.
+
+Smaller jobs can run on large clusters and the clusters will be resized down after the grace period to only the running nodes. Cluster will NOT be resized up. We will spin up a new larger cluster and spin down the smaller cluster to avoid capacity issues in the HPC island. 
 
 Initial cluster deployed through the stack will never be spun down.
 
@@ -199,7 +202,7 @@ Example in `/opt/oci-hpc/samples/submit/`:
 #SBATCH --ntasks-per-node 36
 #SBATCH --exclusive
 #SBATCH --job-name sleep_job
-#SBATCH --constraint cluster-size-2,hpc
+#SBATCH --constraint hpc-default
 
 cd /nfs/scratch
 mkdir $SLURM_JOB_ID
@@ -209,16 +212,14 @@ MACHINEFILE="hostfile"
 # Generate Machinefile for mpi such that hosts are in the same
 #  order as if run via srun
 #
-srun -N$SLURM_NNODES -n$SLURM_NNODES  hostname  > $MACHINEFILE
-sed -i 's/$/:36/' $MACHINEFILE
+scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
+sed -i "s/$/:${SLURM_NTASKS_PER_NODE}/" $MACHINEFILE
 
 cat $MACHINEFILE
 # Run using generated Machine file:
 sleep 1000
 ```
-
-- cluster-size: Since clusters can be reused, you can decide to only use a cluster of exactly the right size. Created cluster will have a feature cluster-size-x. You can set the constraint cluster-size-x to make sure this matches and avoid having a 1 node job using a 16 nodes cluster. You do not need to set this feature if you don't mind having small jobs running on large clusters.  
-
+ 
 - Instance Type: You can specify the OCI instance type that you’d like to run on as a constraint. This will make sure that you run on the right shape and also generate the right cluster. Instance types are defined in the `/opt/oci-hpc/conf/queues.conf` file in yml format. Leave all of the field in there even if they are not used. You can define multiple queues and multiple instance type in each queue. If you do not select an instance type when creating your job, it will use the default one.
 
 ## Clusters folders: 
@@ -272,4 +273,15 @@ You will now see the dashboard.
 # LDAP 
 If selected bastion host will act as an LDAP server for the cluster. It's strongly recommended to leave default, shared home directory. 
 User management can be performed from the bastion using ``` cluster ``` command. 
+Example of cluster command to add a new user: 
+```cluster user add name```
+By default, a `privilege` group is created that has access to the NFS and can have sudo access on all nodes (Defined at the stack creation. This group has ID 9876)
+```cluster user add name --gid 9876```
+To generate a user-specific key for passwordless ssh between nodes, use --ssh. 
+```cluster user add name --ssh --gid 9876```
+
+# Shared home folder
+
+By default, the home folder is NFS shared directory between all nodes from the bastion. You have the possibility to use a FSS to share it as well to keep working if the bastion goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files.  
+
 
