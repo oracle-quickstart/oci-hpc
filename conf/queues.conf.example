@@ -9,9 +9,9 @@
           instance_keyword: permanent
           permanent: true
           cluster_network: true
-          max_number_nodes: 1000
+          max_number_nodes: 100
           max_cluster_size: 50
-          max_cluster_count: 100
+          max_cluster_count: 10
           ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
@@ -28,9 +28,9 @@
           instance_keyword: hpc
           permanent: False
           cluster_network: true
-          max_number_nodes: 1000
+          max_number_nodes: 100
           max_cluster_size: 20
-          max_cluster_count: 100
+          max_cluster_count: 10
           ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
