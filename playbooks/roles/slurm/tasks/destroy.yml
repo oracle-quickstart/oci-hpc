@@ -2,14 +2,7 @@
 - name: change Node Status
   become: true
   command: "scontrol update nodename={{ ansible_hostname }} state=future reason=terminating"
-  ignore_errors: force
-  ignore_unreachable: True
-  delegate_to: 127.0.0.1
-
-- name: change Node Status
-  become: true
-  command: "scontrol update nodename={{ ansible_hostname }} state=future reason=terminating"
-  ignore_errors: force
+  ignore_errors: true
   ignore_unreachable: True
   delegate_to: 127.0.0.1
 
@@ -89,15 +82,12 @@
   run_once: true
   delegate_to: 127.0.0.1
 
-# - name: Update feature on compute node for Autoscaling
-#   vars:
-#     max_cluster_size: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.max_cluster_size}}{% endif %}{% endfor %}{% endfor %}"
-#   become: true
-#   shell: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures= ; scontrol update nodename={{ ansible_hostname }} AvailableFeatures={% for item in range( max_cluster_size | int ) -%}cluster-size-{{ item }},{%- endfor %}{% if shape != instance_type%}{{ shape }}{% endif %},{{ instance_type }}"
-#   retries: 20
-#   delay: 10
-#   register: result
-#   until: result.rc == 0
+- name: change Node Status
+  become: true
+  command: "scontrol update nodename={{ ansible_hostname }} state=future reason=terminating"
+  ignore_errors: force
+  ignore_unreachable: True
+  delegate_to: 127.0.0.1
 
 - name: Reconfigure Slurm for topology
   become: true
