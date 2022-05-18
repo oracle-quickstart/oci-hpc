@@ -145,7 +145,16 @@
     - include_role: 
         name: nvidia-enroot
       when: enroot|default(true)|bool
-      
+
+- hosts: compute
+  become: true
+  vars:
+
+  tasks:
+    - include_role: 
+        name: nvidia-pyxis
+      when: pyxis|default(true)|bool
+          
 - hosts: compute
   vars:
     destroy: false
@@ -163,12 +172,3 @@
     - include_role: 
         name: telegraf
       when: monitoring|default(false)|bool
-
-- hosts: compute
-  become: true
-  vars:
-
-  tasks:
-    - include_role: 
-        name: nvidia-pyxis
-      when: pyxis|default(true)|bool
