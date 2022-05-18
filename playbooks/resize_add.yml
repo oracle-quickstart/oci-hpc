@@ -150,6 +150,15 @@
       when: enroot|default(true)|bool
 
 - hosts: compute_to_add
+  become: true
+  vars:
+
+  tasks:
+    - include_role: 
+        name: nvidia-pyxis
+      when: pyxis|default(true)|bool
+
+- hosts: compute_to_add
   vars:
     destroy: false
     initial: false
@@ -166,13 +175,3 @@
     - include_role: 
         name: telegraf
       when: monitoring|default(false)|bool
-
-- hosts: compute_to_add
-  become: true
-  vars:
-
-  tasks:
-    - include_role: 
-        name: nvidia-pyxis
-      when: pyxis|default(true)|bool
-

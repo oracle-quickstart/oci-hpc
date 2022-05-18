@@ -58,6 +58,7 @@
     - include_role:
         name: fss-home
       when: add_nfs|bool and home_fss|bool
+
 - hosts: bastion, slurm_backup
   become: true
   tasks:
@@ -213,6 +214,12 @@
         name: hyperthreading
       when: hyperthreading|default(false)|bool
 
+- hosts: bastion, slurm_backup
+  become: true
+  tasks:
+    - include_role: 
+        name: yaml
+
 - hosts: bastion
   tasks: 
     - include_role: 
@@ -221,11 +228,6 @@
     - include_role: 
         name: grafana
       when: monitoring|default(false)|bool
-
-- hosts: bastion
-  tasks:
-    - include_role: 
-        name: yaml
     - include_role: 
         name: autoscaling_mon
       when: autoscaling_monitoring|default(false)|bool
@@ -248,6 +250,12 @@
         name: nvidia-enroot
       when: enroot|default(true)|bool
 
+- hosts: all
+  become: true
+  tasks:
+    - include_role: 
+        name: nvidia-pyxis
+      when: pyxis|default(true)|bool
 
 - hosts: all
   vars:
@@ -267,11 +275,4 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-
-- hosts: all
-  become: true
-  tasks:
-    - include_role: 
-        name: nvidia-pyxis
-      when: pyxis|default(true)|bool
 
