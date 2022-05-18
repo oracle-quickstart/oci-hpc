@@ -403,7 +403,7 @@ variables:
         - ${home_nfs}
         - ${add_nfs}
     default: false
-    
+
   use_cluster_nfs:
     type: boolean
     title: "shared NFS volume from bastion"
@@ -909,7 +909,7 @@ variables:
     type: boolean
     title: "RDMA Latency check"
     default: true
-    description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shape during autoscaling"
+    description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shapes during autoscaling"
     
   inst_prin:
     type: boolean
