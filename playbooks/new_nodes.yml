@@ -90,7 +90,9 @@
         name: rdma-interface
     - include_role: 
         name: hyperthreading
-      when: not hyperthreading|default(true)|bool 
+      when: not hyperthreading|default(true)|bool
+- hosts: compute
+  tasks:  
     - include_role: 
         name: latency_check
       when: cluster_network|bool and not 'GPU' in shape 
