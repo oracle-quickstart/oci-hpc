@@ -5,7 +5,6 @@ RDMA_OPTIONS="-mca pml ucx -x UCX_NET_DEVICES=mlx5_2:1 -x UCX_IB_TRAFFIC_CLASS=1
 {% elif shape == "BM.HPC2.36" %}
 RDMA_OPTIONS="-mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 -x UCX_IB_TRAFFIC_CLASS=105 -x UCX_IB_GID_INDEX=3 -x HCOLL_ENABLE_MCAST_ALL=0 -x coll_hcoll_enable=0"
 {% else %}
-{{shape does not exits in list of cluster network's test.  }}
 echo OK
 exit
 {% endif%}

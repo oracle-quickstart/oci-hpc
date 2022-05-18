@@ -57,3 +57,4 @@ queue=${queue}
 instance_type=${instance_type}
 hyperthreading=${hyperthreading}
 privilege_sudo=${privilege_sudo}
+latency_check=${latency_check}

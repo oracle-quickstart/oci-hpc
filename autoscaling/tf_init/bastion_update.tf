@@ -58,7 +58,8 @@ resource "local_file" "inventory" {
     autoscaling_monitoring = var.autoscaling_monitoring,
     unsupported = var.unsupported,
     hyperthreading = var.hyperthreading,
-    privilege_sudo = var.privilege_sudo
+    privilege_sudo = var.privilege_sudo,
+    latency_check = var.latency_check
     })
   filename   = "${local.bastion_path}/inventory"
 }
