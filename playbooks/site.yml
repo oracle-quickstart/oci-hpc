@@ -251,13 +251,6 @@
       when: enroot|default(true)|bool
 
 - hosts: all
-  become: true
-  tasks:
-    - include_role: 
-        name: nvidia-pyxis
-      when: pyxis|default(true)|bool
-
-- hosts: all
   vars:
     destroy: false
     initial: true
