@@ -41,5 +41,4 @@ nfs_source_path=${nfs_source_path}
 nfs_options=${nfs_options}
 ldap=${ldap}
 queue=${queue}
-hyperthreading=${hyperthreading}
 instance_type=${instance_type}
