@@ -66,11 +66,15 @@ def getClusters():
 def getNodeDetails(node):
     out = subprocess.Popen(['sinfo','-h','-n',node,'-o','"%f %R"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout,stderr = out.communicate()
-    output=stdout.split("\n")[0]
-    if output[0] == '"':
-        output=output[1:]
-    if output[-1] == '"':
-        output=output[:-1]
+    for pot_output in stdout.split("\n"):
+        if not "(null)" in pot_output and pot_output.strip() != '':
+            output=pot_output
+            if output[0] == '"':
+                output=output[1:]
+            if output[-1] == '"':
+                output=output[:-1]
+        else:
+            continue
     return output
 
 def getIdleTime(node):
