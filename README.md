@@ -185,6 +185,9 @@ The key word `permanent` allows will spin up clusters but not delete them untill
 After a modification of the `/opt/oci-hpc/conf/queues.conf`, you need to run 
 `/opt/oci-hpc/bin/slurm_config.sh`
 
+If you have some state that is messing with Slurm, you can make sure it is put back in the initial state with 
+`/opt/oci-hpc/bin/slurm_config.sh --initial`
+
 To turn on autoscaling: 
 Uncomment the line in `crontab -e`:
 ```
