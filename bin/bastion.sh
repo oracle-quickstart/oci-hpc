@@ -43,7 +43,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 fi 
 
 ansible-galaxy collection install ansible.netcommon:==2.5.1 > /dev/null
-ansible-galaxy collection install community.general > /dev/null
+ansible-galaxy collection install community.general:=4.8.1 > /dev/null
 ansible-galaxy collection install ansible.posix > /dev/null
 
 threads=$(nproc)
