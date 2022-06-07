@@ -17,7 +17,6 @@ then
 else
   debug=0
 fi
-echo $tags
 date=`date '+%Y%m%d%H%M'`
 scripts=`realpath $0`
 folder=`dirname $scripts`
