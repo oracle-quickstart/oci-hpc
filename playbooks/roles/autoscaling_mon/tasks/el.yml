@@ -133,7 +133,7 @@
     login_user: "{{ admin_username }}"
     login_password: "{{ mysql_root_pwd }}"
     name: logger
-    password: Monitor2021!
+    password: Monitor1234!
     priv: cluster_log.*:SELECT,INSERT,UPDATE,DELETE
     state: present
   when: not autoscaling_mysql_service | bool
@@ -160,7 +160,7 @@
     ds_type: "mysql"
     ds_url: "{{ monitoring_mysql_ip }}:3306"
     database: "cluster_log"
-    password: "Monitor2021!"
+    password: "Monitor1234!"
     user: "logger"
   ignore_errors: yes
 

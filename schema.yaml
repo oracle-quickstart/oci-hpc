@@ -1047,7 +1047,7 @@ variables:
 
   admin_password:
     title: "MySQL Monitoring password"
-    default: "Monitor2021!"
+    default: "Monitor1234!"
     description: "" 
     visible: 
       and:
