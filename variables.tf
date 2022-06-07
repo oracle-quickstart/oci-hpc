@@ -164,6 +164,6 @@ variable "admin_username" {
 
 variable "admin_password" { 
   type = string
-  default = "Monitor2021!"
+  default = "Monitor1234!"
 }
 
