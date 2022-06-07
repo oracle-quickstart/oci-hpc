@@ -7,7 +7,7 @@
   tasks: 
     - include_role:  
         name: hostname
-      when: slurm and autoscaling | default(false) | bool
+      when: slurm | default(false) | bool
 
 - hosts: compute
   become: true
