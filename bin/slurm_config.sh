@@ -13,7 +13,7 @@ playbooks_path=$folder/../playbooks/
 
 if [[ `cat $conf_folder/queues.conf | grep instance_keyword |  uniq -c -d | wc -l ` == 0 ]];
 then
-   if [ ${@: -1} == "--INITIAL" or ${@: -1} == "--initial" or ${@: -1} == "-INITIAL" or ${@: -1} == "-initial"]
+   if [[ ${@: -1} == "--INITIAL" || ${@: -1} == "--initial" || ${@: -1} == "-INITIAL" || ${@: -1} == "-initial" ]]
    then
       sudo rm /etc/slurm/topology.conf
       sudo /usr/sbin/slurmctld -c
