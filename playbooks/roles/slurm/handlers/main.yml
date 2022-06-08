@@ -25,3 +25,7 @@
     state: restarted
     enabled: true
 
+- name: reconfigure slurm
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1

@@ -1,0 +1,54 @@
+---
+- name: Make sure the /home directory exist
+  file:
+    path: "{{tmp_home}}"
+    state: directory
+    mode: '0755'
+
+- name: Make sure the remote home directory exist
+  file:
+    path: "{{tmp_home}}/home"
+    state: directory
+    mode: '0755'
+  when: not create_fss|bool
+
+- name: Report if opc dir exist
+  file:
+    path: "{{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/opc/"
+    state: directory
+    mode: '0700'
+    owner: opc
+    group: opc
+  register: opc_directory
+
+- name: copy opc/ dir
+  command: "cp -rpT /home/opc {{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/opc"
+  when: opc_directory.changed
+
+#- name: copy opc/.bash* dir
+#  command: "cp -r -p  /home/opc/.bash* {{tmp_home}}/home/opc/"
+#  when: not opc_directory.changed
+
+#- name: Check if opc/.ssh directory exists
+#  stat:
+#    path: "{{tmp_home}}/home/opc/.ssh"
+#  register: opc_ssh_directory
+
+#- name: copy opc/.ssh dir
+#  command: "cp -r -p  /home/opc/.ssh {{tmp_home}}/home/opc/"
+#  when: not opc_ssh_directory.stat.exists
+
+#- name: Check if opc/.ansible directory exists
+#  stat:
+#    path: "{{tmp_home}}/home/opc/.ansible"
+#  register: opc_ansible_directory
+
+# ansible copy doesn't work for some ansible files, hence using ansible command. 
+#- name: copy opc/.ansible dir
+#  command: "cp -r  /home/opc/.ansible {{tmp_home}}/home/opc/"
+#  when: not opc_ansible_directory.stat.exists
+
+- name: Unmount {{tmp_home}} mount
+  mount:
+    path: "{{tmp_home}}"
+    state: absent

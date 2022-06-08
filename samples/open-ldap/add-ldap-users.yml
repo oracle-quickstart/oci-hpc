@@ -1,0 +1,62 @@
+---
+- hosts: bastion
+  become: true
+  #vars:
+    #ansible_remote_tmp: /tmp/ansible_remote_tmp
+  vars_prompt:
+    - name: username
+      prompt: What is the username?
+      private: no
+    - name: password
+      prompt: What is the password?
+      private: yes
+    - name: publickey
+      prompt: What is the user's public key (id_rsa.pub)?
+      private: no
+  tasks:
+    - name: Create user account in 'groupname' group (gid 9876)
+      shell: cluster user add "{{username}}" -p "{{password}}" -n "{{username}}" --gid 9876
+      args:
+        creates: "/home/{{username}}"
+
+    - name: Create home directory and change default permissions
+      become: true
+      become_user: "{{username}}"
+      command: "chmod 755 /home/{{username}}"
+      args:
+        warn: false
+
+    - name: Add provided public key to authorized keys
+      authorized_key:
+        user: "{{username}}"
+        key: "{{publickey}}"
+
+    - name: Generate new RSA public key for access within the cluster
+      become: true
+      become_user: "{{username}}"
+      command: "ssh-keygen -q -t rsa -f /home/{{username}}/.ssh/id_rsa_cluster -C '' -N ''"
+      args:
+        creates: "/home/{{username}}/.ssh/id_rsa_cluster"
+
+    - name: Read new RSA public key
+      slurp:
+        src: "/home/{{username}}/.ssh/id_rsa_cluster.pub"
+      register: id_rsa_cluster_pub
+
+    - name: Add new RSA public key to authorized keys
+      authorized_key:
+        user: "{{username}}"
+        key: "{{id_rsa_cluster_pub.content | b64decode}}"
+
+    - name: Configure ~/.ssh/config to use new RSA key
+      become: true
+      become_user: "{{username}}"
+      blockinfile: |
+        dest="/home/{{username}}/.ssh/config"
+        create=yes
+        owner="{{username}}"
+        content="Host inst-*
+            IdentityFile ~/.ssh/id_rsa_cluster
+            Host compute-permanent-node-*
+            IdentityFile ~/.ssh/id_rsa_cluster"
+

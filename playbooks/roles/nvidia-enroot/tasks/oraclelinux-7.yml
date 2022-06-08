@@ -1,0 +1,74 @@
+---
+- block:
+
+
+  - name: install required packages
+    vars: 
+      package_name: 
+        - zstd
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
+      package_repo: "epel,ol7_developer_EPEL"
+    include_role: 
+      name: safe_yum
+  # needs reboot
+  - name: update namespace.unpriv_enable=1 kernel parameters 
+    command: bash -c "sudo grubby --args="namespace.unpriv_enable=1" --update-kernel=`sudo grubby --default-kernel`"
+  - name: update user_namespace.enable=1 kernel parameters 
+    command: bash -c "sudo grubby --args="user_namespace.enable=1" --update-kernel=`sudo grubby --default-kernel`"
+
+  - name: set user.max_user_namespaces using sysctl
+    ansible.posix.sysctl:
+      name: user.max_user_namespaces
+      value: '15076'
+      sysctl_file: /etc/sysctl.d/81-enroot.conf
+      reload: yes
+
+
+  - name: Download enroot-check
+    get_url:
+      url: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-check_3.4.0_{{ ansible_architecture }}.run"
+      dest: "/tmp"
+      mode: '0755'
+      owner: opc
+      group: opc
+
+  - name: execute enroot-check_*.run
+    command: bash -c "/tmp/enroot-check_*.run --verify"
+
+
+  - name: update ENROOT_RUNTIME_PATH
+    lineinfile: 
+      dest: /etc/enroot/enroot.conf
+      state: present
+      regexp: '^#ENROOT_RUNTIME_PATH.*'
+      line: 'ENROOT_RUNTIME_PATH        /tmp/enroot/user-$(id -u)'
+      backup: yes
+
+  - name: update ENROOT_DATA_PATH
+    lineinfile: 
+      dest: /etc/enroot/enroot.conf
+      state: present
+      regexp: '^#ENROOT_DATA_PATH.*'
+      line: 'ENROOT_DATA_PATH        /tmp/enroot-data/user-$(id -u)'
+      backup: yes
+
+  - name: set permissions on /tmp
+    become: true
+    file:
+      path: /tmp
+      state: directory
+      owner: opc
+      mode: 0777
+      group: opc
+      recurse: no
+
+  - name: Make sure /tmp/enroot-data directory exist
+    file:
+      path: "/tmp/enroot-data"
+      state: directory
+      mode: '0775'
+      owner: opc
+      group: privilege
+      recurse: no
+

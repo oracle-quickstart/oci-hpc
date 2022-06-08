@@ -4,6 +4,7 @@ from ldap3 import MODIFY_ADD
 import click
 import grp
 import pwd
+import os
 
 host = 'bastion'
 bind_dn = 'cn=manager,dc=local'
@@ -159,9 +160,10 @@ def list():
 @click.option('-p', '--password', prompt='Password', required=True, hide_input=True,
               confirmation_prompt=True)
 @click.option('-n', '--name', prompt='Full Name', required=True)
-@click.option('-i', '--uid', default=None)
-@click.option('-g', '--gid', default=None)
-def add(user, password, uid, gid, name): 
+@click.option('-i', '--uid', default=None, help='Select the userID')
+@click.option('-g', '--gid', default=None, help='Add to this groupID')
+@click.option('-ssh', '--ssh', is_flag=True, default=False, help='Flag to generate a user-specific ssh-key pair for passwordless ssh.')
+def add(user, password, uid, gid, name, ssh): 
   """ add user """
   search_base = people_dn
   if uid is None: 
@@ -182,6 +184,10 @@ def add(user, password, uid, gid, name):
     if(conn.result['result'] != 0): 
       print(conn.result)
 
+  if ssh:
+    homedir='/home/{}/'.format(user)
+    os.system("sudo su - "+user+" -c "+"' ssh-keygen -t rsa -b 2048 -q -f "+homedir+".ssh/id_rsa -P \"\"' 2> /dev/null")
+    os.system("sudo su - "+user+" -c "+"'mv "+homedir+".ssh/id_rsa.pub "+homedir+".ssh/authorized_keys' 2> /dev/null")
 @user.command()
 @click.argument('user')
 def delete(user):

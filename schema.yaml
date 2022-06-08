@@ -56,6 +56,7 @@ variableGroups:
     variables:
       - ${autoscaling}
       - ${autoscaling_monitoring}
+      - ${latency_check}
   - title: "API authentication"
     variables:
       - ${inst_prin}
@@ -75,7 +76,7 @@ variableGroups:
   - title: "Additional file system"
     variables:
       - ${add_nfs}
-      - ${create_ffs}
+      - ${create_fss}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
@@ -94,7 +95,8 @@ variableGroups:
   - title: "Advanced storage options"
     variables:
       - ${use_advanced}
-      - ${home_nfs} 
+      - ${home_nfs}
+      - ${home_fss}
       - ${use_cluster_nfs}
       - ${cluster_nfs_path}
       - ${bastion_block}
@@ -120,10 +122,16 @@ variableGroups:
       - ${additional_subnet}
   - title: "Software"
     variables:
+      - ${privilege_sudo} 
       - ${slurm}
+      - ${slurm_ha}
+      - ${rack_aware}
+      - ${pyxis}
       - ${queue}
       - ${spack}
       - ${monitoring}
+      - ${enroot}
+
   - title: "Hidden"
     variables:
       - ${region}
@@ -216,6 +224,9 @@ variables:
           - eq: 
             - ${bastion_shape}
             - "VM.Standard.A1.Flex"
+          - eq:
+            - ${bastion_shape}
+            - "VM.Standard3.Flex"
     required: true
   bastion_custom_memory: 
     title: Use custom memory size
@@ -236,6 +247,9 @@ variables:
           - eq: 
             - ${bastion_shape}
             - "VM.Standard.A1.Flex"
+          - eq:
+            - ${bastion_shape}
+            - "VM.Standard3.Flex"
   bastion_memory:
     title: Memory in GBS
     type: integer
@@ -259,6 +273,9 @@ variables:
             - eq: 
               - ${bastion_shape}
               - "VM.Standard.A1.Flex"
+            - eq:
+              - ${bastion_shape}
+              - "VM.Standard3.Flex"
         - and: 
             - ${bastion_custom_memory}
     required: true
@@ -370,11 +387,23 @@ variables:
             - ${use_advanced}
   home_nfs:
     type: boolean
-    title: "shared NFS /home from bastion"
+    title: "shared NFS /home from bastion. To use FSS, make sure you created one or added NFS mount information"
     visible:
       and:
         - ${use_advanced}
     default: true
+
+  home_fss:
+    type: boolean
+    title: "Use the mounted FSS/NFS as /home."
+    description: "If not creating a new FSS, it will create a nfs_source_path/home directory"
+    visible:
+      and:
+        - ${use_advanced}
+        - ${home_nfs}
+        - ${add_nfs}
+    default: false
+
   use_cluster_nfs:
     type: boolean
     title: "shared NFS volume from bastion"
@@ -403,6 +432,7 @@ variables:
     enum:
       - "BM.HPC2.36"
       - "BM.GPU4.8"
+      - "BM.GPU.B4.8"
       - "BM.Optimized3.36"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
@@ -446,6 +476,9 @@ variables:
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
+          - eq:
+            - ${bastion_shape}
+            - "VM.Standard3.Flex"
     required: true
 
   instance_pool_custom_memory: 
@@ -467,6 +500,9 @@ variables:
           - eq: 
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
+          - eq:
+            - ${bastion_shape}
+            - "VM.Standard3.Flex"
   instance_pool_memory:
     title: Memory in GBS
     type: integer
@@ -490,6 +526,9 @@ variables:
             - eq: 
               - ${instance_pool_shape}
               - "VM.Standard.A1.Flex"
+            - eq:
+              - ${bastion_shape}
+              - "VM.Standard3.Flex"
         - and: 
             - ${instance_pool_custom_memory}
     required: true
@@ -808,12 +847,37 @@ variables:
     default: true
     description: "Needed for autoscaling" 
 
+  slurm_ha:
+    type: boolean
+    title: "Create a back-up Slurm Controller"
+    default: false
+    required: true
+    description: "Add a second master of the same shape as the bastion as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
+    visible:
+        - ${slurm}
+
+  pyxis:
+    type: boolean
+    title: "Install Nvidia Pyxis plugin for Slurm"
+    default: false
+    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
+  
+  rack_aware:
+    type: boolean
+    title: "Create Rack aware topology"
+    default: false
+    required: true
+    description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted" 
+    visible:
+        - ${slurm}
+
+
   queue:
     type: String
     title: "Queue Name"
     default: "compute"
     required: true
-    description: "Add the permanent cluster to a specific queue, workq is the default queue" 
+    description: "Add the permanent cluster to a specific queue, compute is the default queue" 
     visible:
         - ${slurm}
 
@@ -822,6 +886,12 @@ variables:
     title: "Install Spack package manager"
     default: false
     description: "Install Spack package manager. Requires shared folder" 
+
+  enroot:
+    type: boolean
+    title: "Install Nvidia Enroot for containerized GPU workloads"
+    default: false
+    description: "Install Enroot, Nvidia Container Toolkit, and docker."
 
   monitoring:
     type: boolean
@@ -834,6 +904,12 @@ variables:
     title: "Scheduler based autoscaling"
     default: false
     description: "Requires SLURM installation. Scheduler will launch new clusters based on job requirements"
+    
+  latency_check:
+    type: boolean
+    title: "RDMA Latency check"
+    default: true
+    description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shapes during autoscaling"
     
   inst_prin:
     type: boolean
@@ -878,10 +954,10 @@ variables:
     type: boolean
     title: "Add another NFS filesystem"
     default: false
-    description: "For FSS, leave options filed empty."
+    description: "For FSS, leave options filed empty. Do not mount /home from here. There is a flag to do that in the Advanced Storage Options."
     visible: true
 
-  create_ffs:
+  create_fss:
     type: boolean
     title: "Create FSS"
     default: false
@@ -897,7 +973,7 @@ variables:
     visible: 
       and:
         - ${add_nfs}
-        - ${create_ffs}
+        - ${create_fss}
 
   fss_ad:
     type: oci:identity:availabilitydomain:name
@@ -906,7 +982,7 @@ variables:
     visible: 
       and:
         - ${add_nfs}
-        - ${create_ffs}
+        - ${create_fss}
     default: ${ad}
     description: "FSS Availability Domain"
     title: "FSS Availability Domain"
@@ -931,7 +1007,7 @@ variables:
       and:
         - ${add_nfs} 
         - not:
-          - ${create_ffs}
+          - ${create_fss}
   nfs_source_path:
     type: string
     title: "NFS server Path"
@@ -948,8 +1024,7 @@ variables:
       and:
         - ${add_nfs} 
         - not:
-          - ${create_ffs}
-    required: true
+          - ${create_fss}
   monitoring_shape_name:
     type: string
     title: "MySQL Shape Name"
@@ -972,7 +1047,7 @@ variables:
 
   admin_password:
     title: "MySQL Monitoring password"
-    default: "Monitor2021!"
+    default: "Monitor1234!"
     description: "" 
     visible: 
       and:
@@ -998,3 +1073,8 @@ variables:
         - ${autoscaling}
         - ${autoscaling_monitoring}
 
+  privilege_sudo:
+    type: boolean
+    title: "Sudo Access"
+    default: true
+    description: "Give sudo access to the privilege group"

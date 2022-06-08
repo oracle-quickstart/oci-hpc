@@ -1,12 +1,13 @@
 ---
 
 - name: install required packages
-  yum: 
-    enablerepo: "epel,ol7_developer_EPEL"
-    name: 
+  vars: 
+    package_name: 
       - python36-click
       - python36-ldap3
-    state: present
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
 
 - name: copy cluster cli 
   copy: 

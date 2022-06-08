@@ -1,0 +1,28 @@
+#!/bin/bash
+
+{% if shape == "BM.Optimized3.36" %}
+RDMA_OPTIONS="-mca pml ucx -x UCX_NET_DEVICES=mlx5_2:1 -x UCX_IB_TRAFFIC_CLASS=105 -x UCX_IB_GID_INDEX=3 -x HCOLL_ENABLE_MCAST_ALL=0 -mca coll_hcoll_enable 0"
+{% elif shape == "BM.HPC2.36" %}
+RDMA_OPTIONS="-mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 -x UCX_IB_TRAFFIC_CLASS=105 -x UCX_IB_GID_INDEX=3 -x HCOLL_ENABLE_MCAST_ALL=0 -mca coll_hcoll_enable 0"
+{% else %}
+echo OK
+exit
+{% endif%}
+rm /tmp/latency_hostfile
+for i in `cat /etc/hosts | grep .local.vcn | awk '{print $1}'`; do echo $i cpu=1 >> /tmp/latency_hostfile;done
+source `ls /usr/mpi/gcc/openmpi-*/bin/mpivars.sh`
+mpirun -hostfile /tmp/latency_hostfile  $RDMA_OPTIONS  /usr/mpi/gcc/openmpi-*/tests/imb/IMB-MPI1 alltoall > /tmp/latency.out 2>&1
+latency=`cat /tmp/latency.out | grep ' 64 ' | tail -n 1 | awk '{print $NF}' | cut -d. -f1 `
+nodes=`cat /tmp/latency.out | grep ' #processes' | tail -n 1 | awk '{print $NF}'`
+result=KO
+
+one_node=`cat /tmp/latency.out | grep 'cannot run this test, minimum number of nodes is 2' | wc -l `
+echo $one_node
+if (( $one_node == 1 ));
+then
+    result=OK
+elif (( $latency/$nodes < 5 ));
+then
+    result=OK
+fi
+echo $result

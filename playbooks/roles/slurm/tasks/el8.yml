@@ -1,0 +1,36 @@
+---
+#- name: download slurm Packages
+#  include_tasks: download.yml
+#  when: ('bastion' in group_names) and (not destroy|bool) and (initial|bool) and (cluster_nfs|bool)
+
+#- name: download slurm Packages
+#  include_tasks: download.yml
+#  when: (not destroy|bool) and (not cluster_nfs|bool)
+
+- name: include common tasks
+  vars: 
+    slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
+  include_tasks: common.yml
+  when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
+
+- name: run server directives
+  include_tasks: server.yml
+  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
+
+- name: run backup server directives
+  include_tasks: backup_server.yml
+  when: ('slurm_backup' in group_names) and (not destroy|bool) and (initial| bool)
+
+- name: run compute directives
+  vars: 
+    slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
+  include_tasks: compute{{rack_aware_playbook_suffix}}.yml
+  when: ('compute' in group_names) and (not destroy|bool)
+
+- name: cleanup
+  include_tasks: cleanup.yml
+  when: ('compute' in group_names) and (not destroy|bool)
+
+- name: destroy
+  include_tasks: destroy{{rack_aware_playbook_suffix}}.yml
+  when: ('compute' in group_names or 'compute_to_destroy' in group_names) and (destroy|bool)

@@ -1,16 +1,18 @@
 [bastion]
 ${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion
-[compute]
+[slurm_backup]
+%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=bastion%{ endif }
+[compute_to_add]
+[compute_configured]
 %{ for host, ip in compute ~}
 ${host} ansible_host=${ip} ansible_user=${compute_username} role=compute
 %{ endfor ~}
+[compute_to_destroy]
 [nfs]
-%{ if nfs != "" }
-${nfs} ansible_user=${compute_username} role=nfs
-%{ endif }
-[all:children]
-bastion
-compute
+%{ if nfs != "" }${nfs} ansible_user=${compute_username} role=nfs%{ endif }
+[compute:children]
+compute_to_add
+compute_configured
 [all:vars]
 ansible_connection=ssh
 rdma_network=${rdma_network}
@@ -20,11 +22,15 @@ private_subnet=${private_subnet}
 nvme_path=/mnt/localdisk/
 scratch_nfs = ${scratch_nfs}
 home_nfs = ${home_nfs} 
+create_fss = ${create_fss} 
+home_fss = ${home_fss} 
 cluster_nfs = ${cluster_nfs}
 cluster_nfs_path = ${cluster_nfs_path}
+slurm_nfs_path = ${slurm_nfs_path}
 scratch_nfs_path = ${scratch_nfs_path}
 cluster_network = ${cluster_network}
 slurm = ${slurm}
+rack_aware = ${rack_aware}
 spack = ${spack} 
 bastion_block = ${bastion_block} 
 scratch_nfs_type = ${scratch_nfs_type}
@@ -48,3 +54,8 @@ autoscaling_mysql_service=${autoscaling_mysql_service}
 monitoring_mysql_ip=${monitoring_mysql_ip}
 admin_password = ${admin_password}
 admin_username = ${admin_username}
+instance_type=permanent
+enroot=${enroot}
+pyxis=${pyxis}
+privilege_sudo=${privilege_sudo}
+latency_check=${latency_check}

@@ -1,0 +1,43 @@
+---
+- block:
+
+
+  - name: set mydistribution
+    ansible.builtin.set_fact:
+      mydistribution: "{{ 'rhel' if (ansible_distribution == 'OracleLinux') else (ansible_distribution | lower) }}{{ ansible_distribution_version }}"
+
+  - name: mydistribution
+    debug:
+      msg: "{{ mydistribution }}"
+
+  - name: Download nvidia-docker.repo.
+    get_url:
+      url: "https://nvidia.github.io/nvidia-docker/{{ mydistribution }}/nvidia-docker.repo "
+      dest: "/etc/yum.repos.d/nvidia-docker.repo"
+      mode: '0644'
+      owner: root
+      group: root
+      force: yes
+
+  - name: clean
+    command: yum clean expire-cache
+    args:
+      warn: no
+
+  - name: Install nvidia-container-toolkit
+    vars: 
+      package_name: 
+        - nvidia-container-toolkit
+      package_state: latest
+      package_cache: true
+    include_role: 
+      name: safe_yum
+
+  - name: Start Docker
+    ansible.builtin.service:
+      name: "docker"
+      state: restarted
+
+
+
+

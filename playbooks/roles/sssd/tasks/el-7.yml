@@ -1,10 +1,11 @@
 ---
 - name: Install sssd packages
-  yum:
-    name: 
+  vars: 
+    package_name: 
       - sssd
       - authconfig
-    state: present
+  include_role: 
+    name: safe_yum
 
 - name: Add configuration file to /etc/sssd/sssd.conf
   template:

@@ -1,0 +1,123 @@
+---   
+- name: install SLURM server packages
+  vars: 
+    package_name: 
+      - slurm-slurmctld
+      - slurm-pam_slurm
+      - slurm-pmi
+      - slurm-slurmd
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  
+- name: Create systemd unit dirs
+  become: true
+  file:
+    name: '/etc/systemd/system/{{ item }}.service.d'
+    state: directory
+  with_items:
+    - munge
+    - slurmctld
+
+- name: Render systemd units for munge
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
+    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
+    backup: "yes"
+  with_items:
+    - munge
+
+- name: Render systemd units for slurmctld on backup bastion
+  become: true
+  template:
+    src: 'systemd/slurmctld_backup.service.d/unit.conf.j2'
+    dest: '/etc/systemd/system/slurmctld.service.d/unit.conf'
+    backup: "yes"
+
+- name: Create munge dir
+  become: true
+  file:
+    name: '{{ munge_conf_path }}'
+    state: directory
+    owner: munge
+    group: munge
+    mode: 0700
+
+- name: copy munge.key to tmp
+  become: true
+  shell:
+    cmd: cp /etc/munge/munge.key /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: set permissions
+  become: true
+  shell:
+    cmd: chown opc:opc /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Copy munge key
+  become: true
+  copy:
+    src: /tmp/munge.key
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+  notify: restart munge
+
+- name: restart munge
+  become: true
+  service:
+    name: munge
+    state: restarted
+    enabled: true
+
+- name: Create {{ slurm_spool_path }}
+  become: true
+  file:
+    name: "{{ slurm_spool_path }}"
+    state: directory
+    owner: 'slurm'
+    group: 'slurm'
+    mode: '0750'
+
+- name: Copy configuration files
+  become: true
+  copy:
+    src: '{{ item }}'
+    dest: '{{ slurm_conf_path }}/{{ item }}'
+    force: no
+    owner: slurm
+    group: slurm
+  with_items:
+    - cgroup.conf
+
+- name: move slurm.conf on backup servers
+  become: true
+  copy:
+    dest: /etc/slurm/slurm.conf
+    src: /etc/slurm/slurm.conf
+    force: yes
+
+- name: move topology.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/topology.conf
+    src: /etc/slurm/topology.conf
+    force: yes
+  register: topology_copied
+  until: topology_copied is not failed
+  retries: 10
+  delay: 5
+
+- name: start slurmctld
+  become: true
+  service:
+    name: slurmctld
+    state: restarted
+    enabled: true

@@ -12,41 +12,23 @@
                             chars=ascii_letters,digits,hexdigits") }}'
 
 - name: Install PyMSQL
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name: 
+  vars: 
+    package_name:
       - python2-PyMySQL
-    state: installed
-
-#- name: install Slurm Server
-#  block:    
-#    - name: install SLURM server packages
-#      become: true
-#      yum: 
-#        name: 
-#          - "{{ download_path }}/slurm_rpms/slurm-slurmctld-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-slurmdbd-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-slurmrestd-20.02.4-1.el7.x86_64.rpm" 
-#  rescue:
-#    - name: Repository
-#      become: true
-#      yum_repository:
-#        name: oci-hpc
-#        description: oci-hpc
-#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-#        gpgcheck: no
-#        enabled: yes
-#        retries: 3
+    package_repo: "epel,ol7_developer_EPEL"
+    package_state: installed
+  include_role: 
+    name: safe_yum
       
 - name: install SLURM server packages
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name: 
+  vars: 
+    package_name: 
       - slurm-slurmctld
       - slurm-slurmdbd
-#      - slurm-slurmrestd
+  #    - slurm-slurmrestd
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
   
 - name: Create systemd unit dirs
   become: true
@@ -70,17 +52,15 @@
     - slurmctld
 
 - block:
-
-    - name: Create {{ cluster_nfs_path }}/spool/slurm
+    - name: Create {{ slurm_nfs_path }}/spool/slurm
       become: true
       file:
-        name: "{{ cluster_nfs_path }}/spool/slurm"
+        name: "{{ slurm_nfs_path }}/spool/slurm"
         state: directory
         owner: 'slurm'
         group: 'slurm'
         mode: '0750'
         recurse: yes
-
 
     - name: Create munge.key
       become: true
@@ -164,5 +144,39 @@
 - name: add alias for node status
   lineinfile:
     path: /home/opc/.bashrc
-    line: alias status='tail /opt/oci-hpc/autoscaling/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
+    line: alias status='tail /opt/oci-hpc/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
     state: present
+
+- name: Generate topology.conf
+  become: true
+  template: 
+    src: topology.conf.j2
+    dest: /etc/slurm/topology.conf
+    mode: '0644'
+    force: no
+  delegate_to: 127.0.0.1
+  register: initial_topology
+  run_once: true
+  notify: reconfigure slurm
+
+- name: Generate a list of types to check
+  vars:
+    temp_list: "{% for partition in queues %}{% for instancetype in partition.instance_types %}{{partition.name}}-{{instancetype.instance_keyword}},{% endfor %}{% endfor %}"
+  set_fact:
+    nodesname_list: "{{temp_list.split(',')[:-1] }}"
+  when: not initial_topology.changed
+
+- name: Add new shapes to existing topology.conf
+  become: true
+  vars:
+    size: "{{ hostvars[inventory_hostname]['private_subnet'] | ipaddr('size') }}"
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName=inactive-{{item}}\\sNodes.*"
+    line: "SwitchName=inactive-{{item}} Nodes={% for index in range( size | int ) -%}{{item}}-node-{{ index }}{{ ',' if not loop.last else ''}}{%- endfor %}"
+    state: present
+  with_items: "{{nodesname_list}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: not initial_topology.changed
+  notify: reconfigure slurm

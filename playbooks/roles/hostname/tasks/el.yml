@@ -1,5 +1,8 @@
 ---
 - name: update hostname for HPC cluster
-  hostname: 
-    name: "{{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}}"
-  when: ('compute' in group_names ) and ( not initial | bool ) | bool
+  vars:
+    - index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  hostname:
+    name: "{{queue}}-{{keyword}}-node-{{index}}"
+  when: ('compute' in group_names )

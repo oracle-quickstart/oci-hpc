@@ -21,6 +21,15 @@
   run_once: true
   when: not destroy|bool
  
+- name: Make sure the IP for each node was not left over in another cluster
+  become: true
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "^{{ansible_host}}\\s((?!{{inventory_hostname}}).)*$"
+    state: absent
+  delegate_to: 127.0.0.1
+  when: not destroy|bool and ( ('compute' in group_names) | bool or ('compute_to_add' in group_names) | bool )
+
 - name: add cluster nodes to the /etc/hosts file for the compute nodes
   blockinfile:
     dest: /tmp/hosts.etc.{{ cluster_name }}
@@ -43,13 +52,21 @@
   run_once: true
   when: not destroy|bool and groups['compute']|length > 0
 
+- name: move /etc/hosts on backup slurm
+  become: true
+  copy:
+    dest: /etc/hosts
+    src: /etc/hosts
+    force: yes
+  when: ( not destroy|bool ) and ('slurm_backup' in group_names)
+
 - name: move /etc/hosts on all compute nodes
   become: true
   copy:
     dest: /etc/hosts
     src: /tmp/hosts.etc.{{ cluster_name }}
     force: yes
-  when: ( not destroy|bool ) and ('compute' in group_names)
+  when: ( not destroy|bool ) and (not 'bastion' in group_names) and (not 'slurm_backup' in group_names)
 
 - name: remove cluster from etc-host
   become: true
@@ -60,3 +77,13 @@
   delegate_to: 127.0.0.1
   run_once: true
   when: destroy | bool
+
+- name: remove cluster from etc-host
+  become: true
+  blockinfile:
+    dest: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+    state: absent
+  delegate_to: "{{ groups['slurm_backup'][0] }}"
+  run_once: true
+  when: destroy|bool and (groups['slurm_backup']|length > 0)|bool

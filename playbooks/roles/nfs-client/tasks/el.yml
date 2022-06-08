@@ -1,13 +1,10 @@
 ---
 - name: Install nfs packages
-  yum:
-    name: "{{ nfs_rpm_packages }}"
-    state: present
+  vars: 
+    package_name: '{{ nfs_rpm_packages }}'
+  include_role: 
+    name: safe_yum
   tags: install-only
-  register: nfs_packages_output
-  retries: 5
-  delay: 10
-  until: nfs_packages_output is not failed
 
 - name: create share directory
   become: true
@@ -15,7 +12,8 @@
     path: "{{ local_path }}"
     state: directory
     owner: opc
-    group: opc
+    group: privilege
+    mode: '0775'
 
 - name: Mount NFS with options
   mount:

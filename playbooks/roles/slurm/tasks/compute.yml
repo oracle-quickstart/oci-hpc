@@ -1,36 +1,14 @@
 ---
-#- name: install Slurm Comon Packages
-#  block:    
-#    - name: install SLURM server packages
-#      become: true
-#      yum: 
-#        name: 
-#          - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-libpmi-20.02.4-1.el7.x86_64.rpm"
-#          - "{{ download_path }}/slurm_rpms/slurm-slurmd-20.02.4-1.el7.x86_64.rpm"
 
-#  rescue:
-#    - name: Repository
-#      become: true
-#      yum_repository:
-#        name: oci-hpc
-#        description: oci-hpc
-#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-#        gpgcheck: no
-#        enabled: yes
-#        retries: 3
-      
-- name: install SLURM server packages
-  become: true
-  yum:
-    enablerepo: "epel,ol7_developer_EPEL"
-    name:
+- name: install SLURM compute packages
+  vars: 
+    package_name: 
       - slurm-pam_slurm
       - slurm-pmi
       - slurm-slurmd
-  register: slurm_install_packages
-  retries: 5
-  until: slurm_install_packages is not failed
+    package_repo: "{{slurm_repos}}"
+  include_role: 
+    name: safe_yum
 
 - name: Create systemd unit dirs
   become: true
@@ -39,13 +17,6 @@
     state: directory
   with_items:
     - munge
-
-#- name: Modify slurmd.service file
-#  become: true
-#  replace:
-#    path: "/usr/lib/systemd/system/slurmd.service"
-#    regexp: 'ExecStart=/usr/sbin/slurmd \$SLURMD_OPTIONS'
-#    replace: 'ExecStart=/usr/sbin/slurmd --conf-server bastion:6817 $SLURMD_OPTIONS'
 
 - name: Create munge dir
   become: true
@@ -97,21 +68,21 @@
     owner: 'slurm'
     group: 'slurm'
     mode: '0750'
- 
+
 - name: Copy configuration files
   become: true
-  copy: 
+  copy:
     src: '{{ item }}'
     dest: '{{ slurm_conf_path }}/{{ item }}'
     force: no
     owner: slurm
     group: slurm
-  with_items: 
+  with_items:
     - cgroup.conf
 
 - name: Generate gres.conf
   become: true
-  template: 
+  template:
     src: gres.conf.j2
     dest: /etc/slurm/gres.conf
     mode: '0644'
@@ -124,31 +95,83 @@
     src: /etc/slurm/slurm.conf
     force: yes
 
+- name: Get nodes from Cluster Switch
+  block:
+    - name: Get nodes from topology.conf
+      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}\""
+      register: cluster_switch
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Create existing cluster list
+      set_fact:
+        cluster_list: "{{cluster_switch.stdout.split('Nodes=')[1].split(',')}}"
+  rescue:
+    - name: Create existing cluster list
+      set_fact:
+        cluster_list: []
+
+- name: Get nodes from Inactive Switch
+  vars:
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+  register: inactive_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Get hostnames
+  set_fact:
+    nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  run_once: true
+  register: nodes_to_add_temp_results
+
+- name: Make a list of nodes to add
+  set_fact: nodes_to_add="{{nodes_to_add_temp_results.results | map(attribute='ansible_facts.nodes_to_add_temp') | list}}"
+  run_once: true
+
+- name: add nodes to Switch
+  become: true
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName={{cluster_name}}\\sNodes.*"
+    line: "SwitchName={{cluster_name}} Nodes={{cluster_list | union(nodes_to_add) | join(',')}}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+  notify: reconfigure slurm
+
+- name: remove nodes from inactive
+  become: true
+  vars:
+    - inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | difference(nodes_to_add)  | join(',')}}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+  notify: reconfigure slurm
+
+- name: move topology.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/topology.conf
+    src: /etc/slurm/topology.conf
+    force: yes
+  register: topology_copied
+  until: topology_copied is not failed
+  retries: 10
+  delay: 5
+
 - name: start slurmd
   become: true
   service:
     name: slurmd
     state: restarted
     enabled: true
- 
-- name: Update feature on compute node for Autoscaling
-  become: true
-  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures=cluster-size-{{ groups['compute'] | length }},{{ instance_type }},{% if instance_type != shape%}{{ shape }}{% endif %}"
-  retries: 20
-  delay: 10
-  register: result
-  until: result.rc == 0
-  when: not initial | bool
 
-- name: Update feature on compute node for permanent cluster
-  become: true
-  command: "scontrol update nodename={{ ansible_hostname }} ActiveFeatures={% for item in range( groups['compute'] | length + 1 ) -%}
-    cluster-size-{{ item }},{%- endfor %}{{ shape }}"
-  retries: 20
-  delay: 10
-  register: result
-  until: result.rc == 0
-  when: initial | bool
 
 - name: Grab Node State
   shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
@@ -158,7 +181,7 @@
   retries: 10
   delay: 5
 
-- set_fact: 
+- set_fact:
     node_state2={{ node_state.stdout }}
 
 - name: Update node state on bastion

@@ -51,10 +51,12 @@
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
 - name: install grafana
-  become: true
-  yum: 
-    name: grafana
-    state: latest
+  vars: 
+    package_name: 
+      - grafana
+    package_state: latest
+  include_role: 
+    name: safe_yum
 
 - name: start grafana
   become: true
@@ -79,28 +81,26 @@
   no_log: false
   register: existing_api_keys
 
-- name: install EL7 mysql release file
+- name: Import mysql-2022 key 
   become: true
-  yum:
-    name: https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
-
-- name: Ensure GPG key is installed for the repository
-  become: true
-  ansible.builtin.rpm_key:
+  rpm_key:
     state: present
     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 
-- name: install mysql-shell
-  become: true
-  yum:
-    name: mysql-shell
-    update_cache: yes
+- name: install mysql
+  vars: 
+    package_name: 
+      - https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+  include_role: 
+    name: safe_yum
 
-- name: install mysql connector
-  become: true
-  pip:
-    name: mysql-connector-python
-    executable: pip-3
+- name: install mysql
+  vars: 
+    package_name: 
+      - mysql-shell
+      - mysql-connector-python
+  include_role: 
+    name: safe_yum
 
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
@@ -133,7 +133,7 @@
     login_user: "{{ admin_username }}"
     login_password: "{{ mysql_root_pwd }}"
     name: logger
-    password: Monitor2021!
+    password: Monitor1234!
     priv: cluster_log.*:SELECT,INSERT,UPDATE,DELETE
     state: present
   when: not autoscaling_mysql_service | bool
@@ -160,7 +160,7 @@
     ds_type: "mysql"
     ds_url: "{{ monitoring_mysql_ip }}:3306"
     database: "cluster_log"
-    password: "Monitor2021!"
+    password: "Monitor1234!"
     user: "logger"
   ignore_errors: yes
 

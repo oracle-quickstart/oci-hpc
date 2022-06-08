@@ -3,8 +3,12 @@
   vars:
     destroy: true
     initial: false
-  roles:
-    - slurm
+  vars_files:
+    - "/opt/oci-hpc/conf/queues.conf"
+  tasks:
+    - include_role:
+        name: slurm
+      when: slurm|default(false)|bool
 - hosts: bastion
   become: true
   vars:

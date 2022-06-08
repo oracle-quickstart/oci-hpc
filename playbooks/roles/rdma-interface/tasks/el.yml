@@ -38,3 +38,39 @@
   command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
   when: ansible_mlx is defined and item.changed|default(false)
   with_items: "{{ rdma_interface['results'] }}"
+  
+  
+- name: update rp_filter arp settings to make all RDMA nics routable from each other
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.{{ item['device'] }}.rp_filter
+    value: '2'
+    sysctl_file: /etc/sysctl.d/80-network.conf
+    reload: yes
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8')
+  loop: "{{ ansible_mlx }}"
+  loop_control:
+    index_var: index
+
+- name: update arp_ignore arp settings to make all RDMA nics routable from each other
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.{{ item['device'] }}.arp_ignore
+    value: '2'
+    sysctl_file: /etc/sysctl.d/80-network.conf
+    reload: yes
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8')
+  loop: "{{ ansible_mlx }}"
+  loop_control:
+    index_var: index
+
+
+- name: update arp_announce arp settings to make all RDMA nics routable from each other
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.{{ item['device'] }}.arp_announce
+    value: '1'
+    sysctl_file: /etc/sysctl.d/80-network.conf
+    reload: yes
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8')
+  loop: "{{ ansible_mlx }}"
+  loop_control:
+    index_var: index
+

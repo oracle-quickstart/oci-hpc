@@ -20,7 +20,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.0.4"
+      "version": "8.2.5"
     },
     {
       "type": "panel",
@@ -56,23 +56,28 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
   },
   "editable": true,
+  "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
+  "iteration": 1637784020476,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
       "datasource": "${DS_AUTOSCALING}",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -130,14 +135,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  sched_state <> 'busy' and state = 'running'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  sched_state <> 'busy' and state = 'running' and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -206,14 +211,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  sched_state = 'busy' and state = 'running'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  sched_state = 'busy' and state = 'running' and class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -282,14 +287,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'provisioning'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'provisioning' and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -362,14 +367,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'deleting'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'deleting' and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -432,6 +437,7 @@
       },
       "id": 21,
       "options": {
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -443,14 +449,14 @@
         "showThresholdMarkers": true,
         "text": {}
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT \n\t((SELECT count(distinct id) FROM nodes WHERE sched_state='busy' and state='running') /\n\t(SELECT count(distinct id) FROM nodes WHERE state='running')) * 100",
+          "rawSql": "SELECT \n\t((SELECT count(distinct id) FROM nodes WHERE sched_state='busy' and state='running' and  class_name in ( $queue ) ) /\n\t(SELECT count(distinct id) FROM nodes WHERE state='running' and  class_name in ( $queue ) )) * 100",
           "refId": "A",
           "select": [
             [
@@ -519,14 +525,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM jobs\nWHERE\n  state = 'queued'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM jobs\nWHERE\n  state = 'queued' and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -595,14 +601,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'running'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'running' and class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -671,14 +677,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'creating'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'creating' and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -751,14 +757,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'deleting'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'deleting' and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -831,14 +837,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM jobs\nWHERE\n  state = 'running'",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM jobs\nWHERE\n  state = 'running' and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -867,10 +873,6 @@
     },
     {
       "datasource": "${DS_AUTOSCALING}",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -915,7 +917,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -940,7 +942,7 @@
           "hide": false,
           "metricColumn": "state_m",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(created_on_m,$__interval,0),\n  state_m AS metric,\n  count(distinct node_id) AS \"node_id\"\nFROM nodes_timeserie\nWHERE\n  $__timeFilter(created_on_m)\nGROUP BY 1,2\nORDER BY $__timeGroup(created_on_m,$__interval,0)",
+          "rawSql": "SELECT\n  $__timeGroupAlias(created_on_m,$__interval,0),\n  state_m AS metric,\n  count(distinct node_id) AS \"node_id\"\nFROM nodes_timeserie\nWHERE\n  $__timeFilter(created_on_m) and  class_name in ( $queue )\nGROUP BY 1,2\nORDER BY $__timeGroup(created_on_m,$__interval,0)",
           "refId": "A",
           "select": [
             [
@@ -1052,7 +1054,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1077,7 +1079,7 @@
           "hide": false,
           "metricColumn": "state_m",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(created_on_m,$__interval,0),\n  state AS metric,\n  count(distinct id) AS \"error_id\"\nFROM errors_timeserie\nWHERE\n  $__timeFilter(created_on_m)\nGROUP BY 1,2\nORDER BY $__timeGroup(created_on_m,$__interval,0)",
+          "rawSql": "SELECT\n  $__timeGroupAlias(created_on_m,$__interval,0),\n  state AS metric,\n  count(distinct id) AS \"error_id\"\nFROM errors_timeserie\nWHERE\n  $__timeFilter(created_on_m) and  class_name in ( $queue )\nGROUP BY 1,2\nORDER BY $__timeGroup(created_on_m,$__interval,0)",
           "refId": "A",
           "select": [
             [
@@ -1188,7 +1190,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1202,7 +1204,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(submitted,$__interval,0),\n  avg(TIME_TO_SEC(queue_time))/60 AS \"job_wait_time\"\nFROM jobs\nWHERE\n  $__timeFilter(submitted) AND (queue_time IS NOT NULL and (state = \"running\" OR state = \"done\"))\nGROUP BY 1\nORDER BY $__timeGroup(submitted,$__interval,0)",
+          "rawSql": "SELECT\n  $__timeGroupAlias(submitted,$__interval,0),\n  avg(TIME_TO_SEC(queue_time))/60 AS \"job_wait_time\"\nFROM jobs\nWHERE\n  $__timeFilter(submitted) AND (queue_time IS NOT NULL and (state = \"running\" OR state = \"done\")) and  class_name in ( $queue )\nGROUP BY 1\nORDER BY $__timeGroup(submitted,$__interval,0)",
           "refId": "A",
           "select": [
             [
@@ -1300,7 +1302,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1314,7 +1316,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(submitted,$__interval,0),\n  avg(TIME_TO_SEC(run_time))/60 AS \"job_run_time\"\nFROM jobs\nWHERE\n  $__timeFilter(submitted) AND (run_time IS NOT NULL and (state = \"done\"))\nGROUP BY 1\nORDER BY $__timeGroup(submitted,$__interval,0)",
+          "rawSql": "SELECT\n  $__timeGroupAlias(submitted,$__interval,0),\n  avg(TIME_TO_SEC(run_time))/60 AS \"job_run_time\"\nFROM jobs\nWHERE\n  $__timeFilter(submitted) AND (run_time IS NOT NULL and (state = \"done\")) and  class_name in ( $queue )\nGROUP BY 1\nORDER BY $__timeGroup(submitted,$__interval,0)",
           "refId": "A",
           "select": [
             [
@@ -1381,10 +1383,6 @@
     },
     {
       "datasource": "${DS_AUTOSCALING}",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1501,14 +1499,14 @@
           }
         ]
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "cluster_name",
           "rawQuery": true,
-          "rawSql": "SELECT\n  cluster_name,\n  nodes,\n  state,\n  TIMEDIFF(NOW(),started_creation) as \"Creation time\",\n  TIMEDIFF(NOW(),started_deletion) as \"Deletion time\",\n  class_name\nFROM clusters\nWHERE\n  state = 'creating' or state = 'deleting'\nORDER BY state",
+          "rawSql": "SELECT\n  cluster_name,\n  nodes,\n  state,\n  TIMEDIFF(NOW(),started_creation) as \"Creation time\",\n  TIMEDIFF(NOW(),started_deletion) as \"Deletion time\",\n  class_name\nFROM clusters\nWHERE\n  ( state = 'creating' or state = 'deleting' ) and  class_name in ( $queue )\nORDER BY state",
           "refId": "A",
           "select": [
             [
@@ -1634,14 +1632,14 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "cluster_name",
           "rawQuery": true,
-          "rawSql": "SELECT\n  job_id,\n  cpus,\n  nodes,\n  TIMEDIFF(NOW(),submitted) as \"queue time\",\n  class_name\nFROM jobs\nWHERE\n  state = 'queued'\nORDER BY class_name,state",
+          "rawSql": "SELECT\n  job_id,\n  cpus,\n  nodes,\n  TIMEDIFF(NOW(),submitted) as \"queue time\",\n  class_name\nFROM jobs\nWHERE\n  state = 'queued' and  class_name in ( $queue )\nORDER BY class_name,state",
           "refId": "A",
           "select": [
             [
@@ -1755,14 +1753,14 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "cluster_name",
           "rawQuery": true,
-          "rawSql": "SELECT\n  cluster_name,\n  nodes,\n  state,\n  class_name\nFROM clusters\nWHERE\n  state = 'running'\nORDER BY cluster_name",
+          "rawSql": "SELECT\n  cluster_name,\n  nodes,\n  state,\n  class_name\nFROM clusters\nWHERE\n  state = 'running' and  class_name in ( $queue )\nORDER BY cluster_name",
           "refId": "A",
           "select": [
             [
@@ -1900,14 +1898,14 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "cluster_name",
           "rawQuery": true,
-          "rawSql": "SELECT\n  job_id,\n  cpus,\n  nodes,\n  TIMEDIFF(NOW(),started) as \"runtime\",\n  queue_time,\n  class_name,\n  cluster_id\nFROM jobs\nWHERE\n  state = 'running'\nORDER BY class_name,job_id",
+          "rawSql": "SELECT\n  job_id,\n  cpus,\n  nodes,\n  TIMEDIFF(NOW(),started) as \"runtime\",\n  queue_time,\n  class_name,\n  cluster_id\nFROM jobs\nWHERE\n  state = 'running' and  class_name in ( $queue )\nORDER BY class_name,job_id",
           "refId": "A",
           "select": [
             [
@@ -1986,14 +1984,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'deleted' and deleted >= ( CURDATE() - INTERVAL 1 DAY )",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM clusters\nWHERE\n  state = 'deleted' and deleted >= ( CURDATE() - INTERVAL 1 DAY ) and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -2062,14 +2060,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'deleted' and deleted >= ( CURDATE() - INTERVAL 1 DAY )",
+          "rawSql": "SELECT\n  count(distinct id)\nFROM nodes\nWHERE\n  state = 'deleted' and deleted >= ( CURDATE() - INTERVAL 1 DAY ) and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -2131,14 +2129,14 @@
       "options": {
         "showHeader": true
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n id,\n state,\n oci_state,\n cluster_name,\n class_name\nFROM clusters\nWHERE\n  oci_state <> 'terminated' and ( state <> \"running\" and state <>\"creating\" and state <>\"deleting\") ",
+          "rawSql": "SELECT\n id,\n state,\n oci_state,\n cluster_name,\n class_name\nFROM clusters\nWHERE\n  oci_state <> 'terminated' and ( state <> \"running\" and state <>\"creating\" and state <>\"deleting\")  and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -2207,14 +2205,14 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n count( distinct id)\nFROM clusters\nWHERE\n  oci_state <> 'terminated' and ( state <> \"running\" and state <>\"creating\" and state <>\"deleting\") ",
+          "rawSql": "SELECT\n count( distinct id)\nFROM clusters\nWHERE\n  oci_state <> 'terminated' and ( state <> \"running\" and state <>\"creating\" and state <>\"deleting\") and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -2331,14 +2329,14 @@
           }
         ]
       },
-      "pluginVersion": "8.0.4",
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n cluster_id,\n error_type,\n created_on_m,\n error_log\nFROM errors_timeserie\nWHERE\n  state <> 'oci' and created_on_m >= ( CURDATE() - INTERVAL 7 DAY )",
+          "rawSql": "SELECT\n cluster_id,\n error_type,\n created_on_m,\n error_log\nFROM errors_timeserie\nWHERE\n  state <> 'oci' and created_on_m >= ( CURDATE() - INTERVAL 7 DAY ) and  class_name in ( $queue )",
           "refId": "A",
           "select": [
             [
@@ -2367,19 +2365,40 @@
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 30,
+  "schemaVersion": 32,
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": "",
+        "current": {},
+        "datasource": "${DS_AUTOSCALING}",
+        "definition": "select class_name from  nodes;",
+        "description": "Which queue are you looking at",
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "queue",
+        "multi": true,
+        "name": "queue",
+        "options": [],
+        "query": "select class_name from  nodes;",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "Asia/Tokyo",
-  "title": "Initial Dashboard 2",
+  "timezone": "utc",
+  "title": "Dashboard",
   "uid": "wkfwsgm7k",
-  "version": 1
+  "version": 3
 }
