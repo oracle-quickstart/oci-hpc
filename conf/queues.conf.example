@@ -1,0 +1,84 @@
+---
+  queues:
+    - name: compute
+      default: true
+      instance_types:
+        - name: HPC
+          default: true
+          shape: BM.HPC2.36
+          instance_keyword: hpc
+          permanent: False
+          cluster_network: true
+          max_number_nodes: 100
+          max_cluster_size: 20
+          max_cluster_count: 10
+          ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
+          image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
+          targetCompartment: ocid1.compartment.oc1.. #TO EDIT
+          boot_volume_size: 50
+          use_marketplace_image: true
+          instance_pool_ocpus: 2
+          instance_pool_memory: 16
+          instance_pool_custom_memory: false
+          marketplace_listing: 1. Oracle Linux 7.8 OFED5.0
+          hyperthreading: true
+        - name: permanent
+          default: true
+          shape: BM.HPC2.36
+          instance_keyword: permanent
+          permanent: true
+          cluster_network: true
+          max_number_nodes: 100
+          max_cluster_size: 50
+          max_cluster_count: 10
+          ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
+          image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
+          targetCompartment: ocid1.compartment.oc1.. #TO EDIT
+          boot_volume_size: 50
+          use_marketplace_image: true
+          instance_pool_ocpus: 2
+          instance_pool_memory: 16
+          instance_pool_custom_memory: false
+          marketplace_listing: 1. Oracle Linux 7.8 OFED5.0
+          hyperthreading: true
+    - name: compute2
+      default: false
+      instance_types:
+        - name: p100
+          default: true
+          shape: VM.GPU2.1
+          instance_keyword: gpu
+          permanent: False
+          cluster_network: false
+          max_number_nodes: 4
+          max_cluster_size: 2
+          max_cluster_count: 2
+          ad: VXpT:EU-FRANKFURT-1-AD-1 #TO EDIT
+          image: ocid1.image.oc1.eu-frankfurt-1.aaaaaaaasrw572lodukbaxlwrrq5zcqe3zldh3krkgtq3lm463lann4ksxeq #TO EDIT
+          targetCompartment: ocid1.compartment.oc1.. #TO EDIT
+          boot_volume_size: 50
+          use_marketplace_image: false
+          instance_pool_ocpus: 2
+          instance_pool_memory: 16
+          instance_pool_custom_memory: false
+          marketplace_listing: 1. Oracle Linux 7.8 OFED5.0
+          hyperthreading: true
+        - name: amdflex
+          default: false
+          shape: VM.Standard.E3.Flex
+          instance_keyword: amd
+          permanent: false
+          cluster_network: false
+          max_number_nodes: 100
+          max_cluster_size: 20
+          max_cluster_count: 10
+          ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
+          image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
+          targetCompartment: ocid1.compartment.oc1.. #TO EDIT
+          boot_volume_size: 50
+          use_marketplace_image: false
+          instance_pool_ocpus: 2
+          instance_pool_memory: 2
+          instance_pool_custom_memory: true
+          marketplace_listing: 1. Oracle Linux 7.8 OFED5.0
+          hyperthreading: true

@@ -13,10 +13,12 @@
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
 - name: install grafana
-  become: true
-  yum: 
-    name: grafana
-    state: latest
+  vars: 
+    package_name: 
+      - grafana
+    package_state: latest
+  include_role: 
+    name: safe_yum
 
 - name: start grafana
   become: true

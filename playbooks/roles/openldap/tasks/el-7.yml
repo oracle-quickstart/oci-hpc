@@ -12,9 +12,12 @@
     recurse: yes
 
 - name: Install dependencies
-  yum:
-    name: policycoreutils-python
-    state: installed
+  vars: 
+    package_name: 
+      - policycoreutils-python
+    package_state: installed
+  include_role: 
+    name: safe_yum
   tags: install-only
 
 - name: Generate openldap root password 
@@ -30,9 +33,10 @@
                            chars=ascii_letters,digits,hexdigits') }}"
 
 - name: Install OpenLDAP packages
-  yum:
-    name: '{{ openldap_packages }}'
-    state: present
+  vars: 
+    package_name: "{{openldap_packages}}"
+  include_role: 
+    name: safe_yum
   tags: install-only
 
 - block:

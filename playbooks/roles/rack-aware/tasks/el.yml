@@ -1,0 +1,18 @@
+- name: copy python3 module installer
+  copy: 
+    src: install.sh
+    dest: /opt/oci-hpc/bin/
+    owner: opc
+    group: privilege
+    mode: '0775'
+
+- name: install dependencies
+  command: bash -c "/opt/oci-hpc/bin/install.sh"
+
+- name: copy node_ordering_by_rack.py 
+  copy:
+    src: node_ordering_by_rack.py
+    dest: /home/opc/
+    owner: opc
+    group: opc
+    mode: '0755'

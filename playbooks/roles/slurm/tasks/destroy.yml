@@ -1,5 +1,96 @@
 ---
 - name: change Node Status
   become: true
-  command: "scontrol update nodename={{ cluster_name }}-node-{{groups['compute'].index(inventory_hostname)+1}} state=future reason=terminating"
+  command: "scontrol update nodename={{ ansible_hostname }} state=future reason=terminating"
+  ignore_errors: true
+  ignore_unreachable: True
+  delegate_to: 127.0.0.1
+
+- name: Get nodes from Cluster Switch
+  block:
+    - name: Get nodes from topology.conf
+      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}\""
+      register: cluster_switch
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Create existing cluster list
+      set_fact:
+        cluster_list: "{{cluster_switch.stdout.split('Nodes=')[1].split(',')}}"
+  rescue:
+    - name: Create existing cluster list
+      set_fact:
+        cluster_list: []
+
+- name: Get nodes from Inactive Switch
+  block:
+    - name: Get nodes from Inactive Switch
+      vars:
+        - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+      register: inactive_switch
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Create inactive list
+      set_fact:
+        inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
+  rescue:
+    - name: Create inactive cluster list
+      set_fact:
+        inactive_list: []
+
+- name: Get hostnames
+  set_fact:
+    nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) }}"
+  run_once: true
+  register: nodes_to_add_temp_results
+
+- name: Make a list
+  set_fact: nodes_to_add="{{nodes_to_add_temp_results.results | map(attribute='ansible_facts.nodes_to_add_temp') | list}}"
+  run_once: true
+
+- name: remove nodes from Switch
+  become: true
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName={{cluster_name}}\\sNodes.*"
+    line: "SwitchName={{cluster_name}} Nodes={{cluster_list | difference(nodes_to_add) | join(',')}}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: cluster_list | difference(nodes_to_add) | join(',') != ''
+
+- name: remove cluster from Switch
+  become: true
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName={{cluster_name}}\\sNodes.*"
+    state: absent
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: cluster_list | difference(nodes_to_add) | join(',') == ''
+
+- name: Adding nodes to inactive
+  vars:
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  become: true
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | union(nodes_to_add)  | join(',')}}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: change Node Status
+  become: true
+  command: "scontrol update nodename={{ ansible_hostname }} state=future reason=terminating"
   ignore_errors: force
+  ignore_unreachable: True
+  delegate_to: 127.0.0.1
+
+- name: Reconfigure Slurm for topology
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
+  run_once: true

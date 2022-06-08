@@ -1,0 +1,18 @@
+# QFAB1.0
+
+  mpirun --mca pml ucx \
+  --bind-to numa \
+  -x NCCL_DEBUG=WARN \
+  -x NCCL_IB_SL=0 \
+  -x NCCL_IB_TC=41 \
+  -x NCCL_IB_QPS_PER_CONNECTION=16 \
+  -x UCX_TLS=ud,self,sm \
+  -x UCX_NET_DEVICES=mlx5_4:1 \
+  -x HCOLL_ENABLE_MCAST_ALL=0 \
+  -x coll_hcoll_enable=0 \
+  -x NCCL_IB_GID_INDEX=3 \
+  -x NCCL_ALGO=Ring \
+  -x NCCL_TOPO_FILE=/home/opc/topo-flattened.xml \
+  -x NCCL_IB_HCA="=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16" \
+  --np $np --hostfile $hostfile  -N 8 /home/opc/nccl-tests/build/all_reduce_perf  -b8  -e 4G -f 2  -n $iter >>  $logfile
+

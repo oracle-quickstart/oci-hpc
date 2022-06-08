@@ -1,0 +1,22 @@
+- hosts: bastion, slurm_backup, compute
+  become: true
+  gather_facts: true
+  vars:
+    destroy: false
+  tasks:
+    - include_role:
+        name: mpi-hostfiles
+    - include_role:
+        name: etc-hosts
+
+- hosts: compute_to_destroy
+  become: true
+  vars:
+    destroy: true
+    initial: false
+  vars_files:
+    - "/opt/oci-hpc/conf/queues.conf"
+  tasks:
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool

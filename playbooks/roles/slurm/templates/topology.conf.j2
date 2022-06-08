@@ -1,11 +1,8 @@
+### Topology File
+{% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
-{% for index in range(1, instance.max_cluster_count | int + 1) %}
-SwitchName={{ partition.name }}-{{ index }}-{{ instance.instance_keyword }} Nodes={{ partition.name }}-{{ index }}-{{instance.instance_keyword }}-node-[1-{{ instance.max_cluster_size }}]
-{% endfor %} 
-{% endfor %} 
+SwitchName=inactive-{{partition.name}}-{{instance.instance_keyword}} Nodes={% for item in range(1, size | int + 1 ) -%}{{partition.name}}-{{instance.instance_keyword}}-node-{{ item }}{{ "," if not loop.last else ''}}{%- endfor %}
+
 {% endfor %}
-{% if groups['compute'] | length > 0 %}
-SwitchName=Permanent Nodes={% for item in groups['compute'] -%}
-{{hostvars[item]['ansible_fqdn'].split('.')[0] }},{%- endfor %}
-{% endif %}
+{% endfor %}

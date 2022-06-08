@@ -2,12 +2,12 @@
 - hosts: compute
   become: true
   gather_facts: true
-  vars: 
-    initial: false
+  vars_files:
+    - "/opt/oci-hpc/conf/queues.conf"
   tasks: 
     - include_role:  
         name: hostname
-      when: slurm and autoscaling | default(false) | bool
+      when: slurm | default(false) | bool
 
 - hosts: compute
   become: true
@@ -16,20 +16,21 @@
   gather_facts: true
   roles: 
     - oci-cloud-agent
-    - packages
+    - privilege_group
     - oci-legacy
+    - packages
     - firewall 
     - oci-hostname
     - ssh
     - localdisk
     - limits
     - mpi-hostfiles
+    - boot-volume
 
-- hosts: all
+- hosts: bastion,slurm_backup,compute
   become: true
   vars: 
     destroy: false
-    initial: false
   gather_facts: true
   roles: 
     - etc-hosts
@@ -60,7 +61,7 @@
         local_path: "{{ cluster_nfs_path }}"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/export/cluster"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: cluster_nfs|default(true)|bool
     - include_role: 
@@ -69,7 +70,7 @@
         local_path: "{{ scratch_nfs_path }}"
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
       when: scratch_nfs|default(true)|bool
 
@@ -89,22 +90,37 @@
         name: rdma-interface
     - include_role: 
         name: hyperthreading
-      when: not hyperthreading|default(true)|bool 
+      when: not hyperthreading|default(true)|bool
+- hosts: compute
+  tasks:  
+    - include_role: 
+        name: latency_check
+      when: cluster_network|bool and not 'GPU' in shape 
+
 - hosts: compute
   become: true
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool and ansible_selinux.status == "enabled"
+      when: home_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
         local_path: "/home"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/home"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
-      when: home_nfs|default(true)|bool
+      when: home_nfs|bool and (not home_fss|bool)
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        options: ""
+        lock: "none"
+      when: home_nfs|bool and home_fss|bool
     - include_role:
         name: nfs-client
       vars:
@@ -114,21 +130,29 @@
         options: "{{ nfs_options }}"
         lock: "none"
       when: add_nfs|default(false)|bool
-      
-#- hosts: bastion
-#  tasks: 
-#    - include_role: 
-#        name: influxdb
-#    - include_role: 
-#        name: grafana#
+     
+- hosts: compute
+  become: true
+  vars:
 
+  tasks:
+    - include_role: 
+        name: docker
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-container
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-enroot
+      when: enroot|default(true)|bool
+          
 - hosts: compute
   vars:
     destroy: false
     initial: false
     download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
   vars_files:
-    - "/opt/oci-hpc/autoscaling/queues.conf"
+    - "/opt/oci-hpc/conf/queues.conf"
   tasks:
     - include_role: 
         name: spack
@@ -136,5 +160,6 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-#    - include_role: 
-#        name: telegraf
+    - include_role: 
+        name: telegraf
+      when: monitoring|default(false)|bool

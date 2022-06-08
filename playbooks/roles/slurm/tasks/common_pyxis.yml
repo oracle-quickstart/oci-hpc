@@ -1,0 +1,41 @@
+---
+- name: copy files
+  become: true
+  become_method: sudo
+  template:
+    src: prolog.sh.j2
+    dest: "/etc/slurm/prolog.sh"
+    owner: root
+    group: root
+    mode: 0755
+    force: yes
+    backup: yes  
+
+- name: install required packages
+  vars: 
+    package_name: 
+      - gcc-c++
+      - git
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+
+- name: clone pyxis repo
+  git:
+    repo: https://github.com/NVIDIA/pyxis.git
+    dest: /tmp/pyxis
+
+- name: compile 
+  command: bash -c "sudo make install"
+  args:
+    chdir: /tmp/pyxis/
+
+- name: create /etc/slurm/plugstack.conf
+  become: true
+  copy:
+    dest: "/etc/slurm/plugstack.conf"
+    content: |
+      required /usr/local/lib/slurm/spank_pyxis.so
+    mode: '0775'
+    owner: opc
+    group: opc

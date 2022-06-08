@@ -1,0 +1,233 @@
+---
+- name: install SLURM compute packages
+  vars: 
+    package_name: 
+      - slurm-pam_slurm
+      - slurm-pmi
+      - slurm-slurmd
+    package_repo: "{{slurm_repos}}"
+  include_role: 
+    name: safe_yum
+
+- name: Create systemd unit dirs
+  become: true
+  file:
+    name: '/etc/systemd/system/{{ item }}.service.d'
+    state: directory
+  with_items:
+    - munge
+
+- name: Create munge dir
+  become: true
+  file:
+    name: '{{ munge_conf_path }}'
+    state: directory
+    owner: munge
+    group: munge
+    mode: 0700
+
+- name: copy munge.key to tmp
+  become: true
+  shell:
+    cmd: cp /etc/munge/munge.key /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: set permissions
+  become: true
+  shell:
+    cmd: chown opc:opc /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Copy munge key
+  become: true
+  copy:
+    src: /tmp/munge.key
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+  notify: restart munge
+
+- name: restart munge
+  become: true
+  service:
+    name: munge
+    state: restarted
+    enabled: true
+
+- name: Create {{ slurm_spool_path }}
+  become: true
+  file:
+    name: "{{ slurm_spool_path }}"
+    state: directory
+    owner: 'slurm'
+    group: 'slurm'
+    mode: '0750'
+
+- name: Copy configuration files
+  become: true
+  copy:
+    src: '{{ item }}'
+    dest: '{{ slurm_conf_path }}/{{ item }}'
+    force: no
+    owner: slurm
+    group: slurm
+  with_items:
+    - cgroup.conf
+
+- name: Generate gres.conf
+  become: true
+  template:
+    src: gres.conf.j2
+    dest: /etc/slurm/gres.conf
+    mode: '0644'
+    backup: yes
+
+- name: move slurm.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/slurm.conf
+    src: /etc/slurm/slurm.conf
+    force: yes
+
+- name: Run the script to get the RackID
+  shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host | jq .rackId'
+#  shell: echo $RANDOM | md5sum | head -c 20
+  register: rackID_script
+
+- name: Set RackID fact
+  set_fact: 
+    rackID: "{{ rackID_script.stdout[1:-1]}}"
+
+- name: Get nodes from Inactive Switch
+  vars:
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+  register: inactive_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Get rackIDs for all compute nodes
+  set_fact:
+    racks_to_add_temp: "{{cluster_name}}:{{hostvars[item]['rackID']}}"
+  with_items: "{{ play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) }}"
+  run_once: true
+  register: racks_to_add_temp_results
+
+- name: Make a list of racks to add
+  set_fact: racks_to_add="{{racks_to_add_temp_results.results | map(attribute='ansible_facts.racks_to_add_temp') | list | unique}}"
+  run_once: true
+
+- name: Get hostnames
+  set_fact:
+    nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  run_once: true
+  register: nodes_to_add_temp_results
+
+- name: Make a list of nodes to add
+  set_fact: nodes_to_add="{{nodes_to_add_temp_results.results | map(attribute='ansible_facts.nodes_to_add_temp') | list}}"
+  run_once: true
+
+- name: Get current nodes in Switch
+  shell: "cat /etc/slurm/topology.conf | grep \"{{item}}\" | grep Nodes= | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'"
+  register: nodes_in_switch
+  delegate_to: 127.0.0.1
+  run_once: true
+  with_items: "{{racks_to_add}}"
+
+- name: Add the nodes in the rack switches
+  become: true
+  vars:
+    new_line: "SwitchName={{item.item}} Nodes={{item.stdout}}{% if item.stdout != ''%},{% endif%}{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if hostvars[node]['rackID'] == item.item.split(':')[1] and (not ((hostvars[node]['ansible_hostname'] in item.stdout.split(',')|list)|bool)) %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName={{item.item}}\\sNodes.*"
+    line: "{{new_line[:-1]}}"
+    state: present
+  run_once: true
+  with_items: "{{nodes_in_switch.results}}"
+  delegate_to: 127.0.0.1
+  notify: reconfigure slurm
+
+- name: remove nodes from inactive
+  become: true
+  vars:
+    - inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | difference(nodes_to_add)  | join(',')}}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+  notify: reconfigure slurm
+
+- name: Get racks in the Cluster
+  block:
+    - name: Get Racks from topology.conf
+      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}:\" | awk '{print $1}' | sed 's/SwitchName=//' | tr '\n' ',' | sed 's/,$/\\n/'"
+      register: racks_left
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Create list of racks
+      set_fact:
+        racks_left_list: "{{racks_left.stdout.split(',') | list}}"
+  rescue:
+    - name: Empty racks
+      set_fact:
+        racks_left_list: []
+
+- name: Update Rack switches for the cluster
+  become: true
+  lineinfile:
+    path: "/etc/slurm/topology.conf"
+    regexp: "SwitchName={{cluster_name}}\\sSwitches.*"
+    line: "SwitchName={{cluster_name}} Switches={{ racks_left_list | join(',') }}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: racks_left_list | length > 0
+
+- name: move topology.conf on all servers
+  become: true
+  copy:
+    dest: /etc/slurm/topology.conf
+    src: /etc/slurm/topology.conf
+    force: yes
+  register: topology_copied
+  until: topology_copied is not failed
+  retries: 10
+  delay: 5
+
+- name: start slurmd
+  become: true
+  service:
+    name: slurmd
+    state: restarted
+    enabled: true
+
+- name: Grab Node State
+  shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
+  register: node_state
+  delegate_to: 127.0.0.1
+  until: node_state.stdout.find("failure") == -1
+  retries: 10
+  delay: 5
+
+- set_fact:
+    node_state2={{ node_state.stdout }}
+
+- name: Update node state on bastion
+  become: true
+  command: scontrol update nodename={{ ansible_hostname }} state=RESUME
+  when: node_state2 != "idle" and node_state2 != "alloc"
+  register: result
+  retries: 10
+  delay: 5
+  until: result is not failed
