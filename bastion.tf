@@ -236,6 +236,7 @@ resource "null_resource" "cluster" {
       enroot = var.enroot,
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
+      privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check
       })
 
@@ -354,6 +355,7 @@ resource "null_resource" "cluster" {
       enroot = var.enroot,
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
+      privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check
       })
 
@@ -398,7 +400,6 @@ provisioner "file" {
 
   provisioner "remote-exec" {
     inline = [
-      "chmod 755 /opt/oci-hpc/autoscaling/*.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/credentials/key.sh",
       "/opt/oci-hpc/autoscaling/credentials/key.sh /opt/oci-hpc/autoscaling/credentials/key.initial /opt/oci-hpc/autoscaling/credentials/key.pem > /opt/oci-hpc/autoscaling/credentials/key.log",
