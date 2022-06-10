@@ -20,3 +20,12 @@
     opts: defaults,noatime
     state: mounted
   when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+- name: "set permissions on {{ nvme_path }}"
+  become: true
+  file:
+    path: "{{ nvme_path }}"
+    state: directory
+    owner: opc
+    mode: 0775
+    group: "{{privilege_group_name}}"
+    recurse: no
