@@ -278,7 +278,7 @@ If selected bastion host will act as an LDAP server for the cluster. It's strong
 User management can be performed from the bastion using ``` cluster ``` command. 
 Example of cluster command to add a new user: 
 ```cluster user add name```
-By default, a `privilege` group is created that has access to the NFS and can have sudo access on all nodes (Defined at the stack creation. This group has ID 9876)
+By default, a `privilege` group is created that has access to the NFS and can have sudo access on all nodes (Defined at the stack creation. This group has ID 9876) The group name can be modified.
 ```cluster user add name --gid 9876```
 To generate a user-specific key for passwordless ssh between nodes, use --ssh. 
 ```cluster user add name --ssh --gid 9876```

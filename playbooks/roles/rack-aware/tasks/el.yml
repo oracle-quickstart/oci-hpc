@@ -3,7 +3,7 @@
     src: install.sh
     dest: /opt/oci-hpc/bin/
     owner: opc
-    group: privilege
+    group: "{{privilege_group_name}}"
     mode: '0775'
 
 - name: install dependencies

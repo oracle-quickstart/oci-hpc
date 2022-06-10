@@ -33,6 +33,7 @@ variable "instance_pool_ocpus" { default = "##OCPU##"}
 variable "instance_pool_memory" { default = "##MEM##" }
 variable "instance_pool_custom_memory" { default = ##CUSTOM_MEM## }
 variable "privilege_sudo" { default = ${privilege_sudo} }
+variable "privilege_group_name" { default = ${privilege_group_name} }
 variable "marketplace_listing" {
   default = "##MP_LIST##" 
 } 

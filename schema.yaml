@@ -123,6 +123,7 @@ variableGroups:
   - title: "Software"
     variables:
       - ${privilege_sudo} 
+      - ${privilege_group_name} 
       - ${slurm}
       - ${slurm_ha}
       - ${rack_aware}
@@ -1078,3 +1079,12 @@ variables:
     title: "Sudo Access"
     default: true
     description: "Give sudo access to the privilege group"
+
+  privilege_group_name:
+    type: string
+    title: "Name of the group with privileges"
+    default: "privilege"
+    required: true
+    visible: 
+      and:
+        - ${privilege_sudo}

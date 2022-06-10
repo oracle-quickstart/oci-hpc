@@ -49,6 +49,8 @@ variable "instance_pool_custom_memory" { default = false }
 variable "bastion_memory" { default = 16 }
 variable "bastion_custom_memory" { default = false }
 variable "privilege_sudo" { default = true }
+variable "privilege_group_name" { default = "privilege" }
+
 variable "bastion_listing" { 
   default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
 } 

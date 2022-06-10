@@ -239,6 +239,7 @@ resource "null_resource" "cluster_backup" {
       enroot = var.enroot,
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
+      privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check
       })
 
@@ -357,6 +358,7 @@ resource "null_resource" "cluster_backup" {
       enroot = var.enroot,
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
+      privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check
       })
 

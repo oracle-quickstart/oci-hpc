@@ -1,21 +1,23 @@
 - name: create groupname group (gid 9876)
   become: true
   group:
-    name: privilege
+    name: "{{privilege_group_name}}"
     gid: 9876
     state: present
+    
 - name: allow groupname group to have passwordless sudo
   become: true
   lineinfile:
     dest: /etc/sudoers
     state: present
-    regexp: '^%privilege'
-    line: '%privilege ALL=(ALL) NOPASSWD: ALL'
+    regexp: '^%{{privilege_group_name}}'
+    line: '%{{privilege_group_name}} ALL=(ALL) NOPASSWD: ALL'
     validate: 'visudo -cf %s'
   when: privilege_sudo
-- name: add opc user to privilege group
+
+- name: "add opc user to {{privilege_group_name}} group"
   become: true
   user:
     name: opc
-    groups: privilege
+    groups: "{{privilege_group_name}}"
     append: yes
