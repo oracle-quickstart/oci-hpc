@@ -37,6 +37,13 @@
     src: env.j2
     dest: /opt/oci-hpc/monitoring/env
 
+- name: install protobuf v3.19.4
+  become: true
+  pip:
+    name: protobuf==3.19.4
+    executable: pip-3
+  ignore_errors: yes
+  
 - name: add grafana repository
   become: true
   yum_repository: 
