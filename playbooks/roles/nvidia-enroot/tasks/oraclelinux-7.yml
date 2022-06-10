@@ -42,7 +42,7 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_RUNTIME_PATH.*'
-      line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path}}/enroot/user-$(id -u)'
+      line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path}}/enroot_runtime/user-$(id -u)'
       backup: yes
 
   - name: update ENROOT_DATA_PATH
@@ -50,7 +50,7 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_DATA_PATH.*'
-      line: 'ENROOT_DATA_PATH        {{enroot_top_path}}/enroot-data/user-$(id -u)'
+      line: 'ENROOT_DATA_PATH        {{enroot_top_path}}/enroot_data/user-$(id -u)'
       backup: yes
 
   - name: update ENROOT_CACHE_PATH
@@ -69,6 +69,7 @@
       line: 'ENROOT_TEMP_PATH        {{enroot_top_path}}/enroot_tmp'
       backup: yes
 
+
   - name: set permissions on {{enroot_top_path}}
     become: true
     file:
@@ -79,12 +80,18 @@
       group: "{{privilege_group_name}}"
       recurse: no
 
-  - name: Make sure {{enroot_top_path}}/enroot-data directory exist
+
+  - name: Make sure all {{enroot_top_path}} directories exist
     file:
-      path: "{{enroot_top_path}}/enroot-data"
+      path: "{{enroot_top_path}}/{{item}}"
       state: directory
       mode: '0775'
       owner: opc
       group: "{{privilege_group_name}}"
       recurse: no
+    with_items: 
+      - enroot_data
+      - enroot_tmp
+      - enroot_cache
+      - enroot_runtime
 
