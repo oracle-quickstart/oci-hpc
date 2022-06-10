@@ -20,6 +20,7 @@
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{privilege_group_name}}"
+    mode: '0775'
 
 - name: create exports file
   register: nfs_config

@@ -13,7 +13,7 @@
     state: directory
     owner: opc
     group: "{{privilege_group_name}}"
-    mode: '0775'
+    mode: 0775
 
 - name: Mount NFS with options
   mount:
