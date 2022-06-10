@@ -151,13 +151,6 @@ Full reconfiguration of all nodes of the cluster.   This will run the same steps
 /opt/oci-hpc/bin/resize.sh reconfigure
 ```
 
-#If you would like to fully reconfigure ONLY a specific node/nodes (space seperated).
-
-#```
-# /opt/oci-hpc/bin/resize.sh  reconfigure [--nodes NODES [NODES ...]]
-# Example:  /opt/oci-hpc/bin/resize.sh reconfigure --nodes inst-gsezk-topical-goblin #inst-jvpps-topical-goblin 
-#```
-
 
 
 ## Resizing (via OCI console)
