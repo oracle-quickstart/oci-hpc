@@ -36,13 +36,6 @@
   template: 
     src: env.j2
     dest: /opt/oci-hpc/monitoring/env
-
-- name: install protobuf v3.19.4
-  become: true
-  pip:
-    name: protobuf==3.19.4
-    executable: pip-3
-  ignore_errors: yes
   
 - name: add grafana repository
   become: true
@@ -97,7 +90,7 @@
 - name: install mysql
   vars: 
     package_name: 
-      - https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+      - https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
   include_role: 
     name: safe_yum
 
@@ -229,3 +222,13 @@
 #    message: Updated by ansible
 #    overwrite: yes
 #    path: files/cluster.json
+
+- name: install protobuf v3.19.4 and mysql connector
+  become: true
+  pip:
+    name: "{{item}}"
+    executable: pip-3
+  with_items:
+    - protobuf==3.19.4
+    - mysql-connector-python
+  ignore_errors: yes
