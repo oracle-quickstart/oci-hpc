@@ -134,7 +134,7 @@
 - hosts: compute
   become: true
   vars:
-
+    enroot_top_path: "{{ nvme_path }}/enroot/"
   tasks:
     - include_role: 
         name: docker
@@ -151,6 +151,7 @@
     destroy: false
     initial: false
     download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+    enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"
   tasks:
