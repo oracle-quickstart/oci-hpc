@@ -169,3 +169,7 @@ variable "admin_password" {
   default = "Monitor1234!"
 }
 
+variable scratch_nfs_mount { default = ""}
+variable scratch_nfs_export {default = ""}
+variable cluster_nfs_mount {default = ""}
+variable cluster_nfs_export {default = ""}
