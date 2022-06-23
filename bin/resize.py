@@ -188,7 +188,11 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
     host_to_wait_for=[]
     inventory_dict['compute_configured']=[]
     inventory_dict['compute_to_add']=[]
-    for node in instances:
+    if remove_unreachable:
+        reachable_instances= getreachable(instances)
+    else:
+        reachable_instances=instances
+    for node in reachable_instances:
         name=node['display_name']
         ip=node['ip']
         nodeline=name+" ansible_host="+ip+" ansible_user=opc role=compute\n"
@@ -215,7 +219,35 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
         os.system('sudo mv '+tmp_inventory_reconfig+' '+inventory)
     else:
         print("The reconfiguration had an error")
-        print("Try rerunning this command: ansible-playbook -i "+tmp_inventory_reconfig+' '+inventory )
+        print("Try rerunning this command: ansible-playbook -i "+tmp_inventory_reconfig+' '+playbook )
+
+def getreachable(instances):
+    input_file=open('/tmp/input_hosts_to_check','w')
+    for node in instances:
+        input_file.write(node['ip']+"\n")
+    input_file.close()
+    print("/opt/oci-hpc/bin/find_reachable_hosts.sh /tmp/input_hosts_to_check /tmp/reachable_hosts")
+    my_env = os.environ.copy()
+    my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
+    p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check","/tmp/reachable_hosts"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
+    while True:
+        output = p.stdout.readline().decode()
+        if output == '' and p.poll() is not None:
+            break
+        if output:
+            print(output.strip())
+
+    output_file=open('/tmp/reachable_hosts','r')
+    reachable_ips=[]
+    reachable_instances=[]
+    for line in output_file:
+        reachable_ips.append(line.strip())
+    output_file.close()
+    for ip in reachable_ips:
+        for node in instances:
+            if node['ip']==ip:
+                reachable_instances.append(node)
+    return reachable_instances
 
 def update_cluster(inventory,playbook,hostfile=None):
     my_env = os.environ.copy()
@@ -331,6 +363,7 @@ parser.add_argument('--no_reconfigure', help='If present. Does not rerun the pla
 parser.add_argument('--user_logging', help='If present. Use the default settings in ~/.oci/config to connect to the API. Default is using instance_principal',action='store_true',default=False)
 parser.add_argument('--force', help='If present. Nodes will be removed even if the destroy playbook failed',action='store_true',default=False)
 parser.add_argument('--ansible_crucial', help='If present during reconfiguration, only crucial ansible playbooks will be executed on the live nodes. Non live nodes will be removed',action='store_true',default=False)
+parser.add_argument('--remove_unreachable', help='If present, nodes that are not sshable will be removed from the config',action='store_true',default=False)
 
 args = parser.parse_args()
 
@@ -383,6 +416,11 @@ if args.ansible_crucial is None:
     ansible_crucial=False
 else:
     ansible_crucial=args.ansible_crucial
+
+if args.remove_unreachable is None:
+    remove_unreachable=False
+else:
+    remove_unreachable=args.remove_unreachable
 
 if user_logging:
     config_oci = oci.config.from_file()
