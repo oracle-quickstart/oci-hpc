@@ -1,18 +1,30 @@
-- name: copy python3 module installer
-  copy: 
-    src: install.sh
-    dest: /opt/oci-hpc/bin/
-    owner: opc
-    group: "{{privilege_group_name}}"
-    mode: '0775'
+- name: Install and upgrade pip
+  shell: "python3 -m ensurepip & sudo python3 -m pip install --upgrade pip"
 
-- name: install dependencies
-  command: bash -c "/opt/oci-hpc/bin/install.sh"
+- name: install pssh and parallel-ssh
+  pip:
+    name: ['pssh', 'parallel-ssh']
+    executable: pip3
+    state: latest
+  with_items:
+    - pssh
+    - parallel-ssh
+  ignore_errors: yes
 
-- name: copy node_ordering_by_rack.py 
+- name: Make sure /opt/oci-hpc/bin/ exists
+  become: true
+  file:
+    path: /opt/oci-hpc/bin/
+    state: directory
+    recurse: yes
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ privilege_group_name }}"
+
+- name: copy node_ordering_by_rack.py
   copy:
     src: node_ordering_by_rack.py
-    dest: /home/opc/
-    owner: opc
-    group: opc
+    dest: /opt/oci-hpc/bin/
+    owner: "{{ ansible_user }}"
+    group: "{{privilege_group_name}}"
     mode: '0755'
