@@ -87,7 +87,16 @@ def getIdleTime(node):
         pass
     out = subprocess.Popen(["scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
     stdout,stderr = out.communicate()
-    cluster_start_time=datetime.datetime.strptime(stdout.split("\n")[0].split("=")[1],"%Y-%m-%dT%H:%M:%S")
+    try: 
+        cluster_start_time=datetime.datetime.strptime(stdout.split("\n")[0].split("=")[1],"%Y-%m-%dT%H:%M:%S")
+    except:
+        print "The cluster start time of node "+node+" could not be found"
+        print "There seems to be an issue with the command"
+        print "scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"
+        print "Here is the output it generated"
+        print stdout
+        print "The cluster will be deleted"
+        cluster_start_time=datetime.datetime.now()-datetime.timedelta(hours=24)
     if last_end_time is None:
         right_time=cluster_start_time
     else:
