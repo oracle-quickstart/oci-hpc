@@ -1,0 +1,12 @@
+- hosts: compute
+  vars:
+    destroy: false
+    initial: false
+    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+  vars_files:
+    - "/opt/oci-hpc/conf/queues.conf"
+  tasks:
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
