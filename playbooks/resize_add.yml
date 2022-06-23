@@ -159,6 +159,9 @@
     - "/opt/oci-hpc/conf/queues.conf"
   tasks:
     - include_role: 
+        name: rack-aware
+      when: rack_aware|default(false)|bool
+    - include_role: 
         name: spack
       when: spack|default(false)|bool
     - include_role: 
