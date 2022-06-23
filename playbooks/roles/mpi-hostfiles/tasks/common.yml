@@ -8,7 +8,7 @@
 - name: create rdma hostfile
   template:
     src: templates/hostfile_rdma.j2
-    dest: /tmp/hostfile.rdma.{{ cluster_name }}
+    dest: /etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}
     mode: '0644'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -20,7 +20,7 @@
 - name: create tcp hostfile
   template:
     src: templates/hostfile_tcp.j2
-    dest: /tmp/hostfile.tcp.{{ cluster_name }}
+    dest: /etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}
     mode: '0644'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -30,13 +30,13 @@
 
 - name: Copy to all hosts
   copy: 
-    src: /tmp/hostfile.rdma.{{ cluster_name }}
+    src: /etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}
     dest: /etc/opt/oci-hpc/hostfile.rdma
   when: cluster_network|bool
 
 - name: Copy to all hosts
   copy: 
-    src: /tmp/hostfile.tcp.{{ cluster_name }}
+    src: /etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}
     dest: /etc/opt/oci-hpc/hostfile.tcp
 
 - name: Create a symbolic link
@@ -62,16 +62,5 @@
   with_items: 
     - "hostfile.tcp"
   when: not cluster_network|bool
-
-- name: delete /tmp/hostfile.tcp
-  file: 
-    path: /tmp/hostfile.tcp.{{ cluster_name }}
-    state: absent 
-
-- name: delete /tmp/hostfile.rdma
-  file: 
-    path: /tmp/hostfile.rdma.{{ cluster_name }}
-    state: absent 
-  when: cluster_network|bool
 
 
