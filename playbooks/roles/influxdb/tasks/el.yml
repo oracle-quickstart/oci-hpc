@@ -32,13 +32,13 @@
     gpgkey: https://repos.influxdata.com/influxdb.key
 
 - name: Install InfluxDB
-    vars: 
-      package_name: 
-        - influxdb
-        - python-pip
-      package_state: latest
-    include_role: 
-      name: safe_yum
+  vars: 
+    package_name: 
+      - influxdb
+      - python-pip
+    package_state: latest
+  include_role: 
+    name: safe_yum
 
 - name: Start InfluxDB
   become: true
