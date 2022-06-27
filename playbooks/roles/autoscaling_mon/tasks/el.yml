@@ -226,9 +226,6 @@
 - name: install protobuf v3.19.4 and mysql connector
   become: true
   pip:
-    name: "{{item}}"
+    name: [protobuf==3.19.4,mysql-connector-python]
     executable: pip-3
-  with_items:
-    - protobuf==3.19.4
-    - mysql-connector-python
   ignore_errors: yes
