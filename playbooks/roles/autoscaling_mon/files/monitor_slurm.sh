@@ -171,7 +171,7 @@ for line in getClusters():
     cursor.execute(mySql_insert_query)
     mySql_insert_query="""UPDATE nodes SET sched_state='"""+state+"""' WHERE hostname='"""+hostname_orig+"""';"""
     cursor.execute(mySql_insert_query)
-mySql_insert_query="""insert into nodes_timeserie (node_id,state_m,created_on_m,class_name) select id,state,'"""+now_utc+"""','"""+queue+"""' from nodes where state='provisioning';"""
+mySql_insert_query="""insert into nodes_timeserie (node_id,state_m,created_on_m,class_name) select id,state,'"""+now_utc+"""','class_name' from nodes where state='provisioning';"""
 cursor.execute(mySql_insert_query)
 
 connection.commit()
