@@ -8,6 +8,7 @@ echo "Checking For SSH"
 
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 rm $2
+touch $2
 
 for host in $(cat $1) ; do
   r=0
