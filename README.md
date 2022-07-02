@@ -87,7 +87,8 @@ optional arguments:
                         instance_principal
   --force               If present. Nodes will be removed even if the destroy
                         playbook failed
-
+  --remove_unreachable  If present, nodes that are not sshable will be removed
+                        from the config. They will however not be removed from Slurm to avoid losing track of the down nodes. If you need to remove them from Slurm after terminating the nodes in the console. Run sudo scontrol update nodename=name state=Future. 
 ```
 
 **Add nodes** 

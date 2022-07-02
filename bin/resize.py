@@ -20,7 +20,7 @@ def get_metadata():
 
 def wait_for_running_status(cluster_name,comp_ocid,cn_ocid,CN,expected_size=None):
     while True:
-        if CN: 
+        if CN:
             state = computeManagementClient.get_cluster_network(cn_ocid).data.lifecycle_state
             instances=computeManagementClient.list_cluster_network_instances(comp_ocid,cn_ocid).data
         else:
@@ -100,24 +100,44 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
     inventory_dict['compute_to_destroy']=[]
+    instances = get_instances(comp_ocid,cn_ocid,CN)
+    nodes_to_remove_instances = [{'ip':node,'display_name':node} for node in nodes_to_remove ]
+    if remove_unreachable:
+        reachable_instances,unreachable_instances = getreachable(instances)
+        reachable_node_to_remove,unreachable_node_to_remove = getreachable(nodes_to_remove_instances)
+    else:
+        reachable_instances=instances
+        unreachable_instances=[]
+        reachable_node_to_remove=nodes_to_remove_instances
+        unreachable_node_to_remove=[]
     for host in nodes_to_remove:
         compute_to_remove=[]
         nfs_to_remove=[]
         for line in inventory_dict['compute_configured']:
             if host in line:
-                inventory_dict['compute_to_destroy'].append(line)
+                if host in [node['display_name'] for node in reachable_node_to_remove ]:
+                    inventory_dict['compute_to_destroy'].append(line)
                 compute_to_remove.append(line)
         for line in inventory_dict['compute_to_add']:
             if host in line:
-                inventory_dict['compute_to_destroy'].append(line)
+                if host in [node['display_name'] for node in reachable_node_to_remove ]:
+                    inventory_dict['compute_to_destroy'].append(line)
                 compute_to_remove.append(line)
         for line in inventory_dict['nfs']:
             if host in line:
-                nfs_to_remove.append(line)
+                if host in [node['display_name'] for node in reachable_node_to_remove ]:
+                    nfs_to_remove.append(line)
         for line in compute_to_remove:
             inventory_dict['compute_configured'].remove(line)
         for line in nfs_to_remove:
             inventory_dict['nfs'].remove(line)
+    for instance in unreachable_instances:
+        for line in inventory_dict['compute_configured']:
+            if instance['display_name'] in line:
+                inventory_dict['compute_configured'].remove(line)
+        for line in inventory_dict['compute_to_add']:
+           if instance['display_name'] in line:
+                inventory_dict['compute_to_add'].remove(line)
     tmp_inventory_destroy="/tmp/"+inventory.replace('/','_')+"_destroy"
     write_inventory(inventory_dict,tmp_inventory_destroy)
     update_flag = update_cluster(tmp_inventory_destroy,playbook)
@@ -127,17 +147,23 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
         tmp_inventory="/tmp/"+inventory.replace('/','_')
         write_inventory(inventory_dict,tmp_inventory)
         os.system('sudo mv '+tmp_inventory+' '+inventory)
+        os.system('')
     return update_flag
 
 def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
     instances = get_instances(comp_ocid,cn_ocid,CN)
+    if remove_unreachable:
+        reachable_instances,unreachable_instances = getreachable(instances,delay=300)
+    else:
+        reachable_instances=instances
+        unreachable_instances=[]
     if not os.path.isfile(inventory):
         print("There is no inventory file, are you on the bastion? The cluster has been resized but not reconfigured")
         exit()
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
     host_to_wait_for=[]
-    for node in instances:
+    for node in reachable_instances:
         name=node['display_name']
         ip=node['ip']
         configured=False
@@ -189,9 +215,10 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
     inventory_dict['compute_configured']=[]
     inventory_dict['compute_to_add']=[]
     if remove_unreachable:
-        reachable_instances= getreachable(instances)
+        reachable_instances,unreachable_instances = getreachable(instances)
     else:
         reachable_instances=instances
+        unreachable_instances=[]
     for node in reachable_instances:
         name=node['display_name']
         ip=node['ip']
@@ -221,33 +248,45 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
         print("The reconfiguration had an error")
         print("Try rerunning this command: ansible-playbook -i "+tmp_inventory_reconfig+' '+playbook )
 
-def getreachable(instances):
-    input_file=open('/tmp/input_hosts_to_check','w')
-    for node in instances:
-        input_file.write(node['ip']+"\n")
-    input_file.close()
-    print("/opt/oci-hpc/bin/find_reachable_hosts.sh /tmp/input_hosts_to_check /tmp/reachable_hosts")
-    my_env = os.environ.copy()
-    my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-    p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check","/tmp/reachable_hosts"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
-    while True:
-        output = p.stdout.readline().decode()
-        if output == '' and p.poll() is not None:
-            break
-        if output:
-            print(output.strip())
+def getreachable(instances,delay=0):
+    if delay == 0 :
+        delays=[0]
+    else:
+        delays=range(0,delay,int(delay/5))
 
-    output_file=open('/tmp/reachable_hosts','r')
-    reachable_ips=[]
-    reachable_instances=[]
-    for line in output_file:
-        reachable_ips.append(line.strip())
-    output_file.close()
+    for i in delays:
+        input_file=open('/tmp/input_hosts_to_check','w')
+        for node in instances:
+            input_file.write(node['ip']+"\n")
+        input_file.close()
+        print("/opt/oci-hpc/bin/find_reachable_hosts.sh /tmp/input_hosts_to_check /tmp/reachable_hosts")
+        my_env = os.environ.copy()
+        my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
+        p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check","/tmp/reachable_hosts"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
+        while True:
+            output = p.stdout.readline().decode()
+            if output == '' and p.poll() is not None:
+                break
+            if output:
+                print(output.strip())
+        output_file=open('/tmp/reachable_hosts','r')
+        reachable_ips=[]
+        reachable_instances=[]
+        unreachable_instances=[]
+        for line in output_file:
+            reachable_ips.append(line.strip())
+        output_file.close()
+        if len(instances)==len(reachable_ips):
+            break
+        if i != delays[-1]:
+            time.sleep(int(delay/5))
     for ip in reachable_ips:
         for node in instances:
             if node['ip']==ip:
                 reachable_instances.append(node)
-    return reachable_instances
+            else:
+                unreachable_instances.append(node)
+    return reachable_instances,unreachable_instances
 
 def update_cluster(inventory,playbook,hostfile=None):
     my_env = os.environ.copy()
@@ -293,6 +332,8 @@ def update_cluster(inventory,playbook,hostfile=None):
 def getNFSnode(inventory):
     dict = parse_inventory(inventory)
     if dict is None:
+        return ''
+    if len(dict['nfs']) == 0:
         return ''
     return dict['nfs'][0].split()[0]
 
@@ -363,7 +404,7 @@ parser.add_argument('--no_reconfigure', help='If present. Does not rerun the pla
 parser.add_argument('--user_logging', help='If present. Use the default settings in ~/.oci/config to connect to the API. Default is using instance_principal',action='store_true',default=False)
 parser.add_argument('--force', help='If present. Nodes will be removed even if the destroy playbook failed',action='store_true',default=False)
 parser.add_argument('--ansible_crucial', help='If present during reconfiguration, only crucial ansible playbooks will be executed on the live nodes. Non live nodes will be removed',action='store_true',default=False)
-parser.add_argument('--remove_unreachable', help='If present, nodes that are not sshable will be removed from the config',action='store_true',default=False)
+parser.add_argument('--remove_unreachable', help='If present, nodes that are not sshable will be removed from the config. They will however not be removed from Slurm to avoid losing track of the down nodes. If you need to remove them from Slurm after terminating the nodes in the console. Run sudo scontrol update nodename=name state=Future',action='store_true',default=False)
 
 args = parser.parse_args()
 
