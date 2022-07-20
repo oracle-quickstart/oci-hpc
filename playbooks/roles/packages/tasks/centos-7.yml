@@ -1,9 +1,11 @@
 ---
-- name: Make sure python OpenSSL is installed
+- name: Make sure python OpenSSL and parallel ssh is installed
   vars: 
     package_name: 
       - pyOpenSSL
       - python2-cryptography
+      - pssh
+      - pdsh
     package_state: latest
   include_role: 
     name: safe_yum
