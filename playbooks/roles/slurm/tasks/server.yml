@@ -147,6 +147,12 @@
     line: alias status='tail /opt/oci-hpc/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
     state: present
 
+- name: add alias for max nodes distributed evenly
+  lineinfile:
+    path: /home/opc/.bashrc
+    line: alias max_nodes="python3 /opt/oci-hpc/bin/max_nodes_partition.py"
+    state: present
+
 - name: Generate topology.conf
   become: true
   template: 
