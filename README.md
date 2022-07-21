@@ -282,3 +282,10 @@ To generate a user-specific key for passwordless ssh between nodes, use --ssh.
 By default, the home folder is NFS shared directory between all nodes from the bastion. You have the possibility to use a FSS to share it as well to keep working if the bastion goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files.  
 
 
+## max_nodes_partition.py usage 
+
+Use the alias "max_nodes" to run the python script max_nodes_partition.py. You can run this script only from bastion.
+
+$ max_nodes --> Information about all the partitions and their respective clusters, and maximum number of nodes distributed evenly per partition
+$ max_nodes --include_cluster_names xxx yyy zzz --> where xxx, yyy, zzz are cluster names. Provide a space separated list of cluster names to be considered for displaying the information about clusters and maximum number of nodes distributed evenly per partition
+
