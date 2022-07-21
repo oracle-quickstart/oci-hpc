@@ -287,5 +287,6 @@ By default, the home folder is NFS shared directory between all nodes from the b
 Use the alias "max_nodes" to run the python script max_nodes_partition.py. You can run this script only from bastion.
 
 $ max_nodes --> Information about all the partitions and their respective clusters, and maximum number of nodes distributed evenly per partition
+
 $ max_nodes --include_cluster_names xxx yyy zzz --> where xxx, yyy, zzz are cluster names. Provide a space separated list of cluster names to be considered for displaying the information about clusters and maximum number of nodes distributed evenly per partition
 
