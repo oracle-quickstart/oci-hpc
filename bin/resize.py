@@ -153,7 +153,7 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
 def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
     instances = get_instances(comp_ocid,cn_ocid,CN)
     if remove_unreachable:
-        reachable_instances,unreachable_instances = getreachable(instances,delay=300)
+        reachable_instances,unreachable_instances = getreachable(instances,delay=1200)
     else:
         reachable_instances=instances
         unreachable_instances=[]
@@ -252,7 +252,7 @@ def getreachable(instances,delay=0):
     if delay == 0 :
         delays=[0]
     else:
-        delays=range(0,delay,int(delay/5))
+        delays=range(0,delay,int(delay/10))
 
     for i in delays:
         input_file=open('/tmp/input_hosts_to_check','w')
@@ -279,7 +279,7 @@ def getreachable(instances,delay=0):
         if len(instances)==len(reachable_ips):
             break
         if i != delays[-1]:
-            time.sleep(int(delay/5))
+            time.sleep(int(delay/10))
     for ip in reachable_ips:
         for node in instances:
             if node['ip']==ip:
