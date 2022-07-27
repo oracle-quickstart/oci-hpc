@@ -29,6 +29,7 @@ queues_conf=$conf_folder/queues.conf
 cp -r $autoscaling_folder/tf_init $autoscaling_folder/clusters/$2
 cd $autoscaling_folder/clusters/$2
 echo $1 $3 $4 >> currently_building
+echo $3 $4 > cluster_options
 shape=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.shape " $queues_conf`
 cluster_network=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.cluster_network " $queues_conf`
 targetCompartment=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.targetCompartment " $queues_conf`
@@ -67,7 +68,6 @@ fi
 
 echo `date -u '+%Y%m%d%H%M'` >> $logs_folder/create_$2_${date}.log 2>&1
 terraform init >> $logs_folder/create_$2_${date}.log 2>&1
-echo $1 $3 $4 >> currently_building
 terraform apply -auto-approve -parallelism $1 >> $logs_folder/create_$2_${date}.log 2>&1
 status=$?
 end=`date -u +%s`
