@@ -113,7 +113,6 @@ variableGroups:
       - ${use_existing_vcn}
       - ${vcn_compartment}
       - ${vcn_id}
-      - ${private_deployment}
       - ${public_subnet_id}
       - ${private_subnet_id}
       - ${vcn_subnet}
@@ -755,15 +754,10 @@ variables:
       and:
         - ${use_advanced}
         - ${use_scratch_nfs}
-  private_deployment:
-    type: boolean
-    title: "Deploy without a public IP"
-    description: "Deploy with no Public IP for the bastion. 'Bastion Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to access the cluster"      
-    default: false
   use_existing_vcn:
     type: boolean
     title: "Use Existing VCN"
-    description: "Use existing VCN or create new one. If true, make sure the security lists are correctly set in the subnets (ex: Open traffic within VCN)"
+    description: "Use existing VCN or create new one"
     default: false
   vcn_compartment:
     title: "VCN compartment"
@@ -782,22 +776,14 @@ variables:
     dependsOn:
       compartmentId: ${vcn_compartment}
   public_subnet_id:
-    title: Bastion Subnet
     type: oci:core:subnet:id
     dependsOn:
       compartmentId: ${vcn_compartment}
       vcnId: ${vcn_id}
-      hidePrivateSubnet: false
-    # visible: 
-      # and:
-      #   - not:
-      #     - ${private_deployment}
-      #   - and: 
-      #     - ${use_existing_vcn}
-    visible: ${use_existing_vcn}  
+      hidePrivateSubnet: true
+    visible: ${use_existing_vcn}
     required: true
   private_subnet_id:
-    title: Private Subnet
     type: oci:core:subnet:id
     dependsOn:
       compartmentId: ${vcn_compartment}
@@ -816,7 +802,7 @@ variables:
         - ${use_existing_vcn}
   public_subnet:
     type: string
-    title: "Bastion subnet IP range"
+    title: "Public subnet IP range"
     default: "172.16.0.0/24"
     description: "Must be within VCN subnet"
     required: true

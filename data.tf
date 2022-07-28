@@ -58,16 +58,4 @@ data "oci_core_images" "linux" {
   }
 }
 
-data "oci_resourcemanager_private_endpoint_reachable_ip" "private_endpoint_reachable_ip" {
-    #Required
-    count = var.private_deployment ? 1 : 0
-    private_endpoint_id = oci_resourcemanager_private_endpoint.rms_private_endpoint[0].id
-    private_ip = tostring(oci_core_instance.bastion.private_ip)
-}
 
-data "oci_resourcemanager_private_endpoint_reachable_ip" "private_endpoint_reachable_ip_backup" {
-    #Required
-    count = (var.private_deployment && var.slurm_ha) ? 1 : 0
-    private_endpoint_id = oci_resourcemanager_private_endpoint.rms_private_endpoint[0].id
-    private_ip = tostring(oci_core_instance.backup[0].private_ip)
-}
