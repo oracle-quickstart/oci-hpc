@@ -98,4 +98,3 @@ variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 
 variable "tags" { default = "##TAGS##" }
-variable "private_deployment" { default = ${private_deployment} }

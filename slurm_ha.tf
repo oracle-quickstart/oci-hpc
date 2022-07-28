@@ -54,7 +54,6 @@ resource "oci_core_instance" "backup" {
 
   create_vnic_details {
     subnet_id = local.bastion_subnet_id
-    assign_public_ip = local.bastion_bool_ip
   }
 } 
 
@@ -73,7 +72,7 @@ resource "null_resource" "backup" {
       "mkdir -p /opt/oci-hpc/playbooks"
       ]
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -83,7 +82,7 @@ resource "null_resource" "backup" {
     source        = "playbooks"
     destination   = "/opt/oci-hpc/"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -94,7 +93,7 @@ resource "null_resource" "backup" {
     source      = "autoscaling"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -105,7 +104,7 @@ resource "null_resource" "backup" {
     source      = "bin"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -116,7 +115,7 @@ resource "null_resource" "backup" {
     source      = "conf"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -126,7 +125,7 @@ resource "null_resource" "backup" {
     source      = "logs"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -136,7 +135,7 @@ resource "null_resource" "backup" {
     source      = "samples"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -148,7 +147,7 @@ resource "null_resource" "backup" {
     })
     destination   = "/tmp/configure.conf"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -159,7 +158,7 @@ resource "null_resource" "backup" {
     content     = tls_private_key.ssh.private_key_pem
     destination = "/home/${var.bastion_username}/.ssh/cluster.key"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -175,7 +174,7 @@ resource "null_resource" "backup" {
       "timeout 60m /opt/oci-hpc/bin/bastion.sh"
       ]
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -246,7 +245,7 @@ resource "null_resource" "cluster_backup" {
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -258,7 +257,7 @@ resource "null_resource" "cluster_backup" {
     content     = var.node_count > 0 ? join("\n",local.cluster_instances_ips) : "\n"
     destination = "/tmp/hosts"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -275,7 +274,7 @@ resource "null_resource" "cluster_backup" {
 
     destination   = "/opt/oci-hpc/autoscaling/tf_init/provider.tf"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -301,7 +300,7 @@ resource "null_resource" "cluster_backup" {
 
     destination   = "/opt/oci-hpc/conf/queues.conf"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -360,13 +359,12 @@ resource "null_resource" "cluster_backup" {
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
-      latency_check = var.latency_check,
-      private_deployment = var.private_deployment
+      latency_check = var.latency_check
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -378,7 +376,7 @@ resource "null_resource" "cluster_backup" {
     content     = base64decode(var.api_user_key)
     destination   = "/opt/oci-hpc/autoscaling/credentials/key.initial" 
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -394,7 +392,7 @@ resource "null_resource" "cluster_backup" {
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf"]
     connection {
-      host        = local.host_backup
+      host        = oci_core_instance.backup[0].public_ip
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
