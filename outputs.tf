@@ -1,5 +1,5 @@
 output "bastion" {
-  value = oci_core_instance.bastion.public_ip
+  value = local.host
 }
 
 output "private_ips" {
@@ -7,5 +7,5 @@ output "private_ips" {
 }
 
 output "backup" {
-  value = var.slurm_ha ? oci_core_instance.backup[0].public_ip : "No Slurm Backup Defined"
+  value = var.slurm_ha ? local.host_backup : "No Slurm Backup Defined"
 }
