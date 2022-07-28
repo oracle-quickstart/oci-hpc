@@ -173,3 +173,5 @@ variable scratch_nfs_mount { default = ""}
 variable scratch_nfs_export {default = ""}
 variable cluster_nfs_mount {default = ""}
 variable cluster_nfs_export {default = ""}
+
+variable "private_deployment" { default = false }

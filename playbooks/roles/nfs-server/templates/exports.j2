@@ -6,6 +6,6 @@
 {% endif %}
 
 {{ local_path }} {{ public_subnet }}({{ home_nfs_options }})
-{% if private_subnet is defined %}
+{% if private_subnet is defined and private_subnet != public_subnet %}
 {{ local_path }} {{ private_subnet }}({{ home_nfs_options }})
 {% endif %}
