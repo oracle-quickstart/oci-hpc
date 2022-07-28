@@ -278,6 +278,15 @@ To generate a user-specific key for passwordless ssh between nodes, use --ssh.
 
 # Shared home folder
 
-By default, the home folder is NFS shared directory between all nodes from the bastion. You have the possibility to use a FSS to share it as well to keep working if the bastion goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files.  
+By default, the home folder is NFS shared directory between all nodes from the bastion. You have the possibility to use a FSS to share it as well to keep working if the bastion goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files. 
+
+# Deploy within a private subnet
+
+If "true", this will create a private endpoint in order for Oracle Resource Manager to configure the bastion VM and the future nodes in private subnet(s). 
+* If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the bastion and one for the compute nodes.  
+* If "Use Existing Subnet" is also true, the user must indicate a private subnet for the bastion VM. For the compute nodes, they can reside in another private subnet or the same private subent as the bastion VM. 
+
+The bastion VM will reside in a private subnet. Therefore, the creation of a "bastion service" (https://docs.oracle.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
+
 
 
