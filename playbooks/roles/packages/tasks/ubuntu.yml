@@ -7,7 +7,6 @@
       - parted
       - pssh
       - pdsh
+      - python3-netaddr
     package_state: latest
-  include_role: 
-    name: safe_yum
 
