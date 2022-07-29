@@ -1,0 +1,9 @@
+---
+
+- name: disable ufw
+  service: 
+    name: ufw
+    state: stopped
+    enabled: no
+
+# it still need update to iptables rules to accept traffic or else mpi traffic fails 
