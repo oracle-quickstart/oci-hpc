@@ -21,7 +21,7 @@
     path: "{{ local_path }}"
     state: directory
     owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    group: "{{ privilege_group_name }}"
 
 - name: create exports.d 
   file: 
