@@ -11,7 +11,8 @@
     path: "{{ local_path }}"
     state: directory
     owner: debian
-    group: debian
+    group: "{{privilege_group_name}}"
+    mode: 0775
 
 - name: Mount NFS with options
   mount:

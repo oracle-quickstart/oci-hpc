@@ -25,7 +25,7 @@
   file:
     path: "{{ nvme_path }}"
     state: directory
-    owner: opc
+    owner: "{{ ansible_user }}"
     mode: 0775
     group: "{{privilege_group_name}}"
     recurse: no
