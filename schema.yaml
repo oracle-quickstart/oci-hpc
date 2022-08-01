@@ -757,8 +757,8 @@ variables:
         - ${use_scratch_nfs}
   private_deployment:
     type: boolean
-    title: "Deploy without a public IP"
-    description: "Deploy with no Public IP for the bastion. 'Bastion Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to access the cluster"      
+    title: "Deploy Master Node without a public IP"
+    description: "Deploy with no Public IP for the master node. 'Master Node Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to connect via ssh to the master node"      
     default: false
   use_existing_vcn:
     type: boolean
@@ -782,7 +782,7 @@ variables:
     dependsOn:
       compartmentId: ${vcn_compartment}
   public_subnet_id:
-    title: Bastion Subnet
+    title: Master Node Subnet
     type: oci:core:subnet:id
     dependsOn:
       compartmentId: ${vcn_compartment}
@@ -816,7 +816,7 @@ variables:
         - ${use_existing_vcn}
   public_subnet:
     type: string
-    title: "Bastion subnet IP range"
+    title: "Master Node subnet IP range"
     default: "172.16.0.0/24"
     description: "Must be within VCN subnet"
     required: true
