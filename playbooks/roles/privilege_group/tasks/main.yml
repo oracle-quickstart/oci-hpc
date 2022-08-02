@@ -1,3 +1,5 @@
-- include: el.yml
-  when: ansible_os_family == 'RedHat'
+- include: common.yml
+
+#- include: el.yml
+#  when: ansible_os_family == 'RedHat'
 

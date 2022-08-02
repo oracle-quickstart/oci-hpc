@@ -1,0 +1,57 @@
+
+---
+- block:
+
+  - name: Update apt and install pre-req packages for docker
+    apt:
+      pkg:
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+      state: latest
+      update_cache: true
+
+  - name: Add Docker GPG apt Key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu focal stable
+      state: present
+
+  - name: Update apt and install docker-ce
+    apt:
+      pkg:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-compose-plugin
+      state: latest
+      update_cache: true
+
+# start is not needed - it starts dokcer as part of install
+  - name: Enable service Docker
+    ansible.builtin.service:
+      name: "docker"
+      enabled: true
+
+
+  - name: Enable service containerd
+    ansible.builtin.service:
+      name: containerd
+      enabled: yes
+
+
+#  - name: Install Docker Module for Python
+#    pip:
+#      name: docker
+
+  - name: add ubuntu user to docker group
+    user:
+      name: ubuntu
+      groups: docker
+      append: yes
+

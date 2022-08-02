@@ -1,12 +1,13 @@
 ---
-- name: Make sure python OpenSSL and parallel ssh is installed
-  vars: 
-    package_name: 
-      - python-openssl
-      - python-cryptography
-      - parted
-      - pssh
-      - pdsh
-      - python3-netaddr
-    package_state: latest
+- block:
+
+  - name: Make sure python OpenSSL and parallel ssh is installed
+    apt:
+      name:
+        - python-openssl
+        - python-cryptography
+        - parted
+        - pssh
+        - pdsh
+        - python3-netaddr
 
