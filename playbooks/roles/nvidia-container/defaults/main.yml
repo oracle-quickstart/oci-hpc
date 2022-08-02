@@ -1,0 +1,6 @@
+---
+libnvidia_container_tools_package_version: ''
+libnvidia_container_tools_package_state: present
+
+libnvidia_container_repo_base_url: "https://nvidia.github.io/libnvidia-container"
+libnvidia_container_repo_gpg_url: "{{ libnvidia_container_repo_base_url }}/gpgkey"
