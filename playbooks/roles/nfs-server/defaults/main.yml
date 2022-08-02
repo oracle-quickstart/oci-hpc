@@ -3,7 +3,6 @@ nfs_packages:
   - nfs-utils
 
 deb_packages: 
-  - nfs-common
   - nfs-kernel-server
 
 nfs_rpcbind_state: started
