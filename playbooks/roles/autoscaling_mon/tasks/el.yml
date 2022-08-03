@@ -94,7 +94,7 @@
   include_role: 
     name: safe_yum
 
-- name: install mysql
+- name: install mysql-shell and connector
   vars: 
     package_name: 
       - mysql-shell
