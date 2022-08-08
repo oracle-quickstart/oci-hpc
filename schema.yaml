@@ -306,7 +306,7 @@ variables:
     title: "Default username for bastion" 
     description: "Custom image ID for Bastion"
     type: string
-    default: "opc"
+    default: "ubuntu"
     required: true
     visible:
       not:
@@ -614,7 +614,7 @@ variables:
     title: "Default username for compute hosts" 
     description: "Custom image ID for compute hosts"
     type: string
-    default: "opc"
+    default: "ubuntu"
     visible:
       and: 
         - not:

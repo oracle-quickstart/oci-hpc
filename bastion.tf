@@ -179,7 +179,7 @@ resource "null_resource" "bastion" {
       "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
       "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
-      "timeout 60m /opt/oci-hpc/bin/bastion.sh"
+      "timeout --foreground 60m /opt/oci-hpc/bin/bastion.sh"
       ]
     connection {
       host        = local.host

@@ -136,12 +136,12 @@ variable "unsupported_bastion" {
 
 variable "bastion_username" { 
   type = string 
-  default = "opc" 
+  default = "ubuntu" 
 } 
 
 variable "compute_username" { 
   type = string
-  default = "opc" 
+  default = "ubuntu" 
 } 
 
 variable "autoscaling_monitoring" { 

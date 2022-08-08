@@ -37,8 +37,38 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     echo deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main | sudo tee -a /etc/apt/sources.list
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
-  sudo apt-get update
-  sudo apt -y install ansible python-netaddr
+  
+  sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
+  sudo apt purge -y --auto-remove unattended-upgrades
+  sudo systemctl disable apt-daily-upgrade.timer
+  sudo systemctl mask apt-daily-upgrade.service
+  sudo systemctl disable apt-daily.timer
+  sudo systemctl mask apt-daily.service
+
+  sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle
+
+  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+  apt_process=$(( apt_process -1 ))
+  while [ $apt_process -ge 1 ]
+    do
+      echo "wait until apt update is done"
+      sleep 10s
+      ps aux | grep "apt update" | grep -v grep
+      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+      apt_process=$(( apt_process -1 ))
+    done
+
+  sleep 60s
+
+  sudo apt-get update &
+  PID2=$!
+  wait $PID2
+
+  sudo apt --fix-broken install
+
+  sudo apt-get -y install ansible python-netaddr
+
+  sudo apt --fix-broken install
 
 fi 
 
