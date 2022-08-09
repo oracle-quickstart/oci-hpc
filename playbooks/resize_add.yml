@@ -29,9 +29,15 @@
     - firewall 
     - oci-hostname
     - ssh
-    - localdisk
     - limits
     - boot-volume
+
+- hosts: compute_to_add
+  become: true
+  tasks: 
+    - include_role: 
+        name: localdisk
+      when: localdisk | default(true) | bool
 
 - hosts: compute_to_add
   become: true

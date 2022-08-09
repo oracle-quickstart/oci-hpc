@@ -30,10 +30,16 @@
     - firewall 
     - oci-hostname
     - ssh
-    - localdisk
     - limits
     - mpi-hostfiles
     - boot-volume
+
+- hosts: compute
+  become: true
+  tasks: 
+    - include_role: 
+        name: localdisk
+      when: localdisk | default(true) | bool
 
 - hosts: compute
   become: true
