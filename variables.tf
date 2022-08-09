@@ -188,3 +188,5 @@ variable cluster_nfs_mount {default = ""}
 variable cluster_nfs_export {default = ""}
 
 variable "private_deployment" { default = false }
+
+variable "localdisk" { default = true }

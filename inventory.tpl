@@ -44,6 +44,7 @@ nfs_target_path=${nfs_target_path}
 nfs_source_IP=${nfs_source_IP}
 nfs_source_path=${nfs_source_path}
 nfs_options=${nfs_options}
+localdisk=${localdisk}
 instance_pool_ocpus=${instance_pool_ocpus}
 queue=${queue}
 monitoring=${monitoring}

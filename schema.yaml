@@ -88,6 +88,7 @@ variableGroups:
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
+      - ${localdisk}
   - title: "Advanced bastion options"
     variables:
       - ${advanced_bastion}
@@ -113,6 +114,7 @@ variableGroups:
       - ${scratch_nfs_type_pool}
       - ${cluster_block_volume_size}
       - ${cluster_block_volume_performance}
+      - ${localdisk}
   - title: "Network options"
     variables:
       - ${use_existing_vcn}
@@ -930,7 +932,7 @@ variables:
 
   pyxis:
     type: boolean
-    title: "Install Nvidia Pyxis plugin for Slurm, this requires v20.02 version of Slurm and will not work on the current Ubuntu stack"
+    title: "Install Nvidia Pyxis plugin for Slurm"
     default: false
     description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
   
@@ -969,7 +971,7 @@ variables:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: false
-    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring. (Not working on Ubuntu, yet...)"
+    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
 
   autoscaling:
     type: boolean
@@ -1059,7 +1061,14 @@ variables:
     description: "FSS Availability Domain"
     title: "FSS Availability Domain"
     required: true
-        
+
+  localdisk:
+    type: boolean
+    title: "Mount Localdisk"
+    default: true
+    description: "For nodes using a NVMe, mount the localdisk"
+    visible: ${use_advanced}
+
   nfs_target_path:
     type: string
     title: "NFS Path"
@@ -1087,6 +1096,7 @@ variables:
     description: "Value of the path on the NFS server"
     visible: ${add_nfs}
     required: true
+
   nfs_options:
     type: string
     title: "Options"
@@ -1128,7 +1138,7 @@ variables:
 
   autoscaling_monitoring:
     type: boolean
-    title: "Monitor the autoscaling (Not working on Ubuntu, yet...)"
+    title: "Monitor the autoscaling"
     default: false
     description: ""
     visible: 
