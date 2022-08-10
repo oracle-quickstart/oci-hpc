@@ -211,7 +211,7 @@
   tasks: 
     - include_role: 
         name: hyperthreading
-      when: hyperthreading|default(false)|bool
+      when: not hyperthreading|default(false)|bool
 
 - hosts: bastion, slurm_backup
   become: true
