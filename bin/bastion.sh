@@ -45,8 +45,6 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo systemctl disable apt-daily.timer
   sudo systemctl mask apt-daily.service
 
-  sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle
-
   apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
   apt_process=$(( apt_process -1 ))
   while [ $apt_process -ge 1 ]
@@ -58,17 +56,33 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       apt_process=$(( apt_process -1 ))
     done
 
-  sleep 60s
+  sleep 10s
+
+  sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle
+
+  # checking here as well to be sure that the lock file is not being held
+  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+  apt_process=$(( apt_process -1 ))
+  while [ $apt_process -ge 1 ]
+    do
+      echo "wait until apt update is done"
+      sleep 10s
+      ps aux | grep "apt update" | grep -v grep
+      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+      apt_process=$(( apt_process -1 ))
+    done
+
+  sleep 10s
 
   sudo apt-get update &
   PID2=$!
   wait $PID2
 
-  sudo apt --fix-broken install
+  sudo apt -y --fix-broken install
 
   sudo apt-get -y install ansible python-netaddr
 
-  sudo apt --fix-broken install
+  sudo apt -y --fix-broken install
 
 fi 
 

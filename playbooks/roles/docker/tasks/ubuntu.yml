@@ -2,6 +2,7 @@
 ---
 - block:
 
+  # added register, until, retries, delay so that if the apt lock is held by other process, it can finish and then retry to install packages. 
   - name: Update apt and install pre-req packages for docker
     apt:
       pkg:
@@ -11,6 +12,10 @@
         - lsb-release
       state: latest
       update_cache: true
+    register: result
+    until: result is not failed
+    retries: 5
+    delay: 5
 
   - name: Add Docker GPG apt Key
     apt_key:
@@ -31,6 +36,10 @@
         - docker-compose-plugin
       state: latest
       update_cache: true
+    register: result
+    until: result is not failed
+    retries: 5
+    delay: 5
 
 # start is not needed - it starts dokcer as part of install
   - name: Enable service Docker
