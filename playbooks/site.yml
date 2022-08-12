@@ -9,6 +9,12 @@
   roles: 
     - hostname
 
+# for ubuntu, on all compute nodes, run --fix-broken install
+- hosts: compute
+  become: true
+  roles:
+    - fix_broken
+
 - hosts: all
   become: true
   vars: 

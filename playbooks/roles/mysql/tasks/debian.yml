@@ -23,11 +23,21 @@
                           '/etc/opt/oci-hpc/passwords/mysql/root.txt  
                            chars=ascii_letters,digits,hexdigits') }}"
 
+- name: Add repository to install python-mysqldb
+  become: true
+  apt_repository:
+    repo: deb http://archive.ubuntu.com/ubuntu bionic main
+    state: present
+
 - name: Install MariaDB packages
   become: true
   apt:
-   name: '{{ deb_mariadb_packages }}'
-   state: present
+    name: '{{ deb_mariadb_packages }}'
+    state: present
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 - name: Ensure {{ mysql_db_path }} exists
   become: true
@@ -53,15 +63,22 @@
   
   - meta: flush_handlers
 
+  # added to resolve error unable to connect to database,check login_user and login_password are correct or/root/.my.cnf has the credentials.Exception message: (1698, "Access denied for user ''root''@''localhost''")'
+  - name: Change the authentication plugin of MySQL root user to mysql_native_password
+    shell: mysql -u root -e 'UPDATE mysql.user SET plugin="mysql_native_password" WHERE user="root" AND host="localhost"'
+  
+  - name: Flush Privileges
+    shell: mysql -u root -e 'FLUSH PRIVILEGES'
+  
   - name: Set MariaDB's root pasword
     become: true
-    mysql_user: 
-      name: root
+    mysql_user:
+      name: 'root'
       password: '{{ mysql_root_pwd }}'
       host_all: yes
       check_implicit_admin: yes
       state: present
-  
+
   - name: Render /root/.my.cnf
     become: true
     template:

@@ -1,0 +1,4 @@
+---
+- name: Ensure broken dependencies are fixed.
+  become: true
+  shell: apt -y --fix-broken install

@@ -4,6 +4,10 @@
     name: 
       - nfs-kernel-server
     state: present
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 - name: Start NFS server
   service: 

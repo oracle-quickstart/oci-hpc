@@ -11,7 +11,7 @@
                            "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
                             chars=ascii_letters,digits,hexdigits") }}'
 
-- name: Install PyMSQL
+- name: Install PyMySQL
   vars: 
     package_name:
       - python2-PyMySQL

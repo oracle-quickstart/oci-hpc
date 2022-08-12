@@ -10,4 +10,9 @@
         - pssh
         - pdsh
         - python3-netaddr
+      state: present
+    register: result
+    until: result is not failed
+    retries: 5
+    delay: 5
 
