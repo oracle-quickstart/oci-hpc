@@ -1,14 +1,4 @@
 ---
-- name: install munge
-  vars: 
-    package_name: 
-      - munge
-      - munge-libs
-      - munge-devel
-    package_repo: "{{slurm_repos}}"
-  include_role: 
-    name: safe_yum
-
 - name: create munge group
   become: true
   group:
@@ -43,21 +33,44 @@
     shell: /bin/bash
     home: /var/lib/slurm
     state: present
-      
-- name: install SLURM server packages
+
+- name: install munge RedHat
   vars: 
-    package_name: 
-      - slurm
-      - slurm-devel
-      - slurm-contribs
-      - slurm-perlapi
-      - slurm-devel
-      - slurm-torque
-      - slurm-openlava
-#     - slurm-example-configs
+    package_name: '{{ munge_packages }}'
     package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
+  when: ansible_os_family == 'RedHat'
+
+- name: install munge Ubuntu
+  become: true
+  package:
+    name: '{{ munge_packages }}'
+    state: present
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+  when: ansible_distribution == 'Ubuntu'
+      
+- name: install SLURM server packages RedHat
+  vars: 
+    package_name: '{{ slurm_common_packages }}'
+    package_repo: "{{slurm_repos}}"
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
+
+- name: install SLURM common packages Ubuntu
+  become: true
+  package:
+    name: '{{ slurm_common_packages }}'
+    state: present
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+  when: ansible_distribution == 'Ubuntu'
           
 - name: Create {{ slurm_spool_path }}
   become: true

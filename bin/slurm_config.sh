@@ -15,7 +15,11 @@ if [[ `cat $conf_folder/queues.conf | grep instance_keyword |  uniq -c -d | wc -
 then
    if [[ ${@: -1} == "--INITIAL" || ${@: -1} == "--initial" || ${@: -1} == "-INITIAL" || ${@: -1} == "-initial" ]]
    then
-      sudo rm /etc/slurm/topology.conf
+      if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
+         sudo rm /etc/slurm/topology.conf
+      elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
+         sudo rm /etc/slurm-llnl/topology.conf
+      fi
       sudo /usr/sbin/slurmctld -c
    fi
    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook $playbooks_path/slurm_config.yml

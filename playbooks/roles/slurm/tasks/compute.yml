@@ -1,14 +1,13 @@
 ---
-
 - name: install SLURM compute packages
-  vars: 
-    package_name: 
-      - slurm-pam_slurm
-      - slurm-pmi
-      - slurm-slurmd
-    package_repo: "{{slurm_repos}}"
-  include_role: 
-    name: safe_yum
+  become: true
+  apt:
+    name: '{{ slurm_compute_packages }}'
+    state: present
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 - name: Create systemd unit dirs
   become: true
@@ -38,7 +37,7 @@
 - name: set permissions
   become: true
   shell:
-    cmd: chown opc:opc /tmp/munge.key
+    cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
     warn: false
   delegate_to: 127.0.0.1
   run_once: true
@@ -84,21 +83,21 @@
   become: true
   template:
     src: gres.conf.j2
-    dest: /etc/slurm/gres.conf
+    dest: "{{ slurm_conf_path }}/gres.conf"
     mode: '0644'
     backup: yes
 
 - name: move slurm.conf on all servers
   become: true
   copy:
-    dest: /etc/slurm/slurm.conf
-    src: /etc/slurm/slurm.conf
+    dest: "{{ slurm_conf_path }}/slurm.conf"
+    src: "{{ slurm_conf_path }}/slurm.conf"
     force: yes
 
 - name: Get nodes from Cluster Switch
   block:
     - name: Get nodes from topology.conf
-      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}\""
+      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{cluster_name}}\""
       register: cluster_switch
       run_once: true
       delegate_to: 127.0.0.1
@@ -113,7 +112,7 @@
 - name: Get nodes from Inactive Switch
   vars:
     - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
   register: inactive_switch
   run_once: true
   delegate_to: 127.0.0.1
@@ -132,7 +131,7 @@
 - name: add nodes to Switch
   become: true
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{cluster_name}}\\sNodes.*"
     line: "SwitchName={{cluster_name}} Nodes={{cluster_list | union(nodes_to_add) | join(',')}}"
     state: present
@@ -146,7 +145,7 @@
     - inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
     - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
     line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | difference(nodes_to_add)  | join(',')}}"
     state: present
@@ -157,8 +156,8 @@
 - name: move topology.conf on all servers
   become: true
   copy:
-    dest: /etc/slurm/topology.conf
-    src: /etc/slurm/topology.conf
+    dest: "{{ slurm_conf_path }}/topology.conf"
+    src: "{{ slurm_conf_path }}/topology.conf"
     force: yes
   register: topology_copied
   until: topology_copied is not failed
@@ -192,3 +191,13 @@
   retries: 10
   delay: 5
   until: result is not failed
+
+# - name: install SLURM compute packages
+# vars: 
+#   package_name: 
+#     - slurm-pam_slurm
+#     - slurm-pmi
+#     - slurm-slurmd
+#   package_repo: "{{slurm_repos}}"
+# include_role: 
+#   name: safe_yum
