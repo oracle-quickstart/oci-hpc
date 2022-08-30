@@ -2,3 +2,15 @@
 - name: Ensure broken dependencies are fixed.
   become: true
   shell: apt -y --fix-broken install
+
+
+- name: Ensure unattended upgrades are disabled
+  become: true
+  shell: |
+    systemctl stop unattended-upgrades.service
+    systemctl disable unattended-upgrades.service
+    sudo apt-get purge --yes unattended-upgrades
+    sudo systemctl disable apt-daily-upgrade.timer
+    sudo systemctl mask apt-daily-upgrade.service
+    sudo systemctl disable apt-daily.timer
+    sudo systemctl mask apt-daily.service

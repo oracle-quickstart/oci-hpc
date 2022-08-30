@@ -4,7 +4,7 @@
   become_method: sudo
   template:
     src: prolog.sh.j2
-    dest: "/etc/slurm/prolog.sh"
+    dest: "{{ slurm_conf_path }}/prolog.sh"
     owner: root
     group: root
     mode: 0755
@@ -16,10 +16,11 @@
     package_name: 
       - gcc-c++
       - git
-    package_repo: "epel,ol7_developer_EPEL"
+    package_repo: "{{ slurm_repos }}"
   include_role: 
     name: safe_yum
-
+  when: ansible_os_family == 'RedHat'
+  
 - name: clone pyxis repo
   git:
     repo: https://github.com/NVIDIA/pyxis.git
@@ -30,10 +31,10 @@
   args:
     chdir: /tmp/pyxis/
 
-- name: create /etc/slurm/plugstack.conf
+- name: create plugstack.conf
   become: true
   copy:
-    dest: "/etc/slurm/plugstack.conf"
+    dest: "{{ slurm_conf_path }}/plugstack.conf"
     content: |
       required /usr/local/lib/slurm/spank_pyxis.so
     mode: '0775'

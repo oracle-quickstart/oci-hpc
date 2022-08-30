@@ -14,6 +14,8 @@
   when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
 
 - name: run server directives
+  vars: 
+    slurm_repos: "epel,ol7_developer_EPEL"
   include_tasks: server.yml
   when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
 

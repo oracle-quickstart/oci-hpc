@@ -1,0 +1,31 @@
+slurm_conf_path: '/etc/slurm-llnl'
+slurm_log_path: '/var/log/slurm-llnl'
+
+slurm_conf_file: slurm.ubuntu.conf.j2
+slurmdbd_conf_file: slurmdbd.ubuntu.conf.j2
+
+munge_packages:
+  - munge
+  - libmunge2
+  - libmunge-dev
+
+slurm_common_packages:
+  - libslurm-dev
+  - libslurm-perl
+  - slurm-wlm-torque
+  - slurm
+
+slurm_server_packages:
+  - slurmctld
+  - slurmdbd
+
+slurm_compute_packages:
+  - libpam-slurm
+  - libpmi0
+  - slurmd
+
+slurm_backup_server_packages:
+  - slurmctld
+  - libpam-slurm
+  - libpmi0
+  - slurmd
