@@ -480,7 +480,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
     required: true
 
@@ -504,7 +504,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
   instance_pool_memory:
     title: Memory in GBS
@@ -530,7 +530,7 @@ variables:
               - ${instance_pool_shape}
               - "VM.Standard.A1.Flex"
             - eq:
-              - ${bastion_shape}
+              - ${instance_pool_shape}
               - "VM.Standard3.Flex"
         - and: 
             - ${instance_pool_custom_memory}
