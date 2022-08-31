@@ -4,6 +4,8 @@ slurm_log_path: '/var/log/slurm'
 slurm_conf_file: slurm.conf.j2
 slurmdbd_conf_file: slurmdbd.conf.j2
 
+cgroup_conf_file: cgroup.conf
+
 munge_packages:
   - munge
   - munge-libs
