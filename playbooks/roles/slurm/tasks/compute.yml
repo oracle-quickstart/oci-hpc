@@ -68,16 +68,14 @@
     group: 'slurm'
     mode: '0750'
 
-- name: Copy configuration files
+- name: Copy cgroup file
   become: true
   copy:
-    src: '{{ item }}'
-    dest: '{{ slurm_conf_path }}/{{ item }}'
+    src: '{{ cgroup_conf_file }}'
+    dest: '{{ slurm_conf_path }}/cgroup.conf'
     force: no
     owner: slurm
     group: slurm
-  with_items:
-    - cgroup.conf
 
 - name: Generate gres.conf
   become: true

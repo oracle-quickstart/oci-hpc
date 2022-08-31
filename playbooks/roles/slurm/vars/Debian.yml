@@ -4,6 +4,8 @@ slurm_log_path: '/var/log/slurm-llnl'
 slurm_conf_file: slurm.ubuntu.conf.j2
 slurmdbd_conf_file: slurmdbd.ubuntu.conf.j2
 
+cgroup_conf_file: cgroup.ubuntu.conf
+
 munge_packages:
   - munge
   - libmunge2
