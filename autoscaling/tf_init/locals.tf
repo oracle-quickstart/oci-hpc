@@ -30,4 +30,5 @@ locals {
 
   mount_ip = local.scratch_nfs_type == "block" ? local.iscsi_ip : "none" 
 
+  timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * 8,"m"])
 }
