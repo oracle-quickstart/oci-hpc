@@ -35,7 +35,10 @@ variableGroups:
       - ${bastion_boot_volume_size}
   - title: "Compute node options"
     variables:
+      - ${use_multiple_ads}
       - ${ad}
+      - ${secondary_ad}
+      - ${third_ad}
       - ${cluster_network}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
@@ -157,6 +160,11 @@ variables:
     type: oci:identity:compartment:id
     default: ${compartment_ocid}
     required: true
+  use_multiple_ads:
+    type: boolean
+    title: "Multiple ADs"
+    description: "Use multiple ADs in case of capacity constraints (Autoscaling Only)"
+    default: false
   ad:
     type: oci:identity:availabilitydomain:name
     visible: complexExpression
@@ -165,7 +173,22 @@ variables:
     required: true
     description: "Availability Domain"
     title: "Availability Domain"
-    
+  secondary_ad:
+    type: oci:identity:availabilitydomain:name
+    visible: ${use_multiple_ads}
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: false
+    description: "Secondary Availability Domain"
+    title: "Secondary Availability Domain"
+  third_ad:
+    type: oci:identity:availabilitydomain:name
+    visible: ${use_multiple_ads}
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: false
+    description: "Third Availability Domain"
+    title: "Third Availability Domain"
   ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key"
