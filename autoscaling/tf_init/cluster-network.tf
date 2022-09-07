@@ -34,7 +34,7 @@ resource "oci_core_cluster_network" "cluster_network" {
     primary_subnet_id   = local.subnet_id
   }
   timeouts {
-    create = "180m"
+    create = local.timeout_ip
   }
   display_name = local.cluster_name
 }
