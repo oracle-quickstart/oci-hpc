@@ -30,6 +30,6 @@ locals {
 
   mount_ip = local.scratch_nfs_type == "block" ? local.iscsi_ip : "none" 
 
-  timeout_per_batch= var.cluster_network ? 15 : 6
+  timeout_per_batch= var.cluster_network ? var.use_multiple_ads ? 15 : 30 : var.use_multiple_ads ? 6 : 15
   timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * local.timeout_per_batch,"m"])
 }

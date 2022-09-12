@@ -99,3 +99,4 @@ variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 variable "tags" { default = "##TAGS##" }
 variable "private_deployment" { default = ${private_deployment} }
+variable "use_multiple_ads" { default = ${use_multiple_ads} }
