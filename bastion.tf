@@ -296,7 +296,7 @@ resource "null_resource" "cluster" {
       use_marketplace_image = var.use_marketplace_image,
       boot_volume_size = var.boot_volume_size,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
-      ad = var.ad,
+      ad = var.use_multiple_ads? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
       targetCompartment = var.targetCompartment,
       instance_pool_ocpus = var.instance_pool_ocpus,
       instance_pool_memory = var.instance_pool_memory,
@@ -368,6 +368,7 @@ resource "null_resource" "cluster" {
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
       private_deployment = var.private_deployment
+      use_multiple_ads = var.use_multiple_ads
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
