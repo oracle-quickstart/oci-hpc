@@ -7,6 +7,7 @@ import traceback
 import json
 import copy
 import yaml
+import re
 
 lockfile = "/tmp/autoscaling_lock"
 queues_conf_file = "/opt/oci-hpc/conf/queues.conf"
@@ -60,7 +61,7 @@ def getTopology():
     return topology
 # Get the list of Jobs in all states
 def getJobs():
-    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Dependency,Partition,UserName'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
+    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Partition,UserName,Dependency'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
 
@@ -192,10 +193,11 @@ def getstatus_slurm():
     # Get cluster to build
     for line in getJobs():
         if len(line.split())>3:
-            if line.split()[0].strip() == 'PENDING' and 'null' in line.split()[4].strip():
-                queue = line.split()[5].strip()
-                user = line.split()[6].strip()
-                features=line.split()[2].split('&')
+            new_line=re.split(r"\s{1,}", line)
+            if new_line[0] == 'PENDING' and ('null' in new_line[6] or len(new_line[6])==0):
+                queue = new_line[4]
+                user = new_line[5]
+                features=new_line[2].split('&')
                 instanceType= None
                 possible_types=[inst_type["name"] for inst_type in getQueue(config,queue)["instance_types"]]
                 default_config=getDefaultsConfig(config,queue)
@@ -206,8 +208,8 @@ def getstatus_slurm():
                             instanceType=feature
                             break
 
-                nodes=int(line.split()[3])
-                jobID=int(line.split()[1])
+                nodes=int(new_line[3])
+                jobID=int(new_line[1])
                 cluster_to_build.append([nodes,instanceType,queue,jobID,user])
 
     cluster_to_destroy=[]
