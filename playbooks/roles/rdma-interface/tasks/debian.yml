@@ -3,6 +3,12 @@
 # Detecting MLX interface name by PCI ID. 
 # Another option is to detect the mlx5_core driver, but it's harder to tell whch interface can be activated 
 #
+
+- name: Are we running on a new image? 
+  stat:
+    path: /sbin/oci-rdma-configure
+  register: new_image
+
 - name: detect shape
   uri:
     url: http://169.254.169.254/opc/v2/instance/
@@ -12,6 +18,42 @@
     return_content: yes
   register: i_metadata
 
+- name: remove unattended-upgrades
+  systemd: 
+    name: unattended-upgrades
+    state: stopped
+    enabled: no 
+  when: new_image.stat.exists
+
+
+- name: Purge unattended-upgrades
+  apt:
+    name: unattended-upgrades
+    purge: yes
+    state: absent
+
+- name: Purge unattended-upgrades
+  dpkg_selections:
+    name: "{{item}}"
+    selection: hold
+  with_items:
+    - linux-oracle 
+    - linux-headers-oracle 
+    - linux-image-oracle
+
+- name: Append subnet part to /etc/oci-hpc/rdma-network.conf
+  blockinfile:
+    path: /etc/oci-hpc/rdma-network.conf
+    block: |
+      [subnet]
+      modify_arp=true
+      override_netconfig_netmask=255.255.0.0
+  when: new_image.stat.exists
+
+- name: reconfigure the interfaces
+  shell: "sudo /sbin/oci-rdma-configure"
+  when: new_image.stat.exists
+
 - name: set fact
   set_fact:
     instance_metadata: "{{ i_metadata['content'] }}"
@@ -19,7 +61,7 @@
 - name: detect mellanox interfaces
   set_fact:
     ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
-  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']])
+  when: ( rdma_pci_ids[instance_metadata['shape']] is defined ) and ( hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' ) and ( hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]) and ( not new_image.stat.exists ) 
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] | sort }}"
 
@@ -29,12 +71,12 @@
     src: interface.j2
     dest: "/etc/network/interfaces.d/{{ item['device'] }}"
     mode: '0644'
-  when: ansible_mlx is defined
+  when: ( ansible_mlx is defined ) and ( not new_image.stat.exists )  
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
 
 - name: restart_interface
   command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
-  when: ansible_mlx is defined and item.changed|default(false)
+  when: ( ansible_mlx is defined ) and ( item.changed|default(false) ) and ( not new_image.stat.exists )  
   with_items: "{{ rdma_interface['results'] }}"
