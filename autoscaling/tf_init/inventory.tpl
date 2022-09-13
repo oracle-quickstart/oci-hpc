@@ -18,7 +18,7 @@ bastion
 compute
 [all:vars]
 ansible_connection=ssh
-ansible_user=opc
+ansible_user=${compute_username}
 rdma_network=192.168.128.0
 rdma_netmask=255.255.240.0
 public_subnet=${public_subnet} 
