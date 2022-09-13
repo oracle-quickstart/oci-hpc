@@ -9,6 +9,12 @@
         name: hostname
       when: slurm | default(false) | bool
 
+# for ubuntu, on all compute nodes, run --fix-broken install
+- hosts: compute
+  become: true
+  roles:
+    - fix_broken
+
 - hosts: compute
   become: true
   vars: 
