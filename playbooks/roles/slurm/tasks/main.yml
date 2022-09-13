@@ -1,3 +1,9 @@
+- include_vars: el_vars.yml
+  when: ansible_os_family == 'RedHat'
+
+- include_vars: ubuntu_vars.yml
+  when: ansible_distribution == 'Ubuntu'
+
 - include: el7.yml
   when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '7'
 
