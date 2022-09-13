@@ -3,7 +3,7 @@
   cron:
     name: slurm autoscaling
     minute: "*"
-    user: opc
+    user: '{{ ansible_user }}'
     job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: autoscaling | bool
 
@@ -11,7 +11,7 @@
   cron:
     name: slurm monitoring
     minute: "*"
-    user: opc
+    user: '{{ ansible_user }}'
     job: "source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_slurm.sh >> /opt/oci-hpc/monitoring/monitor_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: autoscaling_monitoring | bool
 
@@ -19,7 +19,7 @@
   cron:
     name: OCI monitoring
     minute: "*"
-    user: opc
+    user: '{{ ansible_user }}'
     job: "source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_oci.sh >> /opt/oci-hpc/monitoring/monitor_oci_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: autoscaling_monitoring | bool
 
@@ -27,7 +27,7 @@
   cron:
     name: slurm autoscaling
     minute: "#*"
-    user: opc
+    user: '{{ ansible_user }}'
     job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: not autoscaling | bool
 
@@ -36,7 +36,7 @@
   cron:
     name: slurm monitoring
     minute: "*"
-    user: opc
+    user: '{{ ansible_user }}'
     job: "#source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_slurm.sh >> /opt/oci-hpc/monitoring/monitor_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: not autoscaling_monitoring | bool
 
@@ -44,6 +44,6 @@
   cron:
     name: OCI monitoring
     minute: "*"
-    user: opc
+    user: '{{ ansible_user }}'
     job: "#source /opt/oci-hpc/monitoring/env; /opt/oci-hpc/monitoring/monitor_oci.sh >> /opt/oci-hpc/monitoring/monitor_oci_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: not autoscaling_monitoring | bool
