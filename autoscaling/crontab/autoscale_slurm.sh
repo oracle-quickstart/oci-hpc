@@ -1,4 +1,4 @@
-#!/bin/python
+#!/bin/python3
 import subprocess
 import datetime
 import time
@@ -28,43 +28,49 @@ def israckaware():
 
 def getTopology():
     topology={}
+
     if os.path.isfile("/etc/slurm/topology.conf"):
-        topologyfile=open("/etc/slurm/topology.conf",'r')
-        for line in topologyfile:
-            if israckaware:
-                splittedline=line.strip().split(" Nodes=")
-                if len(splittedline)==1:
-                    continue
-                switchName=splittedline[0].split('SwitchName=')[1]
-                if len(switchName.split(':')) == 1:
-                    clusterName=switchName
-                else :
-                    clusterName=':'.join(splittedline[0].split('SwitchName=')[1].split(':')[:-1])
-                if clusterName in topology.keys():
-                    topology[clusterName]=topology[clusterName]+splittedline[1].split(',')
-                else:
-                    topology[clusterName]=splittedline[1].split(',')
+        topologyfilepath="/etc/slurm/topology.conf"
+    elif os.path.isfile("/etc/slurm-llnl/topology.conf"):
+        topologyfilepath="/etc/slurm/topology.conf"
+    else return {}
+
+    topologyfile=open(topologyfilepath,'r')
+    for line in topologyfile:
+        if israckaware:
+            splittedline=line.strip().split(" Nodes=")
+            if len(splittedline)==1:
+                continue
+            switchName=splittedline[0].split('SwitchName=')[1]
+            if len(switchName.split(':')) == 1:
+                clusterName=switchName
+            else :
+                clusterName=':'.join(splittedline[0].split('SwitchName=')[1].split(':')[:-1])
+            if clusterName in topology.keys():
+                topology[clusterName]=topology[clusterName]+splittedline[1].split(',')
             else:
-                splittedline=line.strip().split(" Nodes=")
-                try:
-                    clusterName=splittedline[0].split('SwitchName=')[1]
-                except:
-                    continue
                 topology[clusterName]=splittedline[1].split(',')
+        else:
+            splittedline=line.strip().split(" Nodes=")
+            try:
+                clusterName=splittedline[0].split('SwitchName=')[1]
+            except:
+                continue
+            topology[clusterName]=splittedline[1].split(',')
     return topology
 # Get the list of Jobs in all states
 def getJobs():
-    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Dependency,Partition,UserName'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Dependency,Partition,UserName'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
 
 def getClusters():
-    out = subprocess.Popen(['sinfo','-hNr','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['sinfo','-hNr','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
 def getNodeDetails(node):
-    out = subprocess.Popen(['sinfo','-h','-n',node,'-o','"%f %R"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.Popen(['sinfo','-h','-n',node,'-o','"%f %R"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     for pot_output in stdout.split("\n"):
         if not "(null)" in pot_output and pot_output.strip() != '':
@@ -78,24 +84,24 @@ def getNodeDetails(node):
     return output
 
 def getIdleTime(node):
-    out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
+    out = subprocess.Popen(["sacct -X -n -S 01/01/01 -N "+node+" -o End | tail -n 1"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     last_end_time = None
     try:
         last_end_time = datetime.datetime.strptime(stdout.strip(),"%Y-%m-%dT%H:%M:%S")
     except:
         pass
-    out = subprocess.Popen(["scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
+    out = subprocess.Popen(["scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
     stdout,stderr = out.communicate()
     try: 
         cluster_start_time=datetime.datetime.strptime(stdout.split("\n")[0].split("=")[1],"%Y-%m-%dT%H:%M:%S")
     except:
-        print "The cluster start time of node "+node+" could not be found"
-        print "There seems to be an issue with the command"
-        print "scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'"
-        print "Here is the output it generated"
-        print stdout
-        print "The cluster will be deleted"
+        print("The cluster start time of node "+node+" could not be found")
+        print("There seems to be an issue with the command")
+        print("scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'")
+        print("Here is the output it generated")
+        print(stdout)
+        print("The cluster will be deleted")
         cluster_start_time=datetime.datetime.now()-datetime.timedelta(hours=24)
     if last_end_time is None:
         right_time=cluster_start_time
@@ -127,10 +133,10 @@ def getDefaultsConfig(config,queue_name):
                         return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
             if len(partition["instance_types"])>0:
                 instance_type=partition["instance_types"][0]
-                print "No default configuration was found, there may be a problem in your queues.conf file"
-                print "Selecting "+instance_type["name"]+" as default"
+                print("No default configuration was found, there may be a problem in your queues.conf file")
+                print("Selecting "+instance_type["name"]+" as default")
                 return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
-    print "The queue "+queue_name+" was not found in the queues.conf file"
+    print("The queue "+queue_name+" was not found in the queues.conf file")
     return None
 
 def getJobConfig(config,queue_name,instance_type_name):
@@ -254,7 +260,7 @@ def getstatus_slurm():
                     continue
                 node_idle_time=getIdleTime(node)
                 if node_idle_time<idle_time:
-                    print clustername + " is too young to die : "+str(node_idle_time) + " : "+node
+                    print(clustername + " is too young to die : "+str(node_idle_time) + " : "+node)
                     continue
                 if isPermanent(config,queue,instanceType) is None :
                     continue
@@ -314,8 +320,8 @@ def getstatus_slurm():
                 else:
                     building_nodes[queue]={instance_type:int(nodes)}
             except ValueError:
-                print 'The cluster '+ clusterName + ' does not have a valid entry for \"currently_building\"'
-                print 'Ignoring'
+                print('The cluster '+ clusterName + ' does not have a valid entry for \"currently_building\"')
+                print('Ignoring')
                 continue
         if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_destroying')):
             cluster_destroying.append(clusterName)
@@ -332,14 +338,14 @@ try:
 
     cluster_to_build,cluster_to_destroy,nodes_to_destroy,cluster_building,cluster_destroying,used_index,current_nodes,building_nodes=getstatus_slurm()
 
-    print time.strftime("%Y-%m-%d %H:%M:%S")
-    print cluster_to_build,'cluster_to_build'
-    print cluster_to_destroy,'cluster_to_destroy'
-    print nodes_to_destroy,'nodes_to_destroy'
-    print cluster_building,'cluster_building'
-    print cluster_destroying,'cluster_destroying'
-    print current_nodes,'current_nodes'
-    print building_nodes,'building_nodes'
+    print(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(cluster_to_build,'cluster_to_build')
+    print(cluster_to_destroy,'cluster_to_destroy')
+    print(nodes_to_destroy,'nodes_to_destroy')
+    print(cluster_building,'cluster_building')
+    print(cluster_destroying,'cluster_destroying')
+    print(current_nodes,'current_nodes')
+    print(building_nodes,'building_nodes')
 
     for i in cluster_building:
         for j in cluster_to_build:
@@ -348,12 +354,12 @@ try:
                 break
     for cluster in cluster_to_destroy:
         cluster_name=cluster[0]
-        print "Deleting cluster "+cluster_name
+        print("Deleting cluster "+cluster_name)
         subprocess.Popen([script_path+'/delete_cluster.sh',cluster_name])
         time.sleep(1)
 
     for cluster_name in nodes_to_destroy.keys():
-        print "Resizing cluster "+cluster_name
+        print("Resizing cluster "+cluster_name)
         initial_nodes=[]
         for node in nodes_to_destroy[cluster_name]:
             alt_names=subprocess.check_output(["cat /etc/hosts | grep "+node],shell=True)
@@ -377,7 +383,7 @@ try:
         except:
             clusterCount=0
         if clusterCount>=limits["max_cluster_count"]:
-            print "This would go over the number of running clusters, you have reached the max number of clusters"
+            print("This would go over the number of running clusters, you have reached the max number of clusters")
             continue
         nextIndex=None
         if clusterCount==0:
@@ -401,13 +407,13 @@ try:
             if not instance_type in building_nodes[queue].keys():
                 building_nodes[queue][instance_type]=0
         if nodes > limits["max_cluster_size"]:
-            print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes per cluster limit"
+            print("Cluster "+clusterName+" won't be created, it would go over the total number of nodes per cluster limit")
         elif current_nodes[queue][instance_type] + building_nodes[queue][instance_type] + nodes > limits["max_number_nodes"]:
-            print "Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit"
+            print("Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit")
         else:
             current_nodes[queue][instance_type]+=nodes
             clusterCount+=1
-            print "Creating cluster "+clusterName+" with "+str(nodes)+" nodes"
+            print("Creating cluster "+clusterName+" with "+str(nodes)+" nodes")
             subprocess.Popen([script_path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
             time.sleep(5)
 
