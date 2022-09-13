@@ -18,29 +18,6 @@
     return_content: yes
   register: i_metadata
 
-- name: remove unattended-upgrades
-  systemd: 
-    name: unattended-upgrades
-    state: stopped
-    enabled: no 
-  when: new_image.stat.exists
-
-
-- name: Purge unattended-upgrades
-  apt:
-    name: unattended-upgrades
-    purge: yes
-    state: absent
-
-- name: Purge unattended-upgrades
-  dpkg_selections:
-    name: "{{item}}"
-    selection: hold
-  with_items:
-    - linux-oracle 
-    - linux-headers-oracle 
-    - linux-image-oracle
-
 - name: Append subnet part to /etc/oci-hpc/rdma-network.conf
   blockinfile:
     path: /etc/oci-hpc/rdma-network.conf
