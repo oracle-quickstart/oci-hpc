@@ -84,6 +84,16 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   sudo apt -y --fix-broken install
 
+wget -O- https://apt.releases.hashicorp.com/gpg | \
+    gpg --dearmor | \
+    sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+    https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+    sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+  sudo apt-get install terraform
+
 fi 
 
 ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
