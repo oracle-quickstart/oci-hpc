@@ -99,3 +99,5 @@ variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 variable "tags" { default = "##TAGS##" }
 variable "private_deployment" { default = ${private_deployment} }
+variable "bastion_username" { default = "${bastion_username}" }
+variable "compute_username" { default = "${compute_username}" }
