@@ -1,11 +1,11 @@
 [bastion]
-${bastion_name} ansible_host=${bastion_ip} ansible_user=opc role=bastion
+${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion
 [slurm_backup]
-%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=opc role=bastion%{ endif }
+%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${bastion_username} role=bastion%{ endif }
 [compute_to_add]
 [compute_configured]
 %{ for host, ip in compute ~}
-${host} ansible_host=${ip} ansible_user=opc role=compute
+${host} ansible_host=${ip} ansible_user=${compute_username} role=compute
 %{ endfor ~}
 [compute_to_destroy]
 [compute:children]

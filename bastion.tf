@@ -367,7 +367,9 @@ resource "null_resource" "cluster" {
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
-      private_deployment = var.private_deployment
+      private_deployment = var.private_deployment,
+      bastion_username = var.bastion_username,
+      compute_username = var.compute_username
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
