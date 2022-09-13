@@ -16,10 +16,30 @@
   set_fact:
     instance_metadata: "{{ i_metadata['content'] }}"
 
+
+- name: Are we running on a new image? 
+  stat:
+    path: /sbin/oci-rdma-configure
+  register: new_image
+
+- name: Append subnet part to /etc/oci-hpc/rdma-network.conf
+  blockinfile:
+    path: /etc/oci-hpc/rdma-network.conf
+    block: |
+      [subnet]
+      modify_arp=true
+      override_netconfig_netmask=255.255.0.0
+  when: new_image.stat.exists
+
+- name: reconfigure the interfaces
+  shell: "sudo /sbin/oci-rdma-configure"
+  when: new_image.stat.exists
+
+
 - name: detect mellanox interfaces
   set_fact:
     ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
-  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']])
+  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]) and ( not new_image.stat.exists )
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] | sort }}"
 
@@ -29,14 +49,14 @@
     src: ifcfg.j2
     dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item['device'] }}"
     mode: '0644'
-  when: ansible_mlx is defined
+  when: ( ansible_mlx is defined ) and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
 
 - name: restart_interface
   command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
-  when: ansible_mlx is defined and item.changed|default(false)
+  when: ansible_mlx is defined and ( item.changed|default(false) ) and ( not new_image.stat.exists )
   with_items: "{{ rdma_interface['results'] }}"
   
   
@@ -46,7 +66,7 @@
     value: '2'
     sysctl_file: /etc/sysctl.d/80-network.conf
     reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8')
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
@@ -57,7 +77,7 @@
     value: '2'
     sysctl_file: /etc/sysctl.d/80-network.conf
     reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8')
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
@@ -69,8 +89,7 @@
     value: '1'
     sysctl_file: /etc/sysctl.d/80-network.conf
     reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8')
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
-
