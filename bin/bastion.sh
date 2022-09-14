@@ -80,7 +80,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   sudo apt -y --fix-broken install
 
-  sudo apt-get -y install ansible python-netaddr
+  sudo apt-get -y install ansible python-netaddr python3-pip
 
   sudo apt -y --fix-broken install
 
@@ -97,6 +97,12 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   wait $PID2
 
   sudo apt-get -y install terraform
+
+  # install oci-cli
+  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults
+
+  # install oci module
+  pip install oci
 
 fi 
 
