@@ -116,7 +116,7 @@
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) > 0
+  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) > 0 and (item.stdout != "" ) 
 
 - name: Get left Over racks from Cluster
   block:
