@@ -873,7 +873,7 @@ variables:
 
   pyxis:
     type: boolean
-    title: "Install Nvidia Pyxis plugin for Slurm"
+    title: "Install Nvidia Pyxis plugin for Slurm, this requires v20.02 version of Slurm and will not work on the current Ubuntu stack"
     default: false
     description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
   
