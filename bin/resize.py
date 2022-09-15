@@ -102,9 +102,14 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
     inventory_dict['compute_to_destroy']=[]
     instances = get_instances(comp_ocid,cn_ocid,CN)
     nodes_to_remove_instances = [{'ip':node,'display_name':node} for node in nodes_to_remove ]
+    username="opc"
+    for inv_vars in inventory_dict["all:vars"]:
+        if inv_vars.startswith("compute_username"):
+            username=inv_vars.split("compute_username=")[1]
+            break
     if remove_unreachable:
-        reachable_instances,unreachable_instances = getreachable(instances)
-        reachable_node_to_remove,unreachable_node_to_remove = getreachable(nodes_to_remove_instances)
+        reachable_instances,unreachable_instances = getreachable(instances,username)
+        reachable_node_to_remove,unreachable_node_to_remove = getreachable(nodes_to_remove_instances,username)
     else:
         reachable_instances=instances
         unreachable_instances=[]
@@ -152,16 +157,21 @@ def destroy_reconfigure(inventory,nodes_to_remove,playbook):
 
 def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
     instances = get_instances(comp_ocid,cn_ocid,CN)
+    backup_inventory(inventory)
+    inventory_dict = parse_inventory(inventory)
+    username="opc"
+    for inv_vars in inventory_dict["all:vars"]:
+        if inv_vars.startswith("compute_username"):
+            username=inv_vars.split("compute_username=")[1]
+            break
     if remove_unreachable:
-        reachable_instances,unreachable_instances = getreachable(instances,delay=1200)
+        reachable_instances,unreachable_instances = getreachable(instances,username,delay=1200)
     else:
         reachable_instances=instances
         unreachable_instances=[]
     if not os.path.isfile(inventory):
         print("There is no inventory file, are you on the bastion? The cluster has been resized but not reconfigured")
         exit()
-    backup_inventory(inventory)
-    inventory_dict = parse_inventory(inventory)
     host_to_wait_for=[]
     for node in reachable_instances:
         name=node['display_name']
@@ -214,8 +224,13 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
     host_to_wait_for=[]
     inventory_dict['compute_configured']=[]
     inventory_dict['compute_to_add']=[]
+    username="opc"
+    for inv_vars in inventory_dict["all:vars"]:
+        if inv_vars.startswith("compute_username"):
+            username=inv_vars.split("compute_username=")[1]
+            break
     if remove_unreachable:
-        reachable_instances,unreachable_instances = getreachable(instances)
+        reachable_instances,unreachable_instances = getreachable(instances,username)
     else:
         reachable_instances=instances
         unreachable_instances=[]
@@ -248,7 +263,7 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
         print("The reconfiguration had an error")
         print("Try rerunning this command: ansible-playbook -i "+tmp_inventory_reconfig+' '+playbook )
 
-def getreachable(instances,delay=0):
+def getreachable(instances,username,delay=0):
     if delay == 0 :
         delays=[0]
     else:
@@ -259,10 +274,10 @@ def getreachable(instances,delay=0):
         for node in instances:
             input_file.write(node['ip']+"\n")
         input_file.close()
-        print("/opt/oci-hpc/bin/find_reachable_hosts.sh /tmp/input_hosts_to_check /tmp/reachable_hosts")
+        print("/opt/oci-hpc/bin/find_reachable_hosts.sh /tmp/input_hosts_to_check /tmp/reachable_hosts "+username)
         my_env = os.environ.copy()
         my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-        p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check","/tmp/reachable_hosts"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
+        p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check","/tmp/reachable_hosts",username],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
         while True:
             output = p.stdout.readline().decode()
             if output == '' and p.poll() is not None:
@@ -292,8 +307,14 @@ def update_cluster(inventory,playbook,hostfile=None):
     my_env = os.environ.copy()
     my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
     rc = 0
+    inventory_dict = parse_inventory(inventory)
+    username="opc"
+    for inv_vars in inventory_dict["all:vars"]:
+        if inv_vars.startswith("compute_username"):
+            username=inv_vars.split("compute_username=")[1]
+            break
     if not hostfile is None:
-        p = subprocess.Popen(["/opt/oci-hpc/bin/wait_for_hosts.sh",hostfile],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
+        p = subprocess.Popen(["/opt/oci-hpc/bin/wait_for_hosts.sh",hostfile,username],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
         while True:
             output = p.stdout.readline().decode()
             if output == '' and p.poll() is not None:
