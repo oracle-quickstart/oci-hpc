@@ -15,7 +15,7 @@
   vars: 
     package_name:
       - python2-PyMySQL
-    package_repo: '{{ slurm_server_packages }}'
+    package_repo: "{{slurm_repos}}"
     package_state: installed
   include_role: 
     name: safe_yum
@@ -27,18 +27,6 @@
     package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
-
-- name: install SLURM server packages Ubuntu
-  become: true
-  package:
-    name: '{{ slurm_server_packages }}'
-    state: present
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
-  when: ansible_distribution == 'Ubuntu'
   
 - name: Create systemd unit dirs
   become: true
