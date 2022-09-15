@@ -94,6 +94,7 @@
   tasks: 
     - include_role: 
         name: rdma-interface
+      when: cluster_network|bool
     - include_role: 
         name: hyperthreading
       when: not hyperthreading|default(true)|bool

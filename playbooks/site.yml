@@ -210,6 +210,7 @@
   tasks: 
     - include_role: 
         name: rdma-interface
+      when: cluster_network|bool
 
 - hosts: compute
   become: true
@@ -264,7 +265,6 @@
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"
-    - /opt/oci-hpc/playbooks/roles/slurm/vars/{{ ansible_facts['os_family'] }}.yml
   tasks: 
     - include_role: 
         name: rack-aware
