@@ -16,15 +16,25 @@
     package_name: 
       - gcc-c++
       - git
-    package_repo: "{{ slurm_repos }}"
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
-  
+
+- name: install required packages
+  vars: 
+    package_name: 
+      - gcc
+      - git
+      - make
+  include_role: 
+    name: safe_yum
+    when: ansible_os_family == 'Debian'
+
 - name: clone pyxis repo
   git:
     repo: https://github.com/NVIDIA/pyxis.git
     dest: /tmp/pyxis
+  ignore_errors: yes
 
 - name: compile 
   command: bash -c "sudo make install"
