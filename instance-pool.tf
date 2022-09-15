@@ -35,7 +35,7 @@ resource "oci_core_instance_pool" "instance_pool" {
   }
 
   timeouts {
-    create = "180m"
+    create = local.timeout_ip
   }
 }
 

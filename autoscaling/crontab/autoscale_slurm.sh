@@ -390,7 +390,10 @@ try:
             continue
         nextIndex=None
         if clusterCount==0:
-            used_index[queue]={instance_type:[1]}
+            if queue in used_index.keys():
+                used_index[queue][instance_type]=[1]
+            else:
+                used_index[queue]={instance_type:[1]}
             nextIndex=1
         else:
             for i in range(1,10000):

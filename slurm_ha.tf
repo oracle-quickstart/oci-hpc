@@ -289,8 +289,8 @@ resource "null_resource" "cluster_backup" {
       image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
       boot_volume_size = var.boot_volume_size,
-      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
-      ad = var.ad,
+      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      ad = var.use_multiple_ads? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
       targetCompartment = var.targetCompartment,
       instance_pool_ocpus = var.instance_pool_ocpus,
       instance_pool_memory = var.instance_pool_memory,

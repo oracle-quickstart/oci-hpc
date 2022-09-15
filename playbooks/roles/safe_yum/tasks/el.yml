@@ -10,6 +10,19 @@
         update_cache: "{{package_cache | default('false') | bool}}"
         lock_timeout: 180
       when: package_repo|default('None') != 'None'
+      async: 200
+      poll: 10
+      register: yum_sleeper
+
+    - name: Check on an async yum task
+      async_status:
+        jid: "{{ yum_sleeper.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 30
+      delay: 10
+      when: package_repo|default('None') != 'None'
+
     - name: yum first try
       become: true
       yum:
@@ -18,6 +31,19 @@
         update_cache: "{{package_cache | default('false') | bool}}"
         lock_timeout: 180
       when: package_repo|default('None') == 'None'
+      async: 200
+      poll: 10
+      register: yum_sleeper
+
+    - name: Check on an async yum task
+      async_status:
+        jid: "{{ yum_sleeper.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 30
+      delay: 10
+      when: package_repo|default('None') == 'None'
+
   rescue:
     # There seem to be a yum process from the cloud-agent that is randomly hanging and is blocking for other tasks.
     - name: Make sure the yum cloud-agent process is destroyed.
