@@ -11,9 +11,10 @@
 # for ubuntu, on all compute nodes, run --fix-broken install
 - hosts: compute_to_add
   become: true
-  roles:
-    - fix_broken
-
+  tasks:
+    - include_role:
+        name: fix_broken
+      when: ansible_os_family == 'Debian'
 
 - hosts: compute_to_add
   become: true
