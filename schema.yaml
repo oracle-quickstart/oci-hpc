@@ -35,7 +35,10 @@ variableGroups:
       - ${bastion_boot_volume_size}
   - title: "Compute node options"
     variables:
+      - ${use_multiple_ads}
       - ${ad}
+      - ${secondary_ad}
+      - ${third_ad}
       - ${cluster_network}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
@@ -157,6 +160,11 @@ variables:
     type: oci:identity:compartment:id
     default: ${compartment_ocid}
     required: true
+  use_multiple_ads:
+    type: boolean
+    title: "Multiple ADs"
+    description: "Use multiple ADs in case of capacity constraints (Autoscaling Only)"
+    default: false
   ad:
     type: oci:identity:availabilitydomain:name
     visible: complexExpression
@@ -165,7 +173,22 @@ variables:
     required: true
     description: "Availability Domain"
     title: "Availability Domain"
-    
+  secondary_ad:
+    type: oci:identity:availabilitydomain:name
+    visible: ${use_multiple_ads}
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: false
+    description: "Secondary Availability Domain"
+    title: "Secondary Availability Domain"
+  third_ad:
+    type: oci:identity:availabilitydomain:name
+    visible: ${use_multiple_ads}
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: false
+    description: "Third Availability Domain"
+    title: "Third Availability Domain"
   ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key"
@@ -435,6 +458,7 @@ variables:
       - "BM.HPC2.36"
       - "BM.GPU4.8"
       - "BM.GPU.B4.8"
+      - "BM.GPU.A100-v2.8"
       - "BM.Optimized3.36"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
@@ -479,7 +503,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
     required: true
 
@@ -503,7 +527,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
   instance_pool_memory:
     title: Memory in GBS
@@ -529,7 +553,7 @@ variables:
               - ${instance_pool_shape}
               - "VM.Standard.A1.Flex"
             - eq:
-              - ${bastion_shape}
+              - ${instance_pool_shape}
               - "VM.Standard3.Flex"
         - and: 
             - ${instance_pool_custom_memory}
@@ -757,8 +781,8 @@ variables:
         - ${use_scratch_nfs}
   private_deployment:
     type: boolean
-    title: "Deploy without a public IP"
-    description: "Deploy with no Public IP for the bastion. 'Bastion Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to access the cluster"      
+    title: "Deploy Master Node without a public IP"
+    description: "Deploy with no Public IP for the master node. 'Master Node Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to connect via ssh to the master node"      
     default: false
   use_existing_vcn:
     type: boolean
@@ -782,7 +806,7 @@ variables:
     dependsOn:
       compartmentId: ${vcn_compartment}
   public_subnet_id:
-    title: Bastion Subnet
+    title: Master Node Subnet
     type: oci:core:subnet:id
     dependsOn:
       compartmentId: ${vcn_compartment}
@@ -816,7 +840,7 @@ variables:
         - ${use_existing_vcn}
   public_subnet:
     type: string
-    title: "Bastion subnet IP range"
+    title: "Master Node subnet IP range"
     default: "172.16.0.0/24"
     description: "Must be within VCN subnet"
     required: true

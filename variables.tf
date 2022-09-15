@@ -2,6 +2,9 @@ variable "region" {}
 variable "tenancy_ocid" {} 
 variable "targetCompartment" {} 
 variable "ad" {}
+variable "secondary_ad" { default = "" }
+variable "third_ad" { default = "" }
+variable "use_multiple_ads" { default = false }
 variable "ssh_key" { }
 variable "cluster_network" { default = true } 
 variable "use_custom_name" { default = false }

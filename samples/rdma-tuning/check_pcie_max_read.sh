@@ -5,7 +5,7 @@
 
 PCI_DEVICES_48=""
 shape=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape`
-if [ $shape == \"BM.GPU.B4.8\" ]
+if [ $shape == \"BM.GPU.B4.8\" ] || [ $shape == \"BM.GPU.A100-v2.8\" ]
 then
   PCI_DEVICES_48="0c:00.0 0c:00.1 16:00.0 16:00.1 47:00.0 47:00.1 4b:00.0 4b:00.1 89:00.0 89:00.1 93:00.0 93:00.1 c3:00.0 c3:00.1 d1:00.0 d1:00.1"
 elif [ $shape == \"BM.GPU4.8\" ]
