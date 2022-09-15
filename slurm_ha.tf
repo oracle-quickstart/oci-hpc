@@ -363,7 +363,8 @@ resource "null_resource" "cluster_backup" {
       latency_check = var.latency_check,
       private_deployment = var.private_deployment,
       bastion_username = var.bastion_username,
-      compute_username = var.compute_username
+      compute_username = var.compute_username,
+      use_multiple_ads = var.use_multiple_ads
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
