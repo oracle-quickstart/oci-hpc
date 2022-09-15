@@ -36,7 +36,14 @@ if [[ $configure != true ]] ; then
         exit
 fi
 
-/opt/oci-hpc/bin/wait_for_hosts.sh /tmp/hosts
+
+username=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
+if [ "$username" == "" ]
+then
+username=$USER
+fi
+
+/opt/oci-hpc/bin/wait_for_hosts.sh /tmp/hosts $username
 
 # Update the forks to a 8 * threads
 
