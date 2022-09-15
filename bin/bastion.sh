@@ -74,16 +74,6 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   sleep 10s
 
-  sudo apt-get update &
-  PID1=$!
-  wait $PID1
-
-  sudo apt -y --fix-broken install
-
-  sudo apt-get -y install ansible python-netaddr python3-pip
-
-  sudo apt -y --fix-broken install
-
   wget -O- https://apt.releases.hashicorp.com/gpg | \
     gpg --dearmor | \
     sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
@@ -93,10 +83,12 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     sudo tee /etc/apt/sources.list.d/hashicorp.list
 
   sudo apt-get update &
-  PID2=$!
-  wait $PID2
+  PID1=$!
+  wait $PID1
 
-  sudo apt-get -y install terraform
+  sudo apt -y --fix-broken install
+
+  sudo apt-get -y install ansible python python-netaddr python3-pip terraform
 
   # install oci-cli
   bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults
