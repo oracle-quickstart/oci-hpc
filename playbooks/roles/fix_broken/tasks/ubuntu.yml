@@ -2,18 +2,14 @@
 
 - name: Ensure apt process is completed
   become: true
-  shell: |
-    apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-    apt_process=$(( apt_process -1 ))
-    while [ $apt_process -ge 1 ]
-      do
-        echo "wait until apt update is done"
-        sleep 10s
-        ps aux | grep "apt update" | grep -v grep
-        apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-        apt_process=$(( apt_process -1 ))
-      done
-    sleep 10s
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
+
+- name: Wait for any possibly running unattended upgrade to finish
+  raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
 
 - name: Ensure unattended upgrades are disabled
   become: true
@@ -21,18 +17,29 @@
     path: /etc/apt/apt.conf.d/20auto-upgrades
     regexp: '1'
     replace: '0'
+  ignore_errors: yes
 
 - name: remove unattended-upgrades
   systemd: 
     name: unattended-upgrades
     state: stopped
     enabled: no 
+  ignore_errors: yes
+
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
 
 - name: Purge unattended-upgrades
   apt:
     name: unattended-upgrades
     purge: yes
     state: absent
+  ignore_errors: yes
 
 - name: stop and mask timers
   systemd: 
@@ -44,6 +51,14 @@
     - apt-daily-upgrade.timer
     - apt-daily.timer
 
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
+
 - name: Mark packages
   become: true
   dpkg_selections:
@@ -54,20 +69,13 @@
     - linux-headers-oracle 
     - linux-image-oracle
 
-- name: Check again whether apt process is completed
+- name: Ensure apt process is completed
   become: true
-  shell: |
-    apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-    apt_process=$(( apt_process -1 ))
-    while [ $apt_process -ge 1 ]
-      do
-        echo "wait until apt update is done"
-        sleep 10s
-        ps aux | grep "apt update" | grep -v grep
-        apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-        apt_process=$(( apt_process -1 ))
-      done
-    sleep 10s
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
 
 
 - name: Run apt-get update
