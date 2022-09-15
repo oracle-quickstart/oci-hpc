@@ -1,13 +1,10 @@
 ---
 - name: install SLURM compute packages
-  become: true
-  apt:
-    name: '{{ slurm_compute_packages }}'
-    state: present
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
+  vars: 
+    package_name: '{{ slurm_compute_packages }}'
+    package_repo: "{{slurm_repos}}"
+  include_role: 
+    name: safe_yum
 
 - name: Create systemd unit dirs
   become: true

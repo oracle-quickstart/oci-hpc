@@ -40,18 +40,6 @@
     package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
-
-- name: install munge Ubuntu
-  become: true
-  package:
-    name: '{{ munge_packages }}'
-    state: present
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
-  when: ansible_distribution == 'Ubuntu'
       
 - name: install SLURM server packages RedHat
   vars: 
