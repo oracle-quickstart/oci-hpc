@@ -168,6 +168,8 @@
     dest: '{{ slurm_conf_path }}/topology.conf'
     mode: '0644'
     force: no
+    owner: slurm
+    group: slurm
   delegate_to: 127.0.0.1
   register: initial_topology
   run_once: true
@@ -187,7 +189,7 @@
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName=inactive-{{item}}\\sNodes.*"
-    line: "SwitchName=inactive-{{item}} Nodes={% for index in range( size | int ) -%}{{item}}-node-{{ index }}{{ ',' if not loop.last else ''}}{%- endfor %}"
+    line: "SwitchName=inactive-{{item}} Nodes={% for index in range(1, size | int + 1 ) -%}{{item}}-node-{{ index }}{{ ',' if not loop.last else ''}}{%- endfor %}"
     state: present
   with_items: "{{nodesname_list}}"
   run_once: true
