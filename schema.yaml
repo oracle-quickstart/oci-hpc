@@ -202,7 +202,7 @@ variables:
   ldap:
     type: boolean
     title: "Configure LDAP authentication from bastion"
-    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
+    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands. (Not working on Ubuntu, yet...)"
     default: true
   cluster_name:
     title: "Name of the cluster"
@@ -936,7 +936,7 @@ variables:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: false
-    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
+    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring. (Not working on Ubuntu, yet...)"
 
   autoscaling:
     type: boolean
@@ -1095,7 +1095,7 @@ variables:
 
   autoscaling_monitoring:
     type: boolean
-    title: "Monitor the autoscaling"
+    title: "Monitor the autoscaling (Not working on Ubuntu, yet...)"
     default: false
     description: ""
     visible: 
