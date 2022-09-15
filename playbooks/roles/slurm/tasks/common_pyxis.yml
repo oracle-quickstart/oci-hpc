@@ -28,7 +28,7 @@
       - make
   include_role: 
     name: safe_yum
-    when: ansible_os_family == 'Debian'
+  when: ansible_os_family == 'Debian'
 
 - name: clone pyxis repo
   git:
