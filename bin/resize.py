@@ -182,7 +182,7 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
                 configured = True
                 break
         if not configured:
-            nodeline=name+" ansible_host="+ip+" ansible_user=opc role=compute\n"
+            nodeline=name+" ansible_host="+ip+" ansible_user="+username+" role=compute\n"
             if not specific_hosts is None:
                 if name in specific_hosts:
                     inventory_dict['compute_to_add'].append(nodeline)
@@ -237,7 +237,7 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
     for node in reachable_instances:
         name=node['display_name']
         ip=node['ip']
-        nodeline=name+" ansible_host="+ip+" ansible_user=opc role=compute\n"
+        nodeline=name+" ansible_host="+ip+" ansible_user="+username+" role=compute\n"
         inventory_dict['compute_configured'].append(nodeline)
         host_to_wait_for.append(ip)
     if len(inventory_dict['nfs'])==0:
