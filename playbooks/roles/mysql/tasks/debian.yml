@@ -70,7 +70,7 @@
   - name: Flush Privileges
     shell: mysql -u root -e 'FLUSH PRIVILEGES'
   
-  - name: Set MariaDB's root pasword
+  - name: Set MariaDB's root password
     become: true
     mysql_user:
       name: 'root'
