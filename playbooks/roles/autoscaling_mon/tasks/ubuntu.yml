@@ -37,18 +37,30 @@
     src: env.j2
     dest: /opt/oci-hpc/monitoring/env
   
-- name: add grafana repository
+# - name: add grafana repository
+#   become: true
+#   apt_repository: 
+#     name: grafana
+#     description: grafana
+#     baseurl: https://packages.grafana.com/oss/deb stable main
+#     repo_gpgcheck: 1
+#     enabled: 1
+#     gpgcheck: 1
+#     gpgkey: https://packages.grafana.com/gpg.key
+#     sslverify: 1
+#     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+
+- name: Add grafana key
   become: true
-  yum_repository: 
-    name: grafana
-    description: grafana
-    baseurl: https://packages.grafana.com/oss/rpm
-    repo_gpgcheck: 1
-    enabled: 1
-    gpgcheck: 1
-    gpgkey: https://packages.grafana.com/gpg.key
-    sslverify: 1
-    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+  apt_key:
+    state: present
+    url: https://packages.grafana.com/gpg.key
+
+- name: Manage grafana APT repositories
+  become: true
+  apt_repository:
+    repo: deb https://packages.grafana.com/oss/deb stable main
+    state: present
 
 - name: install grafana
   vars: 
@@ -74,6 +86,7 @@
 - name: Check api key list
   uri:
     url: "{{ grafana_api_url }}/api/auth/keys"
+    method: GET
     user: "{{ grafana_security.admin_user }}"
     password: "{{ grafana_security.admin_password }}"
     force_basic_auth: true
@@ -81,26 +94,26 @@
   no_log: false
   register: existing_api_keys
 
-- name: Import mysql-2022 key 
-  become: true
-  rpm_key:
-    state: present
-    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+# - name: Import mysql-2022 key 
+#   become: true
+#   rpm_key:
+#     state: present
+#     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 
-- name: install mysql
-  vars: 
-    package_name: 
-      - https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
-  include_role: 
-    name: safe_yum
+# - name: install mysql
+#   vars: 
+#     package_name: 
+#       - https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
+#   include_role: 
+#     name: safe_yum
 
-- name: install mysql-shell and connector
-  vars: 
-    package_name: 
-      - mysql-shell
-      - mysql-connector-python
-  include_role: 
-    name: safe_yum
+# - name: install mysql-shell and connector
+#   vars: 
+#     package_name: 
+#       - mysql-shell
+#       - mysql-connector-python
+#   include_role: 
+#     name: safe_yum
 
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
@@ -139,12 +152,12 @@
   when: not autoscaling_mysql_service | bool
 
 - name: Create initial DB
-  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/mysql_service_initial.sql"
+  shell: "source /opt/oci-hpc/monitoring/env; mysql -u {{ admin_username }} -p{{ mysql_root_pwd }} < /opt/oci-hpc/monitoring/mysql_service_initial.sql"
   ignore_errors: yes
   when: autoscaling_mysql_service | bool
 
 - name: Create initial DB
-  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
+  shell: "source /opt/oci-hpc/monitoring/env; mysql -u {{ admin_username }} -p{{ mysql_root_pwd }} < /opt/oci-hpc/monitoring/initial.sql"
   ignore_errors: yes
 
 - name: Monitoring activated
@@ -222,6 +235,13 @@
 #    message: Updated by ansible
 #    overwrite: yes
 #    path: files/cluster.json
+
+- name: Install pip
+  vars: 
+    package_name: 
+      - python3-pip
+  include_role: 
+    name: safe_yum
 
 - name: install protobuf v3.19.4 and mysql connector
   become: true
