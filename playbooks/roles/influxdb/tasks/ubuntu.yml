@@ -21,21 +21,34 @@
                           '/etc/opt/oci-hpc/passwords/influxdb/root.txt  
                            chars=ascii_letters,digits,hexdigits') }}"
 
-- name: Add influxdb repository
+# - name: Add influxdb repository
+#   become: true
+#   apt_repository: 
+#     repo: "deb [arch=amd64 signed-by=https://repos.influxdata.com/influxdb.key] https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+#     state: present
+    # name: influxdb
+    # description: InfluxDB Repository - Debian
+    # baseurl: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+    # enabled: 1
+    # gpgcheck: 1
+    # gpgkey: https://repos.influxdata.com/influxdb.key
+
+- name: Add InfluxData's key
   become: true
-  yum_repository: 
-    name: influxdb
-    description: InfluxDB Repository - RHEL $releasever
-    baseurl: https://repos.influxdata.com/rhel/{{ ansible_distribution_major_version }}/$basearch/stable
-    enabled: 1
-    gpgcheck: 1
-    gpgkey: https://repos.influxdata.com/influxdb.key
+  apt_key:
+    state: present
+    url: https://repos.influxdata.com/influxdb.key
+
+- name: Manage InfluxData APT repositories
+  become: true
+  apt_repository:
+    repo: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+    state: present
 
 - name: Install InfluxDB
   vars: 
     package_name: 
       - influxdb
-      - python-pip
     package_state: latest
   include_role: 
     name: safe_yum
