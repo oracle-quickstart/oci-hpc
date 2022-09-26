@@ -49,8 +49,10 @@ variableGroups:
       - ${hyperthreading}
       - ${boot_volume_size}
       - ${use_marketplace_image}
+      - ${use_old_marketplace_image}
       - ${compute_username}
       - ${marketplace_listing}
+      - ${old_marketplace_listing}
       - ${unsupported}
       - ${compute_image_compartment}
       - ${image}
@@ -146,10 +148,12 @@ variableGroups:
       - ${scratch_nfs_export}
       - ${scratch_nfs_mount}
       - ${marketplace_listing_id}
+      - ${old_marketplace_listing_id}
+      - ${marketplace_listing_id_GPU}
+      - ${marketplace_listing_id_HPC}
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
-      - ${bastion_listing}
     visible: false
   - title: "Debug"
     variables: 
@@ -587,7 +591,31 @@ variables:
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
 
+  use_old_marketplace_image:
+    type: boolean
+    title: "use older marketplace images"
+    description: "Images prior to September 2021"
+    default: false
+    visible:
+      and:
+        - ${use_marketplace_image}
+
   marketplace_listing:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC"
+      - "GPU"
+    default: "HPC"
+    visible:
+      and:
+        - ${use_marketplace_image}
+        - not: 
+          - ${use_old_marketplace_image}
+
+  old_marketplace_listing:
     type: enum
     title: "Image version"
     description: "Marketplace listing to use"
@@ -601,13 +629,7 @@ variables:
     visible:
       and:
         - ${use_marketplace_image}
-
-  bastion_listing:
-    type: string
-    title: "Bastion Image version"
-    description: "Marketplace listing to use"
-    required: true
-    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+        - ${use_old_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
