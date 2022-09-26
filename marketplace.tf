@@ -1,9 +1,9 @@
 locals {
 //  listing_number = split(".", var.marketplace_listing)[0]
-    mp_listing_id = var.use_marketplace_image ? var.marketplace_listing_id : ""
-    mp_bastion_listing_id = var.use_standard_image ? var.marketplace_listing_id : ""
-    mp_version_id = split(".", var.marketplace_listing)[0]
-    mp_bastion_version_id = split(".", var.bastion_listing)[0]
+    mp_listing_id = var.use_marketplace_image ? var.use_old_marketplace_image ? var.old_marketplace_listing_id : var.marketplace_listing == "HPC" ? var.marketplace_listing_id_HPC : var.marketplace_listing_id_GPU : ""
+    mp_bastion_listing_id = var.use_standard_image ? var.use_old_marketplace_image ? var.old_marketplace_listing_id :var.marketplace_listing_id_HPC : ""
+    mp_version_id = var.use_old_marketplace_image ? var.marketplace_version_id[split(".", var.old_marketplace_listing_id)[0]] : var.marketplace_version_id[var.marketplace_listing]
+    mp_bastion_version_id = var.use_old_marketplace_image ? var.marketplace_version_id[split(".", var.old_marketplace_listing_id)[0]] : var.marketplace_version_id["HPC"]
 }
 
 /* 
@@ -27,7 +27,7 @@ resource "oci_core_app_catalog_listing_resource_version_agreement" "mp_image_agr
   count = var.use_marketplace_image ? 1 : 0
 
   listing_id               = local.mp_listing_id
-  listing_resource_version = var.marketplace_version_id[local.mp_version_id]
+  listing_resource_version = local.mp_version_id
 
 }
 
@@ -55,7 +55,7 @@ resource "oci_core_app_catalog_listing_resource_version_agreement" "bastion_mp_i
   count = var.use_standard_image ? 1 : 0
 
   listing_id               = local.mp_bastion_listing_id
-  listing_resource_version = var.marketplace_version_id[local.mp_bastion_version_id]
+  listing_resource_version = local.mp_bastion_version_id
 
 }
 
