@@ -262,7 +262,7 @@ When the cluster is already being destroyed, it will have a file `/opt/oci-hpc/a
 ## Autoscaling Monitoring
 If you selected the autoscaling monitoring, you can see what nodes are spinning up and down as well as running and queued jobs. Everything will run automatically except the import of the Dashboard in Grafana due to a problem in the Grafana API. 
 
-To do it manually, in your browser of choice, navigate to bastionIP:3000. Username and password are admin/admin, you can change those during your first login. Click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
+To do it manually, in your browser of choice, navigate to bastionIP:3000. Username and password are admin/admin, you can change those during your first login. Go to Configuration -> Data Sources. Select autoscaling. Enter Password as Monitor1234! and click on 'Save & test'. Now click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
 
 You will now see the dashboard. 
 
