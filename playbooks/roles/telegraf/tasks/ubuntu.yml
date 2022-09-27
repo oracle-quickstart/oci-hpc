@@ -36,6 +36,8 @@
 
 - name: install influx pip
   become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   pip:
     name: influxdb
     executable: pip3
