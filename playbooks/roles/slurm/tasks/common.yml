@@ -40,8 +40,9 @@
     package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
+  when: ansible_os_family == 'RedHat'
       
-- name: install SLURM server packages RedHat
+- name: install SLURM common packages RedHat
   vars: 
     package_name: '{{ slurm_common_packages }}'
     package_repo: "{{slurm_repos}}"
@@ -49,15 +50,20 @@
     name: safe_yum
   when: ansible_os_family == 'RedHat'
 
+- name: install munge Ubuntu
+  vars:
+    package_name: '{{ munge_packages }}'
+    package_state: present
+  include_role: 
+    name: safe_yum
+  when: ansible_distribution == 'Ubuntu'
+
 - name: install SLURM common packages Ubuntu
-  become: true
-  package:
-    name: '{{ slurm_common_packages }}'
-    state: present
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
+  vars:
+    package_name: '{{ slurm_common_packages }}'
+    package_state: present
+  include_role: 
+    name: safe_yum
   when: ansible_distribution == 'Ubuntu'
           
 - name: Create {{ slurm_spool_path }}
