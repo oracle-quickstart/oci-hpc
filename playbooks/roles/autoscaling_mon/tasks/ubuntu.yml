@@ -245,6 +245,8 @@
 
 - name: install protobuf v3.19.4 and mysql connector
   become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   pip:
     name: [protobuf==3.19.4,mysql-connector-python]
     executable: pip3
