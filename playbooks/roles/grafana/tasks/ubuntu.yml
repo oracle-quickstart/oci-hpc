@@ -56,7 +56,6 @@
   no_log: false
   register: existing_api_keys
 
-# adding ignore errors as yes because of an issue with grafana >=9.1 versions - https://github.com/grafana/grafana/issues/53995
 - name: Create influxdb datasource
   grafana_datasource:
     name: "InfluxDB"
@@ -68,7 +67,6 @@
     ds_url: "http://localhost:8086"
     database: "telegraf"
     time_interval: ">10s"
-  ignore_errors: yes
 
 - name: Import grafana dashboards through API
   uri:
