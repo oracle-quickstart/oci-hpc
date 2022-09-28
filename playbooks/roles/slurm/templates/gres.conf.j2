@@ -27,4 +27,7 @@ Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
 Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
 {% elif shape == "BM.GPU.T1.2" %}
 Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
+{% elif shape == "BM.GPU.A10.4" %}
+Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
+Name=gpu File=/dev/nvidia[2-3] Type=A10 Cores=[32-63]
 {% endif %}
