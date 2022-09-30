@@ -37,6 +37,15 @@
     - etc-hosts
     - boot-volume
 
+
+- hosts: compute
+  become: true
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+      when: cluster_network|bool
+
 - hosts: bastion
   become: true
   vars:
@@ -206,13 +215,6 @@
         name: sssd
       when: ldap|default(true)|bool
 
-- hosts: compute
-  become: true
-  gather_facts: true
-  tasks: 
-    - include_role: 
-        name: rdma-interface
-      when: cluster_network|bool
 
 - hosts: compute
   become: true
