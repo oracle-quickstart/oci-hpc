@@ -472,7 +472,7 @@ else:
 if args.force is None:
     force=False
 else:
-    force=args.user_logging
+    force=args.force
 
 if args.ansible_crucial is None:
     ansible_crucial=False

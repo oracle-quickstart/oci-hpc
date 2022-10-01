@@ -2,8 +2,8 @@ locals {
 //  listing_number = split(".", var.marketplace_listing)[0]
     mp_listing_id = var.use_marketplace_image ? var.use_old_marketplace_image ? var.old_marketplace_listing_id : var.marketplace_listing == "HPC" ? var.marketplace_listing_id_HPC : var.marketplace_listing_id_GPU : ""
     mp_bastion_listing_id = var.use_standard_image ? var.use_old_marketplace_image ? var.old_marketplace_listing_id :var.marketplace_listing_id_HPC : ""
-    mp_version_id = var.use_old_marketplace_image ? var.marketplace_version_id[split(".", var.old_marketplace_listing_id)[0]] : var.marketplace_version_id[var.marketplace_listing]
-    mp_bastion_version_id = var.use_old_marketplace_image ? var.marketplace_version_id[split(".", var.old_marketplace_listing_id)[0]] : var.marketplace_version_id["HPC"]
+    mp_version_id = var.use_old_marketplace_image ? var.marketplace_version_id[split(".", var.old_marketplace_listing)[0]] : var.marketplace_version_id[var.marketplace_listing]
+    mp_bastion_version_id = var.use_old_marketplace_image ? var.marketplace_version_id[split(".", var.old_marketplace_listing)[0]] : var.marketplace_version_id["HPC"]
 }
 
 /* 

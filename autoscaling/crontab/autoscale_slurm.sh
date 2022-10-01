@@ -370,7 +370,7 @@ try:
                 if alt_name.startswith('inst-'):
                     initial_nodes.append(alt_name)
                     break
-        subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove','--nodes']+initial_nodes)
+        subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--nodes']+initial_nodes)
         time.sleep(1)
 
     for index,cluster in enumerate(cluster_to_build):

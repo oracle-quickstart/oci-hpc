@@ -11,6 +11,7 @@ variable "instance_type" {default = "##INST_TYPE##" }
 variable "node_count" { default="##NODES##" }
 variable "boot_volume_size" {default = "##BOOT##"}
 variable "use_marketplace_image" {  default = "##USEMP##" }
+variable "use_old_marketplace_image" {  default = "##USEOLDMP##" }
 variable "scratch_nfs_path" { default = "${scratch_nfs_path}" } 
 variable "use_scratch_nfs" { default = true }
 variable "cluster_nfs_path" {default = "${cluster_nfs_path}"}
@@ -38,19 +39,31 @@ variable "marketplace_listing" {
   default = "##MP_LIST##" 
 } 
 
-variable "marketplace_version_id" {
-  type = map(string)
-  default = {
+variable "marketplace_version_id" { 
+  type = map(string) 
+  default = { 
        "1" = "OL7.9-OFED5.3-1.0.0.1-RHCK-20210607"
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
+       "HPC" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0.0"
+       "GPU" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510"
   }
 }
 
-variable "marketplace_listing_id" {
+
+# To find the Appcatalog OCID, run 
+# oci compute pic listing list --display-name "Oracle Linux 7 - HPC Cluster Networking Image"
+variable "old_marketplace_listing_id" {
     default = "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
 }
+variable "marketplace_listing_id_HPC" {
+    default = "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
+}
+variable "marketplace_listing_id_GPU" {
+    default = "ocid1.appcataloglisting.oc1..aaaaaaaab2hkpxsglxfbzitiiqv6djxzj5q5soxotwdem2dd2kbifgk4p55q"
+}
+
 
 variable "bastion_block_volume_performance" { 
 /* 

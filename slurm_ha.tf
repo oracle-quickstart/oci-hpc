@@ -288,6 +288,7 @@ resource "null_resource" "cluster_backup" {
       marketplace_listing = var.marketplace_listing,
       image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
+      use_old_marketplace_image = var.use_old_marketplace_image,
       boot_volume_size = var.boot_volume_size,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
       ad = var.use_multiple_ads? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,

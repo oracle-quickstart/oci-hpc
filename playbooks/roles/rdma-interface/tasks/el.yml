@@ -31,8 +31,12 @@
       override_netconfig_netmask=255.255.0.0
   when: new_image.stat.exists
 
-- name: reconfigure the interfaces
-  shell: "sudo /sbin/oci-rdma-configure"
+- name: Start the OCI RDMA service
+  become: true
+  service: 
+    name: oci-rdma-configure
+    state: started
+    enabled: yes
   when: new_image.stat.exists
 
 
