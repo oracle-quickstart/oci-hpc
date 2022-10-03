@@ -40,6 +40,7 @@
   command: bash -c "sudo make install"
   args:
     chdir: /tmp/pyxis/
+  ignore_errors: yes
 
 - name: create plugstack.conf
   become: true

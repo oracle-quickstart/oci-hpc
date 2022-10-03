@@ -35,6 +35,14 @@
     - mpi-hostfiles
     - boot-volume
 
+- hosts: compute
+  become: true
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+      when: cluster_network|bool
+
 - hosts: bastion,slurm_backup,compute
   become: true
   vars: 
@@ -95,16 +103,8 @@
   gather_facts: true
   tasks: 
     - include_role: 
-        name: rdma-interface
-      when: cluster_network|bool
-    - include_role: 
         name: hyperthreading
       when: not hyperthreading|default(true)|bool
-- hosts: compute
-  tasks:  
-    - include_role: 
-        name: latency_check
-      when: cluster_network|bool and not 'GPU' in shape 
 
 - hosts: compute
   become: true
@@ -155,6 +155,13 @@
         name: nvidia-enroot
       when: enroot|default(true)|bool
           
+
+- hosts: compute
+  tasks:  
+    - include_role: 
+        name: latency_check
+      when: cluster_network|bool and not 'GPU' in shape 
+      
 - hosts: compute
   vars:
     destroy: false
