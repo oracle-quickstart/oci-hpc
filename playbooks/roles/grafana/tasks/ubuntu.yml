@@ -54,7 +54,10 @@
     force_basic_auth: true
     return_content: true
   no_log: false
-  register: existing_api_keys
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 # adding ignore errors as yes because of an issue with grafana >=9.1 versions - https://github.com/grafana/grafana/issues/53995
 - name: Create influxdb datasource
