@@ -134,12 +134,6 @@
   notify: restart slurm server
   when: initial | bool
 
-- name: Add cluster entity to slurm for slurm accounting # this is needed if you want to use sacct commands and monitoring
-  become: true
-  shell: 
-    cmd: "sacctmgr -i add cluster cluster"
-  when: ansible_distribution == 'Ubuntu'
-
 - name: run handlers
   meta: flush_handlers
 
