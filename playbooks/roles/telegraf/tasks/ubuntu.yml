@@ -1,20 +1,4 @@
 ---
-# - name: Add influxdb repository
-#   become: true
-#   apt_repository: 
-#     name: influxdb
-#     description: InfluxDB Repository - Debian
-#     baseurl: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
-#     enabled: 1
-#     gpgcheck: 1
-#     gpgkey: https://repos.influxdata.com/influxdb.key
-
-# - name: Add influxdb repository
-#   become: true
-#   apt_repository: 
-#     repo: "deb [arch=amd64 signed-by=https://repos.influxdata.com/influxdb.key] https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
-#     state: present
-
 - name: Add InfluxData's key
   become: true
   apt_key:
@@ -41,14 +25,6 @@
   pip:
     name: influxdb
     executable: pip3
-
-# - name: Install InfluxDB
-#   vars: 
-#     package_name: 
-#       - influxdb
-#     package_state: latest
-#   include_role: 
-#     name: safe_yum
 
 - name: Create database
   shell: "python3 -c \"import influxdb; influxdb.InfluxDBClient(host='{{ hostvars[groups['bastion'][0]]['ansible_fqdn'] }}', port=8086).create_database('telegraph')\""
