@@ -15,7 +15,7 @@
   vars: 
     package_name: 
       - policycoreutils-python
-    package_state: installed
+    package_state: present
   include_role: 
     name: safe_yum
   tags: install-only
