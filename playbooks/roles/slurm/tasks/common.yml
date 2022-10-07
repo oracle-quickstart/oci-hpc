@@ -35,31 +35,50 @@
     state: present
 
 - name: install munge RedHat
-  vars: 
+  vars:
     package_name: '{{ munge_packages }}'
     package_repo: "{{slurm_repos}}"
-  include_role: 
+  include_role:
     name: safe_yum
-      
-- name: install SLURM server packages RedHat
-  vars: 
+
+- name: install SLURM common packages RedHat
+  vars:
     package_name: '{{ slurm_common_packages }}'
     package_repo: "{{slurm_repos}}"
-  include_role: 
+  include_role:
     name: safe_yum
   when: ansible_os_family == 'RedHat'
 
-- name: install SLURM common packages Ubuntu
-  become: true
-  package:
-    name: '{{ slurm_common_packages }}'
-    state: present
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
+- name: Create Slurm RPM directory
+  file:
+    path: "{{ download_path }}/slurm_rpms"
+    state: directory
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Download slurm .deb
+  get_url:
+    url: "https://objectstorage.us-ashburn-1.oraclecloud.com/p/fXXruVCVFbDmAGMiM4ApfVMAjvkvpXDO675mWjKpFMDHMO4NA76wuEYocpXu_iZl/n/hpc_limited_availability/b/slurm-22.05.4/o/slurm-22.05.4_1.0_amd64.deb"
+    dest: "{{ download_path }}/slurm_rpms"
   when: ansible_distribution == 'Ubuntu'
-          
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Install .deb
+  become: true
+  apt:
+    deb: "{{ download_path }}/slurm_rpms/slurm-22.05.4_1.0_amd64.deb"
+    state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Add Environment variable file for SLurm
+  become: true
+  template:
+    src: 'systemd/slurm_env.j2'
+    dest: '/etc/default/slurm'
+    backup: "yes"
+  when: ansible_os_family == 'Debian'
+
 - name: Create {{ slurm_spool_path }}
   become: true
   file:

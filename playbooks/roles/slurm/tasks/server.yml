@@ -16,10 +16,19 @@
     package_name:
       - python2-PyMySQL
     package_repo: "{{slurm_repos}}"
-    package_state: installed
+    package_state: present
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
+
+- name: Install libmariadb-dev
+  vars: 
+    package_name:
+      - libmariadb-dev
+    package_state: present
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'Debian'
 
 - name: install SLURM server packages RedHat
   vars: 
@@ -27,7 +36,18 @@
     package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
+  when: ansible_os_family == 'RedHat'
   
+- name: Render systemd units for slurm, slurmdbd and munge
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service'
+    dest: '/lib/systemd/system/{{ item }}.service'
+    backup: "yes"
+  with_items:
+    - slurmdbd
+    - slurmctld
+  when: ansible_os_family == 'Debian'
 - name: Create systemd unit dirs
   become: true
   file:
