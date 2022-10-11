@@ -16,22 +16,6 @@
     retries: 5
     delay: 5
 
-
-
-  - name: set user.max_user_namespaces using sysctl
-    ansible.posix.sysctl:
-      name: user.max_user_namespaces
-      value: '15076'
-      sysctl_file: /etc/sysctl.d/81-enroot.conf
-      reload: yes
-
-  - name: set user.max_mnt_namespaces using sysctl
-    ansible.posix.sysctl:
-      name: user.max_mnt_namespaces
-      value: '1'
-      sysctl_file: /etc/sysctl.d/81-enroot.conf
-      reload: yes
-
   - name: set kernel.unprivileged_userns_clone using sysctl
     ansible.posix.sysctl:
       name: kernel.unprivileged_userns_clone
