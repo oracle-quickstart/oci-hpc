@@ -1,0 +1,111 @@
+---
+
+- name: remove from /etc/hosts
+  become: true
+  lineinfile:
+    path: "/etc/hosts"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{unreachable_nodes}}"
+  ignore_unreachable: yes
+
+- name: "remove from hostfile.rdma.{{ cluster_name }}"
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{unreachable_nodes}}"
+  delegate_to: 127.0.0.1
+  run_once: true
+  ignore_unreachable: yes
+  when: cluster_network|bool
+
+- name: "remove from hostfile.tcp.{{ cluster_name }}"
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{unreachable_nodes}}"
+  ignore_unreachable: yes
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: remove from hostfile.rdma
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.rdma"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{unreachable_nodes}}"
+  ignore_unreachable: yes
+  when: cluster_network|bool
+
+- name: remove from hostfile.tcp
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.tcp"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{unreachable_nodes}}"
+  ignore_unreachable: yes
+
+- name: get SwitchLine
+  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}},\\|{{item}}$\" | grep Nodes= | tail -n 1"
+  register: current_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+  with_items: "{{unreachable_nodes}}"
+
+- name: getNodes
+  set_fact:
+    nodes_on_switch: "{{nodes_on_switch | default({}) | combine({item.item : item.stdout.split(' Nodes=')[1].split(',') | list } ) }}"
+  with_items: "{{current_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: get Switchname
+  set_fact:
+    switchnames: "{{switchnames | default({}) | combine({item.item : item.stdout.split(' Nodes=')[0].split('SwitchName=')[1]} ) }}"
+  with_items: "{{current_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: remove line from topology
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{switchnames[item]}}\\sNodes=.*"
+    state: absent
+  with_items: "{{unreachable_nodes}}"
+  ignore_unreachable: yes
+  when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) < 2 )
+
+- name: remove line from topology
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{switchnames[item]}}\\sNodes.*"
+    line: "SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch[item] | difference([item]) | join(',')}}"
+    state: present
+  with_items: "{{unreachable_nodes}}"
+  ignore_unreachable: yes
+  when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) > 1 )
+
+- name: get inactiveLine
+  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{item.split(''-node-)[0]}} Nodes=\""
+  register: inactive_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+  with_items: "{{unreachable_nodes}}"
+
+- name: get Inactive Nodes
+  set_fact:
+    nodes_on_inactive_switch: "{{nodes_on_inactive_switch | default({}) | combine({item.item : item.stdout.split(' Nodes=')[1].split(',') | list } ) }}"
+  with_items: "{{inactive_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: add node to inactive line
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName=inactive-{{item.split(''-node-)[0]}}\\sNodes.*"
+    line: "SwitchName=inactive-{{item.split(''-node-)[0]}} Nodes={{nodes_on_inactive_switch[item] | union([item]) | join(',')}}"
+    state: present
+  with_items: "{{unreachable_nodes}}"
+  ignore_unreachable: yes
