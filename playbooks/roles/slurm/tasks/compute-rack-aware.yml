@@ -6,6 +6,16 @@
   include_role: 
     name: safe_yum
 
+- name: Render systemd units for slurm, slurmdbd and munge
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service'
+    dest: '/lib/systemd/system/{{ item }}.service'
+    backup: "yes"
+  with_items:
+    - slurmd
+  when: ansible_os_family == 'Debian'
+  
 - name: Create systemd unit dirs
   become: true
   file:
