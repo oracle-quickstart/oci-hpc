@@ -60,18 +60,18 @@ def getTopology():
     return topology
 # Get the list of Jobs in all states
 def getJobs():
-    # changing the position of Dependency as it is giving blank instead of null. to hnadle that, putting it at the end.
-    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Partition,UserName,Dependency'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    # changing the position of Dependency as it is giving blank instead of null. to handle that, putting it at the end.
+    out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Partition,UserName,Dependency'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
 
 def getClusters():
-    out = subprocess.Popen(['sinfo','-hNr','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    out = subprocess.Popen(['sinfo','-hNr','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8', universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
 def getNodeDetails(node):
-    out = subprocess.Popen(['sinfo','-h','-n',node,'-o','"%f %R"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    out = subprocess.Popen(['sinfo','-h','-n',node,'-o','"%f %R"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
     stdout,stderr = out.communicate()
     for pot_output in stdout.split("\n"):
         if not "(null)" in pot_output and pot_output.strip() != '':
@@ -221,6 +221,8 @@ def getstatus_slurm():
     nodes_to_destroy={}
     # Get Cluster to destroy, or nodes to destroy
     for line in getClusters():
+        print("dhvani")
+        print(line)
         if len(line.split()) == 0:
             break
         old_nodes=line.split()[-1].split(',')

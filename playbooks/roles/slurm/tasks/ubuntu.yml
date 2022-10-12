@@ -21,7 +21,3 @@
 - name: destroy
   include_tasks: destroy{{rack_aware_playbook_suffix}}.yml
   when: ('compute' in group_names or 'compute_to_destroy' in group_names) and (destroy|bool)
-
-- name: add cluster entity to slurm
-  include_tasks: server_ubuntu.yml
-  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool) and (ansible_distribution == 'Ubuntu')
