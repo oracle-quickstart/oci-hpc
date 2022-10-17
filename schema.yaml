@@ -131,6 +131,7 @@ variableGroups:
       - ${privilege_sudo} 
       - ${privilege_group_name} 
       - ${slurm}
+      - ${slurm_nfs}
       - ${slurm_ha}
       - ${rack_aware}
       - ${pyxis}
@@ -907,6 +908,16 @@ variables:
     title: "Install SLURM"
     default: true
     description: "Needed for autoscaling" 
+
+  slurm_nfs:
+    type: boolean
+    title: "Share spool directory"
+    default: false
+    description: "Install Slurm spool directory on user NFS"
+    visible:
+      and:
+        - ${slurm}
+        - ${add_nfs}
 
   slurm_ha:
     type: boolean

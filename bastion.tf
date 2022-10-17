@@ -222,7 +222,7 @@ resource "null_resource" "cluster" {
       cluster_network = var.cluster_network,
       slurm = var.slurm,
       rack_aware = var.rack_aware,
-      slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
+      slurm_nfs_path = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack = var.spack,
       ldap = var.ldap,
       bastion_block = var.bastion_block, 
@@ -296,8 +296,11 @@ resource "null_resource" "cluster" {
       use_marketplace_image = var.use_marketplace_image,
       use_old_marketplace_image = var.use_old_marketplace_image,
       boot_volume_size = var.boot_volume_size,
-      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
+      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      region = var.region,
       ad = var.use_multiple_ads? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      private_subnet = var.private_subnet,
+      private_subnet_id = var.private_subnet_id,
       targetCompartment = var.targetCompartment,
       instance_pool_ocpus = var.instance_pool_ocpus,
       instance_pool_memory = var.instance_pool_memory,
