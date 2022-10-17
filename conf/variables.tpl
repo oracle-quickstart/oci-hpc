@@ -1,4 +1,4 @@
-variable "region" {default = "${region}"}
+variable "region" {default = "##REGION##"}
 variable "tenancy_ocid" {default = "${tenancy_ocid}"} 
 variable "targetCompartment" {default = "##COMP##"} 
 variable "ad" {default = "##AD##"}
@@ -22,8 +22,8 @@ variable "use_existing_vcn" {default = true}
 variable "vcn_subnet" {default = "${vcn_subnet}"}
 variable "public_subnet_id" { default = "${public_subnet_id}"}
 variable "public_subnet" {default = "${public_subnet}"}
-variable "private_subnet_id" { default = "${private_subnet_id}"}
-variable "private_subnet" {default = "${private_subnet}"}
+variable "private_subnet_id" { default = "##PRIVATE_SUBNET_ID##"}
+variable "private_subnet" {default = "##PRIVATE_SUBNET##"}
 variable "slurm" { default = ${slurm} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }
@@ -115,3 +115,11 @@ variable "private_deployment" { default = ${private_deployment} }
 variable "use_multiple_ads" { default = ${use_multiple_ads} }
 variable "bastion_username" { default = "${bastion_username}" }
 variable "compute_username" { default = "${compute_username}" }
+
+<<<<<<< HEAD
+variable "bastion_username" { default = "${bastion_username}" }
+variable "compute_username" { default = "${compute_username}" }
+=======
+
+
+>>>>>>> 999e8cc (Add multi regions variables
