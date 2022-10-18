@@ -7,6 +7,12 @@
     job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: autoscaling | bool
 
+- name: Add PATH environment variable to the cron file so that autoscale_slurm.sh can run successfully as a cron job otherwise it runs successfully as a python script but not as a cron job
+  cron:
+    env: yes
+    name: PATH
+    value: /home/ubuntu/bin:/home/ubuntu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+
 - name: Add environment variables to the cron file
   cron:
     env: yes
