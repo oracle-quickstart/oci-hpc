@@ -10,10 +10,8 @@ import os
 
 # Get the list of Jobs in all states
 def getAllJobs():
-    # removing now-2days as Ubuntu slurm version does not accept that. getting the now time and doing timedelta.
-    delay_time = datetime.datetime.now() - datetime.timedelta(days=2)
-    delay_time_str = delay_time.strftime("%Y-%m-%dT%H:%M:%S")
-    out = subprocess.Popen(['sacct -S '+delay_time_str+" -o JobID,Partition,State,Submit,Start,End,NNodes,Ncpus,NodeList -X -n --parsable2"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8', universal_newlines=True)
+    delay="2days"
+    out = subprocess.Popen(['sacct -S now-'+delay+" -o JobID,Partition,State,Submit,Start,End,NNodes,Ncpus,NodeList -X -n --parsable2"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8', universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
