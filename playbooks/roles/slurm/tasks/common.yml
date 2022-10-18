@@ -58,7 +58,9 @@
 
 - name: Download slurm .deb
   get_url:
-    url: "https://objectstorage.us-ashburn-1.oraclecloud.com/p/fXXruVCVFbDmAGMiM4ApfVMAjvkvpXDO675mWjKpFMDHMO4NA76wuEYocpXu_iZl/n/hpc_limited_availability/b/slurm-22.05.4/o/slurm-22.05.4_1.0_amd64.deb"
+  #https://objectstorage.us-ashburn-1.oraclecloud.com/p/YoJ90eUdINN-ALVtAZN5Dgyf-kfUeavxPz9a_GAA42RbwXBDdxqEYCg5fluPPBFt/n/hpc_limited_availability/b/slurm-22.05.4/o/slurm-22.05.4_1.0_amd64_with-PMIx.deb
+  #https://objectstorage.us-ashburn-1.oraclecloud.com/p/fXXruVCVFbDmAGMiM4ApfVMAjvkvpXDO675mWjKpFMDHMO4NA76wuEYocpXu_iZl/n/hpc_limited_availability/b/slurm-22.05.4/o/slurm-22.05.4_1.0_amd64.deb
+    url: "https://objectstorage.us-ashburn-1.oraclecloud.com/p/YoJ90eUdINN-ALVtAZN5Dgyf-kfUeavxPz9a_GAA42RbwXBDdxqEYCg5fluPPBFt/n/hpc_limited_availability/b/slurm-22.05.4/o/slurm-22.05.4_1.0_amd64_with-PMIx.deb"
     dest: "{{ download_path }}/slurm_rpms"
   when: ansible_distribution == 'Ubuntu'
   delegate_to: 127.0.0.1
@@ -67,7 +69,7 @@
 - name: Install .deb
   become: true
   apt:
-    deb: "{{ download_path }}/slurm_rpms/slurm-22.05.4_1.0_amd64.deb"
+    deb: "{{ download_path }}/slurm_rpms/slurm-22.05.4_1.0_amd64_with-PMIx.deb"
     state: present
   when: ansible_distribution == 'Ubuntu'
 
