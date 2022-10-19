@@ -116,10 +116,5 @@ variable "use_multiple_ads" { default = ${use_multiple_ads} }
 variable "bastion_username" { default = "${bastion_username}" }
 variable "compute_username" { default = "${compute_username}" }
 
-<<<<<<< HEAD
 variable "bastion_username" { default = "${bastion_username}" }
 variable "compute_username" { default = "${compute_username}" }
-=======
-
-
->>>>>>> 999e8cc (Add multi regions variables
