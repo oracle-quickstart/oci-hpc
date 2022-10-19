@@ -41,6 +41,11 @@ instance_pool_memory=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_
 instance_pool_custom_memory=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.instance_pool_custom_memory " $queues_conf`
 marketplace_listing=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.marketplace_listing " $queues_conf`
 hyperthreading=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.hyperthreading " $queues_conf`
+region=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.region " $queues_conf`
+private_subnet=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.private_subnet " $queues_conf`
+private_subnet_id=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.private_subnet_id " $queues_conf`
+
+
 
 if [ "$shape" == "" ]
 then
@@ -55,7 +60,7 @@ do
 
   echo $1 $3 $4 >> currently_building
   echo $3 $4 > cluster_options
-  sed "s/##NODES##/$1/g;s/##NAME##/$2/g;s/##SHAPE##/$shape/g;s/##CN##/$cluster_network/g;s/##QUEUE##/${4}/g;s/##COMP##/${targetCompartment}/g;s/##AD##/${ADName}/g;s/##BOOT##/${boot_volume_size}/g;s/##USEMP##/${use_marketplace_image}/g;s/##USEOLDMP##/${use_old_marketplace_image}/g;s/##IMAGE##/${image}/g;s/##OCPU##/${instance_pool_ocpus}/g;s/##MEM##/${instance_pool_memory}/g;s/##CUSTOM_MEM##/${instance_pool_custom_memory}/g;s/##MP_LIST##/${marketplace_listing}/g;s/##HT##/${hyperthreading}/g;s/##INST_TYPE##/$3/g;s/##TAGS##/$tags/g" $conf_folder/variables.tf > variables.tf
+  sed "s~##NODES##~$1~g;s~##NAME##~$2~g;s~##SHAPE##~$shape~g;s~##CN##~$cluster_network~g;s~##QUEUE##~${4}~g;s~##COMP##~${targetCompartment}~g;s~##AD##~${ADName}~g;s~##BOOT##~${boot_volume_size}~g;s~##USEMP##~${use_marketplace_image}~g;s~##USEOLDMP##~${use_old_marketplace_image}~g;s~##IMAGE##~${image}~g;s~##OCPU##~${instance_pool_ocpus}~g;s~##MEM##~${instance_pool_memory}~g;s~##CUSTOM_MEM##~${instance_pool_custom_memory}~g;s~##MP_LIST##~${marketplace_listing}~g;s~##HT##~${hyperthreading}~g;s~##INST_TYPE##~$3~g;s~##TAGS##~$tags~g;s~##REGION##~${region}~g;s~##PRIVATE_SUBNET_ID##~${private_subnet_id}~g;s~##PRIVATE_SUBNET##~${private_subnet}~g" $conf_folder/variables.tf > variables.tf
 
   echo "Started to build $2"
   start=`date -u +%s`
@@ -112,8 +117,6 @@ do
       comp_tmp=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .compartmentId`
       compartment_ocid=${comp_tmp:1:-1}
 
-      region_tmp=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .region`
-      region=${region_tmp:1:-1}
       inst_pool_ocid=`oci compute-management instance-pool list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $logs_folder/create_$2_${date}.log 2>&1
       if [ "$inst_pool_ocid" == "" ]
       then
