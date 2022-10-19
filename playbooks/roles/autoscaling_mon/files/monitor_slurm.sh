@@ -43,8 +43,6 @@ def getTopology():
     topology={}
     if os.path.isfile("/etc/slurm/topology.conf"):
         topologyfilepath="/etc/slurm/topology.conf"
-    elif os.path.isfile("/etc/slurm-llnl/topology.conf"):
-        topologyfilepath="/etc/slurm-llnl/topology.conf"
     else : 
         return {}
     topologyfile=open(topologyfilepath,'r')
