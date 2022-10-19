@@ -1,4 +1,4 @@
-variable "region" {default = "${region}"}
+variable "region" {default = "##REGION##"}
 variable "tenancy_ocid" {default = "${tenancy_ocid}"} 
 variable "targetCompartment" {default = "##COMP##"} 
 variable "ad" {default = "##AD##"}
@@ -22,8 +22,8 @@ variable "use_existing_vcn" {default = true}
 variable "vcn_subnet" {default = "${vcn_subnet}"}
 variable "public_subnet_id" { default = "${public_subnet_id}"}
 variable "public_subnet" {default = "${public_subnet}"}
-variable "private_subnet_id" { default = "${private_subnet_id}"}
-variable "private_subnet" {default = "${private_subnet}"}
+variable "private_subnet_id" { default = "##PRIVATE_SUBNET_ID##"}
+variable "private_subnet" {default = "##PRIVATE_SUBNET##"}
 variable "slurm" { default = ${slurm} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }
@@ -46,8 +46,8 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0.0"
-       "GPU" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510"
+       "HPC" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
+       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
   }
 }
 
@@ -113,5 +113,8 @@ variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 variable "tags" { default = "##TAGS##" }
 variable "private_deployment" { default = ${private_deployment} }
 variable "use_multiple_ads" { default = ${use_multiple_ads} }
+variable "bastion_username" { default = "${bastion_username}" }
+variable "compute_username" { default = "${compute_username}" }
+
 variable "bastion_username" { default = "${bastion_username}" }
 variable "compute_username" { default = "${compute_username}" }
