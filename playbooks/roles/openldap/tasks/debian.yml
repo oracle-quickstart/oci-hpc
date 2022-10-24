@@ -1,0 +1,19 @@
+---
+# tasks file for openldap
+
+- name: Create /etc/opt/oci-hpc/passwords/openldap
+  become: true
+  file:
+    path: /etc/opt/oci-hpc/passwords/openldap
+    state: directory
+    owner: opc
+    mode: 0770
+    group: opc
+    recurse: yes
+
+- name: Install the openldap and required Packages for Ubuntu
+  apt:
+    name: "{{ openldap_server_packages }}"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
