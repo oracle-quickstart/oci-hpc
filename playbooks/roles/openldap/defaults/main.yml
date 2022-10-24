@@ -2,9 +2,19 @@
 # vars file for openldap
 
 openldap_packages:
-  - openldap-servers
-  - openldap-clients
-  - rsync
+  - slapd
+  - ldap-utils
+  - openssl
+  - python3-pip
+  - libsasl2-dev
+  - python-dev
+  - libldap2-dev
+  - libssl-dev
+  - python-pexpect
+  - rpcbind
+  - nscd
+  - libpam-ldap
+  - libnss-ldapd
 
 openldap_default_user: ldap
 openldap_default_group: ldap
