@@ -30,14 +30,11 @@
     state: present
 
 - name: Install MariaDB packages
-  become: true
-  apt:
-    name: '{{ deb_mariadb_packages }}'
-    state: present
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
+  vars: 
+    package_name: '{{ deb_mariadb_packages }}'
+  include_role: 
+    name: safe_yum
+  tags: install-only
 
 - name: Ensure {{ mysql_db_path }} exists
   become: true
@@ -46,6 +43,29 @@
     owner: mysql
     group: mysql
     state: directory
+
+- name: Render /etc/my.cnf
+  become: true
+  template:
+    src: 'debian_mariadb_etc_my.cnf.j2'
+    dest: '/etc/my.cnf'
+    backup: yes
+  notify: restart mariadb
+
+- name: create configuration directory
+  become: true
+  file: 
+    path: /etc/my.cnf.d/
+    mode: '0755'
+    owner: root
+    group: root
+    state: directory
+
+- name: Copy innodb.cnf
+  become: true
+  copy: 
+    src: innodb.cnf
+    dest: /etc/my.cnf.d/innodb.cnf
 
 - name: Enable MariaDB service
   become: true
@@ -70,7 +90,7 @@
   - name: Flush Privileges
     shell: mysql -u root -e 'FLUSH PRIVILEGES'
   
-  - name: Set MariaDB's root pasword
+  - name: Set MariaDB's root password
     become: true
     mysql_user:
       name: 'root'

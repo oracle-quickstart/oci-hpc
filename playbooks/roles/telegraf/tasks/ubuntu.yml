@@ -1,13 +1,15 @@
 ---
-- name: Add influxdb repository
+- name: Add InfluxData's key
   become: true
-  yum_repository: 
-    name: influxdb
-    description: InfluxDB Repository - RHEL $releasever
-    baseurl: https://repos.influxdata.com/rhel/{{ ansible_distribution_major_version }}/$basearch/stable
-    enabled: 1
-    gpgcheck: 1
-    gpgkey: https://repos.influxdata.com/influxdb.key
+  apt_key:
+    state: present
+    url: https://repos.influxdata.com/influxdb.key
+
+- name: Manage InfluxData APT repositories
+  become: true
+  apt_repository:
+    repo: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+    state: present
 
 - name: Install pip
   vars: 
@@ -18,6 +20,8 @@
 
 - name: install influx pip
   become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   pip:
     name: influxdb
     executable: pip3

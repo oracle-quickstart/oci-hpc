@@ -11,14 +11,6 @@
 - name: Wait for any possibly running unattended upgrade to finish
   raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
 
-- name: Ensure unattended upgrades are disabled
-  become: true
-  replace:
-    path: /etc/apt/apt.conf.d/20auto-upgrades
-    regexp: '1'
-    replace: '0'
-  ignore_errors: yes
-
 - name: remove unattended-upgrades
   systemd: 
     name: unattended-upgrades
