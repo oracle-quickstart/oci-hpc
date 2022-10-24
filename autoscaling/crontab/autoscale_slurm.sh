@@ -31,8 +31,6 @@ def getTopology():
     topology={}
     if os.path.isfile("/etc/slurm/topology.conf"):
         topologyfilepath="/etc/slurm/topology.conf"
-    elif os.path.isfile("/etc/slurm-llnl/topology.conf"):
-        topologyfilepath="/etc/slurm-llnl/topology.conf"
     else : 
         return {}
     topologyfile=open(topologyfilepath,'r')
@@ -60,7 +58,7 @@ def getTopology():
     return topology
 # Get the list of Jobs in all states
 def getJobs():
-    # changing the position of Dependency as it is giving blank instead of null. to hnadle that, putting it at the end.
+    # changing the position of Dependency as it is giving blank instead of null. to handle that, putting it at the end.
     out = subprocess.Popen(['squeue','-O','STATE,JOBID,FEATURE:100,NUMNODES,Partition,UserName,Dependency'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")[1:]
