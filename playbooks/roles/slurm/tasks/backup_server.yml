@@ -3,11 +3,11 @@
 - name: install SLURM server packages RedHat
   vars: 
     package_name: '{{ slurm_server_packages }}'
-    package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
-    
-- name: Render systemd units for slurm, slurmdbd and munge
+  when: ansible_os_family == 'RedHat'
+  
+- name: Render systemd units for slurmd and slurmdbd
   become: true
   template:
     src: 'systemd/{{ item }}.service'
@@ -15,8 +15,6 @@
     backup: "yes"
   with_items:
     - slurmctld
-    - slurmd
-  when: ansible_os_family == 'Debian'
 
 - name: Create systemd unit dirs
   become: true
@@ -85,14 +83,6 @@
     state: restarted
     enabled: true
 
-- name: Create {{ slurm_spool_path }}
-  become: true
-  file:
-    name: "{{ slurm_spool_path }}"
-    state: directory
-    owner: 'slurm'
-    group: 'slurm'
-    mode: '0750'
 
 - name: Copy cgroup file
   become: true
@@ -110,7 +100,7 @@
     src: '{{ slurm_conf_path }}/slurm.conf'
     force: yes
 
-- name: move topology.conf on all servers
+- name: move topology.conf on backup servers
   become: true
   copy:
     dest: '{{ slurm_conf_path }}/topology.conf'
@@ -127,14 +117,3 @@
     name: slurmctld
     state: restarted
     enabled: true
-
-# - name: Copy configuration files
-#   become: true
-#   copy:
-#     src: '{{ item }}'
-#     dest: '{{ slurm_conf_path }}/{{ item }}'
-#     force: no
-#     owner: slurm
-#     group: slurm
-#   with_items:
-#     - cgroup.conf

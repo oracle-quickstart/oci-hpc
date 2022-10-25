@@ -43,6 +43,7 @@ PropagateResourceLimitsExcept=MEMLOCK
 CommunicationParameters=NoAddrCache
 TopologyPlugin=topology/tree
 TreeWidth=2048
+SlurmctldParameters=enable_configless
 
 {% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
 {% for partition in queues %}

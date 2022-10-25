@@ -33,21 +33,20 @@
 - name: install SLURM server packages RedHat
   vars: 
     package_name: '{{ slurm_server_packages }}'
-    package_repo: "{{slurm_repos}}"
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
   
-- name: Render systemd units for slurm, slurmdbd and munge
+- name: Render systemd units for slurm and slurmdbd
   become: true
   template:
-    src: 'systemd/{{ item }}.service'
+    src: 'systemd/{{ item }}.service.j2'
     dest: '/lib/systemd/system/{{ item }}.service'
     backup: "yes"
   with_items:
     - slurmdbd
     - slurmctld
-  when: ansible_os_family == 'Debian'
+
 - name: Create systemd unit dirs
   become: true
   file:
@@ -169,6 +168,14 @@
     line: alias max_nodes="python3 /opt/oci-hpc/bin/max_nodes_partition.py"
     state: present
 
+- name: Generate gres.conf
+  become: true
+  template:
+    src: gres.conf.j2
+    dest: '{{ slurm_conf_path }}/gres.conf'
+    mode: '0644'
+    backup: yes
+    
 - name: Generate topology.conf
   become: true
   template: 
