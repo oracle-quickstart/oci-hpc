@@ -93,6 +93,9 @@
     return_content: true
   no_log: false
   register: existing_api_keys
+  retries: 5
+  delay: 5
+  until: existing_api_keys is not failed
 
 # - name: Import mysql-2022 key 
 #   become: true
