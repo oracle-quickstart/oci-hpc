@@ -7,7 +7,6 @@ openldap_packages:
   - openssl
   - python3-pip
   - libsasl2-dev
-  - python-dev
   - libldap2-dev
   - libssl-dev
   - python-pexpect
@@ -20,7 +19,7 @@ openldap_default_user: ldap
 openldap_default_group: ldap
 
 openldap_server_dir_path: /var/lib/ldap
-openldap_server_conf_path: /etc/openldap/slapd.d
+openldap_server_conf_path: /etc/ldap/slapd.d
 openldap_server_defaults_file: /etc/sysconfig/slapd
 
 openldap_endpoints: ldaps:/// ldapi:///
