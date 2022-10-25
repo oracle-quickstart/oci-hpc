@@ -2,11 +2,11 @@
 - name: install SLURM compute packages
   vars: 
     package_name: '{{ slurm_compute_packages }}'
-    package_repo: "{{slurm_repos}}"
+    package_repo: "{{ slurm_repos }}"
   include_role: 
     name: safe_yum
-  
-- name: Render systemd units for slurm, slurmdbd and munge
+
+- name: Render systemd units for slurmd
   become: true
   template:
     src: 'systemd/{{ item }}.service'
@@ -23,6 +23,17 @@
     state: directory
   with_items:
     - munge
+    - slurmd
+
+- name: Render systemd units for slurmd and munge
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
+    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
+    backup: "yes"
+  with_items:
+    - munge
+    - slurmd
 
 - name: Create munge dir
   become: true
@@ -65,39 +76,6 @@
     name: munge
     state: restarted
     enabled: true
-
-- name: Create {{ slurm_spool_path }}
-  become: true
-  file:
-    name: "{{ slurm_spool_path }}"
-    state: directory
-    owner: 'slurm'
-    group: 'slurm'
-    mode: '0750'
-
-- name: Copy cgroup file
-  become: true
-  copy:
-    src: '{{ cgroup_conf_file }}'
-    dest: '{{ slurm_conf_path }}/cgroup.conf'
-    force: no
-    owner: slurm
-    group: slurm
-
-- name: Generate gres.conf
-  become: true
-  template:
-    src: gres.conf.j2
-    dest: "{{ slurm_conf_path }}/gres.conf"
-    mode: '0644'
-    backup: yes
-
-- name: move slurm.conf on all servers
-  become: true
-  copy:
-    dest: "{{ slurm_conf_path }}/slurm.conf"
-    src: "{{ slurm_conf_path }}/slurm.conf"
-    force: yes
 
 - name: Get nodes from Cluster Switch
   block:
@@ -158,24 +136,12 @@
   delegate_to: 127.0.0.1
   notify: reconfigure slurm
 
-- name: move topology.conf on all servers
-  become: true
-  copy:
-    dest: "{{ slurm_conf_path }}/topology.conf"
-    src: "{{ slurm_conf_path }}/topology.conf"
-    force: yes
-  register: topology_copied
-  until: topology_copied is not failed
-  retries: 10
-  delay: 5
-
 - name: start slurmd
   become: true
   service:
     name: slurmd
     state: restarted
     enabled: true
-
 
 - name: Grab Node State
   shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
@@ -196,13 +162,3 @@
   retries: 10
   delay: 5
   until: result is not failed
-
-# - name: install SLURM compute packages
-# vars: 
-#   package_name: 
-#     - slurm-pam_slurm
-#     - slurm-pmi
-#     - slurm-slurmd
-#   package_repo: "{{slurm_repos}}"
-# include_role: 
-#   name: safe_yum
