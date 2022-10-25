@@ -30,7 +30,6 @@
                           '/etc/opt/oci-hpc//passwords/openldap/root.txt
                            chars=ascii_letters,digits,hexdigits') }}"
 
-
 - name: Hash OpenLDAP root password
   command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}
   register: openldap_root_pwd_hash
@@ -53,7 +52,7 @@
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
     path: '/etc/ldap/ldap.conf'
-    line: 'TLS_CACERT   /etc/ssl/certs/cluster-ca.crt'
+    line: 'TLS_CACERT   /etc/openldap/certs/cluster-ca.crt'
 
 - name: Enable OpenLDAP service
   systemd:
