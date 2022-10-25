@@ -20,7 +20,7 @@ openldap_default_group: ldap
 
 openldap_server_dir_path: /var/lib/ldap
 openldap_server_conf_path: /etc/ldap/slapd.d
-openldap_server_defaults_file: /etc/sysconfig/slapd
+openldap_server_defaults_file: /etc/default/slapd
 
 openldap_endpoints: ldaps:/// ldapi:///
 openldap_host: 'controller.cluster'
