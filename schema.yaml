@@ -91,7 +91,6 @@ variableGroups:
       - ${localdisk}
   - title: "Advanced bastion options"
     variables:
-      - ${advanced_bastion}
       - ${use_standard_image}
       - ${unsupported_bastion}
       - ${bastion_image_compartment}
@@ -316,12 +315,9 @@ variables:
     type: boolean
     title: "use standard bastion image"
     description: >
-      "Use standard bastion image, otherwise provide custom image OCID"
+      "Use standard bastion image (Oracle Linux)"
     default: true
-    visible: 
-      and: 
-        - and: 
-              - ${advanced_bastion}
+    visible: true
 
   unsupported_bastion: 
     title: "Use unsupported image" 
@@ -690,11 +686,6 @@ variables:
             - ${use_marketplace_image}
         - and: 
             - ${unsupported}
-
-  advanced_bastion:
-    type: boolean
-    title: "Show advanced bastion options"
-    default: false
 
   use_advanced:
     type: boolean
