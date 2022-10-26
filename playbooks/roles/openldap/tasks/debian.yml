@@ -68,7 +68,8 @@
   copy:
     src: '{{ openldap_tls_cacrt }}'
     dest: '/etc/ssl/certs/'
-
+  notify:
+    - restart openldap
 
 - name: Ensure OpenLDAP has access to the ssl certificates
   user:
@@ -126,6 +127,14 @@
       with_items:
         - ppolicy.ldif
         - memberof.ldif
+
+    - meta: flush_handlers
+
+    - name: stop slapd
+      service:
+        name: slapd
+        state: stopped
+      when: slapd_rebuild | default(False)        
 
     - name: Load OpenLDAP global configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
