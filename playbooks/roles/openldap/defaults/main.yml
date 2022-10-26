@@ -15,8 +15,8 @@ openldap_packages:
   - libpam-ldap
   - libnss-ldapd
 
-openldap_default_user: ldap
-openldap_default_group: ldap
+openldap_default_user: openldap
+openldap_default_group: openldap
 
 openldap_server_dir_path: /var/lib/ldap
 openldap_server_conf_path: /etc/ldap/slapd.d
