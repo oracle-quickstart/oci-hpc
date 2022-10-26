@@ -35,13 +35,13 @@
   register: openldap_root_pwd_hash
   changed_when: false
 
-- name: copy /etc/default/slapd for Ubuntu
+- name: Copy /etc/default/slapd for Ubuntu
   copy:
     src: slapd
     dest: /etc/default/slapd
     mode: 0755
   notify:
-    - restart slapd
+    - restart openldap
 
 - name: Adjust OpenLDAP server TLS configuration
   lineinfile:
@@ -105,7 +105,7 @@
         - local_schema.ldif
 
     - name: Load OpenLDAP schemas
-      command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}.ldif
+      command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
       args:
         creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
       with_items: '{{ openldap_schemas }}'
