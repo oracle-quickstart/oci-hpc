@@ -52,7 +52,7 @@
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
     path: '/etc/ldap/ldap.conf'
-    line: 'TLS_CACERT   /etc/openldap/certs/cluster-ca.crt'
+    line: 'TLS_CACERT   /etc/ssl/certs/cluster-ca.crt'
 
 - name: Enable OpenLDAP service
   systemd:
