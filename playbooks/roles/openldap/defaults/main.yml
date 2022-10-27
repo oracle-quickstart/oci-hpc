@@ -35,6 +35,6 @@ openldap_tls_key: '{{ ssl_cert_path }}/{{ ansible_fqdn }}.key'
 openldap_schemas:
   - cosine
   - inetorgperson
-#  - rfc2307bis
+  - rfc2307bis
   - autoinc
   - ppolicy
