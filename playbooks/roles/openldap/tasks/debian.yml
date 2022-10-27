@@ -113,6 +113,14 @@
         setype: slapd_db_t
         seuser: system_u
 
+    - name: Delete nis files
+      file:
+        path: /etc/ldap/schema/{{ item }}
+        state: absent
+      with_items:
+        - nis.ldif
+        - nis.schema      
+
     - name: Start OpenLDAP service
       systemd:
         name: slapd
@@ -169,7 +177,9 @@
     - name: Load OpenLDAP local configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
-        creates: '/etc/ldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif'
+        creates: '/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
+      register: result
+      failed_when: ( result.rc not in [ 0, 20 ] )
       with_items:
         - config.ldif
         - local.ldif
