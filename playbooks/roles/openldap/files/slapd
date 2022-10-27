@@ -5,11 +5,11 @@ SLAPD_CONF=
 
 # System account to run the slapd server under. If empty the server
 # will run as root.
-SLAPD_USER="ldap"
+SLAPD_USER="openldap"
 
 # System group to run the slapd server under. If empty the server will
 # run in the primary group of its user.
-SLAPD_GROUP="ldap"
+SLAPD_GROUP="openldap"
 
 # Path to the pid file of the slapd server. If not set the init.d script
 # will try to figure it out from $SLAPD_CONF (/etc/ldap/slapd.d by

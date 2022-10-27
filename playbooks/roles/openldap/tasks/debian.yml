@@ -43,7 +43,6 @@
     name: "{{ openldap_packages }}"
     state: present
     update_cache: yes
-  when: ansible_os_family == 'Debian'
 
 - name: Generate openldap root password
   set_fact:
@@ -154,8 +153,6 @@
       with_items:
         - ppolicy.ldif
         - memberof.ldif
-
-    - meta: flush_handlers
 
     - name: stop slapd
       service:
