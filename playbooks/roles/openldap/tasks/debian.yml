@@ -1,7 +1,7 @@
 ---
 # tasks file for openldap
 
-- name: stop service
+- name: Stop Apparmor service
   service:
     name: apparmor
     state: stopped
@@ -10,7 +10,7 @@
     - configuration
     - apparmor
 
-- name: remove service
+- name: Remove Apparmor service
   service:
     name: apparmor
     enabled: false
@@ -19,7 +19,7 @@
     - configuration
     - apparmor
 
-- name: remove package
+- name: Remove Apparmor package
   apt:
     name: apparmor
     state: absent
