@@ -14,7 +14,7 @@
     owner: 'root'
     group: 'root'
     mode: '0600'
-  notify: restart sssd
+  notify: restart login services
 
 - name: Copy CA certificate
   copy:
@@ -26,18 +26,14 @@
     path: '/etc/ldap/ldap.conf'
     line: 'TLS_CACERT   /etc/ssl/certs/cluster-ca.crt'
 
-- name: Enable sssd service
-  systemd:
-    name: sssd
-    enabled: "yes"
-
 - name: Fix common-auth
   lineinfile:
     dest: /etc/pam.d/common-auth
     state: present
     line: 'account required    pam_access.so'
   notify:
-    - restart sssd
+    - restart ns daemons
+    - restart login services
 
 - name: Fix common-session
   lineinfile:
@@ -45,7 +41,8 @@
     state: present
     line: 'session required    pam_mkhomedir.so skel=/etc/skel umask=0022'
   notify:
-    - restart sssd
+    - restart ns daemons
+    - restart login services
 
 - name: Fix common-password
   replace:
@@ -54,16 +51,12 @@
     regexp: '^.*use_authtok.*$'
     replace: 'password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass'
   notify:
-    - restart sssd
-
-- name: Start sssd service
-  systemd:
-    name: sssd
-    state: started
+    - restart ns daemons
+    - restart login services
 
 - name: Update sshd configuration
   lineinfile: 
     path: /etc/ssh/sshd_config
     regexp: '^PasswordAuthentication'
     line: PasswordAuthentication yes
-  notify: restart sshd
+  notify: restart login services
