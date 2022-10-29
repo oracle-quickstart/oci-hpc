@@ -1,0 +1,205 @@
+---
+# tasks file for openldap
+
+- name: Stop Apparmor service
+  service:
+    name: apparmor
+    state: stopped
+  failed_when: false
+  tags:
+    - configuration
+    - apparmor
+
+- name: Remove Apparmor service
+  service:
+    name: apparmor
+    enabled: false
+  failed_when: false
+  tags:
+    - configuration
+    - apparmor
+
+- name: Remove Apparmor package
+  apt:
+    name: apparmor
+    state: absent
+    purge: true
+  tags:
+    - configuration
+    - apparmor
+
+- name: Create /etc/opt/oci-hpc/passwords/openldap
+  become: true
+  file:
+    path: /etc/opt/oci-hpc/passwords/openldap
+    state: directory
+    owner: ubuntu
+    mode: 0770
+    group: ubuntu
+    recurse: yes
+
+- name: Generate openldap root password
+  set_fact:
+    tmp_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/openldap/root.txt
+                           chars=ascii_letters,digits,hexdigits') }}"
+
+- name: Get openldap root password
+  set_fact:
+    openldap_root_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc//passwords/openldap/root.txt
+                           chars=ascii_letters,digits,hexdigits') }}"
+
+- name: Install the openldap and required Packages for Ubuntu
+  apt:
+    name: "{{ openldap_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Hash OpenLDAP root password
+  command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}
+  register: openldap_root_pwd_hash
+  changed_when: false
+
+- name: Copy /etc/default/slapd for Ubuntu
+  copy:
+    src: slapd
+    dest: /etc/default/slapd
+    mode: 0755 
+
+- name: Adjust OpenLDAP server TLS configuration
+  lineinfile:
+    path: '{{ openldap_server_defaults_file }}'
+    regexp: '^SLAPD_SERVICES='
+    line: 'SLAPD_SERVICES="{{ openldap_endpoints }}"'
+
+- name: Adjust OpenLDAP client TLS configuration
+  lineinfile:
+    path: '/etc/ldap/ldap.conf'
+    line: 'TLS_CACERT   /etc/ssl/certs/cluster-ca.crt'
+
+- name: Enable OpenLDAP service
+  systemd:
+    name: slapd
+    enabled: "yes"
+
+- name: Get /etc/ldap/slapd.d status
+  stat:
+    path: '/etc/ldap/slapd.d'
+  register: default_openldap_path
+
+- name: Add cluster CA certificate to /etc/openldap/certs
+  copy:
+    src: '{{ openldap_tls_cacrt }}'
+    dest: '/etc/ssl/certs/'
+
+- name: Ensure OpenLDAP has access to the ssl certificates
+  user:
+    name: '{{ openldap_default_user }}'
+    groups: '{{ ssl_cert_group }}'
+
+- block:
+
+    - name: Ensure OpenLDAP data directory exists
+      file:
+        path: '{{ openldap_server_dir_path }}'
+        state: directory
+        owner: '{{ openldap_default_user }}'
+        group: '{{ openldap_default_group }}'
+        setype: slapd_db_t
+        seuser: system_u         
+
+    - name: Start OpenLDAP service
+      systemd:
+        name: slapd
+        state: started
+        enabled: "yes"
+
+    - name: Copy OpenLDAP schemas
+      copy:
+        src: '{{ item }}'
+        dest: '/etc/ldap/schema/'
+        owner: '{{ openldap_default_user }}'
+        group: '{{ openldap_default_group }}'
+        mode: '0644'
+      with_items:
+        - rfc2307bis.ldif
+        - autoinc.ldif
+        - local_schema.ldif
+
+    - name: Ensure that we haven't ran dpkg-configure before for slapd
+      lineinfile:
+        name: /usr/share/slapd/slapd.init.ldif
+        regexp: 'file:///etc/ldap/schema/rfc2307bis.ldif'
+        state: absent
+      check_mode: yes
+      changed_when: false
+      register: dpkgcheck
+
+    - name: Edit /usr/share/slapd/slapd.init.ldif
+      replace:
+        path: /usr/share/slapd/slapd.init.ldif
+        regexp: '^include: file:///etc/ldap/schema/nis.ldif'
+        replace: 'include: file:///etc/ldap/schema/rfc2307bis.ldif'
+      when: not dpkgcheck.found
+            
+    - name: Reconfigure slapd for rfc2307bis instead of nis
+      command: dpkg-reconfigure -f noninteractive slapd
+      when: not dpkgcheck.found
+    
+    - name: Load OpenLDAP schemas
+      command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
+      args:
+        creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
+      with_items: '{{ openldap_schemas }}'
+
+    - name: Render OpenLDAP configuration
+      template:
+        src: '{{ item }}.j2'
+        dest: '/tmp/{{ item }}'
+      with_items:
+        - config.ldif
+        - local.ldif
+      changed_when: false
+
+    - name: Copy OpenLDAP overlay configurations
+      copy:
+        src: '{{ item }}'
+        dest: '/tmp/'
+      with_items:
+        - ppolicy.ldif
+        - memberof.ldif   
+
+    - name: Load OpenLDAP global configuration
+      command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
+      args:
+        creates: '/etc/ldap/slapd.d/cn=config.ldif'
+      notify: restart openldap
+
+    - name: Load OpenLDAP local configuration
+      command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
+      args:
+        creates: '/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
+      register: result
+      failed_when: ( result.rc not in [ 0, 20 ] )
+      with_items:
+        - config.ldif
+        - local.ldif
+        - ppolicy.ldif
+        - memberof.ldif
+      notify: restart openldap
+
+    - name: Check local schemas
+      command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
+      register: ldapsearch
+      failed_when: false
+      changed_when: false
+
+    - name: Load OpenLDAP local schema
+      command: >
+        ldapadd -x -H ldaps:// -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
+                             -f /etc/ldap/schema/local_schema.ldif
+      ignore_errors: "yes"
+      when: ldapsearch.rc == 32
+
+- meta: flush_handlers
