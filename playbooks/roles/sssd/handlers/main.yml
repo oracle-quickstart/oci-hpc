@@ -1,10 +1,36 @@
 ---
 - name: restart sshd
+  listen: restart login services
   service:
     name: sshd
     state: restarted
+    enabled: yes
 
 - name: restart sssd
+  listen: restart ns daemons
   service:
     name: sssd
     state: restarted
+    enabled: yes
+
+- name: restart nscd
+  listen: restart ns daemons
+  systemd:
+    name: nscd
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+
+- name: restart_nslcd
+  listen: restart ns daemons
+  service:
+    name: nslcd
+    state: restarted
+    enabled: yes
+
+- name: restart_systemd_logind
+  listen: restart login services
+  service:
+    name: systemd-logind
+    state: restarted
+    enabled: yes
