@@ -1,9 +1,10 @@
 ---
 - name: Ensure NFS utilities are installed.
-  apt: 
-    name: 
+  vars: 
+    package_name: 
       - nfs-kernel-server
-    state: present
+  include_role: 
+    name: safe_yum
 
 - name: Start NFS server
   service: 

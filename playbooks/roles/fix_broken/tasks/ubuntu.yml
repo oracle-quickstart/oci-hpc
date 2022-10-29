@@ -1,0 +1,86 @@
+---
+
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
+
+- name: Wait for any possibly running unattended upgrade to finish
+  raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+
+- name: remove unattended-upgrades
+  systemd: 
+    name: unattended-upgrades
+    state: stopped
+    enabled: no 
+  ignore_errors: yes
+
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
+
+- name: Purge unattended-upgrades
+  apt:
+    name: unattended-upgrades
+    purge: yes
+    state: absent
+  ignore_errors: yes
+
+- name: stop and mask timers
+  systemd: 
+    name: "{{item}}"
+    state: stopped
+    enabled: no 
+    masked: yes
+  with_items: 
+    - apt-daily-upgrade.timer
+    - apt-daily.timer
+
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
+
+- name: Mark packages
+  become: true
+  dpkg_selections:
+    name: "{{item}}"
+    selection: hold
+  with_items:
+    - linux-oracle 
+    - linux-headers-oracle 
+    - linux-image-oracle
+
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
+
+
+- name: Run apt-get update
+  become: true
+  shell: |
+    sudo apt-get update &
+    PID1=$!
+    wait $PID1
+
+
+- name: Run fix-broken
+  become: true
+  shell: |
+    sudo apt -y --fix-broken install &
+    PID1=$!
+    wait $PID1

@@ -11,25 +11,42 @@
                            "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
                             chars=ascii_letters,digits,hexdigits") }}'
 
-- name: Install PyMSQL
+- name: Install PyMySQL
   vars: 
     package_name:
       - python2-PyMySQL
-    package_repo: "epel,ol7_developer_EPEL"
-    package_state: installed
+    package_repo: "{{slurm_repos}}"
+    package_state: present
   include_role: 
     name: safe_yum
-      
-- name: install SLURM server packages
+  when: ansible_os_family == 'RedHat'
+
+- name: Install libmariadb-dev
   vars: 
-    package_name: 
-      - slurm-slurmctld
-      - slurm-slurmdbd
-  #    - slurm-slurmrestd
-    package_repo: "epel,ol7_developer_EPEL"
+    package_name:
+      - libmariadb-dev
+    package_state: present
   include_role: 
     name: safe_yum
+  when: ansible_os_family == 'Debian'
+
+- name: install SLURM server packages RedHat
+  vars: 
+    package_name: '{{ slurm_server_packages }}'
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
   
+- name: Render systemd units for slurm and slurmdbd
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service.j2'
+    dest: '/lib/systemd/system/{{ item }}.service'
+    backup: "yes"
+  with_items:
+    - slurmdbd
+    - slurmctld
+
 - name: Create systemd unit dirs
   become: true
   file:
@@ -86,7 +103,7 @@
     - name: set permissions
       become: true
       shell:
-        cmd: chown opc:opc /tmp/munge.key
+        cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
         warn: false
     
 - name: Create DB for accounting
@@ -105,22 +122,20 @@
       priv: '{{ slurm_db_name }}.*:ALL'
       state: present
 
-- name: Copy configuration files
+- name: Copy cgroup file
   become: true
-  copy: 
-    src: '{{ item }}'
-    dest: '{{ slurm_conf_path }}/{{ item }}'
+  copy:
+    src: '{{ cgroup_conf_file }}'
+    dest: '{{ slurm_conf_path }}/cgroup.conf'
     force: no
     owner: slurm
     group: slurm
-  with_items: 
-    - cgroup.conf
 
 - name: Generate slurmdbd.conf
   become: true
   template: 
-    src: slurmdbd.conf.j2
-    dest: /etc/slurm/slurmdbd.conf
+    src: '{{ slurmdbd_conf_file }}'
+    dest: '{{ slurm_conf_path }}/slurmdbd.conf'
     mode: '0600'
     owner: slurm
     group: slurm
@@ -129,8 +144,8 @@
 - name: Generate slurm.conf
   become: true
   template: 
-    src: slurm.conf.j2
-    dest: /etc/slurm/slurm.conf
+    src: '{{ slurm_conf_file }}'
+    dest: '{{ slurm_conf_path }}/slurm.conf'
     mode: '0644'
     backup: yes
     owner: slurm
@@ -143,23 +158,33 @@
 
 - name: add alias for node status
   lineinfile:
-    path: /home/opc/.bashrc
+    path: '/home/{{ ansible_user }}/.bashrc'
     line: alias status='tail /opt/oci-hpc/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
     state: present
 
 - name: add alias for max nodes distributed evenly
   lineinfile:
-    path: /home/opc/.bashrc
+    path: '/home/{{ ansible_user }}/.bashrc'
     line: alias max_nodes="python3 /opt/oci-hpc/bin/max_nodes_partition.py"
     state: present
 
+- name: Generate gres.conf
+  become: true
+  template:
+    src: gres.conf.j2
+    dest: '{{ slurm_conf_path }}/gres.conf'
+    mode: '0644'
+    backup: yes
+    
 - name: Generate topology.conf
   become: true
   template: 
     src: topology.conf.j2
-    dest: /etc/slurm/topology.conf
+    dest: '{{ slurm_conf_path }}/topology.conf'
     mode: '0644'
     force: no
+    owner: slurm
+    group: slurm
   delegate_to: 127.0.0.1
   register: initial_topology
   run_once: true
@@ -177,9 +202,9 @@
   vars:
     size: "{{ hostvars[inventory_hostname]['private_subnet'] | ipaddr('size') }}"
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName=inactive-{{item}}\\sNodes.*"
-    line: "SwitchName=inactive-{{item}} Nodes={% for index in range( size | int ) -%}{{item}}-node-{{ index }}{{ ',' if not loop.last else ''}}{%- endfor %}"
+    line: "SwitchName=inactive-{{item}} Nodes={% for index in range(1, size | int + 1 ) -%}{{item}}-node-{{ index }}{{ ',' if not loop.last else ''}}{%- endfor %}"
     state: present
   with_items: "{{nodesname_list}}"
   run_once: true

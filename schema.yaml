@@ -35,7 +35,10 @@ variableGroups:
       - ${bastion_boot_volume_size}
   - title: "Compute node options"
     variables:
+      - ${use_multiple_ads}
       - ${ad}
+      - ${secondary_ad}
+      - ${third_ad}
       - ${cluster_network}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
@@ -46,8 +49,10 @@ variableGroups:
       - ${hyperthreading}
       - ${boot_volume_size}
       - ${use_marketplace_image}
+      - ${use_old_marketplace_image}
       - ${compute_username}
       - ${marketplace_listing}
+      - ${old_marketplace_listing}
       - ${unsupported}
       - ${compute_image_compartment}
       - ${image}
@@ -83,9 +88,9 @@ variableGroups:
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
+      - ${localdisk}
   - title: "Advanced bastion options"
     variables:
-      - ${advanced_bastion}
       - ${use_standard_image}
       - ${unsupported_bastion}
       - ${bastion_image_compartment}
@@ -108,6 +113,7 @@ variableGroups:
       - ${scratch_nfs_type_pool}
       - ${cluster_block_volume_size}
       - ${cluster_block_volume_performance}
+      - ${localdisk}
   - title: "Network options"
     variables:
       - ${use_existing_vcn}
@@ -126,6 +132,7 @@ variableGroups:
       - ${privilege_sudo} 
       - ${privilege_group_name} 
       - ${slurm}
+      - ${slurm_nfs}
       - ${slurm_ha}
       - ${rack_aware}
       - ${pyxis}
@@ -143,10 +150,12 @@ variableGroups:
       - ${scratch_nfs_export}
       - ${scratch_nfs_mount}
       - ${marketplace_listing_id}
+      - ${old_marketplace_listing_id}
+      - ${marketplace_listing_id_GPU}
+      - ${marketplace_listing_id_HPC}
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
-      - ${bastion_listing}
     visible: false
   - title: "Debug"
     variables: 
@@ -157,6 +166,11 @@ variables:
     type: oci:identity:compartment:id
     default: ${compartment_ocid}
     required: true
+  use_multiple_ads:
+    type: boolean
+    title: "Multiple ADs"
+    description: "Use multiple ADs in case of capacity constraints (Autoscaling Only)"
+    default: false
   ad:
     type: oci:identity:availabilitydomain:name
     visible: complexExpression
@@ -165,7 +179,22 @@ variables:
     required: true
     description: "Availability Domain"
     title: "Availability Domain"
-    
+  secondary_ad:
+    type: oci:identity:availabilitydomain:name
+    visible: ${use_multiple_ads}
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: false
+    description: "Secondary Availability Domain"
+    title: "Secondary Availability Domain"
+  third_ad:
+    type: oci:identity:availabilitydomain:name
+    visible: ${use_multiple_ads}
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: false
+    description: "Third Availability Domain"
+    title: "Third Availability Domain"
   ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key"
@@ -179,7 +208,7 @@ variables:
   ldap:
     type: boolean
     title: "Configure LDAP authentication from bastion"
-    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
+    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands. (Not working on Ubuntu, yet...)"
     default: true
   cluster_name:
     title: "Name of the cluster"
@@ -286,12 +315,9 @@ variables:
     type: boolean
     title: "use standard bastion image"
     description: >
-      "Use standard bastion image, otherwise provide custom image OCID"
+      "Use standard bastion image (Oracle Linux)"
     default: true
-    visible: 
-      and: 
-        - and: 
-              - ${advanced_bastion}
+    visible: true
 
   unsupported_bastion: 
     title: "Use unsupported image" 
@@ -338,7 +364,7 @@ variables:
 
   custom_bastion_image:
     title: "Bastion Image ID"
-    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux is supported as bastion image at this moment. "
+    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux and Ubuntu 20.04 are supported as bastion image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${bastion_image_compartment}
@@ -435,6 +461,7 @@ variables:
       - "BM.HPC2.36"
       - "BM.GPU4.8"
       - "BM.GPU.B4.8"
+      - "BM.GPU.A100-v2.8"
       - "BM.Optimized3.36"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
@@ -479,7 +506,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
     required: true
 
@@ -503,7 +530,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
   instance_pool_memory:
     title: Memory in GBS
@@ -529,7 +556,7 @@ variables:
               - ${instance_pool_shape}
               - "VM.Standard.A1.Flex"
             - eq:
-              - ${bastion_shape}
+              - ${instance_pool_shape}
               - "VM.Standard3.Flex"
         - and: 
             - ${instance_pool_custom_memory}
@@ -563,7 +590,31 @@ variables:
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
 
+  use_old_marketplace_image:
+    type: boolean
+    title: "use older marketplace images"
+    description: "Images prior to September 2021"
+    default: false
+    visible:
+      and:
+        - ${use_marketplace_image}
+
   marketplace_listing:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC"
+      - "GPU"
+    default: "HPC"
+    visible:
+      and:
+        - ${use_marketplace_image}
+        - not: 
+          - ${use_old_marketplace_image}
+
+  old_marketplace_listing:
     type: enum
     title: "Image version"
     description: "Marketplace listing to use"
@@ -577,13 +628,7 @@ variables:
     visible:
       and:
         - ${use_marketplace_image}
-
-  bastion_listing:
-    type: string
-    title: "Bastion Image version"
-    description: "Marketplace listing to use"
-    required: true
-    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+        - ${use_old_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
@@ -641,11 +686,6 @@ variables:
             - ${use_marketplace_image}
         - and: 
             - ${unsupported}
-
-  advanced_bastion:
-    type: boolean
-    title: "Show advanced bastion options"
-    default: false
 
   use_advanced:
     type: boolean
@@ -757,8 +797,8 @@ variables:
         - ${use_scratch_nfs}
   private_deployment:
     type: boolean
-    title: "Deploy without a public IP"
-    description: "Deploy with no Public IP for the bastion. 'Bastion Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to access the cluster"      
+    title: "Deploy Master Node without a public IP"
+    description: "Deploy with no Public IP for the master node. 'Master Node Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to connect via ssh to the master node"      
     default: false
   use_existing_vcn:
     type: boolean
@@ -782,7 +822,7 @@ variables:
     dependsOn:
       compartmentId: ${vcn_compartment}
   public_subnet_id:
-    title: Bastion Subnet
+    title: Master Node Subnet
     type: oci:core:subnet:id
     dependsOn:
       compartmentId: ${vcn_compartment}
@@ -816,7 +856,7 @@ variables:
         - ${use_existing_vcn}
   public_subnet:
     type: string
-    title: "Bastion subnet IP range"
+    title: "Master Node subnet IP range"
     default: "172.16.0.0/24"
     description: "Must be within VCN subnet"
     required: true
@@ -861,6 +901,16 @@ variables:
     title: "Install SLURM"
     default: true
     description: "Needed for autoscaling" 
+
+  slurm_nfs:
+    type: boolean
+    title: "Share spool directory"
+    default: false
+    description: "Install Slurm spool directory on user NFS"
+    visible:
+      and:
+        - ${slurm}
+        - ${add_nfs}
 
   slurm_ha:
     type: boolean
@@ -1002,7 +1052,14 @@ variables:
     description: "FSS Availability Domain"
     title: "FSS Availability Domain"
     required: true
-        
+
+  localdisk:
+    type: boolean
+    title: "Mount Localdisk"
+    default: true
+    description: "For nodes using a NVMe, mount the localdisk"
+    visible: ${use_advanced}
+
   nfs_target_path:
     type: string
     title: "NFS Path"
@@ -1030,6 +1087,7 @@ variables:
     description: "Value of the path on the NFS server"
     visible: ${add_nfs}
     required: true
+
   nfs_options:
     type: string
     title: "Options"

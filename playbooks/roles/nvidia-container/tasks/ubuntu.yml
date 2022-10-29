@@ -18,6 +18,10 @@
     name: libnvidia-container-tools{{ libnvidia_container_tools_package_version | ternary("="+libnvidia_container_tools_package_version, "") }}
     state: "{{ libnvidia_container_tools_package_state }}"
     update_cache: yes
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 
 - name: Start Docker

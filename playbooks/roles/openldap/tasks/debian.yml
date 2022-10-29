@@ -38,12 +38,6 @@
     group: ubuntu
     recurse: yes
 
-- name: Install the openldap and required Packages for Ubuntu
-  apt:
-    name: "{{ openldap_packages }}"
-    state: present
-    update_cache: yes
-
 - name: Generate openldap root password
   set_fact:
     tmp_pwd: "{{ lookup('password',
@@ -56,6 +50,12 @@
                           '/etc/opt/oci-hpc//passwords/openldap/root.txt
                            chars=ascii_letters,digits,hexdigits') }}"
 
+- name: Install the openldap and required Packages for Ubuntu
+  apt:
+    name: "{{ openldap_packages }}"
+    state: present
+    update_cache: yes
+
 - name: Hash OpenLDAP root password
   command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}
   register: openldap_root_pwd_hash
@@ -65,9 +65,7 @@
   copy:
     src: slapd
     dest: /etc/default/slapd
-    mode: 0755
-  notify:
-    - restart openldap
+    mode: 0755 
 
 - name: Adjust OpenLDAP server TLS configuration
   lineinfile:
@@ -94,8 +92,6 @@
   copy:
     src: '{{ openldap_tls_cacrt }}'
     dest: '/etc/ssl/certs/'
-  notify:
-    - restart openldap
 
 - name: Ensure OpenLDAP has access to the ssl certificates
   user:
@@ -111,15 +107,7 @@
         owner: '{{ openldap_default_user }}'
         group: '{{ openldap_default_group }}'
         setype: slapd_db_t
-        seuser: system_u
-
-    - name: Delete nis files
-      file:
-        path: /etc/ldap/schema/{{ item }}
-        state: absent
-      with_items:
-        - nis.ldif
-        - nis.schema      
+        seuser: system_u         
 
     - name: Start OpenLDAP service
       systemd:
@@ -139,6 +127,26 @@
         - autoinc.ldif
         - local_schema.ldif
 
+    - name: Ensure that we haven't ran dpkg-configure before for slapd
+      lineinfile:
+        name: /usr/share/slapd/slapd.init.ldif
+        regexp: 'file:///etc/ldap/schema/rfc2307bis.ldif'
+        state: absent
+      check_mode: yes
+      changed_when: false
+      register: dpkgcheck
+
+    - name: Edit /usr/share/slapd/slapd.init.ldif
+      replace:
+        path: /usr/share/slapd/slapd.init.ldif
+        regexp: '^include: file:///etc/ldap/schema/nis.ldif'
+        replace: 'include: file:///etc/ldap/schema/rfc2307bis.ldif'
+      when: not dpkgcheck.found
+            
+    - name: Reconfigure slapd for rfc2307bis instead of nis
+      command: dpkg-reconfigure -f noninteractive slapd
+      when: not dpkgcheck.found
+    
     - name: Load OpenLDAP schemas
       command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
       args:
@@ -160,13 +168,7 @@
         dest: '/tmp/'
       with_items:
         - ppolicy.ldif
-        - memberof.ldif
-
-    - name: stop slapd
-      service:
-        name: slapd
-        state: stopped
-      when: slapd_rebuild | default(False)        
+        - memberof.ldif   
 
     - name: Load OpenLDAP global configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif

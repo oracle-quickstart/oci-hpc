@@ -11,22 +11,10 @@
     with_items: 
       - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
       - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
-
-
-
-  - name: set user.max_user_namespaces using sysctl
-    ansible.posix.sysctl:
-      name: user.max_user_namespaces
-      value: '15076'
-      sysctl_file: /etc/sysctl.d/81-enroot.conf
-      reload: yes
-
-  - name: set user.max_mnt_namespaces using sysctl
-    ansible.posix.sysctl:
-      name: user.max_mnt_namespaces
-      value: '1'
-      sysctl_file: /etc/sysctl.d/81-enroot.conf
-      reload: yes
+    register: result
+    until: result is not failed
+    retries: 5
+    delay: 5
 
   - name: set kernel.unprivileged_userns_clone using sysctl
     ansible.posix.sysctl:

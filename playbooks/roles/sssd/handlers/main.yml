@@ -15,9 +15,10 @@
 
 - name: restart nscd
   listen: restart ns daemons
-  service:
+  systemd:
     name: nscd
     state: restarted
+    daemon_reload: yes
     enabled: yes
 
 - name: restart_nslcd

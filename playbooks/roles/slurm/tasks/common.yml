@@ -1,14 +1,4 @@
 ---
-- name: install munge
-  vars: 
-    package_name: 
-      - munge
-      - munge-libs
-      - munge-devel
-    package_repo: "{{slurm_repos}}"
-  include_role: 
-    name: safe_yum
-
 - name: create munge group
   become: true
   group:
@@ -43,22 +33,73 @@
     shell: /bin/bash
     home: /var/lib/slurm
     state: present
-      
-- name: install SLURM server packages
-  vars: 
-    package_name: 
-      - slurm
-      - slurm-devel
-      - slurm-contribs
-      - slurm-perlapi
-      - slurm-devel
-      - slurm-torque
-      - slurm-openlava
-#     - slurm-example-configs
-    package_repo: "{{slurm_repos}}"
-  include_role: 
+
+- name: install munge
+  vars:
+    package_name: '{{ munge_packages }}'
+    package_repo: "{{ slurm_repos }}"
+  include_role:
     name: safe_yum
-          
+
+- name: Create Slurm RPM directory
+  file:
+    path: "{{ download_path }}/slurm_rpms"
+    state: directory
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Download slurm .deb
+  get_url:
+    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_amd64.deb"
+    dest: "{{ download_path }}/slurm_rpms"
+  when: ansible_os_family == 'Debian'
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Download slurm .rpm
+  get_url:
+    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item }}"
+    dest: "{{ download_path }}/slurm_rpms"
+  with_items:
+    - "slurm-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-contribs-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-devel-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-example-configs-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-libpmi-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-openlava-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-pam_slurm-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-perlapi-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-slurmctld-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-slurmd-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-slurmdbd-{{slurm_version}}.el7.x86_64.rpm"
+    - "slurm-torque-{{slurm_version}}.el7.x86_64.rpm"
+  when: ansible_os_family == 'RedHat'
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Install .deb
+  become: true
+  apt:
+    deb: "{{ download_path }}/slurm_rpms/slurm-22.05.4-1_amd64.deb"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: install SLURM common packages RedHat
+  vars:
+    package_name: '{{ slurm_common_packages }}'
+    package_repo: "{{slurm_repos}}"
+  include_role:
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
+
+- name: Add Environment variable file for SLurm
+  become: true
+  template:
+    src: 'systemd/slurm_env.j2'
+    dest: '/etc/default/slurm'
+    backup: "yes"
+  when: ansible_os_family == 'Debian'
+
 - name: Create {{ slurm_spool_path }}
   become: true
   file:
@@ -66,7 +107,17 @@
     state: directory
     owner: 'slurm'
     group: 'slurm'
-    mode: '0750'
+    mode: '0755'
+
+- name: Create /run/slurm/
+  become: true
+  file:
+    name: /run/slurm/
+    state: directory
+    owner: 'slurm'
+    group: 'slurm'
+    mode: '0755'
+
 - name: Create munge dir
   become: true
   file:
@@ -75,6 +126,7 @@
     owner: munge
     group: munge
     mode: 0700
+    
 - name: Ensure {{ slurm_log_path }} exists
   become: true
   file:
