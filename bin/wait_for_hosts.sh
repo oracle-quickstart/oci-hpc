@@ -10,7 +10,7 @@ ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 for host in $(cat $1) ; do
   r=0 
   echo "validating connection to: ${host}"
-  while ! ssh ${ssh_options} -o ConnectTimeout=30 ${USER}@${host} uptime ; do
+  while ! ssh ${ssh_options} -o ConnectTimeout=30 $2@${host} uptime ; do
 	if [[ $r -eq 10 ]] ; then 
 		  execution=0
 		  break

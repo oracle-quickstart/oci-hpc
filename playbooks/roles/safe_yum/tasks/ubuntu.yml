@@ -1,0 +1,26 @@
+---
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
+
+- name: "Installing {{package_name}}"
+  become: true
+  apt:
+    name: "{{package_name}}"
+    state: "{{package_state | default('latest')}}"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+
+- name: Ensure apt process is completed
+  become: true
+  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  register: result
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0

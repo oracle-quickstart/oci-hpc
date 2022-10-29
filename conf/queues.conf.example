@@ -12,15 +12,19 @@
           max_number_nodes: 100
           max_cluster_size: 20
           max_cluster_count: 10
+          region: eu-frankfurt-1
           ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
+          private_subnet: 172.16.4.0/22 #TO EDIT
+          private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: true
+          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 16
           instance_pool_custom_memory: false
-          marketplace_listing: 1. Oracle Linux 7.8 OFED5.0
+          marketplace_listing: HPC
           hyperthreading: true
         - name: permanent
           default: true
@@ -31,15 +35,19 @@
           max_number_nodes: 100
           max_cluster_size: 50
           max_cluster_count: 10
+          region: eu-frankfurt-1
           ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
+          private_subnet: 172.16.4.0/22 #TO EDIT
+          private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: true
+          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 16
           instance_pool_custom_memory: false
-          marketplace_listing: 1. Oracle Linux 7.8 OFED5.0
+          marketplace_listing: HPC
           hyperthreading: true
     - name: compute2
       default: false
@@ -53,11 +61,15 @@
           max_number_nodes: 4
           max_cluster_size: 2
           max_cluster_count: 2
+          region: eu-frankfurt-1
           ad: VXpT:EU-FRANKFURT-1-AD-1 #TO EDIT
+          private_subnet: 172.16.4.0/22 #TO EDIT
+          private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1.eu-frankfurt-1.aaaaaaaasrw572lodukbaxlwrrq5zcqe3zldh3krkgtq3lm463lann4ksxeq #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: false
+          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 16
           instance_pool_custom_memory: false
@@ -72,11 +84,15 @@
           max_number_nodes: 100
           max_cluster_size: 20
           max_cluster_count: 10
+          region: eu-frankfurt-1
           ad: VXpT:EU-FRANKFURT-1-AD-2 #TO EDIT
+          private_subnet: 172.16.4.0/22 #TO EDIT
+          private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: false
+          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 2
           instance_pool_custom_memory: true

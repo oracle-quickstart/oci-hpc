@@ -12,7 +12,7 @@
 - name: Install pip
   vars: 
     package_name: 
-      - python-pip
+      - python3-pip
   include_role: 
     name: safe_yum
 
@@ -20,7 +20,7 @@
   become: true
   pip:
     name: influxdb
-    executable: pip-3
+    executable: pip3
 
 - name: Create database
   shell: "python3 -c \"import influxdb; influxdb.InfluxDBClient(host='{{ hostvars[groups['bastion'][0]]['ansible_fqdn'] }}', port=8086).create_database('telegraph')\""

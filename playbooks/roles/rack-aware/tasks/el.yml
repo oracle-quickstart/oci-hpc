@@ -2,6 +2,7 @@
   shell: "python3 -m ensurepip & sudo python3 -m pip install --upgrade pip"
 
 - name: install pssh and parallel-ssh
+  become: true
   pip:
     name: ['pssh', 'parallel-ssh']
     executable: pip3

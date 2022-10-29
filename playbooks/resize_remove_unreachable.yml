@@ -1,0 +1,9 @@
+- hosts: bastion, compute
+  become: true
+  gather_facts: true
+  vars:
+    destroy: false
+    slurm_conf_path: "/etc/slurm"
+  tasks:
+    - include_role:
+        name: destroy_unreachable

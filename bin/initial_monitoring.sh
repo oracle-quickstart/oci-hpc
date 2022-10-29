@@ -31,8 +31,9 @@ then
     hostname_array+=( $hostname )
   done
   source $monitoring_folder/env
-  mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,nodes,class_name,shape,CN,cpu_per_node,cluster_name,state,created,cluster_OCID) VALUES ('$cluster_name','${#ip_array[@]}','$queue','$shape',$cluster_network,36,'$cluster_name','running','$end_timestamp','$ocid');"
+  # mysqlsh is not valid for ubuntu. thus using mysql in the below lines as well as other scripts to work with linux as well as ubuntu
+  mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,nodes,class_name,shape,CN,cpu_per_node,cluster_name,state,created,cluster_OCID) VALUES ('$cluster_name','${#ip_array[@]}','$queue','$shape',$cluster_network,36,'$cluster_name','running','$end_timestamp','$ocid');"
   for index in "${!ip_array[@]}"; do
-      mysqlsh $ENV_MYSQL_USER@$ENV_MYSQL_HOST -p$ENV_MYSQL_PASS --sql -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,created,state,class_name,shape,hostname,ip,node_OCID) VALUES ('$cluster_name',$index,36,'$end_timestamp','running','$queue','$shape','${hostname_array[$index]}','${ip_array[$index]}','${ocid_array[$index]}');" 
+      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,created,state,class_name,shape,hostname,ip,node_OCID) VALUES ('$cluster_name',$index,36,'$end_timestamp','running','$queue','$shape','${hostname_array[$index]}','${ip_array[$index]}','${ocid_array[$index]}');" 
   done
 fi

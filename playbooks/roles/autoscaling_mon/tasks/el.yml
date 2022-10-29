@@ -3,8 +3,8 @@
   file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
-    owner: opc
-    group: opc
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
 
 - name: Copy files
   become: true
@@ -12,8 +12,8 @@
     src: '{{ item }}'
     dest: '/opt/oci-hpc/monitoring/{{ item }}'
     force: no
-    owner: opc
-    group: opc
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
   with_items: 
     - dashboard.json
     - initial.sql
@@ -24,8 +24,8 @@
     src: '{{ item }}'
     dest: '/opt/oci-hpc/monitoring/{{ item }}'
     force: no
-    owner: opc
-    group: opc
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
     mode: 0755
   with_items:
     - initial.sh
@@ -94,7 +94,7 @@
   include_role: 
     name: safe_yum
 
-- name: install mysql
+- name: install mysql-shell and connector
   vars: 
     package_name: 
       - mysql-shell
@@ -227,5 +227,5 @@
   become: true
   pip:
     name: [protobuf==3.19.4,mysql-connector-python]
-    executable: pip-3
+    executable: pip3
   ignore_errors: yes

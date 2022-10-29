@@ -1,13 +1,16 @@
 ---
 - block:
-
   - name: Make sure python OpenSSL and parallel ssh is installed
-    apt:
-      name:
+    vars: 
+      package_name: 
         - python-openssl
         - python-cryptography
         - parted
         - pssh
         - pdsh
         - python3-netaddr
-
+        - jq
+      package_state: latest
+    include_role: 
+      name: safe_yum
+    ignore_errors: true
