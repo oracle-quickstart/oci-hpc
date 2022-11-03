@@ -44,6 +44,12 @@
     regexp: '^.*use_authtok.*$'
     replace: 'password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass'
 
+- name: Install the openldap and required Packages for Ubuntu
+  apt:
+    name: "{{ openldap_packages }}"
+    state: present
+    update_cache: yes
+
 - name: Update sshd configuration
   lineinfile: 
     path: /etc/ssh/sshd_config

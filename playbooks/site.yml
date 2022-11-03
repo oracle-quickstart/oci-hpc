@@ -215,6 +215,8 @@
 
 - hosts: all
   become: true
+  vars_files:
+    - "/opt/oci-hpc/playbooks/roles/openldap/defaults/main.yml"
   tasks: 
     - include_role: 
         name: sssd
