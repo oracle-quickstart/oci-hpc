@@ -7,27 +7,20 @@ playbooks_path=$folder/../playbooks/
 inventory_path=$folder/../autoscaling/clusters/$1
 
 ssh_options="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+iplist=`cat $inventory_path/inventory | awk '{print $2}' | sed 's/ansible_host=//'`
 if [[ "$2" == "FORCE" ]]
 then
     echo Force Deletion
     ANSIBLE_HOST_KEY_CHECKING=False timeout 2m ansible-playbook $playbooks_path/destroy.yml -i $inventory_path/inventory -e "force=yes"
     status_cleanup=$?
+    if [ $status_cleanup -ne 0 ]
+    then
+        /opt/oci-hpc/bin/resize.py remove_unreachable --nodes $iplist
+        status_cleanup=$?
+    fi
+    exit $status_cleanup
 else
     ANSIBLE_HOST_KEY_CHECKING=False timeout 2m ansible-playbook $playbooks_path/destroy.yml -i $inventory_path/inventory  -e "force=no"
     status_cleanup=$?
-    initial_status_cleanup=$status_cleanup
-fi
-i=0
-while [ $i -lt 5 ] && [ $status_cleanup -ne 0 ]
-do
-  ANSIBLE_HOST_KEY_CHECKING=False timeout 2m ansible-playbook $playbooks_path/destroy.yml -i $inventory_path/inventory -e "force=yes"
-  status_cleanup=$?
-  ((i++))
-  sleep 5
-done
-if [[ "$2" == "FORCE" ]]
-then
     exit $status_cleanup
-else
-    exit $initial_status_cleanup
 fi
