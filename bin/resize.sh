@@ -35,6 +35,9 @@ for (( i=1; i<=$#; i++)); do
     elif [ ${!i} == "remove" ]
     then
       resize_type=remove
+    elif [ ${!i} == "remove_unreachable" ]
+    then
+      resize_type=remove_unreachable
     elif [ ${!i} == "--nodes" ]
     then
       j=$((i+1))
@@ -72,7 +75,7 @@ then
     mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET started_resize='$start_timestamp',state='resizing' WHERE id='$cluster_id'" >> $log 2>&1
   fi
 
-  python3 $folder/resize.py ${@} >> $log 2>&1
+  python3 $folder/resize.py ${@} | tee -a $log 2>&1 | grep STDOUT
   status=$?
   end=`date -u +%s`
   end_timestamp=`date -u +'%F %T'`
@@ -90,9 +93,9 @@ then
       existing_nodes=`mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; select hostname from nodes WHERE cluster_id='$cluster_id' and state <> 'deleted';" 2>&1 | grep inst`
       max_index=`mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; select max(cluster_index) from nodes WHERE cluster_id='$cluster_id';" 2>&1 | tail -n 1`
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET nodes=$newSize,state='running',resize_log='$logs_folder/resize_${cluster_id}.log' WHERE id='$cluster_id'" >> $log 2>&1
-      if [ $resize_type == "remove" ]
+      if [ $resize_type == "remove" ] || [ $resize_type == "remove_unreachable" ]
       then
-        if [ "$nodes" == "NULL" ]
+        if [ "$nodes" == "NULL" ] || [ $resize_type == "remove_unreachable" ]
         then
           for node in $existing_nodes; do
             if [ `echo $nodes_list | grep $node | wc -l` == 0 ]
@@ -138,5 +141,5 @@ then
     rm currently_resizing
   fi
 else
-  python3 $folder/resize.py ${@}
+  python3 $folder/resize.py ${@} 
 fi

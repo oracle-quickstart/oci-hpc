@@ -4,6 +4,9 @@
   vars:
     destroy: false
     slurm_conf_path: "/etc/slurm"
+    unreachable_nodes: "{{ lookup('env', 'unreachable_node_list').split(',') | list}}"
+  vars_files:
+    - "/opt/oci-hpc/conf/queues.conf"
   tasks:
     - include_role:
         name: destroy_unreachable
