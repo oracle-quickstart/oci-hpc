@@ -117,22 +117,29 @@
         creates: '/etc/openldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
       with_items: '{{ openldap_schemas }}'
 
-    - name: Render OpenLDAP configuration
+    - name: Render OpenLDAP configuration - config
       template:
         src: '{{ item }}.j2'
         dest: '/tmp/{{ item }}'
       with_items:
         - config.ldif
-        - local.ldif
       changed_when: false
 
-    - name: Copy OpenLDAP overlay configurations
+    - name: Render OpenLDAP configuration - local
+      template:
+        src: 'el_local.ldif.j2'
+        dest: '/tmp/local.ldif'
+      changed_when: false
+
+    - name: Copy OpenLDAP overlay configurations - ppolicy
       copy:
-        src: '{{ item }}'
-        dest: '/tmp/'
-      with_items:
-        - ppolicy.ldif
-        - memberof.ldif
+        src: 'el_ppolicy.ldif'
+        dest: '/tmp/ppolicy.ldif'
+    
+    - name: Copy OpenLDAP overlay configurations - memberof
+      copy:
+        src: 'el_memberof.ldif'
+        dest: '/tmp/memberof.ldif'
 
     - name: Load OpenLDAP global configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
