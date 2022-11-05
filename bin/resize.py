@@ -624,17 +624,16 @@ else:
         if len(hostnames) == 0:
             nfsNode=getNFSnode(inventory)
             non_nfs=[i for i in cn_instances if i['display_name'] != nfsNode]
-            if args.number < len(cn_instances):
-                hostnames_to_remove=[non_nfs[i]['display_name'] for i in range(len(non_nfs)-args.number,len(non_nfs))]
-            else:
-                hostnames_to_remove=[cn_instances[i]['display_name'] for i in range(len(cn_instances))]
+            additional_nodes_to_remove_number=args.number-len(hostnames_to_remove)
+            if additional_nodes_to_remove_number > 0:
+                if additional_nodes_to_remove_number < len(cn_instances):
+                    hostnames_to_remove=hostnames_to_remove+[non_nfs[i]['display_name'] for i in range(len(non_nfs)-additional_nodes_to_remove_number,len(non_nfs))]
+                else:
+                    hostnames_to_remove=[cn_instances[i]['display_name'] for i in range(len(cn_instances))]
         else:
-            if len(hostnames):
-                hostnames_to_remove2 = list(hostnames)
-                hostnames_to_remove2.extend(x for x in hostnames_to_remove if x not in hostnames_to_remove2)
-                hostnames_to_remove=hostnames_to_remove2
-            else:
-                hostnames_to_remove=hostnames
+            hostnames_to_remove2 = list(hostnames)
+            hostnames_to_remove2.extend(x for x in hostnames_to_remove if x not in hostnames_to_remove2)
+            hostnames_to_remove=hostnames_to_remove2
 
     if len(hostnames_to_remove):
         if not no_reconfigure:
