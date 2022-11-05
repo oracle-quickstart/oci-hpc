@@ -1,26 +1,7 @@
 ---
-# vars file for openldap
-
-openldap_packages:
-  - slapd
-  - ldap-utils
-  - openssl
-  - python3-pip
-  - libsasl2-dev
-  - libldap2-dev
-  - libssl-dev
-  - python-pexpect
-  - rpcbind
-  - nscd
-  - libpam-ldap
-  - libnss-ldapd
-
-openldap_default_user: openldap
-openldap_default_group: openldap
+# common vars file for openldap
 
 openldap_server_dir_path: /var/lib/ldap
-openldap_server_conf_path: /etc/ldap/slapd.d
-openldap_server_defaults_file: /etc/default/slapd
 
 openldap_endpoints: ldaps:/// ldapi:///
 openldap_host: 'controller.cluster'

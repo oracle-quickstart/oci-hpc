@@ -217,6 +217,8 @@
   become: true
   vars_files:
     - "/opt/oci-hpc/playbooks/roles/openldap/defaults/main.yml"
+    - "/opt/oci-hpc/playbooks/roles/openldap/vars/el_vars.yml"
+    - "/opt/oci-hpc/playbooks/roles/openldap/vars/debian_vars.yml"
   tasks: 
     - include_role: 
         name: sssd
