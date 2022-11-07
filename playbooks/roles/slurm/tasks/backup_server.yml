@@ -10,7 +10,7 @@
 - name: Render systemd units for slurmd and slurmdbd
   become: true
   template:
-    src: 'systemd/{{ item }}.service'
+    src: 'systemd/{{ item }}.service.j2'
     dest: '/lib/systemd/system/{{ item }}.service'
     backup: "yes"
   with_items:
