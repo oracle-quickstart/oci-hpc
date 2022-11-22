@@ -1,0 +1,262 @@
+---
+
+- name: get RackLine
+  shell: "scontrol show hostname `scontrol show topology {{item}} | grep -v inactive- | grep -v Switches= | rev | cut -d \"=\" -f 1 | rev`"
+  register: current_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+  with_items: "{{unreachable_slurm_nodes}}"
+
+- name: getNodes
+  set_fact:
+    nodes_on_switch: "{{nodes_on_switch | default({}) | combine({item.item : item.stdout_lines } ) }}"
+  with_items: "{{current_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) > 0
+
+- name: getNodes
+  set_fact:
+    nodes_on_switch: "{{nodes_on_switch | default({}) | combine({item.item : [] } ) }}"
+  with_items: "{{current_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) == 0
+
+- name: get SwitchNames
+  shell: "scontrol show topology {{item}} | grep -v inactive | grep -v Switches= | awk '{print $1}' | cut -d \"=\" -f 2"
+  register: current_switchName
+  run_once: true
+  delegate_to: 127.0.0.1
+  with_items: "{{unreachable_slurm_nodes}}"
+
+- name: get Switchname
+  set_fact:
+    switchnames: "{{switchnames | default({}) | combine({item.item : item.stdout} ) }}"
+  with_items: "{{current_switchName.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) > 0
+
+- name: get Switchname
+  set_fact:
+    switchnames: "{{switchnames | default({}) | combine({item.item : \"\" }) }}"
+  with_items: "{{current_switchName.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) == 0
+
+- name: get UpperSwitchNames
+  shell: "scontrol show topology {{item}} | grep -v inactive | grep Switches= | awk '{print $1}' | cut -d \"=\" -f 2"
+  register: current_UpperSwitchName
+  run_once: true
+  delegate_to: 127.0.0.1
+  with_items: "{{unreachable_slurm_nodes}}"
+
+- name: get UpperSwitchName
+  set_fact:
+    upperswitchnames: "{{upperswitchnames | default({}) | combine({item.item : item.stdout} ) }}"
+  with_items: "{{current_UpperSwitchName.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) > 0
+
+- name: get UpperSwitchName
+  set_fact:
+    upperswitchnames: "{{upperswitchnames | default({}) | combine({item.item : \"\" }) }}"
+  with_items: "{{current_UpperSwitchName.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) == 0
+
+# - name: debug
+#   debug: 
+#     msg: "Removing line SwitchName={{switchnames[item]}}\\sNodes=.*"
+#   with_items: "{{unreachable_slurm_nodes}}"
+#   ignore_unreachable: yes
+#   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) < 2 ) and ( switchnames[item] | length ) > 1
+#   run_once: true
+#   delegate_to: 127.0.0.1
+  
+- name: remove line from topology
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{switchnames[item]}}\\sNodes=.*"
+    state: absent
+  with_items: "{{unreachable_slurm_nodes}}"
+  ignore_unreachable: yes
+  when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) < 2 ) and ( switchnames[item] | length ) > 1
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: get other racks on switch
+  shell: "scontrol show topology {{upperswitchnames[item]}} | grep Switches= "
+  register: racks_on_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+  with_items: "{{unreachable_slurm_nodes}}"
+
+- name: getRacks
+  set_fact:
+    racks_on_switch_dict: "{{racks_on_switch_dict | default({}) | combine({item.item : item.stdout.split('Switches=')[1].split(',') } ) }}"
+  with_items: "{{racks_on_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout | length ) > 0
+
+- name: getRacks
+  set_fact:
+    racks_on_switch_dict: "{{racks_on_switch_dict | default({}) | combine({item.item : [] } ) }}"
+  with_items: "{{racks_on_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout | length ) == 0
+
+# - name: debug
+#   debug:
+#     msg: "Replacing line: SwitchName={{upperswitchnames[item]}}\\sSwitches.* with SwitchName={{upperswitchnames[item]}} Switches={{racks_on_switch_dict[item] | difference(switchnames[item]) | join(',') }}"
+#   with_items: "{{unreachable_slurm_nodes}}"
+#   when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) > 0 ) and ( upperswitchnames[item] | length ) > 1 
+#   run_once: true
+#   delegate_to: 127.0.0.1
+
+- name: change upper switch line from topology line
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{upperswitchnames[item]}}\\sSwitches.*"
+    line: "SwitchName={{upperswitchnames[item]}} Switches={{racks_on_switch_dict[item] | difference(switchnames[item]) | join(',') }}"
+    state: present
+  with_items: "{{unreachable_slurm_nodes}}"
+  ignore_errors: yes
+  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) > 0 ) and ( upperswitchnames[item] | length ) > 1 
+  run_once: true
+  delegate_to: 127.0.0.1
+
+# - name: debug
+#   debug:
+#     msg: "removing line line: SwitchName={{upperswitchnames[item]}}\\sSwitches.*"
+#   with_items: "{{unreachable_slurm_nodes}}"
+#   ignore_unreachable: yes
+#   when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1
+#   run_once: true
+#   delegate_to: 127.0.0.1
+
+- name: remove line from topology
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp:  "SwitchName={{upperswitchnames[item]}}\\sSwitches.*"
+    state: absent
+  with_items: "{{unreachable_slurm_nodes}}"
+  ignore_unreachable: yes
+  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: generate nodes_on_switch_condensed
+  shell: "scontrol show hostlistsorted {{nodes_on_switch[item] | difference([item]) | join(',')}}"
+  register: switch_condensed
+  with_items: "{{unreachable_slurm_nodes}}"
+  ignore_unreachable: yes
+  when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) > 1 ) and ( switchnames[item] | length ) > 1
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: get condensed_Nodes
+  set_fact:
+    nodes_on_switch_condensed: "{{nodes_on_switch_condensed | default({}) | combine({item.item : item.stdout } ) }}"
+  with_items: "{{switch_condensed.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  ignore_errors: yes
+
+# - name: debug
+#   debug:
+#     msg: "replacing line SwitchName={{switchnames[item]}}\\sNodes.* with SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
+#   with_items: "{{unreachable_slurm_nodes}}"
+#   ignore_errors: yes
+#   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch_condensed[item] | length ) > 1 )
+#   run_once: true
+#   delegate_to: 127.0.0.1
+
+- name: remove node from topology line
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{switchnames[item]}}\\sNodes.*"
+    line: "SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
+    state: present
+  with_items: "{{unreachable_slurm_nodes}}"
+  ignore_errors: yes
+  when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch_condensed[item] | length ) > 1 )
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: get inactiveLine
+  shell: "scontrol show hostname `scontrol show topology inactive-{{item.split('-node-')[0]}} | rev | cut -d \"=\" -f 1 | rev`"
+  register: inactive_switch
+  run_once: true
+  delegate_to: 127.0.0.1
+  with_items: "{{unreachable_slurm_nodes}}"
+
+- name: get Inactive Nodes
+  set_fact:
+    nodes_on_inactive_switch: "{{nodes_on_inactive_switch | default({}) | combine({item.item : item.stdout_lines } ) }}"
+  with_items: "{{inactive_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) > 0
+
+- name: get Inactive Nodes
+  set_fact:
+    nodes_on_inactive_switch: "{{nodes_on_inactive_switch | default({}) | combine({item.item : [] } ) }}"
+  with_items: "{{inactive_switch.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: ( item.stdout_lines | length ) == 0
+
+- name: generate nodes_on_inactive_switch_condensed
+  shell: "scontrol show hostlistsorted {{nodes_on_inactive_switch[item] | union([item]) | join(',')}}"
+  register: inactive_switch_condensed
+  with_items: "{{unreachable_slurm_nodes}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: get condensed_Nodes
+  set_fact:
+    nodes_on_switch_condensed: "{{nodes_on_inactive_switch_condensed | default({}) | combine({item.item : item.stdout } ) }}"
+  with_items: "{{inactive_switch_condensed.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+# - name: debug
+#   debug:
+#     msg: "replacing line SwitchName=inactive-{{item.split('-node-')[0]}}\\sNodes.* with SwitchName=inactive-{{item.split('-node-')[0]}} Nodes={{nodes_on_switch_condensed[item]}}"
+#   with_items: "{{unreachable_slurm_nodes}}"
+#   ignore_unreachable: yes
+#   delegate_to: 127.0.0.1
+#   run_once: true
+
+- name: add node to inactive line
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName=inactive-{{item.split('-node-')[0]}}\\sNodes.*"
+    line: "SwitchName=inactive-{{item.split('-node-')[0]}} Nodes={{nodes_on_switch_condensed[item]}}"
+    state: present
+  with_items: "{{unreachable_slurm_nodes}}"
+  ignore_unreachable: yes
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: change Node Status
+  become: true
+  command: "scontrol update nodename={{ item }} state=future reason=terminating"
+  ignore_errors: force
+  ignore_unreachable: True
+  with_items: "{{unreachable_slurm_nodes}}"
+  delegate_to: 127.0.0.1
+  when: ('bastion' in group_names)
+
+- name: Reconfigure Slurm for topology
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
+  run_once: true
