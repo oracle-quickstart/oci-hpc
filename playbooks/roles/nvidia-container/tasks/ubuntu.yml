@@ -23,6 +23,14 @@
   retries: 5
   delay: 5
 
+- name: Install nvidia-container-toolkit
+  vars:
+    package_name:
+      - nvidia-container-toolkit
+    package_state: latest
+    package_cache: true
+  include_role:
+    name: safe_yum
 
 - name: Start Docker
   ansible.builtin.service:
