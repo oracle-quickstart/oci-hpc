@@ -82,6 +82,32 @@ def write_inventory(dict,inventory):
             inv.write(line)
     inv.close()
 
+def remove_ip(filename,iplist):
+    tmp_filename=os.path.join('/tmp',os.path.basename(filename))
+    hostFile = open(filename,"r")
+    hostFile_tmp = open(tmp_filename,"w")
+    for line in hostFile:
+        if not line.strip() in iplist:
+            hostFile_tmp.write(line)
+    hostFile.close()
+    hostFile_tmp.close()
+    os.system('mv '+tmp_filename+' '+filename)
+
+def add_ip(filename,iplist):
+    ip_to_add= copy.deepcopy(iplist)
+    tmp_filename=os.path.join('/tmp',os.path.basename(filename))
+    hostFile = open(filename,"r")
+    hostFile_tmp = open(tmp_filename,"w")
+    for line in hostFile:
+        if line.strip() in iplist:
+            ip_to_add.remove(line.strip())
+        hostFile_tmp.write(line)
+    for ip in ip_to_add:
+        hostFile_tmp.write(ip+'\n')
+    hostFile.close()
+    hostFile_tmp.close()
+    os.system('mv '+tmp_filename+' '+filename)
+
 def backup_inventory(inventory):
     dateTimeObj = datetime.now()
     timestampStr = dateTimeObj.strftime("%d-%b-%Y-%H-%M-%S-%f")
@@ -512,9 +538,11 @@ else:
 
 if cluster_name == metadata['displayName'].replace('-bastion',''):
     inventory="/etc/ansible/hosts"
+    host_check_file="/tmp/hosts"
     autoscaling=False
 else:
     inventory= "/opt/oci-hpc/autoscaling/clusters/"+cluster_name+'/inventory'
+    host_check_file="/opt/oci-hpc/autoscaling/clusters/"+cluster_name+'/hosts_'+cluster_name
     autoscaling = True
 
 inventory_dict = parse_inventory(inventory)
