@@ -12,13 +12,17 @@
       vars:
         - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
       shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+      register: inactive_switch_condensed
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Get inactive list
+      command: "scontrol show hostname {{inactive_switch_condensed.stdout.split('Nodes=')[1] }}"
       register: inactive_switch
       run_once: true
       delegate_to: 127.0.0.1
     - name: Create inactive list
       set_fact:
-        inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
-      run_once: true
+        inactive_list: "{{inactive_switch.stdout_lines}}"
   rescue:
     - name: Create inactive cluster list
       set_fact:
@@ -156,6 +160,11 @@
   delegate_to: 127.0.0.1
   when: racks_left_list | list | length > 0
 
+- name: Get new inactive_nodes list
+  command: "scontrol show hostlistsorted {{inactive_list | union(nodes_to_remove) | join(',')}}"
+  register: new_inactive_list
+  run_once: true
+  delegate_to: 127.0.0.1
 
 - name: Adding nodes to inactive
   vars:
@@ -164,7 +173,7 @@
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | union(nodes_to_remove)  | join(',')}}"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{new_inactive_list.stdout }}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
