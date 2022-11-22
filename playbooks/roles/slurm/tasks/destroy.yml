@@ -10,12 +10,17 @@
   block:
     - name: Get nodes from topology.conf
       shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{cluster_name}}\""
+      register: cluster_switch_condensed
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Get actual cluster list
+      command: "scontrol show hostname {{cluster_switch_condensed.stdout.split('Nodes=')[1] }}"
       register: cluster_switch
       run_once: true
       delegate_to: 127.0.0.1
     - name: Create existing cluster list
       set_fact:
-        cluster_list: "{{cluster_switch.stdout.split('Nodes=')[1].split(',')}}"
+        cluster_list: "{{cluster_switch.stdout_lines}}"
   rescue:
     - name: Create existing cluster list
       set_fact:
@@ -27,16 +32,25 @@
       vars:
         - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
       shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+      register: inactive_switch_condensed
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Get inactive list
+      command: "scontrol show hostname {{inactive_switch_condensed.stdout.split('Nodes=')[1] }}"
       register: inactive_switch
       run_once: true
       delegate_to: 127.0.0.1
     - name: Create inactive list
       set_fact:
-        inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
+        inactive_list: "{{inactive_switch.stdout_lines}}"
+      run_once: true
+      delegate_to: 127.0.0.1
   rescue:
     - name: Create inactive cluster list
       set_fact:
         inactive_list: []
+      run_once: true
+      delegate_to: 127.0.0.1
 
 - name: Get hostnames
   set_fact:
@@ -49,12 +63,19 @@
   set_fact: nodes_to_add="{{nodes_to_add_temp_results.results | map(attribute='ansible_facts.nodes_to_add_temp') | list}}"
   run_once: true
 
+- name: Get new cluster_list
+  command: "scontrol show hostlistsorted {{cluster_list | difference(nodes_to_add) | join(',') }}"
+  register: new_cluster_list
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: cluster_list | difference(nodes_to_add) | length > 0
+
 - name: remove nodes from Switch
   become: true
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{cluster_name}}\\sNodes.*"
-    line: "SwitchName={{cluster_name}} Nodes={{cluster_list | difference(nodes_to_add) | join(',')}}"
+    line: "SwitchName={{cluster_name}} Nodes={{new_cluster_list.stdout}}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
@@ -70,6 +91,12 @@
   delegate_to: 127.0.0.1
   when: cluster_list | difference(nodes_to_add) | join(',') == ''
 
+- name: Get new inactive_nodes list
+  command: "scontrol show hostlistsorted {{inactive_list | union(nodes_to_add) | join(',')}}"
+  register: new_inactive_list
+  run_once: true
+  delegate_to: 127.0.0.1
+
 - name: Adding nodes to inactive
   vars:
     - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
@@ -77,7 +104,7 @@
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | union(nodes_to_add)  | join(',')}}"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{new_inactive_list.stdout}}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1

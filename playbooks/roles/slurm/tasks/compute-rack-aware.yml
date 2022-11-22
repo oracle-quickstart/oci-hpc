@@ -123,19 +123,49 @@
   run_once: true
   with_items: "{{racks_to_add}}"
 
+- name: Get hostlist
+  vars: 
+    new_line: "{{item.stdout}}{% if item.stdout != ''%},{% endif%}{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if hostvars[node]['rackID'] == item.item.split(':')[1] and (not ((hostvars[node]['ansible_hostname'] in item.stdout.split(',')|list)|bool)) %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+  command: "scontrol show hostlistsorted {{new_line[:-1]}}"
+  register: rack_hostlist
+  delegate_to: 127.0.0.1
+  with_items: "{{nodes_in_switch.results}}"
+
+- name: debug
+  debug: 
+    var: rack_hostlist.results
+
 - name: Add the nodes in the rack switches
   become: true
-  vars:
-    new_line: "SwitchName={{item.item}} Nodes={{item.stdout}}{% if item.stdout != ''%},{% endif%}{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if hostvars[node]['rackID'] == item.item.split(':')[1] and (not ((hostvars[node]['ansible_hostname'] in item.stdout.split(',')|list)|bool)) %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{item.item}}\\sNodes.*"
-    line: "{{new_line[:-1]}}"
+    line: "SwitchName={{item.item}} Nodes={{rack_hostlist.stdout}}"
     state: present
   run_once: true
   with_items: "{{nodes_in_switch.results}}"
   delegate_to: 127.0.0.1
   notify: reconfigure slurm
+
+- name: Get inactive_hostlist
+  vars:
+    - inactive_list_condensed: "{{inactive_switch.stdout.split('Nodes=')[1]}}"
+  command: "scontrol show hostname {{inactive_list_condensed }}"
+  register: inactive_hostlist
+  delegate_to: 127.0.0.1
+
+- name: debug
+  debug: 
+    msg: "{{inactive_hostlist_condensed.stdout}}"
+
+- name: Create new inactive_hostlist
+  command: "scontrol show hostlistsorted {{inactive_hostlist.stdout_lines | difference(nodes_to_add) | join(',')  }}"
+  register: inactive_hostlist_condensed
+  delegate_to: 127.0.0.1
+
+- name: debug
+  debug: 
+    var: inactive_hostlist_condensed.stdout
 
 - name: remove nodes from inactive
   become: true
@@ -145,7 +175,7 @@
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | difference(nodes_to_add)  | join(',')}}"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_hostlist_condensed.stdout}}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
@@ -203,3 +233,4 @@
   retries: 10
   delay: 5
   until: result is not failed
+  delegate_to: 127.0.0.1
