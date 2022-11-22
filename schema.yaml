@@ -88,7 +88,6 @@ variableGroups:
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
-      - ${localdisk}
   - title: "Advanced bastion options"
     variables:
       - ${use_standard_image}
