@@ -64,7 +64,7 @@ def getJobs():
     return stdout.split("\n")[1:]
 
 def getClusters():
-    out = subprocess.Popen(['sinfo','-hNr','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    out = subprocess.Popen(['sinfo','-hN','-o','\"%T %E %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
@@ -100,7 +100,7 @@ def getIdleTime(node):
         print ("scontrol show node "+node+" | grep SlurmdStartTime | awk '{print $2}'")
         print ("Here is the output it generated")
         print (stdout)
-        print ("The cluster will be deleted")
+        print ("The node will be deleted")
         cluster_start_time=datetime.datetime.now()-datetime.timedelta(hours=24)
     if last_end_time is None:
         right_time=cluster_start_time
@@ -256,7 +256,7 @@ def getstatus_slurm():
                     current_nodes[queue][instanceType]=1
             else:
                 current_nodes[queue]={instanceType:1}
-            if line.split()[0] == '\"idle':
+            if line.split()[0] == '\"idle' or line.split()[0] == '\"down' or line.split()[0].endswith('*'):
                 if not os.path.isdir(os.path.join(clusters_path,clustername)):
                     continue
                 node_idle_time=getIdleTime(node)
@@ -362,13 +362,21 @@ try:
     for cluster_name in nodes_to_destroy.keys():
         print ("Resizing cluster "+cluster_name)
         initial_nodes=[]
+        unreachable_nodes=[]
         for node in nodes_to_destroy[cluster_name]:
-            alt_names=subprocess.check_output(["cat /etc/hosts | grep "+node],shell=True,universal_newlines=True)
-            for alt_name in alt_names.split("\n")[0].split():
-                if alt_name.startswith('inst-'):
-                    initial_nodes.append(alt_name)
-                    break
-        subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--remove_unreachable','--nodes']+initial_nodes)
+            try:
+                alt_names=subprocess.check_output(["cat /etc/hosts | grep "+node],shell=True,universal_newlines=True)
+                for alt_name in alt_names.split("\n")[0].split():
+                    if alt_name.startswith('inst-'):
+                        initial_nodes.append(alt_name)
+                        break
+            except:
+                unreachable_nodes.append(node)    
+        if len(initial_nodes) > 0:
+            subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--remove_unreachable','--nodes']+initial_nodes)
+        if len(unreachable_nodes) > 0:
+            subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove_unreachable','--nodes']+unreachable_nodes)
+        
         time.sleep(1)
 
     for index,cluster in enumerate(cluster_to_build):
