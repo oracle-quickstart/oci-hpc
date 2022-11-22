@@ -47,6 +47,19 @@ else
   status_terraform_deletion=$?
   while [ $i -lt 5 ] && [ $status_terraform_deletion -ne 0 ]
   do
+    indexerror=`tail $logs_folder/delete_${cluster_id}.log -n 25 | grep "Error:" | grep "Invalid index" | wc -l`
+    if [ $indexerror -ne 0 ]
+    then
+        actualSize=`tail $logs_folder/delete_${cluster_id}.log -n 25 | grep "data.oci_core_instance_pool_instances.instance_pool_instances\[0\].instances" | grep "is list of object with" | awk '{print $10}' | tail -n 1`
+        tmp_serial=`cat terraform.tfstate | grep "\"serial\"" | awk '{print $2}'`
+        serial=${tmp_serial::-1}
+        tmp_size=`cat terraform.tfstate | grep "\"size\"" | awk '{print $2}'`
+        size=${tmp_size::-1}
+        sed "s~\"serial\": $serial~\"serial\": $((serial+1))~g;s~\"size\": $size~\"size\": ${actualSize}~g" terraform.tfstate > /tmp/$1.tfstate
+        terraform state push /tmp/$1.tfstate
+        sed "s~variable \"node_count\" { default=\"$size\"~variable \"node_count\" { default=\"$actualSize\"~g" variables.tf > /tmp/$1_variables.tf
+        mv /tmp/$1_variables.tf variables.tf
+    fi
     echo `date -u '+%Y%m%d%H%M'` >> $logs_folder/delete_${cluster_id}.log 2>&1
     terraform init >> $logs_folder/delete_${cluster_id}.log 2>&1
     terraform destroy -auto-approve >> $logs_folder/delete_${cluster_id}.log 2>&1
