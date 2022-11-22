@@ -49,5 +49,5 @@
     content: |
       required /usr/local/lib/slurm/spank_pyxis.so
     mode: '0775'
-    owner: "{{ ansible_user }}"
+    owner: "{{bastion_username}}"
     group: "{{privilege_group_name}}"
