@@ -130,20 +130,17 @@
   register: rack_hostlist
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-
-- name: debug
-  debug: 
-    var: rack_hostlist.results
+  run_once: true
 
 - name: Add the nodes in the rack switches
   become: true
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName={{item.item}}\\sNodes.*"
-    line: "SwitchName={{item.item}} Nodes={{rack_hostlist.stdout}}"
+    regexp: "SwitchName={{item.item.item}}\\sNodes.*"
+    line: "SwitchName={{item.item.item}} Nodes={{item.stdout}}"
     state: present
   run_once: true
-  with_items: "{{nodes_in_switch.results}}"
+  with_items: "{{rack_hostlist.results}}"
   delegate_to: 127.0.0.1
   notify: reconfigure slurm
 
@@ -154,18 +151,10 @@
   register: inactive_hostlist
   delegate_to: 127.0.0.1
 
-- name: debug
-  debug: 
-    msg: "{{inactive_hostlist_condensed.stdout}}"
-
 - name: Create new inactive_hostlist
   command: "scontrol show hostlistsorted {{inactive_hostlist.stdout_lines | difference(nodes_to_add) | join(',')  }}"
   register: inactive_hostlist_condensed
   delegate_to: 127.0.0.1
-
-- name: debug
-  debug: 
-    var: inactive_hostlist_condensed.stdout
 
 - name: remove nodes from inactive
   become: true
