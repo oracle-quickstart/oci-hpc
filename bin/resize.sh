@@ -58,6 +58,7 @@ then
     if [ -f "currently_resizing" ] && [[ $2 != FORCE ]]
     then
       echo "The cluster is already being resized"
+      exit
     else
       echo $cluster_name >> currently_resizing
       echo `date -u '+%Y%m%d%H%M'` >> $log 2>&1
@@ -76,7 +77,7 @@ then
   fi
 
   python3 $folder/resize.py ${@} | tee -a $log 2>&1 | grep STDOUT
-  status=$?
+  status=${PIPESTATUS[0]}
   end=`date -u +%s`
   end_timestamp=`date -u +'%F %T'`
   runtime=$((end-start))
