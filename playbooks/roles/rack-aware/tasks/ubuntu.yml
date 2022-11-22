@@ -1,11 +1,11 @@
-  - name: Install Pip3
-    vars: 
-      package_name: 
-        - python3-pip
-      package_state: latest
-    include_role: 
-      name: safe_yum
-    ignore_errors: true
+- name: Install Pip3
+  vars: 
+    package_name: 
+      - python3-pip
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
 
 - name: install pssh and parallel-ssh
   become: true
