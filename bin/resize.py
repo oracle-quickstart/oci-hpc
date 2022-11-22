@@ -127,9 +127,13 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
     write_inventory(inventory_dict,tmp_inventory_destroy)
     if not len(ips_to_remove):
         print("No hostname found, trying anyway with "+" ".join(nodes_to_remove))
-        update_flag = update_cluster(tmp_inventory_destroy,playbook,add_vars={"unreachable_node_list":','.join(nodes_to_remove)})
+        for node in nodes_to_remove: # Temporary fix while the playbook is changed to be able to run multiple at the time
+            update_flag = update_cluster(tmp_inventory_destroy,playbook,add_vars={"unreachable_node_list":node})
+            time.sleep(10)
     else:
-        update_flag = update_cluster(tmp_inventory_destroy,playbook,add_vars={"unreachable_node_list":','.join(ips_to_remove)})
+        for ip in ips_to_remove: # Temporary fix while the playbook is changed to be able to run multiple at the time
+            update_flag = update_cluster(tmp_inventory_destroy,playbook,add_vars={"unreachable_node_list":ip})
+            time.sleep(10)
     if update_flag == 0:
         os.remove(tmp_inventory_destroy)
         inventory_dict['compute_to_destroy']=[]
@@ -242,12 +246,12 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
             inventory_dict['nfs'].append(inventory_dict['compute_to_add'][0])
         elif len(inventory_dict['compute_configured']) > 0:
             inventory_dict['nfs'].append(inventory_dict['compute_configured'][0])
-    hostfile=open("/tmp/hosts",'w')
+    hostfile=open("/tmp/hosts_"+cluster_name,'w')
     hostfile.write("\n".join(host_to_wait_for))
     hostfile.close()
     tmp_inventory_add="/tmp/"+inventory.replace('/','_')+"_add"
     write_inventory(inventory_dict,tmp_inventory_add)
-    update_flag = update_cluster(tmp_inventory_add,playbooks_dir+"resize_add.yml",hostfile="/tmp/hosts")
+    update_flag = update_cluster(tmp_inventory_add,playbooks_dir+"resize_add.yml",hostfile="/tmp/hosts_"+cluster_name)
     if update_flag == 0:
         os.remove(tmp_inventory_add)
         for line in inventory_dict['compute_to_add']:
@@ -291,7 +295,7 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
             inventory_dict['nfs'].append(inventory_dict['compute_to_add'][0])
         elif len(inventory_dict['compute_configured']) > 0:
             inventory_dict['nfs'].append(inventory_dict['compute_configured'][0])
-    hostfile=open("/tmp/hosts",'w')
+    hostfile=open("/tmp/hosts_"+cluster_name,'w')
     hostfile.write("\n".join(host_to_wait_for))
     hostfile.close()
     tmp_inventory_reconfig="/tmp/"+inventory.replace('/','_')+"_reconfig"
@@ -302,7 +306,7 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
         playbook=playbooks_dir+"site.yml"
     if crucial:
         playbook=playbooks_dir+"resize_remove.yml"
-    update_flag = update_cluster(tmp_inventory_reconfig,playbook,hostfile="/tmp/hosts")
+    update_flag = update_cluster(tmp_inventory_reconfig,playbook,hostfile="/tmp/hosts_"+cluster_name)
     if update_flag == 0:
         os.system('sudo mv '+tmp_inventory_reconfig+' '+inventory)
     else:
@@ -455,7 +459,23 @@ def updateTFState(inventory,cluster_name,size):
                 tmpTFState.write(line)
         tmpTFState.close()
         TFState.close()
+
+        TFvarName = os.path.join(os.path.dirname(inventory),'variables.tf')
+        if not os.path.isfile(TFStateName) or inventory == "/etc/ansible/hosts":
+            return 0
+        tmpTFVarName = '/tmp/'+cluster_name+'_variables.tf'
+        TFVar=open(TFvarName,'r')
+        tmpTFVar=open(tmpTFVarName,'w')
+        for line in TFVar:
+            if line.strip().startswith('variable "node_count"'):
+                currentsize=int(line.strip().split('default="')[1].split('"')[0])
+                tmpTFVar.write(line.replace(str(currentsize),str(size)))
+            else:
+                tmpTFVar.write(line)
+        tmpTFVar.close()
+        TFVar.close()
         os.system("cd "+os.path.dirname(inventory)+";terraform state push "+tmpTFStateName)
+        os.system("mv "+tmpTFVarName+" "+TFvarName)
         return 1
     except:
         return 0
@@ -663,8 +683,6 @@ else:
                 except:
                     print("The instance "+instanceName+" does not exist")
             hostnames_to_remove=hostnames_to_remove[batchsize:]
-            if len(hostnames_to_remove)>0:
-                time.sleep(100)
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
         newsize=ip_summary.size
         updateTFState(inventory,cluster_name,newsize)
