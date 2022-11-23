@@ -90,6 +90,9 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   sudo apt-get -y install ansible python python-netaddr python3-pip terraform
 
+  pip install pip --upgrade
+  pip install pyopenssl --upgrade
+
   # install oci-cli
   bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults
 
