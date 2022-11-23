@@ -3,6 +3,7 @@
 - name: install SLURM server packages RedHat
   vars: 
     package_name: '{{ slurm_server_packages }}'
+    disable_gpg_check_var: True
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
