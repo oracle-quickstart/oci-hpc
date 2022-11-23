@@ -9,6 +9,7 @@
         state: "{{package_state|default('present')}}"
         update_cache: "{{package_cache | default('false') | bool}}"
         lock_timeout: 180
+        disable_gpg_check: "{{ disable_gpg_check_var| default('false') | bool}}"
       when: package_repo|default('None') != 'None'
       async: 200
       poll: 10
@@ -31,6 +32,7 @@
         state: "{{package_state|default('present')}}"
         update_cache: "{{package_cache | default('false') | bool}}"
         lock_timeout: 180
+        disable_gpg_check: "{{ disable_gpg_check_var| default('false') | bool}}"
       when: package_repo|default('None') == 'None'
       async: 200
       poll: 10
@@ -64,6 +66,7 @@
         state: "{{package_state | default('present')}}"
         update_cache: "{{package_cache | default('false') | bool}}"
         lock_timeout: 90
+        disable_gpg_check: "{{ disable_gpg_check_var| default('false') | bool}}"
       register: packages_output
       retries: 5
       delay: 10

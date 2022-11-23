@@ -76,6 +76,7 @@
   vars:
     package_name: '{{ slurm_common_packages }}'
     package_repo: "{{slurm_repos}}"
+    disable_gpg_check_var: True
   include_role:
     name: safe_yum
   when: ansible_os_family == 'RedHat'
