@@ -28,6 +28,18 @@ or:
 
 `Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName`
 
+
+## Supported OS: 
+The stack allowa various combination of OS. Here is a list of what has been tested. We can't guarantee any of the other combination.
+
+|     Bastion   |    Compute   |
+|---------------|--------------|
+|      OL7      |      OL7     |  
+|      OL7      |      OL8     |
+|      OL7      |    CentOS7   |
+| Ubuntu  20.04 | Ubuntu 20.04 |
+
+When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the bastion and compute nodes. 
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
@@ -60,7 +72,7 @@ usage: resize.sh [-h] [--compartment_ocid COMPARTMENT_OCID]
 Script to resize the CN
 
 positional arguments:
-  {add,remove,list,reconfigure}
+  {add,remove,remove_unreachable,list,reconfigure}
                         Mode type. add/remove node options, implicitly
                         configures newly added nodes. Also implicitly
                         reconfigure/restart services like Slurm to recognize
@@ -87,8 +99,15 @@ optional arguments:
                         instance_principal
   --force               If present. Nodes will be removed even if the destroy
                         playbook failed
+  --ansible_crucial     If present during reconfiguration, only crucial
+                        ansible playbooks will be executed on the live nodes.
+                        Non live nodes will be removed
   --remove_unreachable  If present, nodes that are not sshable will be removed
-                        from the config. They will however not be removed from Slurm to avoid losing track of the down nodes. If you need to remove them from Slurm after terminating the nodes in the console. Run sudo scontrol update nodename=name state=Future. 
+                        from the config. They will however not be removed from
+                        Slurm to avoid losing track of the down nodes. If you
+                        need to remove them from Slurm after terminating the
+                        nodes in the console. Run sudo scontrol update
+                        nodename=name state=Future 
 ```
 
 **Add nodes** 
@@ -105,9 +124,9 @@ Add one node
 
 ```
 
-Add three nodes
+Add three nodes to cluster compute-1-hpc
 ```
-/opt/oci-hpc/bin/resize.sh add 3
+/opt/oci-hpc/bin/resize.sh add 3 --cluster_name compute-1-hpc
 
 ```
 
@@ -136,9 +155,9 @@ Remove one node randomly:
 /opt/oci-hpc/bin/resize.sh remove 1
 ```
 or 
-Remove 3 nodes randomly:  
+Remove 3 nodes randomly from compute-1-hpc:  
 ```
-/opt/oci-hpc/bin/resize.sh remove 3
+/opt/oci-hpc/bin/resize.sh remove 3 --cluster_name compute-1-hpc
 
 ```
 

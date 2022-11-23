@@ -28,7 +28,7 @@
 - name: run compute directives
   vars: 
     slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
-  include_tasks: compute{{rack_aware_playbook_suffix}}.yml
+  include_tasks: "compute{{rack_aware_playbook_suffix}}.yml"
   when: ('compute' in group_names) and (not destroy|bool)
 
 - name: cleanup
