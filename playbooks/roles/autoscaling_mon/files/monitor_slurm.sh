@@ -39,27 +39,30 @@ def getAllHosts(rangedHost):
     output = subprocess.check_output("scontrol show hostname "+rangedHost, shell=True,encoding='utf8',universal_newlines=True)
     return output.split("\n")
 
-def getTopology():
-    topology={}
-    if os.path.isfile("/etc/slurm/topology.conf"):
-        topologyfilepath="/etc/slurm/topology.conf"
-    else : 
-        return {}
-    topologyfile=open(topologyfilepath,'r')
-    for line in topologyfile:
-        splittedline=line.strip().split(" Nodes=")
-        try:
-            clusterName=splittedline[0].split('SwitchName=')[1]
-        except:
-            continue
-        topology[clusterName]=splittedline[1].split(',')
-    return topology
+def getTopology(clusterName):
+    out = subprocess.Popen(['scontrol','show','topology',clusterName], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    stdout,stderr = out.communicate()
+    for item in stdout.strip().split():
+        if item.startswith("Nodes="):
+            nodes_condensed=item.split("Nodes=")[1]
+            out2 = subprocess.Popen(['scontrol','show','hostname',nodes_condensed], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            stdout2,stderr2 = out2.communicate()    
+            print(stdout2.strip().split())
+            return stdout2.strip().split()
+    return []
 
-def getClusterName(topology,node):
-    for key in topology.keys():
-        if node in topology[key]:
-            return key
-    return None
+
+def getClusterName(node):
+    out = subprocess.Popen(['scontrol','show','topology',node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    stdout,stderr = out.communicate()
+    clusterName = None
+    if len(stdout.split('\n')) > 2:
+        for output in stdout.split('\n')[:-1]:
+            if "Switches=" in output:
+                clusterName=output.split()[0].split('SwitchName=')[1]
+    elif len(stdout.split('\n')) == 2:
+        clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+    return clusterName
 
 #def getCPUsDetails(job):
 #    out = subprocess.Popen(['scontrol','show','job',job,'-d','|','grep','\" Nodes=.*CPU_IDs\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
@@ -72,7 +75,6 @@ cursor=connection.cursor()
 cursor.execute("use cluster_log;")
 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 now_utc=datetime.datetime.now().astimezone(pytz.utc).strftime("%Y-%m-%d %H:%M:%S")
-topology=getTopology()
 
 for line in getAllJobs():
     splittedLine=line.split('|')
@@ -114,7 +116,7 @@ for line in getAllJobs():
             # added "from dual" as mariadb (for Ubuntu) requires it
             mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,state,class_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','queued','"""+queue+"""' from dual Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         elif end == "Unknown":
-            clustername = getClusterName(topology,nodenames[0])
+            clustername = getClusterName(nodenames[0])
             # added "from dual" as mariadb (for Ubuntu) requires it
             mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,queue_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','running','"""+queue+"""','"""+clustername+"""' from dual Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         else:
@@ -128,7 +130,7 @@ for line in getAllJobs():
                 print(state+" was not failed, cancelled or completed")
                 continue
             try:
-                clustername = getClusterName(topology,nodenames[0])
+                clustername = getClusterName(nodenames[0])
             except:
                 clustername= ''
             # added "from dual" as mariadb (for Ubuntu) requires it
