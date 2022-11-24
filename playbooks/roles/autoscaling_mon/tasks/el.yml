@@ -139,12 +139,12 @@
   when: not autoscaling_mysql_service | bool
 
 - name: Create initial DB
-  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/mysql_service_initial.sql"
+  shell: "source /opt/oci-hpc/monitoring/env; mysql -u {{ admin_username }} -p{{ mysql_root_pwd }} < /opt/oci-hpc/monitoring/mysql_service_initial.sql"
   ignore_errors: yes
   when: autoscaling_mysql_service | bool
 
 - name: Create initial DB
-  shell: "source /opt/oci-hpc/monitoring/env; mysqlsh {{ admin_username }}@{{ monitoring_mysql_ip }} -p{{ mysql_root_pwd }} --sql --file /opt/oci-hpc/monitoring/initial.sql"
+  shell: "source /opt/oci-hpc/monitoring/env; mysql -u {{ admin_username }} -p{{ mysql_root_pwd }} < /opt/oci-hpc/monitoring/initial.sql"
   ignore_errors: yes
 
 - name: Monitoring activated
