@@ -51,6 +51,7 @@ else
     if [ $indexerror -ne 0 ]
     then
         actualSize=`tail $logs_folder/delete_${cluster_id}.log -n 25 | grep "data.oci_core_instance_pool_instances.instance_pool_instances\[0\].instances" | grep "is list of object with" | awk '{print $10}' | tail -n 1`
+        if [[ "$actualSize" == "" ]] ; then actualSize=0; fi
         tmp_serial=`cat terraform.tfstate | grep "\"serial\"" | awk '{print $2}'`
         serial=${tmp_serial::-1}
         tmp_size=`cat terraform.tfstate | grep "\"size\"" | awk '{print $2}'`
