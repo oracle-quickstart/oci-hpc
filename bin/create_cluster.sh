@@ -72,6 +72,12 @@ do
     mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,creation_log,nodes,trigger_job_id,class_name,shape,CN,cpu_per_node,cluster_name,state,started_creation) VALUES ('$2_${date}','create_$2_${date}.log','$1','$5','$4','$shape',$cluster_network,36,'$2','creating','$start_timestamp');" >> $logs_folder/create_$2_${date}.log 2>&1
     for i in $(eval echo "{1..$1}"); do
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,started_creation,state,class_name,shape) VALUES ('$2_${date}',$i,36,'$start_timestamp','provisioning','$4','$shape');" >> $logs_folder/create_$2_${date}.log 2>&1
+      succeded=$?
+      if [ $succeded -ne 0 ]
+      then
+        sleep 1
+        mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,started_creation,state,class_name,shape) VALUES ('$2_${date}',$i,36,'$start_timestamp','provisioning','$4','$shape');" >> $logs_folder/create_$2_${date}.log 2>&1
+      fi
     done
   fi
 
