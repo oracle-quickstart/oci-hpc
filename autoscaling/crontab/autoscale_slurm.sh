@@ -27,35 +27,17 @@ def israckaware():
                 break
     return rackware
 
-def getTopology():
-    topology={}
-    if os.path.isfile("/etc/slurm/topology.conf"):
-        topologyfilepath="/etc/slurm/topology.conf"
-    else : 
-        return {}
-    topologyfile=open(topologyfilepath,'r')
-    for line in topologyfile:
-        if israckaware:
-            splittedline=line.strip().split(" Nodes=")
-            if len(splittedline)==1:
-                continue
-            switchName=splittedline[0].split('SwitchName=')[1]
-            if len(switchName.split(':')) == 1:
-                clusterName=switchName
-            else :
-                clusterName=':'.join(splittedline[0].split('SwitchName=')[1].split(':')[:-1])
-            if clusterName in topology.keys():
-                topology[clusterName]=topology[clusterName]+splittedline[1].split(',')
-            else:
-                topology[clusterName]=splittedline[1].split(',')
-        else:
-            splittedline=line.strip().split(" Nodes=")
-            try:
-                clusterName=splittedline[0].split('SwitchName=')[1]
-            except:
-                continue
-            topology[clusterName]=splittedline[1].split(',')
-    return topology
+def getTopology(clusterName):
+    out = subprocess.Popen(['scontrol','show','topology',clusterName], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    stdout,stderr = out.communicate()
+    for item in stdout.strip().split():
+        if item.startswith("Nodes="):
+            nodes_condensed=item.split("Nodes=")[1]
+            out2 = subprocess.Popen(['scontrol','show','hostname',nodes_condensed], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            stdout2,stderr2 = out2.communicate()    
+            print(stdout2.strip().split())
+            return stdout2.strip().split()
+    return []
 # Get the list of Jobs in all states
 def getJobs():
     # changing the position of Dependency as it is giving blank instead of null. to handle that, putting it at the end.
@@ -178,15 +160,20 @@ def getAllClusterNames(config):
             availableNames[partition["name"]][instance_type["name"]]=range(1,int(instance_type["max_cluster_count"])+1)
     return availableNames
 
-def getClusterName(topology,node):
-    for key in topology.keys():
-        if node in topology[key]:
-            return key
-    return None
+def getClusterName(node):
+    out = subprocess.Popen(['scontrol','show','topology',node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    stdout,stderr = out.communicate()
+    clusterName = None
+    if len(stdout.split('\n')) > 2:
+        for output in stdout.split('\n')[:-1]:
+            if "Switches=" in output:
+                clusterName=output.split()[0].split('SwitchName=')[1]
+    elif len(stdout.split('\n')) == 2:
+        clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+    return clusterName
 
 def getstatus_slurm():
     cluster_to_build=[]
-    topology=getTopology()
 
     # Get cluster to build
     # squeue -O STATE,JOBID,FEATURE:100,NUMNODES,Partition,UserName,Dependency
@@ -245,7 +232,7 @@ def getstatus_slurm():
             details=getNodeDetails(node).split(' ')
             features=details[0].split(',')
             queue=details[-1]
-            clustername=getClusterName(topology,node)
+            clustername=getClusterName(node)
             if clustername is None:
                 continue
             instanceType=features[-1]
@@ -280,7 +267,7 @@ def getstatus_slurm():
             nodes_to_destroy[clustername]=nodes_to_destroy_temp[clustername]
             destroyEntireCluster=False
         else:
-            for node in topology[clustername]:
+            for node in getTopology(clustername):
                 if not node in nodes_to_destroy_temp[clustername]:
                     nodes_to_destroy[clustername]=nodes_to_destroy_temp[clustername]
                     destroyEntireCluster=False
