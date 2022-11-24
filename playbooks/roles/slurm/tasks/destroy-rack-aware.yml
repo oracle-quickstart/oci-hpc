@@ -78,7 +78,7 @@
   run_once: true
 
 - name: Get nodes in Switch
-  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}}\" | grep Nodes | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'"
+  shell: "scontrol show hostname `cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}}\" | grep Nodes | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'`"
   register: nodes_in_switch
   delegate_to: 127.0.0.1
   with_items: "{{racks_to_remove}}"
@@ -89,15 +89,15 @@
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) == 0
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) == 0
 
 - name: Remove Node From Rack
   debug:
-    msg: "In Rack {{item.item}}, leave only nodes {{item.stdout.split(',') | list | difference(nodes_to_remove) }}"
+    msg: "In Rack {{item.item}}, leave only nodes {{item.stdout_lines | difference(nodes_to_remove) }}"
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) > 0
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) > 0
 
 - name: Remove Rack Completely
   become: true
@@ -108,19 +108,19 @@
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) == 0
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) == 0
 
 - name: Remove Nodes from Rack Switch
   become: true
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{item.item}}\\sNodes.*"
-    line: "SwitchName={{item.item}} Nodes={{ item.stdout.split(',') | list | difference(nodes_to_remove) | join(',') }}"
+    line: "SwitchName={{item.item}} Nodes={{ item.stdout_lines | difference(nodes_to_remove) | join(',') }}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) > 0 and (item.stdout != "" ) 
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) > 0 and (item.stdout != "" ) 
 
 - name: Get left Over racks from Cluster
   block:
