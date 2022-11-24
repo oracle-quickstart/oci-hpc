@@ -396,7 +396,6 @@ resource "null_resource" "cluster_backup" {
 
   provisioner "remote-exec" {
     inline = [
-      "chmod 755 /opt/oci-hpc/autoscaling/*.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/credentials/key.sh",
       "/opt/oci-hpc/autoscaling/credentials/key.sh /opt/oci-hpc/autoscaling/credentials/key.initial /opt/oci-hpc/autoscaling/credentials/key.pem > /opt/oci-hpc/autoscaling/credentials/key.log",
