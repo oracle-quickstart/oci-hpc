@@ -90,9 +90,17 @@ else
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET deleted='$end_timestamp',state='deleted',deletion_time=SEC_TO_TIME($runtime),deletion_log='$logs_folder/delete_${cluster_id}.log',deletion_tries=deletion_tries+1 WHERE id='$cluster_id'" >> $logs_folder/delete_${cluster_id}.log 2>&1
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id'" >> $logs_folder/delete_${cluster_id}.log 2>&1
     fi
+    nodes=`scontrol show topology $1 | grep Nodes | awk '{print $NF}' | sed "s/Nodes=//"`
+    if [ `echo $nodes | wc -w` > 0 ]
+    then
+        for node in `scontrol show hostname $nodes`
+        do
+            echo "Cleaning up node " $node
+            /opt/oci-hpc/bin/resize.sh remove_unreachable --nodes $node 
+        done
+    fi
     cd
     rm -rf $autoscaling_folder/clusters/$1 | tee -a $logs_folder/delete_${cluster_id}.log 2>&1
-
   else
     echo "Could not delete cluster $1 in 5 tries (Time: $runtime seconds)"
     rm currently_destroying
