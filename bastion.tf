@@ -300,7 +300,7 @@ resource "null_resource" "cluster" {
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
       region = var.region,
       ad = var.use_multiple_ads? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
-      private_subnet = var.private_subnet,
+      private_subnet = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id = local.subnet_id,
       targetCompartment = var.targetCompartment,
       instance_pool_ocpus = var.instance_pool_ocpus,
@@ -328,7 +328,7 @@ resource "null_resource" "cluster" {
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block,
       public_subnet_id = local.bastion_subnet_id,
-      private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
+      private_subnet = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id = local.subnet_id,
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
