@@ -174,7 +174,10 @@ def getClusterName(node):
     except: 
         print('No ClusterName could be found for '+node)
         return "NOCLUSTERFOUND"
-    return clusterName
+    if clusterName.startswith("inactive-"):
+        return "NOCLUSTERFOUND"
+    else:
+        return clusterName
 
 def getstatus_slurm():
     cluster_to_build=[]
