@@ -164,12 +164,16 @@ def getClusterName(node):
     out = subprocess.Popen(['scontrol','show','topology',node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     stdout,stderr = out.communicate()
     clusterName = None
-    if len(stdout.split('\n')) > 2:
-        for output in stdout.split('\n')[:-1]:
-            if "Switches=" in output:
-                clusterName=output.split()[0].split('SwitchName=')[1]
-    elif len(stdout.split('\n')) == 2:
-        clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+    try:
+        if len(stdout.split('\n')) > 2:
+            for output in stdout.split('\n')[:-1]:
+                if "Switches=" in output:
+                    clusterName=output.split()[0].split('SwitchName=')[1]
+        elif len(stdout.split('\n')) == 2:
+            clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+    except: 
+        print('No ClusterName could be found for '+node)
+        return "NOCLUSTERFOUND"
     return clusterName
 
 def getstatus_slurm():
@@ -244,7 +248,9 @@ def getstatus_slurm():
             else:
                 current_nodes[queue]={instanceType:1}
             if line.split()[0] == '\"idle' or line.split()[0] == '\"down' or line.split()[0].endswith('*'):
-                if not os.path.isdir(os.path.join(clusters_path,clustername)):
+                if not line.split()[0].endswith('*') and clustername == "NOCLUSTERFOUND": 
+                    continue
+                if not os.path.isdir(os.path.join(clusters_path,clustername)) and clustername != "NOCLUSTERFOUND":
                     continue
                 node_idle_time=getIdleTime(node)
                 if node_idle_time<idle_time:
@@ -263,7 +269,7 @@ def getstatus_slurm():
     cluster_to_destroy=[]
     for clustername in nodes_to_destroy_temp.keys():
         destroyEntireCluster=True
-        if clustername in running_cluster:
+        if clustername in running_cluster or clustername == "NOCLUSTERFOUND":
             nodes_to_destroy[clustername]=nodes_to_destroy_temp[clustername]
             destroyEntireCluster=False
         else:
@@ -350,6 +356,9 @@ try:
         print ("Resizing cluster "+cluster_name)
         initial_nodes=[]
         unreachable_nodes=[]
+        if cluster_name == "NOCLUSTERFOUND":
+            subprocess.Popen([script_path+'/resize.sh','remove_unreachable','--nodes']+nodes_to_destroy[cluster_name])
+            continue
         for node in nodes_to_destroy[cluster_name]:
             try:
                 alt_names=subprocess.check_output(["cat /etc/hosts | grep "+node],shell=True,universal_newlines=True)
