@@ -1,0 +1,20 @@
+[Unit]
+Description=Slurm node daemon
+After=munge.service network.target remote-fs.target
+Documentation=man:slurmd(8)
+
+[Service]
+Type=forking
+EnvironmentFile=-/etc/default/slurm
+ExecStart={{slurm_exec}}/sbin/slurmd --conf-server {{ hostvars[groups['bastion'][0]]['ansible_fqdn'].split('.')[0] }}{% if (groups['slurm_backup']| length ) > 0 %},{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[0] }}{% endif %} $SLURMD_OPTIONS 
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/run/slurmd.pid
+KillMode=process
+LimitNOFILE=131072
+LimitMEMLOCK=infinity
+LimitSTACK=infinity
+Delegate=yes
+TasksMax=infinity
+
+[Install]
+WantedBy=multi-user.target

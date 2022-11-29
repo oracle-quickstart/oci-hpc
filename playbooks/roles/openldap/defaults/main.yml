@@ -1,17 +1,7 @@
 ---
-# vars file for openldap
-
-openldap_packages:
-  - openldap-servers
-  - openldap-clients
-  - rsync
-
-openldap_default_user: ldap
-openldap_default_group: ldap
+# common vars file for openldap
 
 openldap_server_dir_path: /var/lib/ldap
-openldap_server_conf_path: /etc/openldap/slapd.d
-openldap_server_defaults_file: /etc/sysconfig/slapd
 
 openldap_endpoints: ldaps:/// ldapi:///
 openldap_host: 'controller.cluster'

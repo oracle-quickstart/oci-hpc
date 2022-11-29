@@ -1,11 +1,11 @@
 [bastion]
-${bastion_name} ansible_host=${bastion_ip} ansible_user=opc role=bastion
+${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion
 [slurm_backup]
-%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=opc role=bastion%{ endif }
+%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${bastion_username} role=bastion%{ endif }
 [compute_to_add]
 [compute_configured]
 %{ for host, ip in compute ~}
-${host} ansible_host=${ip} ansible_user=opc role=compute
+${host} ansible_host=${ip} ansible_user=${compute_username} role=compute
 %{ endfor ~}
 [compute_to_destroy]
 [compute:children]
@@ -18,7 +18,7 @@ bastion
 compute
 [all:vars]
 ansible_connection=ssh
-ansible_user=opc
+ansible_user=${compute_username}
 rdma_network=192.168.128.0
 rdma_netmask=255.255.240.0
 public_subnet=${public_subnet} 
@@ -52,6 +52,7 @@ nfs_target_path=${nfs_target_path}
 nfs_source_IP=${nfs_source_IP}
 nfs_source_path=${nfs_source_path}
 nfs_options=${nfs_options}
+localdisk=${localdisk}
 ldap=${ldap}
 queue=${queue}
 instance_type=${instance_type}
@@ -59,3 +60,5 @@ hyperthreading=${hyperthreading}
 privilege_sudo=${privilege_sudo}
 privilege_group_name=${privilege_group_name}
 latency_check=${latency_check}
+compute_username=${compute_username}
+bastion_username=${bastion_username}

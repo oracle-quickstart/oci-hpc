@@ -1,15 +1,22 @@
 ---   
-- name: install SLURM server packages
+
+- name: install SLURM server packages RedHat
   vars: 
-    package_name: 
-      - slurm-slurmctld
-      - slurm-pam_slurm
-      - slurm-pmi
-      - slurm-slurmd
-    package_repo: "epel,ol7_developer_EPEL"
+    package_name: '{{ slurm_server_packages }}'
+    disable_gpg_check_var: True
   include_role: 
     name: safe_yum
+  when: ansible_os_family == 'RedHat'
   
+- name: Render systemd units for slurmd and slurmdbd
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service.j2'
+    dest: '/lib/systemd/system/{{ item }}.service'
+    backup: "yes"
+  with_items:
+    - slurmctld
+
 - name: Create systemd unit dirs
   become: true
   file:
@@ -55,7 +62,7 @@
 - name: set permissions
   become: true
   shell:
-    cmd: chown opc:opc /tmp/munge.key
+    cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
     warn: false
   delegate_to: 127.0.0.1
   run_once: true
@@ -77,38 +84,28 @@
     state: restarted
     enabled: true
 
-- name: Create {{ slurm_spool_path }}
-  become: true
-  file:
-    name: "{{ slurm_spool_path }}"
-    state: directory
-    owner: 'slurm'
-    group: 'slurm'
-    mode: '0750'
 
-- name: Copy configuration files
+- name: Copy cgroup file
   become: true
   copy:
-    src: '{{ item }}'
-    dest: '{{ slurm_conf_path }}/{{ item }}'
+    src: '{{ cgroup_conf_file }}'
+    dest: '{{ slurm_conf_path }}/cgroup.conf'
     force: no
     owner: slurm
     group: slurm
-  with_items:
-    - cgroup.conf
 
 - name: move slurm.conf on backup servers
   become: true
   copy:
-    dest: /etc/slurm/slurm.conf
-    src: /etc/slurm/slurm.conf
+    dest: '{{ slurm_conf_path }}/slurm.conf'
+    src: '{{ slurm_conf_path }}/slurm.conf'
     force: yes
 
-- name: move topology.conf on all servers
+- name: move topology.conf on backup servers
   become: true
   copy:
-    dest: /etc/slurm/topology.conf
-    src: /etc/slurm/topology.conf
+    dest: '{{ slurm_conf_path }}/topology.conf'
+    src: '{{ slurm_conf_path }}/topology.conf'
     force: yes
   register: topology_copied
   until: topology_copied is not failed

@@ -1,7 +1,5 @@
 munge_conf_path: '/etc/munge'
-slurm_conf_path: '/etc/slurm'
 slurm_spool_path: '/var/spool/slurmd'
-slurm_log_path: '/var/log/slurm'
 munge_log_path: '/var/log/munge'
 munge_run_path: '/var/run/munge'
 slurm_db_user: 'slurm_accounting' 
@@ -11,3 +9,4 @@ slurm_uid: 1501
 munge_gid: 1500
 munge_uid: 1500
 rack_aware_playbook_suffix: "{% if rack_aware|bool %}-rack-aware{% endif%}"
+slurm_version: "22.05.4-1"

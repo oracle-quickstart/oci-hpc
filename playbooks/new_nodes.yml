@@ -9,6 +9,14 @@
         name: hostname
       when: slurm | default(false) | bool
 
+# for ubuntu, on all compute nodes, run --fix-broken install
+- hosts: compute
+  become: true
+  tasks:
+    - include_role:
+        name: fix_broken
+      when: ansible_os_family == 'Debian'
+
 - hosts: compute
   become: true
   vars: 
@@ -22,10 +30,24 @@
     - firewall 
     - oci-hostname
     - ssh
-    - localdisk
     - limits
     - mpi-hostfiles
     - boot-volume
+
+- hosts: compute
+  become: true
+  tasks: 
+    - include_role: 
+        name: localdisk
+      when: localdisk | default(true) | bool
+
+- hosts: compute
+  become: true
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: rdma-interface
+      when: cluster_network|bool
 
 - hosts: bastion,slurm_backup,compute
   become: true
@@ -76,7 +98,10 @@
 
 - hosts: compute
   become: true
-
+  vars_files:
+    - "/opt/oci-hpc/playbooks/roles/openldap/defaults/main.yml"
+    - "/opt/oci-hpc/playbooks/roles/openldap/vars/el_vars.yml"
+    - "/opt/oci-hpc/playbooks/roles/openldap/vars/debian_vars.yml"
   tasks:
     - include_role:
         name: sssd
@@ -87,15 +112,8 @@
   gather_facts: true
   tasks: 
     - include_role: 
-        name: rdma-interface
-    - include_role: 
         name: hyperthreading
       when: not hyperthreading|default(true)|bool
-- hosts: compute
-  tasks:  
-    - include_role: 
-        name: latency_check
-      when: cluster_network|bool and not 'GPU' in shape 
 
 - hosts: compute
   become: true
@@ -146,6 +164,13 @@
         name: nvidia-enroot
       when: enroot|default(true)|bool
           
+
+- hosts: compute
+  tasks:  
+    - include_role: 
+        name: latency_check
+      when: cluster_network|bool and not 'GPU' in shape 
+      
 - hosts: compute
   vars:
     destroy: false

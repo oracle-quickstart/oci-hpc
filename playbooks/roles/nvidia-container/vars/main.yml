@@ -1,0 +1,4 @@
+---
+ubuntu_repo_dist_name: "{{ ansible_distribution | lower }}{{ ansible_distribution_version }}"
+ubuntu_repo_file_name: "libnvidia-container.list"
+ubuntu_repo_file_path: "/etc/apt/sources.list.d/{{ ubuntu_repo_file_name }}"

@@ -1,0 +1,20 @@
+---
+- name: Check if oci-hpc bashrc config exists
+  stat: 
+    path: /etc/opt/oci-hpc/bashrc/.bashrc_config
+  register: bashrc_config
+
+- name: update NFS_CONFIGURED if needed
+  lineinfile: 
+    dest: /etc/opt/oci-hpc/bashrc/.bashrc_config
+    state: present
+    regexp: 'export NFS_CONFIGURED="no"'
+    line: 'export NFS_CONFIGURED="yes"'
+  when: bashrc_config.stat.exists|bool and cluster_nfs|bool
+  
+- name: Update NFS_MOUNT_PATH
+  lineinfile:
+    path: /etc/opt/oci-hpc/bashrc/.bashrc_config
+    regexp: '^export NFS_MOUNT_PATH'
+    line: 'export NFS_MOUNT_PATH="{{ cluster_nfs_path }}"'
+  when: bashrc_config.stat.exists|bool and cluster_nfs|bool

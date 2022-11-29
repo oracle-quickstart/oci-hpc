@@ -11,52 +11,58 @@ import os
 # Get the list of Jobs in all states
 def getAllJobs():
     delay="2days"
-    out = subprocess.Popen(['sacct -S now-'+delay+" -o JobID,Partition,State,Submit,Start,End,NNodes,Ncpus,NodeList -X -n --parsable2"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
+    out = subprocess.Popen(['sacct -S now-'+delay+" -o JobID,Partition,State,Submit,Start,End,NNodes,Ncpus,NodeList -X -n --parsable2"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8', universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
 # Get the list of all nodes registered in Slurm
 def getClusters():
-    out = subprocess.Popen(['sinfo -h -N -r -O NodeList:50,CPUsState,StateLong,PartitionName'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8')
+    out = subprocess.Popen(['sinfo -h -N -r -O NodeList:50,CPUsState,StateLong,PartitionName'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf8', universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
 def getNodesFromQueuedJob(jobID):
-    out = subprocess.Popen(['squeue -j '+jobID+' -o %D -h'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,encoding='utf8')
+    out = subprocess.Popen(['squeue -j '+jobID+' -o %D -h'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,encoding='utf8',universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")[0]
 
 def getListOfNodes(nodelist):
-    out = subprocess.Popen(['scontrol show hostnames '+' '.join(nodelist)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,encoding='utf8')
+    out = subprocess.Popen(['scontrol show hostnames '+' '.join(nodelist)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,encoding='utf8',universal_newlines=True)
     stdout,stderr = out.communicate()
     return stdout.split("\n")
 
 def getOrigHostname(hostname):
-    output = subprocess.check_output("cat /etc/hosts | grep \" "+hostname+" \" | awk '{print $4}'", shell=True,encoding='utf8')
+    output = subprocess.check_output("cat /etc/hosts | grep \" "+hostname+" \" | awk '{print $4}'", shell=True,encoding='utf8',universal_newlines=True)
     return output.split("\n")[0]
 
 def getAllHosts(rangedHost):
-    output = subprocess.check_output("scontrol show hostname "+rangedHost, shell=True,encoding='utf8')
+    output = subprocess.check_output("scontrol show hostname "+rangedHost, shell=True,encoding='utf8',universal_newlines=True)
     return output.split("\n")
 
-def getTopology():
-    topology={}
-    if os.path.isfile("/etc/slurm/topology.conf"):
-        topologyfile=open("/etc/slurm/topology.conf",'r')
-        for line in topologyfile:
-            splittedline=line.strip().split(" Nodes=")
-            try:
-                clusterName=splittedline[0].split('SwitchName=')[1]
-            except:
-                continue
-            topology[clusterName]=splittedline[1].split(',')
-    return topology
+def getTopology(clusterName):
+    out = subprocess.Popen(['scontrol','show','topology',clusterName], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    stdout,stderr = out.communicate()
+    for item in stdout.strip().split():
+        if item.startswith("Nodes="):
+            nodes_condensed=item.split("Nodes=")[1]
+            out2 = subprocess.Popen(['scontrol','show','hostname',nodes_condensed], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            stdout2,stderr2 = out2.communicate()    
+            print(stdout2.strip().split())
+            return stdout2.strip().split()
+    return []
 
-def getClusterName(topology,node):
-    for key in topology.keys():
-        if node in topology[key]:
-            return key
-    return None
+
+def getClusterName(node):
+    out = subprocess.Popen(['scontrol','show','topology',node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    stdout,stderr = out.communicate()
+    clusterName = None
+    if len(stdout.split('\n')) > 2:
+        for output in stdout.split('\n')[:-1]:
+            if "Switches=" in output:
+                clusterName=output.split()[0].split('SwitchName=')[1]
+    elif len(stdout.split('\n')) == 2:
+        clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+    return clusterName
 
 #def getCPUsDetails(job):
 #    out = subprocess.Popen(['scontrol','show','job',job,'-d','|','grep','\" Nodes=.*CPU_IDs\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,encoding='utf8')
@@ -69,7 +75,6 @@ cursor=connection.cursor()
 cursor.execute("use cluster_log;")
 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 now_utc=datetime.datetime.now().astimezone(pytz.utc).strftime("%Y-%m-%d %H:%M:%S")
-topology=getTopology()
 
 for line in getAllJobs():
     splittedLine=line.split('|')
@@ -108,10 +113,12 @@ for line in getAllJobs():
         current_sql_state=None
         if start == "Unknown":
             nodes=getNodesFromQueuedJob(jobID)
-            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,state,class_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','queued','"""+queue+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
+            # added "from dual" as mariadb (for Ubuntu) requires it
+            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,state,class_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','queued','"""+queue+"""' from dual Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         elif end == "Unknown":
-            clustername = getClusterName(topology,nodenames[0])
-            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,queue_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','running','"""+queue+"""','"""+clustername+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
+            clustername = getClusterName(nodenames[0])
+            # added "from dual" as mariadb (for Ubuntu) requires it
+            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,queue_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','running','"""+queue+"""','"""+clustername+"""' from dual Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
         else:
             if 'failed' in state.lower():
                 db_state = 'failed'
@@ -123,10 +130,11 @@ for line in getAllJobs():
                 print(state+" was not failed, cancelled or completed")
                 continue
             try:
-                clustername = getClusterName(topology,nodenames[0])
+                clustername = getClusterName(nodenames[0])
             except:
                 clustername= ''
-            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,finished,queue_time,run_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+end_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','"""+str(end_datetime-start_datetime).split('.')[0]+"""','"""+db_state+"""','"""+queue+"""','"""+clustername+"""' Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
+            # added "from dual" as mariadb (for Ubuntu) requires it
+            mySql_insert_query="""insert into jobs (job_id,cpus,nodes,submitted,started,finished,queue_time,run_time,state,class_name,cluster_name) Select '"""+jobID+"""','"""+cpus+"""','"""+nodes+"""','"""+submit_TS+"""','"""+start_TS+"""','"""+end_TS+"""','"""+str(start_datetime-submit_datetime).split('.')[0]+"""','"""+str(end_datetime-start_datetime).split('.')[0]+"""','"""+db_state+"""','"""+queue+"""','"""+clustername+"""' from dual Where not exists(select * from jobs where job_id='"""+jobID+"""') ;"""
     else:
         current_sql_state = result[0]
         if start == "Unknown":

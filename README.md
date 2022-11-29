@@ -28,6 +28,18 @@ or:
 
 `Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName`
 
+
+## Supported OS: 
+The stack allowa various combination of OS. Here is a list of what has been tested. We can't guarantee any of the other combination.
+
+|     Bastion   |    Compute   |
+|---------------|--------------|
+|      OL7      |      OL7     |  
+|      OL7      |      OL8     |
+|      OL7      |    CentOS7   |
+| Ubuntu  20.04 | Ubuntu 20.04 |
+
+When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the bastion and compute nodes. 
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
@@ -60,7 +72,7 @@ usage: resize.sh [-h] [--compartment_ocid COMPARTMENT_OCID]
 Script to resize the CN
 
 positional arguments:
-  {add,remove,list,reconfigure}
+  {add,remove,remove_unreachable,list,reconfigure}
                         Mode type. add/remove node options, implicitly
                         configures newly added nodes. Also implicitly
                         reconfigure/restart services like Slurm to recognize
@@ -87,7 +99,15 @@ optional arguments:
                         instance_principal
   --force               If present. Nodes will be removed even if the destroy
                         playbook failed
-
+  --ansible_crucial     If present during reconfiguration, only crucial
+                        ansible playbooks will be executed on the live nodes.
+                        Non live nodes will be removed
+  --remove_unreachable  If present, nodes that are not sshable will be removed
+                        from the config. They will however not be removed from
+                        Slurm to avoid losing track of the down nodes. If you
+                        need to remove them from Slurm after terminating the
+                        nodes in the console. Run sudo scontrol update
+                        nodename=name state=Future 
 ```
 
 **Add nodes** 
@@ -104,9 +124,9 @@ Add one node
 
 ```
 
-Add three nodes
+Add three nodes to cluster compute-1-hpc
 ```
-/opt/oci-hpc/bin/resize.sh add 3
+/opt/oci-hpc/bin/resize.sh add 3 --cluster_name compute-1-hpc
 
 ```
 
@@ -135,9 +155,9 @@ Remove one node randomly:
 /opt/oci-hpc/bin/resize.sh remove 1
 ```
 or 
-Remove 3 nodes randomly:  
+Remove 3 nodes randomly from compute-1-hpc:  
 ```
-/opt/oci-hpc/bin/resize.sh remove 3
+/opt/oci-hpc/bin/resize.sh remove 3 --cluster_name compute-1-hpc
 
 ```
 
@@ -261,7 +281,7 @@ When the cluster is already being destroyed, it will have a file `/opt/oci-hpc/a
 ## Autoscaling Monitoring
 If you selected the autoscaling monitoring, you can see what nodes are spinning up and down as well as running and queued jobs. Everything will run automatically except the import of the Dashboard in Grafana due to a problem in the Grafana API. 
 
-To do it manually, in your browser of choice, navigate to bastionIP:3000. Username and password are admin/admin, you can change those during your first login. Click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
+To do it manually, in your browser of choice, navigate to bastionIP:3000. Username and password are admin/admin, you can change those during your first login. Go to Configuration -> Data Sources. Select autoscaling. Enter Password as Monitor1234! and click on 'Save & test'. Now click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
 
 You will now see the dashboard. 
 
@@ -278,6 +298,23 @@ To generate a user-specific key for passwordless ssh between nodes, use --ssh.
 
 # Shared home folder
 
-By default, the home folder is NFS shared directory between all nodes from the bastion. You have the possibility to use a FSS to share it as well to keep working if the bastion goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files.  
+By default, the home folder is NFS shared directory between all nodes from the bastion. You have the possibility to use a FSS to share it as well to keep working if the bastion goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files. 
 
+# Deploy within a private subnet
+
+If "true", this will create a private endpoint in order for Oracle Resource Manager to configure the bastion VM and the future nodes in private subnet(s). 
+* If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the bastion and one for the compute nodes.  
+* If "Use Existing Subnet" is also true, the user must indicate a private subnet for the bastion VM. For the compute nodes, they can reside in another private subnet or the same private subent as the bastion VM. 
+
+The bastion VM will reside in a private subnet. Therefore, the creation of a "bastion service" (https://docs.oracle.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
+
+
+
+## max_nodes_partition.py usage 
+
+Use the alias "max_nodes" to run the python script max_nodes_partition.py. You can run this script only from bastion.
+
+$ max_nodes --> Information about all the partitions and their respective clusters, and maximum number of nodes distributed evenly per partition
+
+$ max_nodes --include_cluster_names xxx yyy zzz --> where xxx, yyy, zzz are cluster names. Provide a space separated list of cluster names to be considered for displaying the information about clusters and maximum number of nodes distributed evenly per partition
 

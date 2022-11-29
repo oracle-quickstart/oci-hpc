@@ -1,0 +1,7 @@
+- include: common.yml
+
+- include: slurm-rack-aware.yml
+  when: rack_aware | bool
+
+- include: slurm.yml
+  when: not rack_aware | bool
