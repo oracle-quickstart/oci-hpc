@@ -171,13 +171,12 @@ def getClusterName(node):
                     clusterName=output.split()[0].split('SwitchName=')[1]
         elif len(stdout.split('\n')) == 2:
             clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+        if clusterName.startswith("inactive-"):
+            return "NOCLUSTERFOUND"
     except: 
         print('No ClusterName could be found for '+node)
         return "NOCLUSTERFOUND"
-    if clusterName.startswith("inactive-"):
-        return "NOCLUSTERFOUND"
-    else:
-        return clusterName
+    return clusterName
 
 def getstatus_slurm():
     cluster_to_build=[]
