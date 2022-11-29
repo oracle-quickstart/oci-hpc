@@ -11,14 +11,18 @@
     - name: Get nodes from Inactive Switch
       vars:
         - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+      register: inactive_switch_condensed
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Get inactive list
+      command: "scontrol show hostname {{inactive_switch_condensed.stdout.split('Nodes=')[1] }}"
       register: inactive_switch
       run_once: true
       delegate_to: 127.0.0.1
     - name: Create inactive list
       set_fact:
-        inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
-      run_once: true
+        inactive_list: "{{inactive_switch.stdout_lines}}"
   rescue:
     - name: Create inactive cluster list
       set_fact:
@@ -74,7 +78,7 @@
   run_once: true
 
 - name: Get nodes in Switch
-  shell: "cat /etc/slurm/topology.conf | grep \"{{item}}\" | grep Nodes | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'"
+  shell: "scontrol show hostname `cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}}\" | grep Nodes | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'`"
   register: nodes_in_switch
   delegate_to: 127.0.0.1
   with_items: "{{racks_to_remove}}"
@@ -85,43 +89,43 @@
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) == 0
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) == 0
 
 - name: Remove Node From Rack
   debug:
-    msg: "In Rack {{item.item}}, leave only nodes {{item.stdout.split(',') | list | difference(nodes_to_remove) }}"
+    msg: "In Rack {{item.item}}, leave only nodes {{item.stdout_lines | difference(nodes_to_remove) }}"
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) > 0
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) > 0
 
 - name: Remove Rack Completely
   become: true
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{item.item}}\\sNodes.*"
     state: absent
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) == 0
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) == 0
 
 - name: Remove Nodes from Rack Switch
   become: true
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{item.item}}\\sNodes.*"
-    line: "SwitchName={{item.item}} Nodes={{ item.stdout.split(',') | list | difference(nodes_to_remove) | join(',') }}"
+    line: "SwitchName={{item.item}} Nodes={{ item.stdout_lines | difference(nodes_to_remove) | join(',') }}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout.split(',') | list | difference(nodes_to_remove) | length ) > 0
+  when: (item.stdout_lines | difference(nodes_to_remove) | length ) > 0 and (item.stdout != "" ) 
 
 - name: Get left Over racks from Cluster
   block:
     - name: Get Racks left from topology.conf
-      shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}:\" | grep \" Nodes=\" | awk '{print $1}' | sed 's/SwitchName=//' | tr '\n' ',' | sed 's/,$/\\n/'"
+      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{cluster_name}}:\" | grep \" Nodes=\" | awk '{print $1}' | sed 's/SwitchName=//' | tr '\n' ',' | sed 's/,$/\\n/'"
       register: racks_left
       run_once: true
       delegate_to: 127.0.0.1
@@ -138,7 +142,7 @@
 - name: Remove Cluster Completely
   become: true
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{cluster_name}}\\sSwitches=.*"
     state: absent
   run_once: true
@@ -148,7 +152,7 @@
 - name: Update Rack switches for the cluster
   become: true
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{cluster_name}}\\sSwitches.*"
     line: "SwitchName={{cluster_name}} Switches={{ racks_left_list | join(',') }}"
     state: present
@@ -156,15 +160,20 @@
   delegate_to: 127.0.0.1
   when: racks_left_list | list | length > 0
 
+- name: Get new inactive_nodes list
+  command: "scontrol show hostlistsorted {{inactive_list | union(nodes_to_remove) | join(',')}}"
+  register: new_inactive_list
+  run_once: true
+  delegate_to: 127.0.0.1
 
 - name: Adding nodes to inactive
   vars:
     - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
   become: true
   lineinfile:
-    path: "/etc/slurm/topology.conf"
+    path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_list | union(nodes_to_remove)  | join(',')}}"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{new_inactive_list.stdout }}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1

@@ -38,6 +38,7 @@ resource "local_file" "inventory" {
     nfs_source_IP = var.nfs_source_IP,
     nfs_source_path = var.nfs_source_path,
     nfs_options = var.nfs_options,
+    localdisk = var.localdisk,
     cluster_nfs_path = var.cluster_nfs_path,
     scratch_nfs_path = var.scratch_nfs_path,
     cluster_network = var.cluster_network,
@@ -61,6 +62,8 @@ resource "local_file" "inventory" {
     privilege_sudo = var.privilege_sudo,
     privilege_group_name = var.privilege_group_name,
     latency_check = var.latency_check
+    bastion_username = var.bastion_username,
+    compute_username = var.compute_username
     })
   filename   = "${local.bastion_path}/inventory"
 }

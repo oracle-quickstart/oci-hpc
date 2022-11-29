@@ -1,0 +1,32 @@
+---
+- name: Make sure the /home directory exist
+  file:
+    path: "{{tmp_home}}"
+    state: directory
+    mode: '0755'
+
+- name: Make sure the remote home directory exist
+  file:
+    path: "{{tmp_home}}/home"
+    state: directory
+    mode: '0755'
+  when: not create_fss|bool
+
+- name: Report if ubuntu dir exist
+  file:
+    path: "{{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/ubuntu/"
+    state: directory
+    mode: '0700'
+    owner: ubuntu
+    group: ubuntu
+  register: ubuntu_directory
+
+- name: copy ubuntu/ dir
+  command: "cp -rpT /home/ubuntu {{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/ubuntu"
+  when: ubuntu_directory.changed
+
+
+- name: Unmount {{tmp_home}} mount
+  mount:
+    path: "{{tmp_home}}"
+    state: absent

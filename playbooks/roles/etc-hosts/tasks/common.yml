@@ -78,7 +78,7 @@
   run_once: true
   when: destroy | bool
 
-- name: remove cluster from etc-host
+- name: remove cluster from etc-host on backup
   become: true
   blockinfile:
     dest: /etc/hosts

@@ -1,0 +1,9 @@
+[Unit]
+Requires=munge.service
+
+[Service]
+Restart=always
+{% if ansible_os_family == 'RedHat' %}
+ExecStart=
+ExecStart={{slurm_exec}}/sbin/slurmd --conf-server {{ hostvars[groups['bastion'][0]]['ansible_fqdn'].split('.')[0] }}{% if (groups['slurm_backup']| length ) > 0 %},{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[0] }}{% endif %} -D $SLURMD_OPTIONS
+{% endif %} 

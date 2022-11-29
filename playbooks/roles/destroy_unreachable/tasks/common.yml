@@ -1,0 +1,85 @@
+---
+
+- name: Get Slurm hostnames
+  vars:
+    - index: "{{ unreachable_nodes | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  set_fact:
+    unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [queue+'-'+keyword+'-node-'+ item | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) ] }}"
+  with_items: "{{unreachable_nodes}}"
+  when: item | ipaddr
+  ignore_unreachable: yes
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Get Slurm hostnames
+  set_fact:
+    unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
+  with_items: "{{unreachable_nodes}}"
+  when: not ( item | ipaddr ) and '-node-' in item
+  ignore_unreachable: yes
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Get non-Slurm hostnames
+  set_fact:
+    unreachable_oci_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
+  with_items: "{{unreachable_nodes}}"
+  when: not ( item | ipaddr ) and not ('-node-' in item )
+  ignore_unreachable: yes
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Get all hostnames
+  set_fact: 
+    all_unreachable_nodes: "{{ unreachable_slurm_nodes | default([]) + unreachable_oci_nodes | default([]) }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+  ignore_unreachable: yes
+
+- name: remove from /etc/hosts
+  become: true
+  lineinfile:
+    path: "/etc/hosts"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{all_unreachable_nodes}}"
+  ignore_unreachable: yes
+
+- name: "remove from hostfile.rdma.{{ cluster_name }}"
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{all_unreachable_nodes}}"
+  delegate_to: 127.0.0.1
+  run_once: true
+  ignore_unreachable: yes
+  when: cluster_network|bool
+
+- name: "remove from hostfile.tcp.{{ cluster_name }}"
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{all_unreachable_nodes}}"
+  ignore_unreachable: yes
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: remove from hostfile.rdma
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.rdma"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{all_unreachable_nodes}}"
+  ignore_unreachable: yes
+  when: cluster_network|bool
+
+- name: remove from hostfile.tcp
+  lineinfile:
+    path: "/etc/opt/oci-hpc/hostfile.tcp"
+    regexp: "{{item}}\\s"
+    state: absent
+  with_items: "{{all_unreachable_nodes}}"
+  ignore_unreachable: yes

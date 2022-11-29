@@ -13,7 +13,14 @@ execution=1
 playbooks_path=$folder/../playbooks/
 inventory_path=$folder/../autoscaling/clusters/$1
 
-/opt/oci-hpc/bin/wait_for_hosts.sh $inventory_path/hosts_$1
+
+username=`cat $inventory_path/inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
+if [ "$username" == "" ]
+then
+username=$USER
+fi
+
+/opt/oci-hpc/bin/wait_for_hosts.sh $inventory_path/hosts_$1 $username
 #
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking. 

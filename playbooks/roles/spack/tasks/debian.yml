@@ -5,12 +5,20 @@
     state: latest
   become: true
   when: cluster_nfs
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 - name: Development Tools" 
   apt: 
     name: build-essential
   become: true
   when: cluster_nfs
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 - name: Clone SPACK
   git: 

@@ -17,8 +17,17 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
+resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
+  count = var.private_deployment ? 1 : 0
+  compartment_id = var.targetCompartment
+  display_name   = "rms_private_endpoint"
+  description    = "rms_private_endpoint_description"
+  vcn_id         = local.vcn_id
+  subnet_id      = local.subnet_id
+}
+
 resource "oci_core_instance" "bastion" {
-  depends_on          = [oci_core_subnet.public-subnet]
+  depends_on          = [local.bastion_subnet]
   availability_domain = var.bastion_ad
   compartment_id      = var.targetCompartment
   shape               = var.bastion_shape
@@ -53,6 +62,7 @@ resource "oci_core_instance" "bastion" {
 
   create_vnic_details {
     subnet_id = local.bastion_subnet_id
+    assign_public_ip = local.bastion_bool_ip
   }
 } 
 
@@ -70,7 +80,7 @@ resource "null_resource" "bastion" {
       "mkdir -p /opt/oci-hpc/playbooks"
       ]
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -80,7 +90,7 @@ resource "null_resource" "bastion" {
     source        = "playbooks"
     destination   = "/opt/oci-hpc/"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -91,7 +101,7 @@ resource "null_resource" "bastion" {
     source      = "autoscaling"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -102,7 +112,7 @@ resource "null_resource" "bastion" {
     source      = "bin"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -113,7 +123,7 @@ resource "null_resource" "bastion" {
     source      = "conf"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -123,7 +133,7 @@ resource "null_resource" "bastion" {
     source      = "logs"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -133,7 +143,7 @@ resource "null_resource" "bastion" {
     source      = "samples"
     destination = "/opt/oci-hpc/"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -145,7 +155,7 @@ resource "null_resource" "bastion" {
     })
     destination   = "/tmp/configure.conf"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -156,7 +166,7 @@ resource "null_resource" "bastion" {
     content     = tls_private_key.ssh.private_key_pem
     destination = "/home/${var.bastion_username}/.ssh/cluster.key"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -169,10 +179,10 @@ resource "null_resource" "bastion" {
       "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
       "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
-      "timeout 60m /opt/oci-hpc/bin/bastion.sh"
+      "timeout --foreground 60m /opt/oci-hpc/bin/bastion.sh"
       ]
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -180,7 +190,7 @@ resource "null_resource" "bastion" {
   }
 }
 resource "null_resource" "cluster" { 
-  depends_on = [null_resource.bastion, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  depends_on = [null_resource.bastion, null_resource.backup, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
@@ -209,10 +219,11 @@ resource "null_resource" "cluster" {
       nfs_source_IP = local.nfs_source_IP,
       nfs_source_path = var.nfs_source_path,
       nfs_options = var.nfs_options,
+      localdisk = var.localdisk,
       cluster_network = var.cluster_network,
       slurm = var.slurm,
       rack_aware = var.rack_aware,
-      slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
+      slurm_nfs_path = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack = var.spack,
       ldap = var.ldap,
       bastion_block = var.bastion_block, 
@@ -242,7 +253,7 @@ resource "null_resource" "cluster" {
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -254,7 +265,7 @@ resource "null_resource" "cluster" {
     content     = var.node_count > 0 ? join("\n",local.cluster_instances_ips) : "\n"
     destination = "/tmp/hosts"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -271,7 +282,7 @@ resource "null_resource" "cluster" {
 
     destination   = "/opt/oci-hpc/autoscaling/tf_init/provider.tf"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -281,12 +292,16 @@ resource "null_resource" "cluster" {
   provisioner "file" {
     content        = templatefile("${path.module}/queues.conf", {  
       cluster_network = var.cluster_network,
-      marketplace_listing = var.marketplace_listing,
+      marketplace_listing = var.use_old_marketplace_image ? var.old_marketplace_listing : var.marketplace_listing,
       image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
+      use_old_marketplace_image = var.use_old_marketplace_image,
       boot_volume_size = var.boot_volume_size,
-      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
-      ad = var.ad,
+      shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      region = var.region,
+      ad = var.use_multiple_ads? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      private_subnet = data.oci_core_subnet.private_subnet.cidr_block,
+      private_subnet_id = local.subnet_id,
       targetCompartment = var.targetCompartment,
       instance_pool_ocpus = var.instance_pool_ocpus,
       instance_pool_memory = var.instance_pool_memory,
@@ -297,7 +312,7 @@ resource "null_resource" "cluster" {
 
     destination   = "/opt/oci-hpc/conf/queues.conf"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -313,7 +328,7 @@ resource "null_resource" "cluster" {
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block,
       public_subnet_id = local.bastion_subnet_id,
-      private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
+      private_subnet = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id = local.subnet_id,
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
@@ -348,6 +363,7 @@ resource "null_resource" "cluster" {
       nfs_source_IP = local.nfs_source_IP,
       nfs_source_path = var.nfs_source_path,
       nfs_options = var.nfs_options,
+      localdisk = var.localdisk,
       monitoring = var.monitoring,
       hyperthreading = var.hyperthreading,
       unsupported = var.unsupported,
@@ -356,12 +372,16 @@ resource "null_resource" "cluster" {
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
-      latency_check = var.latency_check
+      latency_check = var.latency_check,
+      private_deployment = var.private_deployment,
+      use_multiple_ads = var.use_multiple_ads,
+      bastion_username = var.bastion_username,
+      compute_username = var.compute_username
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -381,7 +401,7 @@ provisioner "file" {
 
     destination   = "/tmp/initial.mon"
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -391,7 +411,7 @@ provisioner "file" {
     content     = base64decode(var.api_user_key)
     destination   = "/opt/oci-hpc/autoscaling/credentials/key.initial" 
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -410,7 +430,7 @@ provisioner "file" {
       "/opt/oci-hpc/bin/initial_monitoring.sh",
       "exit $exit_code"     ]
     connection {
-      host        = oci_core_instance.bastion.public_ip
+      host        = local.host
       type        = "ssh"
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem

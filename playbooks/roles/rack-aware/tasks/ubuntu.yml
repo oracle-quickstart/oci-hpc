@@ -1,0 +1,49 @@
+- name: Install Pip3
+  vars: 
+    package_name: 
+      - python3-pip
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+
+- name: install pssh and parallel-ssh
+  become: true
+  pip:
+    name: ['pssh', 'parallel-ssh']
+    executable: pip3
+    state: latest
+  with_items:
+    - pssh
+    - parallel-ssh
+  ignore_errors: yes
+
+- name: Make sure /opt/oci-hpc/bin/ exists
+  become: true
+  file:
+    path: /opt/oci-hpc/bin/
+    state: directory
+    recurse: yes
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ privilege_group_name }}"
+
+- name: "Safe Yum install of latest {{package_name}}"
+  block:
+    - name: copy node_ordering_by_rack.py
+      copy:
+        src: node_ordering_by_rack.py
+        dest: /opt/oci-hpc/bin/
+        owner: "{{ ansible_user }}"
+        group: "{{privilege_group_name}}"
+        mode: '0755'
+  rescue:
+    - name: copy node_ordering_by_rack.py
+      copy:
+        src: node_ordering_by_rack.py
+        dest: /opt/oci-hpc/bin/
+        owner: "{{ ansible_user }}"
+        group: "{{privilege_group_name}}"
+        mode: '0755'
+      ignore_errors: yes
+  

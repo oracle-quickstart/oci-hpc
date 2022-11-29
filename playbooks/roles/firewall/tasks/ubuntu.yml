@@ -1,0 +1,21 @@
+---
+
+- name: disable ufw
+  service: 
+    name: ufw
+    state: stopped
+    enabled: no
+
+# it still need update to iptables rules to accept traffic or else mpi traffic fails 
+
+- name: Copy off-iptables.sh
+  copy:
+    src: off-iptables.sh
+    dest: '/tmp/off-iptables.sh'
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: '0755'
+
+- name: execute off-iptables.sh
+  command: "sudo /tmp/off-iptables.sh"
+

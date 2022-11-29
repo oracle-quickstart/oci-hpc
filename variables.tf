@@ -2,6 +2,9 @@ variable "region" {}
 variable "tenancy_ocid" {} 
 variable "targetCompartment" {} 
 variable "ad" {}
+variable "secondary_ad" { default = "" }
+variable "third_ad" { default = "" }
+variable "use_multiple_ads" { default = false }
 variable "ssh_key" { }
 variable "cluster_network" { default = true } 
 variable "use_custom_name" { default = false }
@@ -19,6 +22,7 @@ variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" { default = 2 }
 variable "boot_volume_size" { default = 50 }
 variable "use_marketplace_image" { default = true}
+variable "use_old_marketplace_image" { default = false}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "unsupported_bastion_image" { default = "" } 
@@ -39,6 +43,7 @@ variable "private_subnet" { default = "172.16.4.0/22" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "slurm_ha" { default = false }
+variable "slurm_nfs" { default = false }
 variable "rack_aware" { default = false }
 variable "ldap" { default = true } 
 variable "spack" { default = false } 
@@ -51,14 +56,13 @@ variable "bastion_custom_memory" { default = false }
 variable "privilege_sudo" { default = true }
 variable "privilege_group_name" { default = "privilege" }
 
-variable "bastion_listing" { 
-  default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
-} 
 
 variable "marketplace_listing" { 
+  default = "HPC"
+} 
+variable "old_marketplace_listing" { 
   default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
 } 
-
 variable "marketplace_version_id" { 
   type = map(string) 
   default = { 
@@ -66,13 +70,22 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
+       "HPC" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
+       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
   }
 }
 
-variable "marketplace_listing_id" {
+# To find the Appcatalog OCID, run 
+# oci compute pic listing list --display-name "Oracle Linux 7 - HPC Cluster Networking Image"
+variable "old_marketplace_listing_id" {
     default = "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
 }
-
+variable "marketplace_listing_id_HPC" {
+    default = "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
+}
+variable "marketplace_listing_id_GPU" {
+    default = "ocid1.appcataloglisting.oc1..aaaaaaaab2hkpxsglxfbzitiiqv6djxzj5q5soxotwdem2dd2kbifgk4p55q"
+}
 variable "bastion_block_volume_performance" { 
 /* 
   Allowed values 
@@ -173,3 +186,7 @@ variable scratch_nfs_mount { default = ""}
 variable scratch_nfs_export {default = ""}
 variable cluster_nfs_mount {default = ""}
 variable cluster_nfs_export {default = ""}
+
+variable "private_deployment" { default = false }
+
+variable "localdisk" { default = true }

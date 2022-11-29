@@ -1,0 +1,60 @@
+---
+
+- name: Install sssd packages
+  apt: 
+    name: 
+      - sssd
+    state: present
+    update_cache: yes
+
+- name: Add configuration file to /etc/sssd/sssd.conf
+  template:
+    src: 'sssd.conf.j2'
+    dest: '/etc/sssd/sssd.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Copy CA certificate
+  copy:
+    src: "{{ ssl_ca_cert }}"
+    dest: /etc/ssl/certs/cluster-ca.crt
+
+- name: Adjust OpenLDAP client TLS configuration
+  lineinfile:
+    path: '/etc/ldap/ldap.conf'
+    line: 'TLS_CACERT   /etc/ssl/certs/cluster-ca.crt'
+
+- name: Fix common-auth
+  lineinfile:
+    dest: /etc/pam.d/common-auth
+    state: present
+    line: 'account required    pam_access.so'
+
+- name: Fix common-session
+  lineinfile:
+    dest: /etc/pam.d/common-session
+    state: present
+    line: 'session required    pam_mkhomedir.so skel=/etc/skel umask=0022'
+
+- name: Fix common-password
+  replace:
+    path: /etc/pam.d/common-password
+    backup: yes
+    regexp: '^.*use_authtok.*$'
+    replace: 'password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass'
+
+- name: Install the openldap and required Packages for Ubuntu
+  apt:
+    name: "{{ openldap_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Update sshd configuration
+  lineinfile: 
+    path: /etc/ssh/sshd_config
+    regexp: '^PasswordAuthentication'
+    line: PasswordAuthentication yes
+  notify: 
+    - restart ns daemons
+    - restart login services

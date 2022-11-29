@@ -1,9 +1,10 @@
 ---
 - name: Ensure NFS utilities are installed.
-  package: 
-    name: 
-      - "{{ deb_packages }}"
-    state: present
+  vars: 
+    package_name: 
+      - nfs-kernel-server
+  include_role: 
+    name: safe_yum
 
 - name: Start NFS server
   service: 
@@ -22,7 +23,14 @@
     path: "{{ local_path }}"
     state: directory
     owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    group: "{{ privilege_group_name }}"
+
+- name: create exports.d
+  file:
+    path: /etc/exports.d
+    owner: root
+    group: root
+    state: directory
 
 - name: create exports file
   register: nfs_config
