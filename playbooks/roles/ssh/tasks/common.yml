@@ -27,10 +27,3 @@
     group: "{{ ansible_user }}"
     mode: '0644'
   register: public_key
-
-- name: Remove SSH via password
-  become: true
-  lineinfile:
-    dest: /etc/ssh/sshd_config
-    regexp: '^PasswordAuthentication'
-    line: PasswordAuthentication no
