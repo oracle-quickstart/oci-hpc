@@ -60,7 +60,7 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
  
 ## resize.sh usage 
 
-The resize.py is deployed on the bastion node as part of the HPC cluster Stack deployment.  
+The resize.sh is deployed on the bastion node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will remove the node from the inventory and then do the requested action. To avoid losing track of nodes, we advise you to remove the unreachable nodes with `resize.sh remove_unreachable --nodes nodename` before doing any action on the cluster. 
 
 ```
 /opt/oci-hpc/bin/resize.sh -h
