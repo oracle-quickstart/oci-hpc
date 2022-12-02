@@ -162,7 +162,7 @@ def list():
 @click.option('-n', '--name', prompt='Full Name', required=True)
 @click.option('-i', '--uid', default=None, help='Select the userID')
 @click.option('-g', '--gid', default=None, help='Add to this groupID')
-@click.option('-ssh', '--ssh', is_flag=True, default=False, help='Flag to generate a user-specific ssh-key pair for passwordless ssh.')
+@click.option('-nossh', '--nossh', is_flag=True, default=False, help='Flag to not generate a user-specific ssh-key pair for passwordless ssh.')
 def add(user, password, uid, gid, name, ssh): 
   """ add user """
   search_base = people_dn
@@ -184,7 +184,7 @@ def add(user, password, uid, gid, name, ssh):
     if(conn.result['result'] != 0): 
       print(conn.result)
 
-  if ssh:
+  if not nossh:
     homedir='/home/{}/'.format(user)
     os.system("sudo su - "+user+" -c "+"' ssh-keygen -t rsa -b 2048 -q -f "+homedir+".ssh/id_rsa -P \"\"' 2> /dev/null")
     os.system("sudo su - "+user+" -c "+"'mv "+homedir+".ssh/id_rsa.pub "+homedir+".ssh/authorized_keys' 2> /dev/null")
