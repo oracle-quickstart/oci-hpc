@@ -40,7 +40,7 @@
   lineinfile: 
     path: /etc/ssh/sshd_config
     regexp: '^PasswordAuthentication'
-    line: PasswordAuthentication yes
+    line: PasswordAuthentication no
   notify: restart sshd
 
 - name: Setting up the system to use sssd for authentication
