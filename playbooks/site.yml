@@ -273,7 +273,7 @@
   vars:
     destroy: false
     initial: true
-    download_path: "{{ '/nfs/cluster/' if cluster_nfs|bool else '/tmp' }}"
+    download_path: "{{ cluster_nfs_path if cluster_nfs|bool else '/tmp' }}"
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
