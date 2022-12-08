@@ -91,7 +91,7 @@ else
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id'" >> $logs_folder/delete_${cluster_id}.log 2>&1
     fi
     nodes=`scontrol show topology $1 2>&1 | grep Nodes | awk '{print $NF}' | sed "s/Nodes=//"`
-    if [ `echo $nodes | wc -w` > 0 ]
+    if [[ `echo $nodes | wc -w` > 0 ]]
     then
         for node in `scontrol show hostname $nodes 2>&1`
         do
