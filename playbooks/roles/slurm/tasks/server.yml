@@ -198,17 +198,30 @@
     nodesname_list: "{{temp_list.split(',')[:-1] }}"
   when: not initial_topology.changed
 
+- name: Check if shapes need to be added
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName=inactive-{{item}}\\sNodes.*"
+    state: absent
+  check_mode: yes
+  with_items: "{{nodesname_list}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  register: shape_added
+  when: not initial_topology.changed
+
 - name: Add new shapes to existing topology.conf
   become: true
   vars:
     size: "{{ hostvars[inventory_hostname]['private_subnet'] | ipaddr('size') }}"
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{item}}\\sNodes.*"
-    line: "SwitchName=inactive-{{item}} Nodes={{item}}-node-[1-{{size}}]"
+    regexp: "SwitchName=inactive-{{item.item}}\\sNodes.*"
+    line: "SwitchName=inactive-{{item.item}} Nodes={{item.item}}-node-[1-{{size}}]"
     state: present
-  with_items: "{{nodesname_list}}"
+  with_items: "{{shape_added.results}}"
   run_once: true
   delegate_to: 127.0.0.1
-  when: not initial_topology.changed
+  when: not initial_topology.changed and not ( item.changed | bool)
   notify: reconfigure slurm
