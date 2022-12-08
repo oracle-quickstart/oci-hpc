@@ -118,30 +118,67 @@
   run_once: true
 
 - name: Get current nodes in Switch
-  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}}\" | grep Nodes= | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'"
+  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}}\" | grep Nodes="
   register: nodes_in_switch
   delegate_to: 127.0.0.1
   run_once: true
   with_items: "{{racks_to_add}}"
+  ignore_errors: yes
 
-- name: Get hostlist
-  vars: 
-    new_line: "{{item.stdout}}{% if item.stdout != ''%},{% endif%}{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if hostvars[node]['rackID'] == item.item.split(':')[1] and (not ((hostvars[node]['ansible_hostname'] in item.stdout.split(',')|list)|bool)) %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
-  command: "scontrol show hostlistsorted {{new_line[:-1]}}"
-  register: rack_hostlist
+- name: Get current nodes in Switch hostlist
+  vars:
+    - switch_list_condensed: "{{item.stdout.split('Nodes=')[1]}}"
+  command: "scontrol show hostname {{switch_list_condensed }}"
+  register: switch_hostlist
   delegate_to: 127.0.0.1
   with_items: "{{nodes_in_switch.results}}"
-  run_once: true
+  when: item.rc == 0
 
+- name: Get hostlist if switch exists
+  vars:
+    new_line: "{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}" 
+  command: "scontrol show hostlistsorted {{ item.stdout_lines | union (new_line[:-1].split(',') | list )| join(',') }}"
+  register: rack_hostlist1
+  delegate_to: 127.0.0.1
+  with_items: "{{switch_hostlist.results}}"
+  run_once: true
+  when: item.item.rc == 0
+
+- name: Get hostlist if switch does not exists
+  vars:
+    new_line: "{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}" 
+  command: "scontrol show hostlistsorted {{ new_line[:-1] }}"
+  register: rack_hostlist2
+  delegate_to: 127.0.0.1
+  with_items: "{{switch_hostlist.results}}"
+  run_once: true
+  when: item.item.rc > 0
+
+- name: get Nodes on switch
+  set_fact:
+    nodes_on_switches: "{{nodes_on_switches | default({}) | combine({item.item.item.item : item.stdout } ) }}"
+  with_items: "{{rack_hostlist1.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: item.item.item.rc== 0
+
+- name: get Nodes on switch
+  set_fact:
+    nodes_on_switches: "{{nodes_on_switches | default({}) | combine({item.item.item.item : item.stdout } ) }}"
+  with_items: "{{rack_hostlist2.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: item.item.item.rc > 0
+  
 - name: Add the nodes in the rack switches
   become: true
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{item.item.item}}\\sNodes.*"
-    line: "SwitchName={{item.item.item}} Nodes={{item.stdout}}"
+    line: "SwitchName={{item.item.item}} Nodes={{nodes_on_switches[item.item.item]}}"
     state: present
   run_once: true
-  with_items: "{{rack_hostlist.results}}"
+  with_items: "{{switch_hostlist.results}}"
   delegate_to: 127.0.0.1
   notify: reconfigure slurm
 
