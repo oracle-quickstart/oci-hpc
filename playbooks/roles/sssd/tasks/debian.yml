@@ -1,11 +1,12 @@
 ---
 
-- name: Install sssd packages
-  apt: 
-    name: 
+- name: install sssd
+  vars: 
+    package_name: 
       - sssd
-    state: present
-    update_cache: yes
+    package_state: present
+  include_role: 
+    name: safe_yum
 
 - name: Add configuration file to /etc/sssd/sssd.conf
   template:
