@@ -240,11 +240,8 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
         if inv_vars.startswith("compute_username"):
             username=inv_vars.split("compute_username=")[1].strip()
             break
-    if remove_unreachable:
-        reachable_instances,unreachable_instances = getreachable(instances,username,delay=1200)
-    else:
-        reachable_instances=instances
-        unreachable_instances=[]
+    reachable_instances=instances
+    unreachable_instances=[]
     if not os.path.isfile(inventory):
         print("There is no inventory file, are you on the bastion? The cluster has been resized but not reconfigured")
         exit()
@@ -305,12 +302,7 @@ def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
         if inv_vars.startswith("compute_username"):
             username=inv_vars.split("compute_username=")[1].strip()
             break
-    if remove_unreachable:
-        reachable_instances,unreachable_instances = getreachable(instances,username)
-    else:
-        reachable_instances=instances
-        unreachable_instances=[]
-    for node in reachable_instances:
+    for node in instances:
         name=node['display_name']
         ip=node['ip']
         nodeline=name+" ansible_host="+ip+" ansible_user="+username+" role=compute\n"
@@ -521,7 +513,7 @@ parser.add_argument('--no_reconfigure', help='If present. Does not rerun the pla
 parser.add_argument('--user_logging', help='If present. Use the default settings in ~/.oci/config to connect to the API. Default is using instance_principal',action='store_true',default=False)
 parser.add_argument('--force', help='If present. Nodes will be removed even if the destroy playbook failed',action='store_true',default=False)
 parser.add_argument('--ansible_crucial', help='If present during reconfiguration, only crucial ansible playbooks will be executed on the live nodes. Non live nodes will be removed',action='store_true',default=False)
-parser.add_argument('--remove_unreachable', help='If present, nodes that are not sshable will be removed from the config. They will however not be removed from Slurm to avoid losing track of the down nodes. If you need to remove them from Slurm after terminating the nodes in the console. Run sudo scontrol update nodename=name state=Future',action='store_true',default=False)
+parser.add_argument('--remove_unreachable', help='If present, nodes that are not sshable will be terminated before running the action that was requested (Example Adding a node) ',action='store_true',default=False)
 
 args = parser.parse_args()
 
@@ -682,8 +674,8 @@ else:
             hostnames_to_remove2 = list(hostnames)
             hostnames_to_remove2.extend(x for x in hostnames_to_remove if x not in hostnames_to_remove2)
             hostnames_to_remove=hostnames_to_remove2
-
-    if len(hostnames_to_remove):
+    hostnames_to_remove_len=len(hostnames_to_remove)
+    if hostnames_to_remove_len:
         if not no_reconfigure:
             playbook = playbooks_dir+"resize_remove_unreachable.yml"
             error_code = destroy_unreachable_reconfigure(inventory,hostnames_to_remove,playbook)
@@ -720,7 +712,7 @@ else:
             reconfigure(comp_ocid,cn_ocid,inventory,CN)
 
     if args.mode == 'add':
-        size = current_size + args.number
+        size = current_size - hostnames_to_remove_len + args.number
         update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
         ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'])
         updateTFState(inventory,cluster_name,size)
