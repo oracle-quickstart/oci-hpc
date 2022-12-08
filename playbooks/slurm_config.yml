@@ -1,4 +1,5 @@
 - hosts: bastion,slurm_backup,compute
+  gather_facts: true
   vars:
     destroy: false
     initial: true
