@@ -154,9 +154,6 @@
   notify: restart slurm server
   when: initial | bool
 
-- name: run handlers
-  meta: flush_handlers
-
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
@@ -190,6 +187,10 @@
   register: initial_topology
   run_once: true
   notify: reconfigure slurm
+
+
+- name: run handlers
+  meta: flush_handlers
 
 - name: Generate a list of types to check
   vars:
