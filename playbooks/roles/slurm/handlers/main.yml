@@ -8,6 +8,10 @@
   with_items:
     - slurmdbd
     - slurmctld
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 - name: restart slurm
   become: true
@@ -17,6 +21,10 @@
     enabled: true
   with_items: 
     - slurmd
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
 - name: restart munge
   become: true
