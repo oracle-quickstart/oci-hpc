@@ -47,7 +47,7 @@ So while there may be capacity available in the DC, you may not be able to grow 
 
 # Cluster Network Resizing (via resize.sh)
 
-Cluster resizing refers to ability to add or remove nodes from an existing cluster network.  It only applies to nodes with RDMA RoCEv2 (aka: cluster network) NICs, so HPC clusters created using BM.HPC2.36, BM.Optimized3.36 and BM.GPU4.8.  Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
+Cluster resizing refers to ability to add or remove nodes from an existing cluster network. Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
 
 Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
 - Add/Remove node (IaaS provisioning) to cluster – uses OCI Python SDK 
@@ -60,13 +60,13 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
  
 ## resize.sh usage 
 
-The resize.sh is deployed on the bastion node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will remove the node from the inventory and then do the requested action. To avoid losing track of nodes, we advise you to remove the unreachable nodes with `resize.sh remove_unreachable --nodes nodename` before doing any action on the cluster. 
+The resize.sh is deployed on the bastion node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will terminate the unreachable nodes before running the action that was requested (Example Adding a node) 
 
 ```
 /opt/oci-hpc/bin/resize.sh -h
 usage: resize.sh [-h] [--compartment_ocid COMPARTMENT_OCID]
                  [--cluster_name CLUSTER_NAME] [--nodes NODES [NODES ...]]
-                 [--no_reconfigure] [--user_logging] [--force]
+                 [--no_reconfigure] [--user_logging] [--force] [--remove_unreachable]
                  [{add,remove,list,reconfigure}] [number]
 
 Script to resize the CN

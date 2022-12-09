@@ -98,12 +98,12 @@
       run_once: true
       delegate_to: 127.0.0.1
     - name: Get cluster_hostlist
-      command: "scontrol show hostname {{cluster_switch.stdout.split('Nodes=')[1].split(',')}}"
+      command: "scontrol show hostname {{cluster_switch.stdout.split('Nodes=')[1]}}"
       register: cluster_hostlist
       run_once: true
       delegate_to: 127.0.0.1
     - name: Create new cluster_hostlist
-      command: "scontrol show hostlistsorted {{cluster_hostlist.stdout | list | union(nodes_to_add) | join(',') }}"
+      command: "scontrol show hostlistsorted {{cluster_hostlist.stdout_lines | union(nodes_to_add) | join(',') }}"
       register: cluster_hostlist_condensed_results
       delegate_to: 127.0.0.1
   rescue:
