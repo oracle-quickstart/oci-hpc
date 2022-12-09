@@ -434,11 +434,14 @@ def get_summary(comp_ocid,cluster_name):
     CN = True
     cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
     running_clusters = 0
+    scaling_clusters = 0
     cn_summary=None
     for cn_summary_tmp in cn_summaries:
         if cn_summary_tmp.lifecycle_state == "RUNNING":
             cn_summary = cn_summary_tmp
             running_clusters = running_clusters + 1
+        elif cn_summary_tmp.lifecycle_state == "SCALING":
+            scaling_clusters = scaling_clusters + 1
     if running_clusters == 0:
         cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
         if len(cn_summaries) > 0:
@@ -446,9 +449,14 @@ def get_summary(comp_ocid,cluster_name):
             for cn_summary_tmp in cn_summaries:
                 if cn_summary_tmp.lifecycle_state == "RUNNING":
                     cn_summary = cn_summary_tmp
-                    running_clusters = running_clusters + 1
+                    running_clusters = running_clusters + 1 
+                elif cn_summary_tmp.lifecycle_state == "SCALING":
+                    scaling_clusters = scaling_clusters + 1
         if running_clusters == 0:
-            print("The cluster was not found")
+            if scaling_clusters:
+                print("No running cluster was found but there is a cluster in SCALING mode, try rerunning in a moment")
+            else:
+                print("The cluster was not found")
             return None,None,True
     if running_clusters > 1:
         print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
