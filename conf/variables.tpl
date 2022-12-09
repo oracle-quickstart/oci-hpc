@@ -46,7 +46,8 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
+       "HPC_OL7" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
+       "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
        "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
   }
 }

@@ -13,7 +13,7 @@
     regexp: '^%{{privilege_group_name}}'
     line: '%{{privilege_group_name}} ALL=(ALL) NOPASSWD: ALL'
     validate: 'visudo -cf %s'
-  when: privilege_sudo
+  when: privilege_sudo | bool
 
 - name: "add opc/ubuntu user to {{privilege_group_name}} group"
   become: true

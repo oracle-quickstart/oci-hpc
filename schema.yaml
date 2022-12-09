@@ -168,7 +168,7 @@ variables:
   use_multiple_ads:
     type: boolean
     title: "Multiple ADs"
-    description: "Use multiple ADs in case of capacity constraints (Autoscaling Only)"
+    description: "Use multiple ADs in case of capacity constraints (Autoscaling Only) Autoscaling will try another AD upon failure."
     default: false
   ad:
     type: oci:identity:availabilitydomain:name
@@ -604,9 +604,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC"
+      - "HPC_OL7"
+      - "HPC_OL8"
       - "GPU"
-    default: "HPC"
+    default: "HPC_OL7"
     visible:
       and:
         - ${use_marketplace_image}
