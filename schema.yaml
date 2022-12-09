@@ -604,9 +604,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC"
+      - "HPC_OL7"
+      - "HPC_OL8"
       - "GPU"
-    default: "HPC"
+    default: "HPC_OL7"
     visible:
       and:
         - ${use_marketplace_image}
