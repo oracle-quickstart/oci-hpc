@@ -81,38 +81,6 @@
   no_log: false
   register: existing_api_keys
 
-# - name: Import mysql-2022 key 
-#   become: true
-#   rpm_key:
-#     state: present
-#     key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-
-# - name: install mysql
-#   vars: 
-#     package_name: 
-#       - https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
-#   include_role: 
-#     name: safe_yum
-
-- name: Add repo.mysql.com repo
-  become: true
-  yum_repository:
-    name: repo_mysql
-    description: RPM MySQL YUM repo
-    file: external_repos
-    baseurl: https://repo.mysql.com/yum/mysql-8.0-community/el/7/$basearch/
-    gpgkey: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-    gpgcheck: 1
-    enabled: 1
-
-- name: install mysql
-  vars: 
-    package_name: 
-      - mysql80-community-release-el7-7
-    state: present
-  include_role: 
-    name: safe_yum
-
 - name: install mysql-shell and connector
   vars: 
     package_name: 
