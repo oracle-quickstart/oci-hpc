@@ -248,7 +248,12 @@ resource "null_resource" "cluster" {
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
-      latency_check = var.latency_check
+      latency_check = var.latency_check,
+      inst_prin = var.inst_prin,
+      region = var.region,
+      tenancy_ocid = var.tenancy_ocid,
+      api_fingerprint = var.api_fingerprint,
+      api_user_ocid = var.api_user_ocid
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -409,7 +414,7 @@ provisioner "file" {
   }
   provisioner "file" {
     content     = base64decode(var.api_user_key)
-    destination   = "/opt/oci-hpc/autoscaling/credentials/key.initial" 
+    destination   = "/opt/oci-hpc/autoscaling/credentials/key.pem" 
     connection {
       host        = local.host
       type        = "ssh"
@@ -421,8 +426,6 @@ provisioner "file" {
   provisioner "remote-exec" {
     inline = [
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
-      "chmod 755 /opt/oci-hpc/autoscaling/credentials/key.sh",
-      "/opt/oci-hpc/autoscaling/credentials/key.sh /opt/oci-hpc/autoscaling/credentials/key.initial /opt/oci-hpc/autoscaling/credentials/key.pem > /opt/oci-hpc/autoscaling/credentials/key.log",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh",
