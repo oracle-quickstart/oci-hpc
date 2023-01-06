@@ -110,6 +110,16 @@
         name: cluster-cli
       when: ldap|default(true)|bool
 
+# configure if instance_principal is False
+- hosts: bastion
+  become: true
+  tasks:
+    - include_role:
+        name: no_instance_principal
+      when: not inst_prin|bool 
+      
+
+
 - hosts: compute
   become: true
   tasks:
