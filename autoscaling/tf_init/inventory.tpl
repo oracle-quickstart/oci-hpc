@@ -12,7 +12,7 @@ ${host} ansible_host=${ip} ansible_user=${compute_username} role=compute
 compute_to_add
 compute_configured
 [nfs]
-${nfs}
+%{ if nfs != "" }${nfs} ansible_user=${compute_username} role=nfs%{ endif }
 [all:children]
 bastion
 compute
