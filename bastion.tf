@@ -206,7 +206,7 @@ resource "null_resource" "cluster" {
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       rdma_network = cidrhost(var.rdma_subnet, 0),
       rdma_netmask = cidrnetmask(var.rdma_subnet),
-      nfs = var.node_count > 0 && scratch_nfs ? local.cluster_instances_names[0] : "",
+      nfs = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       home_nfs = var.home_nfs,
       create_fss = var.create_fss,
       home_fss = var.home_fss,
