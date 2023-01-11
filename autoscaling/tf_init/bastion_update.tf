@@ -25,7 +25,7 @@ resource "local_file" "inventory" {
     compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
     public_subnet = var.public_subnet, 
     private_subnet = var.private_subnet, 
-    nfs = scratch_nfs ? local.cluster_instances_names[0] : "",
+    nfs = var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
     home_nfs = var.home_nfs,
