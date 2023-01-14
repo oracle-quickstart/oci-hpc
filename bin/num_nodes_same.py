@@ -60,9 +60,30 @@ def get_metadata():
 
 
 def get_summary(comp_ocid,cluster_name):
-    # print(cluster_name)
+    # # print(cluster_name)
+    # signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    # computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
+    # cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
+    # running_clusters = 0
+    # scaling_clusters = 0
+    # cn_summary=None
+    # for cn_summary_tmp in cn_summaries:
+    #     if cn_summary_tmp.lifecycle_state == "RUNNING":
+    #         cn_summary = cn_summary_tmp
+    #         # print(cn_summary)
+    #         running_clusters = running_clusters + 1
+    #     elif cn_summary_tmp.lifecycle_state == "SCALING":
+    #         scaling_clusters = scaling_clusters + 1
+    # if running_clusters > 1:
+    #     print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
+    # if scaling_clusters > 0:
+    #     print("The cluster " +cluster_name+ " is scaling. Run this validation after it finishes scaling.")
+    # # print(cluster_name)
+    # # print(cn_summary)
+    # return cn_summary
     signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
     computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
+    CN = True
     cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
     running_clusters = 0
     scaling_clusters = 0
@@ -70,17 +91,35 @@ def get_summary(comp_ocid,cluster_name):
     for cn_summary_tmp in cn_summaries:
         if cn_summary_tmp.lifecycle_state == "RUNNING":
             cn_summary = cn_summary_tmp
-            # print(cn_summary)
             running_clusters = running_clusters + 1
         elif cn_summary_tmp.lifecycle_state == "SCALING":
             scaling_clusters = scaling_clusters + 1
+    if running_clusters == 0:
+        cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
+        if len(cn_summaries) > 0:
+            CN = False
+            for cn_summary_tmp in cn_summaries:
+                if cn_summary_tmp.lifecycle_state == "RUNNING":
+                    cn_summary = cn_summary_tmp
+                    running_clusters = running_clusters + 1 
+                elif cn_summary_tmp.lifecycle_state == "SCALING":
+                    scaling_clusters = scaling_clusters + 1
+        if running_clusters == 0:
+            if scaling_clusters:
+                print("No running cluster was found but there is a cluster in SCALING mode, try rerunning in a moment")
+            else:
+                print("The cluster was not found")
+            return None,None,True
     if running_clusters > 1:
         print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
-    if scaling_clusters > 0:
-        print("The cluster " +cluster_name+ " is scaling. Run this validation after it finishes scaling.")
-    # print(cluster_name)
+    if CN:
+        ip_summary=cn_summary.instance_pools[0]
+    else:
+        ip_summary=cn_summary
+    # print(CN)
+    # print(ip_summary)
     # print(cn_summary)
-    return cn_summary
+    return cn_summary,ip_summary,CN
 
 
 def get_instances(comp_ocid,cn_ocid):
@@ -296,22 +335,23 @@ def etcHostsSame(nodes, path):
     stdout,stderr = out.communicate()
     x = stdout.split("\n")
     del x[-1]
+    str = "exit"
+    f = open(path+"/etcHostsMD5Sum.txt", "a")
     for i in range(len(x)):
         split_str = x[i].split(':')
-        md5 = split_str[1].lstrip()
-        if md5 != bastion_md5:
-            if path is None:
-                path = createDir()
-                changeOwner(path)
-            f = open(path+"/etcHosts.txt", "a")
-            f.write("/etc/hosts file does not match on " + split_str[0] + "\n")
-            f.close()
-            md5_set.add(md5)
+        if str in x[i]:
+            f.write(split_str[1] + " not ssh-able at the moment" + "\n")
+            continue
+        else:
+            md5 = split_str[1].lstrip()
+            if md5 != bastion_md5:
+                f.write("/etc/hosts file does not match on " + split_str[0] + "\n")
+                md5_set.add(md5)
+    f.close()
     if len(md5_set) > 1:
         print("/etc/hosts on bastion and nodes is different")
     else:
-        print("/etc/hosts is same on bastion and all nodes")
-    return path
+        print("/etc/hosts is same on bastion and all nodes that are ssh-able")
 
 
 def ociCommand(metadata, cluster_names):
@@ -319,9 +359,14 @@ def ociCommand(metadata, cluster_names):
     oci_node_cluster_dict = {}
     node_list = []
     for cluster in cluster_names:
-        cn_summary = get_summary(comp_ocid,cluster)
+        cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster)
         if cn_summary is not None:
             cn_ocid = cn_summary.id
+            node_list = get_instances(comp_ocid, cn_ocid)
+            for node in node_list:
+                oci_node_cluster_dict.update({node: cluster})
+        elif ip_summary is not None:
+            cn_ocid = ip_summary.id
             node_list = get_instances(comp_ocid, cn_ocid)
             for node in node_list:
                 oci_node_cluster_dict.update({node: cluster})
@@ -366,17 +411,16 @@ def gpu_throttle(hostfile, path):
 ###############
 
 parser = argparse.ArgumentParser(description = 'Perform these checks. \
-    1. /etc/hosts is same as bastion across all nodes. \
-    2. Check the number of nodes is consistent across slurm, topology.conf, OCI console, inventory files. \
-    3. PCIe bandwidth check. \
-    4. GPU Throttle check \
+    1. Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. \
+    2. PCIe bandwidth check. \
+    3. GPU Throttle check \
     Options: \
-    --cluster_names <path to file> : Give a file that contains all the cluster names for option 2 and this will be considered as source of truth. \
+    --cluster_names <path to file> : Give a file that contains all the cluster names for option 1 and this will be considered as source of truth. \
         If not given, then the cluster names in the directory /opt/oci-hpc/autoscaling/clusters/ along with any permanent cluster associated \
         with the bastion will be considered as source of truth. ')
 parser.add_argument('-n', '--num_nodes', help = "Check the number of nodes is consistent across resize.sh, /etc/hosts, slurm, topology.conf, OCI console, inventory files. \
     Also check /etc/hosts is same as bastion across all hosts")
-parser.add_argument('-cn', '--cluster_names', help = "Provide a file that contains list of all cluster names")
+parser.add_argument('-cn', '--cluster_names', help = "Provide a file that contains list of all cluster names for the above validation")
 parser.add_argument('-p', '--pcie_file', help = "Provide a file that contains list of hosts on which to perform pcie check")
 parser.add_argument('-g', '--gpu_throttle', help = "Provide a file that contains list of hosts on which to perform gpu throttle check")
 
@@ -405,14 +449,21 @@ if args.num_nodes is not None:
 
         slurm_node_cluster_dict, warning_node_dict = slurmGetNodes(etc_node_cluster_dict)
 
+        topo_node_cluster_dict = topologyGetNodes(etc_node_cluster_dict)
+
+        inventory_node_cluster_dict = inventoryNodes(metadata, resize_cluster_names)
+
+        oci_node_cluster_dict = ociCommand(metadata, resize_cluster_names)
+
         if resize_node_cluster_dict == etc_node_cluster_dict:
             print("Number of nodes in /etc/hosts on bastion is same as resize")
         else:
-            f = open(path+"/etcHostsNumNodes.txt", "a")    
+            f = open(path+"/etcHostsNumNodes.txt", "a")
             # Finding keys in resize_node_cluster_dict which are not in etc_node_cluster_dict
-            for key in resize_node_cluster_dict.keys():
-                if not key in etc_node_cluster_dict:
-                    f.write(key + " not in /etc/hosts" + "\n")
+            # commenting this for loop for now as we want those nodes that are there in etc hosts but not in resize as resize is the source of truth
+            # for key in resize_node_cluster_dict.keys():
+            #     if not key in etc_node_cluster_dict:
+            #         f.write(key + " not in /etc/hosts" + "\n")
             # Finding keys in etc_node_cluster_dict which are not in resize_node_cluster_dict
             for key in etc_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
@@ -422,63 +473,75 @@ if args.num_nodes is not None:
         if resize_node_cluster_dict == slurm_node_cluster_dict:
             print("Number of nodes from slurm is same as resize")
         else:
-            f = open(path+"/slurmNumNodes.txt", "a")   
+            f = open(path+"/slurmNumNodes.txt", "a")
             # Finding keys in resize_node_cluster_dict which are not in slurm_node_cluster_dict
-            for key in resize_node_cluster_dict.keys():
-                if not key in slurm_node_cluster_dict:
-                    f.write(key + " not in slurm" + "\n")
+            # commenting this for loop for now as we want those nodes that are there in slurm but not in resize as resize is the source of truth
+            # for key in resize_node_cluster_dict.keys():
+            #     if not key in slurm_node_cluster_dict:
+            #         f.write(key + " not in slurm" + "\n")
             # Finding keys in slurm_node_cluster_dict which are not in resize_node_cluster_dict
             for key in slurm_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
                     f.write(key + " not in resize list" + "\n")
             f.close()
 
-        topo_node_cluster_dict = topologyGetNodes(etc_node_cluster_dict)
+        if len(warning_node_dict) > 0:
+            f = open(path+"/slurmWarnNodes.txt", "a")
+            for key in warning_node_dict.keys():
+                f.write(key + " is is slurm state " + warning_node_dict[key] + "\n")
+            f.close()
 
         if resize_node_cluster_dict == topo_node_cluster_dict:
             print("Number of nodes from topology is same as resize")
         else:
             f = open(path+"/topoNumNodes.txt", "a")
             # Finding keys in resize_node_cluster_dict which are not in topo_node_cluster_dict
-            for key in resize_node_cluster_dict.keys():
-                if not key in topo_node_cluster_dict:
-                    f.write(key + " not in topology.conf" + "\n")
+            # commenting this for loop for now as we want those nodes that are there in topology.conf but not in resize as resize is the source of truth
+            # for key in resize_node_cluster_dict.keys():
+            #     if not key in topo_node_cluster_dict:
+            #         f.write(key + " not in topology.conf" + "\n")
             # Finding keys in topo_node_cluster_dict which are not in resize_node_cluster_dict
             for key in topo_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
                     f.write(key + " not in resize list" + "\n")
             f.close()
 
-        inventory_node_cluster_dict = inventoryNodes(metadata, resize_cluster_names)
-
         if resize_node_cluster_dict == inventory_node_cluster_dict:
             print("Number of nodes from inventory is same as resize")
         else:
             f = open(path+"/inventoryNumNodes.txt", "a")
             # Finding keys in resize_node_cluster_dict which are not in inventory_node_cluster_dict
-            for key in resize_node_cluster_dict.keys():
-                if not key in inventory_node_cluster_dict:
-                    f.write(key + " not in inventory file" + "\n")
+            # commenting this for loop for now as we want those nodes that are there in inventory but not in resize as resize is the source of truth
+            # for key in resize_node_cluster_dict.keys():
+            #     if not key in inventory_node_cluster_dict:
+            #         f.write(key + " not in inventory file" + "\n")
             # Finding keys in inventory_node_cluster_dict which are not in resize_node_cluster_dict
             for key in inventory_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
                     f.write(key + " not in resize list" + "\n")
             f.close()
 
-        oci_node_cluster_dict = ociCommand(metadata, resize_cluster_names)
         if resize_node_cluster_dict == oci_node_cluster_dict:
             print("Number of nodes from oci cli is same as resize")
         else:
             f = open(path+"/ociCliNumNodes.txt", "a")
             # Finding keys in resize_node_cluster_dict which are not in oci_node_cluster_dict
-            for key in resize_node_cluster_dict.keys():
-                if not key in oci_node_cluster_dict:
-                    f.write(key + " not in oci cli" + "\n")
+            # commenting this for loop for now as we want those nodes that are there in oci cli but not in resize as resize is the source of truth
+            # for key in resize_node_cluster_dict.keys():
+            #     if not key in oci_node_cluster_dict:
+            #         f.write(key + " not in oci cli" + "\n")
             # Finding keys in oci_node_cluster_dict which are not in resize_node_cluster_dict
             for key in oci_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
                     f.write(key + " not in resize list" + "\n")
             f.close()
+
+        node_list = list(map(' '.join, resize_cluster_node_dict.values()))
+        nodes_space = ' '.join(str(s) for s in node_list)
+        split_str = nodes_space.split()
+        nodes_comma = ','.join(str(s) for s in split_str)
+        print(nodes_comma)
+        etcHostsSame(nodes_comma, path)
 
 
 if args.pcie_file is not None:
