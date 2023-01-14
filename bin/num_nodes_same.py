@@ -60,7 +60,7 @@ def get_metadata():
 
 
 def get_summary(comp_ocid,cluster_name):
-    print(cluster_name)
+    # print(cluster_name)
     signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
     computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
     cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
@@ -70,7 +70,7 @@ def get_summary(comp_ocid,cluster_name):
     for cn_summary_tmp in cn_summaries:
         if cn_summary_tmp.lifecycle_state == "RUNNING":
             cn_summary = cn_summary_tmp
-            print(cn_summary)
+            # print(cn_summary)
             running_clusters = running_clusters + 1
         elif cn_summary_tmp.lifecycle_state == "SCALING":
             scaling_clusters = scaling_clusters + 1
@@ -78,8 +78,8 @@ def get_summary(comp_ocid,cluster_name):
         print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
     if scaling_clusters > 0:
         print("The cluster " +cluster_name+ " is scaling. Run this validation after it finishes scaling.")
-    print(cluster_name)
-    print(cn_summary)
+    # print(cluster_name)
+    # print(cn_summary)
     return cn_summary
 
 
@@ -221,7 +221,7 @@ def getConsoleNodeName(slurm_node_name):
 
 
 # get number of nodes and their state using slurm
-def slurmGetNodes(etc_node_cluster_dict, path):
+def slurmGetNodes(etc_node_cluster_dict):
     out = subprocess.run(['sinfo','-hNr','-o','\"%T %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     lines = out.stdout.decode("utf-8")
     x = lines.split("\n")
@@ -238,9 +238,12 @@ def slurmGetNodes(etc_node_cluster_dict, path):
         proper_node_name = getConsoleNodeName(node_name)
         if node_state not in good_node_states:
             warning_node_dict.update({proper_node_name: node_state})
-        slurm_node_cluster = etc_node_cluster_dict[proper_node_name]
-        slurm_node_cluster_dict.update({proper_node_name: slurm_node_cluster})
-    return slurm_node_cluster_dict
+        if proper_node_name in etc_node_cluster_dict:
+            slurm_node_cluster = etc_node_cluster_dict[proper_node_name]
+            slurm_node_cluster_dict.update({proper_node_name: slurm_node_cluster})
+        else:
+            print(proper_node_name + " not found in /etc/hosts file")
+    return slurm_node_cluster_dict, warning_node_dict
 
 
 def topologyGetNodes(etc_node_cluster_dict):
@@ -260,10 +263,12 @@ def topologyGetNodes(etc_node_cluster_dict):
             node_name = node_name_str[1]
             res = re.findall(r'\[([^]]*)\]', node_name)
             if len(res) == 0:
-                # print(etc_node_cluster_dict)
                 topo_node_name = getConsoleNodeName(node_name)
-                topo_node_cluster = etc_node_cluster_dict[topo_node_name]
-                topo_node_cluster_dict.update({topo_node_name: topo_node_cluster})
+                if topo_node_name in etc_node_cluster_dict:
+                    topo_node_cluster = etc_node_cluster_dict[topo_node_name]
+                    topo_node_cluster_dict.update({topo_node_name: topo_node_cluster})
+                else:
+                    print(topo_node_name + " not found in /etc/hosts file")
             else:
                 out = subprocess.Popen(["scontrol show hostnames "+node_name],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
                 stdout,stderr = out.communicate()
@@ -271,8 +276,11 @@ def topologyGetNodes(etc_node_cluster_dict):
                 del nodes[-1]
                 for n in nodes:
                     oci_console_node_name = getConsoleNodeName(n)
-                    topo_node_cluster = etc_node_cluster_dict[oci_console_node_name]
-                    topo_node_cluster_dict.update({oci_console_node_name: topo_node_cluster})
+                    if oci_console_node_name in etc_cluster_node_dict:
+                        topo_node_cluster = etc_node_cluster_dict[oci_console_node_name]
+                        topo_node_cluster_dict.update({oci_console_node_name: topo_node_cluster})
+                    else:
+                        print(oci_console_node_name + " not found in /etc/hosts file")
     return topo_node_cluster_dict
 
 
@@ -312,15 +320,15 @@ def ociCommand(metadata, cluster_names):
     node_list = []
     for cluster in cluster_names:
         cn_summary = get_summary(comp_ocid,cluster)
-        cn_ocid = cn_summary.id
-        node_list = get_instances(comp_ocid, cn_ocid)
-        for node in node_list:
-            oci_node_cluster_dict.update({node: cluster})
+        if cn_summary is not None:
+            cn_ocid = cn_summary.id
+            node_list = get_instances(comp_ocid, cn_ocid)
+            for node in node_list:
+                oci_node_cluster_dict.update({node: cluster})
     return oci_node_cluster_dict
 
 
 def inventoryNodes(metadata, cluster_names):
-    # inventory_num_nodes = 0
     inventory_node_cluster_dict = {}
     permanent_cluster = metadata['displayName'].replace('-bastion','')
     for cluster in cluster_names:
@@ -376,99 +384,101 @@ args = parser.parse_args()
 
 metadata=get_metadata()
 
-if args.num_nodes is not None:
-    cluster_names = getResizeClusterNames(args.cluster_names)
-    resize_cluster_names, resize_cluster_node_dict = getResizeNodes(metadata, cluster_names)
-    # print(resize_cluster_node_dict)
-
-
-resize_node_cluster_dict = {}
-for k, v in resize_cluster_node_dict.items():
-    for v1 in v:
-        resize_node_cluster_dict[v1] = k
-# print(resize_node_cluster_dict)
-
-etc_node_cluster_dict, etc_cluster_node_dict = nodesFromEtcHosts()
-
 path = createDir()
 changeOwner(path)
 
-slurm_node_cluster_dict = slurmGetNodes(etc_node_cluster_dict, path)
+if args.num_nodes is not None:
+    resize_cluster_names = []
+    resize_cluster_node_dict = {}
+    cluster_names = getResizeClusterNames(args.cluster_names)
+    resize_cluster_names, resize_cluster_node_dict = getResizeNodes(metadata, cluster_names)
 
-if resize_node_cluster_dict == etc_node_cluster_dict:
-    print("Number of nodes in /etc/hosts on bastion is same as resize")
-else:
-    f = open(path+"/etcHostsNumNodes.txt", "a")    
-    # Finding keys in resize_node_cluster_dict which are not in etc_node_cluster_dict
-    for key in resize_node_cluster_dict.keys():
-        if not key in etc_node_cluster_dict:
-            f.write(key + " not in /etc/hosts" + "\n")
-    # Finding keys in etc_node_cluster_dict which are not in resize_node_cluster_dict
-    for key in etc_node_cluster_dict.keys():
-        if not key in resize_node_cluster_dict:
-            f.write(key + " not in resize list" + "\n")
-    f.close()
+    if len(resize_cluster_names) == 0 or len(resize_cluster_node_dict) == 0:
+        print("There are no clusters available")
+    else:
+        resize_node_cluster_dict = {}
+        for k, v in resize_cluster_node_dict.items():
+            for v1 in v:
+                resize_node_cluster_dict[v1] = k
 
-if resize_node_cluster_dict == slurm_node_cluster_dict:
-    print("Number of nodes from slurm is same as resize")
-else:
-    f = open(path+"/slurmNumNodes.txt", "a")   
-    # Finding keys in resize_node_cluster_dict which are not in slurm_node_cluster_dict
-    for key in resize_node_cluster_dict.keys():
-        if not key in slurm_node_cluster_dict:
-            f.write(key + " not in slurm" + "\n")
-    # Finding keys in slurm_node_cluster_dict which are not in resize_node_cluster_dict
-    for key in slurm_node_cluster_dict.keys():
-        if not key in resize_node_cluster_dict:
-            f.write(key + " not in resize list" + "\n")
-    f.close()
+        etc_node_cluster_dict, etc_cluster_node_dict = nodesFromEtcHosts()
 
-topo_node_cluster_dict = topologyGetNodes(etc_node_cluster_dict)
+        slurm_node_cluster_dict, warning_node_dict = slurmGetNodes(etc_node_cluster_dict)
 
-if resize_node_cluster_dict == topo_node_cluster_dict:
-    print("Number of nodes from topology is same as resize")
-else:
-    f = open(path+"/topoNumNodes.txt", "a")
-    # Finding keys in resize_node_cluster_dict which are not in topo_node_cluster_dict
-    for key in resize_node_cluster_dict.keys():
-        if not key in topo_node_cluster_dict:
-            f.write(key + " not in topology.conf" + "\n")
-    # Finding keys in topo_node_cluster_dict which are not in resize_node_cluster_dict
-    for key in topo_node_cluster_dict.keys():
-        if not key in resize_node_cluster_dict:
-            f.write(key + " not in resize list" + "\n")
-    f.close()
+        if resize_node_cluster_dict == etc_node_cluster_dict:
+            print("Number of nodes in /etc/hosts on bastion is same as resize")
+        else:
+            f = open(path+"/etcHostsNumNodes.txt", "a")    
+            # Finding keys in resize_node_cluster_dict which are not in etc_node_cluster_dict
+            for key in resize_node_cluster_dict.keys():
+                if not key in etc_node_cluster_dict:
+                    f.write(key + " not in /etc/hosts" + "\n")
+            # Finding keys in etc_node_cluster_dict which are not in resize_node_cluster_dict
+            for key in etc_node_cluster_dict.keys():
+                if not key in resize_node_cluster_dict:
+                    f.write(key + " not in resize list" + "\n")
+            f.close()
 
-inventory_node_cluster_dict = inventoryNodes(metadata, resize_cluster_names)
+        if resize_node_cluster_dict == slurm_node_cluster_dict:
+            print("Number of nodes from slurm is same as resize")
+        else:
+            f = open(path+"/slurmNumNodes.txt", "a")   
+            # Finding keys in resize_node_cluster_dict which are not in slurm_node_cluster_dict
+            for key in resize_node_cluster_dict.keys():
+                if not key in slurm_node_cluster_dict:
+                    f.write(key + " not in slurm" + "\n")
+            # Finding keys in slurm_node_cluster_dict which are not in resize_node_cluster_dict
+            for key in slurm_node_cluster_dict.keys():
+                if not key in resize_node_cluster_dict:
+                    f.write(key + " not in resize list" + "\n")
+            f.close()
 
-if resize_node_cluster_dict == inventory_node_cluster_dict:
-    print("Number of nodes from inventory is same as resize")
-else:
-    f = open(path+"/inventoryNumNodes.txt", "a")
-    # Finding keys in resize_node_cluster_dict which are not in inventory_node_cluster_dict
-    for key in resize_node_cluster_dict.keys():
-        if not key in inventory_node_cluster_dict:
-            f.write(key + " not in inventory file" + "\n")
-    # Finding keys in inventory_node_cluster_dict which are not in resize_node_cluster_dict
-    for key in inventory_node_cluster_dict.keys():
-        if not key in resize_node_cluster_dict:
-            f.write(key + " not in resize list" + "\n")
-    f.close()
+        topo_node_cluster_dict = topologyGetNodes(etc_node_cluster_dict)
 
-oci_node_cluster_dict = ociCommand(metadata, resize_cluster_names)
-if resize_node_cluster_dict == oci_node_cluster_dict:
-    print("Number of nodes from oci cli is same as resize")
-else:
-    f = open(path+"/ociCliNumNodes.txt", "a")
-    # Finding keys in resize_node_cluster_dict which are not in oci_node_cluster_dict
-    for key in resize_node_cluster_dict.keys():
-        if not key in oci_node_cluster_dict:
-            f.write(key + " not in oci cli" + "\n")
-    # Finding keys in oci_node_cluster_dict which are not in resize_node_cluster_dict
-    for key in oci_node_cluster_dict.keys():
-        if not key in resize_node_cluster_dict:
-            f.write(key + " not in resize list" + "\n")
-    f.close()
+        if resize_node_cluster_dict == topo_node_cluster_dict:
+            print("Number of nodes from topology is same as resize")
+        else:
+            f = open(path+"/topoNumNodes.txt", "a")
+            # Finding keys in resize_node_cluster_dict which are not in topo_node_cluster_dict
+            for key in resize_node_cluster_dict.keys():
+                if not key in topo_node_cluster_dict:
+                    f.write(key + " not in topology.conf" + "\n")
+            # Finding keys in topo_node_cluster_dict which are not in resize_node_cluster_dict
+            for key in topo_node_cluster_dict.keys():
+                if not key in resize_node_cluster_dict:
+                    f.write(key + " not in resize list" + "\n")
+            f.close()
+
+        inventory_node_cluster_dict = inventoryNodes(metadata, resize_cluster_names)
+
+        if resize_node_cluster_dict == inventory_node_cluster_dict:
+            print("Number of nodes from inventory is same as resize")
+        else:
+            f = open(path+"/inventoryNumNodes.txt", "a")
+            # Finding keys in resize_node_cluster_dict which are not in inventory_node_cluster_dict
+            for key in resize_node_cluster_dict.keys():
+                if not key in inventory_node_cluster_dict:
+                    f.write(key + " not in inventory file" + "\n")
+            # Finding keys in inventory_node_cluster_dict which are not in resize_node_cluster_dict
+            for key in inventory_node_cluster_dict.keys():
+                if not key in resize_node_cluster_dict:
+                    f.write(key + " not in resize list" + "\n")
+            f.close()
+
+        oci_node_cluster_dict = ociCommand(metadata, resize_cluster_names)
+        if resize_node_cluster_dict == oci_node_cluster_dict:
+            print("Number of nodes from oci cli is same as resize")
+        else:
+            f = open(path+"/ociCliNumNodes.txt", "a")
+            # Finding keys in resize_node_cluster_dict which are not in oci_node_cluster_dict
+            for key in resize_node_cluster_dict.keys():
+                if not key in oci_node_cluster_dict:
+                    f.write(key + " not in oci cli" + "\n")
+            # Finding keys in oci_node_cluster_dict which are not in resize_node_cluster_dict
+            for key in oci_node_cluster_dict.keys():
+                if not key in resize_node_cluster_dict:
+                    f.write(key + " not in resize list" + "\n")
+            f.close()
 
 
 if args.pcie_file is not None:
