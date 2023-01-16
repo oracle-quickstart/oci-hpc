@@ -320,7 +320,9 @@ def etcHostsSame(nodes, path):
     for i in range(len(x)):
         split_str = x[i].split(':')
         if str in x[i]:
+            f = open(path+"/etcHostsMD5Sum.txt", "a")
             f.write(split_str[1] + " not ssh-able at the moment" + "\n")
+            f.close()
             continue
         else:
             md5 = split_str[1].lstrip()
