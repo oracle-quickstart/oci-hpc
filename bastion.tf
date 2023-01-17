@@ -248,7 +248,8 @@ resource "null_resource" "cluster" {
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
-      latency_check = var.latency_check
+      latency_check = var.latency_check,
+      pam = var.pam
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -376,7 +377,8 @@ resource "null_resource" "cluster" {
       private_deployment = var.private_deployment,
       use_multiple_ads = var.use_multiple_ads,
       bastion_username = var.bastion_username,
-      compute_username = var.compute_username
+      compute_username = var.compute_username,
+      pam = var.pam
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
