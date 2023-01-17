@@ -153,38 +153,40 @@ def getResizeClusterNames(filepath):
 
 
 # this is the source of truth for total number of nodes in a cluster
-def getResizeNodes(metadata, cluster_names):
-    resize_cluster_node_dict = {}
-    str = "ocid1.instance."
-    for cluster in cluster_names:
-        out = subprocess.Popen(["/opt/oci-hpc/bin/resize.sh --cluster_name "+cluster],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+def getResizeNodes(metadata, cluster_names, mode):
+    if mode == 1 or mode == 2:
+        resize_cluster_node_dict = {}
+        str = "ocid1.instance."
+        for cluster in cluster_names:
+            out = subprocess.Popen(["/opt/oci-hpc/bin/resize.sh --cluster_name "+cluster],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+            stdout,stderr = out.communicate()
+            x = stdout.split("\n")
+            del x[-1]
+            cluster_node_set = set()
+            for i in range(len(x)):
+                if str in x[i]:
+                    split_str = x[i].split()
+                    cluster_node_set.add(split_str[0].replace('"',''))
+                if len(cluster_node_set) > 0:
+                    resize_cluster_node_dict.update({cluster: cluster_node_set})
+    if mode == 2:
+        out = subprocess.Popen(["/opt/oci-hpc/bin/resize.sh list"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
         stdout,stderr = out.communicate()
         x = stdout.split("\n")
         del x[-1]
+        permanent_cluster = ''
         cluster_node_set = set()
         for i in range(len(x)):
             if str in x[i]:
-                split_str = x[i].split()
-                cluster_node_set.add(split_str[0].replace('"',''))
-            if len(cluster_node_set) > 0:
-                resize_cluster_node_dict.update({cluster: cluster_node_set})
-    out = subprocess.Popen(["/opt/oci-hpc/bin/resize.sh list"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-    stdout,stderr = out.communicate()
-    x = stdout.split("\n")
-    del x[-1]
-    permanent_cluster = ''
-    cluster_node_set = set()
-    for i in range(len(x)):
-        if str in x[i]:
-            permanent_cluster = metadata['displayName'].replace('-bastion','')
-            if permanent_cluster in cluster_names:
-                return cluster_names, resize_cluster_node_dict
-            else:
-                split_str = x[i].split()
-                cluster_node_set.add(split_str[0].replace('"',''))
-    if len(cluster_node_set) > 0:
-        resize_cluster_node_dict.update({permanent_cluster: cluster_node_set})
-        cluster_names.add(permanent_cluster)
+                permanent_cluster = metadata['displayName'].replace('-bastion','')
+                if permanent_cluster in cluster_names:
+                    return cluster_names, resize_cluster_node_dict
+                else:
+                    split_str = x[i].split()
+                    cluster_node_set.add(split_str[0].replace('"',''))
+        if len(cluster_node_set) > 0:
+            resize_cluster_node_dict.update({permanent_cluster: cluster_node_set})
+            cluster_names.add(permanent_cluster)
     return cluster_names, resize_cluster_node_dict
 
 
@@ -199,35 +201,20 @@ def getNodesInClusters(cluster_name):
     return nodes
 
 
-# find out all available clusters
-def getEtcClusterNames():
-    out = subprocess.Popen(["cat /etc/hosts | grep \"END ANSIBLE MANAGED BLOCK\" | awk '{print $6}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-    stdout,stderr = out.communicate()
-    x = stdout.split("\n")
-    del x[-1]
-    cluster_list = []
-    for cluster in x:
-        if (cluster == "BASTION"):
-            continue
-        else:
-            cluster_list.append(cluster)
-    return cluster_list
-
-
-def nodesFromEtcHosts():
-    etc_cluster_list = getEtcClusterNames()
+def nodesFromEtcHosts(resize_cluster_names):
     etc_node_cluster_dict = {}
     etc_cluster_node_dict = {}
-    for etc_cluster in etc_cluster_list:
-        etc_nodes = getNodesInClusters(etc_cluster)
+    for cluster in resize_cluster_names:
+        etc_nodes = getNodesInClusters(cluster)
         for n in etc_nodes:
-            etc_node_cluster_dict.update({n: etc_cluster})
-        etc_cluster_node_dict.update({etc_cluster: etc_nodes})
+            etc_node_cluster_dict.update({n: cluster})
+        etc_cluster_node_dict.update({cluster: etc_nodes})
     return etc_node_cluster_dict, etc_cluster_node_dict
 
 
 def getConsoleNodeName(slurm_node_name):
-    out = subprocess.Popen(["cat /etc/hosts | grep "+slurm_node_name+" | grep local.vcn | awk '{print $4}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    name = slurm_node_name + ".local.vcn"
+    out = subprocess.Popen(["cat /etc/hosts | grep "+name+" | grep local.vcn | awk '{print $4}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
     node_name_output = stdout.split("\n")
     del node_name_output[-1]
@@ -235,7 +222,7 @@ def getConsoleNodeName(slurm_node_name):
 
 
 # get number of nodes and their state using slurm
-def slurmGetNodes(etc_node_cluster_dict):
+def slurmGetNodes(resize_cluster_names, all_node_cluster_dict, path):
     out = subprocess.run(['sinfo','-hNr','-o','\"%T %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     lines = out.stdout.decode("utf-8")
     x = lines.split("\n")
@@ -250,19 +237,31 @@ def slurmGetNodes(etc_node_cluster_dict):
         node_state = split_str[0].replace('"','')
         node_name = split_str[2].replace('"','')
         proper_node_name = getConsoleNodeName(node_name)
-        if node_state not in good_node_states:
-            warning_node_dict.update({proper_node_name: node_state})
-        if proper_node_name in etc_node_cluster_dict:
-            slurm_node_cluster = etc_node_cluster_dict[proper_node_name]
-            slurm_node_cluster_dict.update({proper_node_name: slurm_node_cluster})
+        if proper_node_name is not None:
+            if node_state not in good_node_states:
+                warning_node_dict.update({proper_node_name: node_state})
+            if proper_node_name in all_node_cluster_dict:
+                slurm_node_cluster = all_node_cluster_dict[proper_node_name]
+                if slurm_node_cluster in resize_cluster_names:
+                    slurm_node_cluster_dict.update({proper_node_name: slurm_node_cluster})
+            else:
+                if path is None:
+                    path = createDir()
+                    changeOwner(path)
+                f = open(path+"/slurmNumNodes.txt", "a")
+                f.write(proper_node_name + " not found in resize" + "\n")
+                f.close()
         else:
+            if path is None:
+                path = createDir()
+                changeOwner(path)
             f = open(path+"/slurmNumNodes.txt", "a")
-            f.write(proper_node_name + " not found in /etc/hosts file" + "\n")
+            f.write(node_name + " not found in /etc/hosts file for getting the oci console name" + "\n")
             f.close()
-    return slurm_node_cluster_dict, warning_node_dict
+    return slurm_node_cluster_dict, warning_node_dict, path
 
 
-def topologyGetNodes(etc_node_cluster_dict):
+def topologyGetNodes(resize_cluster_names, all_node_cluster_dict, path):
     str1 = "SwitchName=inactive"
     str2 = "Switches="
     out = subprocess.Popen(["cat /etc/slurm/topology.conf"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
@@ -276,16 +275,29 @@ def topologyGetNodes(etc_node_cluster_dict):
         else:
             split_str = x[i].split()
             node_name_str = split_str[1].rsplit("=")
-            node_name = node_name_str[1]
+            node_name_1 = node_name_str[1].replace('"','')
+            node_name = node_name_1.replace(' ','')
             res = re.findall(r'\[([^]]*)\]', node_name)
             if len(res) == 0:
                 topo_node_name = getConsoleNodeName(node_name)
-                if topo_node_name in etc_node_cluster_dict:
-                    topo_node_cluster = etc_node_cluster_dict[topo_node_name]
-                    topo_node_cluster_dict.update({topo_node_name: topo_node_cluster})
+                if topo_node_name is not None:
+                    if topo_node_name in all_node_cluster_dict:
+                        topo_node_cluster = all_node_cluster_dict[topo_node_name]
+                        if topo_node_cluster in resize_cluster_names:
+                            topo_node_cluster_dict.update({topo_node_name: topo_node_cluster})
+                    else:
+                        if path is None:
+                            path = createDir()
+                            changeOwner(path)
+                        f = open(path+"/topoNumNodes.txt", "a")
+                        f.write(topo_node_name + " not found in resize" + "\n")
+                        f.close()
                 else:
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
                     f = open(path+"/topoNumNodes.txt", "a")
-                    f.write(topo_node_name + " not found in /etc/hosts file" + "\n")
+                    f.write(node_name + " not found in /etc/hosts file for getting the oci console name" + "\n")
                     f.close()
             else:
                 out = subprocess.Popen(["scontrol show hostnames "+node_name],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
@@ -294,14 +306,26 @@ def topologyGetNodes(etc_node_cluster_dict):
                 del nodes[-1]
                 for n in nodes:
                     oci_console_node_name = getConsoleNodeName(n)
-                    if oci_console_node_name in etc_node_cluster_dict:
-                        topo_node_cluster = etc_node_cluster_dict[oci_console_node_name]
-                        topo_node_cluster_dict.update({oci_console_node_name: topo_node_cluster})
+                    if oci_console_node_name is not None:
+                        if oci_console_node_name in all_node_cluster_dict:
+                            topo_node_cluster = all_node_cluster_dict[oci_console_node_name]
+                            if topo_node_cluster in resize_cluster_names:
+                                topo_node_cluster_dict.update({oci_console_node_name: topo_node_cluster})
+                        else:
+                            if path is None:
+                                path = createDir()
+                                changeOwner(path)
+                            f = open(path+"/topoNumNodes.txt", "a")
+                            f.write(oci_console_node_name + " not found in resize" + "\n")
+                            f.close()
                     else:
+                        if path is None:
+                            path = createDir()
+                            changeOwner(path)
                         f = open(path+"/topoNumNodes.txt", "a")
-                        f.write(oci_console_node_name + " not found in /etc/hosts file" + "\n")
+                        f.write(node_name + " not found in /etc/hosts file for getting the oci console name" + "\n")
                         f.close()
-    return topo_node_cluster_dict
+    return topo_node_cluster_dict, path
 
 
 def etcHostsSame(nodes, path):
@@ -320,6 +344,9 @@ def etcHostsSame(nodes, path):
     for i in range(len(x)):
         split_str = x[i].split(':')
         if str in x[i]:
+            if path is None:
+                path = createDir()
+                changeOwner(path)
             f = open(path+"/etcHostsMD5Sum.txt", "a")
             f.write(split_str[1] + " not ssh-able at the moment" + "\n")
             f.close()
@@ -327,6 +354,9 @@ def etcHostsSame(nodes, path):
         else:
             md5 = split_str[1].lstrip()
             if md5 != bastion_md5:
+                if path is None:
+                    path = createDir()
+                    changeOwner(path)
                 f = open(path+"/etcHostsMD5Sum.txt", "a")
                 f.write("/etc/hosts file does not match on " + split_str[0] + "\n")
                 f.close()
@@ -335,6 +365,7 @@ def etcHostsSame(nodes, path):
         print("/etc/hosts on bastion and nodes is different")
     else:
         print("/etc/hosts is same on bastion and all nodes that are ssh-able")
+    return path
 
 
 def ociCommand(metadata, cluster_names):
@@ -391,6 +422,22 @@ def gpu_throttle(hostfile, path):
     out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/gpu_throttle.sh\" ; done > "+path+"/gpu-throttle-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
 
+def getResizeCluster(args, metadata):
+    resize_cluster_names = []
+    resize_cluster_node_dict = {}
+    resize_node_cluster_dict = {}
+    resize_cluster_names = getResizeClusterNames(args.cluster_names)
+    resize_cluster_names, resize_cluster_node_dict = getResizeNodes(metadata, resize_cluster_names, 1)
+
+    if len(resize_cluster_names) == 0 or len(resize_cluster_node_dict) == 0:
+        print("There are no clusters available")
+    else:
+        for k, v in resize_cluster_node_dict.items():
+            for v1 in v:
+                resize_node_cluster_dict[v1] = k
+
+    return resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict
+
 ###############
 
 parser = argparse.ArgumentParser(description = 'Perform these checks. \
@@ -414,28 +461,36 @@ args = parser.parse_args()
 
 metadata=get_metadata()
 
-path = createDir()
-changeOwner(path)
+path = None
+
+resize_cluster_names = []
+resize_cluster_node_dict = {}
+resize_node_cluster_dict = {}
 
 if args.num_nodes is not None:
-    resize_cluster_names = []
-    resize_cluster_node_dict = {}
-    cluster_names = getResizeClusterNames(args.cluster_names)
-    resize_cluster_names, resize_cluster_node_dict = getResizeNodes(metadata, cluster_names)
+    resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict = getResizeCluster(args, metadata)
 
-    if len(resize_cluster_names) == 0 or len(resize_cluster_node_dict) == 0:
-        print("There are no clusters available")
-    else:
-        resize_node_cluster_dict = {}
-        for k, v in resize_cluster_node_dict.items():
-            for v1 in v:
-                resize_node_cluster_dict[v1] = k
+    if len(resize_cluster_names) > 0:
 
-        etc_node_cluster_dict, etc_cluster_node_dict = nodesFromEtcHosts()
+        # get all clusters and its corresponding nodes --> this is required to get the cluster name of the nodes from slurm and topology.conf \
+        # so as to filter out clusters if -cn option is given
+        all_cluster_names = []
+        all_cluster_node_dict = {}
+        all_node_cluster_dict = {}
+        all_cluster_names = getResizeClusterNames(None)
+        all_cluster_names, all_cluster_node_dict = getResizeNodes(metadata, all_cluster_names, 2)
+        if len(all_cluster_names) == 0 or len(all_cluster_node_dict) == 0:
+            print("There are no clusters available")
+        else:
+            for k, v in all_cluster_node_dict.items():
+                for v1 in v:
+                    all_node_cluster_dict[v1] = k
 
-        slurm_node_cluster_dict, warning_node_dict = slurmGetNodes(etc_node_cluster_dict)
+        etc_node_cluster_dict, etc_cluster_node_dict = nodesFromEtcHosts(resize_cluster_names)
 
-        topo_node_cluster_dict = topologyGetNodes(etc_node_cluster_dict)
+        slurm_node_cluster_dict, warning_node_dict, path = slurmGetNodes(resize_cluster_names, all_node_cluster_dict, path)
+
+        topo_node_cluster_dict, path = topologyGetNodes(resize_cluster_names, all_node_cluster_dict, path)
 
         inventory_node_cluster_dict = inventoryNodes(metadata, resize_cluster_names)
 
@@ -444,59 +499,117 @@ if args.num_nodes is not None:
         if resize_node_cluster_dict == etc_node_cluster_dict:
             print("Number of nodes in /etc/hosts on bastion is same as resize")
         else:
-            f = open(path+"/etcHostsNumNodes.txt", "a")
+            for key in resize_node_cluster_dict.keys():
+                if not key in etc_node_cluster_dict:
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/etcHostsNumNodes.txt", "a")
+                    f.write(key + " is not in etc hosts" + "\n")
+                    f.close()
             for key in etc_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
-                    f.write(key + " not in resize list" + "\n")
-            f.close()
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/etcHostsNumNodes.txt", "a")
+                    f.write(key + " is not in resize list" + "\n")
+                    f.close()
 
         if resize_node_cluster_dict == slurm_node_cluster_dict:
             print("Number of nodes from slurm is same as resize")
-        else:
-            f = open(path+"/slurmNumNodes.txt", "a")
+        else:  
+            for key in resize_node_cluster_dict.keys():
+                if not key in slurm_node_cluster_dict:
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/slurmNumNodes.txt", "a")
+                    f.write(key + " is not in slurm" + "\n")
+                    f.close()
             for key in slurm_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
-                    f.write(key + " not in resize list" + "\n")
-            f.close()
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/slurmNumNodes.txt", "a")
+                    f.write(key + " is not in resize list" + "\n")
+                    f.close()
 
         if len(warning_node_dict) > 0:
-            f = open(path+"/slurmWarnNodes.txt", "a")
             for key in warning_node_dict.keys():
-                f.write(key + " is is slurm state " + warning_node_dict[key] + "\n")
-            f.close()
+                if path is None:
+                    path = createDir()
+                    changeOwner(path)
+                f = open(path+"/slurmWarnNodes.txt", "a")
+                f.write(key + " is in slurm state " + warning_node_dict[key] + "\n")
+                f.close()
 
         if resize_node_cluster_dict == topo_node_cluster_dict:
             print("Number of nodes from topology is same as resize")
         else:
-            f = open(path+"/topoNumNodes.txt", "a")
+            for key in resize_node_cluster_dict.keys():
+                if not key in topo_node_cluster_dict:
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/topoNumNodes.txt", "a")
+                    f.write(key + " is not in topology.conf file" + "\n")
+                    f.close()
             for key in topo_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
-                    f.write(key + " not in resize list" + "\n")
-            f.close()
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/topoNumNodes.txt", "a")
+                    f.write(key + " is not in resize list" + "\n")
+                    f.close()
 
         if resize_node_cluster_dict == inventory_node_cluster_dict:
             print("Number of nodes from inventory is same as resize")
         else:
-            f = open(path+"/inventoryNumNodes.txt", "a")
+            for key in resize_node_cluster_dict.keys():
+                if not key in inventory_node_cluster_dict:
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/inventoryNumNodes.txt", "a")
+                    f.write(key + " is not in inventory file" + "\n")
+                    f.close()
             for key in inventory_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
-                    f.write(key + " not in resize list" + "\n")
-            f.close()
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/inventoryNumNodes.txt", "a")
+                    f.write(key + " is not in resize list" + "\n")
+                    f.close()
 
         if resize_node_cluster_dict == oci_node_cluster_dict:
             print("Number of nodes from oci cli is same as resize")
         else:
-            f = open(path+"/ociCliNumNodes.txt", "a")
+            for key in resize_node_cluster_dict.keys():
+                if not key in oci_node_cluster_dict:
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/ociCliNumNodes.txt", "a")
+                    f.write(key + " not found using oci cli" + "\n")
+                    f.close()
             for key in oci_node_cluster_dict.keys():
                 if not key in resize_node_cluster_dict:
-                    f.write(key + " not in resize list" + "\n")
-            f.close()
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/ociCliNumNodes.txt", "a")
+                    f.write(key + " is not in resize list" + "\n")
+                    f.close()
 
         node_list = list(map(' '.join, resize_cluster_node_dict.values()))
         nodes_space = ' '.join(str(s) for s in node_list)
         split_str = nodes_space.split()
         nodes_comma = ','.join(str(s) for s in split_str)
-        etcHostsSame(nodes_comma, path)
+        path = etcHostsSame(nodes_comma, path)
 
 if args.num_nodes is None and args.etc_hosts is not None:
     hostfile = args.etc_hosts
@@ -507,13 +620,58 @@ if args.num_nodes is None and args.etc_hosts is not None:
     nodes_comma = ','.join(str(s) for s in x)
     etcHostsSame(nodes_comma, path)
 
+hostFileWritten = False
 if args.pcie_file is not None:
-    pcie_hostfile = args.pcie_file
-    pcie_check(pcie_hostfile, path)
+    if args.pcie_file == 'y' or args.pcie_file == 'Y':
+        if args.cluster_names is not None:
+            if len(resize_node_cluster_dict) == 0:
+                resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict = getResizeCluster(args, metadata)
+                if len(resize_cluster_names) == 0:
+                    exit()
+            if path is None:
+                path = createDir()
+                changeOwner(path)
+            f = open(path+"/host.txt", "a")
+            for v in resize_node_cluster_dict.keys():
+                hostFileWritten = True
+                f.write(str(v) + "\n")
+            f.close()
+            pcie_hostfile = path+"/host.txt"
+            pcie_check(pcie_hostfile, path)
+        else:
+            print("Provide cluster_names file or hosts file to run pcie check")
+    else:
+        pcie_hostfile = args.pcie_file
+        if path is None:
+            path = createDir()
+            changeOwner(path)
+        pcie_check(pcie_hostfile, path)
 
 if args.gpu_throttle is not None:
-    gpu_hostfile = args.gpu_throttle
-    gpu_throttle(gpu_hostfile, path)
+    if args.gpu_throttle == 'y' or args.gpu_throttle == 'Y':
+        if args.cluster_names is not None:
+            if hostFileWritten is False:
+                if len(resize_node_cluster_dict) == 0:
+                    resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict = getResizeCluster(args, metadata)
+                    if len(resize_cluster_names) == 0:
+                        exit()
+                if path is None:
+                    path = createDir()
+                    changeOwner(path)
+                f = open(path+"/host.txt", "a")
+                for v in resize_node_cluster_dict.keys():
+                    f.write(str(v) + "\n")
+                f.close()
+            gpu_hostfile = path+"/host.txt"
+            gpu_throttle(gpu_hostfile, path)
+        else:
+            print("Provide cluster_names file or hosts file to run gpu throttle check")
+    else:
+        gpu_hostfile = args.gpu_throttle
+        if path is None:
+            path = createDir()
+            changeOwner(path)
+        gpu_throttle(gpu_hostfile, path)
 
 if path is not None:
     print(f"Output is in folder: {path}")
