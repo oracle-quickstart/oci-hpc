@@ -47,7 +47,7 @@
   when: ( item.stdout_lines | length ) == 0
 
 - name: get UpperSwitchNames
-  shell: "scontrol show topology {{item}} | grep -v inactive | grep Switches= | awk '{print $1}' | cut -d \"=\" -f 2"
+  shell: "scontrol show topology {{item}} | grep -v inactive | grep Switches= | grep Level=1 | awk '{print $1}' | cut -d \"=\" -f 2"
   register: current_UpperSwitchName
   run_once: true
   delegate_to: 127.0.0.1
@@ -128,7 +128,7 @@
     state: present
   with_items: "{{unreachable_slurm_nodes}}"
   ignore_errors: yes
-  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) > 0 ) and ( upperswitchnames[item] | length ) > 1 
+  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) > 0 ) and ( upperswitchnames[item] | length ) > 1 and ( nodes_on_switch[item] | length ) < 2 
   run_once: true
   delegate_to: 127.0.0.1
 
