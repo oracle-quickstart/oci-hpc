@@ -249,7 +249,7 @@ resource "null_resource" "cluster" {
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
-      pam = var.pam
+      pam = var.pam,
       inst_prin = var.inst_prin,
       region = var.region,
       tenancy_ocid = var.tenancy_ocid,
