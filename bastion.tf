@@ -333,6 +333,7 @@ resource "null_resource" "cluster" {
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path = var.scratch_nfs_path,
+      use_scratch_nfs = var.use_scratch_nfs,
       slurm = var.slurm,
       rack_aware = var.rack_aware,
       slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
