@@ -242,7 +242,12 @@ resource "null_resource" "cluster_backup" {
       pyxis = var.pyxis,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
-      latency_check = var.latency_check
+      latency_check = var.latency_check,
+      inst_prin = var.inst_prin,
+      region = var.region,
+      tenancy_ocid = var.tenancy_ocid,
+      api_fingerprint = var.api_fingerprint,
+      api_user_ocid = var.api_user_ocid       
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -370,7 +375,7 @@ resource "null_resource" "cluster_backup" {
       private_deployment = var.private_deployment,
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
-      use_multiple_ads = var.use_multiple_ads
+      use_multiple_ads = var.use_multiple_ads  
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
