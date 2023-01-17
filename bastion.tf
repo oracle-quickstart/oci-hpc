@@ -206,7 +206,7 @@ resource "null_resource" "cluster" {
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       rdma_network = cidrhost(var.rdma_subnet, 0),
       rdma_netmask = cidrnetmask(var.rdma_subnet),
-      nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
+      nfs = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       home_nfs = var.home_nfs,
       create_fss = var.create_fss,
       home_fss = var.home_fss,
@@ -250,6 +250,11 @@ resource "null_resource" "cluster" {
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
       pam = var.pam
+      inst_prin = var.inst_prin,
+      region = var.region,
+      tenancy_ocid = var.tenancy_ocid,
+      api_fingerprint = var.api_fingerprint,
+      api_user_ocid = var.api_user_ocid
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -334,6 +339,7 @@ resource "null_resource" "cluster" {
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path = var.scratch_nfs_path,
+      use_scratch_nfs = var.use_scratch_nfs,
       slurm = var.slurm,
       rack_aware = var.rack_aware,
       slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
@@ -411,7 +417,7 @@ provisioner "file" {
   }
   provisioner "file" {
     content     = base64decode(var.api_user_key)
-    destination   = "/opt/oci-hpc/autoscaling/credentials/key.initial" 
+    destination   = "/opt/oci-hpc/autoscaling/credentials/key.pem" 
     connection {
       host        = local.host
       type        = "ssh"
@@ -423,8 +429,6 @@ provisioner "file" {
   provisioner "remote-exec" {
     inline = [
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
-      "chmod 755 /opt/oci-hpc/autoscaling/credentials/key.sh",
-      "/opt/oci-hpc/autoscaling/credentials/key.sh /opt/oci-hpc/autoscaling/credentials/key.initial /opt/oci-hpc/autoscaling/credentials/key.pem > /opt/oci-hpc/autoscaling/credentials/key.log",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh",

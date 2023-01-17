@@ -46,6 +46,15 @@
   with_items: "{{all_unreachable_nodes}}"
   ignore_unreachable: yes
 
+- name: remove from /etc/hosts
+  become: true
+  lineinfile:
+    path: "/etc/hosts"
+    regexp: "{{item}}-rdma\\s"
+    state: absent
+  with_items: "{{all_unreachable_nodes}}"
+  ignore_unreachable: yes
+
 - name: "remove from hostfile.rdma.{{ cluster_name }}"
   lineinfile:
     path: "/etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}"
