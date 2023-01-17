@@ -1,7 +1,7 @@
 ### Topology File
-{% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
+{% set size = instance.private_subnet | ipaddr('size')%}
 SwitchName=inactive-{{partition.name}}-{{instance.instance_keyword}} Nodes={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}]
 {% endfor %}
 {% endfor %}
