@@ -214,7 +214,7 @@ def nodesFromEtcHosts(resize_cluster_names):
 
 def getConsoleNodeName(slurm_node_name):
     name = slurm_node_name + ".local.vcn"
-    out = subprocess.Popen(["cat /etc/hosts | grep "+name+" | grep local.vcn | awk '{print $4}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    out = subprocess.Popen(["cat /etc/hosts | grep "+name+" | awk '{print $4}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
     node_name_output = stdout.split("\n")
     del node_name_output[-1]
