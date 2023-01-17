@@ -63,3 +63,9 @@ privilege_group_name=${privilege_group_name}
 latency_check=${latency_check}
 compute_username=${compute_username}
 bastion_username=${bastion_username}
+region= ${region}
+tenancy_ocid = ${tenancy_ocid}
+inst_prin = ${inst_prin}
+api_fingerprint = ${api_fingerprint}
+api_user_ocid = ${api_user_ocid}
+
