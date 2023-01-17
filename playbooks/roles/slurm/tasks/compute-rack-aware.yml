@@ -234,6 +234,9 @@
   delegate_to: 127.0.0.1
   when: racks_left_list | length > 0
 
+- name: run handlers
+  meta: flush_handlers
+  
 - name: start slurmd
   become: true
   service:
