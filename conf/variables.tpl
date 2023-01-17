@@ -27,6 +27,7 @@ variable "private_subnet" {default = "##PRIVATE_SUBNET##"}
 variable "slurm" { default = ${slurm} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }
+variable "pam" { default = ${pam} }
 variable "enroot" { default = ${enroot} }
 variable "slurm_nfs_path" { default = "${slurm_nfs_path}" }
 variable "spack" { default = ${spack} }

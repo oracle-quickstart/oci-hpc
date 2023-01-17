@@ -62,3 +62,4 @@ privilege_group_name=${privilege_group_name}
 latency_check=${latency_check}
 compute_username=${compute_username}
 bastion_username=${bastion_username}
+pam = ${pam}

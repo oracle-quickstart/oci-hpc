@@ -63,7 +63,8 @@ resource "local_file" "inventory" {
     privilege_group_name = var.privilege_group_name,
     latency_check = var.latency_check
     bastion_username = var.bastion_username,
-    compute_username = var.compute_username
+    compute_username = var.compute_username,
+    pam = var.pam
     })
   filename   = "${local.bastion_path}/inventory"
 }

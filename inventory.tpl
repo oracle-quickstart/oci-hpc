@@ -58,6 +58,7 @@ admin_username = ${admin_username}
 instance_type=permanent
 enroot=${enroot}
 pyxis=${pyxis}
+pam=${pam}
 privilege_sudo=${privilege_sudo}
 privilege_group_name=${privilege_group_name}
 latency_check=${latency_check}
