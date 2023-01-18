@@ -1,14 +1,11 @@
 ---
-- name: Run Pam settings
-  include: compute_pam.yml
-  when: pam|bool
 
 - name: install SLURM compute packages
-  vars: 
+  vars:
     package_name: '{{ slurm_compute_packages }}'
     package_repo: "{{ slurm_repos }}"
     disable_gpg_check_var: True
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Render systemd units for slurm, slurmdbd and munge
@@ -88,7 +85,7 @@
   register: rackID_script
 
 - name: Set RackID fact
-  set_fact: 
+  set_fact:
     rackID: "{{ rackID_script.stdout[1:-1]}}"
 
 - name: Get nodes from Inactive Switch
@@ -102,7 +99,7 @@
 - name: Get rackIDs for all compute nodes
   set_fact:
     racks_to_add_temp: "{{cluster_name}}:{{hostvars[item]['rackID']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) | difference(groups['login'])}}"
   run_once: true
   register: racks_to_add_temp_results
 
@@ -113,7 +110,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) | difference(groups['login']) }}"
   run_once: true
   register: nodes_to_add_temp_results
 
@@ -140,7 +137,7 @@
 
 - name: Get hostlist if switch exists
   vars:
-    new_line: "{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}" 
+    new_line: "{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['(groups['login'])']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   command: "scontrol show hostlistsorted {{ item.stdout_lines | union (new_line[:-1].split(',') | list )| join(',') }}"
   register: rack_hostlist1
   delegate_to: 127.0.0.1
@@ -150,7 +147,7 @@
 
 - name: Get hostlist if switch does not exists
   vars:
-    new_line: "{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}" 
+    new_line: "{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['slurm_backup']) | difference(groups['login']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   command: "scontrol show hostlistsorted {{ new_line[:-1] }}"
   register: rack_hostlist2
   delegate_to: 127.0.0.1
@@ -173,7 +170,7 @@
   run_once: true
   delegate_to: 127.0.0.1
   when: item.item.item.rc > 0
-  
+
 - name: Add the nodes in the rack switches
   become: true
   lineinfile:
@@ -237,6 +234,10 @@
   run_once: true
   delegate_to: 127.0.0.1
   when: racks_left_list | length > 0
+
+- name: Run Pam settings
+  include: compute_pam.yml
+  when: pam|bool
 
 - name: run handlers
   meta: flush_handlers
