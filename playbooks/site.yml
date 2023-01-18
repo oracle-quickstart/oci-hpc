@@ -314,10 +314,3 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-
-- hosts: all
-  become: true
-  tasks:
-    - include_role: 
-        name: pam
-      when: pam|default(false)|bool
