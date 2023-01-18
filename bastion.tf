@@ -436,7 +436,7 @@ provisioner "file" {
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh | tee /opt/oci-hpc/logs/initial_configure.log",
-      "exit_code=$?",
+      "exit_code=$${PIPESTATUS[0]}",
       "/opt/oci-hpc/bin/initial_monitoring.sh",
       "exit $exit_code"     ]
     connection {
