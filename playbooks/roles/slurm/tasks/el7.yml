@@ -31,6 +31,12 @@
   include_tasks: "compute{{rack_aware_playbook_suffix}}.yml"
   when: ('compute' in group_names) and (not destroy|bool)
 
+- name: run login server directives
+  vars: 
+    slurm_repos: "epel,ol7_developer_EPEL"
+  include_tasks: login.yml
+  when: ('login' in group_names) and (not destroy|bool) and (initial| bool)
+
 - name: cleanup
   include_tasks: cleanup.yml
   when: ('compute' in group_names) and (not destroy|bool)

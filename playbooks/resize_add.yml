@@ -165,6 +165,8 @@
     - include_role: 
         name: nvidia-enroot
       when: enroot|default(true)|bool
+    - include_role:
+        name: tuned
 
       
 - hosts: compute_to_add

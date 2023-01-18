@@ -22,10 +22,12 @@ resource "local_file" "inventory" {
     bastion_ip = var.bastion_ip, 
     backup_name = var.backup_name,
     backup_ip = var.backup_ip,
+    login_name = var.login_name,
+    login_ip = var.login_ip,
     compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
     public_subnet = var.public_subnet, 
     private_subnet = var.private_subnet, 
-    nfs = local.cluster_instances_names[0],
+    nfs = var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
     home_nfs = var.home_nfs,
@@ -63,7 +65,8 @@ resource "local_file" "inventory" {
     privilege_group_name = var.privilege_group_name,
     latency_check = var.latency_check
     bastion_username = var.bastion_username,
-    compute_username = var.compute_username
+    compute_username = var.compute_username,
+    pam = var.pam
     })
   filename   = "${local.bastion_path}/inventory"
 }
