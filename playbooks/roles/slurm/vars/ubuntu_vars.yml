@@ -21,3 +21,6 @@ slurm_compute_packages:
 
 slurm_backup_server_packages:
   - libpmi0
+
+slurm_login_packages:
+  - libpmi0

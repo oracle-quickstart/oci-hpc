@@ -12,7 +12,12 @@ variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
 variable "bastion_shape" { default = "VM.Standard2.4" }
 variable "use_standard_image" { default= true }
+variable "use_standard_image_login" { default= true }
 variable "custom_bastion_image" { 
+  type = string
+  default = "image.ocid" 
+}
+variable "custom_login_image" { 
   type = string
   default = "image.ocid" 
 }
@@ -26,6 +31,7 @@ variable "use_old_marketplace_image" { default = false}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "unsupported_bastion_image" { default = "" } 
+variable "unsupported_login_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = true }
 variable "cluster_nfs_path" { default = "/nfs/cluster" } 
@@ -43,6 +49,10 @@ variable "private_subnet" { default = "172.16.4.0/22" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "slurm_ha" { default = false }
+variable "login_node" { default = false }
+variable "login_ad" {}
+variable "login_shape" { default = "VM.Standard2.4" }
+variable "login_boot_volume_size" {}
 variable "slurm_nfs" { default = false }
 variable "rack_aware" { default = false }
 variable "ldap" { default = true } 
@@ -51,8 +61,11 @@ variable "bastion_ocpus" { default = 2}
 variable "instance_pool_ocpus" { default = 2} 
 variable "instance_pool_memory" { default = 16 }
 variable "instance_pool_custom_memory" { default = false }
+variable "login_ocpus" { default = 2} 
 variable "bastion_memory" { default = 16 }
 variable "bastion_custom_memory" { default = false }
+variable "login_memory" { default = 16 }
+variable "login_custom_memory" { default = false }
 variable "privilege_sudo" { default = true }
 variable "privilege_group_name" { default = "privilege" }
 
@@ -106,6 +119,26 @@ variable "bastion_block" {
 variable "bastion_block_volume_size" { 
   default = 1000
 }
+
+variable "login_block_volume_performance" { 
+/* 
+  Allowed values 
+  "0.  Lower performance"
+  "10. Balanced performance"
+  "20. High Performance"
+*/ 
+
+default = "10. Balanced performance" 
+
+}
+
+variable "login_block" { 
+  default = false
+} 
+
+variable "login_block_volume_size" { 
+  default = 1000
+}
 variable "scratch_nfs_type_cluster" { default = "nvme"} 
 variable "scratch_nfs_type_pool" { default = "none" }
 variable "cluster_block_volume_size" { default = "1000" }
@@ -147,13 +180,20 @@ variable "unsupported_bastion" {
   type=bool
   default = false 
 }
-
+variable "unsupported_login" { 
+  type=bool
+  default = false 
+}
 variable "bastion_username" { 
   type = string 
   default = "opc" 
 } 
 
 variable "compute_username" { 
+  type = string
+  default = "opc" 
+} 
+variable "login_username" { 
   type = string
   default = "opc" 
 } 
@@ -191,3 +231,4 @@ variable cluster_nfs_export {default = ""}
 variable "private_deployment" { default = false }
 
 variable "localdisk" { default = true }
+
