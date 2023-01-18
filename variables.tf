@@ -167,8 +167,7 @@ variable "nfs_options" {default = ""}
 variable "monitoring" { default = true }
 variable "enroot" { default = false }
 variable "pyxis" { default = false }
-
-
+variable "pam" { default = false }
 
 variable "unsupported" { 
   type=bool
