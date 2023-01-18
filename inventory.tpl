@@ -2,6 +2,8 @@
 ${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion
 [slurm_backup]
 %{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=bastion%{ endif }
+[login]
+%{ if login_name != "" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
 [compute_to_add]
 [compute_configured]
 %{ for host, ip in compute ~}

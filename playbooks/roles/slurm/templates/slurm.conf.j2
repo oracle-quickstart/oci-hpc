@@ -118,18 +118,13 @@ NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boar
 {% set size = instance.private_subnet | ipaddr('size')%}
 {{ nodesList.append(partition.name+'-'+instance.instance_keyword+'-node-[1-'+size|string+']')}}
 {%- endfor %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO MaxTime=INFINITE State=UP
+PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=YES MaxTime=INFINITE State=UP
 {% else %}
 {% set nodesList = [] %}
 {% for instance in partition.instance_types %}
 {% set size = instance.private_subnet | ipaddr('size')%}
 {{ nodesList.append(partition.name+'-'+instance.instance_keyword+'-node-[1-'+size|string+']')}}
 {%- endfor %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=Yes MaxTime=INFINITE State=UP
+PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO MaxTime=INFINITE State=UP
 {% endif %}
 {% endfor %}
-
-PartitionName=compute Nodes=adept-blk27-node-[1-4096],adept-blk29-node-[1-4096],adept-blk34-node-[1-4096],adept-blk36-node-[1-4096],adept-blk39-node-[1-4096],adept-blk40-node-[1-4096] Default=YES MaxTime=INFINITE State=UP
-PartitionName=A100-40GB Nodes=adept-blk8-node-[1-4096] Default=NO MaxTime=INFINITE State=UP
-PartitionName=cpu-dp Nodes=adept-cpudp-node-[1-2048] Default=NO MaxTime=INFINITE State=UP
-PartitionName=cpu-dev Nodes=adept-cpudev-node-[1-4096] Default=NO MaxTime=INFINITE State=UP

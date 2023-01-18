@@ -201,6 +201,8 @@ resource "null_resource" "cluster" {
       bastion_ip = oci_core_instance.bastion.private_ip,
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
+      login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
+      login_ip = var.login_node ? oci_core_instance.login[0].private_ip: "",
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
@@ -330,6 +332,8 @@ resource "null_resource" "cluster" {
       bastion_ip = oci_core_instance.bastion.private_ip, 
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
+      login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
+      login_ip = var.login_node ? oci_core_instance.login[0].private_ip: "",
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block,
       public_subnet_id = local.bastion_subnet_id,
