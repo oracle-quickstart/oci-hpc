@@ -44,8 +44,6 @@ def run_cmd(cmd=None):
                                     stderr=subprocess.STDOUT, check=True, encoding='utf8')
         output = results.stdout.splitlines()
     except subprocess.CalledProcessError as e_process_error:
-        # print(f"!!! Error in running command [ {cmd}  ]. Fatal error exiting!!!")
-        # print(f"Error code: {e_process_error.returncode} Output: {e_process_error.output}")
         return (9000, f"Error code: {e_process_error.returncode} Output: {e_process_error.output}")
     return output
 
@@ -153,7 +151,7 @@ def getResizeClusterNames(filepath):
 
 
 # this is the source of truth for total number of nodes in a cluster
-def getResizeNodes(metadata, cluster_names, mode):
+def getResizeNodes(args, metadata, cluster_names, mode):
     if mode == 1 or mode == 2:
         resize_cluster_node_dict = {}
         str = "ocid1.instance."
@@ -169,7 +167,7 @@ def getResizeNodes(metadata, cluster_names, mode):
                     cluster_node_set.add(split_str[0].replace('"',''))
                 if len(cluster_node_set) > 0:
                     resize_cluster_node_dict.update({cluster: cluster_node_set})
-    if mode == 2:
+    if mode == 2 or (mode == 1 and args.cluster_names is None):
         out = subprocess.Popen(["/opt/oci-hpc/bin/resize.sh list"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
         stdout,stderr = out.communicate()
         x = stdout.split("\n")
@@ -238,12 +236,12 @@ def slurmGetNodes(resize_cluster_names, all_node_cluster_dict, path):
         node_name = split_str[2].replace('"','')
         proper_node_name = getConsoleNodeName(node_name)
         if proper_node_name is not None:
-            if node_state not in good_node_states:
-                warning_node_dict.update({proper_node_name: node_state})
             if proper_node_name in all_node_cluster_dict:
                 slurm_node_cluster = all_node_cluster_dict[proper_node_name]
                 if slurm_node_cluster in resize_cluster_names:
                     slurm_node_cluster_dict.update({proper_node_name: slurm_node_cluster})
+                    if node_state not in good_node_states:
+                        warning_node_dict.update({proper_node_name: node_state})
             else:
                 if path is None:
                     path = createDir()
@@ -427,7 +425,7 @@ def getResizeCluster(args, metadata):
     resize_cluster_node_dict = {}
     resize_node_cluster_dict = {}
     resize_cluster_names = getResizeClusterNames(args.cluster_names)
-    resize_cluster_names, resize_cluster_node_dict = getResizeNodes(metadata, resize_cluster_names, 1)
+    resize_cluster_names, resize_cluster_node_dict = getResizeNodes(args, metadata, resize_cluster_names, 1)
 
     if len(resize_cluster_names) == 0 or len(resize_cluster_node_dict) == 0:
         print("There are no clusters available")
@@ -440,24 +438,31 @@ def getResizeCluster(args, metadata):
 
 ###############
 
-parser = argparse.ArgumentParser(description = 'Perform these checks. \
-    1. Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. \
-    2. PCIe bandwidth check. \
-    3. GPU Throttle check \
-    4. Standalone /etc/hosts md5 sum validation \
-    Options: \
-    --cluster_names <path to file> : Give a file that contains all the cluster names for option 1 and this will be considered as source of truth. \
-        If not given, then the cluster names in the directory /opt/oci-hpc/autoscaling/clusters/ along with any permanent cluster associated \
-        with the bastion will be considered as source of truth. ')
-parser.add_argument('-n', '--num_nodes', help = "Check the number of nodes is consistent across resize.sh, /etc/hosts, slurm, topology.conf, OCI console, inventory files. \
-    Also check /etc/hosts is same as bastion across all hosts. If -cn option is provided along with this, then that file will be considered. If not, nodes \
-        resize will be considered. ")
-parser.add_argument('-cn', '--cluster_names', help = "Provide a file that contains list of all cluster names for the above validation")
-parser.add_argument('-p', '--pcie_file', help = "Provide a file that contains list of hosts on which to perform pcie check")
-parser.add_argument('-g', '--gpu_throttle', help = "Provide a file that contains list of hosts on which to perform gpu throttle check")
+parser = argparse.ArgumentParser(description = 'Performs these checks. \
+-> Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, \
+    inventory files. Also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion. \
+-> PCIe bandwidth check \
+-> GPU Throttle check \
+-> Standalone /etc/hosts md5 sum validation \
+    Provide at least one argument: [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS] \
+Optional argument with [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE]: [-cn CLUSTER_NAMES] --> \
+Provide a file that lists each cluster on a separate line for which you want to validate the \
+    number of nodes and/or pcie check and/or gpu throttle check. ')
+
+parser.add_argument('-n', '--num_nodes', help = "Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, \
+    inventory files. Also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion.")
+parser.add_argument('-cn', '--cluster_names', help = "Provide a file that lists each cluster on a separate line for which you want to validate the \
+    number of nodes and/or pcie check and/or gpu throttle check.")
+parser.add_argument('-p', '--pcie', help = "Runs PCIe bandwidth check")
+parser.add_argument('-g', '--gpu_throttle', help = "Performs GPU throttle check")
 parser.add_argument('-e', '--etc_hosts', help = "Provide a file that contains list of hosts on which to perform md5 sum check to match with bastion")
 
 args = parser.parse_args()
+
+args_vars = vars(args)
+if not any(args_vars.values()):
+    parser.error('No arguments provided')
+    exit()
 
 metadata=get_metadata()
 
@@ -478,7 +483,7 @@ if args.num_nodes is not None:
         all_cluster_node_dict = {}
         all_node_cluster_dict = {}
         all_cluster_names = getResizeClusterNames(None)
-        all_cluster_names, all_cluster_node_dict = getResizeNodes(metadata, all_cluster_names, 2)
+        all_cluster_names, all_cluster_node_dict = getResizeNodes(args, metadata, all_cluster_names, 2)
         if len(all_cluster_names) == 0 or len(all_cluster_node_dict) == 0:
             print("There are no clusters available")
         else:
@@ -621,8 +626,8 @@ if args.num_nodes is None and args.etc_hosts is not None:
     etcHostsSame(nodes_comma, path)
 
 hostFileWritten = False
-if args.pcie_file is not None:
-    if args.pcie_file == 'y' or args.pcie_file == 'Y':
+if args.pcie is not None:
+    if args.pcie == 'y' or args.pcie == 'Y':
         if args.cluster_names is not None:
             if len(resize_node_cluster_dict) == 0:
                 resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict = getResizeCluster(args, metadata)
@@ -641,7 +646,7 @@ if args.pcie_file is not None:
         else:
             print("Provide cluster_names file or hosts file to run pcie check")
     else:
-        pcie_hostfile = args.pcie_file
+        pcie_hostfile = args.pcie
         if path is None:
             path = createDir()
             changeOwner(path)
