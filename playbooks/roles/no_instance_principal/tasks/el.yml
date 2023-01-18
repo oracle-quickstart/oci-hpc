@@ -1,0 +1,25 @@
+---
+- name: create .oci directory
+  become: true
+  file:
+    path: /home/opc/.oci
+    state: directory
+    owner: opc
+    group: "{{privilege_group_name}}"
+    mode: 0775
+
+- name: Generate config file
+  become: true
+  template:
+    src: 'config.j2'
+    dest: '/home/opc/.oci/config'
+    mode: 0600
+    owner: opc
+    group: "{{privilege_group_name}}"
+
+- name: delete --auth in create_cluster.sh
+  become: true
+  replace:
+    path: /opt/oci-hpc/bin/create_cluster.sh
+    regexp: '--auth instance_principal'
+    replace: ''

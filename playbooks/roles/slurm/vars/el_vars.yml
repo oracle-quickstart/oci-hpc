@@ -46,3 +46,8 @@ slurm_backup_server_packages:
   - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/slurm-libpmi-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/slurm-slurmd-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+
+slurm_login_packages:
+  - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+  - "{{ download_path }}/slurm_rpms/slurm-libpmi-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+  - "{{ download_path }}/slurm_rpms/slurm-slurmd-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"

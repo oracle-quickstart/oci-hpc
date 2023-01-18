@@ -110,7 +110,17 @@
         name: cluster-cli
       when: ldap|default(true)|bool
 
-- hosts: compute
+# configure if instance_principal is False
+- hosts: bastion
+  become: true
+  tasks:
+    - include_role:
+        name: no_instance_principal
+      when: not inst_prin|bool 
+      
+
+
+- hosts: compute, login
   become: true
   tasks:
     - include_role:
@@ -164,6 +174,17 @@
     - include_role: 
         name: iscsi
       when: bastion_block|default(false)|bool
+
+- hosts: login
+  become: true
+  vars:
+    iscsi_ip: "{{ bastion_mount_ip }}"
+  tasks: 
+    - include_role: 
+        name: passwords
+    - include_role: 
+        name: iscsi
+      when: login_block|default(false)|bool
 
 - hosts: nfs
   become: true
@@ -268,6 +289,8 @@
     - include_role: 
         name: nvidia-enroot
       when: enroot|default(true)|bool
+    - include_role:
+        name: tuned
 
 - hosts: all
   vars:
@@ -291,5 +314,3 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-
-
