@@ -1,4 +1,9 @@
 ---
+
+- name: Run Pam settings
+  include: compute_pam.yml
+  when: pam|bool
+
 - name: install SLURM compute packages
   vars: 
     package_name: '{{ slurm_compute_packages }}'

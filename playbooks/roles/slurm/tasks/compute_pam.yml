@@ -16,6 +16,7 @@
     dest: /etc/pam.d/sshd
 
 - name: Stop logind
+  become: true
   systemd:
     name: systemd-logind
     state: stopped

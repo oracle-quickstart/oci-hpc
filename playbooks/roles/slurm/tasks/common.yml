@@ -161,7 +161,3 @@
 - name: Include pyxis prolog files
   include: common_pyxis.yml
   when: pyxis|bool
-
-- name: Run Pam settings
-  include: common_pam.yml
-  when: pam|bool
