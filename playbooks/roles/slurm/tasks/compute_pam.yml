@@ -1,0 +1,24 @@
+---
+- name: Edit /etc/security/access.conf
+  become: true
+  blockinfile:
+    dest: /etc/security/access.conf
+    block: |
+      +:root:ALL
+      +:wheel:ALL
+      +:opc:ALL
+      -:ALL:ALL
+
+- name: Copy sshd file
+  become: true
+  copy:
+    src: sshd
+    dest: /etc/pam.d/sshd
+
+- name: Stop logind
+  become: true
+  systemd:
+    name: systemd-logind
+    state: stopped
+    enabled: no
+    masked: yes

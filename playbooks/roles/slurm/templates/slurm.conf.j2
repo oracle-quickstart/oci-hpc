@@ -19,7 +19,10 @@ SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log
 StateSaveLocation={{ slurm_nfs_path }}/spool/slurm
 SwitchType=switch/none
-TaskPlugin=task/affinity
+TaskPlugin=task/affinity{% if pam |bool %},task/cgroup{% endif %}
+
+{% if pam |bool %}PrologFlags=contain{% endif %}
+
 InactiveLimit=0
 KillWait=30
 MinJobAge=300
@@ -45,9 +48,9 @@ TopologyPlugin=topology/tree
 TreeWidth=2048
 SlurmctldParameters=enable_configless
 
-{% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
+{% set size = instance.private_subnet | ipaddr('size')%}
 {% if instance.hyperthreading | bool %}
 {% set threadspercore = 2 %}
 {% else %}
@@ -113,10 +116,18 @@ NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boar
 
 {% for partition in queues %}
 {% if partition.default  %}
-PartitionName={{partition.name}} Nodes={% for instance in partition.instance_types -%}
-    {{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}],{%- endfor %} Default=YES MaxTime=INFINITE State=UP
+{% set nodesList = [] %}
+{% for instance in partition.instance_types %}
+{% set size = instance.private_subnet | ipaddr('size')%}
+{{ nodesList.append(partition.name+'-'+instance.instance_keyword+'-node-[1-'+size|string+']')}}
+{%- endfor %}
+PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=YES MaxTime=INFINITE State=UP
 {% else %}
-PartitionName={{partition.name}} Nodes={% for instance in partition.instance_types -%}
-    {{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}],{%- endfor %} Default=NO MaxTime=INFINITE State=UP
+{% set nodesList = [] %}
+{% for instance in partition.instance_types %}
+{% set size = instance.private_subnet | ipaddr('size')%}
+{{ nodesList.append(partition.name+'-'+instance.instance_keyword+'-node-[1-'+size|string+']')}}
+{%- endfor %}
+PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO MaxTime=INFINITE State=UP
 {% endif %}
 {% endfor %}
