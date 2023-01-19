@@ -231,3 +231,15 @@ variable "private_deployment" { default = false }
 
 variable "localdisk" { default = true }
 
+
+variable "use_marketplace_image_login" { default = true}
+variable "use_old_marketplace_image_login" { default = false}
+
+variable "marketplace_listing_login" { 
+  default = "HPC_OL7"
+} 
+ 
+variable "old_marketplace_listing_login" { 
+  default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+}  
+  

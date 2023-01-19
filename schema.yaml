@@ -67,6 +67,10 @@ variableGroups:
       - ${login_memory}
       - ${login_boot_volume_size}
       - ${use_standard_image_login}
+      - ${use_marketplace_image_login}
+      - ${use_old_marketplace_image_login}
+      - ${marketplace_listing_login}
+      - ${old_marketplace_listing_login}
       - ${unsupported_login}
       - ${login_image_compartment}
       - ${custom_login_image}
@@ -1362,6 +1366,8 @@ variables:
               - ${use_standard_image_login}
           - not: 
               - ${unsupported_login}
+          - not: 
+              - ${use_marketplace_image_login}
     required: true
 
   custom_login_image:
@@ -1376,6 +1382,8 @@ variables:
               - ${use_standard_image_login}
           - not: 
               - ${unsupported_login}
+          - not: 
+              - ${use_marketplace_image_login}
     required: true
   unsupported_login_image:
     title: "Image OCID"
@@ -1387,6 +1395,8 @@ variables:
         - ${unsupported_login}
         - not: 
             - ${use_standard_image_login}
+        - not: 
+            - ${use_marketplace_image_login}
     default: "image.ocid"
     
   login_username: 
@@ -1398,3 +1408,58 @@ variables:
     visible:
       not:
         - ${use_standard_image_login}
+
+  use_marketplace_image_login:
+    type: boolean
+    title: "use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID"
+    default: true
+    visible:
+      not:
+        - ${use_standard_image_login}
+  use_old_marketplace_image_login:
+    type: boolean
+    title: "use older marketplace images"
+    description: "Images prior to September 2021"
+    default: false
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
+
+  marketplace_listing_login:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC_OL7"
+      - "HPC_OL8"
+      - "GPU"
+    default: "HPC_OL7"
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - not: 
+          - ${use_old_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
+
+  old_marketplace_listing_login:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
+      - "2. Oracle Linux 7.8 OFED 5.0-1.0.0.0 UEK 20200826"
+      - "3. Oracle Linux 7.7 OFED 4.4-2.0.7.0 UEK 20200229"
+      - "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - ${use_old_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
