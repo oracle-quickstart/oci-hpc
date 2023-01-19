@@ -216,6 +216,8 @@ def getConsoleNodeName(slurm_node_name):
     stdout,stderr = out.communicate()
     node_name_output = stdout.split("\n")
     del node_name_output[-1]
+    if len(node_name_output) == 0:
+        return None
     return node_name_output[0]
 
 
@@ -321,7 +323,7 @@ def topologyGetNodes(resize_cluster_names, all_node_cluster_dict, path):
                             path = createDir()
                             changeOwner(path)
                         f = open(path+"/topoNumNodes.txt", "a")
-                        f.write(node_name + " not found in /etc/hosts file for getting the oci console name" + "\n")
+                        f.write(n + " not found in /etc/hosts file for getting the oci console name" + "\n")
                         f.close()
     return topo_node_cluster_dict, path
 
