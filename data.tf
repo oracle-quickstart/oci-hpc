@@ -71,3 +71,10 @@ data "oci_resourcemanager_private_endpoint_reachable_ip" "private_endpoint_reach
     private_endpoint_id = oci_resourcemanager_private_endpoint.rms_private_endpoint[0].id
     private_ip = tostring(oci_core_instance.backup[0].private_ip)
 }
+
+data "oci_resourcemanager_private_endpoint_reachable_ip" "private_endpoint_reachable_ip_login" {
+    #Required
+    count = (var.private_deployment && var.login_node) ? 1 : 0
+    private_endpoint_id = oci_resourcemanager_private_endpoint.rms_private_endpoint[0].id
+    private_ip = tostring(oci_core_instance.login[0].private_ip)
+}
