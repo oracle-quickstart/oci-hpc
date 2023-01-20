@@ -49,7 +49,9 @@ def get_instances(comp_ocid,cn_ocid,CN):
     for instance_summary in instance_summaries:
         try:
             instance=computeClient.get_instance(instance_summary.id).data
-            vnic_attachment = oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data[0]
+            for potential_vnic_attachment in oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data:
+                if potential_vnic_attachment.display_name is None:
+                    vnic_attachment = potential_vnic_attachment
             vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
         except:
             continue
