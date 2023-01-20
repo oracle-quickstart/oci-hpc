@@ -625,7 +625,7 @@ if args.num_nodes is None and args.etc_hosts is not None:
     x = stdout.split("\n")
     del x[-1]
     nodes_comma = ','.join(str(s) for s in x)
-    etcHostsSame(nodes_comma, path)
+    path = etcHostsSame(nodes_comma, path)
 
 hostFileWritten = False
 if args.pcie is not None:
