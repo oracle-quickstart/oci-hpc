@@ -1196,7 +1196,7 @@ variables:
   login_node:
     type: boolean
     title: "Login Node"
-    default: true
+    default: false
     description: "Create an additional login node for users"
 
   login_ad:
@@ -1210,7 +1210,7 @@ variables:
     required: true
     description: "Availability Domain for login node"
     title: "Availability Domain For Login Node"
-    #default: ${ad}  
+    default: ${ad}  
 
   login_shape:
     type: oci:core:instanceshape:name
