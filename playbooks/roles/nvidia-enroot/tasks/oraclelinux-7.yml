@@ -69,6 +69,22 @@
       line: 'ENROOT_TEMP_PATH        {{enroot_top_path}}/enroot_tmp'
       backup: yes
 
+  - name: update ENROOT_SQUASH_OPTIONS
+    lineinfile: 
+      dest: /etc/enroot/enroot.conf
+      state: present
+      regexp: '^#ENROOT_SQUASH_OPTIONS.*'
+      line: 'ENROOT_SQUASH_OPTIONS        -b 262144'
+      backup: yes
+
+  - name: update ENROOT_ROOTFS_WRITABLE
+    lineinfile: 
+      dest: /etc/enroot/enroot.conf
+      state: present
+      regexp: '^#ENROOT_ROOTFS_WRITABLE.*'
+      line: 'ENROOT_ROOTFS_WRITABLE        yes'
+      backup: yes
+
 
   - name: set permissions on {{enroot_top_path}}
     become: true
