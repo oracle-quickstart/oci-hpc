@@ -125,7 +125,7 @@
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool
+      when: home_nfs|default(true)|bool or home_fss|bool
     - include_role:
         name: nfs-client
       vars:
