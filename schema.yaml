@@ -715,6 +715,8 @@ variables:
     type: boolean
     title: "Show advanced storage options"
     default: false
+    description: "Including running home on FSS."
+    visible: true
 
   use_scratch_nfs:
     type: boolean
