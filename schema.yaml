@@ -1311,7 +1311,7 @@ variables:
 
   login_block:
     type: boolean
-    title: Additional block volume for shared space
+    title: Additional block volume for login node
     default: false
     visible:  ${login_node}
 
