@@ -42,15 +42,21 @@
     name: safe_yum
 
 - name: Create Slurm RPM directory
+  become: true
   file:
     path: "{{ download_path }}/slurm_rpms"
     state: directory
+    owner: opc
+    group: opc
   when: download_path == '/tmp'
 
 - name: Create Slurm RPM directory
+  become: true
   file:
     path: "{{ download_path }}/slurm_rpms"
     state: directory
+    owner: opc
+    group: opc
   delegate_to: 127.0.0.1
   run_once: true
   when: download_path != '/tmp'
