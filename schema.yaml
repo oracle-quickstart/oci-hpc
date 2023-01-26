@@ -65,6 +65,7 @@ variableGroups:
       - ${login_ad}
       - ${login_shape}
       - ${login_ocpus}
+      - ${login_ocpus_denseIO_flex}
       - ${login_custom_memory}
       - ${login_memory}
       - ${login_boot_volume_size}
@@ -298,7 +299,7 @@ variables:
       and: 
         - or: 
           - eq:
-            - ${instance_pool_shape}
+            - ${bastion_shape}
             - "VM.DenseIO.E4.Flex"
     required: true
 
