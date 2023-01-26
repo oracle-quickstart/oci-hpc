@@ -3,6 +3,9 @@ locals {
   cluster_instances_ids = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.id : data.oci_core_instance.instance_pool_instances.*.id
   cluster_instances_names = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
   image_ocid = var.unsupported ? var.image_ocid : var.image 
+
+  shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
+  instance_pool_ocpus = local.shape == "VM.DenseIO.E4.Flex" ? var.instance_pool_ocpus_denseIO_flex : var.instance_pool_ocpus
 // ips of the instances
   cluster_instances_ips = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
 
@@ -20,7 +23,7 @@ locals {
 //  image = (var.cluster_network && var.use_marketplace_image == true) || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
 
 //  is_bastion_flex_shape = length(regexall(".*VM.*.*Flex$", var.bastion_shape)) > 0 ? [var.bastion_ocpus]:[]
-  is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [var.instance_pool_ocpus]:[]
+  is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [local.instance_pool_ocpus]:[]
   
 //  bastion_mount_ip = var.bastion_block ? element(concat(oci_core_volume_attachment.bastion_volume_attachment.*.ipv4, [""]), 0) : "none"
 

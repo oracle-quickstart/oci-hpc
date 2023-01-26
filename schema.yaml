@@ -30,6 +30,7 @@ variableGroups:
       - ${bastion_ad}
       - ${bastion_shape}
       - ${bastion_ocpus}
+      - ${bastion_ocpus_denseIO_flex}
       - ${bastion_custom_memory}
       - ${bastion_memory}
       - ${bastion_boot_volume_size}
@@ -43,6 +44,7 @@ variableGroups:
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
+      - ${instance_pool_ocpus_denseIO_flex}
       - ${instance_pool_custom_memory}
       - ${instance_pool_memory}
       - ${node_count}
@@ -257,6 +259,7 @@ variables:
     required: true
     default: VM.Standard2.4
   bastion_ocpus:
+    title: "Cores"
     type: integer
     description: Number of OCPU's for flex shape
     minimum: 1
@@ -281,6 +284,24 @@ variables:
             - ${bastion_shape}
             - "VM.Standard3.Flex"
     required: true
+
+  bastion_ocpus_denseIO_flex:
+    title: "Cores"
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.DenseIO.E4.Flex"
+    required: true
+
   bastion_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -531,6 +552,23 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Standard3.Flex"
+    required: true
+
+  instance_pool_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.DenseIO.E4.Flex"
     required: true
 
   instance_pool_custom_memory: 
@@ -1249,6 +1287,24 @@ variables:
         - ${login_node}
     required: true
 
+  login_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${login_shape}
+            - "VM.DenseIO.E4.Flex"
+        - ${login_node}
+    required: true
+    
   login_custom_memory: 
     title: Use custom memory size
     type: boolean
