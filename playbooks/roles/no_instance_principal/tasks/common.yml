@@ -2,20 +2,20 @@
 - name: create .oci directory
   become: true
   file:
-    path: /home/opc/.oci
+    path: /home/{{ ansible_user }}/.oci
     state: directory
-    owner: opc
-    group: "{{privilege_group_name}}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: 0775
 
 - name: Generate config file
   become: true
   template:
     src: 'config.j2'
-    dest: '/home/opc/.oci/config'
+    dest: '/home/{{ ansible_user }}/.oci/config'
     mode: 0600
-    owner: opc
-    group: "{{privilege_group_name}}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: delete --auth in create_cluster.sh
   become: true
