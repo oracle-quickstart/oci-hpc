@@ -121,3 +121,5 @@ variable "bastion_username" { default = "${bastion_username}" }
 variable "compute_username" { default = "${compute_username}" }
 
 variable "localdisk" { default = "${localdisk}" }
+
+variable "instance_pool_ocpus_denseIO_flex" { default = "##OCPU##"}
