@@ -87,7 +87,7 @@ variableGroups:
       - ${autoscaling}
       - ${autoscaling_monitoring}
       - ${latency_check}
-  - title: "API authentication"
+  - title: "API authentication, needed for autoscaling"
     variables:
       - ${inst_prin}
       - ${api_user_ocid}
@@ -1049,7 +1049,7 @@ variables:
     
   inst_prin:
     type: boolean
-    title: "Use Instance Principal (required for autoscaling)" 
+    title: "Use Instance Principal instead of configuration file" 
     description: "You will need to set a dynamic group and policy to allow the bastion to authenticate. This will not be created automatically." 
     default: true
 
