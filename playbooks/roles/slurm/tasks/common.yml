@@ -42,17 +42,43 @@
     name: safe_yum
 
 - name: Create Slurm RPM directory
+  become: true
   file:
     path: "{{ download_path }}/slurm_rpms"
     state: directory
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+  when: download_path == '/tmp'
+
+- name: Create Slurm RPM directory
+  become: true
+  file:
+    path: "{{ download_path }}/slurm_rpms"
+    state: directory
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
   delegate_to: 127.0.0.1
   run_once: true
+  when: download_path != '/tmp'
 
 - name: Download slurm .deb
   get_url:
     url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_amd64.deb"
     dest: "{{ download_path }}/slurm_rpms"
-  when: ansible_os_family == 'Debian'
+  when: ansible_os_family == 'Debian' and download_path == '/tmp'
+  
+- name: Download slurm .rpm
+  get_url:
+    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item }}"
+    dest: "{{ download_path }}/slurm_rpms"
+  with_items: "{{slurm_all_packages}}"
+  when: ansible_os_family == 'RedHat' and download_path == '/tmp'
+
+- name: Download slurm .deb
+  get_url:
+    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_amd64.deb"
+    dest: "{{ download_path }}/slurm_rpms"
+  when: ansible_os_family == 'Debian' and download_path != '/tmp'
   delegate_to: 127.0.0.1
   run_once: true
 
@@ -61,9 +87,9 @@
     url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item }}"
     dest: "{{ download_path }}/slurm_rpms"
   with_items: "{{slurm_all_packages}}"
-  when: ansible_os_family == 'RedHat'
+  when: ansible_os_family == 'RedHat' and download_path != '/tmp'
   delegate_to: 127.0.0.1
-  run_once: true
+  run_once: true  
 
 - name: Install .deb
   become: true

@@ -55,7 +55,7 @@ resource "local_file" "inventory" {
     cluster_mount_ip = local.mount_ip,
     cluster_name = local.cluster_name,
     shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
-    instance_pool_ocpus=var.instance_pool_ocpus,
+    instance_pool_ocpus=local.instance_pool_ocpus,
     queue=var.queue,
     instance_type=var.instance_type,
     autoscaling_monitoring = var.autoscaling_monitoring,
