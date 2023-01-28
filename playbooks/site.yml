@@ -125,7 +125,7 @@
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool
+      when: home_nfs|default(true)|bool or home_fss|bool
     - include_role:
         name: nfs-client
       vars:
@@ -236,10 +236,6 @@
 
 - hosts: all
   become: true
-  vars_files:
-    - "/opt/oci-hpc/playbooks/roles/openldap/defaults/main.yml"
-    - "/opt/oci-hpc/playbooks/roles/openldap/vars/el_vars.yml"
-    - "/opt/oci-hpc/playbooks/roles/openldap/vars/debian_vars.yml"
   tasks: 
     - include_role: 
         name: sssd
@@ -296,7 +292,7 @@
   vars:
     destroy: false
     initial: true
-    download_path: "{{ cluster_nfs_path if cluster_nfs|bool else '/tmp' }}"
+    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:

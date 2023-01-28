@@ -30,6 +30,7 @@ variableGroups:
       - ${bastion_ad}
       - ${bastion_shape}
       - ${bastion_ocpus}
+      - ${bastion_ocpus_denseIO_flex}
       - ${bastion_custom_memory}
       - ${bastion_memory}
       - ${bastion_boot_volume_size}
@@ -43,6 +44,7 @@ variableGroups:
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
+      - ${instance_pool_ocpus_denseIO_flex}
       - ${instance_pool_custom_memory}
       - ${instance_pool_memory}
       - ${node_count}
@@ -63,6 +65,7 @@ variableGroups:
       - ${login_ad}
       - ${login_shape}
       - ${login_ocpus}
+      - ${login_ocpus_denseIO_flex}
       - ${login_custom_memory}
       - ${login_memory}
       - ${login_boot_volume_size}
@@ -84,7 +87,7 @@ variableGroups:
       - ${autoscaling}
       - ${autoscaling_monitoring}
       - ${latency_check}
-  - title: "API authentication"
+  - title: "API authentication, needed for autoscaling"
     variables:
       - ${inst_prin}
       - ${api_user_ocid}
@@ -257,6 +260,7 @@ variables:
     required: true
     default: VM.Standard2.4
   bastion_ocpus:
+    title: "Cores"
     type: integer
     description: Number of OCPU's for flex shape
     minimum: 1
@@ -281,6 +285,24 @@ variables:
             - ${bastion_shape}
             - "VM.Standard3.Flex"
     required: true
+
+  bastion_ocpus_denseIO_flex:
+    title: "Cores"
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${bastion_shape}
+            - "VM.DenseIO.E4.Flex"
+    required: true
+
   bastion_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -533,6 +555,23 @@ variables:
             - "VM.Standard3.Flex"
     required: true
 
+  instance_pool_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.DenseIO.E4.Flex"
+    required: true
+
   instance_pool_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -715,6 +754,8 @@ variables:
     type: boolean
     title: "Show advanced storage options"
     default: false
+    description: "Including running home on FSS."
+    visible: true
 
   use_scratch_nfs:
     type: boolean
@@ -1008,7 +1049,7 @@ variables:
     
   inst_prin:
     type: boolean
-    title: "Use Instance Principal (required for autoscaling)" 
+    title: "Use Instance Principal instead of configuration file" 
     description: "You will need to set a dynamic group and policy to allow the bastion to authenticate. This will not be created automatically." 
     default: true
 
@@ -1196,7 +1237,7 @@ variables:
   login_node:
     type: boolean
     title: "Login Node"
-    default: true
+    default: false
     description: "Create an additional login node for users"
 
   login_ad:
@@ -1210,7 +1251,7 @@ variables:
     required: true
     description: "Availability Domain for login node"
     title: "Availability Domain For Login Node"
-    #default: ${ad}  
+    default: ${ad}  
 
   login_shape:
     type: oci:core:instanceshape:name
@@ -1247,6 +1288,24 @@ variables:
         - ${login_node}
     required: true
 
+  login_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${login_shape}
+            - "VM.DenseIO.E4.Flex"
+        - ${login_node}
+    required: true
+    
   login_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -1311,7 +1370,7 @@ variables:
 
   login_block:
     type: boolean
-    title: Additional block volume for shared space
+    title: Additional block volume for login node
     default: false
     visible:  ${login_node}
 

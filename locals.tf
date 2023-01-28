@@ -7,6 +7,10 @@ locals {
   custom_bastion_image_ocid = var.unsupported_bastion ? var.unsupported_bastion_image : var.custom_bastion_image
   custom_login_image_ocid = var.unsupported_login ? var.unsupported_login_image : var.custom_login_image
 
+  shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
+  instance_pool_ocpus = local.shape == "VM.DenseIO.E4.Flex" ? var.instance_pool_ocpus_denseIO_flex : var.instance_pool_ocpus
+  bastion_ocpus = length(regexall(".*VM.*.*Flex$", var.bastion_shape)) > 0 ? var.bastion_ocpus_denseIO_flex : var.bastion_ocpus
+  login_ocpus = length(regexall(".*VM.*.*Flex$", var.login_shape)) > 0 ? var.login_ocpus_denseIO_flex : var.login_ocpus
 // ips of the instances
   cluster_instances_ips = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
 
@@ -34,10 +38,10 @@ locals {
 
 //  image = (var.cluster_network && var.use_marketplace_image == true) || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
 
-  is_bastion_flex_shape = length(regexall(".*VM.*.*Flex$", var.bastion_shape)) > 0 ? [var.bastion_ocpus]:[]
-  is_login_flex_shape = length(regexall(".*VM.*.*Flex$", var.login_shape)) > 0 ? [var.login_ocpus]:[]
+  is_bastion_flex_shape = length(regexall(".*VM.*.*Flex$", var.bastion_shape)) > 0 ? [local.bastion_ocpus]:[]
+  is_login_flex_shape = length(regexall(".*VM.*.*Flex$", var.login_shape)) > 0 ? [local.login_ocpus]:[]
 
-  is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [var.instance_pool_ocpus]:[]
+  is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [local.instance_pool_ocpus]:[]
 
   bastion_mount_ip = var.bastion_block ? element(concat(oci_core_volume_attachment.bastion_volume_attachment.*.ipv4, [""]), 0) : "none"
 
@@ -61,4 +65,5 @@ locals {
 
   timeout_per_batch= var.cluster_network ? 30 : 15
   timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * local.timeout_per_batch,"m"])
+
 }

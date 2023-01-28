@@ -50,18 +50,21 @@ variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "slurm_ha" { default = false }
 variable "login_node" { default = false }
-variable "login_ad" {}
+variable "login_ad" {default = ""}
 variable "login_shape" { default = "VM.Standard2.4" }
-variable "login_boot_volume_size" {}
+variable "login_boot_volume_size" {default = 50}
 variable "slurm_nfs" { default = false }
 variable "rack_aware" { default = false }
 variable "ldap" { default = true } 
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
+variable "bastion_ocpus_denseIO_flex" { default = 8} 
 variable "instance_pool_ocpus" { default = 2} 
+variable "instance_pool_ocpus_denseIO_flex" { default = 8} 
 variable "instance_pool_memory" { default = 16 }
 variable "instance_pool_custom_memory" { default = false }
 variable "login_ocpus" { default = 2} 
+variable "login_ocpus_denseIO_flex" { default = 8}
 variable "bastion_memory" { default = 16 }
 variable "bastion_custom_memory" { default = false }
 variable "login_memory" { default = 16 }
