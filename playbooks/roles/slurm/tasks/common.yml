@@ -46,8 +46,8 @@
   file:
     path: "{{ download_path }}/slurm_rpms"
     state: directory
-    owner: opc
-    group: opc
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
   when: download_path == '/tmp'
 
 - name: Create Slurm RPM directory
@@ -55,8 +55,8 @@
   file:
     path: "{{ download_path }}/slurm_rpms"
     state: directory
-    owner: opc
-    group: opc
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
   delegate_to: 127.0.0.1
   run_once: true
   when: download_path != '/tmp'
