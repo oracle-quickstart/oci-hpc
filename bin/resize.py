@@ -653,7 +653,7 @@ else:
                 hostnames_to_remove=[i['display_name'] for i in unreachable_instances]
             else:
                 print("STDOUT: No list of nodes were specified and no unreachable nodes were found")
-                exit()
+                exit(1)
         else:
             reachable_instances,unreachable_instances=getreachable(inventory_instances,username,delay=10)
             hostnames_to_remove=hostnames
@@ -665,7 +665,7 @@ else:
             if not remove_unreachable:
                 print("STDOUT: At least one unreachable node is in the inventory")
                 print("STDOUT: Not doing anything")
-                exit()
+                exit(1)
             else:
                 hostnames_to_remove=[i['display_name'] for i in unreachable_instances]
         else:
@@ -692,7 +692,7 @@ else:
             if error_code != 0:
                 print("STDOUT: The nodes could not be removed. Try running this with Force")
                 if not force:
-                    exit()
+                    exit(1)
                 else:
                     print("STDOUT: Force deleting the nodes")
         while len(hostnames_to_remove) > 0:
@@ -724,7 +724,7 @@ else:
     if args.mode == 'add':
         size = current_size - hostnames_to_remove_len + args.number
         update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
-        ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'])
+        ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
         updateTFState(inventory,cluster_name,size)
         if not no_reconfigure:
             add_reconfigure(comp_ocid,cn_ocid,inventory,CN)
