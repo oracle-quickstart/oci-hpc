@@ -18,13 +18,20 @@
     return_content: yes
   register: i_metadata
 
+- name: Change CIDR range for RDMA
+  become: true
+  replace:
+    path: /etc/oci-hpc/rdma-network.conf
+    regexp: 'rdma_network=192.168.0.0/255.255.0.0'
+    replace: 'rdma_network={{rdma_network}}/{{rdma_netmask}}'
+
 - name: Append subnet part to /etc/oci-hpc/rdma-network.conf
   blockinfile:
     path: /etc/oci-hpc/rdma-network.conf
     block: |
       [subnet]
       modify_arp=true
-      override_netconfig_netmask=255.255.0.0
+      override_netconfig_netmask={{rdma_netmask}}
   when: new_image.stat.exists
 
 - name: Start the OCI RDMA service
