@@ -83,6 +83,9 @@
   shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host | jq .rackId'
 #  shell: echo $RANDOM | md5sum | head -c 20
   register: rackID_script
+  retries: 5
+  delay: 5
+  until: rackID_script is not failed
 
 - name: Set RackID fact
   set_fact:
