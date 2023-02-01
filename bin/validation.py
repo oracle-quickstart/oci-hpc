@@ -223,13 +223,10 @@ def getConsoleNodeName(slurm_node_name):
 
 # get number of nodes and their state using slurm
 def slurmGetNodes(resize_cluster_names, all_node_cluster_dict, path):
-    out = subprocess.run(['sinfo','-hNr','-o','\"%T %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = subprocess.run(['sinfo','-hN','-o','\"%T %D %N\"'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     lines = out.stdout.decode("utf-8")
     x = lines.split("\n")
     del x[-1]
-    good_node_states = set()
-    good_node_states.add("allocated")
-    good_node_states.add("idle")
     warning_node_dict = {}
     slurm_node_cluster_dict = {}
     for i in range(len(x)):
@@ -242,7 +239,7 @@ def slurmGetNodes(resize_cluster_names, all_node_cluster_dict, path):
                 slurm_node_cluster = all_node_cluster_dict[proper_node_name]
                 if slurm_node_cluster in resize_cluster_names:
                     slurm_node_cluster_dict.update({proper_node_name: slurm_node_cluster})
-                    if node_state not in good_node_states:
+                    if node_state.endswith("*"):
                         warning_node_dict.update({proper_node_name: node_state})
             else:
                 if path is None:
@@ -438,26 +435,99 @@ def getResizeCluster(args, metadata):
 
     return resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict
 
+def dictEqualCheck(resize_node_cluster_dict, comp_dict, type, txt_file_name, path):
+    if resize_node_cluster_dict == comp_dict:
+        print("Number of nodes from " +type+ " is same as resize")
+    else:
+        for key in resize_node_cluster_dict.keys():
+            if not key in comp_dict:
+                if path is None:
+                    path = createDir()
+                    changeOwner(path)
+                f = open(path+"/" +txt_file_name+ ".txt", "a")
+                f.write(key + " is not in " +type+ " file" + "\n")
+                f.close()
+        for key in comp_dict.keys():
+            if not key in resize_node_cluster_dict:
+                if path is None:
+                    path = createDir()
+                    changeOwner(path)
+                f = open(path+"/" +txt_file_name+ ".txt", "a")
+                f.write(key + " is not in resize list" + "\n")
+                f.close()
+    return path
+
+def runChecks(args, type, name, hostFileWritten, resize_node_cluster_dict, metadata, path):
+    if type is not None:
+        if type == 'y' or type == 'Y':
+            if args.cluster_names is not None:
+                if hostFileWritten is False:
+                    if len(resize_node_cluster_dict) == 0:
+                        resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict = getResizeCluster(args, metadata)
+                        if len(resize_cluster_names) == 0:
+                            exit()
+                    if path is None:
+                        path = createDir()
+                        changeOwner(path)
+                    f = open(path+"/host.txt", "a")
+                    for v in resize_node_cluster_dict.keys():
+                        hostFileWritten = True
+                        f.write(str(v) + "\n")
+                    f.close()
+                hostfile = path+"/host.txt"
+                if name == "pcie":
+                    pcie_check(hostfile, path)
+                if name == "gpu throttle":
+                    gpu_throttle(hostfile, path)
+                if name == "/etc/hosts md5 sum":
+                    out = subprocess.Popen(["cat "+hostfile],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+                    stdout,stderr = out.communicate()
+                    x = stdout.split("\n")
+                    del x[-1]
+                    nodes_comma = ','.join(str(s) for s in x)
+                    path = etcHostsSame(nodes_comma, path)
+            else:
+                print("Provide cluster_names file or hosts file to run " +name+ " check")
+        else:
+            hostfile = type
+            if path is None:
+                path = createDir()
+                changeOwner(path)
+            if name == "pcie":
+                    pcie_check(hostfile, path)
+            if name == "gpu throttle":
+                gpu_throttle(hostfile, path)
+            if name == "/etc/hosts md5 sum":
+                out = subprocess.Popen(["cat "+hostfile],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+                stdout,stderr = out.communicate()
+                x = stdout.split("\n")
+                del x[-1]
+                nodes_comma = ','.join(str(s) for s in x)
+                path = etcHostsSame(nodes_comma, path)
+    return hostFileWritten, path
+
+
 ###############
 
 parser = argparse.ArgumentParser(description = 'Performs these checks. \
 -> Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, \
-    inventory files. Also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion. \
+    inventory files. \
 -> PCIe bandwidth check \
 -> GPU Throttle check \
--> Standalone /etc/hosts md5 sum validation \
+-> /etc/hosts md5 sum validation \
     Provide at least one argument: [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS] \
-Optional argument with [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE]: [-cn CLUSTER_NAMES] --> \
+Optional argument with [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]: [-cn CLUSTER_NAMES] --> \
 Provide a file that lists each cluster on a separate line for which you want to validate the \
-    number of nodes and/or pcie check and/or gpu throttle check. ')
+    number of nodes and/or pcie check and/or gpu throttle check and/or /etc/hosts md5 sum. \
+For all of the above, you can either provide y or Y along with -cn or you can give the hostfile path (each host on a separate line) for each argument')
 
 parser.add_argument('-n', '--num_nodes', help = "Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, \
-    inventory files. Also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion.")
+    inventory files.")
 parser.add_argument('-cn', '--cluster_names', help = "Provide a file that lists each cluster on a separate line for which you want to validate the \
     number of nodes and/or pcie check and/or gpu throttle check.")
 parser.add_argument('-p', '--pcie', help = "Runs PCIe bandwidth check")
 parser.add_argument('-g', '--gpu_throttle', help = "Performs GPU throttle check")
-parser.add_argument('-e', '--etc_hosts', help = "Provide a file that contains list of hosts on which to perform md5 sum check to match with bastion")
+parser.add_argument('-e', '--etc_hosts', help = "Performs md5 sum check on all hosts and checks if it matches with the bastion")
 
 args = parser.parse_args()
 
@@ -503,45 +573,13 @@ if args.num_nodes is not None:
 
         oci_node_cluster_dict = ociCommand(metadata, resize_cluster_names)
 
+        path = dictEqualCheck(resize_node_cluster_dict, etc_node_cluster_dict, "/etc/hosts", "etcHostsNumNodes", path)
         if resize_node_cluster_dict == etc_node_cluster_dict:
-            print("Number of nodes in /etc/hosts on bastion is same as resize")
-        else:
-            for key in resize_node_cluster_dict.keys():
-                if not key in etc_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/etcHostsNumNodes.txt", "a")
-                    f.write(key + " is not in etc hosts" + "\n")
-                    f.close()
-            for key in etc_node_cluster_dict.keys():
-                if not key in resize_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/etcHostsNumNodes.txt", "a")
-                    f.write(key + " is not in resize list" + "\n")
-                    f.close()
+            path = dictEqualCheck(resize_node_cluster_dict, slurm_node_cluster_dict, "slurm", "slurmNumNodes", path)
+            path = dictEqualCheck(resize_node_cluster_dict, topo_node_cluster_dict, "topology.conf", "topoNumNodes", path)
 
-        if resize_node_cluster_dict == slurm_node_cluster_dict:
-            print("Number of nodes from slurm is same as resize")
-        else:  
-            for key in resize_node_cluster_dict.keys():
-                if not key in slurm_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/slurmNumNodes.txt", "a")
-                    f.write(key + " is not in slurm" + "\n")
-                    f.close()
-            for key in slurm_node_cluster_dict.keys():
-                if not key in resize_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/slurmNumNodes.txt", "a")
-                    f.write(key + " is not in resize list" + "\n")
-                    f.close()
+        path = dictEqualCheck(resize_node_cluster_dict, inventory_node_cluster_dict, "inventory", "inventoryNumNodes", path)
+        path = dictEqualCheck(resize_node_cluster_dict, oci_node_cluster_dict, "oci cli", "ociCliNumNodes", path)
 
         if len(warning_node_dict) > 0:
             for key in warning_node_dict.keys():
@@ -551,134 +589,12 @@ if args.num_nodes is not None:
                 f = open(path+"/slurmWarnNodes.txt", "a")
                 f.write(key + " is in slurm state " + warning_node_dict[key] + "\n")
                 f.close()
-
-        if resize_node_cluster_dict == topo_node_cluster_dict:
-            print("Number of nodes from topology is same as resize")
-        else:
-            for key in resize_node_cluster_dict.keys():
-                if not key in topo_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/topoNumNodes.txt", "a")
-                    f.write(key + " is not in topology.conf file" + "\n")
-                    f.close()
-            for key in topo_node_cluster_dict.keys():
-                if not key in resize_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/topoNumNodes.txt", "a")
-                    f.write(key + " is not in resize list" + "\n")
-                    f.close()
-
-        if resize_node_cluster_dict == inventory_node_cluster_dict:
-            print("Number of nodes from inventory is same as resize")
-        else:
-            for key in resize_node_cluster_dict.keys():
-                if not key in inventory_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/inventoryNumNodes.txt", "a")
-                    f.write(key + " is not in inventory file" + "\n")
-                    f.close()
-            for key in inventory_node_cluster_dict.keys():
-                if not key in resize_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/inventoryNumNodes.txt", "a")
-                    f.write(key + " is not in resize list" + "\n")
-                    f.close()
-
-        if resize_node_cluster_dict == oci_node_cluster_dict:
-            print("Number of nodes from oci cli is same as resize")
-        else:
-            for key in resize_node_cluster_dict.keys():
-                if not key in oci_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/ociCliNumNodes.txt", "a")
-                    f.write(key + " not found using oci cli" + "\n")
-                    f.close()
-            for key in oci_node_cluster_dict.keys():
-                if not key in resize_node_cluster_dict:
-                    if path is None:
-                        path = createDir()
-                        changeOwner(path)
-                    f = open(path+"/ociCliNumNodes.txt", "a")
-                    f.write(key + " is not in resize list" + "\n")
-                    f.close()
-
-        node_list = list(map(' '.join, resize_cluster_node_dict.values()))
-        nodes_space = ' '.join(str(s) for s in node_list)
-        split_str = nodes_space.split()
-        nodes_comma = ','.join(str(s) for s in split_str)
-        path = etcHostsSame(nodes_comma, path)
-
-if args.num_nodes is None and args.etc_hosts is not None:
-    hostfile = args.etc_hosts
-    out = subprocess.Popen(["cat "+hostfile],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-    stdout,stderr = out.communicate()
-    x = stdout.split("\n")
-    del x[-1]
-    nodes_comma = ','.join(str(s) for s in x)
-    path = etcHostsSame(nodes_comma, path)
-
+                
 hostFileWritten = False
-if args.pcie is not None:
-    if args.pcie == 'y' or args.pcie == 'Y':
-        if args.cluster_names is not None:
-            if len(resize_node_cluster_dict) == 0:
-                resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict = getResizeCluster(args, metadata)
-                if len(resize_cluster_names) == 0:
-                    exit()
-            if path is None:
-                path = createDir()
-                changeOwner(path)
-            f = open(path+"/host.txt", "a")
-            for v in resize_node_cluster_dict.keys():
-                hostFileWritten = True
-                f.write(str(v) + "\n")
-            f.close()
-            pcie_hostfile = path+"/host.txt"
-            pcie_check(pcie_hostfile, path)
-        else:
-            print("Provide cluster_names file or hosts file to run pcie check")
-    else:
-        pcie_hostfile = args.pcie
-        if path is None:
-            path = createDir()
-            changeOwner(path)
-        pcie_check(pcie_hostfile, path)
 
-if args.gpu_throttle is not None:
-    if args.gpu_throttle == 'y' or args.gpu_throttle == 'Y':
-        if args.cluster_names is not None:
-            if hostFileWritten is False:
-                if len(resize_node_cluster_dict) == 0:
-                    resize_cluster_names, resize_cluster_node_dict, resize_node_cluster_dict = getResizeCluster(args, metadata)
-                    if len(resize_cluster_names) == 0:
-                        exit()
-                if path is None:
-                    path = createDir()
-                    changeOwner(path)
-                f = open(path+"/host.txt", "a")
-                for v in resize_node_cluster_dict.keys():
-                    f.write(str(v) + "\n")
-                f.close()
-            gpu_hostfile = path+"/host.txt"
-            gpu_throttle(gpu_hostfile, path)
-        else:
-            print("Provide cluster_names file or hosts file to run gpu throttle check")
-    else:
-        gpu_hostfile = args.gpu_throttle
-        if path is None:
-            path = createDir()
-            changeOwner(path)
-        gpu_throttle(gpu_hostfile, path)
+hostFileWritten, path = runChecks(args, args.pcie, "pcie", hostFileWritten, resize_node_cluster_dict, metadata, path)
+hostFileWritten, path = runChecks(args, args.gpu_throttle, "gpu throttle",hostFileWritten, resize_node_cluster_dict, metadata, path)
+hostFileWritten, path = runChecks(args, args.etc_hosts, "/etc/hosts md5 sum", hostFileWritten, resize_node_cluster_dict, metadata, path)
 
 if path is not None:
     print(f"Output is in folder: {path}")
