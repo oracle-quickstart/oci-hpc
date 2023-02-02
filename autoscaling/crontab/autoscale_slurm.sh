@@ -169,6 +169,11 @@ def getClusterName(node):
             for output in stdout.split('\n')[:-1]:
                 if "Switches=" in output:
                     clusterName=output.split()[0].split('SwitchName=')[1]
+                    break
+                elif "SwitchName=inactive-" in output:
+                    continue
+                else:
+                    clusterName=output.split()[0].split('SwitchName=')[1]
         elif len(stdout.split('\n')) == 2:
             clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
         if clusterName.startswith("inactive-"):
