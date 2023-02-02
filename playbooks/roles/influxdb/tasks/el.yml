@@ -29,7 +29,7 @@
     baseurl: https://repos.influxdata.com/rhel/{{ ansible_distribution_major_version }}/$basearch/stable
     enabled: 1
     gpgcheck: 1
-    gpgkey: https://repos.influxdata.com/influxdb.key
+    gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
 
 - name: Install InfluxDB
   vars: 
