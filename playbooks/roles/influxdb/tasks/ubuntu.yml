@@ -37,7 +37,7 @@
   become: true
   apt_key:
     state: present
-    url: https://repos.influxdata.com/influxdb.key
+    url: https://repos.influxdata.com/influxdata-archive_compat.key
 
 - name: Manage InfluxData APT repositories
   become: true
