@@ -324,19 +324,21 @@ $ max_nodes --include_cluster_names xxx yyy zzz --> where xxx, yyy, zzz are clus
 Use the alias "validate" to run the python script validation.py. You can run this script only from bastion. 
 
 The script performs these checks. 
--> Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. Also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion
+-> Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files.
 -> PCIe bandwidth check 
 -> GPU Throttle check 
--> Standalone /etc/hosts md5 sum validation
+-> Check whether md5 sum of /etc/hosts file on nodes matches that on bastion
 
 Provide at least one argument: [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]
 
-Optional argument with [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE]: [-cn CLUSTER_NAMES]
-Provide a file that lists each cluster on a separate line for which you want to validate the number of nodes and/or pcie check and/or gpu throttle check.
+Optional argument with [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]: [-cn CLUSTER_NAMES]
+Provide a file that lists each cluster on a separate line for which you want to validate the number of nodes and/or pcie check and/or gpu throttle check and/or /etc/hosts md5 sum. 
+
+For pcie, gpu throttle, and /etc/hosts md5 sum check, you can either provide y or Y along with -cn or you can give the hostfile path (each host on a separate line) for each argument. For number of nodes check, either provide y or give y along with -cn.
 
 Below are some examples for running this script.
 
-validate -n y --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. It will also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion. The clusters considered will be the default cluster if any and cluster(s) found in /opt/oci-hpc/autoscaling/clusters directory. The number of nodes considered will be from the resize script using the clusters we got before. 
+validate -n y --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. The clusters considered will be the default cluster if any and cluster(s) found in /opt/oci-hpc/autoscaling/clusters directory. The number of nodes considered will be from the resize script using the clusters we got before. 
 
 validate -n y -cn <cluster name file> --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. It will also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
 
@@ -352,9 +354,13 @@ validate -g y -cn <cluster name file> --> This will run the GPU throttle check. 
 
 validate -g <gpu check host file> --> This will run the GPU throttle check on the hosts provided in the file given. The gpu check host file should have a host name on each line.
 
-You can combine all the options together such as:
-validate -n y -p y -g y -cn <cluster name file>
+validate -e y --> This will run the /etc/hosts md5 sum check. The clusters considered will be the default cluster if any and cluster(s) found in /opt/oci-hpc/autoscaling/clusters directory. The number of nodes considered will be from the resize script using the clusters we got before.
 
-If you only want to run the md5 sum check (matches that of bastion) on some hosts, use the -e option. Example:
-validate -e <host file> --> Check whether md5 sum of /etc/hosts file matches that on bastion. The hosts considered will be from the file provided. The host file should have a host name on each line. 
+validate -e y -cn <cluster name file> --> This will run the GPU throttle check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
+
+validate -e <md5 sum check host file> --> This will run the /etc/hosts md5 sum check on the hosts provided in the file given. The md5 sum check host file should have a host name on each line.
+
+You can combine all the options together such as:
+validate -n y -p y -g y -e y -cn <cluster name file>
+
 
