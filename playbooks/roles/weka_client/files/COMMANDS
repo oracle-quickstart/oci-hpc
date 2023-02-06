@@ -1,0 +1,7 @@
+#!/bin/bash
+set -ex
+ip a | grep BROADCAST | awk '{ print $2 }' | grep -v 'ens\|docker\|lo' | sed 's/://' > interfaces
+sudo cp /tmp/weka/rt_tables /etc/iproute2/rt_tables
+cat interfaces | /tmp/weka/createrules.pl > /tmp/weka/create.sh
+sudo sh /tmp/weka/create.sh
+for nic in $(cat interfaces); do sudo ifdown $nic; sudo ifup $nic; done
