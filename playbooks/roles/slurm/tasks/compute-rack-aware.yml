@@ -252,23 +252,41 @@
     state: restarted
     enabled: true
 
-- name: Grab Node State
-  shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
-  register: node_state
-  delegate_to: 127.0.0.1
-  until: node_state.stdout.find("failure") == -1
-  retries: 10
-  delay: 5
-
-- set_fact:
-    node_state2={{ node_state.stdout }}
 
 - name: Update node state on bastion
-  become: true
-  command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-  when: node_state2 != "idle" and node_state2 != "alloc"
-  register: result
-  retries: 10
-  delay: 5
-  until: result is not failed
-  delegate_to: 127.0.0.1
+  block:
+    - name: Grab Node State
+      shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
+      register: node_state
+      delegate_to: 127.0.0.1
+    - set_fact:
+        node_state2: "{{ node_state.stdout }}"
+    - name: Update node state on bastion
+      become: true
+      command: scontrol update nodename={{ ansible_hostname }} state=RESUME
+      when: node_state2 != "idle" and node_state2 != "alloc"
+  rescue:
+    - name: Sleep 5 seconds
+      pause: 
+        seconds: 10
+
+    - name: Grab Node State
+      shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
+      register: node_state
+      delegate_to: 127.0.0.1
+      until: node_state.stdout.find("failure") == -1
+      retries: 10
+      delay: 5
+
+    - set_fact:
+        node_state2: "{{ node_state.stdout }}"
+
+    - name: Update node state on bastion
+      become: true
+      command: scontrol update nodename={{ ansible_hostname }} state=RESUME
+      when: node_state2 != "idle" and node_state2 != "alloc"
+      register: result
+      retries: 10
+      delay: 5
+      until: result is not failed
+      delegate_to: 127.0.0.1
