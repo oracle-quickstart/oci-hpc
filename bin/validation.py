@@ -11,7 +11,11 @@ import shlex
 
 # change ownership of all files to opc so that the files can be copied
 def changeOwner(path):
-    cmd = f'sudo chown -R opc:opc {path}'
+    out = subprocess.Popen(["whoami"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    stdout,stderr = out.communicate()
+    username = stdout.split("\n")
+    del username[-1]
+    cmd = f'sudo chown -R {username[0]}:{username[0]} {path}'
     run_cmd(cmd)
 
 
@@ -408,10 +412,23 @@ def inventoryNodes(metadata, cluster_names):
 
 
 def pcie_check(hostfile, path):
-    out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/pcie.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    out = subprocess.Popen(["cat /etc/os-release | grep PRETTY_NAME="],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
-    out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-    stdout,stderr = out.communicate()
+    os_name = stdout.split("\n")
+    del os_name[-1]
+    if "Linux" in os_name[0]:
+        out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/pcie_el.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+        stdout,stderr = out.communicate()
+        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+        stdout,stderr = out.communicate()
+    elif "Ubuntu" in os_name[0]:
+        out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/pcie_ubuntu.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+        stdout,stderr = out.communicate()
+        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+        stdout,stderr = out.communicate()
+    else:
+        print("Cannot run pcie check as OS is not determined to be Linux or Ubuntu")
+    
 
 def gpu_throttle(hostfile, path):
     out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/gpu_throttle.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
