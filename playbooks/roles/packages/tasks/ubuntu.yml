@@ -10,6 +10,7 @@
         - pdsh
         - python3-netaddr
         - jq
+        - python3-pip
       package_state: latest
     include_role: 
       name: safe_yum

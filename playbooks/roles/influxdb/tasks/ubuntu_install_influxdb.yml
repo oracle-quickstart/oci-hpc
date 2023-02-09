@@ -1,0 +1,28 @@
+---
+- name: Add InfluxData's key
+  become: true
+  apt_key:
+    state: present
+    url: https://repos.influxdata.com/influxdata-archive_compat.key
+
+- name: Manage InfluxData APT repositories
+  become: true
+  apt_repository:
+    repo: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Install InfluxDB
+  vars: 
+    package_name: 
+      - influxdb
+    package_state: latest
+  include_role: 
+    name: safe_yum
+
+- name: install influx pip
+  become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  pip:
+    name: influxdb
+    executable: pip3

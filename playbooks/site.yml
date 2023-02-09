@@ -256,11 +256,17 @@
     - include_role: 
         name: yaml
 
-- hosts: bastion
+- hosts: all
   tasks: 
     - include_role: 
         name: influxdb
       when: monitoring|default(false)|bool
+    - include_role: 
+        name: telegraf
+      when: monitoring|default(false)|bool
+
+- hosts: bastion
+  tasks: 
     - include_role: 
         name: grafana
       when: monitoring|default(false)|bool
@@ -304,9 +310,6 @@
     - include_role: 
         name: spack
       when: spack|default(false)|bool
-    - include_role: 
-        name: telegraf
-      when: monitoring|default(false)|bool
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool

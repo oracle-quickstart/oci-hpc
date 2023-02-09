@@ -1,0 +1,53 @@
+---
+- name: Create database
+  shell: "python3 -c \"import influxdb; influxdb.InfluxDBClient(host='{{ hostvars[groups['bastion'][0]]['ansible_fqdn'] }}', port=8086).create_database('telegraph')\""
+
+#- name: Create database
+#  influxdb_database:
+#      hostname: "{{ hostvars[groups['bastion'][0]]['ansible_fqdn'] }}"
+#      database_name: "telegraf"
+#  run_once: true
+
+- name: Install telegraf
+  vars: 
+    package_name: 
+      - telegraf
+    package_state: latest
+  include_role: 
+    name: safe_yum
+
+- name: copy telegraf.conf
+  become: true
+  copy: 
+    src: "{{ item }}"
+    dest: /etc/telegraf/{{item}}
+    force: yes
+    backup: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0744
+  with_items: 
+    - telegraf.conf
+
+- name: render conf files
+  become: true
+  template: 
+    src: "{{ item }}.j2"
+    dest: /etc/telegraf/telegraf.d/{{item}}
+    force: yes
+    backup: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0744
+  with_items: 
+    - infiniband.conf
+    - influxdb.conf
+    - net.conf
+    - infiniband_hw_counters.conf
+- name: restart telegraf
+  become: true
+  service:
+    name: telegraf
+    state: restarted
+    enabled: yes
+

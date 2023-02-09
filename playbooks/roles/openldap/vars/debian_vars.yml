@@ -5,7 +5,6 @@ openldap_packages:
   - slapd
   - ldap-utils
   - openssl
-  - python3-pip
   - libsasl2-dev
   - libldap2-dev
   - libssl-dev

@@ -1,0 +1,69 @@
+---
+- name: Create /etc/opt/oci-hpc/passwords/influxdb
+  become: true
+  file: 
+    path: /etc/opt/oci-hpc/passwords/influxdb
+    state: directory
+    owner: '{{ ansible_user }}'
+    mode: 0770
+    group: '{{ ansible_user }}'
+    recurse: yes
+
+- name: Generate password for Influx admin and save it to /etc/opt/oci-hpc/passwords
+  set_fact:
+    tmp_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/influxdb/root.txt
+                          chars=ascii_letters,digits,hexdigits') }}"
+
+- name: Get influx password from /etc/opt/oci-hpc/passwords
+  set_fact:
+    influx_admin_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/influxdb/root.txt  
+                           chars=ascii_letters,digits,hexdigits') }}"
+
+# - name: Add influxdb repository
+#   become: true
+#   yum_repository: 
+#     name: influxdb
+#     description: InfluxDB Repository - RHEL $releasever
+#     baseurl: https://repos.influxdata.com/rhel/{{ ansible_distribution_major_version }}/$basearch/stable
+#     enabled: 1
+#     gpgcheck: 1
+#     gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+
+# - name: Install InfluxDB
+#   vars: 
+#     package_name: 
+#       - influxdb
+#     package_state: latest
+#   include_role: 
+#     name: safe_yum
+
+- name: Start InfluxDB
+  become: true
+  service: 
+    name: influxdb
+    state: started
+    enabled: true
+
+
+- name: Set configuration directory path
+  become: true
+  file:
+    path: "{{ influxdb_configuration_dir }}"
+    state: directory
+
+- name: Set templatized InfluxDB configuration
+  become: true
+  template: 
+    src: influxdb.conf.j2 
+    dest: "{{ influxdb_configuration_dir }}/influxdb.conf"
+    force: yes
+    backup: yes
+    owner: influxdb
+    group: influxdb
+    mode: 0744
+  register: influx_config
+  notify: restart influxdb
+
+
