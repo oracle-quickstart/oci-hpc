@@ -1,4 +1,6 @@
-- include: el.yml
-  when: ansible_os_family == 'RedHat'
-- include: ubuntu.yml
-  when: ansible_os_family == 'Debian'
+# - include: el.yml
+#   when: ansible_os_family == 'RedHat'
+# - include: ubuntu.yml
+#   when: ansible_os_family == 'Debian'
+- include: common.yml
+  when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'
