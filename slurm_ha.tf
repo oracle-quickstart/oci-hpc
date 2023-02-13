@@ -195,6 +195,8 @@ resource "null_resource" "cluster_backup" {
       bastion_ip = oci_core_instance.bastion.private_ip,
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
+      login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
+      login_ip = var.login_node ? oci_core_instance.login[0].private_ip: "",
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
@@ -240,9 +242,15 @@ resource "null_resource" "cluster_backup" {
       admin_username = var.autoscaling_mysql_service ? var.admin_username : "root",
       enroot = var.enroot,
       pyxis = var.pyxis,
+      pam = var.pam,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
-      latency_check = var.latency_check
+      latency_check = var.latency_check,
+      inst_prin = var.inst_prin,
+      region = var.region,
+      tenancy_ocid = var.tenancy_ocid,
+      api_fingerprint = var.api_fingerprint,
+      api_user_ocid = var.api_user_ocid       
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -319,14 +327,17 @@ resource "null_resource" "cluster_backup" {
       bastion_ip = oci_core_instance.bastion.private_ip, 
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
+      login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
+      login_ip = var.login_node ? oci_core_instance.login[0].private_ip: "",
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block,
       public_subnet_id = local.bastion_subnet_id,
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       private_subnet_id = local.subnet_id,
-      nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
+      nfs = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path = var.scratch_nfs_path,
+      use_scratch_nfs = var.use_scratch_nfs,
       slurm = var.slurm,
       slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
       rack_aware = var.rack_aware,
@@ -364,13 +375,14 @@ resource "null_resource" "cluster_backup" {
       autoscaling_monitoring = var.autoscaling_monitoring,
       enroot = var.enroot,
       pyxis = var.pyxis,
+      pam = var.pam,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
       private_deployment = var.private_deployment,
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
-      use_multiple_ads = var.use_multiple_ads
+      use_multiple_ads = var.use_multiple_ads  
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"

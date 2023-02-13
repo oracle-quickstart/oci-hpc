@@ -49,7 +49,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_remove_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup'])  | difference(groups['login'])}}"
   run_once: true
   register: nodes_to_remove_temp_results
 
@@ -69,7 +69,7 @@
 - name: Get rackIDs
   set_fact:
     racks_to_remove_temp: "{{cluster_name}}:{{hostvars[item]['rackID']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup'])  | difference(groups['login'])}}"
   run_once: true
   register: racks_to_remove_temp_results
 

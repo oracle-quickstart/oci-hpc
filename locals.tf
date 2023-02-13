@@ -5,6 +5,7 @@ locals {
 
   image_ocid = var.unsupported ? var.image_ocid : var.image
   custom_bastion_image_ocid = var.unsupported_bastion ? var.unsupported_bastion_image : var.custom_bastion_image
+  custom_login_image_ocid = var.unsupported_login ? var.unsupported_login_image : var.custom_login_image
 
 // ips of the instances
   cluster_instances_ips = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
@@ -25,6 +26,8 @@ locals {
 
   bastion_image = var.use_standard_image ? oci_core_app_catalog_subscription.bastion_mp_image_subscription[0].listing_resource_id : local.custom_bastion_image_ocid
 
+  login_image = var.use_standard_image_login ||  var.use_marketplace_image_login ? oci_core_app_catalog_subscription.login_mp_image_subscription[0].listing_resource_id : local.custom_login_image_ocid
+
   cluster_network_image = var.use_marketplace_image ? oci_core_app_catalog_subscription.mp_image_subscription[0].listing_resource_id : local.image_ocid
 
   instance_pool_image = ! var.cluster_network && var.use_marketplace_image ? oci_core_app_catalog_subscription.mp_image_subscription[0].listing_resource_id : local.image_ocid
@@ -32,6 +35,8 @@ locals {
 //  image = (var.cluster_network && var.use_marketplace_image == true) || (var.cluster_network == false && var.use_marketplace_image == false) ? var.image : data.oci_core_images.linux.images.0.id
 
   is_bastion_flex_shape = length(regexall(".*VM.*.*Flex$", var.bastion_shape)) > 0 ? [var.bastion_ocpus]:[]
+  is_login_flex_shape = length(regexall(".*VM.*.*Flex$", var.login_shape)) > 0 ? [var.login_ocpus]:[]
+
   is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [var.instance_pool_ocpus]:[]
 
   bastion_mount_ip = var.bastion_block ? element(concat(oci_core_volume_attachment.bastion_volume_attachment.*.ipv4, [""]), 0) : "none"
@@ -48,9 +53,11 @@ locals {
   cluster_ocid = var.node_count > 0 ? var.cluster_network ? oci_core_cluster_network.cluster_network[0].id : oci_core_instance_pool.instance_pool[0].id : ""
   host = var.private_deployment ? data.oci_resourcemanager_private_endpoint_reachable_ip.private_endpoint_reachable_ip[0].ip_address : oci_core_instance.bastion.public_ip
   bastion_bool_ip = var.private_deployment ? false : true
+  login_bool_ip = var.private_deployment ? false : true
   bastion_subnet = var.private_deployment ? oci_core_subnet.private-subnet : oci_core_subnet.private-subnet 
   private_subnet_cidr = var.private_deployment ? [var.public_subnet, var.private_subnet] : [var.private_subnet]
   host_backup = var.slurm_ha ? var.private_deployment ? data.oci_resourcemanager_private_endpoint_reachable_ip.private_endpoint_reachable_ip_backup[0].ip_address : oci_core_instance.backup[0].public_ip : "none"
+  host_login = var.login_node ? var.private_deployment ? data.oci_resourcemanager_private_endpoint_reachable_ip.private_endpoint_reachable_ip_login[0].ip_address : oci_core_instance.login[0].public_ip : "none"
 
   timeout_per_batch= var.cluster_network ? 30 : 15
   timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * local.timeout_per_batch,"m"])

@@ -339,21 +339,21 @@ def getreachable(instances,username,delay=0):
     
     reachable_ips=[]
     for i in delays:
-        input_file=open('/tmp/input_hosts_to_check','w')
+        input_file=open('/tmp/input_hosts_to_check_'+cluster_name,'w')
         for node in instances:
             if not node['ip'] in reachable_ips:
                 input_file.write(node['ip']+"\n")
         input_file.close()
         my_env = os.environ.copy()
         my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-        p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check","/tmp/reachable_hosts",username,"0"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
+        p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check_"+cluster_name,"/tmp/reachable_hosts_"+cluster_name,username,"0"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
         while True:
             output = p.stdout.readline().decode()
             if output == '' and p.poll() is not None:
                 break
             if output:
                 print(output.strip())
-        output_file=open('/tmp/reachable_hosts','r')
+        output_file=open('/tmp/reachable_hosts_'+cluster_name,'r')
         for line in output_file:
             reachable_ips.append(line.strip())
         output_file.close()

@@ -1,4 +1,9 @@
 ---
+
+- name: Run Pam settings
+  include: compute_pam.yml
+  when: pam|bool
+
 - name: install SLURM compute packages
   vars: 
     package_name: '{{ slurm_compute_packages }}'
@@ -82,7 +87,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) | difference(groups['login']) }}"
   run_once: true
   register: nodes_to_add_temp_results
 
@@ -156,6 +161,10 @@
   run_once: true
   delegate_to: 127.0.0.1
   notify: reconfigure slurm
+
+- name: Run Pam settings
+  include: compute_pam.yml
+  when: pam|bool
 
 - name: start slurmd
   become: true

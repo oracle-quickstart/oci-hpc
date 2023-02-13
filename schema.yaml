@@ -57,6 +57,28 @@ variableGroups:
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
+  - title: "Additionnal Login Node"
+    variables:
+      - ${login_node}
+      - ${login_ad}
+      - ${login_shape}
+      - ${login_ocpus}
+      - ${login_custom_memory}
+      - ${login_memory}
+      - ${login_boot_volume_size}
+      - ${use_standard_image_login}
+      - ${use_marketplace_image_login}
+      - ${use_old_marketplace_image_login}
+      - ${marketplace_listing_login}
+      - ${old_marketplace_listing_login}
+      - ${unsupported_login}
+      - ${login_image_compartment}
+      - ${custom_login_image}
+      - ${unsupported_login_image}
+      - ${login_username}
+      - ${login_block}
+      - ${login_block_volume_size}
+      - ${login_block_volume_performance}
   - title: Autoscaling
     variables:
       - ${autoscaling}
@@ -139,6 +161,7 @@ variableGroups:
       - ${spack}
       - ${monitoring}
       - ${enroot}
+      - ${pam}
 
   - title: "Hidden"
     variables:
@@ -462,6 +485,7 @@ variables:
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
       - "BM.Optimized3.36"
+      - "BM.HPC.E5.128"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
     description: "Shape of compute nodes used in permanent/initial cluster"
@@ -958,6 +982,12 @@ variables:
     default: false
     description: "Install Enroot, Nvidia Container Toolkit, and docker."
 
+  pam:
+    type: boolean
+    title: "Enable PAM"
+    default: false
+    description: "Enable PAM for the Slurm cluster. When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job in Slurm."
+
   monitoring:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
@@ -1160,3 +1190,276 @@ variables:
     visible: 
       and:
         - ${privilege_sudo}
+
+
+
+  login_node:
+    type: boolean
+    title: "Login Node"
+    default: true
+    description: "Create an additional login node for users"
+
+  login_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    visible: 
+      and:
+        - complexExpression
+        - ${login_node}
+    required: true
+    description: "Availability Domain for login node"
+    title: "Availability Domain For Login Node"
+    #default: ${ad}  
+
+  login_shape:
+    type: oci:core:instanceshape:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: true
+    default: VM.Standard2.4
+    visible: ${login_node}
+
+  login_ocpus:
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 2
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard3.Flex"
+        - ${login_node}
+    required: true
+
+  login_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard3.Flex"
+        - ${login_node}
+  login_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 16
+    visible:
+      and: 
+        - and: 
+          - or: 
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.E3.Flex"
+            - eq:
+              - ${login_shape}
+              - "VM.Optimized3.Flex"
+            - eq: 
+              - ${login_shape}
+              - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${login_shape}
+              - "VM.Standard.A1.Flex"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard3.Flex"
+        - and: 
+            - ${login_custom_memory}
+            - ${login_node}
+    required: true
+    
+  login_boot_volume_size:
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 50
+    visible:  ${login_node}
+
+  login_block:
+    type: boolean
+    title: Additional block volume for shared space
+    default: false
+    visible:  ${login_node}
+
+  login_block_volume_size:
+    required: true
+    type: integer
+    title: "Size of the additional volume in GB"
+    default: 1000
+    visible:
+      and:
+        - and:
+            - ${login_block}
+            - ${login_node}
+  login_block_volume_performance:
+    type: enum
+    title: "Block volume performance"
+    required: true
+    enum:
+      - "0.  Lower performance"
+      - "10. Balanced performance"
+      - "20. High Performance"
+    default: "10. Balanced performance"
+    visible:
+      and:
+        - and:
+            - ${login_block}
+            - ${login_node}
+  use_standard_image_login:
+    type: boolean
+    title: "use standard login image"
+    description: >
+      "Use standard login image (Oracle Linux)"
+    default: true
+    visible: ${login_node}
+
+  unsupported_login: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for Login Node"
+    type: boolean
+    default: false
+    visible:
+      not:
+        - ${use_standard_image_login}
+
+  login_image_compartment:
+    title: "login image compartment"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible:
+      and: 
+          - not:
+              - ${use_standard_image_login}
+          - not: 
+              - ${unsupported_login}
+          - not: 
+              - ${use_marketplace_image_login}
+    required: true
+
+  custom_login_image:
+    title: "Login Image ID"
+    description: "Custom image ID for login nodes. Please note that only Oracle Linux and Ubuntu 20.04 are supported as login image at this moment. "
+    type: oci:core:image:id
+    dependsOn:
+      compartmentId: ${login_image_compartment}
+    visible:
+      and: 
+          - not:
+              - ${use_standard_image_login}
+          - not: 
+              - ${unsupported_login}
+          - not: 
+              - ${use_marketplace_image_login}
+    required: true
+  unsupported_login_image:
+    title: "Image OCID"
+    description: "Custom image ID for login nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported_login}
+        - not: 
+            - ${use_standard_image_login}
+        - not: 
+            - ${use_marketplace_image_login}
+    default: "image.ocid"
+    
+  login_username: 
+    title: "Default username for login node" 
+    description: "Custom image ID for login node"
+    type: string
+    default: "opc"
+    required: true
+    visible:
+      not:
+        - ${use_standard_image_login}
+
+  use_marketplace_image_login:
+    type: boolean
+    title: "use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID"
+    default: true
+    visible:
+      not:
+        - ${use_standard_image_login}
+  use_old_marketplace_image_login:
+    type: boolean
+    title: "use older marketplace images"
+    description: "Images prior to September 2021"
+    default: false
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
+
+  marketplace_listing_login:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC_OL7"
+      - "HPC_OL8"
+      - "GPU"
+    default: "HPC_OL7"
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - not: 
+          - ${use_old_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
+
+  old_marketplace_listing_login:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
+      - "2. Oracle Linux 7.8 OFED 5.0-1.0.0.0 UEK 20200826"
+      - "3. Oracle Linux 7.7 OFED 4.4-2.0.7.0 UEK 20200229"
+      - "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - ${use_old_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
