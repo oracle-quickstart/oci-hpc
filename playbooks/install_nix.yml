@@ -1,0 +1,241 @@
+---
+
+- name: Get nix version
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - shell: |
+        . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+        nix --version
+      ignore_errors: true
+      changed_when: false
+      register: nix_version_output
+    - name: Set nix version name
+      set_fact:
+        nix_version_on_system: "{{ (nix_version_output.stdout_lines[0].split(' '))[2] }}"
+      when: nix_version_output.rc == 0
+    - name: Prompt user if Nix is installed
+      debug:
+        msg: "WARNING! Nix is already installed. Stopping playbook."
+      when: nix_version_on_system is defined
+    - name: Stop play if Nix is installed
+      fail: 
+      when: nix_version_on_system is defined
+
+# setup environment for nix
+- name: Ensure /data/nix/var/nix/ dir exists
+  hosts: bastion 
+  become: true
+  tasks:
+    - name: Check if directory exists
+      stat:
+        path: /data/nix/var/nix/ 
+      register: dir_stat
+    - name: Create directory
+      file:
+        path: /data/nix/var/nix/ 
+        state: directory
+      when: not dir_stat.stat.exists
+
+- name: Ensure /var/run/nix dir exists
+  hosts: login, slurm_backup 
+  become: true
+  tasks:
+    - name: Does /var/run/nix dir exits
+      stat:
+        path: /var/run/nix
+      register: dir_stat
+    - name: Create /var/run/nix dir
+      file:
+        path: /var/run/nix
+        state: directory
+      when: not dir_stat.stat.exists
+
+- name: Mount /data/nix dir to /nix dir
+  hosts: all
+  gather_facts: true
+  become: true
+  tasks:
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/nix"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "/data/nix"
+        options: "{{ nfs_options }}"
+        lock: "none"
+
+- name: Link /var/run/nix and /data/nix/var/nix/daemon-socket dirs
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Execute command
+      ansible.builtin.command: ln -s /var/run/nix /data/nix/var/nix/daemon-socket
+
+# install nix
+- name: Install Nix
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Install Nix
+      include_role:
+        name: nix
+
+- name: Move nix.conf file
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Move nix.conf file
+      command: mv /etc/nix/nix.conf /nix/nix.conf
+
+- name: Add bash function for nix command
+  hosts: login, slurm_backup
+  become: true
+  tasks: 
+    - name: Add bash function
+      blockinfile:
+        path: /etc/bashrc
+        block: |
+          nix-install() {
+              command="nix profile install nixpkgs#$1"
+              shift
+              for arg in "$@"; do
+                  command+=" nixpkgs#$arg"
+              done
+              echo $command
+              eval "$command"
+          }
+
+          nix-remove() {
+              command="nix profile remove $1"
+              shift
+              for arg in "$@"; do
+                  command+=" $arg"
+              done
+              echo $command
+              eval "$command"
+          }
+
+          nix-upgrade() {
+              command="nix profile upgrade $1"
+              shift
+              for arg in "$@"; do
+                  command+=" $arg"
+              done
+              echo $command
+              eval "$command"
+          }
+
+          nix-list() {
+              command="nix profile list"
+              eval "$command"
+          }
+
+          nix-search() {
+              command="nix search nixpkgs#$1"
+              eval "$command"
+          }
+        marker: "# {mark} NIX ANSIBLE MANAGED BLOCK"
+        state: present
+
+- name: Set Nix environment variables
+  hosts: login, slurm_backup
+  become: true
+  tasks:
+    - name: Set NIX_CONF_DIR environment variable
+      lineinfile:
+        path: /etc/bashrc
+        line: export NIX_CONF_DIR=/nix
+        create: yes
+
+- name: Add Nix binaries to path
+  hosts: login, bastion, compute
+  become: true
+  tasks:
+    - name: Add Nix binaries to /etc/bashrc file
+      lineinfile:
+        path: /etc/bashrc
+        line: export PATH=~/.nix-profile/bin:$PATH
+        create: yes
+
+- name: Add Nix tools to path
+  hosts: login
+  become: true
+  tasks:
+    - name: Add Nix tools to /etc/bashrc file
+      lineinfile:
+        path: /etc/bashrc
+        line: export PATH=/nix/var/nix/profiles/default/bin:$PATH
+        create: yes
+
+# setup socat tunnel
+- name: Install socat
+  hosts: login, slurm_backup
+  become: true
+  tasks:
+  - name: Install socat
+    vars: 
+      package_name: 
+        - socat
+      package_state: latest
+      package_repo: "epel,ol7_developer_EPEL"
+    include_role: 
+      name: safe_yum
+    ignore_errors: true
+
+- name: Set IP addresses in service unit files
+  hosts: bastion
+  become: true
+  tasks:
+    - name: Set ip address in server service unit file
+      replace:
+        path: /opt/oci-hpc/playbooks/roles/nix/files/socat-server.service
+        regexp: '\[slurm_backup_ip\]'
+        replace: "{{ hostvars[groups['slurm_backup'][0]].ansible_host }}"
+    - name: Set ip address in client service unit file
+      replace:
+        path: /opt/oci-hpc/playbooks/roles/nix/files/socat-client.service
+        regexp: '\[slurm_backup_ip\]'
+        replace: "{{ hostvars[groups['slurm_backup'][0]].ansible_host }}"
+
+- name: Setup socat server service
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Copy socat server service unit file
+      copy: 
+        src: /opt/oci-hpc/playbooks/roles/nix/files/socat-server.service
+        dest: /etc/systemd/system
+    - name: Reload systemd
+      systemd: 
+        daemon_reload: true
+    - name: Enable the service
+      systemd:
+        name: socat-server.service
+        enabled: true
+        masked: no
+    - name: Start the service
+      systemd: 
+        name: socat-server.service
+        state: started
+
+- name: Setup socat client service 
+  hosts: login
+  become: true
+  tasks: 
+    - name: Copy socat client service unit file
+      copy: 
+        src: /opt/oci-hpc/playbooks/roles/nix/files/socat-client.service
+        dest: /etc/systemd/system
+    - name: Reload systemd
+      systemd: 
+        daemon_reload: true
+    - name: Enable the service
+      systemd:
+        name: socat-client.service
+        enabled: true
+        masked: no
+    - name: Start the service
+      systemd:
+        name: socat-client.service
+        state: started

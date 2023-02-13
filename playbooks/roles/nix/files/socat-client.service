@@ -1,0 +1,10 @@
+[Unit]
+Description=Socat Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/socat unix-listen:/var/run/nix/socket,mode=666,fork tcp-connect:[slurm_backup_ip]:3324
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

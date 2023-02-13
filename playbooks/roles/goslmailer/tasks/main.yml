@@ -1,0 +1,23 @@
+- name: Download and unpack files
+  block: 
+    - name: Download zip
+      get_url:
+        url: "{{ download_path }}"
+        dest: /tmp
+        checksum: "{{ download_checksum }}"
+
+    - name: Create temp directory
+      file:
+        path: /tmp/goslmailer
+        state: directory
+
+    - name: Extract installer files
+      unarchive:
+        src: /tmp/goslmailer-{{ goslmailer_version }}.zip
+        remote_src: false
+        dest: /tmp/goslmailer/
+
+    - name: Remove goslmailer.zip
+      file:
+        path: /tmp/goslmailer-{{ goslmailer_version }}.zip
+        state: absent

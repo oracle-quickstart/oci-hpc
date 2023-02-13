@@ -1,0 +1,207 @@
+--- 
+
+- name: Remove socat client service
+  hosts: login
+  become: true
+  tasks:
+    - name: Gather service facts
+      service_facts:
+    - name: Stop socat client service
+      systemd:
+        name: socat-client.service
+        enabled: false
+        state: stopped
+        daemon_reload: true
+      when: "'socat-client.service' in services"
+    - name: Remove socat client service unit file
+      file: 
+        path: /etc/systemd/system/socat-client.service
+        state: absent
+
+- name: Remove socat server service
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Gather service facts
+      service_facts:
+    - name: Stop socat server service
+      systemd: 
+        name: socat-server.service
+        enabled: false
+        state: stopped
+        daemon_reload: true
+      when: "'socat-server.service' in services"
+    - name: Remove socat server service unit file
+      file: 
+        path: /etc/systemd/system/socat-server.service
+        state: absent
+
+- name: Remove nix daemon service
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Gather service facts
+      service_facts:
+    - name: Stop nix daemon socket
+      systemd: 
+        name: nix-daemon.socket
+        enabled: false
+        state: stopped
+        daemon_reload: true
+    - name: Stop nix daemon service
+      systemd: 
+        name: nix-daemon.service
+        enabled: false
+        state: stopped
+        daemon_reload: true
+      when: "'nix-daemon.service' in services"
+    - name: Remove nix daemon socket unit file
+      file: 
+        path: /etc/systemd/system/nix-daemon.socket
+        state: absent
+    - name: Remove nix daemon service unit file
+      file:
+        path: /etc/systemd/system/nix-daemon.service
+        state: absent
+  ignore_errors: true
+  
+- name: Remove configuration files
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - file:
+        path: /etc/tmpfiles.d/nix-daemon.conf
+        state: absent
+
+- name: Unmount the /nix directory
+  hosts: login, bastion, slurm_backup, compute
+  become: true
+  tasks:
+    - name: Unmount
+      mount:
+        path: /nix
+        state: unmounted
+    - name: Remove references from /etc/fstab file
+      lineinfile:
+        path: /etc/fstab
+        state: absent
+        regexp: '{{ nfs_source_IP }}:\/data\/nix \/nix nfs defaults 0 0'
+
+- name: Remove Nix store from shared filesystem
+  hosts: bastion
+  become: true
+  tasks:
+    - name: Remove /data/nix dir
+      file: 
+        path: /data/nix
+        state: absent
+
+- name: Remove files and dirs created by Nix
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Remove /nix dir
+      file: 
+        path: /nix
+        state: absent
+    - name: Remove /var/run/nix
+      file:
+        path: /var/run/nix
+        state: absent
+    - name: Remove /etc/nix dir
+      file: 
+        path: /etc/nix
+        state: absent
+    - name: Remove /etc/profile/nix.sh file
+      file:
+        path: /etc/profile/nix.sh
+        state: absent
+    - name: Remove ~root/.nix-profile dir
+      file: 
+        path: ~root/.nix-profile
+        state: absent
+    - name: Remove ~root/.nix-defexpr dir
+      file: 
+        path: ~root/.nix-defexpr 
+        state: absent
+    - name: Remove ~root/.nix-channels
+      file:
+        path: ~root/.nix-channels
+        state: absent
+    - name: Remove ~/.nix-profile dir
+      file:
+        path: ~/.nix-profile
+        state: absent
+    - name: Remove ~/.nix-defexpr dir
+      file:
+        path: ~/.nix-defexpr 
+        state: absent
+    - name: Remove ~/.nix-channels dir
+      file:
+        path: ~/.nix-channels
+        state: absent
+    - name: Remove /etc/profile.d/nix.sh
+      file: 
+        path: /etc/profile.d/nix.sh
+        state: absent
+    - name: Remove /etc/bashrc.backup-before-nix
+      file:
+        path: /etc/bashrc.backup-before-nix
+        state: absent
+    - name: Remove /etc/zshrc.backup-before-nix
+      file: 
+        path: /etc/zshrc.backup-before-nix
+        state: absent
+    - name: Remove /etc/bash.bashrc.backup-before-nix
+      file: 
+        path: /etc/bash.bashrc.backup-before-nix
+        state: absent
+
+- name: Remove build users and their group
+  hosts: slurm_backup
+  become: true
+  tasks:
+    - name: Remove nixbld users
+      shell: |
+        for i in $(seq 1 32); do
+          userdel nixbld$i
+        done
+    - name: Remove nixbld group
+      shell: groupdel nixbld
+  ignore_errors: true
+
+- name: Remove references to Nix
+  hosts: login, bastion, slurm_backup, compute
+  become: true
+  tasks:
+    - name: Remove line from /etc/bashrc file
+      lineinfile:
+        path: /etc/bashrc
+        state: absent
+        regexp: '^export NIX_CONF_DIR=/nix$'
+    - name: Remove line from /etc/bashrc file
+      lineinfile:
+        path: /etc/bashrc
+        state: absent
+        regexp: '# Nix.*|# End Nix'
+    - name: Remove line from /etc/bash.bashrc file
+      lineinfile:
+        path: /etc/bash.bashrc
+        state: absent
+        regexp: '# Nix.*|# End Nix'
+    - name: Remove line from /etc/bashrc file
+      lineinfile: 
+        path: /etc/bashrc
+        state: absent
+        regexp: '^export PATH=~/.nix-profile/bin:\$PATH$'
+    - name: Remove line from /etc/bashrc file
+      lineinfile:
+        path: /etc/bashrc
+        state: absent
+        regexp: '^export PATH=/nix/var/nix/profiles/default/bin:\$PATH$'
+    - name: Remove bash functions
+      blockinfile:
+        path: /etc/bashrc
+        block: ""
+        marker: "# {mark} NIX ANSIBLE MANAGED BLOCK"
+

@@ -1,0 +1,3 @@
+- hosts: bastion,login
+  roles:
+    - cais-bastion-login

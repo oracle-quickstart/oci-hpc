@@ -37,7 +37,7 @@
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
-  
+
 - name: Render systemd units for slurm and slurmdbd
   become: true
   template:
@@ -101,12 +101,14 @@
       shell:
         cmd: cp /etc/munge/munge.key /tmp/munge.key
         warn: false
+      when: not ansible_check_mode
+
     - name: set permissions
       become: true
       shell:
         cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
         warn: false
-    
+
 - name: Create DB for accounting
   become: true
   mysql_db:
@@ -179,7 +181,15 @@
     dest: '{{ slurm_conf_path }}/gres.conf'
     mode: '0644'
     backup: yes
-    
+
+- name: Generate job_container.conf
+  become: true
+  template:
+    src: job_container.conf.j2
+    dest: '{{ slurm_conf_path }}/job_container.conf'
+    mode: '0644'
+    backup: yes
+
 - name: Generate topology.conf
   become: true
   template: 
@@ -193,7 +203,6 @@
   register: initial_topology
   run_once: true
   notify: reconfigure slurm
-
 
 - name: run handlers
   meta: flush_handlers

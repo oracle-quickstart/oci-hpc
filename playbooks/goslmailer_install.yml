@@ -1,0 +1,142 @@
+- name: Download and unpack from github as well as get user prompt
+  hosts: bastion
+  become: true
+  vars_prompt:
+    - name: slack_bot_token
+      prompt: "Enter the slack bot token"
+    - name: app_password
+      prompt: "Enter the app password for the email account"
+  tasks:
+    - name: Include a role dynamically
+      include_role:
+        name: goslmailer
+
+    - name: Copy binaries
+      copy:
+        src: /tmp/goslmailer/goslmailer
+        dest: /bin
+        owner: slurm
+        group: slurm
+        mode: '0770'
+
+    - copy:
+        src: /tmp/goslmailer/gobler
+        dest: /bin
+        owner: slurm
+        group: slurm
+        mode: '0770'
+    
+    - name: Create slack directory
+      file:
+        path: /var/spool/slack
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: '0770'
+
+    - name: Copy Notification templates
+      copy:
+          src: "/tmp/goslmailer/notification_templates"
+          dest: /etc/slurm/
+          mode: '0744'
+          owner: slurm
+          group: slurm
+
+    - name: Copy goslmailer.conf
+      copy:
+        src: "/tmp/goslmailer/goslmailer.conf"
+        dest: /etc/slurm/goslmailer.conf
+        mode: '0600'
+        owner: slurm
+        group: slurm
+
+    - name: Copy gobler.conf
+      copy:
+        src: "/tmp/goslmailer/gobler.conf"
+        dest: /etc/slurm/gobler.conf
+        mode: '0600'
+        owner: slurm
+        group: slurm
+
+    - name: Copy gobler.service
+      copy:
+        src: "/tmp/goslmailer/gobler.service"
+        dest: /etc/systemd/system/
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+    
+    - name: Disable gobler service
+      systemd:
+        name: gobler
+        enabled: false
+
+    - name: Install mutt
+      vars:
+        package_name:
+          - mutt
+      include_role:
+        name: safe_yum
+        
+    - name: Copy Muttrc.local
+      copy:
+        src: "/tmp/goslmailer/Muttrc.local"
+        dest: /etc/Muttrc.local
+        mode: '0600'
+
+    - name: Restart postfix service
+      systemd:
+        name: postfix
+        state: restarted
+        enabled: yes
+
+    - name: Create goslmailer.log
+      file:
+        path: /data/spool/goslmailer.log
+        state: touch
+        mode: '0600'
+        owner: slurm
+        group: slurm
+
+    - name: Set ownership and permissions for spool
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+        owner: root
+        group: root
+      loop:
+        - { path: '/var/spool/postfix', mode: '0755'}
+        - { path: '/var/spool/mail', mode: '0755'}
+
+    - name: Set ownership and permissions for Muttrc
+      file:
+        path: "{{ item.path }}"
+        state: file
+        mode: "{{ item.mode }}"
+        owner: slurm
+        group: slurm
+      loop:
+        - { path: '/etc/Muttrc', mode: '0600'}
+        - { path: '/etc/Muttrc.local', mode: '0600'}
+
+    - name: Edit config files
+      replace:
+        path: "{{ item.path }}"
+        regexp: "{{ item.regex }}"
+        replace: "{{ item.new }}"
+      loop:
+        - { path: '/etc/slurm/goslmailer.conf', regex: "\\$SLACK_BOT_TOKEN", new: "{{ slack_bot_token }}"}
+        - { path: '/etc/slurm/gobler.conf', regex: "\\$SLACK_BOT_TOKEN", new: "{{ slack_bot_token }}"}
+        - { path: '/etc/Muttrc.local', regex: "\\$EMAIL_ADDRESS", new: "do-not-reply@safe.ai"}
+        - { path: '/etc/Muttrc.local', regex: "\\$PLAIN_TEXT_NAME", new: "CAIS Notifications"}
+        - { path: '/etc/Muttrc.local', regex: "\\$APP_PASSWORD", new: "{{ app_password }}"}
+
+    - name: Delete /tmp/Goslmailer directory
+      file:
+        path: /tmp/goslmailer
+        state: absent

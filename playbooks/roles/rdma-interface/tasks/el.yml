@@ -15,7 +15,7 @@
 - name: set fact
   set_fact:
     instance_metadata: "{{ i_metadata['content'] }}"
-
+  when: not ansible_check_mode
 
 - name: Are we running on a new image? 
   stat:
@@ -46,11 +46,10 @@
     enabled: yes
   when: new_image.stat.exists
 
-
 - name: detect mellanox interfaces
   set_fact:
     ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
-  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]) and ( not new_image.stat.exists )
+  when: not ansible_check_mode and rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]) and ( not new_image.stat.exists )
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] | sort }}"
 
@@ -69,7 +68,6 @@
   command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
   when: ansible_mlx is defined and ( item.changed|default(false) ) and ( not new_image.stat.exists )
   with_items: "{{ rdma_interface['results'] }}"
-  
   
 - name: update rp_filter arp settings to make all RDMA nics routable from each other
   ansible.posix.sysctl:
@@ -92,7 +90,6 @@
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
-
 
 - name: update arp_announce arp settings to make all RDMA nics routable from each other
   ansible.posix.sysctl:

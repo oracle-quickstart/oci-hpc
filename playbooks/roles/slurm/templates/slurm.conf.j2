@@ -20,6 +20,7 @@ SlurmdLogFile=/var/log/slurm/slurmd.log
 StateSaveLocation={{ slurm_nfs_path }}/spool/slurm
 SwitchType=switch/none
 TaskPlugin=task/affinity,task/cgroup
+JobContainerType=job_container/tmpfs
 PrologFlags=contain
 InactiveLimit=0
 KillWait=30
@@ -33,6 +34,7 @@ SelectType=select/cons_tres
 SelectTypeParameters=CR_Core
 AccountingStorageHost={{ bastion[0] }}
 AccountingStorageType=accounting_storage/slurmdbd
+TaskPlugin=task/affinity,task/cgroup
 AccountingStoreFlags=job_comment
 ClusterName=cluster
 JobAcctGatherFrequency=30
@@ -46,6 +48,7 @@ TopologyPlugin=topology/tree
 TopologyParam=SwitchAsNodeRank
 TreeWidth=2048
 SlurmctldParameters=enable_configless
+MailProg=/bin/goslmailer
 
 {% if sacct_limits|bool %}
 AccountingStorageTRES=gres/gpu

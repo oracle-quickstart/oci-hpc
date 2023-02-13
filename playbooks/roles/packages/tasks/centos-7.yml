@@ -10,3 +10,39 @@
     package_state: latest
   include_role: 
     name: safe_yum
+- name: Install SCL for GCC v7
+  vars: 
+    package_name: 
+      - devtoolset-7-gcc.x86_64
+      - devtoolset-7-gcc-c++.x86_64
+      - devtoolset-7-gcc-gdb-plugin.x86_64
+      - devtoolset-7-gcc-gfortran.x86_64
+      - devtoolset-7-gcc-plugin-devel.x86_64
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install SCL for GCC v8
+  vars: 
+    package_name: 
+      - devtoolset-8-gcc.x86_64
+      - devtoolset-8-gcc-c++.x86_64
+      - devtoolset-8-gcc-gdb-plugin.x86_64
+      - devtoolset-8-gcc-gfortran.x86_64
+      - devtoolset-8-gcc-plugin-devel.x86_64
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install SCL for GCC v10
+  vars: 
+    package_name: 
+      - devtoolset-10-gcc.x86_64
+      - devtoolset-10-gcc-c++.x86_64
+      - devtoolset-10-gcc-gdb-plugin.x86_64
+      - devtoolset-10-gcc-gfortran.x86_64
+      - devtoolset-10-gcc-plugin-devel.x86_64
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true

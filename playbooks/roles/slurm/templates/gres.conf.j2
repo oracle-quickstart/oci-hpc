@@ -1,6 +1,9 @@
 {% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
+
+AutoDetect=nvml
+
 {% if instance.shape == "BM.GPU2.2"%}
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-13]
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia1 Type=P100 Cores=[14-27]

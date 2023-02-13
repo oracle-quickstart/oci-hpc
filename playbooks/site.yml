@@ -181,6 +181,17 @@
         name: iscsi
       when: bastion_block|default(false)|bool
 
+- hosts: login
+  become: true
+  vars:
+    iscsi_ip: "{{ bastion_mount_ip }}"
+  tasks: 
+    - include_role: 
+        name: passwords
+    - include_role: 
+        name: iscsi
+      when: login_block|default(false)|bool
+
 - hosts: nfs
   become: true
   vars:

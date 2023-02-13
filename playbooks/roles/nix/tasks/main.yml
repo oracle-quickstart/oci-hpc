@@ -1,0 +1,26 @@
+---
+
+- name: Download and run installer
+  block:
+    - name: Download installer
+      get_url:
+        url: "{{ installer_path }}"
+        dest: /tmp
+        checksum: "{{ installer_checksum }}"
+    - name: extract installer
+      unarchive:
+        src: /tmp/{{ nix_build }}.tar.xz
+        remote_src: true
+        dest: /tmp/
+    - name: Run the installer
+      become: true
+      shell:
+        cmd: ./install --daemon </dev/null
+        chdir: /tmp/{{ nix_build }}
+
+- name: Enable flakes
+  become: true
+  lineinfile:
+    path: /etc/nix/nix.conf
+    line: "experimental-features = nix-command flakes"
+  when: flakes

@@ -53,7 +53,6 @@ locals {
 
 // Cluster OCID
 
-
   cluster_ocid = var.node_count > 0 ? var.cluster_network ? oci_core_cluster_network.cluster_network[0].id : oci_core_instance_pool.instance_pool[0].id : ""
   host = var.private_deployment ? data.oci_resourcemanager_private_endpoint_reachable_ip.private_endpoint_reachable_ip[0].ip_address : oci_core_instance.bastion.public_ip
   bastion_bool_ip = var.private_deployment ? false : true

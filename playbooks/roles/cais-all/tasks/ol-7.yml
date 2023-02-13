@@ -1,0 +1,87 @@
+# Turn off swap
+- name: Turn off swap
+  become: true
+  shell: swapoff -a
+
+# Needed for newer versions of zsh
+- name: install ncurses
+  vars:
+    package_name:
+      - ncurses-devel
+    package_state: latest
+    package_repo: "epel,ol7_developer_epel"
+  include_role:
+    name: safe_yum
+  ignore_errors: true
+
+- name: Create usr/src/local
+  become: true
+  file:
+    path: /usr/src/local
+    state: directory
+    mode: '0775'
+    group: privilege
+
+- name: grab zsh tar file
+  become: true
+  get_url: 
+    url: https://www.zsh.org/pub/zsh-5.9.tar.xz
+    dest: /usr/src/local/zsh-5.9.tar.xz
+    mode: '0664'
+
+- name: untar zsh file
+  become: true
+  shell: cd /usr/src/local/ && xz --force -d zsh-5.9.tar.xz && tar xvf zsh-5.9.tar
+
+- name: make zsh
+  become: true
+  shell: cd /usr/src/local/zsh-5.9 && ./configure && make && make install
+
+- name: Delete old zsh
+  become: true
+  file:
+    path: /bin/zsh
+    state: absent
+
+- name: Create a symbolic link
+  become: true
+  file:
+    src: /usr/local/bin/zsh
+    dest: /bin/zsh
+    owner: root
+    group: root
+    state: link
+
+# Install git
+- name: Install package that contains newer git
+  vars: 
+    package_name: 
+      - http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install newer git
+  vars: 
+    package_name: 
+      - git
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+
+# Move ksplice
+- name: copy ksplice
+  become: true
+  copy: 
+    src: /etc/cron.d/ksplice
+    dest: /root/
+  when: "'/etc/cron.d/ksplice' is file"
+- name: Remove file (delete file)
+  become: true
+  file:
+    path: /etc/cron.d/ksplice
+    state: absent
+  when: "'/etc/cron.d/ksplice' is file"

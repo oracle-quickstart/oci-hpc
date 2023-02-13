@@ -73,7 +73,7 @@
   with_items: "{{switch_condensed.results}}"
   run_once: true
   delegate_to: 127.0.0.1
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: remove line from topology
   lineinfile:
@@ -82,7 +82,7 @@
     line: "SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
     state: present
   with_items: "{{unreachable_slurm_nodes}}"
-  ignore_errors: yes
+  ignore_errors: true
   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch_condensed[item] | length ) > 1 )
   run_once: true
   delegate_to: 127.0.0.1

@@ -1,0 +1,4 @@
+---
+nix_version: 2.15.0
+installer_checksum: sha512:b8d9a1bf8131bb0e81618cf24c46218fd8ece42bdf89598abcf4fe22531639ddaf03ad31458f2ac15f869e5cfe46c5ff6fd92ced7337a75501db7237b4bff281
+flakes: true

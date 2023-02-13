@@ -1,0 +1,130 @@
+---
+- name: Install gflags
+  vars: 
+    package_name: 
+      - gflags-devel.x86_64
+      - gflags.x86_64
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install glog
+  vars: 
+    package_name: 
+      - glog.x86_64
+      - glog-devel.x86_64
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install Go
+  vars: 
+    package_name: 
+      - golang.x86_64
+      - golang-bin.x86_64
+      - oracle-golang-release-el7.x86_64
+      - golang-vim.noarch
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install llvm
+  vars: 
+    package_name: 
+      - llvm-toolset-7.0
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install SCL for GCC v5
+  vars: 
+    package_name: 
+      - devtoolset-5-gcc.x86_64
+      - devtoolset-5-gcc-c++.x86_64
+      - devtoolset-5-gcc-gdb-plugin.x86_64
+      - devtoolset-5-gcc-gfortran.x86_64
+      - devtoolset-5-gcc-plugin-devel.x86_64
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install SCL for GCC v6
+  vars: 
+    package_name: 
+      - devtoolset-6-gcc.x86_64
+      - devtoolset-6-gcc-c++.x86_64
+      - devtoolset-6-gcc-gdb-plugin.x86_64
+      - devtoolset-6-gcc-gfortran.x86_64
+      - devtoolset-6-gcc-plugin-devel.x86_64
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install SCL for GCC v8
+  vars: 
+    package_name: 
+      - devtoolset-8-gcc.x86_64
+      - devtoolset-8-gcc-c++.x86_64
+      - devtoolset-8-gcc-gdb-plugin.x86_64
+      - devtoolset-8-gcc-gfortran.x86_64
+      - devtoolset-8-gcc-plugin-devel.x86_64
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install SCL for GCC v10
+  vars: 
+    package_name: 
+      - devtoolset-10.x86_64
+      - devtoolset-10-gcc.x86_64
+      - devtoolset-10-gcc-c++.x86_64
+      - devtoolset-10-gcc-gdb-plugin.x86_64
+      - devtoolset-10-gcc-gfortran.x86_64
+      - devtoolset-10-gcc-plugin-devel.x86_64
+      - devtoolset-10-libgccjit-devel.x86_64
+      - devtoolset-10-libgccjit.x86_64
+      - devtoolset-10-libstdc++-devel.x86_64
+      - devtoolset-10-make.x86_64
+      - devtoolset-10-make-devel.x86_64
+      - devtoolset-10-valgrind.x86_64
+      - devtoolset-10-valgrind-devel.x86_64
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install SCL for GCC v12
+  vars: 
+    package_name: 
+      - devtoolset-12.x86_64
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+- name: Install git-lfs
+  vars:
+    package_name:
+      - git-lfs
+    package_state: latest
+    package_repo: "epel,ol7_developer_EPEL"
+  include_role:
+    name: safe_yum
+  ignore_errors: true
+
+# Used for local storage
+- name: Create local storage location for all compute nodes
+  become: true
+  file: 
+    path: /mnt/localdisk/slurm_tmp
+    state: directory
+    owner: root
+    group: slurm
+    mode: '0770'

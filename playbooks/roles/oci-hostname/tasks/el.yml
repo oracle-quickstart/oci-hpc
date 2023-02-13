@@ -5,5 +5,5 @@
     path: /etc/oci-hostname.conf
     regexp: '^PRESERVE_HOSTINFO=.*'
     replace: 'PRESERVE_HOSTINFO=2'
-  async: 30
+  async: "{{ ansible_check_mode | ternary(0, 30) }}"
   poll: 2

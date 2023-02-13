@@ -11,7 +11,7 @@
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var| default('false') | bool}}"
       when: package_repo|default('None') != 'None'
-      async: 200
+      async: "{{ ansible_check_mode | ternary(0, 200) }}"
       poll: 10
       register: yum_sleeper
 
@@ -22,7 +22,7 @@
       until: job_result.finished
       retries: 30
       delay: 10
-      when: package_repo|default('None') != 'None'
+      when: not ansible_check_mode and (package_repo|default('None') != 'None')
       failed_when: job_result.rc is defined and job_result.rc > 0 and not 'could not find job' in job_result.msg
 
     - name: "yum first try {{package_name}}"
@@ -34,7 +34,7 @@
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var| default('false') | bool}}"
       when: package_repo|default('None') == 'None'
-      async: 200
+      async: "{{ ansible_check_mode | ternary(0, 200) }}"
       poll: 10
       register: yum_sleeper
 

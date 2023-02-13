@@ -250,4 +250,3 @@ variable "marketplace_listing_login" {
 variable "old_marketplace_listing_login" { 
   default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
 }  
-  

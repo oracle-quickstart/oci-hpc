@@ -7,14 +7,18 @@
   delay: 10
   register: result
   until: result is not failed
+
 - name: untar yq
   unarchive:
     src: "/tmp/yq_linux_amd64.tar.gz"
     dest: "/tmp"
+  when: not ansible_check_mode
+
 - name: move
   become: true
   copy:
     src: "/tmp/yq_linux_amd64"
     dest: "/usr/bin/yq"
     mode: "0755"
+  when: not ansible_check_mode
 

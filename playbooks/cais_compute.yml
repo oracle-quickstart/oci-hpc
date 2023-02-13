@@ -1,0 +1,3 @@
+- hosts: compute
+  roles:
+    - cais-compute

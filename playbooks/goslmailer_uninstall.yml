@@ -1,0 +1,54 @@
+- name: Uninstall goslmailer
+  hosts: bastion
+  become: true
+  tasks:
+    - name: Remove goslmailer binary
+      file:
+        path: /bin/goslmailer
+        state: absent
+
+    - name: Remove gobler binary
+      file:
+        path: /bin/gobler
+        state: absent
+
+    - name: Remove slack directory
+      file:
+        path: /var/spool/slack
+        state: absent
+
+    - name: Remove notification_templates directory
+      file:
+        path: /etc/slurm/notification_templates
+        state: absent
+
+    - name: Remove goslmailer.log file
+      file:
+        path: /data/spool/goslmailer.log
+        state: absent
+
+    - name: Remove goslmailer.conf file
+      file:
+        path: /etc/slurm/goslmailer.conf
+        state: absent
+
+    - name: Remove gobler.conf file
+      file:
+        path: /etc/slurm/gobler.conf
+        state: absent
+    
+    - name: Stop gobler service
+      systemd:
+        name: gobler
+        state: stopped
+        enabled: false
+      ignore_errors: True
+
+    - name: Remove gobler.service file
+      file:
+        path: /etc/systemd/system/gobler.service
+        state: absent
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: true

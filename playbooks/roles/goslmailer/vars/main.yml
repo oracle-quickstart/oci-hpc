@@ -1,0 +1,1 @@
+download_path: "https://github.com/centerforaisafety/goslmailer/releases/download/{{ goslmailer_version }}/goslmailer-{{ goslmailer_version }}.zip"
