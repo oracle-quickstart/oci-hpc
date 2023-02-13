@@ -8,6 +8,7 @@
       - pssh
       - pdsh
       - jq
+      - python3-pip
     package_state: latest
   include_role: 
     name: safe_yum
