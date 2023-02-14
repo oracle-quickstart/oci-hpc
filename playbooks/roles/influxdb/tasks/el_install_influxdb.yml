@@ -1,0 +1,24 @@
+---
+- name: Add influxdb repository
+  become: true
+  yum_repository: 
+    name: influxdb
+    description: InfluxDB Repository - RHEL $releasever
+    baseurl: https://repos.influxdata.com/rhel/{{ ansible_distribution_major_version }}/$basearch/stable
+    enabled: 1
+    gpgcheck: 1
+    gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+
+- name: Install InfluxDB
+  vars: 
+    package_name: 
+      - influxdb
+    package_state: latest
+  include_role: 
+    name: safe_yum
+
+- name: install influx pip
+  become: true
+  pip:
+    name: influxdb
+    executable: pip3
