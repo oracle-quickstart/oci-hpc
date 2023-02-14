@@ -239,12 +239,12 @@
 #    overwrite: yes
 #    path: files/cluster.json
 
-- name: Install pip
-  vars: 
-    package_name: 
-      - python3-pip
-  include_role: 
-    name: safe_yum
+# - name: Install pip
+#   vars: 
+#     package_name: 
+#       - python3-pip
+#   include_role: 
+#     name: safe_yum
 
 - name: install protobuf v3.19.4 and mysql connector
   become: true

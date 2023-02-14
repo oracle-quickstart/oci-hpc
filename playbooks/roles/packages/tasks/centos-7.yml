@@ -6,6 +6,7 @@
       - python2-cryptography
       - pssh
       - pdsh
+      - python3-pip
     package_state: latest
   include_role: 
     name: safe_yum
