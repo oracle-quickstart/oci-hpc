@@ -46,6 +46,18 @@ TopologyPlugin=topology/tree
 TreeWidth=2048
 SlurmctldParameters=enable_configless
 
+{% if sacct_limits|bool %}
+AccountingStorageTRES=gres/gpu
+AccountingStorageEnforce=limits,associations,qos,safe
+JobCompType=jobcomp/none
+TrackWckey=no
+{% endif %}
+
+
+{% if (groups['login']| length ) > 0 %}
+NodeName={{ hostvars[groups['login'][0]]['ansible_fqdn'].split('.')[0] }}
+{% endif %}
+
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
 {% set size = instance.private_subnet | ipaddr('size')%}
