@@ -384,7 +384,7 @@ variables:
  
   unsupported_bastion_image:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes"
+    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment."
     type: string
     required: true
     visible:
@@ -408,7 +408,7 @@ variables:
 
   custom_bastion_image:
     title: "Bastion Image ID"
-    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux and Ubuntu 20.04 are supported as bastion image at this moment. "
+    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${bastion_image_compartment}
@@ -706,7 +706,7 @@ variables:
 
   image:
     title: "Image"
-    description: "Custom image ID for compute nodes"
+    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
     type: oci:core:image:id
     required: true
     dependsOn:
@@ -740,7 +740,7 @@ variables:
 
   image_ocid:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes"
+    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
     type: string
     required: true
     visible:
@@ -1027,7 +1027,7 @@ variables:
     type: boolean
     title: "Enable PAM"
     default: false
-    description: "Enable PAM for the Slurm cluster. When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job in Slurm."
+    description: "Enable PAM for the Slurm cluster (Supported only on OL with RHCK kernel at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
 
   monitoring:
     type: boolean
