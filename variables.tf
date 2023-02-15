@@ -174,6 +174,7 @@ variable "monitoring" { default = true }
 variable "enroot" { default = false }
 variable "pyxis" { default = false }
 variable "pam" { default = false }
+variable "sacct_limits" { default = false }
 
 variable "unsupported" { 
   type=bool

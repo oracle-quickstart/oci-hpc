@@ -28,6 +28,7 @@ variable "slurm" { default = ${slurm} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }
 variable "pam" { default = ${pam} }
+variable "sacct_limits" { default = ${sacct_limits} }
 variable "enroot" { default = ${enroot} }
 variable "slurm_nfs_path" { default = "${slurm_nfs_path}" }
 variable "spack" { default = ${spack} }
