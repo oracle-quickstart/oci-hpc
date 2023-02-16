@@ -254,6 +254,7 @@ resource "null_resource" "cluster" {
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
       pam = var.pam,
+      sacct_limits = var.sacct_limits,
       inst_prin = var.inst_prin,
       region = var.region,
       tenancy_ocid = var.tenancy_ocid,
@@ -390,7 +391,8 @@ resource "null_resource" "cluster" {
       use_multiple_ads = var.use_multiple_ads,
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
-      pam = var.pam
+      pam = var.pam,
+      sacct_limits = var.sacct_limits
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"

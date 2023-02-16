@@ -1,9 +1,9 @@
-- hosts: bastion,slurm_backup,compute
+- hosts: bastion,slurm_backup,compute,login
   gather_facts: true
   vars:
     destroy: false
     initial: true
-    download_path: "{{ cluster_nfs_path if cluster_nfs|bool else '/tmp' }}"
+    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"

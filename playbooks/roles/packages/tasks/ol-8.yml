@@ -1,0 +1,15 @@
+---
+- name: Make sure python OpenSSL and parallel ssh is installed
+  vars: 
+    package_name:
+      #- pyOpenSSL
+      #- python2-cryptography
+      - python36-oci-cli
+      - pssh
+      - pdsh
+      - python3-pip
+    package_state: latest
+    package_repo: "epel,ol8_developer_EPEL"
+  include_role: 
+    name: safe_yum
+  ignore_errors: true

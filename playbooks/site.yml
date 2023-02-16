@@ -10,7 +10,7 @@
     - hostname
 
 # for ubuntu, on all compute nodes, run --fix-broken install
-- hosts: compute
+- hosts: compute, login
   become: true
   tasks:
     - include_role:
