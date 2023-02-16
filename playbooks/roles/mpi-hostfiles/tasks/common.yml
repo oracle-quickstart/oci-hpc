@@ -12,7 +12,6 @@
     mode: '0644'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-  tags: hostfile
   delegate_to: 127.0.0.1
   run_once: true
   when: cluster_network|bool
@@ -24,7 +23,6 @@
     mode: '0644'
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-  tags: hostfile
   delegate_to: 127.0.0.1
   run_once: true
 

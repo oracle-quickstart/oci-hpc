@@ -3,7 +3,6 @@
   ansible.builtin.package:
     name: "{{ nfs_deb_packages }}"
     state: present
-  tags: install-only
 
 - name: create share directory
   become: true
