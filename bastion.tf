@@ -74,6 +74,7 @@ resource "null_resource" "bastion" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",      
       "sudo chown ${var.bastion_username}:${var.bastion_username} /opt/oci-hpc/",
       "mkdir -p /opt/oci-hpc/bin",
@@ -176,6 +177,7 @@ resource "null_resource" "bastion" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
       "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
