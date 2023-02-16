@@ -74,6 +74,21 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   sleep 10s
 
+  sudo apt -y --fix-broken install
+
+  # checking here as well to be sure that the lock file is not being held
+  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+  apt_process=$(( apt_process -1 ))
+  while [ $apt_process -ge 1 ]
+    do
+      echo "wait until apt update is done"
+      sleep 10s
+      ps aux | grep "apt update" | grep -v grep
+      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+      apt_process=$(( apt_process -1 ))
+    done
+
+
   wget -O- https://apt.releases.hashicorp.com/gpg | \
     gpg --dearmor | \
     sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
@@ -81,14 +96,47 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
     https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
     sudo tee /etc/apt/sources.list.d/hashicorp.list
+  
+  sudo apt-get -y install terraform
+  # checking here as well to be sure that the lock file is not being held
+  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+  apt_process=$(( apt_process -1 ))
+  while [ $apt_process -ge 1 ]
+    do
+      echo "wait until apt update is done"
+      sleep 10s
+      ps aux | grep "apt update" | grep -v grep
+      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+      apt_process=$(( apt_process -1 ))
+    done
 
-  sudo apt-get update &
-  PID1=$!
-  wait $PID1
+  sudo apt-get -y install ansible 
+  
+  # checking here as well to be sure that the lock file is not being held
+  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+  apt_process=$(( apt_process -1 ))
+  while [ $apt_process -ge 1 ]
+    do
+      echo "wait until apt update is done"
+      sleep 10s
+      ps aux | grep "apt update" | grep -v grep
+      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+      apt_process=$(( apt_process -1 ))
+    done
+  
+  sudo apt-get -y install python python-netaddr python3 python3-pip
 
-  sudo apt -y --fix-broken install
-
-  sudo apt-get -y install ansible python python-netaddr python3-pip terraform
+  # checking here as well to be sure that the lock file is not being held
+  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+  apt_process=$(( apt_process -1 ))
+  while [ $apt_process -ge 1 ]
+    do
+      echo "wait until apt update is done"
+      sleep 10s
+      ps aux | grep "apt update" | grep -v grep
+      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+      apt_process=$(( apt_process -1 ))
+    done
 
   pip install pip --upgrade
   pip install pyopenssl --upgrade

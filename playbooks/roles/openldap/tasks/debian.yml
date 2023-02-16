@@ -6,27 +6,21 @@
     name: apparmor
     state: stopped
   failed_when: false
-  tags:
-    - configuration
-    - apparmor
 
 - name: Remove Apparmor service
   service:
     name: apparmor
     enabled: false
   failed_when: false
-  tags:
-    - configuration
-    - apparmor
 
 - name: Remove Apparmor package
-  apt:
-    name: apparmor
-    state: absent
-    purge: true
-  tags:
-    - configuration
-    - apparmor
+  vars: 
+    package_name: 
+      - apparmor
+    package_state: absent
+    package_purge: true
+  include_role: 
+    name: safe_yum
 
 - name: Create /etc/opt/oci-hpc/passwords/openldap
   become: true
