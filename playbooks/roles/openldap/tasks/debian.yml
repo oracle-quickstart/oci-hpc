@@ -14,10 +14,13 @@
   failed_when: false
 
 - name: Remove Apparmor package
-  apt:
-    name: apparmor
-    state: absent
-    purge: true
+  vars: 
+    package_name: 
+      - apparmor
+    package_state: absent
+    package_purge: true
+  include_role: 
+    name: safe_yum
 
 - name: Create /etc/opt/oci-hpc/passwords/openldap
   become: true

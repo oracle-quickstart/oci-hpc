@@ -432,6 +432,7 @@ provisioner "file" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",

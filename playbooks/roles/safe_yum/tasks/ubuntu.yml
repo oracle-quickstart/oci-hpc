@@ -7,11 +7,12 @@
   delay: 10
   until: result.stdout | int == 0
 
-- name: "Installing {{package_name}}"
+- name: "Installing/Removing {{package_name}}"
   become: true
   apt:
     name: "{{package_name}}"
     state: "{{package_state | default('latest')}}"
+    purge: "{{package_purge | default('false')}}"
   register: result
   until: result is not failed
   retries: 5
