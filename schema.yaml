@@ -1032,7 +1032,7 @@ variables:
 
   sacct_limits:
     type: boolean
-    title: "Enable Limits for SLurm jobs"
+    title: "Enable Limits for Slurm jobs"
     default: false
     description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs of the right limits are not set"
 
