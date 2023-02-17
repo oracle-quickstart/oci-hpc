@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily Snapshot unmounting
+Requires=weka-snapshot-umount.service
+
+[Timer]
+OnCalendar=*-*-* 7:00:00
+
+[Install]
+WantedBy=timers.target

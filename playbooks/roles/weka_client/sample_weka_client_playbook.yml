@@ -1,0 +1,56 @@
+- hosts: bastion 
+  beocome: true 
+
+  vars: 
+    - upd_fs:
+      - name: "weka"
+        mountpoint: "/mnt/weka"
+        opts: ""
+
+    - dist_server: <ip_address>
+    - backends: ['<ip_address>', '<ip_address2>']
+
+
+  tasks:
+    - include_role:
+        name: weka_client
+
+- hosts: compute
+  become: true
+  vars:
+
+    - dpdk_opts: "num_cores=1,\
+                  x-systemd.after=network-online.target,\
+                  x-systemd.requires=weka-agent.service,\
+                  x-systemd.mount-timeout=infinity,\
+                  _netdev"
+#
+#    - udp_opts: "num_cores=0,\
+#                 x-systemd.after=network-online.target,\
+#                 x-systemd.requires=weka-agent.service,\
+#                 x-systemd.mount-timeout=infinity,\
+#                 _netdev"
+#   
+
+    - dpdk_fs:
+      - name: "weka"
+        mountpoint: "/mnt/weka"
+        opts: ""
+
+      - name: "staging"
+        mountpoint: "/mnt/staging"
+        opts: ""
+
+    - upd_fs:
+
+    - weka_nfs: 
+
+    - dist_server: <ip_address>
+    - backends: ['<ip_address>', '<ip_address2>']
+    # - nfs_backends: []
+    # for VMs that require secondary vnic
+    - secondary_vnic_subnet: <subnet_id for secondary vnic>
+
+  tasks:
+    - include_role:
+        name: weka_client

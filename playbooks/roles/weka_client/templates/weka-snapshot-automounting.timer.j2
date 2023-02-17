@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily Snapshot Automounting
+Requires=weka-snapshot-automounting.service
+
+[Timer]
+OnCalendar=*-*-* 13:00:00
+
+[Install]
+WantedBy=timers.target

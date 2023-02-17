@@ -1,0 +1,5 @@
+---
+# vars file for weka_client
+
+# dist_server: 172.16.4.100
+# backends: ['172.16.4.100', '172.16.6.251', '172.16.7.171']
