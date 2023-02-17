@@ -1,0 +1,28 @@
+#
+# reserved values
+#
+255	local
+254	main
+253	default
+0	unspec
+#
+# local
+#
+#1	inr.ruhep
+
+101	net1
+102	net2
+103	net3
+104	net4
+105	net5
+106	net6
+107	net7
+108	net8
+109	net9
+110	net10
+111	net11
+112	net12
+113	net13
+114	net14
+115	net15
+116	net16
