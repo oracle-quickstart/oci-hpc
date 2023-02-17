@@ -18,7 +18,7 @@
 
 - name: Get vnic metadata
   uri:
-    url: http://169.254.169.254/opc/v1/vnics/ 
+    url: http://169.254.169.254/opc/v1/vnics/
     method: GET
     return_content: true
     status_code: 200
@@ -73,40 +73,59 @@
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") )
 
-- name: Make createrule.pl executable
-  file:
-    dest: /tmp/weka/createrules.pl
-    mode: +x
+- name: Copy IP route rules
+  copy:
+    src: /tmp/weka/rt_tables
+    dest: /etc/iproute2/rt_tables
   when: rt_check.stdout | int != 19 and (
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") )
 
-- name: Run route_table script
-  command: sh /tmp/weka/COMMANDS
+
+- name: Get interface names
+  shell: ip a | grep BROADCAST | awk '{ print $2 }' | grep -v 'ens\|docker\|lo' | sed 's/://'
+  register: interface_names
   when: rt_check.stdout | int != 19 and (
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") )
 
-- name: Rt already set check
-  shell: "/usr/sbin/ip rule | wc -l "
-  register: rt_check2
-
-- name: Run route_table script
-  command: sh /tmp/weka/COMMANDS
-  when: rt_check2.stdout | int != 19 and (
+- name: Create list of interface names
+  copy:
+    dest: "/tmp/interface_names"
+    content: |
+      {{  interface_names.stdout }}
+  when: rt_check.stdout | int != 19 and (
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") )
 
-- name: Rt already set check
-  shell: "/usr/sbin/ip rule | wc -l "
-  register: rt_check3
+- name: Loop over NIC names and set up routing tables and rules
+  shell: |
+    TABLE=0
 
-- name: Run route_table script
-  command: sh /tmp/weka/COMMANDS
-  when: rt_check3.stdout | int != 19 and (
+    while read -r NIC; do
+      IP=''
+      TABLE=$((TABLE+1))
+
+      while read -r line; do
+        if [[ $line =~ IPADDR=([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) ]]; then
+          IP=${BASH_REMATCH[1]}
+        fi
+      done < "/etc/sysconfig/network-scripts/ifcfg-$line"
+
+      echo "192.168.0.0/16 dev $NIC src $IP table net$TABLE" > /etc/sysconfig/network-scripts/route-$line
+      echo "table net$TABLE from $IP" > /etc/sysconfig/network-scripts/rule-$line
+    done < /tmp/interface_names
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+
+- name: Reset Network Interfaces
+  shell: "for nic in $(cat /tmp/interface_names); do sudo ifdown $nic; sudo ifup $nic; done"
+  when: rt_check.stdout | int != 19 and (
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") )
@@ -204,7 +223,7 @@
   when: weka_nfs is defined
 
 
-- name: Mount Weka DPDK Filesystems GPU Nodes 
+- name: Mount Weka DPDK Filesystems GPU Nodes
   mount:
     path: "{{ item.mountpoint }}"
     src: "{{ backends | join(',') }}/{{item.name}}"
@@ -224,8 +243,8 @@
     fstype: wekafs
     opts: "{{ dpdk_opts }},net=ens5/{{ private_ip_2 }}/{{ subnet_cidr_block_2 }}/{{ gateway_2}}{{ item.opts }}"
     state: mounted
-  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") 
-        and dpdk_fs is defined 
+  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex")
+        and dpdk_fs is defined
   loop: "{{ dpdk_fs }}"
 
 - name: Mount Weka UDP to all nodes
@@ -235,7 +254,7 @@
     fstype: wekafs
     opts: "{{ upd_opts }},net=udp,{{ item.opts }}"
     state: mounted
-  when:  udp_fs is defined 
+  when:  udp_fs is defined
   loop: "{{ udp_fs }}"
 
 - name: Set NFS Mount
@@ -249,7 +268,7 @@
     src: "{{ nfsmount }}:/{{ item.name }}"
     fstype: nfs
     state: mounted
-  when: weka_nfs is defined 
+  when: weka_nfs is defined
   loop: "{{ weka_nfs }}"
 
 
