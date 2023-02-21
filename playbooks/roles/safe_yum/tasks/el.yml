@@ -1,7 +1,7 @@
 ---
 - name: "Safe Yum install of latest {{package_name}}"
   block:
-    - name: "yum first try {{package_name}}"
+    - name: "yum first try {{ package_name}}"
       become: true
       yum:
         enablerepo: "{{package_repo|default('None')}}"
