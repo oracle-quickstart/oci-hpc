@@ -23,17 +23,25 @@
                           '/etc/opt/oci-hpc/passwords/mysql/root.txt  
                            chars=ascii_letters,digits') }}"
 
-- name: Install MySQL packages
-  vars: 
-    package_name: 
-      - mysql-release-el7
+- name: Select mysql package ol7
+  set_fact:
+    package_name: mysql-release-el7
+    package_repo: ol7_MySQL80
+  when: ansible_distribution_major_version == '7'
+
+- name: Select mysql package ol8
+  set_fact:
+    package_name: mysql-release-el7
+    package_repo: ol7_MySQL80
+  when: ansible_distribution_major_version == '8'
+
   include_role: 
     name: safe_yum
 
 - name: Install MySQL packages
   vars: 
-    package_name: '{{ mysql_packages }}'
-    package_repo: ol7_MySQL80
+    package_name: '{{ package_name }}'
+    package_repo: '{{ package_repo }}'
   include_role: 
     name: safe_yum
   tags: install-only
