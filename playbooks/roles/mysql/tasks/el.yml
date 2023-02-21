@@ -31,7 +31,7 @@
 
 - name: Select mysql package ol8
   set_fact:
-    package_name: mysql-release-el7
+    package_name: mysql-release-el8
     package_repo: ol7_MySQL80
   when: ansible_distribution_major_version == '8'
 
@@ -40,7 +40,7 @@
 
 - name: Install MySQL packages
   vars: 
-    package_name: '{{ package_name }}'
+    package_name: '{{ mysql_packages }}'
     package_repo: '{{ package_repo }}'
   include_role: 
     name: safe_yum

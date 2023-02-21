@@ -13,9 +13,14 @@ sudo cloud-init status --wait
 
 source /etc/os-release
 
+vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
-  repo="ol7_developer_EPEL"
-elif [ $ID == "centos" ] ; then 
+  if [ $vid == 7 ] ; then
+     repo="ol7_developer_EPEL"
+       elif [ $vid == 8 ] ; then
+       repo="ol8_developer_EPEL"
+  fi
+elif [ $ID == "centos" ] ; then
   repo="epel"
 fi
 
