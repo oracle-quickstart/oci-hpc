@@ -66,7 +66,7 @@
     dest: /etc/hosts
     src: /tmp/hosts.etc.{{ cluster_name }}
     force: yes
-  when: ( not destroy|bool ) and (not 'bastion' in group_names) and (not 'slurm_backup' in group_names)
+  when: not ansible_check_mode and ( not destroy|bool ) and (not 'bastion' in group_names) and (not 'slurm_backup' in group_names)
 
 - name: remove cluster from etc-host
   become: true

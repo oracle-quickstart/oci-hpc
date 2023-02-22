@@ -16,7 +16,7 @@
     name: unattended-upgrades
     state: stopped
     enabled: no 
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Ensure apt process is completed
   become: true
@@ -31,7 +31,7 @@
     name: unattended-upgrades
     purge: yes
     state: absent
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: stop and mask timers
   systemd: 

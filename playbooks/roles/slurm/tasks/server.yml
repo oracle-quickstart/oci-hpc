@@ -101,6 +101,8 @@
       shell:
         cmd: cp /etc/munge/munge.key /tmp/munge.key
         warn: false
+      when: not ansible_check_mode
+
     - name: set permissions
       become: true
       shell:

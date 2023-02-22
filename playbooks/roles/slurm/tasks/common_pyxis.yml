@@ -34,13 +34,14 @@
   git:
     repo: https://github.com/NVIDIA/pyxis.git
     dest: /tmp/pyxis
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: compile 
   command: bash -c "sudo make install"
   args:
     chdir: /tmp/pyxis/
-  ignore_errors: yes
+  ignore_errors: true
+  when: not ansible_check_mode
 
 - name: create plugstack.conf
   become: true

@@ -75,6 +75,7 @@
     group: munge
     mode: '0400'
   notify: restart munge
+  when: not ansible_check_mode
 
 - name: restart munge
   become: true

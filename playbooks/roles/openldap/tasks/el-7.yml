@@ -124,12 +124,14 @@
       with_items:
         - config.ldif
       changed_when: false
+      when: not ansible_check_mode
 
     - name: Render OpenLDAP configuration - local
       template:
         src: 'el_local.ldif.j2'
         dest: '/tmp/local.ldif'
       changed_when: false
+      when: not ansible_check_mode
 
     - name: Copy OpenLDAP overlay configurations - ppolicy
       copy:
@@ -168,7 +170,7 @@
       command: >
         ldapadd -x -H ldaps:// -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
                              -f /etc/openldap/schema/local_schema.ldif
-      ignore_errors: "yes"
+      ignore_errors: true
       when: ldapsearch.rc == 32
 
 - meta: flush_handlers
