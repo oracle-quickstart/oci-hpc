@@ -941,8 +941,8 @@ variables:
   rdma_subnet:
     type: string
     title: "RDMA subnet IP range"
-    default: "192.168.168.0/22"
-    description: "Must be the same size as private subnet"
+    default: "192.168.0.0/16"
+    description: "Must be at least the same size as private subnet for HPC and at least 16 times the size of the private subnet for GPUs"
     required: true
   private_subnet:
     type: string
