@@ -1,0 +1,11 @@
+To Run a NCCL test, run the following commands: 
+chmod 775 /opt/oci-hpc/samples/prep_sample_files.sh
+/opt/oci-hpc/samples/prep_sample_files.sh
+
+SSH to one of the compute nodes and run: ~/compile.sh
+
+From the bastion, you can edit the third line of /home/opc/nccl_run_allreduce.sbatch with the number of nodes that you would like to test on:
+sbatch /home/opc/nccl_run_allreduce.sbatch
+
+Look at the last line of the log for bandwidth. 
+
