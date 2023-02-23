@@ -136,7 +136,7 @@ def create(group, gid):
 @group.command()
 @click.argument('group')
 def delete(group):
-  """ delete user """
+  """ delete group """
   search_base = groups_dn
   server = ldap3.Server(host, use_ssl=True)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
