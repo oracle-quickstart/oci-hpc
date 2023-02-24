@@ -38,6 +38,19 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
   
+  # checking here as well to be sure that the lock file is not being held
+  function fix_apt {
+    apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+    apt_process=$(( apt_process -1 ))
+    while [ $apt_process -ge 1 ]
+      do
+        echo "wait until apt update is done"
+        sleep 10s
+        ps aux | grep "apt update" | grep -v grep
+        apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+        apt_process=$(( apt_process -1 ))
+      done
+  }
   sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
   sudo apt purge -y --auto-remove unattended-upgrades
   sudo systemctl disable apt-daily-upgrade.timer
@@ -45,48 +58,17 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo systemctl disable apt-daily.timer
   sudo systemctl mask apt-daily.service
 
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
+
 
   sleep 10s
 
   sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle
 
-  # checking here as well to be sure that the lock file is not being held
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
-
+  fix_apt
   sleep 10s
-
   sudo apt -y --fix-broken install
 
-  # checking here as well to be sure that the lock file is not being held
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
+  fix_apt
 
 
   wget -O- https://apt.releases.hashicorp.com/gpg | \
@@ -98,45 +80,29 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     sudo tee /etc/apt/sources.list.d/hashicorp.list
   
   sudo apt-get -y install terraform
-  # checking here as well to be sure that the lock file is not being held
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
-
+  output=$?
+  if [ $output -ne 0 ]
+  then
+      fix_apt
+      sudo apt-get -y install terraform
+  fi
+  fix_apt
   sudo apt-get -y install ansible 
-  
-  # checking here as well to be sure that the lock file is not being held
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
-  
+  output=$?
+  if [ $output -ne 0 ]
+  then
+      fix_apt
+      sudo apt-get -y install ansible 
+  fi
+  fix_apt
   sudo apt-get -y install python python-netaddr python3 python3-pip
-
-  # checking here as well to be sure that the lock file is not being held
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
+  output=$?
+  if [ $output -ne 0 ]
+  then
+      fix_apt
+      sudo apt-get -y install python python-netaddr python3 python3-pip
+  fi
+  fix_apt
 
   pip install pip --upgrade
   pip install pyopenssl --upgrade
