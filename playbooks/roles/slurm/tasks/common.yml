@@ -92,10 +92,12 @@
   run_once: true  
 
 - name: Install .deb
-  become: true
-  apt:
-    deb: "{{ download_path }}/slurm_rpms/slurm-22.05.4-1_amd64.deb"
-    state: present
+  vars:
+    deb_name:
+      - "{{ download_path }}/slurm_rpms/slurm-22.05.4-1_amd64.deb"
+    package_state: present
+  include_role:
+    name: safe_yum
   when: ansible_os_family == 'Debian'
 
 - name: install SLURM common packages RedHat

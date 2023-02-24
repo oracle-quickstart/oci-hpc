@@ -6,16 +6,13 @@
       dpkg_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
 
   - name: install required packages
-    apt: 
-      deb: '{{ item }}'
-    with_items: 
-      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
-      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
-    register: result
-    until: result is not failed
-    retries: 5
-    delay: 5
-
+    vars: 
+      deb_name: 
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
+      package_state: present
+    include_role: 
+      name: safe_yum
   - name: set kernel.unprivileged_userns_clone using sysctl
     ansible.posix.sysctl:
       name: kernel.unprivileged_userns_clone

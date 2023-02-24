@@ -13,10 +13,27 @@
     name: "{{package_name}}"
     state: "{{package_state | default('latest')}}"
     purge: "{{package_purge | default('false')}}"
+    update_cache: "{{package_cache | default('false')}}"
   register: result
   until: result is not failed
   retries: 5
   delay: 5
+  when: not deb_name is defined
+
+- name: "Installing/Removing {{package_name}}"
+  become: true
+  apt:
+    deb: "{{item}}"
+    state: "{{package_state | default('latest')}}"
+    purge: "{{package_purge | default('false')}}"
+    update_cache: "{{package_cache | default('false')}}"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+  when: deb_name is defined
+  with_items: "{{deb_name}}"
+
 
 - name: Ensure apt process is completed
   become: true
