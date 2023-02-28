@@ -7,6 +7,7 @@ source $mpivars_path
 
 if [[ "$mpivars_path" == "" ]]; then echo "Could not find MPIPATH"; exit; fi
 
+MPI_HOME=${mpivars_path%%/bin*}
 
 cd /home/opc
 git clone https://github.com/NVIDIA/nccl-tests.git
