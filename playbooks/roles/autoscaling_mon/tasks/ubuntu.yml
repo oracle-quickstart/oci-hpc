@@ -251,6 +251,6 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   pip:
-    name: [protobuf==3.19.4,mysql-connector-python]
+    name: [protobuf==3.19.4,mysql-connector-python==8.0.31]
     executable: pip3
   ignore_errors: yes
