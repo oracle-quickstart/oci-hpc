@@ -265,7 +265,7 @@ Example:
 The name of the cluster must be
 queueName-clusterNumber-instanceType_keyword
 
-The keyword will need to match the one from /opt/oci-hpc/conf/queues.conf to be regirstered in Slurm
+The keyword will need to match the one from /opt/oci-hpc/conf/queues.conf to be registered in Slurm
 
 ### Cluster Deletion: 
 ```
