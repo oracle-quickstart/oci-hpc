@@ -337,6 +337,7 @@ resource "null_resource" "cluster_backup" {
       public_subnet_id = local.bastion_subnet_id,
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       private_subnet_id = local.subnet_id,
+      rdma_subnet = var.rdma_subnet,
       nfs = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path = var.scratch_nfs_path,
