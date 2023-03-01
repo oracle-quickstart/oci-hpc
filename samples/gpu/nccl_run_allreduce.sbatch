@@ -19,7 +19,15 @@ scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
 echo MACHINEFILE
 cat $MACHINEFILE
 
-python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+source /etc/os-release
+if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
+    python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+    USER=opc
+elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
+    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+    USER=ubuntu
+fi
+
 
 echo ORDEREDMACHINEFILE
 cat $ORDEREDMACHINEFILE
@@ -27,9 +35,15 @@ echo ORDEREDRANKMACHINEFILE
 cat $ORDEREDRANKMACHINEFILE
 
 mpivars_path=`ls /usr/mpi/gcc/openmpi-*/bin/mpivars.sh`
-source $mpivars_path
 
-if [[ "$mpivars_path" == "" ]]; then echo "Could not find MPIPATH"; exit; fi
+if [[ "$mpivars_path" == "" ]]; then
+    mpivars_path=`ls /opt/openmpi-*/bin/mpivars.sh`
+fi
+
+if [[ "$mpivars_path" == "" ]]; then
+    echo "Could not find MPIPATH"; exit; fi
+
+source $mpivars_path
 
 export NCCL_DEBUG=WARN
 
@@ -48,6 +62,7 @@ then
 fi
   mpirun --mca pml ucx \
   --bind-to numa \
+  --mca coll ^hcoll \
   -x NCCL_DEBUG=WARN \
   -x NCCL_IB_SL=0 \
   -x NCCL_IB_TC=41 \
@@ -59,6 +74,6 @@ fi
   -x NCCL_IB_GID_INDEX=3 \
   -x NCCL_ALGO=Ring \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
-  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /home/opc/nccl-tests/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
+  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /home/$USER/nccl-tests/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
 
 
