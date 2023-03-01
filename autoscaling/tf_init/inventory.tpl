@@ -21,8 +21,8 @@ compute
 [all:vars]
 ansible_connection=ssh
 ansible_user=${compute_username}
-rdma_network=192.168.128.0
-rdma_netmask=255.255.240.0
+rdma_network=${rdma_network}
+rdma_netmask=${rdma_netmask}
 public_subnet=${public_subnet} 
 private_subnet=${private_subnet}
 nvme_path=/mnt/localdisk/
