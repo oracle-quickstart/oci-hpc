@@ -419,12 +419,12 @@ def pcie_check(hostfile, path):
     if "Linux" in os_name[0]:
         out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/pcie_el.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
         stdout,stderr = out.communicate()
-        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie_el.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
         stdout,stderr = out.communicate()
     elif "Ubuntu" in os_name[0]:
         out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/pcie_ubuntu.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
         stdout,stderr = out.communicate()
-        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie_ubuntu.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
         stdout,stderr = out.communicate()
     else:
         print("Cannot run pcie check as OS is not determined to be Linux or Ubuntu")
