@@ -1,0 +1,18 @@
+---
+
+- name: install required packages
+  vars: 
+    package_name: 
+      - python3-click
+      - python3-ldap
+    package_repo: "epel,ol8_appstream"
+  include_role: 
+    name: safe_yum
+
+- name: copy cluster cli 
+  copy: 
+    src: cluster
+    dest: /usr/bin/
+    owner: root
+    group: root
+    mode: '0755'
