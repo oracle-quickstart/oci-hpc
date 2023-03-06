@@ -1,11 +1,11 @@
 ---
-- name: "Safe Yum install of latest {{package_name}}"
+- name: "Safe Yum install of latest {{ package_name }}"
   block:
-    - name: "yum first try {{ package_name}}"
+    - name: "yum first try {{ package_name }}"
       become: true
       yum:
         enablerepo: "{{package_repo|default('None')}}"
-        name: "{{package_name}}"
+        name: "{{ package_name }}"
         state: "{{package_state|default('present')}}"
         update_cache: "{{package_cache | default('false') | bool}}"
         lock_timeout: 180
