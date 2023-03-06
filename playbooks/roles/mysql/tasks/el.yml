@@ -32,19 +32,26 @@
 - name: Select mysql package ol8
   set_fact:
     package_name: mysql-release-el8
-    package_repo: ol7_MySQL80
+    package_repo: ol8_MySQL80
   when: ansible_distribution_major_version == '8'
 
-  include_role: 
-    name: safe_yum
-
-- name: Install MySQL packages
+- name: Install MySQL packages ol7
   vars: 
     package_name: '{{ mysql_packages }}'
     package_repo: '{{ package_repo }}'
   include_role: 
     name: safe_yum
   tags: install-only
+  when: ansible_distribution_major_version == '7'
+
+- name: Install MySQL packages ol8
+  vars: 
+    package_name: '{{ mysql_packages_ol8 }}'
+    package_repo: '{{ package_repo }}'
+  include_role: 
+    name: safe_yum
+  tags: install-only
+  when: ansible_distribution_major_version == '8'
 
 - name: Update SELinux context for {{ mysql_db_path }}
   become: true
