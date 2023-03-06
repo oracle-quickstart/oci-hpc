@@ -37,8 +37,8 @@
 
 - name: Install MySQL packages ol7
   vars: 
-    package_name: '{{ mysql_packages }}'
-    package_repo: '{{ package_repo }}'
+    package_name: "{{ mysql_packages }}"
+    package_repo: "{{ package_repo }}"
   include_role: 
     name: safe_yum
   tags: install-only
@@ -46,8 +46,8 @@
 
 - name: Install MySQL packages ol8
   vars: 
-    package_name: '{{ mysql_packages_ol8 }}'
-    package_repo: '{{ package_repo }}'
+    package_name: "{{ mysql_packages_ol8 }}"
+    package_repo: "{{ package_repo }}"
   include_role: 
     name: safe_yum
   tags: install-only
@@ -65,7 +65,7 @@
 - name: Ensure {{ mysql_db_path }} exists
   become: true
   file:
-    path: '{{ mysql_db_path }}'
+    path: "{{ mysql_db_path }}"
     owner: mysql
     group: mysql
     state: directory
@@ -158,4 +158,3 @@
       state: absent
       login_password: "{{ mysql_root_pwd }}"
       login_user: root
-  
