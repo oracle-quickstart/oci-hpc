@@ -23,19 +23,23 @@
                           '/etc/opt/oci-hpc/passwords/mysql/root.txt  
                            chars=ascii_letters,digits') }}"
 
-- name: Install MySQL packages
+- name: Select mysql package ol8
+  set_fact:
+    package_name: mysql-release-el8
+
+
+- name: Install MySQL packages ol8
   vars: 
-    package_name: 
-      - mysql-release-el7
+    package_name: "{{ mysql_packages_ol8 }}"
+    package_repo: ol8_MySQL80
   include_role: 
     name: safe_yum
 
-- name: Install MySQL packages
-  vars: 
-    package_name: '{{ mysql_packages }}'
-    package_repo: ol7_MySQL80
-  include_role: 
-    name: safe_yum
+- name: Make sure pymysql is present
+  become: true 
+  pip:
+    name: pymysql
+    state: present
 
 - name: Update SELinux context for {{ mysql_db_path }}
   become: true
@@ -49,7 +53,7 @@
 - name: Ensure {{ mysql_db_path }} exists
   become: true
   file:
-    path: '{{ mysql_db_path }}'
+    path: "{{ mysql_db_path }}"
     owner: mysql
     group: mysql
     state: directory
@@ -98,15 +102,15 @@
     shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
     register: m_root_password
 
-#  - name: Set MySQL root pasword
-#    become: true
-#    mysql_user: 
-#      name: root
-#      password: '{{ mysql_root_pwd }}'
-#      host_all: yes
-#      check_implicit_admin: yes
-#      state: present
-#
+  - name: Set MySQL root pasword
+    become: true
+    mysql_user: 
+      name: root
+      password: '{{ mysql_root_pwd }}'
+      host_all: yes
+      check_implicit_admin: yes
+      state: present
+
   - name: check if DB exists
     shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
     register: dbstatus
@@ -114,15 +118,15 @@
     no_log: yes
       
   - name: fix user password
-    command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ m_root_password.stdout }}';"
+    command: mysql --user root -p'{{ mysql_root_pwd }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
     when: dbstatus.rc != 0 
     
   - name: fix password policy
-    command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
+    command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
     when: dbstatus.rc != 0 
 
   - name: update expired root user password
-    command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
+    command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
     when: dbstatus.rc != 0 
   
   - name: Render /root/.my.cnf
