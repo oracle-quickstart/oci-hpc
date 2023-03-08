@@ -1,6 +1,18 @@
 ---
 - block:
 
+
+  - name: install required packages
+    vars: 
+      package_name: 
+        - zstd
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
+      package_repo: "epel,ol7_developer_EPEL"
+    include_role: 
+      name: safe_yum
+    when: ansible_distribution_major_version == '7'
+    
   - name: install required packages
     vars: 
       package_name: 
@@ -8,8 +20,11 @@
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot+caps-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
       package_repo: "epel,ol8_developer_EPEL"
+      disable_gpg_check_var: True
     include_role: 
       name: safe_yum
+    when: ansible_distribution_major_version == '8'
+
   # needs reboot
   - name: update namespace.unpriv_enable=1 kernel parameters 
     command: bash -c "sudo grubby --args="namespace.unpriv_enable=1" --update-kernel=`sudo grubby --default-kernel`"
@@ -23,6 +38,16 @@
       sysctl_file: /etc/sysctl.d/81-enroot.conf
       reload: yes
 
+
+  - name: Download enroot-check
+    get_url:
+      url: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-check_3.4.0_{{ ansible_architecture }}.run"
+      dest: "/tmp"
+      mode: '0755'
+      owner: opc
+      group: opc
+    when: ansible_distribution_major_version == '7'
+
   - name: Download enroot-check
     get_url:
       url: "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-check_3.4.1_{{ ansible_architecture }}.run"
@@ -30,6 +55,7 @@
       mode: '0755'
       owner: opc
       group: opc
+    when: ansible_distribution_major_version == '8'
 
   - name: execute enroot-check_*.run
     command: bash -c "/tmp/enroot-check_*.run --verify"
@@ -92,6 +118,7 @@
       mode: 0777
       group: "{{privilege_group_name}}"
       recurse: no
+
 
   - name: Make sure all {{enroot_top_path}} directories exist
     file:
