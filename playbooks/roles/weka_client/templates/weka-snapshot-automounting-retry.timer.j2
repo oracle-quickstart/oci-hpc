@@ -1,0 +1,16 @@
+[Unit]
+Description=Daily Snapshot Automounting Retry
+Requires=weka-snapshot-automounting-retry.service
+
+[Timer]
+OnCalendar=*-*-* 13:15/15:00
+OnCalendar=*-*-* 14:0/15:00
+OnCalendar=*-*-* 15:0/15:00
+OnCalendar=*-*-* 16:0/15:00
+OnCalendar=*-*-* 17:0/15:00
+OnCalendar=*-*-* 18:0/15:00
+OnCalendar=*-*-* 19:0/15:00
+OnCalendar=*-*-* 20:0/15:00
+
+[Install]
+WantedBy=timers.target

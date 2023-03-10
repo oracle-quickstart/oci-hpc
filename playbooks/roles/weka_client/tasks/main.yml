@@ -1,0 +1,321 @@
+---
+# tasks file for weka_client
+
+
+#
+# GET INSTANCE/VNIC METADATA
+#
+- name: Get instance metadata
+  uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    return_content: true
+    status_code: 200
+    body_format: json
+    headers:
+      Authorization: Bearer Oracle
+  register: instance_metadata
+
+- name: Get vnic metadata
+  uri:
+    url: http://169.254.169.254/opc/v1/vnics/
+    method: GET
+    return_content: true
+    status_code: 200
+    body_format: json
+    headers:
+      Authorization: Bearer Oracle
+  register: vnic_metadata
+
+- name: Set vnic facts from metadata
+  set_fact:
+    private_ip: "{{ vnic_metadata.json[0].privateIp }}"
+    subnet_cidr_block: "{{ vnic_metadata.json[0].subnetCidrBlock[-2:] }}"
+    gateway: "{{ vnic_metadata.json[0].virtualRouterIp }}"
+
+- name: Set vnic facts from metadata
+  set_fact:
+    private_ip_2: "{{ vnic_metadata.json[1].privateIp }}"
+    subnet_cidr_block_2: "{{ vnic_metadata.json[1].subnetCidrBlock[-2:] }}"
+    gateway_2: "{{ vnic_metadata.json[1].virtualRouterIp }}"
+  when: shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex"
+
+
+#
+# SYSTEM CONFIG
+#
+- name: Change the /etc/os-release to install Weka
+  become: true
+  replace:
+    path: /etc/os-release
+    regexp: '^NAME="Oracle Linux Server"'
+    replace: 'NAME="Red Hat Enterprise Linux"'
+
+- name: Rt already set check
+  shell: "/usr/sbin/ip rule | wc -l "
+  register: rt_check
+
+- name: Mkdir for routing tables and scripts
+  file:
+    path: /tmp/weka
+    state: directory
+    mode: 0755
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+- name: Copy files
+  copy:
+    src: files/
+    dest: /tmp/weka/
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+
+- name: Copy IP route rules
+  copy:
+    src: /tmp/weka/rt_tables
+    dest: /etc/iproute2/rt_tables
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+
+
+- name: Get interface names
+  shell: ip a | grep BROADCAST | awk '{ print $2 }' | grep -v 'ens\|docker\|lo' | sed 's/://'
+  register: interface_names
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+
+- name: Create list of interface names
+  copy:
+    dest: "/tmp/interface_names"
+    content: |
+      {{  interface_names.stdout }}
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+
+- name: Loop over NIC names and set up routing tables and rules
+  shell: |
+    TABLE=0
+
+    while read -r NIC; do
+      IP=''
+      TABLE=$((TABLE+1))
+
+      while read -r line; do
+        if [[ $line =~ IPADDR=([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) ]]; then
+          IP=${BASH_REMATCH[1]}
+        fi
+      done < "/etc/sysconfig/network-scripts/ifcfg-$line"
+
+      echo "192.168.0.0/16 dev $NIC src $IP table net$TABLE" > /etc/sysconfig/network-scripts/route-$line
+      echo "table net$TABLE from $IP" > /etc/sysconfig/network-scripts/rule-$line
+    done < /tmp/interface_names
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+
+- name: Reset Network Interfaces
+  shell: "for nic in $(cat /tmp/interface_names); do sudo ifdown $nic; sudo ifup $nic; done"
+  when: rt_check.stdout | int != 19 and (
+        (shape == "BM.GPU4.8") or
+        (shape == "BM.GPU.B4.8") or
+        (shape == "BM.GPU.A100-v2.8") )
+
+
+#
+# SECONDARY VNIC SETUP
+#
+
+- name: Get VNIC Number
+  shell: "export LC_ALL=C.UTF-8;export LANG=C.UTF-8; /usr/bin/oci compute instance list-vnics --auth instance_principal --instance-id {{instance_metadata.json.id}} | jq '.[] | length'"
+  register: vnic_number
+  when: shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex"
+
+- name: attach secondary vnic
+  shell: "export LC_ALL=C.UTF-8;export LANG=C.UTF-8; oci compute instance attach-vnic --instance-id {{instance_metadata.json.id}} --vnic-display-name 'weka' --subnet-id {{secondary_vnic_subnet}} --auth instance_principal"
+  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and  vnic_number.stdout | int < 2
+  register: add_vnic
+  delegate_to: 127.0.0.1
+
+- name: Sleep
+  pause:
+    seconds: 30
+  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and  vnic_number.stdout | int < 2
+
+
+#
+# WEKA INSTALL
+#
+
+- name: Check is Weka installed
+  command: command -v weka >/dev/null 2>&1
+  register: installed
+  ignore_errors: true
+
+- name: Download Weka installer
+  get_url:
+    url: "http://{{ dist_server }}:14000/dist/v1/install"
+    dest: /tmp/weka_client_install
+    mode: 0755
+  when: installed is failed
+  register: download
+
+- name: Execute the Weka installer
+  shell: /tmp/weka_client_install
+  when: download.changed
+
+- name: Remove the weka_client_install
+  file:
+    path: /tmp/weka_client_install
+    state: absent
+
+- name: Change the /etc/wekaio/service.conf to install Weka
+  become: true
+  replace:
+    path: /etc/wekaio/service.conf
+    regexp: '^isolate_cpusets=true'
+    replace: 'isolate_cpusets=false'
+
+
+#
+# MOUNT SETUP
+#
+
+- name: Create Weka DPDK mount points
+  file:
+    path: "{{ item.mountpoint }}"
+    owner: opc
+    group: "${privilege_group_name}"
+    mode: 0775
+    state: directory
+  loop: "{{ dpdk_fs | default([]) }}"
+  when: dpdk_fs is defined
+
+
+- name: Create Weka UDP mount points
+  file:
+    path: "{{ item.mountpoint }}"
+    owner: opc
+    group: "${privilege_group_name}"
+    mode: 0775
+    state: directory
+  loop: "{{ udp_fs }}"
+  when: upd_fs is defined
+
+
+- name: Create Weka NFS mount points
+  file:
+    path: "{{ item.mountpoint }}"
+    owner: opc
+    group: "${privilege_group_name}"
+    mode: 0775
+    state: directory
+  loop: "{{ weka_nfs }}"
+  when: weka_nfs is defined
+
+
+- name: Mount Weka DPDK Filesystems GPU Nodes
+  mount:
+    path: "{{ item.mountpoint }}"
+    src: "{{ backends | join(',') }}/{{item.name}}"
+    fstype: wekafs
+    opts: "{{ dpdk_opts }},net={{ ansible_default_ipv4.alias }}{{ item.opts }}"
+    state: mounted
+    when: (shape == "BM.GPU4.8" or shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8")
+          and dpdk_fs is defined
+    loop: "{{ dpdk_fs }}"
+
+# TODO: Add additonal debug info for failing mounts
+
+- name: Mount Weka DPDK Filesystems to VM nodes
+  mount:
+    path: "{{ item.mountpoint }}"
+    src: "{{ data_backends | join(',') }}/{{item.name}}"
+    fstype: wekafs
+    opts: "{{ dpdk_opts }},net=ens5/{{ private_ip_2 }}/{{ subnet_cidr_block_2 }}/{{ gateway_2}}{{ item.opts }}"
+    state: mounted
+  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex")
+        and dpdk_fs is defined
+  loop: "{{ dpdk_fs }}"
+
+- name: Mount Weka UDP to all nodes
+  mount:
+    path: "{{ item.mountpoint }}"
+    src: "{{ backends | join(',') }}/{{item.name}}"
+    fstype: wekafs
+    opts: "{{ upd_opts }},net=udp,{{ item.opts }}"
+    state: mounted
+  when:  udp_fs is defined
+  loop: "{{ udp_fs }}"
+
+- name: Set NFS Mount
+  set_fact:
+    nfsmount: "{{ nfs_backends | random }}"
+  when: weka_nfs is defined and nfs_backends is defined
+
+- name: Mount Weka-NFS Filesystems to nodes
+  mount:
+    path: "{{ item.mountpoint }}"
+    src: "{{ nfsmount }}:/{{ item.name }}"
+    fstype: nfs
+    state: mounted
+  when: weka_nfs is defined
+  loop: "{{ weka_nfs }}"
+
+
+#
+# WEKA CLEAN-UP SCRIPTS
+#
+
+- name: Create Pre-Shutdowm Weka Script
+  copy:
+    dest: /opt/pre-shutdown-weka.sh
+    mode: 0755
+    content: |
+      #!/bin/bash
+
+      {% for fs in dpdk_fs %}
+      if mountpoint -q "{{ fs.mountpoint }}" ; then
+        echo "{{ fs.mountpoint }} is mounted, unmounting"
+        umount  "{{ fs.mountpoint }}"
+      else
+        echo "{{ fs.mountpoint }} is already umounted"
+      fi
+      {% endfor %}
+
+      {% for fs in udp_fs %}
+      if mountpoint -q "{{ fs.mountpoint }}" ; then
+        echo "{{ fs.mountpoint }} is mounted, unmounting"
+        umount  "{{ fs.mountpoint }}"
+      else
+        echo "{{ fs.mountpoint }} is already umounted"
+      fi
+      {% endfor %}
+
+- name: Create Pre-shutdown-weka Systemd Service File
+  template:
+    src: templates/pre-shutdown-weka.service.j2
+    dest: /lib/systemd/system/pre-shutdown-weka.service
+
+- name: Enable Pre-shutdown-weka Service
+  systemd:
+    name: pre-shutdown-weka
+    enabled: true
+    daemon_reload: yes
+
+- name: Change the /etc/os-release to install Weka
+  become: true
+  replace:
+    path: /etc/os-release
+    regexp: '^NAME="Red Hat Enterprise Linux"'
+    replace: 'NAME="Oracle Linux Server"'
+
