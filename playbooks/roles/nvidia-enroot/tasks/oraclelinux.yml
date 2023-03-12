@@ -19,7 +19,7 @@
         - zstd
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot+caps-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
-      package_repo: "epel,ol8_developer_EPEL"
+      package_repo: "ol8_developer_EPEL"
       disable_gpg_check_var: True
     include_role: 
       name: safe_yum
