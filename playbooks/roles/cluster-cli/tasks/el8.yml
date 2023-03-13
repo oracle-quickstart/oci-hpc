@@ -5,7 +5,7 @@
     package_name: 
       - python3-click
       - python3-ldap
-    package_repo: "epel,ol8_appstream"
+    package_repo: "ol8_developer_EPEL,ol8_appstream"
   include_role: 
     name: safe_yum
 
