@@ -1,4 +1,15 @@
 ---
+
+- name: 
+  set_fact: 
+    - enroot_top_path_checked: "/etc/enroot/"
+  when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+
+- name: 
+  set_fact: 
+    - enroot_top_path_checked: "{{enroot_top_path}}"
+  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices" 
+
 - name: copy files
   become: true
   become_method: sudo
