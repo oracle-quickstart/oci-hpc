@@ -50,6 +50,12 @@
     group: munge
     mode: 0700
 
+- name: Create munge.key
+  become: true
+  command: 'dd if=/dev/urandom bs=1 count=1024 of={{ munge_conf_path }}/munge.key'
+  args:
+    creates: '{{ munge_conf_path }}/munge.key'
+
 - name: copy munge.key to tmp
   become: true
   shell:
