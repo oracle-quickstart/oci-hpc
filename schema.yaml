@@ -159,11 +159,11 @@ variableGroups:
       - ${slurm_nfs}
       - ${slurm_ha}
       - ${rack_aware}
-      - ${pyxis}
       - ${queue}
       - ${spack}
       - ${monitoring}
       - ${enroot}
+      - ${pyxis}
       - ${pam}
       - ${sacct_limits}
 
@@ -992,6 +992,8 @@ variables:
     title: "Install Nvidia Pyxis plugin for Slurm"
     default: false
     description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
+    visible:
+        - ${enroot}
   
   rack_aware:
     type: boolean
