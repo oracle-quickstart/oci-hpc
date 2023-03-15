@@ -1,8 +1,6 @@
 ---
 - name: Enable ol8_developer_EPEL repo
-  ansible.builtin.yum_repository:
-    name: ol8_developer_EPEL
-    enabled: true
+  shell: yum-config-manager --enable ol8_developer_EPEL
 
 - name: Make sure python OpenSSL and parallel ssh is installed
   vars: 
