@@ -1,0 +1,3 @@
+---
+# defaults file for topology
+slurm_conf_path: '/etc/slurm'
