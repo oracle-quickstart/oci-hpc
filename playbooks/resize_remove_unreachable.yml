@@ -1,4 +1,4 @@
-- hosts: bastion, compute
+- hosts: bastion, compute, slurm_backup, login
   become: true
   gather_facts: true
   vars:
