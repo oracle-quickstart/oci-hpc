@@ -13,6 +13,14 @@
   include_tasks: common.yml
   when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
 
+- name: debug destroy
+  ansible.builtin.debug:
+    var: destroy
+
+- name: debug initial
+  ansible.builtin.debug:
+    var: initial
+
 - name: run server directives
   vars: 
     slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
