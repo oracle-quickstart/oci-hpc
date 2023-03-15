@@ -19,12 +19,6 @@
   include_tasks: server.yml
   when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
 
-- name: run backup server directives
-  vars: 
-    slurm_repos: "epel,ol7_developer_EPEL"
-  include_tasks: backup_server.yml
-  when: ('slurm_backup' in group_names) and (not destroy|bool) and (initial| bool)
-
 - name: run compute directives
   vars: 
     slurm_repos: "epel,ol7_developer_EPEL"
@@ -36,6 +30,12 @@
     slurm_repos: "epel,ol7_developer_EPEL"
   include_tasks: login.yml
   when: ('login' in group_names) and (not destroy|bool) and (initial| bool)
+
+- name: run backup server directives
+  vars: 
+    slurm_repos: "epel,ol7_developer_EPEL"
+  include_tasks: backup_server.yml
+  when: ('slurm_backup' in group_names) and (not destroy|bool) and (initial| bool)
 
 - name: cleanup
   include_tasks: cleanup.yml

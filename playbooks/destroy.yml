@@ -9,10 +9,14 @@
     - include_role:
         name: slurm
       when: slurm|default(false)|bool
-- hosts: bastion
+- hosts: bastion, slurm_backup, login
   become: true
   vars:
     destroy: true
     initial: false
   roles:
     - etc-hosts
+- hosts: slurm_backup
+  become: true
+  roles:
+    - topology

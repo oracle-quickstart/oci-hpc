@@ -194,3 +194,8 @@
     - include_role: 
         name: telegraf
       when: monitoring|default(false)|bool
+
+- hosts: slurm_backup
+  become: true
+  roles:
+    - topology

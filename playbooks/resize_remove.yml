@@ -20,3 +20,8 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+
+- hosts: slurm_backup
+  become: true
+  roles:
+    - topology

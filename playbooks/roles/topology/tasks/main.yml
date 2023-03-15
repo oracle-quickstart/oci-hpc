@@ -1,0 +1,3 @@
+---
+# tasks file for topology
+- include: common.yml

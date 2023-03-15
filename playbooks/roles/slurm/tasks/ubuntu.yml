@@ -6,10 +6,6 @@
   include_tasks: server.yml
   when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
 
-- name: run backup server directives
-  include_tasks: backup_server.yml
-  when: ('slurm_backup' in group_names) and (not destroy|bool) and (initial| bool)
-
 - name: run compute directives
   include_tasks: "compute{{rack_aware_playbook_suffix}}.yml"
   when: ('compute' in group_names) and (not destroy|bool)
@@ -17,6 +13,10 @@
 - name: run login server directives
   include_tasks: login.yml
   when: ('login' in group_names) and (not destroy|bool) and (initial| bool)
+
+- name: run backup server directives
+  include_tasks: backup_server.yml
+  when: ('slurm_backup' in group_names) and (not destroy|bool) and (initial| bool)
   
 - name: cleanup
   include_tasks: cleanup.yml
