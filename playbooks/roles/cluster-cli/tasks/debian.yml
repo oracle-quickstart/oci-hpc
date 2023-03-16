@@ -1,12 +1,13 @@
 ---
-
 - name: Install required packages
-  apt:
-    name:
+  vars: 
+    package_name: 
       - python3-click
       - python3-ldap3
-    state: present
-    update_cache: yes
+    package_state: present
+    package_cache: true
+  include_role: 
+    name: safe_yum
 
 - name: copy cluster cli 
   copy: 

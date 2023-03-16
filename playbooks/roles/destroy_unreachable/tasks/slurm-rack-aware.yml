@@ -148,7 +148,7 @@
     state: absent
   with_items: "{{unreachable_slurm_nodes}}"
   ignore_unreachable: yes
-  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1
+  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1 and ( nodes_on_switch[item] | length ) < 2 
   run_once: true
   delegate_to: 127.0.0.1
 

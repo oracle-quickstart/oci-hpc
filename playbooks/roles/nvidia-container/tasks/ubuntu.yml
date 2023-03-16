@@ -13,15 +13,15 @@
     owner: root
     group: root
 
+
 - name: install packages
-  apt:
-    name: libnvidia-container-tools{{ libnvidia_container_tools_package_version | ternary("="+libnvidia_container_tools_package_version, "") }}
-    state: "{{ libnvidia_container_tools_package_state }}"
-    update_cache: yes
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
+  vars: 
+    package_name: 
+      - libnvidia-container-tools{{ libnvidia_container_tools_package_version | ternary("="+libnvidia_container_tools_package_version, "") }}
+    package_state: "{{ libnvidia_container_tools_package_state }}"
+    package_cache: true
+  include_role: 
+    name: safe_yum
 
 - name: Install nvidia-container-toolkit
   vars:

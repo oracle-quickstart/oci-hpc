@@ -5,6 +5,13 @@ then
   echo "No arguments supplied"
   exit
 fi
+
+if [ $EUID -eq 0 ]
+then
+  echo "Run this script as opc or ubuntu and not as root"
+  exit
+fi
+
 date=`date -u '+%Y%m%d%H%M'`
 start=`date -u +%s`
 start_timestamp=`date -u +'%F %T'`

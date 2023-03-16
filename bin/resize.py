@@ -655,7 +655,11 @@ else:
                 print("STDOUT: No list of nodes were specified and no unreachable nodes were found")
                 exit(1)
         else:
-            reachable_instances,unreachable_instances=getreachable(inventory_instances,username,delay=10)
+            inventory_instances_to_test = []
+            for instance_to_test in inventory_instances:
+                if not instance_to_test['display_name'] in hostnames:
+                    inventory_instances_to_test.append(instance_to_test)
+            reachable_instances,unreachable_instances=getreachable(inventory_instances_to_test,username,delay=10)
             hostnames_to_remove=hostnames
             if len(unreachable_instances):
                 print("STDOUT: At least one unreachable node is in the inventory and was not mentionned with OCI hostname to be removed. Trying anyway")

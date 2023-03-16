@@ -140,7 +140,7 @@
 
 - name: Get hostlist if switch exists
   vars:
-    new_line: "{% for node in ( play_hosts | difference(groups['bastion'])  | difference(groups['(groups['login'])']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+    new_line: "{% for node in ( play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup'])  | difference(groups['login']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   command: "scontrol show hostlistsorted {{ item.stdout_lines | union (new_line[:-1].split(',') | list )| join(',') }}"
   register: rack_hostlist1
   delegate_to: 127.0.0.1
