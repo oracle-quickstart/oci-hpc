@@ -59,11 +59,11 @@
     command: bash -c "/tmp/enroot-check_*.run --verify"
 
   - set_fact: 
-      - enroot_top_path_checked: "/etc/enroot/"
+      enroot_top_path_checked: "/etc/enroot/"
     when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
 
   - set_fact: 
-      - enroot_top_path_checked: "{{enroot_top_path}}"
+      enroot_top_path_checked: "{{enroot_top_path}}"
     when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"  
 
   - name: update ENROOT_RUNTIME_PATH
