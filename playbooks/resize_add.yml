@@ -47,7 +47,7 @@
         name: rdma-interface
       when: cluster_network|bool
 
-- hosts: bastion,slurm_backup,compute
+- hosts: bastion,slurm_backup,login,compute
   become: true
   vars: 
     destroy: false

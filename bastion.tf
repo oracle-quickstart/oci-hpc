@@ -74,6 +74,7 @@ resource "null_resource" "bastion" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",      
       "sudo chown ${var.bastion_username}:${var.bastion_username} /opt/oci-hpc/",
       "mkdir -p /opt/oci-hpc/bin",
@@ -176,6 +177,7 @@ resource "null_resource" "bastion" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
       "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
@@ -341,6 +343,7 @@ resource "null_resource" "cluster" {
       public_subnet_id = local.bastion_subnet_id,
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id = local.subnet_id,
+      rdma_subnet = var.rdma_subnet,
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path = var.scratch_nfs_path,
@@ -434,6 +437,7 @@ provisioner "file" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",

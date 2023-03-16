@@ -18,7 +18,6 @@
     package_state: present
   include_role: 
     name: safe_yum
-  tags: install-only
 
 - name: Generate openldap root password 
   set_fact:
@@ -37,7 +36,6 @@
     package_name: "{{openldap_packages}}"
   include_role: 
     name: safe_yum
-  tags: install-only
 
 - block:
     - name: Selinux fcontext on files

@@ -21,6 +21,7 @@
 - name: Copy node_ordering_by_rack.py
   block:
     - name: copy node_ordering_by_rack.py
+      become: true
       copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/
@@ -29,6 +30,7 @@
         mode: '0755'
   rescue:
     - name: copy node_ordering_by_rack.py
+      become: true
       copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/

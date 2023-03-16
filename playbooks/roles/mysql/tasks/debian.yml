@@ -34,7 +34,6 @@
     package_name: '{{ deb_mariadb_packages }}'
   include_role: 
     name: safe_yum
-  tags: install-only
 
 - name: Ensure {{ mysql_db_path }} exists
   become: true

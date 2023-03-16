@@ -6,27 +6,21 @@
     name: apparmor
     state: stopped
   failed_when: false
-  tags:
-    - configuration
-    - apparmor
 
 - name: Remove Apparmor service
   service:
     name: apparmor
     enabled: false
   failed_when: false
-  tags:
-    - configuration
-    - apparmor
 
 - name: Remove Apparmor package
-  apt:
-    name: apparmor
-    state: absent
-    purge: true
-  tags:
-    - configuration
-    - apparmor
+  vars: 
+    package_name: 
+      - apparmor
+    package_state: absent
+    package_purge: true
+  include_role: 
+    name: safe_yum
 
 - name: Create /etc/opt/oci-hpc/passwords/openldap
   become: true
@@ -51,10 +45,12 @@
                            chars=ascii_letters,digits,hexdigits') }}"
 
 - name: Install the openldap and required Packages for Ubuntu
-  apt:
-    name: "{{ openldap_packages }}"
-    state: present
-    update_cache: yes
+  vars: 
+    package_name: "{{ openldap_packages }}"
+    package_state: present
+    package_cache: true
+  include_role: 
+    name: safe_yum
 
 - name: Hash OpenLDAP root password
   command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}

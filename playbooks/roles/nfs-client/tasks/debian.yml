@@ -3,7 +3,6 @@
   ansible.builtin.package:
     name: '{{ deb_packages }}'
     state: present
-  tags: install-only
 
 - name: create share directory
   become: true
