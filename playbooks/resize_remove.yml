@@ -9,7 +9,7 @@
     - include_role:
         name: etc-hosts
 
-- hosts: compute_to_destroy
+- hosts: compute_to_destroy, slurm_backup
   become: true
   vars:
     destroy: true
@@ -20,8 +20,3 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-
-- hosts: slurm_backup
-  become: true
-  roles:
-    - topology
