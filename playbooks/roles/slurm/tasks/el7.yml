@@ -44,3 +44,7 @@
 - name: destroy
   include_tasks: destroy{{rack_aware_playbook_suffix}}.yml
   when: ('compute' in group_names or 'compute_to_destroy' in group_names) and (destroy|bool)
+
+- name: move topology.conf on backup slurm controller
+  include_tasks: move-topology.yml
+  when: ('slurm_backup' in group_names) and (not initial| bool)

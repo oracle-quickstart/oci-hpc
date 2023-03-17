@@ -3,7 +3,7 @@
   tasks:
     - debug:
         msg: "Gathering facts"
-- hosts: compute
+- hosts: compute, slurm_backup
   gather_facts: true
   vars:
     destroy: false
@@ -16,7 +16,3 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-- hosts: slurm_backup
-  become: true
-  roles:
-    - topology

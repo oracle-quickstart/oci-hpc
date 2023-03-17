@@ -10,8 +10,3 @@
   tasks:
     - include_role:
         name: destroy_unreachable
-
-- hosts: slurm_backup
-  become: true
-  roles:
-    - topology

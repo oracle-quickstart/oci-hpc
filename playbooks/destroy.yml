@@ -1,4 +1,4 @@
-- hosts: compute
+- hosts: compute, slurm_backup
   become: true
   vars:
     destroy: true
@@ -16,7 +16,3 @@
     initial: false
   roles:
     - etc-hosts
-- hosts: slurm_backup
-  become: true
-  roles:
-    - topology
