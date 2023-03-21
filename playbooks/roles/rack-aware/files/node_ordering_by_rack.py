@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-from pssh.clients import ParallelSSHClient
 import json
-import sys, getopt
 import os
 import argparse
-from operator import itemgetter
-from collections import OrderedDict
+import subprocess
 
 def write_ordered_hostfile(ordered_hosts=[],hostfile=None):
    #ordered_hostfile="ordered_hostfile"
@@ -43,28 +40,47 @@ with open(input_file, 'r') as f:
 #with open('/etc/opt/oci-hpc/hostfile.tcp', 'r') as f:
   hosts = f.read().splitlines()
 
-client = ParallelSSHClient(hosts)
-output = client.run_command('curl http://169.254.169.254/opc/v1/host/')
-#print(output)
 
 r = {}
-for host_out in output:
-    j = json.loads(bytearray(''.join(list(host_out.stdout)).encode()))
-    #print(j)
-    if j['rackId'] in r:
-       r[j['rackId']].append( host_out.host )
-    else:
-       r[j['rackId']] = [ host_out.host ]
-
-
 friendly_name_to_system_hostname = {}
-hostname_output = client.run_command('/usr/bin/hostname')
-#print(hostname_output)
-for host_out in hostname_output:
-    #j = bytearray(''.join(list(host_out.stdout)).encode())
-    j = bytearray(''.join(list(host_out.stdout)).encode())
-    friendly_name_to_system_hostname[host_out.host] = j.decode(encoding='ascii')
-    #print(j.decode(encoding='ascii')+"   "+host_out.host)
+try:
+    from pssh.clients import ParallelSSHClient
+    client = ParallelSSHClient(hosts)
+    output = client.run_command('curl http://169.254.169.254/opc/v1/host/')
+    #print(output)   
+    for host_out in output:
+        j = json.loads(bytearray(''.join(list(host_out.stdout)).encode()))
+        #print(j)
+        if j['rackId'] in r:
+            r[j['rackId']].append( host_out.host )
+        else:
+            r[j['rackId']] = [ host_out.host ]
+    hostname_output = client.run_command('/usr/bin/hostname')
+    #print(hostname_output)
+    for host_out in hostname_output:
+        #j = bytearray(''.join(list(host_out.stdout)).encode())
+        j = bytearray(''.join(list(host_out.stdout)).encode())
+        friendly_name_to_system_hostname[host_out.host] = j.decode(encoding='ascii')
+        #print(j.decode(encoding='ascii')+"   "+host_out.host)
+except ImportError:
+    try:
+        for h in hosts:
+            out = subprocess.run(["ssh "+h+" \"curl -s http://169.254.169.254/opc/v1/host/\""],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
+            x = out.stdout.splitlines()
+            del x[-1]
+            del x[0]
+            rackId_str = x[1].split(":")[1].replace('"','')
+            rackId = rackId_str.replace(' ','')
+            if rackId in r:
+                r[rackId].append( h )
+            else:
+                r[rackId] = [ h ]
+        for h in hosts:
+            out = subprocess.run(["ssh "+h+" /usr/bin/hostname"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
+            x = out.stdout.splitlines()
+            friendly_name_to_system_hostname[h] = x[0]
+    except subprocess.CalledProcessError as e_process_error:
+        exit(f"Error code: {e_process_error.returncode} Output: {e_process_error.output}")
 
 
 ordered_hosts = []
