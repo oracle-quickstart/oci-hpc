@@ -518,7 +518,7 @@ parser.add_argument('--compartment_ocid', help='OCID of the compartment, default
 parser.add_argument('--cluster_name', help='Name of the cluster to resize. Defaults to the name included in the bastion')
 parser.add_argument('mode', help='Mode type. add/remove node options, implicitly configures newly added nodes. Also implicitly reconfigure/restart services like Slurm to recognize new nodes. Similarly for remove option, terminates nodes and implicitly reconfigure/restart services like Slurm on rest of the cluster nodes to remove reference to deleted nodes.',choices=['add','remove','remove_unreachable','list','reconfigure'],default='list',nargs='?')
 parser.add_argument('number', type=int, help="Number of nodes to add or delete if a list of hostnames is not defined",nargs='?')
-parser.add_argument('--nodes', help="List of nodes to delete",nargs='+')
+parser.add_argument('--nodes', help="List of nodes to delete (Space Separated)",nargs='+')
 parser.add_argument('--no_reconfigure', help='If present. Does not rerun the playbooks',action='store_true',default=False)
 parser.add_argument('--user_logging', help='If present. Use the default settings in ~/.oci/config to connect to the API. Default is using instance_principal',action='store_true',default=False)
 parser.add_argument('--force', help='If present. Nodes will be removed even if the destroy playbook failed',action='store_true',default=False)
