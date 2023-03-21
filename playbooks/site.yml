@@ -302,6 +302,7 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+      
 - hosts: login
   vars:
     destroy: false
@@ -321,6 +322,7 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+
 - hosts: slurm_backup
   vars:
     destroy: false
@@ -340,6 +342,7 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+
 - hosts: compute
   vars:
     destroy: false
