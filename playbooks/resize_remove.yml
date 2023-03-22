@@ -9,7 +9,7 @@
     - include_role:
         name: etc-hosts
 
-- hosts: compute_to_destroy
+- hosts: compute_to_destroy, slurm_backup
   become: true
   vars:
     destroy: true
