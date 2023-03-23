@@ -27,8 +27,8 @@
 - name: install grafana
   vars: 
     package_name: 
-      - grafana
-    package_state: latest
+      - grafana-8.5.21-1
+    package_state: present
   include_role: 
     name: safe_yum
 
