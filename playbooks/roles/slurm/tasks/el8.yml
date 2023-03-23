@@ -17,30 +17,34 @@
   vars: 
     slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
   include_tasks: server.yml
-  when: ("'bastion' in group_names") and (not destroy|bool) and (initial| bool)
-
-- name: run backup server directives
-  vars: 
-    slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
-  include_tasks: backup_server.yml
-  when: ("'slurm_backup' in group_names") and (not destroy|bool) and (initial| bool)
+  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
 
 - name: run compute directives
   vars: 
     slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
   include_tasks: "compute{{rack_aware_playbook_suffix}}.yml"
-  when: ("'compute' in group_names") and (not destroy|bool)
+  when: ('compute' in group_names) and (not destroy|bool)
 
 - name: run login server directives
   vars: 
     slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
   include_tasks: login.yml
-  when: ("'login' in group_names") and (not destroy|bool) and (initial| bool)
+  when: ('login' in group_names) and (not destroy|bool) and (initial| bool)
+
+- name: run backup server directives
+  vars: 
+    slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
+  include_tasks: backup_server.yml
+  when: ('slurm_backup' in group_names) and (not destroy|bool) and (initial| bool)
 
 - name: cleanup
   include_tasks: cleanup.yml
-  when: ("'compute' in group_names") and (not destroy|bool)
+  when: ('compute' in group_names) and (not destroy|bool)
 
 - name: destroy
   include_tasks: destroy{{rack_aware_playbook_suffix}}.yml
-  when: ("'compute' in group_names" or "'compute_to_destroy' in group_names") and (destroy|bool)
+  when: ('compute' in group_names or 'compute_to_destroy' in group_names) and (destroy|bool)
+
+- name: move topology.conf on backup slurm controller
+  include_tasks: move-topology.yml
+  when: ('slurm_backup' in group_names) and (not initial| bool)

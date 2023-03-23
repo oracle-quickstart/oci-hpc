@@ -1,0 +1,12 @@
+---
+
+- name: move topology.conf on backup servers
+  become: true
+  copy:
+    dest: '{{ slurm_conf_path }}/topology.conf'
+    src: '{{ slurm_conf_path }}/topology.conf'
+    force: yes
+  register: topology_copied
+  until: topology_copied is not failed
+  retries: 10
+  delay: 5
