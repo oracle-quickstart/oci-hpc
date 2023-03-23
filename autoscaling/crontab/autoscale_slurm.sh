@@ -357,7 +357,7 @@ try:
         cluster_name=cluster[0]
         print ("Deleting cluster "+cluster_name)
         subprocess.Popen([script_path+'/delete_cluster.sh',cluster_name])
-        time.sleep(1)
+        time.sleep(5)
 
     for cluster_name in nodes_to_destroy.keys():
         print ("Resizing cluster "+cluster_name)
@@ -379,7 +379,6 @@ try:
             subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--remove_unreachable','--nodes']+initial_nodes)
         if len(unreachable_nodes) > 0:
             subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove_unreachable','--nodes']+unreachable_nodes)
-        
         time.sleep(1)
 
     for index,cluster in enumerate(cluster_to_build):
