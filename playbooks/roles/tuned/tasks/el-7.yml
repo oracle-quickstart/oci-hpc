@@ -1,0 +1,17 @@
+---
+
+- name: Ensure tuned profile directory exists
+  become: true
+  file:
+    path='/usr/lib/tuned/oci-network-performance'
+    state=directory
+
+- name: Copy profile file
+  become: true
+  copy:
+    src: tuned.conf
+    dest: "/usr/lib/tuned/oci-network-performance/tuned.conf"
+
+- name: Start profile
+  become: true
+  shell: tuned-adm profile oci-network-performance

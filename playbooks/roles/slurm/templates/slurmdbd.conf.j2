@@ -23,3 +23,6 @@ StoragePass={{ slurmdbd_sql_pwd }}
 StorageUser={{ slurm_db_user }}
 StorageLoc={{ slurm_db_name }}
 
+{% if sacct_limits|bool %}
+TrackWckey=no
+{% endif %}

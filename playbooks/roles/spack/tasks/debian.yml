@@ -1,24 +1,21 @@
 ---
 - name: install GIT
-  apt: 
-    name: git
-    state: latest
-  become: true
+  vars: 
+    package_name: 
+      - git
+    package_state: latest
+  include_role: 
+    name: safe_yum
   when: cluster_nfs
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
 
 - name: Development Tools" 
-  apt: 
-    name: build-essential
-  become: true
+  vars: 
+    package_name: 
+      - build-essential
+    package_state: latest
+  include_role: 
+    name: safe_yum
   when: cluster_nfs
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
 
 - name: Clone SPACK
   git: 

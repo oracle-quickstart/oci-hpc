@@ -4,7 +4,6 @@
     package_name: '{{ nfs_rpm_packages }}'
   include_role: 
     name: safe_yum
-  tags: install-only
 
 - name: create share directory
   become: true

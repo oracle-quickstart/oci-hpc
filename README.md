@@ -265,7 +265,7 @@ Example:
 The name of the cluster must be
 queueName-clusterNumber-instanceType_keyword
 
-The keyword will need to match the one from /opt/oci-hpc/conf/queues.conf to be regirstered in Slurm
+The keyword will need to match the one from /opt/oci-hpc/conf/queues.conf to be registered in Slurm
 
 ### Cluster Deletion: 
 ```
@@ -293,8 +293,8 @@ Example of cluster command to add a new user:
 ```cluster user add name```
 By default, a `privilege` group is created that has access to the NFS and can have sudo access on all nodes (Defined at the stack creation. This group has ID 9876) The group name can be modified.
 ```cluster user add name --gid 9876```
-To generate a user-specific key for passwordless ssh between nodes, use --ssh. 
-```cluster user add name --ssh --gid 9876```
+To avoid generating a user-specific key for passwordless ssh between nodes, use --nossh. 
+```cluster user add name --nossh --gid 9876```
 
 # Shared home folder
 
@@ -317,4 +317,44 @@ Use the alias "max_nodes" to run the python script max_nodes_partition.py. You c
 $ max_nodes --> Information about all the partitions and their respective clusters, and maximum number of nodes distributed evenly per partition
 
 $ max_nodes --include_cluster_names xxx yyy zzz --> where xxx, yyy, zzz are cluster names. Provide a space separated list of cluster names to be considered for displaying the information about clusters and maximum number of nodes distributed evenly per partition
+
+
+## validation.py usage
+
+Use the alias "validate" to run the python script validation.py. You can run this script only from bastion. 
+
+The script performs these checks. 
+-> Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files.
+-> PCIe bandwidth check 
+-> GPU Throttle check 
+-> Check whether md5 sum of /etc/hosts file on nodes matches that on bastion
+
+Provide at least one argument: [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]
+
+Optional argument with [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]: [-cn CLUSTER_NAMES]
+Provide a file that lists each cluster on a separate line for which you want to validate the number of nodes and/or pcie check and/or gpu throttle check and/or /etc/hosts md5 sum. 
+
+For pcie, gpu throttle, and /etc/hosts md5 sum check, you can either provide y or Y along with -cn or you can give the hostfile path (each host on a separate line) for each argument. For number of nodes check, either provide y or give y along with -cn.
+
+Below are some examples for running this script.
+
+validate -n y --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. The clusters considered will be the default cluster if any and cluster(s) found in /opt/oci-hpc/autoscaling/clusters directory. The number of nodes considered will be from the resize script using the clusters we got before. 
+
+validate -n y -cn <cluster name file> --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. It will also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
+
+validate -p y -cn <cluster name file> --> This will run the pcie bandwidth check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
+
+validate -p <pcie host file> --> This will run the pcie bandwidth check on the hosts provided in the file given. The pcie host file should have a host name on each line.
+
+validate -g y -cn <cluster name file> --> This will run the GPU throttle check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
+
+validate -g <gpu check host file> --> This will run the GPU throttle check on the hosts provided in the file given. The gpu check host file should have a host name on each line.
+
+validate -e y -cn <cluster name file> --> This will run the GPU throttle check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
+
+validate -e <md5 sum check host file> --> This will run the /etc/hosts md5 sum check on the hosts provided in the file given. The md5 sum check host file should have a host name on each line.
+
+You can combine all the options together such as:
+validate -n y -p y -g y -e y -cn <cluster name file>
+
 

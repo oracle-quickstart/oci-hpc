@@ -65,8 +65,8 @@
 - name: install grafana
   vars: 
     package_name: 
-      - grafana
-    package_state: latest
+      - grafana-8.5.21-1
+    package_state: present
   include_role: 
     name: safe_yum
 
@@ -239,18 +239,18 @@
 #    overwrite: yes
 #    path: files/cluster.json
 
-- name: Install pip
-  vars: 
-    package_name: 
-      - python3-pip
-  include_role: 
-    name: safe_yum
+# - name: Install pip
+#   vars: 
+#     package_name: 
+#       - python3-pip
+#   include_role: 
+#     name: safe_yum
 
 - name: install protobuf v3.19.4 and mysql connector
   become: true
   vars:
     ansible_python_interpreter: /usr/bin/python3
   pip:
-    name: [protobuf==3.19.4,mysql-connector-python]
+    name: [protobuf==3.19.4,mysql-connector-python==8.0.31]
     executable: pip3
   ignore_errors: yes

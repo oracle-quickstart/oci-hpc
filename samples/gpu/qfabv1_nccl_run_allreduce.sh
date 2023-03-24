@@ -43,11 +43,10 @@ do
 
   hostfile=$hostfile; np=$np ; iter=20;
 
-  if [ -f /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh ]; then
-    source /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh
-  else
-    source /usr/mpi/gcc/openmpi-4.0.3rc4/bin/mpivars.sh
-  fi
+  mpivars_path=`ls /usr/mpi/gcc/openmpi-*/bin/mpivars.sh`
+  source $mpivars_path
+
+  if [[ "$mpivars_path" == "" ]]; then echo "Could not find MPIPATH"; exit; fi
 
 first_node=`head $hostfile -n 1`
 shape=`ssh $first_node 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/' | jq .shape`

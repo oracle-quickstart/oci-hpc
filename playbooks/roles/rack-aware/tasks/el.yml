@@ -22,9 +22,10 @@
     owner: "{{ ansible_user }}"
     group: "{{ privilege_group_name }}"
 
-- name: "Safe Yum install of latest {{package_name}}"
+- name: Copy node_ordering_by_rack.py
   block:
     - name: copy node_ordering_by_rack.py
+      become: true
       copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/
@@ -33,6 +34,7 @@
         mode: '0755'
   rescue:
     - name: copy node_ordering_by_rack.py
+      become: true
       copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/

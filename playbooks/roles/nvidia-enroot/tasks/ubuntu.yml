@@ -6,16 +6,13 @@
       dpkg_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
 
   - name: install required packages
-    apt: 
-      deb: '{{ item }}'
-    with_items: 
-      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
-      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
-    register: result
-    until: result is not failed
-    retries: 5
-    delay: 5
-
+    vars: 
+      deb_name: 
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
+      package_state: present
+    include_role: 
+      name: safe_yum
   - name: set kernel.unprivileged_userns_clone using sysctl
     ansible.posix.sysctl:
       name: kernel.unprivileged_userns_clone
@@ -35,13 +32,22 @@
   - name: execute enroot-check_*.run
     command: bash -c "/tmp/enroot-check_*.run --verify"
 
+  - name: 
+    set_fact: 
+      enroot_top_path_checked: "/etc/enroot/"
+    when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+
+  - name: 
+    set_fact: 
+      enroot_top_path_checked: "{{enroot_top_path}}"
+    when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices" 
 
   - name: update ENROOT_RUNTIME_PATH
     lineinfile: 
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_RUNTIME_PATH.*'
-      line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path}}/enroot_runtime/user-$(id -u)'
+      line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path_checked}}/enroot_runtime/user-$(id -u)'
       backup: yes
 
   - name: update ENROOT_DATA_PATH
@@ -49,7 +55,7 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_DATA_PATH.*'
-      line: 'ENROOT_DATA_PATH        {{enroot_top_path}}/enroot_data/user-$(id -u)'
+      line: 'ENROOT_DATA_PATH        {{enroot_top_path_checked}}/enroot_data/user-$(id -u)'
       backup: yes
 
   - name: update ENROOT_CACHE_PATH
@@ -57,7 +63,7 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_CACHE_PATH.*'
-      line: 'ENROOT_CACHE_PATH        {{enroot_top_path}}/enroot_cache'
+      line: 'ENROOT_CACHE_PATH        {{enroot_top_path_checked}}/enroot_cache'
       backup: yes
 
   - name: update ENROOT_TEMP_PATH
@@ -65,14 +71,30 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_TEMP_PATH.*'
-      line: 'ENROOT_TEMP_PATH        {{enroot_top_path}}/enroot_tmp'
+      line: 'ENROOT_TEMP_PATH        {{enroot_top_path_checked}}/enroot_tmp'
+      backup: yes
+
+  - name: update ENROOT_SQUASH_OPTIONS
+    lineinfile: 
+      dest: /etc/enroot/enroot.conf
+      state: present
+      regexp: '^#ENROOT_SQUASH_OPTIONS.*'
+      line: 'ENROOT_SQUASH_OPTIONS        -b 262144'
+      backup: yes
+
+  - name: update ENROOT_ROOTFS_WRITABLE
+    lineinfile: 
+      dest: /etc/enroot/enroot.conf
+      state: present
+      regexp: '^#ENROOT_ROOTFS_WRITABLE.*'
+      line: 'ENROOT_ROOTFS_WRITABLE        yes'
       backup: yes
 
 
-  - name: set permissions on {{enroot_top_path}}
+  - name: set permissions on {{enroot_top_path_checked}}
     become: true
     file:
-      path: "{{enroot_top_path}}"
+      path: "{{enroot_top_path_checked}}"
       state: directory
       owner: "{{ ansible_user }}"
       mode: 0777
@@ -80,9 +102,9 @@
       recurse: no
 
 
-  - name: Make sure all {{enroot_top_path}} directories exist
+  - name: Make sure all {{enroot_top_path_checked}} directories exist
     file:
-      path: "{{enroot_top_path}}/{{item}}"
+      path: "{{enroot_top_path_checked}}/{{item}}"
       state: directory
       mode: '0775'
       owner: "{{ ansible_user }}"

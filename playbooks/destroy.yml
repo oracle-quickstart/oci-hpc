@@ -1,4 +1,4 @@
-- hosts: compute
+- hosts: compute, slurm_backup
   become: true
   vars:
     destroy: true
@@ -9,7 +9,7 @@
     - include_role:
         name: slurm
       when: slurm|default(false)|bool
-- hosts: bastion
+- hosts: bastion, slurm_backup, login
   become: true
   vars:
     destroy: true

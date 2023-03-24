@@ -2,6 +2,8 @@
 ${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion
 [slurm_backup]
 %{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=bastion%{ endif }
+[login]
+%{ if login_name != "" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
 [compute_to_add]
 [compute_configured]
 %{ for host, ip in compute ~}
@@ -58,8 +60,16 @@ admin_username = ${admin_username}
 instance_type=permanent
 enroot=${enroot}
 pyxis=${pyxis}
+pam=${pam}
 privilege_sudo=${privilege_sudo}
 privilege_group_name=${privilege_group_name}
 latency_check=${latency_check}
 compute_username=${compute_username}
 bastion_username=${bastion_username}
+region= ${region}
+tenancy_ocid = ${tenancy_ocid}
+inst_prin = ${inst_prin}
+api_fingerprint = ${api_fingerprint}
+api_user_ocid = ${api_user_ocid}
+sacct_limits=${sacct_limits}
+

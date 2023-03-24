@@ -10,7 +10,7 @@
     - hostname
 
 # for ubuntu, on all compute nodes, run --fix-broken install
-- hosts: compute
+- hosts: compute, login
   become: true
   tasks:
     - include_role:
@@ -81,7 +81,7 @@
         name: fss-home
       when: add_nfs|bool and home_fss|bool
 
-- hosts: bastion, slurm_backup
+- hosts: bastion, slurm_backup, login
   become: true
   tasks:
     - include_role:
@@ -110,12 +110,22 @@
         name: cluster-cli
       when: ldap|default(true)|bool
 
-- hosts: compute
+# configure if instance_principal is False
+- hosts: bastion
+  become: true
+  tasks:
+    - include_role:
+        name: no_instance_principal
+      when: not inst_prin|bool 
+      
+
+
+- hosts: compute, login
   become: true
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool
+      when: home_nfs|default(true)|bool or home_fss|bool
     - include_role:
         name: nfs-client
       vars:
@@ -154,7 +164,7 @@
     - include_role: 
         name: mysql
 
-- hosts: slurm_backup
+- hosts: slurm_backup, login
   become: true
   vars:
     iscsi_ip: "{{ bastion_mount_ip }}"
@@ -215,10 +225,6 @@
 
 - hosts: all
   become: true
-  vars_files:
-    - "/opt/oci-hpc/playbooks/roles/openldap/defaults/main.yml"
-    - "/opt/oci-hpc/playbooks/roles/openldap/vars/el_vars.yml"
-    - "/opt/oci-hpc/playbooks/roles/openldap/vars/debian_vars.yml"
   tasks: 
     - include_role: 
         name: sssd
@@ -239,11 +245,17 @@
     - include_role: 
         name: yaml
 
-- hosts: bastion
+- hosts: all
   tasks: 
     - include_role: 
         name: influxdb
       when: monitoring|default(false)|bool
+    - include_role: 
+        name: telegraf
+      when: monitoring|default(false)|bool
+
+- hosts: bastion
+  tasks: 
     - include_role: 
         name: grafana
       when: monitoring|default(false)|bool
@@ -268,12 +280,14 @@
     - include_role: 
         name: nvidia-enroot
       when: enroot|default(true)|bool
+    - include_role:
+        name: tuned
 
 - hosts: all
   vars:
     destroy: false
     initial: true
-    download_path: "{{ cluster_nfs_path if cluster_nfs|bool else '/tmp' }}"
+    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
@@ -286,10 +300,5 @@
         name: spack
       when: spack|default(false)|bool
     - include_role: 
-        name: telegraf
-      when: monitoring|default(false)|bool
-    - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-
-

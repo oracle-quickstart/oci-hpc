@@ -17,6 +17,13 @@ then
 else
   debug=0
 fi
+
+if [ $EUID -eq 0 ]
+then
+  echo "Run this script as opc or ubuntu and not as root"
+  exit
+fi
+
 date=`date '+%Y%m%d%H%M'`
 scripts=`realpath $0`
 folder=`dirname $scripts`
