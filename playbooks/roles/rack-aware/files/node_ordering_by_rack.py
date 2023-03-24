@@ -4,13 +4,17 @@ import os
 import argparse
 import subprocess
 
-def write_ordered_hostfile(ordered_hosts=[],hostfile=None):
+def write_ordered_hostfile(ordered_hosts=[],hostfile=None,srun=False):
    #ordered_hostfile="ordered_hostfile"
    if os.path.isfile(hostfile):
       os.remove(hostfile)
    fhandler = open(hostfile,"w")
    for h in ordered_hosts:
-      fhandler.write(h+"\n")
+      if srun:
+        for x in range(8):
+          fhandler.write(h+"\n")
+      else:
+        fhandler.write(h+"\n")
    fhandler.close()
 
 def write_ordered_rankfile(ordered_hosts=[],hostfile=None):
@@ -104,6 +108,8 @@ hostfile="ordered_hostfile"
 write_ordered_hostfile(ordered_hosts,hostfile)
 hostfile="ordered_hostfile_system_name"
 write_ordered_hostfile(ordered_hosts_friendly_name,hostfile)
+hostfile="ordered_hostfile_system_name_srun"
+write_ordered_hostfile(ordered_hosts_friendly_name,hostfile,True)
 rankfile="rankfile_system_name"
 write_ordered_rankfile(ordered_hosts_friendly_name,rankfile)
 
