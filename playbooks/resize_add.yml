@@ -47,7 +47,7 @@
         name: rdma-interface
       when: cluster_network|bool
 
-- hosts: bastion,slurm_backup,compute
+- hosts: bastion,slurm_backup,login,compute
   become: true
   vars: 
     destroy: false
@@ -165,6 +165,8 @@
     - include_role: 
         name: nvidia-enroot
       when: enroot|default(true)|bool
+    - include_role:
+        name: tuned
 
       
 - hosts: compute_to_add
@@ -177,7 +179,7 @@
   vars:
     destroy: false
     initial: false
-    download_path: "{{ cluster_nfs_path if cluster_nfs|bool else '/tmp' }}"
+    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"

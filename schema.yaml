@@ -30,6 +30,7 @@ variableGroups:
       - ${bastion_ad}
       - ${bastion_shape}
       - ${bastion_ocpus}
+      - ${bastion_ocpus_denseIO_flex}
       - ${bastion_custom_memory}
       - ${bastion_memory}
       - ${bastion_boot_volume_size}
@@ -43,6 +44,7 @@ variableGroups:
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
+      - ${instance_pool_ocpus_denseIO_flex}
       - ${instance_pool_custom_memory}
       - ${instance_pool_memory}
       - ${node_count}
@@ -57,12 +59,35 @@ variableGroups:
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
+  - title: "Additionnal Login Node"
+    variables:
+      - ${login_node}
+      - ${login_ad}
+      - ${login_shape}
+      - ${login_ocpus}
+      - ${login_ocpus_denseIO_flex}
+      - ${login_custom_memory}
+      - ${login_memory}
+      - ${login_boot_volume_size}
+      - ${use_standard_image_login}
+      - ${use_marketplace_image_login}
+      - ${use_old_marketplace_image_login}
+      - ${marketplace_listing_login}
+      - ${old_marketplace_listing_login}
+      - ${unsupported_login}
+      - ${login_image_compartment}
+      - ${custom_login_image}
+      - ${unsupported_login_image}
+      - ${login_username}
+      - ${login_block}
+      - ${login_block_volume_size}
+      - ${login_block_volume_performance}
   - title: Autoscaling
     variables:
       - ${autoscaling}
       - ${autoscaling_monitoring}
       - ${latency_check}
-  - title: "API authentication"
+  - title: "API authentication, needed for autoscaling"
     variables:
       - ${inst_prin}
       - ${api_user_ocid}
@@ -134,11 +159,13 @@ variableGroups:
       - ${slurm_nfs}
       - ${slurm_ha}
       - ${rack_aware}
-      - ${pyxis}
       - ${queue}
       - ${spack}
       - ${monitoring}
       - ${enroot}
+      - ${pyxis}
+      - ${pam}
+      - ${sacct_limits}
 
   - title: "Hidden"
     variables:
@@ -234,6 +261,7 @@ variables:
     required: true
     default: VM.Standard2.4
   bastion_ocpus:
+    title: "Cores"
     type: integer
     description: Number of OCPU's for flex shape
     minimum: 1
@@ -258,6 +286,24 @@ variables:
             - ${bastion_shape}
             - "VM.Standard3.Flex"
     required: true
+
+  bastion_ocpus_denseIO_flex:
+    title: "Cores"
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${bastion_shape}
+            - "VM.DenseIO.E4.Flex"
+    required: true
+
   bastion_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -339,7 +385,7 @@ variables:
  
   unsupported_bastion_image:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes"
+    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment."
     type: string
     required: true
     visible:
@@ -363,7 +409,7 @@ variables:
 
   custom_bastion_image:
     title: "Bastion Image ID"
-    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux and Ubuntu 20.04 are supported as bastion image at this moment. "
+    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${bastion_image_compartment}
@@ -462,6 +508,7 @@ variables:
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
       - "BM.Optimized3.36"
+      - "BM.HPC.E5.128"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
     description: "Shape of compute nodes used in permanent/initial cluster"
@@ -507,6 +554,23 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Standard3.Flex"
+    required: true
+
+  instance_pool_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.DenseIO.E4.Flex"
     required: true
 
   instance_pool_custom_memory: 
@@ -643,7 +707,7 @@ variables:
 
   image:
     title: "Image"
-    description: "Custom image ID for compute nodes"
+    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
     type: oci:core:image:id
     required: true
     dependsOn:
@@ -677,7 +741,7 @@ variables:
 
   image_ocid:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes"
+    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
     type: string
     required: true
     visible:
@@ -691,6 +755,8 @@ variables:
     type: boolean
     title: "Show advanced storage options"
     default: false
+    description: "Including running home on FSS."
+    visible: true
 
   use_scratch_nfs:
     type: boolean
@@ -875,8 +941,8 @@ variables:
   rdma_subnet:
     type: string
     title: "RDMA subnet IP range"
-    default: "192.168.168.0/22"
-    description: "Must be the same size as private subnet"
+    default: "192.168.0.0/16"
+    description: "Must be at least the same size as private subnet for HPC and at least 16 times the size of the private subnet for GPUs"
     required: true
   private_subnet:
     type: string
@@ -918,14 +984,17 @@ variables:
     default: false
     required: true
     description: "Add a second master of the same shape as the bastion as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
-    visible:
-        - ${slurm}
+    visible: ${slurm}
 
   pyxis:
     type: boolean
     title: "Install Nvidia Pyxis plugin for Slurm"
     default: false
-    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
+    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm. (Warning: using Pyxis with autoscaling is causing an issue that prevents jobs from being scheduled on nodes to be spun up)"
+    visible:
+      and:
+        - ${slurm}
+        - ${enroot}
   
   rack_aware:
     type: boolean
@@ -933,8 +1002,7 @@ variables:
     default: false
     required: true
     description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted" 
-    visible:
-        - ${slurm}
+    visible: ${slurm}
 
 
   queue:
@@ -943,8 +1011,7 @@ variables:
     default: "compute"
     required: true
     description: "Add the permanent cluster to a specific queue, compute is the default queue" 
-    visible:
-        - ${slurm}
+    visible: ${slurm}
 
   spack:
     type: boolean
@@ -957,6 +1024,21 @@ variables:
     title: "Install Nvidia Enroot for containerized GPU workloads"
     default: false
     description: "Install Enroot, Nvidia Container Toolkit, and docker."
+    visible: ${slurm}
+
+  pam:
+    type: boolean
+    title: "Enable PAM"
+    default: false
+    description: "Enable PAM for the Slurm cluster (Supported only on OL with RHCK kernel at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
+    visible: ${slurm}
+
+  sacct_limits:
+    type: boolean
+    title: "Enable Limits for Slurm jobs"
+    default: false
+    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs of the right limits are not set"
+    visible: ${slurm}
 
   monitoring:
     type: boolean
@@ -978,7 +1060,7 @@ variables:
     
   inst_prin:
     type: boolean
-    title: "Use Instance Principal (required for autoscaling)" 
+    title: "Use Instance Principal instead of configuration file" 
     description: "You will need to set a dynamic group and policy to allow the bastion to authenticate. This will not be created automatically." 
     default: true
 
@@ -1160,3 +1242,294 @@ variables:
     visible: 
       and:
         - ${privilege_sudo}
+
+
+
+  login_node:
+    type: boolean
+    title: "Login Node"
+    default: false
+    description: "Create an additional login node for users"
+
+  login_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    visible: 
+      and:
+        - complexExpression
+        - ${login_node}
+    required: true
+    description: "Availability Domain for login node"
+    title: "Availability Domain For Login Node"
+    default: ${ad}  
+
+  login_shape:
+    type: oci:core:instanceshape:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: true
+    default: VM.Standard2.4
+    visible: ${login_node}
+
+  login_ocpus:
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 2
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard3.Flex"
+        - ${login_node}
+    required: true
+
+  login_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 8
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${login_shape}
+            - "VM.DenseIO.E4.Flex"
+        - ${login_node}
+    required: true
+    
+  login_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${login_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard3.Flex"
+        - ${login_node}
+  login_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 16
+    visible:
+      and: 
+        - and: 
+          - or: 
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.E3.Flex"
+            - eq:
+              - ${login_shape}
+              - "VM.Optimized3.Flex"
+            - eq: 
+              - ${login_shape}
+              - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${login_shape}
+              - "VM.Standard.A1.Flex"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard3.Flex"
+        - and: 
+            - ${login_custom_memory}
+            - ${login_node}
+    required: true
+    
+  login_boot_volume_size:
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 50
+    visible:  ${login_node}
+
+  login_block:
+    type: boolean
+    title: Additional block volume for login node
+    default: false
+    visible:  ${login_node}
+
+  login_block_volume_size:
+    required: true
+    type: integer
+    title: "Size of the additional volume in GB"
+    default: 1000
+    visible:
+      and:
+        - and:
+            - ${login_block}
+            - ${login_node}
+  login_block_volume_performance:
+    type: enum
+    title: "Block volume performance"
+    required: true
+    enum:
+      - "0.  Lower performance"
+      - "10. Balanced performance"
+      - "20. High Performance"
+    default: "10. Balanced performance"
+    visible:
+      and:
+        - and:
+            - ${login_block}
+            - ${login_node}
+  use_standard_image_login:
+    type: boolean
+    title: "use standard login image"
+    description: >
+      "Use standard login image (Oracle Linux)"
+    default: true
+    visible: ${login_node}
+
+  unsupported_login: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for Login Node"
+    type: boolean
+    default: false
+    visible:
+      not:
+        - ${use_standard_image_login}
+
+  login_image_compartment:
+    title: "login image compartment"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible:
+      and: 
+          - not:
+              - ${use_standard_image_login}
+          - not: 
+              - ${unsupported_login}
+          - not: 
+              - ${use_marketplace_image_login}
+    required: true
+
+  custom_login_image:
+    title: "Login Image ID"
+    description: "Custom image ID for login nodes. Please note that only Oracle Linux and Ubuntu 20.04 are supported as login image at this moment. "
+    type: oci:core:image:id
+    dependsOn:
+      compartmentId: ${login_image_compartment}
+    visible:
+      and: 
+          - not:
+              - ${use_standard_image_login}
+          - not: 
+              - ${unsupported_login}
+          - not: 
+              - ${use_marketplace_image_login}
+    required: true
+  unsupported_login_image:
+    title: "Image OCID"
+    description: "Custom image ID for login nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported_login}
+        - not: 
+            - ${use_standard_image_login}
+        - not: 
+            - ${use_marketplace_image_login}
+    default: "image.ocid"
+    
+  login_username: 
+    title: "Default username for login node" 
+    description: "Custom image ID for login node"
+    type: string
+    default: "opc"
+    required: true
+    visible:
+      not:
+        - ${use_standard_image_login}
+
+  use_marketplace_image_login:
+    type: boolean
+    title: "use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID"
+    default: true
+    visible:
+      not:
+        - ${use_standard_image_login}
+  use_old_marketplace_image_login:
+    type: boolean
+    title: "use older marketplace images"
+    description: "Images prior to September 2021"
+    default: false
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
+
+  marketplace_listing_login:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC_OL7"
+      - "HPC_OL8"
+      - "GPU"
+    default: "HPC_OL7"
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - not: 
+          - ${use_old_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}
+
+  old_marketplace_listing_login:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
+      - "2. Oracle Linux 7.8 OFED 5.0-1.0.0.0 UEK 20200826"
+      - "3. Oracle Linux 7.7 OFED 4.4-2.0.7.0 UEK 20200229"
+      - "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+    visible:
+      and:
+        - ${use_marketplace_image_login}
+        - ${use_old_marketplace_image_login}
+        - not:
+          - ${use_standard_image_login}

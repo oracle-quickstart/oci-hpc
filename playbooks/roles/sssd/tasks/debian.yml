@@ -46,10 +46,12 @@
     replace: 'password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass'
 
 - name: Install the openldap and required Packages for Ubuntu
-  apt:
-    name: "{{ openldap_packages }}"
-    state: present
-    update_cache: yes
+  vars: 
+    package_name: "{{ openldap_packages }}"
+    package_state: present
+    package_cache: true
+  include_role: 
+    name: safe_yum
 
 - name: Update sshd configuration
   lineinfile: 

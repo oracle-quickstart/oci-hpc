@@ -67,6 +67,7 @@ resource "null_resource" "backup" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",      
       "sudo chown ${var.bastion_username}:${var.bastion_username} /opt/oci-hpc/",
       "mkdir -p /opt/oci-hpc/bin",
@@ -169,6 +170,7 @@ resource "null_resource" "backup" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
       "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
@@ -195,6 +197,8 @@ resource "null_resource" "cluster_backup" {
       bastion_ip = oci_core_instance.bastion.private_ip,
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
+      login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
+      login_ip = var.login_node ? oci_core_instance.login[0].private_ip: "",
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block, 
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
@@ -227,7 +231,7 @@ resource "null_resource" "cluster_backup" {
       autoscaling = var.autoscaling,
       cluster_name = local.cluster_name,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
-      instance_pool_ocpus = var.instance_pool_ocpus,
+      instance_pool_ocpus = local.instance_pool_ocpus,
       queue=var.queue,
       monitoring = var.monitoring,
       hyperthreading = var.hyperthreading,
@@ -240,9 +244,16 @@ resource "null_resource" "cluster_backup" {
       admin_username = var.autoscaling_mysql_service ? var.admin_username : "root",
       enroot = var.enroot,
       pyxis = var.pyxis,
+      pam = var.pam,
+      sacct_limits = var.sacct_limits,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
-      latency_check = var.latency_check
+      latency_check = var.latency_check,
+      inst_prin = var.inst_prin,
+      region = var.region,
+      tenancy_ocid = var.tenancy_ocid,
+      api_fingerprint = var.api_fingerprint,
+      api_user_ocid = var.api_user_ocid       
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -297,7 +308,7 @@ resource "null_resource" "cluster_backup" {
       private_subnet = var.private_subnet,
       private_subnet_id = var.private_subnet_id,
       targetCompartment = var.targetCompartment,
-      instance_pool_ocpus = var.instance_pool_ocpus,
+      instance_pool_ocpus = local.instance_pool_ocpus,
       instance_pool_memory = var.instance_pool_memory,
       instance_pool_custom_memory = var.instance_pool_custom_memory,
       queue=var.queue,
@@ -319,14 +330,18 @@ resource "null_resource" "cluster_backup" {
       bastion_ip = oci_core_instance.bastion.private_ip, 
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
+      login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
+      login_ip = var.login_node ? oci_core_instance.login[0].private_ip: "",
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block,
       public_subnet_id = local.bastion_subnet_id,
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       private_subnet_id = local.subnet_id,
-      nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
+      rdma_subnet = var.rdma_subnet,
+      nfs = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       scratch_nfs = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path = var.scratch_nfs_path,
+      use_scratch_nfs = var.use_scratch_nfs,
       slurm = var.slurm,
       slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
       rack_aware = var.rack_aware,
@@ -364,13 +379,15 @@ resource "null_resource" "cluster_backup" {
       autoscaling_monitoring = var.autoscaling_monitoring,
       enroot = var.enroot,
       pyxis = var.pyxis,
+      pam = var.pam,
+      sacct_limits = var.sacct_limits,
       privilege_sudo = var.privilege_sudo,
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
       private_deployment = var.private_deployment,
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
-      use_multiple_ads = var.use_multiple_ads
+      use_multiple_ads = var.use_multiple_ads  
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
@@ -396,6 +413,7 @@ resource "null_resource" "cluster_backup" {
 
   provisioner "remote-exec" {
     inline = [
+      "#!/bin/bash",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/credentials/key.sh",
       "/opt/oci-hpc/autoscaling/credentials/key.sh /opt/oci-hpc/autoscaling/credentials/key.initial /opt/oci-hpc/autoscaling/credentials/key.pem > /opt/oci-hpc/autoscaling/credentials/key.log",

@@ -33,11 +33,27 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   sudo yum install -y terraform
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
+  # checking here as well to be sure that the lock file is not being held
+  function fix_apt {
+    apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+    apt_process=$(( apt_process -1 ))
+    while [ $apt_process -ge 1 ]
+      do
+        echo "wait until apt update is done"
+        sleep 10s
+        ps aux | grep "apt update" | grep -v grep
+        apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
+        apt_process=$(( apt_process -1 ))
+      done
+  }
+  fix_apt
+
   if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] ; then 
     echo deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main | sudo tee -a /etc/apt/sources.list
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
-  
+
+
   sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
   sudo apt purge -y --auto-remove unattended-upgrades
   sudo systemctl disable apt-daily-upgrade.timer
@@ -45,50 +61,34 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo systemctl disable apt-daily.timer
   sudo systemctl mask apt-daily.service
 
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
+
 
   sleep 10s
 
   sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle
 
-  # checking here as well to be sure that the lock file is not being held
-  apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-  apt_process=$(( apt_process -1 ))
-  while [ $apt_process -ge 1 ]
-    do
-      echo "wait until apt update is done"
-      sleep 10s
-      ps aux | grep "apt update" | grep -v grep
-      apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-      apt_process=$(( apt_process -1 ))
-    done
-
+  fix_apt
   sleep 10s
-
-  wget -O- https://apt.releases.hashicorp.com/gpg | \
-    gpg --dearmor | \
-    sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-
-  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
-    https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
-    sudo tee /etc/apt/sources.list.d/hashicorp.list
-
-  sudo apt-get update &
-  PID1=$!
-  wait $PID1
-
   sudo apt -y --fix-broken install
 
-  sudo apt-get -y install ansible python python-netaddr python3-pip terraform
+  fix_apt
+
+  sudo apt-get -y install ansible 
+  output=$?
+  if [ $output -ne 0 ]
+  then
+      fix_apt
+      sudo apt-get -y install ansible 
+  fi
+  fix_apt
+  sudo apt-get -y install python python-netaddr python3 python3-pip
+  output=$?
+  if [ $output -ne 0 ]
+  then
+      fix_apt
+      sudo apt-get -y install python python-netaddr python3 python3-pip
+  fi
+  fix_apt
 
   pip install pip --upgrade
   pip install pyopenssl --upgrade
@@ -99,6 +99,31 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   # install oci module
   pip install oci
 
+  wget -O- https://apt.releases.hashicorp.com/gpg | \
+  gpg --dearmor | \
+  sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+    https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+    sudo tee /etc/apt/sources.list.d/hashicorp.list
+  
+  sudo apt update && sudo apt install terraform
+  output=$?
+  if [ $output -ne 0 ]
+  then
+      fix_apt  
+      echo "Terraform second try"
+      wget -O- https://apt.releases.hashicorp.com/gpg | \
+      gpg --dearmor | \
+      sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+      echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+      https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+      sudo tee /etc/apt/sources.list.d/hashicorp.list
+  
+      sudo apt update && sudo apt install terraform
+  fi
+  fix_apt
 fi 
 
 ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null

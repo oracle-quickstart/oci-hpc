@@ -13,7 +13,7 @@ variable "boot_volume_size" {default = "##BOOT##"}
 variable "use_marketplace_image" {  default = "##USEMP##" }
 variable "use_old_marketplace_image" {  default = "##USEOLDMP##" }
 variable "scratch_nfs_path" { default = "${scratch_nfs_path}" } 
-variable "use_scratch_nfs" { default = true }
+variable "use_scratch_nfs" { default = ${use_scratch_nfs} }
 variable "cluster_nfs_path" {default = "${cluster_nfs_path}"}
 variable "use_cluster_nfs" { default = ${use_cluster_nfs} }
 variable "image" { default = "##IMAGE##" }
@@ -24,9 +24,12 @@ variable "public_subnet_id" { default = "${public_subnet_id}"}
 variable "public_subnet" {default = "${public_subnet}"}
 variable "private_subnet_id" { default = "##PRIVATE_SUBNET_ID##"}
 variable "private_subnet" {default = "##PRIVATE_SUBNET##"}
+variable "rdma_subnet" { default = "${rdma_subnet}" }
 variable "slurm" { default = ${slurm} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }
+variable "pam" { default = ${pam} }
+variable "sacct_limits" { default = ${sacct_limits} }
 variable "enroot" { default = ${enroot} }
 variable "slurm_nfs_path" { default = "${slurm_nfs_path}" }
 variable "spack" { default = ${spack} }
@@ -46,9 +49,12 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC_OL7" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
-       "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
-       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
+       "HPC_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-2023.01.10-0"
+       "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.6.8.1-2023.01.10-0"
+       "HPC_OL7_old" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
+       "HPC_OL8_old" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
+       "GPU_old" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
+       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.01.10-0"
   }
 }
 
@@ -82,6 +88,8 @@ variable "bastion_name" {default = "${bastion_name}"}
 variable "bastion_ip" {default = "${bastion_ip}"}
 variable "backup_name" {default = "${backup_name}"}
 variable "backup_ip" {default = "${backup_ip}"}
+variable "login_name" {default = "${login_name}"}
+variable "login_ip" {default = "${login_ip}"}
 variable "scripts_folder" {default = "/opt/oci-hpc/bin/"}
 variable "autoscaling_folder" {default = "/opt/oci-hpc/autoscaling/"}
 variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
@@ -118,3 +126,5 @@ variable "bastion_username" { default = "${bastion_username}" }
 variable "compute_username" { default = "${compute_username}" }
 
 variable "localdisk" { default = "${localdisk}" }
+
+variable "instance_pool_ocpus_denseIO_flex" { default = "##OCPU##"}

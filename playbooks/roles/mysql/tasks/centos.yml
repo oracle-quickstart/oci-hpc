@@ -29,7 +29,6 @@
     package_name: '{{ mariadb_packages }}'
   include_role: 
     name: safe_yum
-  tags: install-only
 
 
 - name: Update SELinux context for {{ mysql_db_path }}

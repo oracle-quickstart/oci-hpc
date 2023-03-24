@@ -26,11 +26,10 @@ cat $ORDEREDMACHINEFILE
 echo ORDEREDRANKMACHINEFILE
 cat $ORDEREDRANKMACHINEFILE
 
-if [ -f /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh ]; then
-  source /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh
-else
-  source /usr/mpi/gcc/openmpi-4.0.3rc4/bin/mpivars.sh
-fi
+mpivars_path=`ls /usr/mpi/gcc/openmpi-*/bin/mpivars.sh`
+source $mpivars_path
+
+if [[ "$mpivars_path" == "" ]]; then echo "Could not find MPIPATH"; exit; fi
 
 #source /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh
 #source /usr/mpi/gcc/openmpi-4.0.3rc4/bin/mpivars.sh
