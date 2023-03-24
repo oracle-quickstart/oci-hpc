@@ -22,10 +22,14 @@ resource "local_file" "inventory" {
     bastion_ip = var.bastion_ip, 
     backup_name = var.backup_name,
     backup_ip = var.backup_ip,
+    login_name = var.login_name,
+    login_ip = var.login_ip,
     compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
     public_subnet = var.public_subnet, 
     private_subnet = var.private_subnet, 
-    nfs = local.cluster_instances_names[0],
+    rdma_network = cidrhost(var.rdma_subnet, 0),
+    rdma_netmask = cidrnetmask(var.rdma_subnet),
+    nfs = var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
     home_nfs = var.home_nfs,
@@ -53,7 +57,7 @@ resource "local_file" "inventory" {
     cluster_mount_ip = local.mount_ip,
     cluster_name = local.cluster_name,
     shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
-    instance_pool_ocpus=var.instance_pool_ocpus,
+    instance_pool_ocpus=local.instance_pool_ocpus,
     queue=var.queue,
     instance_type=var.instance_type,
     autoscaling_monitoring = var.autoscaling_monitoring,
@@ -63,7 +67,9 @@ resource "local_file" "inventory" {
     privilege_group_name = var.privilege_group_name,
     latency_check = var.latency_check
     bastion_username = var.bastion_username,
-    compute_username = var.compute_username
+    compute_username = var.compute_username,
+    pam = var.pam,
+    sacct_limits = var.sacct_limits
     })
   filename   = "${local.bastion_path}/inventory"
 }

@@ -1,6 +1,12 @@
 ---
 - name: Ensure NFS utilities are installed.
-  package: name=nfs-utils state=present
+  vars: 
+    package_name:
+      - nfs-utils
+    package_state: present
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
 
 - name: Start NFS server
   service: 

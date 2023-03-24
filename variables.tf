@@ -12,7 +12,12 @@ variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
 variable "bastion_shape" { default = "VM.Standard2.4" }
 variable "use_standard_image" { default= true }
+variable "use_standard_image_login" { default= true }
 variable "custom_bastion_image" { 
+  type = string
+  default = "image.ocid" 
+}
+variable "custom_login_image" { 
   type = string
   default = "image.ocid" 
 }
@@ -26,6 +31,7 @@ variable "use_old_marketplace_image" { default = false}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "unsupported_bastion_image" { default = "" } 
+variable "unsupported_login_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = true }
 variable "cluster_nfs_path" { default = "/nfs/cluster" } 
@@ -38,21 +44,31 @@ variable "private_subnet_id" { default = ""}
 variable "vcn_subnet" { default = "172.16.0.0/21" }
 variable "public_subnet" { default = "172.16.0.0/24" }
 variable "additional_subnet" { default = "172.16.1.0/24" }
-variable "rdma_subnet" { default = "192.168.168.0/22" }
+variable "rdma_subnet" { default = "192.168.0.0/16" }
 variable "private_subnet" { default = "172.16.4.0/22" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "slurm_ha" { default = false }
+variable "login_node" { default = false }
+variable "login_ad" {default = ""}
+variable "login_shape" { default = "VM.Standard2.4" }
+variable "login_boot_volume_size" {default = 50}
 variable "slurm_nfs" { default = false }
 variable "rack_aware" { default = false }
 variable "ldap" { default = true } 
 variable "spack" { default = false } 
 variable "bastion_ocpus" { default = 2} 
+variable "bastion_ocpus_denseIO_flex" { default = 8} 
 variable "instance_pool_ocpus" { default = 2} 
+variable "instance_pool_ocpus_denseIO_flex" { default = 8} 
 variable "instance_pool_memory" { default = 16 }
 variable "instance_pool_custom_memory" { default = false }
+variable "login_ocpus" { default = 2} 
+variable "login_ocpus_denseIO_flex" { default = 8}
 variable "bastion_memory" { default = 16 }
 variable "bastion_custom_memory" { default = false }
+variable "login_memory" { default = 16 }
+variable "login_custom_memory" { default = false }
 variable "privilege_sudo" { default = true }
 variable "privilege_group_name" { default = "privilege" }
 
@@ -70,9 +86,12 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC_OL7" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
-       "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
-       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
+       "HPC_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-2023.01.10-0"
+       "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.6.8.1-2023.01.10-0"
+       "HPC_OL7_old" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
+       "HPC_OL8_old" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
+       "GPU_old" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
+       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.01.10-0"
   }
 }
 
@@ -106,6 +125,26 @@ variable "bastion_block" {
 variable "bastion_block_volume_size" { 
   default = 1000
 }
+
+variable "login_block_volume_performance" { 
+/* 
+  Allowed values 
+  "0.  Lower performance"
+  "10. Balanced performance"
+  "20. High Performance"
+*/ 
+
+default = "10. Balanced performance" 
+
+}
+
+variable "login_block" { 
+  default = false
+} 
+
+variable "login_block_volume_size" { 
+  default = 1000
+}
 variable "scratch_nfs_type_cluster" { default = "nvme"} 
 variable "scratch_nfs_type_pool" { default = "none" }
 variable "cluster_block_volume_size" { default = "1000" }
@@ -134,8 +173,8 @@ variable "nfs_options" {default = ""}
 variable "monitoring" { default = true }
 variable "enroot" { default = false }
 variable "pyxis" { default = false }
-
-
+variable "pam" { default = false }
+variable "sacct_limits" { default = false }
 
 variable "unsupported" { 
   type=bool
@@ -147,13 +186,20 @@ variable "unsupported_bastion" {
   type=bool
   default = false 
 }
-
+variable "unsupported_login" { 
+  type=bool
+  default = false 
+}
 variable "bastion_username" { 
   type = string 
   default = "opc" 
 } 
 
 variable "compute_username" { 
+  type = string
+  default = "opc" 
+} 
+variable "login_username" { 
   type = string
   default = "opc" 
 } 
@@ -191,3 +237,16 @@ variable cluster_nfs_export {default = ""}
 variable "private_deployment" { default = false }
 
 variable "localdisk" { default = true }
+
+
+variable "use_marketplace_image_login" { default = true}
+variable "use_old_marketplace_image_login" { default = false}
+
+variable "marketplace_listing_login" { 
+  default = "HPC_OL7"
+} 
+ 
+variable "old_marketplace_listing_login" { 
+  default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
+}  
+  

@@ -6,6 +6,12 @@ folder=`dirname $scripts`
 playbooks_path=$folder/../playbooks/
 inventory_path=$folder/../autoscaling/clusters/$1
 
+if [ $EUID -eq 0 ]
+then
+  echo "Run this script as opc or ubuntu and not as root"
+  exit
+fi
+
 ssh_options="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
 iplist=`cat $inventory_path/inventory | awk '{print $2}' | sed 's/ansible_host=//'`
 if [[ "$2" == "FORCE" ]]

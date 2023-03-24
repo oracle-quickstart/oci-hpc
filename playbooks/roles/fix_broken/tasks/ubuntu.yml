@@ -27,10 +27,13 @@
   until: result.stdout | int == 0
 
 - name: Purge unattended-upgrades
-  apt:
-    name: unattended-upgrades
-    purge: yes
-    state: absent
+  vars: 
+    package_name: 
+      - unattended-upgrades
+    package_state: absent
+    package_purge: true
+  include_role: 
+    name: safe_yum
   ignore_errors: yes
 
 - name: stop and mask timers

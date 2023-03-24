@@ -53,8 +53,8 @@
 - name: install grafana
   vars: 
     package_name: 
-      - grafana
-    package_state: latest
+      - grafana-8.5.21-1
+    package_state: present
   include_role: 
     name: safe_yum
 
@@ -80,19 +80,6 @@
     return_content: true
   no_log: false
   register: existing_api_keys
-
-- name: Import mysql-2022 key 
-  become: true
-  rpm_key:
-    state: present
-    key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-
-- name: install mysql
-  vars: 
-    package_name: 
-      - https://dev.mysql.com/get/mysql80-community-release-el7-5.noarch.rpm
-  include_role: 
-    name: safe_yum
 
 - name: install mysql-shell and connector
   vars: 
@@ -226,6 +213,6 @@
 - name: install protobuf v3.19.4 and mysql connector
   become: true
   pip:
-    name: [protobuf==3.19.4,mysql-connector-python]
+    name: [protobuf==3.19.4,mysql-connector-python==8.0.31]
     executable: pip3
   ignore_errors: yes

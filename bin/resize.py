@@ -49,7 +49,9 @@ def get_instances(comp_ocid,cn_ocid,CN):
     for instance_summary in instance_summaries:
         try:
             instance=computeClient.get_instance(instance_summary.id).data
-            vnic_attachment = oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data[0]
+            for potential_vnic_attachment in oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data:
+                if potential_vnic_attachment.display_name is None:
+                    vnic_attachment = potential_vnic_attachment
             vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
         except:
             continue
@@ -339,21 +341,21 @@ def getreachable(instances,username,delay=0):
     
     reachable_ips=[]
     for i in delays:
-        input_file=open('/tmp/input_hosts_to_check','w')
+        input_file=open('/tmp/input_hosts_to_check_'+cluster_name,'w')
         for node in instances:
             if not node['ip'] in reachable_ips:
                 input_file.write(node['ip']+"\n")
         input_file.close()
         my_env = os.environ.copy()
         my_env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-        p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check","/tmp/reachable_hosts",username,"0"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
+        p = subprocess.Popen(["/opt/oci-hpc/bin/find_reachable_hosts.sh","/tmp/input_hosts_to_check_"+cluster_name,"/tmp/reachable_hosts_"+cluster_name,username,"0"],env=my_env,stderr = subprocess.PIPE, stdout=subprocess.PIPE)
         while True:
             output = p.stdout.readline().decode()
             if output == '' and p.poll() is not None:
                 break
             if output:
                 print(output.strip())
-        output_file=open('/tmp/reachable_hosts','r')
+        output_file=open('/tmp/reachable_hosts_'+cluster_name,'r')
         for line in output_file:
             reachable_ips.append(line.strip())
         output_file.close()
@@ -516,7 +518,7 @@ parser.add_argument('--compartment_ocid', help='OCID of the compartment, default
 parser.add_argument('--cluster_name', help='Name of the cluster to resize. Defaults to the name included in the bastion')
 parser.add_argument('mode', help='Mode type. add/remove node options, implicitly configures newly added nodes. Also implicitly reconfigure/restart services like Slurm to recognize new nodes. Similarly for remove option, terminates nodes and implicitly reconfigure/restart services like Slurm on rest of the cluster nodes to remove reference to deleted nodes.',choices=['add','remove','remove_unreachable','list','reconfigure'],default='list',nargs='?')
 parser.add_argument('number', type=int, help="Number of nodes to add or delete if a list of hostnames is not defined",nargs='?')
-parser.add_argument('--nodes', help="List of nodes to delete",nargs='+')
+parser.add_argument('--nodes', help="List of nodes to delete (Space Separated)",nargs='+')
 parser.add_argument('--no_reconfigure', help='If present. Does not rerun the playbooks',action='store_true',default=False)
 parser.add_argument('--user_logging', help='If present. Use the default settings in ~/.oci/config to connect to the API. Default is using instance_principal',action='store_true',default=False)
 parser.add_argument('--force', help='If present. Nodes will be removed even if the destroy playbook failed',action='store_true',default=False)
@@ -651,9 +653,13 @@ else:
                 hostnames_to_remove=[i['display_name'] for i in unreachable_instances]
             else:
                 print("STDOUT: No list of nodes were specified and no unreachable nodes were found")
-                exit()
+                exit(1)
         else:
-            reachable_instances,unreachable_instances=getreachable(inventory_instances,username,delay=10)
+            inventory_instances_to_test = []
+            for instance_to_test in inventory_instances:
+                if not instance_to_test['display_name'] in hostnames:
+                    inventory_instances_to_test.append(instance_to_test)
+            reachable_instances,unreachable_instances=getreachable(inventory_instances_to_test,username,delay=10)
             hostnames_to_remove=hostnames
             if len(unreachable_instances):
                 print("STDOUT: At least one unreachable node is in the inventory and was not mentionned with OCI hostname to be removed. Trying anyway")
@@ -663,7 +669,7 @@ else:
             if not remove_unreachable:
                 print("STDOUT: At least one unreachable node is in the inventory")
                 print("STDOUT: Not doing anything")
-                exit()
+                exit(1)
             else:
                 hostnames_to_remove=[i['display_name'] for i in unreachable_instances]
         else:
@@ -690,7 +696,7 @@ else:
             if error_code != 0:
                 print("STDOUT: The nodes could not be removed. Try running this with Force")
                 if not force:
-                    exit()
+                    exit(1)
                 else:
                     print("STDOUT: Force deleting the nodes")
         while len(hostnames_to_remove) > 0:
@@ -722,7 +728,7 @@ else:
     if args.mode == 'add':
         size = current_size - hostnames_to_remove_len + args.number
         update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
-        ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'])
+        ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
         updateTFState(inventory,cluster_name,size)
         if not no_reconfigure:
             add_reconfigure(comp_ocid,cn_ocid,inventory,CN)

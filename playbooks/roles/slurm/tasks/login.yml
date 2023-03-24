@@ -1,0 +1,86 @@
+---
+- name: install SLURM login packages
+  vars: 
+    package_name: '{{ slurm_login_packages }}'
+    package_repo: "{{ slurm_repos }}"
+    disable_gpg_check_var: True
+  include_role: 
+    name: safe_yum
+
+- name: Render systemd units for slurmd
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service'
+    dest: '/lib/systemd/system/{{ item }}.service'
+    backup: "yes"
+  with_items:
+    - slurmd
+  when: ansible_os_family == 'Debian'
+
+- name: Create systemd unit dirs for slurmd and munge
+  become: true
+  file:
+    name: '/etc/systemd/system/{{ item }}.service.d'
+    state: directory
+  with_items:
+    - munge
+    - slurmd
+
+- name: Render systemd units for slurmd and munge
+  become: true
+  template:
+    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
+    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
+    backup: "yes"
+  with_items:
+    - munge
+    - slurmd
+
+- name: Create munge dir
+  become: true
+  file:
+    name: '{{ munge_conf_path }}'
+    state: directory
+    owner: munge
+    group: munge
+    mode: 0700
+
+- name: copy munge.key to tmp
+  become: true
+  shell:
+    cmd: cp /etc/munge/munge.key /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: set permissions
+  become: true
+  shell:
+    cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
+    warn: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Copy munge key
+  become: true
+  copy:
+    src: /tmp/munge.key
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+  notify: restart munge
+
+- name: restart munge
+  become: true
+  service:
+    name: munge
+    state: restarted
+    enabled: true
+
+- name: start slurmd
+  become: true
+  service:
+    name: slurmd
+    state: restarted
+    enabled: true

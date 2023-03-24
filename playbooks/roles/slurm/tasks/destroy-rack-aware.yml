@@ -49,7 +49,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_remove_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup'])  | difference(groups['login'])}}"
   run_once: true
   register: nodes_to_remove_temp_results
 
@@ -57,6 +57,24 @@
   set_fact: nodes_to_remove="{{nodes_to_remove_temp_results.results | map(attribute='ansible_facts.nodes_to_remove_temp') | list}}"
   run_once: true
 
+- name: Get new inactive_nodes list
+  command: "scontrol show hostlistsorted {{inactive_list | union(nodes_to_remove) | join(',')}}"
+  register: new_inactive_list
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Adding nodes to inactive
+  vars:
+    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
+    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{new_inactive_list.stdout }}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+  
 - name: Run the script to get the RackID
   shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host | jq .rackId'
 #  shell: echo $RANDOM | md5sum | head -c 20
@@ -69,7 +87,7 @@
 - name: Get rackIDs
   set_fact:
     racks_to_remove_temp: "{{cluster_name}}:{{hostvars[item]['rackID']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup'])  | difference(groups['login'])}}"
   run_once: true
   register: racks_to_remove_temp_results
 
@@ -160,26 +178,9 @@
   delegate_to: 127.0.0.1
   when: racks_left_list | list | length > 0
 
-- name: Get new inactive_nodes list
-  command: "scontrol show hostlistsorted {{inactive_list | union(nodes_to_remove) | join(',')}}"
-  register: new_inactive_list
-  run_once: true
-  delegate_to: 127.0.0.1
-
-- name: Adding nodes to inactive
-  vars:
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  become: true
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{new_inactive_list.stdout }}"
-    state: present
-  run_once: true
-  delegate_to: 127.0.0.1
-
 - name: Reconfigure Slurm for topology
   become: true
   command: "scontrol reconfigure"
   delegate_to: 127.0.0.1
   run_once: true
+  ignore_errors: yes

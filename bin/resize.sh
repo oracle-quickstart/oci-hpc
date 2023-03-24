@@ -9,6 +9,12 @@ autoscaling_folder=$folder/../autoscaling
 monitoring_folder=$folder/../monitoring
 logs_folder=$folder/../logs
 
+if [ $EUID -eq 0 ]
+then
+  echo "Run this script as opc or ubuntu and not as root"
+  exit
+fi
+
 if [ $# -eq 0 ]
 then
   python3 $folder/resize.py --help

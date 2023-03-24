@@ -56,12 +56,23 @@ def getClusterName(node):
     out = subprocess.Popen(['scontrol','show','topology',node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     stdout,stderr = out.communicate()
     clusterName = None
-    if len(stdout.split('\n')) > 2:
-        for output in stdout.split('\n')[:-1]:
-            if "Switches=" in output:
-                clusterName=output.split()[0].split('SwitchName=')[1]
-    elif len(stdout.split('\n')) == 2:
-        clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+    try:
+        if len(stdout.split('\n')) > 2:
+            for output in stdout.split('\n')[:-1]:
+                if "Switches=" in output:
+                    clusterName=output.split()[0].split('SwitchName=')[1]
+                    break
+                elif "SwitchName=inactive-" in output:
+                    continue
+                else:
+                    clusterName=output.split()[0].split('SwitchName=')[1]
+        elif len(stdout.split('\n')) == 2:
+            clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+        if clusterName.startswith("inactive-"):
+            return "NOCLUSTERFOUND"
+    except: 
+        print('No ClusterName could be found for '+node)
+        return "NOCLUSTERFOUND"
     return clusterName
 
 #def getCPUsDetails(job):
