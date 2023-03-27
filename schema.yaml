@@ -1024,18 +1024,21 @@ variables:
     title: "Install Nvidia Enroot for containerized GPU workloads"
     default: false
     description: "Install Enroot, Nvidia Container Toolkit, and docker."
+    visible: ${slurm}
 
   pam:
     type: boolean
     title: "Enable PAM"
     default: false
     description: "Enable PAM for the Slurm cluster (Supported only on OL with RHCK kernel at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
+    visible: ${slurm}
 
   sacct_limits:
     type: boolean
     title: "Enable Limits for Slurm jobs"
     default: false
     description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs of the right limits are not set"
+    visible: ${slurm}
 
   monitoring:
     type: boolean
