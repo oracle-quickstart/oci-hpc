@@ -266,7 +266,7 @@
         name: cron
 
 
-- hosts: compute
+- hosts: all
   become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
@@ -283,7 +283,7 @@
     - include_role:
         name: tuned
 
-- hosts: all
+- hosts: bastion, slurm_backup, login
   vars:
     destroy: false
     initial: true
@@ -300,5 +300,25 @@
         name: spack
       when: spack|default(false)|bool
     - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool
+
+- hosts: compute
+  vars:
+    destroy: false
+    initial: true
+    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+    resize: false
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+  vars_files:
+    - "/opt/oci-hpc/conf/queues.conf"
+  tasks:
+    - include_role:
+        name: rack-aware
+      when: rack_aware|default(false)|bool
+    - include_role:
+        name: spack
+      when: spack|default(false)|bool
+    - include_role:
         name: slurm
       when: slurm|default(false)|bool

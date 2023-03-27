@@ -142,4 +142,3 @@
       state: absent
       login_password: "{{ mysql_root_pwd }}"
       login_user: root
-  
