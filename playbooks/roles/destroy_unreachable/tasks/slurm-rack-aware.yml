@@ -148,7 +148,7 @@
     state: absent
   with_items: "{{unreachable_slurm_nodes}}"
   ignore_unreachable: yes
-  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1
+  when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference(switchnames[item]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1 and ( nodes_on_switch[item] | length ) < 2 
   run_once: true
   delegate_to: 127.0.0.1
 
@@ -255,6 +255,18 @@
   delegate_to: 127.0.0.1
   when: ('bastion' in group_names)
 
+- name: move topology.conf on backup servers
+  become: true
+  copy:
+    dest: '{{ slurm_conf_path }}/topology.conf'
+    src: '{{ slurm_conf_path }}/topology.conf'
+    force: yes
+  register: topology_copied
+  until: topology_copied is not failed
+  retries: 10
+  delay: 5
+  when: ('slurm_backup' in group_names)
+  
 - name: Reconfigure Slurm for topology
   become: true
   command: "scontrol reconfigure"

@@ -55,7 +55,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['bastion']) }}"
+  with_items: "{{ play_hosts | difference(groups['bastion']) | difference(groups['slurm_backup'])  | difference(groups['login']) }}"
   run_once: true
   register: nodes_to_add_temp_results
 
@@ -121,3 +121,4 @@
   command: "scontrol reconfigure"
   delegate_to: 127.0.0.1
   run_once: true
+  ignore_errors: true

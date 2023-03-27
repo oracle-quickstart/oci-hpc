@@ -159,11 +159,11 @@ variableGroups:
       - ${slurm_nfs}
       - ${slurm_ha}
       - ${rack_aware}
-      - ${pyxis}
       - ${queue}
       - ${spack}
       - ${monitoring}
       - ${enroot}
+      - ${pyxis}
       - ${pam}
       - ${sacct_limits}
 
@@ -984,14 +984,17 @@ variables:
     default: false
     required: true
     description: "Add a second master of the same shape as the bastion as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
-    visible:
-        - ${slurm}
+    visible: ${slurm}
 
   pyxis:
     type: boolean
     title: "Install Nvidia Pyxis plugin for Slurm"
     default: false
-    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm."
+    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm. (Warning: using Pyxis with autoscaling is causing an issue that prevents jobs from being scheduled on nodes to be spun up)"
+    visible:
+      and:
+        - ${slurm}
+        - ${enroot}
   
   rack_aware:
     type: boolean
@@ -999,8 +1002,7 @@ variables:
     default: false
     required: true
     description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted" 
-    visible:
-        - ${slurm}
+    visible: ${slurm}
 
 
   queue:
@@ -1009,8 +1011,7 @@ variables:
     default: "compute"
     required: true
     description: "Add the permanent cluster to a specific queue, compute is the default queue" 
-    visible:
-        - ${slurm}
+    visible: ${slurm}
 
   spack:
     type: boolean
@@ -1023,18 +1024,21 @@ variables:
     title: "Install Nvidia Enroot for containerized GPU workloads"
     default: false
     description: "Install Enroot, Nvidia Container Toolkit, and docker."
+    visible: ${slurm}
 
   pam:
     type: boolean
     title: "Enable PAM"
     default: false
     description: "Enable PAM for the Slurm cluster (Supported only on OL with RHCK kernel at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
+    visible: ${slurm}
 
   sacct_limits:
     type: boolean
     title: "Enable Limits for Slurm jobs"
     default: false
     description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs of the right limits are not set"
+    visible: ${slurm}
 
   monitoring:
     type: boolean

@@ -1,7 +1,5 @@
 ---
 - block:
-
-
   - name: install required packages
     vars: 
       package_name: 
@@ -19,7 +17,7 @@
         - zstd
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
         - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot+caps-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
-      package_repo: "epel,ol8_developer_EPEL"
+      package_repo: "ol8_developer_EPEL"
       disable_gpg_check_var: True
     include_role: 
       name: safe_yum
@@ -60,12 +58,20 @@
   - name: execute enroot-check_*.run
     command: bash -c "/tmp/enroot-check_*.run --verify"
 
+  - set_fact: 
+      enroot_top_path_checked: "/etc/enroot/"
+    when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+
+  - set_fact: 
+      enroot_top_path_checked: "{{enroot_top_path}}"
+    when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"  
+
   - name: update ENROOT_RUNTIME_PATH
     lineinfile: 
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_RUNTIME_PATH.*'
-      line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path}}/enroot_runtime/user-$(id -u)'
+      line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path_checked}}/enroot_runtime/user-$(id -u)'
       backup: yes
 
   - name: update ENROOT_DATA_PATH
@@ -73,7 +79,7 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_DATA_PATH.*'
-      line: 'ENROOT_DATA_PATH        {{enroot_top_path}}/enroot_data/user-$(id -u)'
+      line: 'ENROOT_DATA_PATH        {{enroot_top_path_checked}}/enroot_data/user-$(id -u)'
       backup: yes
 
   - name: update ENROOT_CACHE_PATH
@@ -81,7 +87,7 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_CACHE_PATH.*'
-      line: 'ENROOT_CACHE_PATH        {{enroot_top_path}}/enroot_cache'
+      line: 'ENROOT_CACHE_PATH        {{enroot_top_path_checked}}/enroot_cache'
       backup: yes
 
   - name: update ENROOT_TEMP_PATH
@@ -89,7 +95,7 @@
       dest: /etc/enroot/enroot.conf
       state: present
       regexp: '^#ENROOT_TEMP_PATH.*'
-      line: 'ENROOT_TEMP_PATH        {{enroot_top_path}}/enroot_tmp'
+      line: 'ENROOT_TEMP_PATH        {{enroot_top_path_checked}}/enroot_tmp'
       backup: yes
 
   - name: update ENROOT_SQUASH_OPTIONS
@@ -108,21 +114,19 @@
       line: 'ENROOT_ROOTFS_WRITABLE        yes'
       backup: yes
 
-
-  - name: set permissions on {{enroot_top_path}}
+  - name: set permissions on {{enroot_top_path_checked}}
     become: true
     file:
-      path: "{{enroot_top_path}}"
+      path: "{{enroot_top_path_checked}}"
       state: directory
       owner: opc
       mode: 0777
       group: "{{privilege_group_name}}"
       recurse: no
 
-
-  - name: Make sure all {{enroot_top_path}} directories exist
+  - name: Make sure all {{enroot_top_path_checked}} directories exist
     file:
-      path: "{{enroot_top_path}}/{{item}}"
+      path: "{{enroot_top_path_checked}}/{{item}}"
       state: directory
       mode: '0775'
       owner: opc
@@ -133,3 +137,4 @@
       - enroot_tmp
       - enroot_cache
       - enroot_runtime
+
