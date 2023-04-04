@@ -173,23 +173,6 @@ resource "null_resource" "bastion" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-
-
-  provisioner "remote-exec" {
-    inline = [
-      "#!/bin/bash",
-      "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
-      "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
-      "chmod a+x /opt/oci-hpc/bin/*.sh",
-      "timeout --foreground 60m /opt/oci-hpc/bin/bastion.sh"
-      ]
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.bastion_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 }
 resource "null_resource" "cluster" { 
   depends_on = [null_resource.bastion, null_resource.backup, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
@@ -438,6 +421,10 @@ provisioner "file" {
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
+      "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
+      "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
+      "chmod a+x /opt/oci-hpc/bin/*.sh",
+      "timeout --foreground 60m /opt/oci-hpc/bin/bastion.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
