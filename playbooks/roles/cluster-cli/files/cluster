@@ -161,7 +161,7 @@ def list():
               confirmation_prompt=True)
 @click.option('-n', '--name', prompt='Full Name', required=True)
 @click.option('-i', '--uid', default=None, help='Select the userID')
-@click.option('-g', '--gid', default=None, help='Add to this groupID')
+@click.option('-g', '--gid', default="9876", help='Add to this groupID')
 @click.option('-nossh', '--nossh', is_flag=True, default=False, help='Flag to not generate a user-specific ssh-key pair for passwordless ssh.')
 def add(user, password, uid, gid, name, nossh): 
   """ add user """
