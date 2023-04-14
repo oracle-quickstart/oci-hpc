@@ -96,63 +96,70 @@ do
   end_timestamp=`date -u +'%F %T'`
   runtime=$((end-start))
   if [ $status -eq 0 ]
+  then
+    echo "Successfully created $2 in $runtime seconds"
+    rm currently_building
+    if [ -f $monitoring_folder/activated ]
     then
-      echo "Successfully created $2 in $runtime seconds"
-      rm currently_building
-      if [ -f $monitoring_folder/activated ]
-      then
-        ocid=`tail $logs_folder/create_$2_${date}.log | grep "cluster_ocid =" | awk '{print $3}'`
-        ips=`tail $logs_folder/create_$2_${date}.log | grep "private_ips =" | awk '{print $3}'`
-        hostnames=`tail $logs_folder/create_$2_${date}.log | grep "hostnames =" | awk '{print $3}'`
-        ocids=`tail $logs_folder/create_$2_${date}.log | grep "ocids =" | awk '{print $3}'`
-        mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET cluster_OCID='${ocid:1:-1}',created='$end_timestamp',state='running',creation_time=SEC_TO_TIME($runtime) WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
-        export IFS=","
-        for ip in ${ips:1:-5}; do
-          ip_array+=( $ip )
-        done
-        for ocid in ${ocids:1:-5}; do
-          ocid_array+=( $ocid )
-        done
-        for hostname in ${hostnames:1:-1}; do
-          hostname_array+=( $hostname )
-        done
-        for index in "${!ip_array[@]}"; do
-            mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE nodes SET created='$end_timestamp',state='running',hostname='${hostname_array[$index]}',ip='${ip_array[$index]}',node_OCID='${ocid_array[$index]}' WHERE cluster_id='$2_${date}' AND cluster_index=$(($index+1));" >> $logs_folder/create_$2_${date}.log 2>&1
-        done
-      fi
-      break
-    else
-      ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | grep Error: | grep -o 'Output.*'`
-      if [ "$ERROR_MSG" == "" ]
-      then
-          ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | grep Error:`
-      fi
-      comp_tmp=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .compartmentId`
-      compartment_ocid=${comp_tmp:1:-1}
+      ocid=`tail $logs_folder/create_$2_${date}.log | grep "cluster_ocid =" | awk '{print $3}'`
+      ips=`tail $logs_folder/create_$2_${date}.log | grep "private_ips =" | awk '{print $3}'`
+      hostnames=`tail $logs_folder/create_$2_${date}.log | grep "hostnames =" | awk '{print $3}'`
+      ocids=`tail $logs_folder/create_$2_${date}.log | grep "ocids =" | awk '{print $3}'`
+      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET cluster_OCID='${ocid:1:-1}',created='$end_timestamp',state='running',creation_time=SEC_TO_TIME($runtime) WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
+      export IFS=","
+      for ip in ${ips:1:-5}; do
+        ip_array+=( $ip )
+      done
+      for ocid in ${ocids:1:-5}; do
+        ocid_array+=( $ocid )
+      done
+      for hostname in ${hostnames:1:-1}; do
+        hostname_array+=( $hostname )
+      done
+      for index in "${!ip_array[@]}"; do
+          mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE nodes SET created='$end_timestamp',state='running',hostname='${hostname_array[$index]}',ip='${ip_array[$index]}',node_OCID='${ocid_array[$index]}' WHERE cluster_id='$2_${date}' AND cluster_index=$(($index+1));" >> $logs_folder/create_$2_${date}.log 2>&1
+      done
+    fi
+    break
+  else
+    ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | grep Error: | grep -o 'Output.*'`
+    if [ "$ERROR_MSG" == "" ]
+    then
+        ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | grep Error:`
+    fi
+    comp_tmp=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .compartmentId`
+    compartment_ocid=${comp_tmp:1:-1}
 
-      inst_pool_ocid=`oci compute-management instance-pool list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $logs_folder/create_$2_${date}.log 2>&1
-      if [ "$inst_pool_ocid" == "" ]
-      then
-          inst_pool_work_request_error_messages=""
-      else
-          requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="LaunchInstancesInPool") | .id'` >> $logs_folder/create_$2_${date}.log 2>&1
-          inst_pool_work_request_error_messages=`oci work-requests work-request-error list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $logs_folder/create_$2_${date}.log 2>&1
-      fi
-      if [ "$inst_pool_work_request_error_messages" == "" ]
-      then
-          cn_ocid=`oci compute-management cluster-network list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $logs_folder/create_$2_${date}.log 2>&1
+    inst_pool_ocid=`oci compute-management instance-pool list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $logs_folder/create_$2_${date}.log 2>&1
+    if [ "$inst_pool_ocid" == "" ]
+    then
+        inst_pool_work_request_error_messages=""
+    else
+        requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="LaunchInstancesInPool") | .id'` >> $logs_folder/create_$2_${date}.log 2>&1
+        inst_pool_work_request_error_messages=`oci work-requests work-request-error list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $logs_folder/create_$2_${date}.log 2>&1
+    fi
+    if [ "$inst_pool_work_request_error_messages" == "" ] && [ "$cluster_network" == "true" ]
+    then
+        cn_ocid=`oci compute-management cluster-network list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $logs_folder/create_$2_${date}.log 2>&1
+        if [ "$cn_ocid" == "" ]
+        then
+          cn_work_request_error_messages=""
+        else
           requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${cn_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="CreateClusterNetworkReservation") | .id'` >> $logs_folder/create_$2_${date}.log 2>&1
           cn_work_request_error_messages=`oci work-requests work-request-log-entry list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $logs_folder/create_$2_${date}.log 2>&1
-      fi
-      echo "Could not create $2 with $1 nodes in $runtime seconds"
-      echo "$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages" | tee -a  $logs_folder/create_$2_${date}.log 2>&1
+        fi
+    else
+        cn_work_request_error_messages=""
+    fi
+    echo "Could not create $2 with $1 nodes in $runtime seconds"
+    echo "$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages" | tee -a  $logs_folder/create_$2_${date}.log 2>&1
 
-      if [ -f $monitoring_folder/activated ]
-      then
-        mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,nodes,created_on_m,class_name) VALUES ('$2_${date}','creation','$logs_folder/create_$2_${date}.log','$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages','$1','$end_timestamp','$4');" >> $logs_folder/create_$2_${date}.log 2>&1
-        mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET state='deleting',creation_error='`tail $logs_folder/create_$2_${date}.log | grep Error`' WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
-      fi
-      rm currently_building
+    if [ -f $monitoring_folder/activated ]
+    then
+      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,nodes,created_on_m,class_name) VALUES ('$2_${date}','creation','$logs_folder/create_$2_${date}.log','$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages','$1','$end_timestamp','$4');" >> $logs_folder/create_$2_${date}.log 2>&1
+      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET state='deleting',creation_error='`tail $logs_folder/create_$2_${date}.log | grep Error`' WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
+    fi
+    rm currently_building
   fi
 done
 
