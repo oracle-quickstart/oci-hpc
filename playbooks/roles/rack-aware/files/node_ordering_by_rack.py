@@ -51,18 +51,14 @@ try:
     from pssh.clients import ParallelSSHClient
     client = ParallelSSHClient(hosts)
     output = client.run_command('curl http://169.254.169.254/opc/v1/host/')
-    #print(output)   
     for host_out in output:
         j = json.loads(bytearray(''.join(list(host_out.stdout)).encode()))
-        #print(j)
         if j['rackId'] in r:
             r[j['rackId']].append( host_out.host )
         else:
             r[j['rackId']] = [ host_out.host ]
     hostname_output = client.run_command('/usr/bin/hostname')
-    #print(hostname_output)
     for host_out in hostname_output:
-        #j = bytearray(''.join(list(host_out.stdout)).encode())
         j = bytearray(''.join(list(host_out.stdout)).encode())
         friendly_name_to_system_hostname[host_out.host] = j.decode(encoding='ascii')
         #print(j.decode(encoding='ascii')+"   "+host_out.host)
