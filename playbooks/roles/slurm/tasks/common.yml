@@ -189,3 +189,7 @@
 - name: Include pyxis prolog files
   include: common_pyxis.yml
   when: pyxis|bool
+
+- name: Include pyxis prolog files
+  include: common_pmix.yml
+  when: ansible_os_family == 'RedHat'
