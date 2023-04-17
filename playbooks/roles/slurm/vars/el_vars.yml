@@ -51,3 +51,12 @@ slurm_login_packages:
   - "{{ download_path }}/slurm_rpms/slurm-pam_slurm-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/slurm-libpmi-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/slurm-slurmd-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+
+
+pmix_download_packages:
+  - "pmix-3.2.4-1.el7.x86_64.rpm"
+  - "pmix-devel-3.2.4-1.el7.x86_64.rpm"
+
+pmix_packages:
+  - "{{ download_path }}/slurm_rpms/pmix-3.2.4-1.el7.x86_64.rpm"
+  - "{{ download_path }}/slurm_rpms/pmix-devel-3.2.4-1.el7.x86_64.rpm"
