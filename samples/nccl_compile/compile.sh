@@ -14,12 +14,7 @@ if [[ "$mpivars_path" == "" ]]; then
 source $mpivars_path
 MPI_HOME=${mpivars_path%%/bin*}
 
-source /etc/os-release
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
-    USER=opc
-elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
-    USER=ubuntu
-fi
+USER=`whoami`
 
 cd /home/$USER
 rm -rf nccl-tests
