@@ -94,7 +94,7 @@
 - name: Install .deb
   vars:
     deb_name:
-      - "{{ download_path }}/slurm_rpms/slurm-22.05.4-1_amd64.deb"
+      - "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_amd64.deb"
     package_state: present
   include_role:
     name: safe_yum
@@ -189,3 +189,7 @@
 - name: Include pyxis prolog files
   include: common_pyxis.yml
   when: pyxis|bool
+
+- name: Include pyxis prolog files
+  include: common_pmix.yml
+  when: ansible_os_family == 'RedHat'
