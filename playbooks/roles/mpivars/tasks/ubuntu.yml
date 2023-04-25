@@ -1,0 +1,22 @@
+- name: Check if mpi folder exists
+  stat:
+    path: /usr/mpi/gcc/openmpi-{{ openmpi_version }}/bin/
+  register: directory
+
+
+- name: Check if mpivars.sh exists
+  stat:
+    path: /usr/mpi/gcc/openmpi-{{ openmpi_version }}/bin/mpivars.sh
+  register: mpivars
+  when: directory.stat.exists
+
+
+- name: Create mpivars.sh
+  become: true
+  template: 
+    src: mpivars.j2 
+    dest: /usr/mpi/gcc/openmpi-{{ openmpi_version }}/bin/mpivars.sh
+    force: yes
+    owner: root
+    group: root
+  when: directory.stat.exists and not mpivars.stat.exists
