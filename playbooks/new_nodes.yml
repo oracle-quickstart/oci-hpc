@@ -50,7 +50,6 @@
       when: cluster_network|bool
     - include_role: 
         name: nvidia_peermem
-      when: cluster_network|bool
 
 - hosts: bastion,slurm_backup,login,compute
   become: true
