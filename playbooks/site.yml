@@ -50,6 +50,9 @@
     - include_role: 
         name: rdma-interface
       when: cluster_network|bool
+    - include_role: 
+        name: nvidia_peermem
+      when: cluster_network|bool
 
 - hosts: bastion
   become: true
