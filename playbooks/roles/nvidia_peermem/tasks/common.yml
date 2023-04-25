@@ -1,0 +1,15 @@
+---
+- name: Check if nvidia drivers are installed
+  shell: lsmod | grep nvidia_peermem | wc -l
+  register: result
+
+
+- name: Check if nvidia_peermem module is loaded
+  shell: lsmod | grep nvidia_peermem | wc -l
+  register: result
+
+
+- name: Load nvidia_peermem module
+  become: true
+  shell: modprobe nvidia_peermem
+  when: register.stdout != 3
