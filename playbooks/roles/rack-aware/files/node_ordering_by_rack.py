@@ -4,13 +4,17 @@ import os
 import argparse
 import subprocess
 
-def write_ordered_hostfile(ordered_hosts=[],hostfile=None):
+def write_ordered_hostfile(ordered_hosts=[],hostfile=None,srun=False):
    #ordered_hostfile="ordered_hostfile"
    if os.path.isfile(hostfile):
       os.remove(hostfile)
    fhandler = open(hostfile,"w")
    for h in ordered_hosts:
-      fhandler.write(h+"\n")
+      if srun:
+        for x in range(8):
+          fhandler.write(h+"\n")
+      else:
+        fhandler.write(h+"\n")
    fhandler.close()
 
 def write_ordered_rankfile(ordered_hosts=[],hostfile=None):
@@ -47,18 +51,14 @@ try:
     from pssh.clients import ParallelSSHClient
     client = ParallelSSHClient(hosts)
     output = client.run_command('curl http://169.254.169.254/opc/v1/host/')
-    #print(output)   
     for host_out in output:
         j = json.loads(bytearray(''.join(list(host_out.stdout)).encode()))
-        #print(j)
         if j['rackId'] in r:
             r[j['rackId']].append( host_out.host )
         else:
             r[j['rackId']] = [ host_out.host ]
     hostname_output = client.run_command('/usr/bin/hostname')
-    #print(hostname_output)
     for host_out in hostname_output:
-        #j = bytearray(''.join(list(host_out.stdout)).encode())
         j = bytearray(''.join(list(host_out.stdout)).encode())
         friendly_name_to_system_hostname[host_out.host] = j.decode(encoding='ascii')
         #print(j.decode(encoding='ascii')+"   "+host_out.host)
@@ -104,6 +104,8 @@ hostfile="ordered_hostfile"
 write_ordered_hostfile(ordered_hosts,hostfile)
 hostfile="ordered_hostfile_system_name"
 write_ordered_hostfile(ordered_hosts_friendly_name,hostfile)
+hostfile="ordered_hostfile_system_name_srun"
+write_ordered_hostfile(ordered_hosts_friendly_name,hostfile,True)
 rankfile="rankfile_system_name"
 write_ordered_rankfile(ordered_hosts_friendly_name,rankfile)
 
