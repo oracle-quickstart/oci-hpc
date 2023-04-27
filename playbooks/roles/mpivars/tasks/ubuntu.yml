@@ -1,7 +1,10 @@
 ---
 - name: Get the openmpi version
-  shell: ls /usr/mpi/gcc/
+  shell: 
+    cmd: ls /usr/mpi/gcc/
+    warn: false
   register: openmpi
+  failed_when: false
 
 
 - name: Check if mpivars.sh exists
