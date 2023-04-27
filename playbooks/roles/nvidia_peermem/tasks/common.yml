@@ -1,16 +1,25 @@
 ---
+- name: Check if its a GPU shape
+  shell:
+    cmd: "curl -sH \"Authorization: Bearer Oracle\" -L http://169.254.169.254/opc/v2/instance/ | jq .shape | grep GPU"
+    warn: false
+  register: shape
+  failed_when: false
+
+
 - name: Check if nvidia drivers are installed
   shell: cat /sys/module/nvidia/version | wc -l
-  register: gpu
+  register: nvidia
+  when: shape.stdout != ""
 
 
 - name: Check if nvidia_peermem module is loaded
   shell: lsmod | grep nvidia_peermem | wc -l
   register: result
-  when: gpu.stdout == '1'
+  when: shape.stdout != "" and nvidia.stdout == '1'
 
 
 - name: Load nvidia_peermem module
   become: true
   shell: modprobe nvidia_peermem
-  when: gpu.stdout == '1' and result.stdout != '3'
+  when: shape.stdout != "" and nvidia.stdout == '1' and result.stdout != '3'
