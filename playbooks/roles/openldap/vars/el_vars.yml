@@ -6,7 +6,7 @@ openldap_packages:
   - openldap-clients
   - rsync
 
-openldap_packages_ol8:ß
+openldap_packages_ol8:
   - openldap-clients
   - rsync
 
