@@ -33,7 +33,7 @@
 
 - name: Install OpenLDAP packages
   vars: 
-    package_name: "{{openldap_packages}}"
+    package_name: "{{openldap_packages_ol8}}"
   include_role: 
     name: safe_yum
 
