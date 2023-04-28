@@ -14,14 +14,10 @@ if [[ "$mpivars_path" == "" ]]; then
 source $mpivars_path
 MPI_HOME=${mpivars_path%%/bin*}
 
-source /etc/os-release
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
-    cd /home/opc
-elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
-    cd /home/ubuntu
-fi
+USER=`whoami`
 
-
+cd /home/$USER
+rm -rf nccl-tests
 git clone https://github.com/NVIDIA/nccl-tests.git
 cd nccl-tests/
 make MPI=1 MPI_HOME=$MPI_HOME  CUDA_HOME=/usr/local/cuda
