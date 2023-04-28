@@ -148,7 +148,7 @@
     - name: Load OpenLDAP local configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
-        creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif'
+        creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
       with_items:
         - config.ldif
         - local.ldif
