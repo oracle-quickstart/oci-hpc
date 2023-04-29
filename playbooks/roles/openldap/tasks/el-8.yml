@@ -145,6 +145,9 @@
         creates: '/etc/openldap/slapd.d/cn=config.ldif'
       notify: restart openldap
 
+    - name: "Flush handlers"
+      meta: flush_handlers
+
     - name: Load OpenLDAP local configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
@@ -155,6 +158,9 @@
         - ppolicy.ldif
         - memberof.ldif
       notify: restart openldap
+
+    - name: "Flush handlers"
+      meta: flush_handlers
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
