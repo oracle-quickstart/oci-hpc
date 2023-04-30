@@ -46,7 +46,7 @@
 - name: Create sysconfig-slapd
   ansible.builtin.copy:
     content: ""
-    path: /etc/sysconfig/slapd
+    dest: /etc/sysconfig/slapd
     mode: 0644
 
 - block:
