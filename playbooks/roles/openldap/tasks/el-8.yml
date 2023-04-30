@@ -19,6 +19,11 @@
   include_role: 
     name: safe_yum
 
+- name: Install openldap-servers
+  ansible.builtin.yum:
+    name: https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/openldap-servers-2.4.46-18.el8.x86_64.rpm
+    state: present
+
 - name: Generate openldap root password 
   set_fact:
     tmp_pwd: "{{ lookup('password',
@@ -80,6 +85,30 @@
     name: '{{ openldap_default_user }}'
     groups: '{{ ssl_cert_group }}'
 
+- name: Install and upgrade pip
+  pip:
+    name: pip
+    extra_args: --upgrade
+    executable: pip3
+
+- name: Install ladap3 and click
+  pip:
+    name: '{{ item }}'
+    executable: pip3
+  with_items:
+    - ldap3
+    - click
+
+- name: Create sysconfig-slapd
+  ansible.builtin.file:
+    path: /etc/sysconfig/slapd
+    mode: '0644'
+
+- name: update /etc/openldap/ldap.conf
+  lineinfile:
+    dest: /etc/openldap/ldap.conf
+    line: TLS_REQSAN allow
+
 - block:
 
     - name: Ensure OpenLDAP data directory exists
@@ -118,7 +147,7 @@
     - name: Render OpenLDAP configuration - config
       template:
         src: '{{ item }}.j2'
-        dest: '/tmp/{{ item }}'
+        dest: /tmp/{{ item }}
       with_items:
         - config.ldif
       changed_when: false
@@ -126,18 +155,18 @@
     - name: Render OpenLDAP configuration - local
       template:
         src: 'el_local.ldif.j2'
-        dest: '/tmp/local.ldif'
+        dest: /tmp/local.ldif
       changed_when: false
 
     - name: Copy OpenLDAP overlay configurations - ppolicy
       copy:
         src: 'el_ppolicy.ldif'
-        dest: '/tmp/ppolicy.ldif'
+        dest: /tmp/ppolicy.ldif
     
     - name: Copy OpenLDAP overlay configurations - memberof
       copy:
         src: 'el_memberof.ldif'
-        dest: '/tmp/memberof.ldif'
+        dest: /tmp/memberof.ldif
 
     - name: Load OpenLDAP global configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
@@ -145,8 +174,11 @@
         creates: '/etc/openldap/slapd.d/cn=config.ldif'
       notify: restart openldap
 
-    - name: "Flush handlers"
-      meta: flush_handlers
+    - name: restart openldap
+      service:
+        name: slapd
+        state: restarted
+        enabled: yes
 
     - name: Load OpenLDAP local configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
@@ -158,9 +190,6 @@
         - ppolicy.ldif
         - memberof.ldif
       notify: restart openldap
-
-    - name: "Flush handlers"
-      meta: flush_handlers
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
