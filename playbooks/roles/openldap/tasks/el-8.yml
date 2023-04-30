@@ -43,6 +43,12 @@
   include_role: 
     name: safe_yum
 
+- name: Create sysconfig-slapd
+  ansible.builtin.file:
+    path: /etc/sysconfig/slapd
+    state: touch
+    mode: '0644'
+
 - block:
     - name: Selinux fcontext on files
       sefcontext:
@@ -94,17 +100,8 @@
 
 - name: Install ladap3 and click
   pip:
-    name: '{{ item }}'
+    name: ['ldap3', 'click']
     executable: pip3
-  with_items:
-    - ldap3
-    - click
-
-- name: Create sysconfig-slapd
-  ansible.builtin.file:
-    path: /etc/sysconfig/slapd
-    state: touch
-    mode: '0644'
 
 - name: update /etc/openldap/ldap.conf
   lineinfile:
