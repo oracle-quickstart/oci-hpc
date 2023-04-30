@@ -44,10 +44,10 @@
     name: safe_yum
 
 - name: Create sysconfig-slapd
-  ansible.builtin.file:
+  ansible.builtin.copy:
+    content: ""
     path: /etc/sysconfig/slapd
-    state: touch
-    mode: '0644'
+    mode: 0644
 
 - block:
     - name: Selinux fcontext on files
