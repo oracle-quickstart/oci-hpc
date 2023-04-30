@@ -103,6 +103,7 @@
 - name: Create sysconfig-slapd
   ansible.builtin.file:
     path: /etc/sysconfig/slapd
+    state: touch
     mode: '0644'
 
 - name: update /etc/openldap/ldap.conf
