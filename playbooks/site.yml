@@ -35,6 +35,7 @@
     - mpi-hostfiles
     - etc-hosts
     - boot-volume
+    - mpivars
 
 - hosts: all
   become: true
