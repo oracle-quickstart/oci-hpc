@@ -4,7 +4,7 @@ objectClass: olcModuleList
 cn: module{0}
 olcModuleLoad: ppolicy
 
-dn: olcOverlay={0}ppolicy,olcDatabase={2}hdb,cn=config
+dn: olcOverlay={0}ppolicy,olcDatabase={2}mdb,cn=config
 changetype: add
 objectClass: olcConfig
 objectClass: olcPPolicyConfig
