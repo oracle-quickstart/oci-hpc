@@ -1,12 +1,9 @@
-dn: cn=config
-changetype: add
+dn: cn=module{0},cn=config
 objectClass: olcModuleList
 cn: module{0}
 olcModuleLoad: ppolicy
 
-dn: olcOverlay={0}ppolicy,olcDatabase={2}mdb,cn=config
-changetype: add
-objectClass: olcConfig
+dn: olcOverlay=ppolicy,olcDatabase={2}mdb,cn=config
 objectClass: olcPPolicyConfig
 objectClass: olcOverlayConfig
 objectClass: top
