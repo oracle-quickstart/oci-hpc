@@ -33,6 +33,7 @@
     - limits
     - mpi-hostfiles
     - boot-volume
+    - mpivars
 
 - hosts: compute
   become: true
