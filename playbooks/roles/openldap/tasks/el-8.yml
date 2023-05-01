@@ -186,7 +186,7 @@
       with_items:
         - config.ldif
         - local.ldif
-        - ppolicy.ldif
+        #- ppolicy.ldif
         - memberof.ldif
       notify: restart openldap
 
