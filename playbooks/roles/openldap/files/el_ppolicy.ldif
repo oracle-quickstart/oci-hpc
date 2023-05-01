@@ -1,4 +1,4 @@
-dn: cn=module{0},cn=config
+dn: cn=config
 changetype: add
 objectClass: olcModuleList
 cn: module{0}
