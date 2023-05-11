@@ -60,6 +60,14 @@
     force: yes
   when: ( not destroy|bool ) and (('slurm_backup' in group_names) or ('login' in group_names))
 
+- name: Make sure the IP for each node was not left over in another cluster
+  become: true
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "^127.0.1.1\\s{{hostvars[groups['bastion'][0]]['inventory_hostname']}}.*"
+    state: absent
+  when: ( not destroy|bool ) and (('slurm_backup' in group_names) or ('login' in group_names))
+
 - name: move /etc/hosts on all compute nodes
   become: true
   copy:
