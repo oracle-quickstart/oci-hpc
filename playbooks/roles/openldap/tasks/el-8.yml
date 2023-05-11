@@ -159,12 +159,12 @@
 
     - name: Copy OpenLDAP overlay configurations - ppolicy
       copy:
-        src: 'el_ppolicy.ldif'
+        src: 'el_ppolicy_ol8.ldif'
         dest: /tmp/ppolicy.ldif
     
     - name: Copy OpenLDAP overlay configurations - memberof
       copy:
-        src: 'el_memberof.ldif'
+        src: 'el_memberof_ol8.ldif'
         dest: /tmp/memberof.ldif
 
     - name: Load OpenLDAP global configuration
