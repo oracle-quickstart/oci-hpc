@@ -138,6 +138,8 @@ variableGroups:
       - ${cluster_block_volume_size}
       - ${cluster_block_volume_performance}
       - ${localdisk}
+      - ${log_vol}
+      - ${redundancy}
   - title: "Network options"
     variables:
       - ${use_existing_vcn}
@@ -1141,6 +1143,27 @@ variables:
     default: true
     description: "For nodes using a NVMe, mount the localdisk"
     visible: ${use_advanced}
+
+  log_vol:
+    type: boolean
+    title: "One Logical Volume"
+    default: true
+    description: "Mount all NVMe's as one logical volume"
+    visible: 
+      and: 
+        - ${use_advanced}
+        - ${localdisk}
+    
+  redundancy:
+    type: boolean
+    title: "Redundancy"
+    default: true
+    description: "Use RAID for redundancy"
+    visible: 
+      and: 
+        - ${use_advanced}
+        - ${localdisk}
+        - ${log_vol}
 
   nfs_target_path:
     type: string
