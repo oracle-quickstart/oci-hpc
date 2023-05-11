@@ -4,8 +4,9 @@ objectClass: olcModuleList
 cn: module{0}
 olcModuleLoad: ppolicy
 
-dn: olcOverlay={0}ppolicy,olcDatabase={2}mdb,cn=config
+dn: olcOverlay={0}ppolicy,olcDatabase={2}hdb,cn=config
 changetype: add
+objectClass: olcConfig
 objectClass: olcPPolicyConfig
 objectClass: olcOverlayConfig
 objectClass: top
@@ -14,4 +15,3 @@ olcPPolicyDefault: cn=pwdDefaultPolicy,ou=Policies,dc=local
 olcPPolicyHashCleartext: FALSE
 olcPPolicyUseLockout: FALSE
 olcPPolicyForwardUpdates: FALSE
-
