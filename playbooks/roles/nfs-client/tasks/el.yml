@@ -29,3 +29,12 @@
     fstype: nfs
     state: mounted
   when: options==""
+
+- name: make sure the permissions of the share directory are right
+  become: true
+  file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: opc
+    group: "{{privilege_group_name}}"
+    mode: 0775
