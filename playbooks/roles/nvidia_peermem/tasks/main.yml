@@ -1,0 +1,3 @@
+---
+# tasks file for nvidia_peermem
+- include: common.yml

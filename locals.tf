@@ -9,8 +9,8 @@ locals {
 
   shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
   instance_pool_ocpus = local.shape == "VM.DenseIO.E4.Flex" ? var.instance_pool_ocpus_denseIO_flex : var.instance_pool_ocpus
-  bastion_ocpus = length(regexall(".*VM.*.*Flex$", var.bastion_shape)) > 0 ? var.bastion_ocpus_denseIO_flex : var.bastion_ocpus
-  login_ocpus = length(regexall(".*VM.*.*Flex$", var.login_shape)) > 0 ? var.login_ocpus_denseIO_flex : var.login_ocpus
+  bastion_ocpus = var.bastion_shape == "VM.DenseIO.E4.Flex" ? var.bastion_ocpus_denseIO_flex : var.bastion_ocpus
+  login_ocpus = var.login_shape == "VM.DenseIO.E4.Flex" ? var.login_ocpus_denseIO_flex : var.login_ocpus
 // ips of the instances
   cluster_instances_ips = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
 

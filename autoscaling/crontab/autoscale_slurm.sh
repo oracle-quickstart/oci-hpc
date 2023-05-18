@@ -329,7 +329,7 @@ def getstatus_slurm():
     return cluster_to_build,cluster_to_destroy,nodes_to_destroy,cluster_building,cluster_destroying,used_index,current_nodes,building_nodes
 
 if os.path.isfile(lockfile):
-    print("Lockfile "+lockfile + " is present, exiting")
+    print( "Lockfile "+lockfile + " is present, exiting" )
     exit()
 open(lockfile,'w').close()
 try:
