@@ -287,7 +287,13 @@
         name: tuned
 
 - hosts: all
-  serial: 1
+  become: true
+  tasks: 
+    - include_role: 
+        name: fix_ldap
+      when: ldap|default(true)|bool
+
+- hosts: all
   vars:
     destroy: false
     initial: true
@@ -306,10 +312,3 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-
-- hosts: all
-  become: true
-  tasks: 
-    - include_role: 
-        name: fix_ldap
-      when: ldap|default(true)|bool
