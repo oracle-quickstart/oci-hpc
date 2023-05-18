@@ -2,43 +2,43 @@
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
 {% if instance.shape == "BM.GPU2.2"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-13] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia1 Type=P100 Cores=[14-27] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-13]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia1 Type=P100 Cores=[14-27]
 {% elif instance.shape == "VM.GPU2.1"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-11] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-11]
 {% elif instance.shape == "VM.GPU3.1"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=V100 Cores=[0-5] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=V100 Cores=[0-5]
 {% elif instance.shape == "VM.GPU3.2"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=V100 Cores=[0-11] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=V100 Cores=[0-11]
 {% elif instance.shape == "VM.GPU3.4"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-23] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-23]
 {% elif instance.shape == "BM.GPU3.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-25] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-7] Type=V100 Cores=[26-51] AutoDetect=nvml 
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-25]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-7] Type=V100 Cores=[26-51] 
 {% elif instance.shape == "BM.GPU4.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[24-31]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[8-15]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[56-63]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[40-47]
 {% elif instance.shape == "BM.GPU.B4.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
 {% elif instance.shape == "BM.GPU.A100-v2.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
 {% elif instance.shape == "BM.GPU.T1.2" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
 {% elif instance.shape == "BM.GPU.A10.4" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31] AutoDetect=nvml
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A10 Cores=[32-63] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A10 Cores=[32-63]
 {% elif instance.shape == "VM.GPU.A10.2" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-29] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-29]
 {% elif instance.shape == "VM.GPU.A10.1" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=A10 Cores=[0-14] AutoDetect=nvml
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=A10 Cores=[0-14]
 {% endif %}
 {% endfor %}
 {% endfor %}

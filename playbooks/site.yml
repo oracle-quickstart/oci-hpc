@@ -35,6 +35,7 @@
     - mpi-hostfiles
     - etc-hosts
     - boot-volume
+    - mpivars
 
 - hosts: all
   become: true
@@ -50,6 +51,8 @@
     - include_role: 
         name: rdma-interface
       when: cluster_network|bool
+    - include_role: 
+        name: nvidia_peermem
 
 - hosts: bastion
   become: true
@@ -283,7 +286,8 @@
     - include_role:
         name: tuned
 
-- hosts: bastion, slurm_backup, login
+- hosts: all
+  serial: 1
   vars:
     destroy: false
     initial: true
@@ -303,22 +307,9 @@
         name: slurm
       when: slurm|default(false)|bool
 
-- hosts: compute
-  vars:
-    destroy: false
-    initial: true
-    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
-    resize: false
-    enroot_top_path: "{{ nvme_path }}/enroot/"
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
-  tasks:
-    - include_role:
-        name: rack-aware
-      when: rack_aware|default(false)|bool
-    - include_role:
-        name: spack
-      when: spack|default(false)|bool
-    - include_role:
-        name: slurm
-      when: slurm|default(false)|bool
+- hosts: all
+  become: true
+  tasks: 
+    - include_role: 
+        name: fix_ldap
+      when: ldap|default(true)|bool
