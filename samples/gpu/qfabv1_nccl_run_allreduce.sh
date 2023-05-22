@@ -18,7 +18,12 @@ echo INPUTFILE
 cat $hostfile
 
 # will generate rack-aware ordered host file
-python3 /home/opc/node_ordering_by_rack.py --input_file $hostfile > /dev/null
+if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
+    python3 /home/opc/node_ordering_by_rack.py --input_file $hostfile > /dev/null
+elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
+    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $hostfile > /dev/null
+fi
+
 hostfile=$ORDEREDMACHINEFILE
 
 echo ORDEREDMACHINEFILE
@@ -75,7 +80,7 @@ fi
   -x NCCL_IB_GID_INDEX=3 \
   -x NCCL_ALGO=Ring \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
-  --np $np --hostfile $hostfile  -N 8 /home/opc/nccl-tests/build/all_reduce_perf -b8  -e 4G -f 2 -n $iter >>  $logfile
+  --np $np --hostfile $hostfile  -N 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b8  -e 4G -f 2 -n $iter >>  $logfile
 
   tail -n 32 $logfile
 
