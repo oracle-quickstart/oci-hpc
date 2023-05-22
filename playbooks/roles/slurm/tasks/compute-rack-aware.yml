@@ -89,7 +89,7 @@
 
 - name: Set RackID fact
   set_fact:
-    rackID: "{{ rackID_script.stdout[1:-1]}}"
+    rackID: "{{ rackID_script.stdout[1:-41]}}"
 
 - name: Get nodes from Inactive Switch
   vars:

@@ -43,6 +43,7 @@ EnforcePartLimits=NO
 PropagateResourceLimitsExcept=MEMLOCK
 CommunicationParameters=NoAddrCache
 TopologyPlugin=topology/tree
+TopologyParam=SwitchAsNodeRank
 TreeWidth=2048
 SlurmctldParameters=enable_configless
 
@@ -119,13 +120,13 @@ NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boar
 {% elif "VM.Standard2." in instance.shape %}
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance.shape.split('.')[-1]|int }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
 {% elif instance.shape == "BM.Standard2.52" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=52 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=26 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
 {% elif instance.shape == "BM.Standard3.64" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
 {% elif "VM.Standard.E2." in instance.shape %}
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance.shape.split('.')[-1]|int }} ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
 {% elif instance.shape == "BM.Standard.E2.64" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
 {% elif instance.shape == "BM.Standard.A1.160" %}
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=80 ThreadsPerCore=1 State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }}
 {% endif %}

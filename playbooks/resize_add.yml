@@ -31,6 +31,7 @@
     - ssh
     - limits
     - boot-volume
+    - mpivars
 
 - hosts: compute_to_add
   become: true
@@ -46,6 +47,8 @@
     - include_role: 
         name: rdma-interface
       when: cluster_network|bool
+    - include_role: 
+        name: nvidia_peermem
 
 - hosts: bastion,slurm_backup,login,compute
   become: true
@@ -168,12 +171,18 @@
     - include_role:
         name: tuned
 
-      
 - hosts: compute_to_add
   tasks: 
     - include_role: 
         name: latency_check
-      when: cluster_network|bool and not 'GPU' in shape 
+      when: cluster_network|bool and not 'GPU' in shape
+
+- hosts: all
+  become: true
+  tasks: 
+    - include_role: 
+        name: fix_ldap
+      when: ldap|default(true)|bool
       
 - hosts: compute_to_add
   vars:
