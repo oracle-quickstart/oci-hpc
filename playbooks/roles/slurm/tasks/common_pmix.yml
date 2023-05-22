@@ -1,0 +1,37 @@
+--- 
+
+- name: install required packages
+  vars: 
+    package_name: 
+      - libev 
+      - libev-devel 
+      - libevent-devel 
+      - hwloc 
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
+
+- name: Download slurm .rpm
+  get_url:
+    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/tgnPgvPv68JpWqLklTNY86rBsJ0z7Ebp3zs7Ud4X2_R8TZFgpm26kh08QHKI3dXU/n/hpc/b/source/o/pmix/{{item}}"
+    dest: "{{ download_path }}/slurm_rpms"
+  when: ansible_os_family == 'RedHat' and download_path == '/tmp'
+  with_items: "{{pmix_download_packages}}"
+
+
+- name: Download slurm .rpm
+  get_url:
+    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/tgnPgvPv68JpWqLklTNY86rBsJ0z7Ebp3zs7Ud4X2_R8TZFgpm26kh08QHKI3dXU/n/hpc/b/source/o/pmix/{{item}}"
+    dest: "{{ download_path }}/slurm_rpms"
+  when: ansible_os_family == 'RedHat' and download_path != '/tmp'
+  delegate_to: 127.0.0.1
+  run_once: true  
+  with_items: "{{ pmix_download_packages }}"
+
+- name: install PMIx packages RedHat
+  vars:
+    package_name: '{{ pmix_packages }}'
+    disable_gpg_check_var: True
+  include_role:
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'

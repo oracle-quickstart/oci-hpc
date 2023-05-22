@@ -237,7 +237,8 @@ variable cluster_nfs_export {default = ""}
 variable "private_deployment" { default = false }
 
 variable "localdisk" { default = true }
-
+variable "log_vol" { default = false }
+variable "redundancy" { default = true }
 
 variable "use_marketplace_image_login" { default = true}
 variable "use_old_marketplace_image_login" { default = false}

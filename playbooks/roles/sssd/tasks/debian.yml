@@ -15,6 +15,7 @@
     owner: 'root'
     group: 'root'
     mode: '0600'
+  notify: restart sssd
 
 - name: Copy CA certificate
   copy:
@@ -53,11 +54,22 @@
   include_role: 
     name: safe_yum
 
+- name: Enable sssd service
+  systemd:
+    name: sssd
+    enabled: "yes"
+
+- name: Start sssd service
+  systemd:
+    name: sssd
+    state: started
+
 - name: Update sshd configuration
   lineinfile: 
     path: /etc/ssh/sshd_config
     regexp: '^PasswordAuthentication'
     line: PasswordAuthentication no
   notify: 
+    - restart sshd
     - restart ns daemons
     - restart login services
