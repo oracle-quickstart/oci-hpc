@@ -22,10 +22,8 @@ cat $MACHINEFILE
 source /etc/os-release
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
-    USER=opc
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     python3 /home/ubuntu/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
-    USER=ubuntu
 fi
 
 
@@ -74,6 +72,6 @@ fi
   -x NCCL_IB_GID_INDEX=3 \
   -x NCCL_ALGO=Ring \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
-  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /home/$USER/nccl-tests/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
+  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
 
 
