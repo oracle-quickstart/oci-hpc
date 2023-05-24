@@ -41,6 +41,12 @@
       when: localdisk | default(true) | bool
 
 - hosts: compute_to_add
+  tasks: 
+    - include_role: 
+        name: oci-cn-auth
+      when: cluster_network|bool
+
+- hosts: compute_to_add
   become: true
   gather_facts: true
   tasks: 
