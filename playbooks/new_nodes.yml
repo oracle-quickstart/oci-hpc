@@ -43,15 +43,12 @@
       when: localdisk | default(true) | bool
 
 - hosts: compute
+  become: true
+  gather_facts: true
   tasks: 
     - include_role: 
         name: oci-cn-auth
       when: cluster_network|bool
-
-- hosts: compute
-  become: true
-  gather_facts: true
-  tasks: 
     - include_role: 
         name: rdma-interface
       when: cluster_network|bool
