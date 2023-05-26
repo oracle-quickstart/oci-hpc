@@ -19,7 +19,12 @@ scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
 echo MACHINEFILE
 cat $MACHINEFILE
 
-python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+source /etc/os-release
+if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
+    python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
+    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+fi
 
 echo ORDEREDMACHINEFILE
 cat $ORDEREDMACHINEFILE
@@ -30,9 +35,6 @@ mpivars_path=`ls /usr/mpi/gcc/openmpi-*/bin/mpivars.sh`
 source $mpivars_path
 
 if [[ "$mpivars_path" == "" ]]; then echo "Could not find MPIPATH"; exit; fi
-
-#source /usr/mpi/gcc/openmpi-4.1.0rc5/bin/mpivars.sh
-#source /usr/mpi/gcc/openmpi-4.0.3rc4/bin/mpivars.sh
 
 export NCCL_DEBUG=WARN
 
@@ -64,6 +66,6 @@ fi
   -x NCCL_IB_GID_INDEX=3 \
   -x NCCL_ALGO=Ring \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
-  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /home/opc/nccl-tests/build/all_reduce_perf -b8  -e 4G -f 2 -n 100
+  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b8  -e 4G -f 2 -n 100
 
 

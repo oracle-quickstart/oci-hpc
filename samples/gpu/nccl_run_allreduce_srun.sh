@@ -43,8 +43,6 @@ do
   source $mpivars_path
   echo $mpivars_path
 
-  USER=`whoami`
-
   first_node=`head $hostfile -n 1`
   shape=`ssh $first_node 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/' | jq .shape`
   if [ $shape == \"BM.GPU.B4.8\" ] || [ $shape == \"BM.GPU.A100-v2.8\" ]
@@ -72,7 +70,7 @@ do
   NCCL_IB_GID_INDEX=3 \
   NCCL_ALGO=Ring \
   NCCL_IB_HCA="${var_NCCL_IB_HCA}"
-  srun --mpi=pmix_v3 --nodefile=$hostfile --gpus-per-node=8 --ntasks-per-node=8 /home/$USER/nccl-tests/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100 >>  $logfile
+  srun --mpi=pmix_v3 --nodefile=$hostfile --gpus-per-node=8 --ntasks-per-node=8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100 >>  $logfile
 
 
 
