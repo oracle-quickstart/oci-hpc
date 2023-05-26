@@ -29,8 +29,6 @@ if [[ "$mpivars_path" == "" ]]; then
 source $mpivars_path
 echo $mpivars_path
 
-USER=`whoami`
-
 shape=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape`
 if [ $shape == \"BM.GPU.B4.8\" ] || [ $shape == \"BM.GPU.A100-v2.8\" ]
 then
@@ -57,4 +55,4 @@ export NCCL_DEBUG=WARN \
   NCCL_IB_GID_INDEX=3 \
   NCCL_ALGO=Ring \
   NCCL_IB_HCA="${var_NCCL_IB_HCA}"
-  srun --mpi=pmix_v3 --gpus-per-node=$SLURM_GPUS_PER_NODE --ntasks-per-node=$SLURM_NTASKS_PER_NODE /home/$USER/nccl-tests/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
+  srun --mpi=pmix_v3 --gpus-per-node=$SLURM_GPUS_PER_NODE --ntasks-per-node=$SLURM_NTASKS_PER_NODE /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100

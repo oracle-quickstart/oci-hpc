@@ -102,7 +102,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   pip install pip --upgrade
   pip install pyopenssl --upgrade
 
-  # install oci-cli
+  # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults
 
   # install oci module
