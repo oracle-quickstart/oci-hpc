@@ -20,20 +20,20 @@
     name: safe_yum
   when: ansible_distribution_major_version == '7'
 
-- name: Install dependencies ol8
-  vars: 
-    package_name: 
-      - policycoreutils-python-utils
-    package_state: present
-  include_role: 
-    name: safe_yum
-  when: ansible_distribution_major_version == '8'
+- block:
+    - name: Install dependencies ol8
+      vars: 
+        package_name: 
+          - policycoreutils-python-utils
+        package_state: present
+      include_role: 
+        name: safe_yum
 
-- name: Install openldap-servers
-  ansible.builtin.yum:
-    name: https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/openldap-servers-2.4.46-18.el8.x86_64.rpm
-    state: present
-    disable_gpg_check: true
+    - name: Install openldap-servers
+      ansible.builtin.yum:
+        name: https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/openldap-servers-2.4.46-18.el8.x86_64.rpm
+        state: present
+        disable_gpg_check: true
   when: ansible_distribution_major_version == '8'
 
 - name: Generate openldap root password 
@@ -55,26 +55,25 @@
     name: safe_yum
   when: ansible_distribution_major_version == '7'
 
-- name: Install OpenLDAP packages ol8
-  vars: 
-    package_name: "{{openldap_packages_ol8}}"
-  include_role: 
-    name: safe_yum
-  when: ansible_distribution_major_version == '8'
-
-- name: Create sysconfig-slapd
-  ansible.builtin.copy:
-    content: ""
-    dest: /etc/sysconfig/slapd
-    mode: 0644
-  when: ansible_distribution_major_version == '8'
-
 - block:
-    - name: Selinux fcontext on files
-      sefcontext:
-        target: "{{ openldap_server_conf_path }}(/.*)?"
-        setype: slapd_db_t
-      when: ansible_selinux.status == "enabled"
+    - name: Install OpenLDAP packages ol8
+      vars: 
+        package_name: "{{openldap_packages_ol8}}"
+      include_role: 
+        name: safe_yum
+
+    - name: Create sysconfig-slapd
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/sysconfig/slapd
+        mode: 0644
+  when: ansible_distribution_major_version == '8'
+
+- name: Selinux fcontext on files
+  sefcontext:
+    target: "{{ openldap_server_conf_path }}(/.*)?"
+    setype: slapd_db_t
+  when: ansible_selinux.status == "enabled"
 
 - name: Hash OpenLDAP root password
   command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}
@@ -112,27 +111,25 @@
     name: '{{ openldap_default_user }}'
     groups: '{{ ssl_cert_group }}'
 
-- name: Install and upgrade pip
-  pip:
-    name: pip
-    extra_args: --upgrade
-    executable: pip3
-  when: ansible_distribution_major_version == '8'
+- block:
+    - name: Install and upgrade pip
+      pip:
+        name: pip
+        extra_args: --upgrade
+        executable: pip3
 
-- name: Install ladap3 and click
-  pip:
-    name: ['ldap3', 'click']
-    executable: pip3
-  when: ansible_distribution_major_version == '8'
+    - name: Install ladap3 and click
+      pip:
+        name: ['ldap3', 'click']
+        executable: pip3
 
-- name: update /etc/openldap/ldap.conf
-  lineinfile:
-    dest: /etc/openldap/ldap.conf
-    line: TLS_REQSAN allow
+    - name: update /etc/openldap/ldap.conf
+      lineinfile:
+        dest: /etc/openldap/ldap.conf
+        line: TLS_REQSAN allow
   when: ansible_distribution_major_version == '8'
 
 - block:
-
     - name: Ensure OpenLDAP data directory exists
       file:
         path: '{{ openldap_server_dir_path }}'
@@ -193,6 +190,14 @@
       when: ansible_distribution_major_version == '7' 
 
     - block:
+        - name: Render OpenLDAP configuration - config
+          template:
+            src: '{{ item }}.j2'
+            dest: '/tmp/{{ item }}'
+          with_items:
+            - config.ldif
+          changed_when: false
+          
         - name: Render OpenLDAP configuration - local
           template:
             src: 'el_local_ol8.ldif.j2'
