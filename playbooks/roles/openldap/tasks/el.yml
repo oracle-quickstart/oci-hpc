@@ -191,7 +191,7 @@
             src: 'el_memberof.ldif'
             dest: '/tmp/memberof.ldif'
       when: ansible_distribution_major_version == '7' 
-      
+
     - block:
         - name: Render OpenLDAP configuration - local
           template:
@@ -216,7 +216,7 @@
         creates: '/etc/openldap/slapd.d/cn=config.ldif'
       notify: restart openldap
 
-    - name: Load OpenLDAP local configuration
+    - name: Load OpenLDAP local configuration ol7
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
         creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif'
@@ -235,7 +235,7 @@
         enabled: yes
       when: ansible_distribution_major_version == '8'
 
-    - name: Load OpenLDAP local configuration
+    - name: Load OpenLDAP local configuration ol8
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
         creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
