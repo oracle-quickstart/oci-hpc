@@ -269,7 +269,7 @@
         name: cron
 
 
-- hosts: all
+- hosts: compute
   become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
