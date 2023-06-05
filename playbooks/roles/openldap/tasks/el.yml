@@ -18,7 +18,7 @@
     package_state: present
   include_role: 
     name: safe_yum
-  when: ansible_distribution_major_version == 7
+  when: ansible_distribution_major_version == '7'
 
 - name: Install dependencies ol8
   vars: 
@@ -27,14 +27,14 @@
     package_state: present
   include_role: 
     name: safe_yum
-  when: ansible_distribution_major_version == 8
+  when: ansible_distribution_major_version == '8'
 
 - name: Install openldap-servers
   ansible.builtin.yum:
     name: https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/openldap-servers-2.4.46-18.el8.x86_64.rpm
     state: present
     disable_gpg_check: true
-  when: ansible_distribution_major_version == 8
+  when: ansible_distribution_major_version == '8'
 
 - name: Generate openldap root password 
   set_fact:
@@ -53,21 +53,21 @@
     package_name: "{{openldap_packages}}"
   include_role: 
     name: safe_yum
-  when: ansible_distribution_major_version == 7
+  when: ansible_distribution_major_version == '7'
 
 - name: Install OpenLDAP packages ol8
   vars: 
     package_name: "{{openldap_packages_ol8}}"
   include_role: 
     name: safe_yum
-  when: ansible_distribution_major_version == 8
+  when: ansible_distribution_major_version == '8'
 
 - name: Create sysconfig-slapd
   ansible.builtin.copy:
     content: ""
     dest: /etc/sysconfig/slapd
     mode: 0644
-  when: ansible_distribution_major_version == 8
+  when: ansible_distribution_major_version == '8'
 
 - block:
     - name: Selinux fcontext on files
@@ -117,19 +117,19 @@
     name: pip
     extra_args: --upgrade
     executable: pip3
-  when: ansible_distribution_major_version == 8
+  when: ansible_distribution_major_version == '8'
 
 - name: Install ladap3 and click
   pip:
     name: ['ldap3', 'click']
     executable: pip3
-  when: ansible_distribution_major_version == 8
+  when: ansible_distribution_major_version == '8'
 
 - name: update /etc/openldap/ldap.conf
   lineinfile:
     dest: /etc/openldap/ldap.conf
     line: TLS_REQSAN allow
-  when: ansible_distribution_major_version == 8
+  when: ansible_distribution_major_version == '8'
 
 - block:
 
@@ -206,14 +206,14 @@
         - ppolicy.ldif
         - memberof.ldif
       notify: restart openldap
-      when: ansible_distribution_major_version == 7
+      when: ansible_distribution_major_version == '7'
 
     - name: restart openldap
       service:
         name: slapd
         state: restarted
         enabled: yes
-      when: ansible_distribution_major_version == 8
+      when: ansible_distribution_major_version == '8'
 
     - name: Load OpenLDAP local configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
@@ -224,7 +224,7 @@
         - local.ldif
         - memberof.ldif
       notify: restart openldap
-      when: ansible_distribution_major_version == 8
+      when: ansible_distribution_major_version == '8'
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
