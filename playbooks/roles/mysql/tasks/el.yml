@@ -23,7 +23,7 @@
                           '/etc/opt/oci-hpc/passwords/mysql/root.txt  
                            chars=ascii_letters,digits') }}"
 - block:
-    - name: Install MySQL packages
+    - name: Install MySQL packages ol7
       vars: 
         package_name: 
           - mysql-release-el7
@@ -36,7 +36,7 @@
         package_repo: ol7_MySQL80
       include_role: 
         name: safe_yum
-  when: ansible_distribution_major_version == '7'
+  when: ansible_distribution_major_version == '7' 
 
 - block:
     - name: Select mysql package ol8
@@ -55,8 +55,7 @@
       pip:
         name: pymysql
         state: present
-  when: ansible_distribution_major_version == '8'
-
+  when: ansible_distribution_major_version == '7' 
 
 - name: Update SELinux context for {{ mysql_db_path }}
   become: true
@@ -117,33 +116,55 @@
   - name: get root password
     shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
     register: m_root_password
-
-#  - name: Set MySQL root pasword
-#    become: true
-#    mysql_user: 
-#      name: root
-#      password: '{{ mysql_root_pwd }}'
-#      host_all: yes
-#      check_implicit_admin: yes
-#      state: present
       
   - name: check if DB exists
     shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
     register: dbstatus
     ignore_errors: true
     no_log: yes
-      
-  - name: fix user password
-    command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ m_root_password.stdout }}';"
-    when: dbstatus.rc != 0 
-    
-  - name: fix password policy
-    command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
-    when: dbstatus.rc != 0 
 
-  - name: update expired root user password
-    command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
-    when: dbstatus.rc != 0 
+  - block:    
+      - name: fix user password
+        command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ m_root_password.stdout }}';"
+        when: dbstatus.rc != 0 
+        
+      - name: fix password policy
+        command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
+        when: dbstatus.rc != 0 
+
+      - name: update expired root user password
+        command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
+        when: dbstatus.rc != 0
+    when: ansible_distribution_major_version == '7'
+
+  - block:
+      - name: Set MySQL root pasword ol8
+        become: true
+        mysql_user: 
+          name: root
+          password: '{{ mysql_root_pwd }}'
+          host_all: yes
+          check_implicit_admin: yes
+          state: present
+
+      - name: check if DB exists
+        shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
+        register: dbstatus
+        ignore_errors: true
+        no_log: yes
+          
+      - name: fix user password
+        command: mysql --user root -p'{{ mysql_root_pwd }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
+        when: dbstatus.rc != 0 
+        
+      - name: fix password policy
+        command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
+        when: dbstatus.rc != 0 
+
+      - name: update expired root user password
+        command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
+        when: dbstatus.rc != 0 
+    when: ansible_distribution_major_version == '8'
   
   - name: Render /root/.my.cnf
     become: true
@@ -162,54 +183,3 @@
       state: absent
       login_password: "{{ mysql_root_pwd }}"
       login_user: root
-  when: ansible_distribution_major_version == '7'
-
-- block:
-  - name: Start MySQL service
-    become: true
-    service:
-      name: mysqld
-      state: started
-  
-  - meta: flush_handlers
-
-  - name: get root password
-    shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
-    register: m_root_password
-      
-  - name: check if DB exists
-    shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
-    register: dbstatus
-    ignore_errors: true
-    no_log: yes
-      
-  - name: fix user password
-    command: mysql --user root -p'{{ mysql_root_pwd }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
-    when: dbstatus.rc != 0 
-    
-  - name: fix password policy
-    command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
-    when: dbstatus.rc != 0 
-
-  - name: update expired root user password
-    command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
-    when: dbstatus.rc != 0 
-  
-  - name: Render /root/.my.cnf
-    become: true
-    template:
-      src: my.cnf.j2
-      dest: /root/.my.cnf
-      owner: root
-      group: root
-      mode: 0600
-
-  - name: Remove test db
-    become: true
-    mysql_db:
-      config_file: '/root/.my.cnf'
-      name: test
-      state: absent
-      login_password: "{{ mysql_root_pwd }}"
-      login_user: root
-  when: ansible_distribution_major_version == '8'
