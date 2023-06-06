@@ -350,7 +350,7 @@ validate -g y -cn <cluster name file> --> This will run the GPU throttle check. 
 
 validate -g <gpu check host file> --> This will run the GPU throttle check on the hosts provided in the file given. The gpu check host file should have a host name on each line.
 
-validate -e y -cn <cluster name file> --> This will run the GPU throttle check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
+validate -e y -cn <cluster name file> --> This will run the /etc/hosts md5 sum check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
 
 validate -e <md5 sum check host file> --> This will run the /etc/hosts md5 sum check on the hosts provided in the file given. The md5 sum check host file should have a host name on each line.
 

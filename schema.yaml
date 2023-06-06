@@ -236,7 +236,7 @@ variables:
   ldap:
     type: boolean
     title: "Configure LDAP authentication from bastion"
-    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands. (Not working on Ubuntu, yet...)"
+    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
     default: true
   cluster_name:
     title: "Name of the cluster"
@@ -1032,7 +1032,7 @@ variables:
     type: boolean
     title: "Enable PAM"
     default: false
-    description: "Enable PAM for the Slurm cluster (Supported only on OL with RHCK kernel at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
+    description: "Enable PAM for the Slurm cluster (Supported on OL with RHCK kernel and Ubuntu at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
     visible: ${slurm}
 
   sacct_limits:
