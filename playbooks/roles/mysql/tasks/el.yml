@@ -55,7 +55,7 @@
       pip:
         name: pymysql
         state: present
-  when: ansible_distribution_major_version == '7' 
+  when: ansible_distribution_major_version == '8' 
 
 - name: Update SELinux context for {{ mysql_db_path }}
   become: true
