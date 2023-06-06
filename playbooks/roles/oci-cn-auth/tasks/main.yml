@@ -1,0 +1,6 @@
+---
+- include: el.yml
+  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
+
+- include: ubuntu.yml
+  when: ansible_os_family == 'Debian' and ansible_distribution == 'Ubuntu'
