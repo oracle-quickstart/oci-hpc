@@ -2,7 +2,7 @@
   when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS'
 
 - include: el.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'ß
+  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
 
 - include: debian.yml
   when: ansible_distribution == 'Ubuntu'
