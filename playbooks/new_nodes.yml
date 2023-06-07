@@ -47,6 +47,9 @@
   gather_facts: true
   tasks: 
     - include_role: 
+        name: oci-cn-auth
+      when: cluster_network|bool
+    - include_role: 
         name: rdma-interface
       when: cluster_network|bool
     - include_role: 
