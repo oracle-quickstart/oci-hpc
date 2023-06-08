@@ -73,6 +73,7 @@ fi
 
   # Use  -x NCCL_MAX_P2P_NCHANNELS=16 until NCCL 2.12 release which has a fix to allow NCCL_MAX_P2P_NCHANNELS=32 for nodes with 16 RDMA NICss
   # final version
+  # you need --mca coll ^hcoll when using an image that has OFED 5.4 or newer
   mpirun --mca pml ucx \
   --bind-to numa \
   --mca coll ^hcoll \
