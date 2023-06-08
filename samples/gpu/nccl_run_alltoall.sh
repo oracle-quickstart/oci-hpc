@@ -75,6 +75,7 @@ fi
   # final version
   mpirun --mca pml ucx \
   --bind-to numa \
+  --mca coll ^hcoll \
   -x NCCL_MAX_P2P_NCHANNELS=16 \
   -x NCCL_DEBUG=WARN \
   -x NCCL_IB_SL=0 \
