@@ -16,8 +16,10 @@
   register: result
   when: shape.stdout != "" and nvidia.stdout == '1'
 
-- name: check ofed version
-  shell: ofed_info |grep MLNX_OFED_LINUX|grep -v rpm|awk -F \"(\" '{print $2}'|cut -c 6-|awk -F \"-\" '{print $1}'
+- name: Check ofed version
+  shell:
+    cmd: |
+      /usr/bin/ofed_info |grep MLNX_OFED_LINUX|grep -v rpm|awk -F "(" '{print $2}'|cut -c 6-|awk -F "-" '{print $1}'
   register: ofed_version
   when: shape.stdout != "" and nvidia.stdout == '1'
 
