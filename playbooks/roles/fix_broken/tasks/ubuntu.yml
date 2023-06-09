@@ -72,6 +72,14 @@
   delay: 10
   until: result.stdout | int == 0
 
+- name: Ensure lock file is removed
+  become: true
+  file: 
+    path: "/var/lib/apt/lists/lock"
+    state: absent
+  retries: 30
+  delay: 10
+  until: result.stdout | int == 0
 
 - name: Run apt-get update
   become: true
@@ -79,7 +87,6 @@
     sudo apt-get update &
     PID1=$!
     wait $PID1
-
 
 - name: Run fix-broken
   become: true
