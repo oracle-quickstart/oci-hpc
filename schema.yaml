@@ -236,7 +236,7 @@ variables:
   ldap:
     type: boolean
     title: "Configure LDAP authentication from bastion"
-    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands. (Not working on Ubuntu, yet...)"
+    description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
     default: true
   cluster_name:
     title: "Name of the cluster"
@@ -261,14 +261,14 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
-    default: VM.Standard2.4
+    default: VM.Standard.E4.Flex
   bastion_ocpus:
     title: "Cores"
     type: integer
     description: Number of OCPU's for flex shape
     minimum: 1
     maximum: 64
-    default: 2
+    default: 4
     visible:
       and: 
         - or: 
@@ -334,7 +334,7 @@ variables:
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
     maximum: 1024
-    default: 16
+    default: 32
     visible:
       and: 
         - and: 
@@ -522,7 +522,7 @@ variables:
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
     required: true
-    default: "VM.Standard2.4"
+    default: "VM.Standard.E4.Flex"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -1001,7 +1001,7 @@ variables:
   rack_aware:
     type: boolean
     title: "Create Rack aware topology"
-    default: false
+    default: true
     required: true
     description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted" 
     visible: ${slurm}
@@ -1032,7 +1032,7 @@ variables:
     type: boolean
     title: "Enable PAM"
     default: false
-    description: "Enable PAM for the Slurm cluster (Supported only on OL with RHCK kernel at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
+    description: "Enable PAM for the Slurm cluster (Supported on OL with RHCK kernel and Ubuntu at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
     visible: ${slurm}
 
   sacct_limits:
@@ -1271,7 +1271,7 @@ variables:
   login_node:
     type: boolean
     title: "Login Node"
-    default: false
+    default: true
     description: "Create an additional login node for users"
 
   login_ad:
@@ -1292,7 +1292,7 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
-    default: VM.Standard2.4
+    default: VM.Standard.E4.Flex
     visible: ${login_node}
 
   login_ocpus:
@@ -1300,7 +1300,7 @@ variables:
     description: Number of OCPU's for flex shape
     minimum: 1
     maximum: 64
-    default: 2
+    default: 16
     visible:
       and: 
         - or: 
@@ -1369,7 +1369,7 @@ variables:
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
     maximum: 1024
-    default: 16
+    default: 128
     visible:
       and: 
         - and: 
@@ -1399,7 +1399,7 @@ variables:
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 50
+    default: 250
     visible:  ${login_node}
 
   login_block:
@@ -1426,7 +1426,7 @@ variables:
       - "0.  Lower performance"
       - "10. Balanced performance"
       - "20. High Performance"
-    default: "10. Balanced performance"
+    default: "20. High Performance"
     visible:
       and:
         - and:
