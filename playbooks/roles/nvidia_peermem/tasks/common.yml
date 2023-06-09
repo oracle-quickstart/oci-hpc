@@ -20,10 +20,10 @@
   shell:
     cmd: |
       /usr/bin/ofed_info |grep MLNX_OFED_LINUX|grep -v rpm|awk -F "(" '{print $2}'|cut -c 6-|awk -F "-" '{print $1}'
-  register: ofed_version
+  register: ofed_version_local
   when: shape.stdout != "" and nvidia.stdout == '1'
 
 - name: Load nvidia_peermem module
   become: true
   shell: modprobe nvidia_peermem
-  when: shape.stdout != "" and nvidia.stdout == '1' and result.stdout != '3' and ofed_version.stdout|int >= '5.1'
+  when: shape.stdout != "" and nvidia.stdout == '1' and result.stdout != '3' and ofed_version_local.stdout|int >= '5.1'
