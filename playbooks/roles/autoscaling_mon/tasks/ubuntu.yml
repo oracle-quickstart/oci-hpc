@@ -50,52 +50,10 @@
 #     sslverify: 1
 #     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
-- name: Add grafana key
-  become: true
-  apt_key:
-    state: present
-    url: https://packages.grafana.com/gpg.key
-
-- name: Manage grafana APT repositories
-  become: true
-  apt_repository:
-    repo: deb https://packages.grafana.com/oss/deb stable main
-    state: present
-
 - name: install grafana
-  vars: 
-    package_name: 
-      - grafana-8.5.21-1
-    package_state: present
   include_role: 
-    name: safe_yum
-
-- name: start grafana
-  become: true
-  service: 
-    name: grafana-server
-    state: restarted
-    enabled: true
-
-- name: Ensure grafana key directory exists
-  file:
-    path: "/etc/opt/oci-hpc/passwords/grafana"
-    state: directory
-  delegate_to: localhost
-
-- name: Check api key list
-  uri:
-    url: "{{ grafana_api_url }}/api/auth/keys"
-    method: GET
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    return_content: true
-  no_log: false
-  register: existing_api_keys
-  retries: 5
-  delay: 5
-  until: existing_api_keys is not failed
+    name: grafana
+  when: not monitoring|default(false)|bool
 
 # - name: Import mysql-2022 key 
 #   become: true
