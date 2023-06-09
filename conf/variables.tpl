@@ -116,6 +116,7 @@ variable "hyperthreading" { default = ##HT## }
 variable "unsupported" { default = ${unsupported} }
 variable "image_ocid" { default = "##IMAGE##" }
 variable "ldap" { default = ${ldap} }
+variable "monitoring" { default = ${monitoring} }
 variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 
