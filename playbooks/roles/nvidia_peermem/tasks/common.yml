@@ -6,20 +6,22 @@
   register: shape
   failed_when: false
 
-
 - name: Check if nvidia drivers are installed
   shell: cat /sys/module/nvidia/version | wc -l
   register: nvidia
   when: shape.stdout != ""
-
 
 - name: Check if nvidia_peermem module is loaded
   shell: lsmod | grep nvidia_peermem | wc -l
   register: result
   when: shape.stdout != "" and nvidia.stdout == '1'
 
+- name: check ofed version
+  shell: ofed_info |grep MLNX_OFED_LINUX|grep -v rpm|awk -F \"(\" '{print $2}'|cut -c 6-|awk -F \"-\" '{print $1}'
+  register: ofed_version
+  when: shape.stdout != "" and nvidia.stdout == '1'
 
 - name: Load nvidia_peermem module
   become: true
   shell: modprobe nvidia_peermem
-  when: shape.stdout != "" and nvidia.stdout == '1' and result.stdout != '3'
+  when: shape.stdout != "" and nvidia.stdout == '1' and result.stdout != '3' and ofed_version.stdout|int >= '5.1'
