@@ -62,6 +62,7 @@ resource "local_file" "inventory" {
     instance_pool_ocpus=local.instance_pool_ocpus,
     queue=var.queue,
     instance_type=var.instance_type,
+    monitoring=var.monitoring,
     autoscaling_monitoring = var.autoscaling_monitoring,
     unsupported = var.unsupported,
     hyperthreading = var.hyperthreading,
