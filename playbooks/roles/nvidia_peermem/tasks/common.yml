@@ -3,27 +3,27 @@
   shell:
     cmd: "curl -sH \"Authorization: Bearer Oracle\" -L http://169.254.169.254/opc/v2/instance/ | jq .shape | grep GPU"
     warn: false
-  register: shape
+  register: shape_gpu
   failed_when: false
 
 - name: Check if nvidia drivers are installed
   shell: cat /sys/module/nvidia/version | wc -l
   register: nvidia
-  when: shape.stdout != ""
+  when: shape_gpu.stdout != ""
 
 - name: Check if nvidia_peermem module is loaded
   shell: lsmod | grep nvidia_peermem | wc -l
   register: result
-  when: shape.stdout != "" and nvidia.stdout == '1'
+  when: shape_gpu.stdout != "" and nvidia.stdout == '1'
 
 - name: Check ofed version
   shell:
     cmd: |
       /usr/bin/ofed_info |grep MLNX_OFED_LINUX|grep -v rpm|awk -F "(" '{print $2}'|cut -c 6-|awk -F "-" '{print $1}'
   register: ofed_version_local
-  when: shape.stdout != "" and nvidia.stdout == '1'
+  when: shape_gpu.stdout != "" and nvidia.stdout == '1'
 
 - name: Load nvidia_peermem module
   become: true
   shell: modprobe nvidia_peermem
-  when: shape.stdout != "" and nvidia.stdout == '1' and result.stdout != '3' and ofed_version_local.stdout|int >= '5.1'
+  when: shape_gpu.stdout != "" and nvidia.stdout == '1' and result.stdout != '3' and ofed_version_local.stdout|int >= '5.1'
