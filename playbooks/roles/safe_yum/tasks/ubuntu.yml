@@ -20,7 +20,7 @@
   delay: 5
   when: not deb_name is defined
 
-- name: "Installing/Removing {{package_name}}"
+- name: "Installing/Removing {{deb_name}}"
   become: true
   apt:
     deb: "{{item}}"
