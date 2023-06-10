@@ -296,8 +296,8 @@
         name: fix_ldap
       when: ldap|default(true)|bool
 
-- hosts: all
-  serial: 1
+- hosts: bastion, nfs, login, compute, slurm_backup
+  #serial: 1
   vars:
     destroy: false
     initial: true
