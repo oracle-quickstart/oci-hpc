@@ -299,8 +299,6 @@
 - hosts: all
   serial:
     - 1
-    - 2
-    - 25%
     - 50%
   vars:
     destroy: false
