@@ -522,7 +522,7 @@ variables:
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
     required: true
-    default: "VM.Standard2.4"
+    default: "VM.Standard.E4.Flex"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
