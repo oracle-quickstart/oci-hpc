@@ -17,3 +17,11 @@
   include_role: 
     name: safe_yum
   when: current_version.stdout < version
+
+- name: Restart the OCI CN AUTH service
+  become: true
+  service: 
+    name: oci-cn-auth
+    state: restarted
+    enabled: yes
+  when: current_version.stdout < version
