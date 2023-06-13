@@ -540,6 +540,8 @@ variables:
     default: 2
     visible:
       and: 
+        - not: 
+          - ${cluster_network}
         - or: 
           - eq:
             - ${instance_pool_shape}
@@ -581,6 +583,8 @@ variables:
     default: false
     visible:
       and: 
+        - not: 
+          - ${cluster_network}
         - or: 
           - eq:
             - ${instance_pool_shape}
@@ -625,6 +629,7 @@ variables:
               - "VM.Standard3.Flex"
         - and: 
             - ${instance_pool_custom_memory}
+            - ${cluster_network}
     required: true
 
   node_count:
