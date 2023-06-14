@@ -7,7 +7,7 @@
     package_name:
       - pyOpenSSL
       - python2-cryptography
-      - python36-oci-cli
+      - python3-oci-cli
       - pssh
       - pdsh
       - python3-pip
@@ -15,4 +15,12 @@
     package_repo: "epel,ol7_developer_EPEL"
   include_role: 
     name: safe_yum
-  ignore_errors: true
+  
+- name: install oci-cli latest version
+  become: true
+  pip:
+    name: [oci-cli]
+    state: latest
+    executable: pip3
+  ignore_errors: yes
+  when: ('bastion' in group_names)

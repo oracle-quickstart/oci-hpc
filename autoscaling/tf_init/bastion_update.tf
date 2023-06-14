@@ -16,7 +16,7 @@ resource "local_file" "hosts" {
   }
 
 resource "local_file" "inventory" {
-  depends_on          = [oci_core_cluster_network.cluster_network]
+  depends_on          = [oci_core_cluster_network.cluster_network, oci_core_cluster_network.cluster_network]
   content        = templatefile("${local.bastion_path}/inventory.tpl", {  
     bastion_name = var.bastion_name,
     bastion_ip = var.bastion_ip, 
