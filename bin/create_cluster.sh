@@ -37,6 +37,7 @@ cp -r $autoscaling_folder/tf_init $autoscaling_folder/clusters/$2
 cd $autoscaling_folder/clusters/$2
 shape=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.shape " $queues_conf`
 cluster_network=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.cluster_network " $queues_conf`
+compute_cluster=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.compute_cluster " $queues_conf`
 targetCompartment=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.targetCompartment " $queues_conf`
 ADNames=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.ad " $queues_conf`
 boot_volume_size=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.boot_volume_size " $queues_conf`
@@ -67,7 +68,7 @@ do
 
   echo $1 $3 $4 >> currently_building
   echo $3 $4 > cluster_options
-  sed "s~##NODES##~$1~g;s~##NAME##~$2~g;s~##SHAPE##~$shape~g;s~##CN##~$cluster_network~g;s~##QUEUE##~${4}~g;s~##COMP##~${targetCompartment}~g;s~##AD##~${ADName}~g;s~##BOOT##~${boot_volume_size}~g;s~##USEMP##~${use_marketplace_image}~g;s~##USEOLDMP##~${use_old_marketplace_image}~g;s~##IMAGE##~${image}~g;s~##OCPU##~${instance_pool_ocpus}~g;s~##MEM##~${instance_pool_memory}~g;s~##CUSTOM_MEM##~${instance_pool_custom_memory}~g;s~##MP_LIST##~${marketplace_listing}~g;s~##HT##~${hyperthreading}~g;s~##INST_TYPE##~$3~g;s~##TAGS##~$tags~g;s~##REGION##~${region}~g;s~##PRIVATE_SUBNET_ID##~${private_subnet_id}~g;s~##PRIVATE_SUBNET##~${private_subnet}~g" $conf_folder/variables.tf > variables.tf
+  sed "s~##NODES##~$1~g;s~##NAME##~$2~g;s~##SHAPE##~$shape~g;s~##CN##~$cluster_network~g;s~##QUEUE##~${4}~g;s~##COMP##~${targetCompartment}~g;s~##AD##~${ADName}~g;s~##BOOT##~${boot_volume_size}~g;s~##USEMP##~${use_marketplace_image}~g;s~##USEOLDMP##~${use_old_marketplace_image}~g;s~##IMAGE##~${image}~g;s~##OCPU##~${instance_pool_ocpus}~g;s~##MEM##~${instance_pool_memory}~g;s~##CUSTOM_MEM##~${instance_pool_custom_memory}~g;s~##MP_LIST##~${marketplace_listing}~g;s~##HT##~${hyperthreading}~g;s~##INST_TYPE##~$3~g;s~##TAGS##~$tags~g;s~##REGION##~${region}~g;s~##PRIVATE_SUBNET_ID##~${private_subnet_id}~g;s~##PRIVATE_SUBNET##~${private_subnet}~g;s~##CC##~$compute_cluster~g" $conf_folder/variables.tf > variables.tf
 
   echo "Started to build $2"
   start=`date -u +%s`

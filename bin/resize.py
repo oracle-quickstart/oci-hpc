@@ -20,7 +20,9 @@ def get_metadata():
 
 def wait_for_running_status(cluster_name,comp_ocid,cn_ocid,CN,expected_size=None):
     while True:
-        if CN:
+        if CN == "CC": 
+            break
+        elif CN == "CN":
             state = computeManagementClient.get_cluster_network(cn_ocid).data.lifecycle_state
             instances=computeManagementClient.list_cluster_network_instances(comp_ocid,cn_ocid).data
         else:
@@ -42,20 +44,34 @@ def wait_for_running_status(cluster_name,comp_ocid,cn_ocid,CN,expected_size=None
 
 def get_instances(comp_ocid,cn_ocid,CN):
     cn_instances=[]
-    if CN:
-        instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_cluster_network_instances,comp_ocid,cn_ocid).data
+    if CN == "CC":
+        instances = computeClient.list_instances(comp_ocid,compute_cluster_id=cn_ocid).data
+        for instance in instances:
+            if instance.lifecycle_state == "TERMINATED":
+                continue
+            try:
+                for potential_vnic_attachment in oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data:
+                    if potential_vnic_attachment.display_name is None:
+                        vnic_attachment = potential_vnic_attachment
+                vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
+            except:
+                continue
+            cn_instances.append({'display_name':instance.display_name,'ip':vnic.private_ip,'ocid':instance.id})   
     else:
-        instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_instance_pool_instances,comp_ocid,cn_ocid).data
-    for instance_summary in instance_summaries:
-        try:
-            instance=computeClient.get_instance(instance_summary.id).data
-            for potential_vnic_attachment in oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data:
-                if potential_vnic_attachment.display_name is None:
-                    vnic_attachment = potential_vnic_attachment
-            vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
-        except:
-            continue
-        cn_instances.append({'display_name':instance_summary.display_name,'ip':vnic.private_ip,'ocid':instance_summary.id})
+        if CN == "CN":
+            instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_cluster_network_instances,comp_ocid,cn_ocid).data
+        else:
+            instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_instance_pool_instances,comp_ocid,cn_ocid).data
+        for instance_summary in instance_summaries:
+            try:
+                instance=computeClient.get_instance(instance_summary.id).data
+                for potential_vnic_attachment in oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data:
+                    if potential_vnic_attachment.display_name is None:
+                        vnic_attachment = potential_vnic_attachment
+                vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
+            except:
+                continue
+            cn_instances.append({'display_name':instance_summary.display_name,'ip':vnic.private_ip,'ocid':instance_summary.id})   
     return cn_instances
 
 def parse_inventory(inventory):
@@ -433,7 +449,7 @@ def getNFSnode(inventory):
     return dict['nfs'][0].split()[0]
 
 def get_summary(comp_ocid,cluster_name):
-    CN = True
+    CN = "CN"
     cn_summaries = computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
     running_clusters = 0
     scaling_clusters = 0
@@ -445,25 +461,35 @@ def get_summary(comp_ocid,cluster_name):
         elif cn_summary_tmp.lifecycle_state == "SCALING":
             scaling_clusters = scaling_clusters + 1
     if running_clusters == 0:
-        cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
+        cn_summaries = computeClient.list_compute_clusters(comp_ocid,display_name=cluster_name).data.items
         if len(cn_summaries) > 0:
-            CN = False
+            CN = "CC"
             for cn_summary_tmp in cn_summaries:
-                if cn_summary_tmp.lifecycle_state == "RUNNING":
+                if cn_summary_tmp.lifecycle_state == "ACTIVE" and cn_summary_tmp.display_name == cluster_name :
                     cn_summary = cn_summary_tmp
                     running_clusters = running_clusters + 1 
-                elif cn_summary_tmp.lifecycle_state == "SCALING":
-                    scaling_clusters = scaling_clusters + 1
-        if running_clusters == 0:
-            if scaling_clusters:
-                print("No running cluster was found but there is a cluster in SCALING mode, try rerunning in a moment")
-            else:
-                print("The cluster was not found")
-            return None,None,True
+            if running_clusters == 0:
+                cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
+                if len(cn_summaries) > 0:
+                    CN = "IP"
+                    for cn_summary_tmp in cn_summaries:
+                        if cn_summary_tmp.lifecycle_state == "RUNNING":
+                            cn_summary = cn_summary_tmp
+                            running_clusters = running_clusters + 1 
+                        elif cn_summary_tmp.lifecycle_state == "SCALING":
+                            scaling_clusters = scaling_clusters + 1
+                if running_clusters == 0:
+                    if scaling_clusters:
+                        print("No running cluster was found but there is a cluster in SCALING mode, try rerunning in a moment")
+                    else:
+                        print("The cluster was not found")
+                    return None,None,True
     if running_clusters > 1:
         print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
-    if CN:
+    if CN == "CN":
         ip_summary=cn_summary.instance_pools[0]
+    elif CN == "CC":
+        ip_summary=None
     else:
         ip_summary=cn_summary
     return cn_summary,ip_summary,CN
@@ -508,6 +534,28 @@ def updateTFState(inventory,cluster_name,size):
     except:
         return 0
     
+def getLaunchInstanceDetails(instance,comp_ocid,cn_ocid,max_previous_index,index):
+
+    agent_config=instance.agent_config
+    agent_config.__class__ = oci.core.models.LaunchInstanceAgentConfigDetails
+
+    for potential_vnic_attachment in oci.pagination.list_call_get_all_results(computeClient.list_vnic_attachments,compartment_id=comp_ocid,instance_id=instance.id).data:
+        if potential_vnic_attachment.display_name is None:
+            vnic_attachment = potential_vnic_attachment
+    splitted_name=instance.display_name.split('-')
+    create_vnic_details=oci.core.models.CreateVnicDetails(assign_public_ip=False,subnet_id=vnic_attachment.subnet_id)
+
+    shape_config=instance.shape_config
+    try: 
+        nvmes=shape_config.local_disks
+        launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,nvmes=nvmes,ocpus=shape_config.ocpus)
+    except:
+        launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,ocpus=shape_config.ocpus)
+
+    splitted_name[-1]=str(max_previous_index+1+index)
+    new_display_name = '-'.join(splitted_name)
+    launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=comp_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
+    return launch_instance_details      
 
 batchsize=12
 inventory="/etc/ansible/hosts"
@@ -594,12 +642,14 @@ else:
 if user_logging:
     config_oci = oci.config.from_file()
     computeClient = oci.core.ComputeClient(config_oci)
+    ComputeClientCompositeOperations = oci.core.ComputeClientCompositeOperations(computeClient)
     computeManagementClient = oci.core.ComputeManagementClient(config_oci)
     ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
     virtualNetworkClient = oci.core.VirtualNetworkClient(config_oci)
 else:
     signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
     computeClient = oci.core.ComputeClient(config={}, signer=signer)
+    ComputeClientCompositeOperations= oci.core.ComputeClientCompositeOperations(computeClient)
     computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
     ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
     virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
@@ -608,11 +658,13 @@ cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
 if cn_summary is None:
     exit()
 cn_ocid =cn_summary.id
-current_size=ip_summary.size
-if CN:
-    ipa_ocid = cn_summary.instance_pools[0].id
-else:
-    ipa_ocid = cn_ocid
+
+if CN != "CC":
+    current_size=ip_summary.size
+    if CN == "CN":
+        ipa_ocid = cn_summary.instance_pools[0].id
+    else:
+        ipa_ocid = cn_ocid
 
 if args.mode == 'list':
     state = cn_summary.lifecycle_state
@@ -699,36 +751,74 @@ else:
                     exit(1)
                 else:
                     print("STDOUT: Force deleting the nodes")
-        while len(hostnames_to_remove) > 0:
-            terminated_instances=0
-            if len(hostnames_to_remove) >batchsize:
-                batch = hostnames_to_remove[:batchsize]
-            else:
-                batch = hostnames_to_remove
-            cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
-            current_size = ip_summary.size
-            for instanceName in batch:
-                try:
-                    instance_id = computeClient.list_instances(comp_ocid,display_name=instanceName).data[0].id
-                    instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_id,is_auto_terminate=True,is_decrement_size=True)
-                    print("STDOUT: The instance "+instanceName+" is terminating")
-                    ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
-                    terminated_instances = terminated_instances + 1
-                except:
-                    print("The instance "+instanceName+" does not exist")
-            hostnames_to_remove=hostnames_to_remove[batchsize:]
+        terminated_instances=0
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
-        newsize=ip_summary.size
-        updateTFState(inventory,cluster_name,newsize)
+        if CN != "CC": 
+            current_size = ip_summary.size
+        for instanceName in hostnames_to_remove:
+            try:
+                instance_id = computeClient.list_instances(comp_ocid,display_name=instanceName).data[0].id
+                if CN == "CC":
+                    ComputeClientCompositeOperations.terminate_instance_and_wait_for_state(instance_id,wait_for_states=["TERMINATING","TERMINATED"])
+                else: 
+                    instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_id,is_auto_terminate=True,is_decrement_size=True)
+                    ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
+                terminated_instances = terminated_instances + 1
+                print("STDOUT: The instance "+instanceName+" is terminating")   
+            except:
+                print("The instance "+instanceName+" does not exist")
+        cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
+        if CN == "CC":
+            instance_id = computeClient.list_instances(comp_ocid,display_name=hostnames_to_remove[-1]).data[0].id
+            for i in range(10):
+                try:
+                    instance_state = computeClient.get_instance(instance_id).data.lifecycle_state
+                    if instance_state == "TERMINATED":
+                        break
+                    else: 
+                        time.sleep(10)
+                except:
+                    break
+            cn_instances = get_instances(comp_ocid,cn_ocid,CN)
+            newsize=len(cn_instances)
+        else:
+            newsize=ip_summary.size
+            updateTFState(inventory,cluster_name,newsize)
         print("STDOUT: Resized to "+str(newsize)+" instances")
         if error_code != 0 and force:
             print("STDOUT: The nodes were forced deleted, trying to reconfigure the left over nodes")
             reconfigure(comp_ocid,cn_ocid,inventory,CN)
 
     if args.mode == 'add':
-        size = current_size - hostnames_to_remove_len + args.number
-        update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
-        ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
-        updateTFState(inventory,cluster_name,size)
+        if CN == "CC":
+            cn_instances = get_instances(comp_ocid,cn_ocid,CN)
+            current_size=len(cn_instances)
+            if len(cn_instances) == 0:
+                print("The resize script cannot work for a compute cluster if the size is there is no node in the cluster")
+            else:
+                for cn_instance in cn_instances:
+                    max_index=-1
+                    if int(cn_instance['display_name'].split('-')[-1]) > max_index:
+                        max_index=int(cn_instance['display_name'].split('-')[-1])
+                instance=computeClient.get_instance(cn_instances[0]['ocid']).data
+
+                for i in range(args.number):
+                    launch_instance_details=getLaunchInstanceDetails(instance,comp_ocid,cn_ocid,max_index,i)
+                    ComputeClientCompositeOperations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
+        else:
+            size = current_size - hostnames_to_remove_len + args.number
+            update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
+            ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
+        
+        cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
+        if CN == "CC":
+            cn_instances = get_instances(comp_ocid,cn_ocid,CN)
+            newsize=len(cn_instances)
+        else:
+            newsize=ip_summary.size
+            updateTFState(inventory,cluster_name,newsize)
+        if newsize == current_size:
+            print("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
+            exit(1)
         if not no_reconfigure:
             add_reconfigure(comp_ocid,cn_ocid,inventory,CN)

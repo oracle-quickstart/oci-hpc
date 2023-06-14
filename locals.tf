@@ -1,7 +1,7 @@
 locals { 
 // display names of instances 
-  cluster_instances_ids = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.id : data.oci_core_instance.instance_pool_instances.*.id
-  cluster_instances_names = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
+  cluster_instances_ids = var.compute_cluster ? oci_core_instance.compute_cluster_instances.*.id : var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.id : data.oci_core_instance.instance_pool_instances.*.id
+  cluster_instances_names = var.compute_cluster ? oci_core_instance.compute_cluster_instances.*.display_name : var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
 
   image_ocid = var.unsupported ? var.image_ocid : var.image
   custom_bastion_image_ocid = var.unsupported_bastion ? var.unsupported_bastion_image : var.custom_bastion_image
@@ -12,7 +12,7 @@ locals {
   bastion_ocpus = var.bastion_shape == "VM.DenseIO.E4.Flex" ? var.bastion_ocpus_denseIO_flex : var.bastion_ocpus
   login_ocpus = var.login_shape == "VM.DenseIO.E4.Flex" ? var.login_ocpus_denseIO_flex : var.login_ocpus
 // ips of the instances
-  cluster_instances_ips = var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
+  cluster_instances_ips = var.compute_cluster ? oci_core_instance.compute_cluster_instances.*.private_ip : var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
 
 // vcn id derived either from created vcn or existing if specified
   vcn_id = var.use_existing_vcn ? var.vcn_id : element(concat(oci_core_vcn.vcn.*.id, [""]), 0)
@@ -54,11 +54,11 @@ locals {
 // Cluster OCID
 
 
-  cluster_ocid = var.node_count > 0 ? var.cluster_network ? oci_core_cluster_network.cluster_network[0].id : oci_core_instance_pool.instance_pool[0].id : ""
+  cluster_ocid = var.node_count > 0 ? var.compute_cluster ? oci_core_compute_cluster.compute_cluster[0].id : var.cluster_network ? oci_core_cluster_network.cluster_network[0].id : oci_core_instance_pool.instance_pool[0].id : ""
   host = var.private_deployment ? data.oci_resourcemanager_private_endpoint_reachable_ip.private_endpoint_reachable_ip[0].ip_address : oci_core_instance.bastion.public_ip
   bastion_bool_ip = var.private_deployment ? false : true
   login_bool_ip = var.private_deployment ? false : true
-  bastion_subnet = var.private_deployment ? oci_core_subnet.private-subnet : oci_core_subnet.private-subnet 
+  bastion_subnet = var.private_deployment ? oci_core_subnet.private-subnet : oci_core_subnet.public-subnet
   private_subnet_cidr = var.private_deployment ? [var.public_subnet, var.private_subnet] : [var.private_subnet]
   host_backup = var.slurm_ha ? var.private_deployment ? data.oci_resourcemanager_private_endpoint_reachable_ip.private_endpoint_reachable_ip_backup[0].ip_address : oci_core_instance.backup[0].public_ip : "none"
   host_login = var.login_node ? var.private_deployment ? data.oci_resourcemanager_private_endpoint_reachable_ip.private_endpoint_reachable_ip_login[0].ip_address : oci_core_instance.login[0].public_ip : "none"

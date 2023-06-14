@@ -41,6 +41,8 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
 
+  sudo pip3 install oci-cli --upgrade
+
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held
   function fix_apt {
