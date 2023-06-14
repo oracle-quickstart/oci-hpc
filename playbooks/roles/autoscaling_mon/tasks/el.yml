@@ -51,35 +51,9 @@
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
 - name: install grafana
-  vars: 
-    package_name: 
-      - grafana-8.5.21-1
-    package_state: present
   include_role: 
-    name: safe_yum
-
-- name: start grafana
-  become: true
-  service: 
-    name: grafana-server
-    state: restarted
-    enabled: true
-
-- name: Ensure grafana key directory exists
-  file:
-    path: "/etc/opt/oci-hpc/passwords/grafana"
-    state: directory
-  delegate_to: localhost
-
-- name: Check api key list
-  uri:
-    url: "{{ grafana_api_url }}/api/auth/keys"
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    return_content: true
-  no_log: false
-  register: existing_api_keys
+    name: grafana
+  when: not monitoring|default(false)|bool
 
 - name: install mysql-shell and connector
   vars: 

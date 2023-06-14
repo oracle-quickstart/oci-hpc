@@ -1,0 +1,27 @@
+---
+- name: Check the oci-cn-auth version
+  shell: cat /opt/oci-hpc/oci-cn-auth/.version-oci_cn_auth | awk -F- '{print $1}'
+  register: current_version
+
+- name: Download oci-cn-auth .rpm if the current version is lower
+  get_url:
+    url: "{{download_link}}oci-cn-auth-{{version}}-compute.el{{ansible_distribution_major_version}}.noarch.rpm"
+    dest: "/tmp/"
+  when: current_version.stdout < version
+
+- name: Install oci-cn-auth .rpm if the current version is lower
+  vars: 
+    package_name: 
+      - "/tmp/oci-cn-auth-{{version}}-compute.el{{ansible_distribution_major_version}}.noarch.rpm"
+    package_state: present
+  include_role: 
+    name: safe_yum
+  when: current_version.stdout < version
+
+- name: Restart the OCI CN AUTH service
+  become: true
+  service: 
+    name: oci-cn-auth
+    state: restarted
+    enabled: yes
+  when: current_version.stdout < version

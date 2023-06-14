@@ -60,6 +60,7 @@ log_vol=${log_vol}
 ldap=${ldap}
 queue=${queue}
 instance_type=${instance_type}
+monitoring=${monitoring}
 hyperthreading=${hyperthreading}
 privilege_sudo=${privilege_sudo}
 privilege_group_name=${privilege_group_name}

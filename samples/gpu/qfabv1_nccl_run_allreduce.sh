@@ -66,9 +66,11 @@ then
   var_NCCL_IB_HCA="=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16"
 fi
 
+# you need --mca coll ^hcoll when using an image that has OFED 5.4 or newer
   # final version
   mpirun --mca pml ucx \
   --bind-to numa \
+  --mca coll ^hcoll \ 
   -x NCCL_DEBUG=WARN \
   -x NCCL_IB_SL=0 \
   -x NCCL_IB_TC=41 \

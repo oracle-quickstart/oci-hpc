@@ -47,6 +47,9 @@
   gather_facts: true
   tasks: 
     - include_role: 
+        name: oci-cn-auth
+      when: cluster_network|bool
+    - include_role: 
         name: rdma-interface
       when: cluster_network|bool
     - include_role: 
@@ -200,6 +203,9 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+    - include_role: 
+        name: influxdb
+      when: monitoring|default(false)|bool
     - include_role: 
         name: telegraf
       when: monitoring|default(false)|bool
