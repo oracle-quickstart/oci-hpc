@@ -9,7 +9,7 @@
 
 - name: Add configuration file to /etc/sssd/sssd.conf
   template:
-    src: 'sssd.conf.j2'
+    src: 'el-8_sssd.conf.j2'
     dest: '/etc/sssd/sssd.conf'
     owner: 'root'
     group: 'root'
