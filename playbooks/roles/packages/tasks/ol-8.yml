@@ -1,4 +1,7 @@
 ---
+- name: Enable ol8_developer_EPEL repo
+  shell: yum-config-manager --enable ol8_developer_EPEL
+
 - name: Make sure python OpenSSL and parallel ssh is installed
   vars: 
     package_name:
@@ -9,7 +12,7 @@
       - pdsh
       - python3-pip
     package_state: latest
-    package_repo: "epel,ol8_developer_EPEL"
+    package_repo: "ol8_developer_EPEL"
   include_role: 
     name: safe_yum
   ignore_errors: true
