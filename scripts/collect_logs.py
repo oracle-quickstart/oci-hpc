@@ -61,7 +61,14 @@ def nvidiaBugReport(host, path):
 
 # run sosreport
 def sosReport(host, path):
-    cmd = f'ssh {host} "sudo sos report --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
+    os_version = getOS(host)
+    if os_version == "Oracle":
+        cmd = f'ssh {host} "sudo sosreport --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
+    elif os_version == "Ubuntu":
+        cmd = f'ssh {host} "sudo sos report --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
+    else:
+        print("Error in running sosreport for " + host)
+        return False
     raw_result = run_cmd(cmd)
     if isinstance(raw_result, tuple):
         if raw_result[0] == 9000:
@@ -137,6 +144,20 @@ def isNodeSshable(host):
         return True
     else:
         return False
+
+def getOS(host):
+    cmd = f'ssh -o ConnectTimeout=10 {host} "cat /etc/os-release | grep PRETTY_NAME"'
+    raw_result = run_cmd(cmd)
+    if isinstance(raw_result, tuple):
+        print("Error in determining OS")
+        if raw_result[0] == 9000:
+            return "error"
+    elif 'Oracle' in raw_result[0]:
+        return "Oracle"
+    elif 'Ubuntu' in raw_result[0]:
+        return "Ubuntu"
+    else:
+        return "error"
     
 
 parser = argparse.ArgumentParser(description = 'Get nvidia bug report, sosreport, console history logs for a particular host if it is reachable. If it is not reachable, then console history logs are generated.')
