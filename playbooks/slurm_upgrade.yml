@@ -13,6 +13,12 @@
       become: true
       shell: systemctl stop slurmctld
 
+- hosts: compute, login
+  tasks:
+    - name: Stop Slurm Daemon
+      become: true
+      shell: systemctl stop slurmd
+
 - hosts: all
   vars:
     slurm_version: "23.02.1-1"
@@ -53,11 +59,31 @@
       # Needed in case you wish to rerun this file it'll error.
       ignore_errors: true
 
-- hosts: compute
+- hosts: bastion, slurm_backup
+  tasks:
+    - name: Safely restart the Database
+      become: true
+      shell: timeout 1m slurmdbd -D -vvv
+      ignore_errors: true
+    - name: Restart Slurm DB Daemon
+      become: true
+      shell: systemctl start slurmdbd
+    - name: Restart Slurm Controller Daemon
+      become: true
+      shell: systemctl restart slurmctld
+
+- hosts: compute, login
   tasks:
     - name: Restart Slurm Daemons
       become: true
       shell: systemctl restart slurmd
+
+- hosts: all
+  tasks:
+  - name: Recursively remove directory
+    file:
+      path: /tmp/pyxis
+      state: absent
 
 - hosts: compute
   become: true
@@ -90,15 +116,8 @@
         name: slurm
       when: slurm|default(true)|bool
 
-- hosts: bastion, slurm_backup
+- hosts: all
   tasks:
-    - name: Safely restart the Database
+    - name: Reload all Daemons
       become: true
-      shell: timeout 1m slurmdbd -D -vvv
-      ignore_errors: true
-    - name: Restart Slurm DB Daemon
-      become: true
-      shell: systemctl start slurmdbd
-    - name: Restart Slurm Controller Daemon
-      become: true
-      shell: systemctl start slurmctld
+      shell: systemctl daemon-reload
