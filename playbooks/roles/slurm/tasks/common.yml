@@ -188,7 +188,7 @@
 
 - name: Include pyxis prolog files
   include: common_pyxis.yml
-  when: pyxis|bool
+  when: pyxis|default(true)|bool
 
 - name: Include pyxis prolog files
   include: common_pmix.yml

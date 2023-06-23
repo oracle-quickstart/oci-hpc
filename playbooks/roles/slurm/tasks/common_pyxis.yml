@@ -1,11 +1,10 @@
 ---
-
-- name: 
+- name: set /etc/enroot as enroot path if no nvme drive
   set_fact: 
     enroot_top_path_checked: "/etc/enroot/"
   when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
 
-- name: 
+- name: set {{enroot_top_path}} as enroot path if nvme drive
   set_fact: 
     enroot_top_path_checked: "{{enroot_top_path}}"
   when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices" 

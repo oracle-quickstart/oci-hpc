@@ -1,0 +1,104 @@
+- hosts: all
+  gather_facts: true
+  tasks:
+    - debug:
+        msg: "Gathering facts"
+
+- hosts: bastion, slurm_backup
+  tasks:
+    - name: Stop Slurm DB Daemon
+      become: true
+      shell: systemctl stop slurmdbd
+    - name: Stop Slurm Controller Daemon
+      become: true
+      shell: systemctl stop slurmctld
+
+- hosts: all
+  vars:
+    slurm_version: "23.02.1-1"
+    slurm_all_packages:
+      - "slurm-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-devel-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-contribs-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-perlapi-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-torque-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-openlava-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-slurmctld-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-slurmdbd-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-pam_slurm-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-libpmi-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+      - "slurm-slurmd-{{slurm_version}}.el{{ansible_distribution_major_version}}.x86_64.rpm"
+  tasks:
+    - name: Download slurm .rpms
+      become: true
+      get_url:
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item }}"
+        dest: "/data/slurm_rpms"
+      with_items: "{{slurm_all_packages}}"
+      delegate_to: 127.0.0.1
+      run_once: true  
+    - name: manually install all of the .rpms together (fails separately)
+      become: true
+      shell: yum install -y /data/slurm_rpms/{{slurm_all_packages[0]}} \
+        /data/slurm_rpms/{{slurm_all_packages[1]}} \
+        /data/slurm_rpms/{{slurm_all_packages[2]}} \
+        /data/slurm_rpms/{{slurm_all_packages[3]}} \
+        /data/slurm_rpms/{{slurm_all_packages[4]}} \
+        /data/slurm_rpms/{{slurm_all_packages[5]}} \
+        /data/slurm_rpms/{{slurm_all_packages[6]}} \
+        /data/slurm_rpms/{{slurm_all_packages[7]}} \
+        /data/slurm_rpms/{{slurm_all_packages[8]}} \
+        /data/slurm_rpms/{{slurm_all_packages[9]}} \
+        /data/slurm_rpms/{{slurm_all_packages[10]}}
+      # Needed in case you wish to rerun this file it'll error.
+      ignore_errors: true
+
+- hosts: compute
+  tasks:
+    - name: Restart Slurm Daemons
+      become: true
+      shell: systemctl restart slurmd
+
+- hosts: compute
+  become: true
+  vars:
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+  tasks:
+    - include_role: 
+        name: docker
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-container
+      when: enroot|default(true)|bool
+    - include_role: 
+        name: nvidia-enroot
+      when: enroot|default(true)|bool
+    - include_role:
+        name: tuned
+
+- hosts: bastion,slurm_backup,compute,login
+  gather_facts: true
+  vars:
+    destroy: false
+    initial: true
+    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+  vars_files:
+    - "/opt/oci-hpc/conf/queues.conf"
+  tasks:
+    - include_role:
+        name: slurm
+      when: slurm|default(true)|bool
+
+- hosts: bastion, slurm_backup
+  tasks:
+    - name: Safely restart the Database
+      become: true
+      shell: timeout 1m slurmdbd -D -vvv
+      ignore_errors: true
+    - name: Restart Slurm DB Daemon
+      become: true
+      shell: systemctl start slurmdbd
+    - name: Restart Slurm Controller Daemon
+      become: true
+      shell: systemctl start slurmctld
