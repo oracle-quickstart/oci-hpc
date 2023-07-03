@@ -53,42 +53,44 @@
     - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list }}"
   when: not ( one_lv | bool )
 
-- name: Create volume group
-  lvg:
-    vg: "vg_nvmes"
-    pvs: "{{['/dev/']|product(hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list)|map('join', '') | join(',')}}"
-  when: one_lv | bool
+- name: Check devices
+  shell: fdisk -l|grep vg_nvmes|wc -l
+  register: lv_count
+- block:
+    - name: Create volume group
+      lvg:
+        vg: "vg_nvmes"
+        pvs: "{{['/dev/']|product(hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list)|map('join', '') | join(',')}}"
 
-- name: Create Logical volume
-  lvol:
-    vg: "vg_nvmes"
-    lv: "lv_nvmes"
-    size: 100%FREE
-    opts: "{% if redundancy | bool %}--type raid10{% else%}-i4{% endif %}"
-  when: one_lv | bool
+    - name: Create Logical volume
+      lvol:
+        vg: "vg_nvmes"
+        lv: "lv_nvmes"
+        size: 100%FREE
+        opts: "{% if redundancy | bool %}--type raid10{% else%}-i4{% endif %}"
 
-- name: Create file system
-  filesystem:
-    fstype: xfs
-    dev: "/dev/vg_nvmes/lv_nvmes"
-  when: one_lv | bool
+    - name: Create file system
+      filesystem:
+        fstype: xfs
+        dev: "/dev/vg_nvmes/lv_nvmes"
 
-- name: Mount local volume
-  mount:
-    path: "{{ nvme_path_edited}}"
-    src: "/dev/vg_nvmes/lv_nvmes"
-    fstype: xfs
-    opts: defaults,noatime
-    state: mounted
-  when: one_lv | bool
+    - name: Mount local volume
+      mount:
+        path: "{{ nvme_path_edited}}"
+        src: "/dev/vg_nvmes/lv_nvmes"
+        fstype: xfs
+        opts: defaults,noatime
+        state: mounted
 
-- name: "set permissions on {{ nvme_path_edited }}"
-  become: true
-  file:
-    path: "{{ nvme_path_edited}}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    mode: 0775
-    group: "{{privilege_group_name}}"
-    recurse: no
-  when: one_lv | bool
+    - name: "set permissions on {{ nvme_path_edited }}"
+      become: true
+      file:
+        path: "{{ nvme_path_edited}}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: 0775
+        group: "{{privilege_group_name}}"
+        recurse: no
+  when:
+    - one_lv | bool 
+    - lv_count.stdout|int == "0"
