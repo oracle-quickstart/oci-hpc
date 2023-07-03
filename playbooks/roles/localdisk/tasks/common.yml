@@ -93,4 +93,4 @@
         recurse: no
   when:
     - one_lv | bool 
-    - lv_count.stdout|int == "0"
+    - lv_count.stdout == '0'
