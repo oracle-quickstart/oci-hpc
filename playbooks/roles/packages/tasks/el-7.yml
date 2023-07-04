@@ -12,3 +12,12 @@
   include_role: 
     name: safe_yum
   ignore_errors: true
+
+- name: install oci-cli latest version
+  become: true
+  pip:
+    name: [oci-cli]
+    state: latest
+    executable: pip3
+  ignore_errors: yes
+  when: ('bastion' in group_names)

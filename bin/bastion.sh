@@ -13,9 +13,14 @@ sudo cloud-init status --wait
 
 source /etc/os-release
 
+vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
-  repo="ol7_developer_EPEL"
-elif [ $ID == "centos" ] ; then 
+  if [ $vid == 7 ] ; then
+     repo="ol7_developer_EPEL"
+       elif [ $vid == 8 ] ; then
+       repo="ol8_developer_EPEL"
+  fi
+elif [ $ID == "centos" ] ; then
   repo="epel"
 fi
 
@@ -28,9 +33,15 @@ fi
 
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
   sudo yum makecache --enablerepo=$repo
+  if [ $vid == 7 ]; then
   sudo yum install --enablerepo=$repo -y ansible python-netaddr
+      elif [ $vid == 8 ] ; then
+      sudo yum install --enablerepo=$repo -y ansible python3-netaddr
+  fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
+
+  sudo pip3 install oci-cli --upgrade
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held

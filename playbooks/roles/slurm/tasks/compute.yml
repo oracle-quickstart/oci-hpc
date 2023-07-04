@@ -1,5 +1,4 @@
 ---
-
 - name: Run Pam settings
   include: compute_pam.yml
   when: pam|bool
@@ -82,7 +81,6 @@
     name: munge
     state: restarted
     enabled: true
-
 
 - name: Get hostnames
   set_fact:

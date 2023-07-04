@@ -16,6 +16,13 @@
     mode: '0600'
   notify: restart sssd
 
+- name: Update /etc/sssd/sssd.conf
+  lineinfile:
+    path: /etc/sssd/sssd.conf
+    line: "ldap_tls_reqcert = allow"
+    state: present
+  notify: restart sssd
+
 - name: Copy CA certificate
   copy:
     src: "{{ ssl_ca_cert }}"

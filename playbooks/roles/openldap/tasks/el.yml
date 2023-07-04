@@ -11,13 +11,30 @@
     group: opc
     recurse: yes
 
-- name: Install dependencies
+- name: Install dependencies ol7
   vars: 
     package_name: 
       - policycoreutils-python
     package_state: present
   include_role: 
     name: safe_yum
+  when: ansible_distribution_major_version == '7'
+
+- block:
+    - name: Install dependencies ol8
+      vars: 
+        package_name: 
+          - policycoreutils-python-utils
+        package_state: present
+      include_role: 
+        name: safe_yum
+
+    - name: Install openldap-servers
+      ansible.builtin.yum:
+        name: https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/openldap-servers-2.4.46-18.el8.x86_64.rpm
+        state: present
+        disable_gpg_check: true
+  when: ansible_distribution_major_version == '8'
 
 - name: Generate openldap root password 
   set_fact:
@@ -31,18 +48,32 @@
                           '/etc/opt/oci-hpc//passwords/openldap/root.txt
                            chars=ascii_letters,digits,hexdigits') }}"
 
-- name: Install OpenLDAP packages
+- name: Install OpenLDAP packages ol7
   vars: 
     package_name: "{{openldap_packages}}"
   include_role: 
     name: safe_yum
+  when: ansible_distribution_major_version == '7'
 
 - block:
-    - name: Selinux fcontext on files
-      sefcontext:
-        target: "{{ openldap_server_conf_path }}(/.*)?"
-        setype: slapd_db_t
-      when: ansible_selinux.status == "enabled"
+    - name: Install OpenLDAP packages ol8
+      vars: 
+        package_name: "{{openldap_packages_ol8}}"
+      include_role: 
+        name: safe_yum
+
+    - name: Create sysconfig-slapd
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/sysconfig/slapd
+        mode: 0644
+  when: ansible_distribution_major_version == '8'
+
+- name: Selinux fcontext on files
+  sefcontext:
+    target: "{{ openldap_server_conf_path }}(/.*)?"
+    setype: slapd_db_t
+  when: ansible_selinux.status == "enabled"
 
 - name: Hash OpenLDAP root password
   command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}
@@ -81,7 +112,24 @@
     groups: '{{ ssl_cert_group }}'
 
 - block:
+    - name: Install and upgrade pip
+      pip:
+        name: pip
+        extra_args: --upgrade
+        executable: pip3
 
+    - name: Install ladap3 and click
+      pip:
+        name: ['ldap3', 'click']
+        executable: pip3
+
+    - name: update /etc/openldap/ldap.conf
+      lineinfile:
+        dest: /etc/openldap/ldap.conf
+        line: TLS_REQSAN allow
+  when: ansible_distribution_major_version == '8'
+
+- block:
     - name: Ensure OpenLDAP data directory exists
       file:
         path: '{{ openldap_server_dir_path }}'
@@ -115,29 +163,57 @@
         creates: '/etc/openldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
       with_items: '{{ openldap_schemas }}'
 
-    - name: Render OpenLDAP configuration - config
-      template:
-        src: '{{ item }}.j2'
-        dest: '/tmp/{{ item }}'
-      with_items:
-        - config.ldif
-      changed_when: false
+    - block:
+        - name: Render OpenLDAP configuration - config ol7
+          template:
+            src: '{{ item }}.j2'
+            dest: '/tmp/{{ item }}'
+          with_items:
+            - config.ldif
+          changed_when: false
 
-    - name: Render OpenLDAP configuration - local
-      template:
-        src: 'el_local.ldif.j2'
-        dest: '/tmp/local.ldif'
-      changed_when: false
+        - name: Render OpenLDAP configuration - local
+          template:
+            src: 'el_local.ldif.j2'
+            dest: '/tmp/local.ldif'
+          changed_when: false
 
-    - name: Copy OpenLDAP overlay configurations - ppolicy
-      copy:
-        src: 'el_ppolicy.ldif'
-        dest: '/tmp/ppolicy.ldif'
-    
-    - name: Copy OpenLDAP overlay configurations - memberof
-      copy:
-        src: 'el_memberof.ldif'
-        dest: '/tmp/memberof.ldif'
+        - name: Copy OpenLDAP overlay configurations - ppolicy
+          copy:
+            src: 'el_ppolicy.ldif'
+            dest: '/tmp/ppolicy.ldif' 
+        
+        - name: Copy OpenLDAP overlay configurations - memberof
+          copy:
+            src: 'el_memberof.ldif'
+            dest: '/tmp/memberof.ldif'
+      when: ansible_distribution_major_version == '7' 
+
+    - block:
+        - name: Render OpenLDAP configuration - config ol8
+          template:
+            src: '{{ item }}.j2'
+            dest: '/tmp/{{ item }}'
+          with_items:
+            - config.ldif
+          changed_when: false
+
+        - name: Render OpenLDAP configuration - local
+          template:
+            src: 'el_local_ol8.ldif.j2'
+            dest: /tmp/local.ldif
+          changed_when: false
+
+        - name: Copy OpenLDAP overlay configurations - ppolicy
+          copy:
+            src: 'el_ppolicy_ol8.ldif'
+            dest: /tmp/ppolicy.ldif
+        
+        - name: Copy OpenLDAP overlay configurations - memberof
+          copy:
+            src: 'el_memberof_ol8.ldif'
+            dest: /tmp/memberof.ldif
+      when: ansible_distribution_major_version == '8'
 
     - name: Load OpenLDAP global configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
@@ -145,7 +221,7 @@
         creates: '/etc/openldap/slapd.d/cn=config.ldif'
       notify: restart openldap
 
-    - name: Load OpenLDAP local configuration
+    - name: Load OpenLDAP local configuration ol7
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
         creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif'
@@ -155,6 +231,25 @@
         - ppolicy.ldif
         - memberof.ldif
       notify: restart openldap
+      when: ansible_distribution_major_version == '7'
+
+    - name: restart openldap
+      service:
+        name: slapd
+        state: restarted
+        enabled: yes
+      when: ansible_distribution_major_version == '8'
+
+    - name: Load OpenLDAP local configuration ol8
+      command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
+      args:
+        creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
+      with_items:
+        - config.ldif
+        - local.ldif
+        - memberof.ldif
+      notify: restart openldap
+      when: ansible_distribution_major_version == '8'
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
