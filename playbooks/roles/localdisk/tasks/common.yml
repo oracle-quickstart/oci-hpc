@@ -68,7 +68,7 @@
         vg: "vg_nvmes"
         lv: "lv_nvmes"
         size: 100%FREE
-        opts: "{% if redundancy | bool %}--type raid10{% else%}-i4{% endif %}"
+        opts: "{% if redundancy | bool %}--type raid10{% else%}{% if ( nvme_count | int ) > 3 %}-i4{% else%}-i2{% endif %}{% endif %}"
 
     - name: Create file system
       filesystem:
