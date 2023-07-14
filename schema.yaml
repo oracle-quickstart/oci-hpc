@@ -41,6 +41,10 @@ variableGroups:
       - ${secondary_ad}
       - ${third_ad}
       - ${cluster_network}
+      - ${compute_cluster}
+      - ${compute_cluster_exists}
+      - ${compute_cluster_id}
+      - ${compute_cluster_start_index}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
@@ -411,7 +415,7 @@ variables:
 
   custom_bastion_image:
     title: "Bastion Image ID"
-    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment. "
+    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 20.04 are supported as bastion image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${bastion_image_compartment}
@@ -496,11 +500,40 @@ variables:
         - ${use_advanced}
         - ${use_cluster_nfs}
     reguired: true
+
   cluster_network:
     title: Use cluster network
     type: boolean
     description: Use ROCEv2 cluster network
     default: true
+
+  compute_cluster:
+    title: Use compute cluster rather than cluster network
+    type: boolean
+    description: Use compute cluster instead of cluster network
+    default: false
+    visible: ${cluster_network}
+
+  compute_cluster_exists:
+    title: Use existing Compute Cluster
+    type: boolean
+    description: The compute cluster already exists
+    default: false
+    visible: ${compute_cluster}
+
+  compute_cluster_id: 
+    title: Compute Cluster ID
+    type: string
+    description: Specify the compute cluster OCID
+    default: ""
+    visible: ${compute_cluster_exists}
+
+  compute_cluster_start_index: 
+    title: Start Index
+    type: integer
+    description: Specify the start Index of the nodes in the compute cluster
+    default: 0
+    visible: ${compute_cluster_exists}
 
   cluster_network_shape:
     type: enum
@@ -1044,7 +1077,7 @@ variables:
     type: boolean
     title: "Enable Limits for Slurm jobs"
     default: false
-    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs of the right limits are not set"
+    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs if the right limits are not set"
     visible: ${slurm}
 
   monitoring:

@@ -9,6 +9,7 @@
           instance_keyword: hpc
           permanent: False
           cluster_network: true
+          compute_cluster: true
           max_number_nodes: 100
           max_cluster_size: 20
           max_cluster_count: 10
@@ -32,6 +33,7 @@
           instance_keyword: permanent
           permanent: true
           cluster_network: true
+          compute_cluster: true
           max_number_nodes: 100
           max_cluster_size: 50
           max_cluster_count: 10
