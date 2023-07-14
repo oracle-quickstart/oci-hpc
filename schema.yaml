@@ -1077,7 +1077,7 @@ variables:
     type: boolean
     title: "Enable Limits for Slurm jobs"
     default: false
-    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs of the right limits are not set"
+    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs if the right limits are not set"
     visible: ${slurm}
 
   monitoring:
