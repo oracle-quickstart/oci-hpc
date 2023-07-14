@@ -186,7 +186,7 @@ resource "null_resource" "backup" {
 }
 resource "null_resource" "cluster_backup" { 
   count = var.slurm_ha ? 1 : 0
-  depends_on = [null_resource.backup, oci_core_cluster_network.cluster_network, oci_core_instance.backup, oci_core_volume_attachment.backup_volume_attachment ] 
+  depends_on = [null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.backup, oci_core_volume_attachment.backup_volume_attachment ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
@@ -299,6 +299,7 @@ resource "null_resource" "cluster_backup" {
   provisioner "file" {
     content        = templatefile("${path.module}/queues.conf", {  
       cluster_network = var.cluster_network,
+      compute_cluster = var.compute_cluster,
       marketplace_listing = var.marketplace_listing,
       image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,

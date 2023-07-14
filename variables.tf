@@ -7,6 +7,10 @@ variable "third_ad" { default = "" }
 variable "use_multiple_ads" { default = false }
 variable "ssh_key" { }
 variable "cluster_network" { default = true } 
+variable "compute_cluster" { default = false } 
+variable "compute_cluster_exists" { default = false }
+variable "compute_cluster_id" { default = "" } 
+variable "compute_cluster_start_index" { default = 0 } 
 variable "use_custom_name" { default = false }
 variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
