@@ -57,7 +57,10 @@ shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.16
 if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ] || [ "$shape" == \"BM.GPU4.8\" ];
 then
 echo
-echo "Shape is $shape"
+echo "Shape: $shape"
+echo "Server: $server"
+echo "Client: $client"
+echo "Cuda: $cuda"
 else
   echo
   echo "Shape $shape is not supported by this script"
@@ -126,8 +129,8 @@ skip_if=mlx5_0
 fi
 
 #Check active interfaces
-printf "Testing active interfaces...\n"
 echo
+printf "Testing active interfaces...\n"
 ssh $server ibv_devinfo |egrep "hca_id|state"|tac|sed '/PORT_DOWN/I,+1d'|tac|sed -e '/PORT_ACTIVE/d'|awk -F: '{print $2}'|sed 's/[[:space:]]//g'|sort -t _ -k2.2|grep -v $skip_if
 
 #Generate server script
@@ -205,7 +208,6 @@ rsync -a opc@$client:$outdir $logdir
 #Generate test summary
 echo 
 echo "************** Test Summary **************"
-echo
 for i in `ls -ltr $logdir | awk -F" " '{print $9}'|awk -F- '{print $2}'`; do 
 echo 
 echo Server interface: $i | tee -a /tmp/ib_write_bw_log.txt
