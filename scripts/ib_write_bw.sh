@@ -153,7 +153,7 @@ echo
 echo "Server Interface: $interface"
 echo
 ib_write_bw -d $interface -a -F &> $out_dir/ib_server-$interface
-sleep 5
+sleep 10
 done
 EOF
 
