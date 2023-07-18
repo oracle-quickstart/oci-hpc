@@ -146,6 +146,21 @@ EOF
 ansible-playbook /tmp/ib_bw_gpu.yml -i /tmp/inventory -e "use_cuda=$cuda"
 fi
 
+#Set interface to be skipped based on node shape
+shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape'`
+if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ]
+then
+skip_if=mlx5_0
+  elif [ "$shape" == \"BM.GPU4.8\" ]
+  then
+  skip_if=mlx5_4
+fi
+
+#Check active interfaces
+printf "Testing active interfaces...\n"
+echo
+ssh $server ibv_devinfo |egrep "hca_id|state"|tac|sed '/PORT_DOWN/I,+1d'|tac|sed -e '/PORT_ACTIVE/d'|awk -F: '{print $2}'|sed 's/[[:space:]]//g'|sort -t _ -k2.2|grep -v $skip_if
+
 #Generate server script
 cat > /tmp/ib_server.sh << 'EOF'
 #! /bin/bash
