@@ -46,28 +46,54 @@ do
 done
 
 #Set variables
-cuda_version=11.7
-cuda_path=/usr/local/cuda-$cuda_version/targets/x86_64-linux/include/cuda.h
+cuda_path=`ssh $server /usr/sbin/alternatives --list|grep cuda | awk -F" " '{print $3}'|tail -1`/targets/x86_64-linux/include/cuda.h
 server_ip=`grep $server /etc/hosts |grep -v rdma|awk '{print $1}'`
 logdir=/tmp/logs/ib_bw/`date +%F-%H`
 outdir=/tmp/ib_bw/
 
 #Check node shape
-if [ "$shape" != \"BM.GPU.B4.8\" ] || [ "$shape" != \"BM.GPU.A100-v2.8\” ] || [ "$shape" != \"BM.GPU4.8\” ];
+shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape'`
+if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ] || [ "$shape" == \"BM.GPU4.8\" ];
 then
 echo
-echo "Shape $shape is not supported by this script"
-dis_help
+echo "Shape: $shape"
+echo "Server: $server"
+echo "Client: $client"
+echo "Cuda: $cuda"
+else
+  echo
+  echo "Shape $shape is not supported by this script"
+  dis_help
 exit
 fi
 
-#Create ansible inventory
-cat > /tmp/inventory << EOF
-$server
-$client
-EOF
+#Set interface to be skipped based on node shape
+if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ]
+then
+skip_if=mlx5_0
+  elif [ "$shape" == \"BM.GPU4.8\" ]
+  then
+  skip_if=mlx5_4
+fi
+
+#Check active interfaces
+echo
+printf "Checking interfaces...\n"
+srv_if_count=`ssh $server ibv_devinfo |egrep "hca_id|state"|tac|sed '/PORT_DOWN/I,+1d'|tac|sed -e '/PORT_ACTIVE/d'|awk -F: '{print $2}'|sed 's/[[:space:]]//g'|sort -t _ -k2.2|grep -v $skip_if|wc -l`
+client_if_count=`ssh $client ibv_devinfo |egrep "hca_id|state"|tac|sed '/PORT_DOWN/I,+1d'|tac|sed -e '/PORT_ACTIVE/d'|awk -F: '{print $2}'|sed 's/[[:space:]]//g'|sort -t _ -k2.2|grep -v $skip_if|wc -l`
+
+if [ "$srv_if_count" != "$client_if_count" ]
+then
+  echo
+  echo "Active interfaces are different on both nodes. Please fix it before running this script"
+  echo "Interface count on server: $srv_if_count"
+  echo "Interface count on client: $client_if_count"
+  exit 1
+fi
 
 #Generate ansible playbook
+if [ "$cuda" == "y" ] || [ "$cuda" == "yes" ];
+then
 cat > /tmp/ib_bw_gpu.yml << EOF
 ---
 - hosts: all
@@ -75,7 +101,7 @@ cat > /tmp/ib_bw_gpu.yml << EOF
   tasks:
     - name: check cuda
       stat: 
-        path: /usr/local/$cuda_path/targets/x86_64-linux/include/cuda.h
+        path: $cuda_path
       register: cuda_data
 
     - block:
@@ -93,39 +119,32 @@ cat > /tmp/ib_bw_gpu.yml << EOF
           ansible.builtin.shell: /tmp/perftest/autogen.sh 
           args:
             chdir: /tmp/perftest
+        
+        - name: Run configure
+          ansible.builtin.shell: ./configure CUDA_H_PATH=$cuda_path
+          args:
+            chdir: /tmp/perftest
 
         - name: Build 'all' target with extra arguments
           make:
             chdir: /tmp/perftest
             target: all
-            params:
-              CUDA_H_PATH: /usr/local/$cuda_path/targets/x86_64-linux/include/cuda.h 
+
+        - name: Copy files
+          shell: cp /tmp/perftest/ib_* /usr/bin
       when: 
         - use_cuda is defined
         - use_cuda == "yes" or use_cuda == "y"
         - cuda_data.stat.exists
 EOF
 
-#Run playbook to recompile perftest with cuda
-if [ "$cuda" == "yes" ];
-then
-    ansible-playbook /tmp/ib_bw_gpu.yml -i /tmp/inventory -e "use_cuda=$cuda"
+#Create ansible inventory
+cat > /tmp/inventory << EOF
+$server
+$client
+EOF
+ansible-playbook /tmp/ib_bw_gpu.yml -i /tmp/inventory -e "use_cuda=$cuda"
 fi
-
-#Set interface to be skipped based on node shape
-shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape'`
-if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ]
-then
-skip_if=mlx5_0
-  elif [ "$shape" == \"BM.GPU4.8\" ]
-  then
-  skip_if=mlx5_4
-fi
-
-#Check active interfaces
-printf "Testing active interfaces...\n"
-echo
-ssh $server ibv_devinfo |egrep "hca_id|state"|tac|sed '/PORT_DOWN/I,+1d'|tac|sed -e '/PORT_ACTIVE/d'|awk -F: '{print $2}'|sed 's/[[:space:]]//g'|sort -t _ -k2.2|grep -v $skip_if
 
 #Generate server script
 cat > /tmp/ib_server.sh << 'EOF'
@@ -147,7 +166,7 @@ echo
 echo "Server Interface: $interface"
 echo
 ib_write_bw -d $interface -a -F &> $out_dir/ib_server-$interface
-sleep 5
+sleep 10
 done
 EOF
 
@@ -202,7 +221,6 @@ rsync -a opc@$client:$outdir $logdir
 #Generate test summary
 echo 
 echo "************** Test Summary **************"
-echo
 for i in `ls -ltr $logdir | awk -F" " '{print $9}'|awk -F- '{print $2}'`; do 
 echo 
 echo Server interface: $i | tee -a /tmp/ib_write_bw_log.txt
