@@ -53,11 +53,15 @@ logdir=/tmp/logs/ib_bw/`date +%F-%H`
 outdir=/tmp/ib_bw/
 
 #Check node shape
-if [ "$shape" != \"BM.GPU.B4.8\" ] || [ "$shape" != \"BM.GPU.A100-v2.8\” ] || [ "$shape" != \"BM.GPU4.8\” ];
+shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape'`
+if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ] || [ "$shape" == \"BM.GPU4.8\" ];
 then
 echo
-echo "Shape $shape is not supported by this script"
-dis_help
+echo "Shape is $shape"
+else
+  echo
+  echo "Shape $shape is not supported by this script"
+  dis_help
 exit
 fi
 
@@ -113,7 +117,6 @@ then
 fi
 
 #Set interface to be skipped based on node shape
-shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape'`
 if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ]
 then
 skip_if=mlx5_0
