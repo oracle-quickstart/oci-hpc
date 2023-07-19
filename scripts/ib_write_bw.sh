@@ -15,6 +15,7 @@ dis_help()
    echo "s     Server hostname"
    echo "n     Client hostname."
    echo "c     Enable cuda(Disabled by default)"
+   echo "g     GPU id"
    echo "h     Print this help."
    echo
    echo "Logs are stored at /tmp/logs"
@@ -31,12 +32,14 @@ then
 fi
 
 #Display options
-while getopts "s:n:c:h" option
+gid=0
+while getopts "s:n:c:g:h" option
 do
     case $option in
         s) server=${OPTARG};;
         n) client=${OPTARG};;
         c) cuda=${OPTARG};;
+        g) gid=${OPTARG};;
         h) dis_help
 	   exit;;
        \?) # Invalid option
@@ -50,6 +53,8 @@ cuda_path=`ssh $server /usr/sbin/alternatives --list|grep cuda | awk -F" " '{pri
 server_ip=`grep $server /etc/hosts |grep -v rdma|awk '{print $1}'`
 logdir=/tmp/logs/ib_bw/`date +%F-%H`
 outdir=/tmp/ib_bw/
+gpu_count=`ssh $server nvidia-smi -L |wc -l`
+
 
 #Check node shape
 shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape'`
@@ -60,12 +65,16 @@ echo "Shape: $shape"
 echo "Server: $server"
 echo "Client: $client"
 echo "Cuda: $cuda"
+echo "GPU id: $gid"
 else
   echo
   echo "Shape $shape is not supported by this script"
   dis_help
 exit
 fi
+
+#check cuda installation
+ssh -q $server [[ -f $cuda_path ]] && echo " " || echo "Please check cuda installation; exit 1";
 
 #Set interface to be skipped based on node shape
 if [ "$shape" == \"BM.GPU.B4.8\" ] || [ "$shape" == \"BM.GPU.A100-v2.8\" ]
@@ -74,6 +83,14 @@ skip_if=mlx5_0
   elif [ "$shape" == \"BM.GPU4.8\" ]
   then
   skip_if=mlx5_4
+fi
+
+#Validate GPU ID
+if [ "$gid" -gt "$gpu_count" ]
+then
+echo
+echo "GPU id value should be less than or equal to total number of GPUs installed. That is $gpu_count"
+exit 1
 fi
 
 #Check active interfaces
@@ -213,13 +230,12 @@ sed -i "/#interfaces/a server_ip=$server_ip" /tmp/ib_client.sh
 chmod +x /tmp/ib_server.sh /tmp/ib_client.sh
 
 #Update scripts to use cuda if selected
-if [ "$cuda" == "yes" ];
+if [ "$cuda" == "yes" ] || [ "$cuda" == "y" ];
 then
-  if [ -f /usr/local/$cuda_path/targets/x86_64-linux/include/cuda.h ];
-  then
     sed -i 's/ib_write_bw.*/ib_write_bw -d $interface --use_cuda=0 -F > $out_dir\/ib_server-$interface/g' /tmp/ib_server.sh
     sed -i 's/ib_write_bw.*/ib_write_bw -d $interface --use_cuda=0 -D 10 -I 0 $server_ip --cpu_util --report_gbits/g' /tmp/ib_client.sh
-  fi
+    sed -i -e "s/--use_cuda=0/--use_cuda=${gid:=0}/g" /tmp/ib_server.sh
+    sed -i -e "s/--use_cuda=0/--use_cuda=${gid:=0}/g" /tmp/ib_client.sh
 fi
 echo 
 
