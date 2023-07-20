@@ -9,7 +9,7 @@ dis_help()
    echo
    echo "Usage:"
    echo
-   echo "./ib_write_bw_gpu.sh -s <server> -n <node> -c y -g #"
+   echo "./ib_write_bw.sh -s <server> -n <node> -c <y> -g <gpu id>"
    echo 
    echo "Options:"
    echo "s     Server hostname"
@@ -19,6 +19,8 @@ dis_help()
    echo "h     Print this help."
    echo
    echo "Logs are stored at /tmp/logs"
+   echo
+   echo "e.g.,  sh ./ib_write_bw.sh -s compute-permanent-node-1 -n compute-permanent-node-2 -c y -g 2
    echo
    echo "Supported shapes: BM.GPU.B4.8,BM.GPU.A100-v2.8,BM.GPU4.8"
    echo
@@ -90,7 +92,7 @@ fi
 if [ "$gid" -gt "$gpu_count" ]
 then
 echo
-echo "GPU id value should be less than or equal to total number of GPUs installed. That is $gpu_count"
+echo "GPU id value should be less than or equal to the total number of GPUs installed. That is $gpu_count"
 exit 1
 fi
 
