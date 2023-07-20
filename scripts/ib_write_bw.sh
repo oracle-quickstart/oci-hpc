@@ -9,13 +9,13 @@ dis_help()
    echo
    echo "Usage:"
    echo
-   echo "./ib_write_bw_gpu.sh -s <server> -n <node> -c y"
+   echo "./ib_write_bw_gpu.sh -s <server> -n <node> -c y -g #"
    echo 
    echo "Options:"
    echo "s     Server hostname"
    echo "n     Client hostname."
-   echo "c     Enable cuda(Disabled by default)"
-   echo "g     GPU id"
+   echo "c     Enable cuda (Default: Disabled)"
+   echo "g     GPU id (Default: 0)"
    echo "h     Print this help."
    echo
    echo "Logs are stored at /tmp/logs"
@@ -33,6 +33,7 @@ fi
 
 #Display options
 gid=0
+cuda=n
 while getopts "s:n:c:g:h" option
 do
     case $option in
