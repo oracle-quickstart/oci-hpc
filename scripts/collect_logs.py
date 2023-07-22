@@ -63,30 +63,39 @@ def nvidiaBugReport(host, path):
 def sosReport(host, path):
     os_version = getOS(host)
     if os_version == "Oracle":
+        install_cmd = f'ssh {host} "sudo yum install -y sos"'
         cmd = f'ssh {host} "sudo sosreport --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
     elif os_version == "Ubuntu":
+        install_cmd = f'ssh {host} "sudo apt install -y sosreport"'
         cmd = f'ssh {host} "sudo sos report --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
     else:
-        print("Error in running sosreport for " + host)
+        print("The OS is neither Oracle Linux nor Ubuntu. Cannot run sosreport for " + host)
         return False
-    raw_result = run_cmd(cmd)
-    if isinstance(raw_result, tuple):
-        if raw_result[0] == 9000:
+    install_sos = run_cmd(install_cmd)
+    if isinstance(install_sos, tuple):
+        if install_sos[0] == 9000:
             print("Error in running sosreport for " + host)
-            print(raw_result[1])
+            print(install_sos[1])
             return False
     else:
-        filename = [match for match in raw_result if ".tar.xz" in match]
-        sosfile = filename[0].strip()
-        sosrepfile = sosfile.rsplit('/', 1)[1]
-        cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile} {path}"'
-        run_cmd(cmd)
-        changeOwner(path)
-        sosrepfile_sha256 = sosrepfile + ".sha256"
-        cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile_sha256} {path}"'
-        run_cmd(cmd)
-        changeOwner(path)
-        return True
+        raw_result = run_cmd(cmd)
+        if isinstance(raw_result, tuple):
+            if raw_result[0] == 9000:
+                print("Error in running sosreport for " + host)
+                print(raw_result[1])
+                return False
+        else:
+            filename = [match for match in raw_result if ".tar.xz" in match]
+            sosfile = filename[0].strip()
+            sosrepfile = sosfile.rsplit('/', 1)[1]
+            cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile} {path}"'
+            run_cmd(cmd)
+            changeOwner(path)
+            sosrepfile_sha256 = sosrepfile + ".sha256"
+            cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile_sha256} {path}"'
+            run_cmd(cmd)
+            changeOwner(path)
+            return True
 
 
 # get console history logs
