@@ -41,7 +41,26 @@ def run_cmd(cmd=None):
         return (9000, f"Error code: {e_process_error.returncode} Output: {e_process_error.output}")
     return output
 
-
+def run_sosreport(cmd, host, path):
+    raw_result = run_cmd(cmd)
+    if isinstance(raw_result, tuple):
+        if raw_result[0] == 9000:
+            print("Error in running sosreport for " + host)
+            print(raw_result[1])
+            return False
+    else:
+        filename = [match for match in raw_result if ".tar.xz" in match]
+        sosfile = filename[0].strip()
+        sosrepfile = sosfile.rsplit('/', 1)[1]
+        cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile} {path}"'
+        run_cmd(cmd)
+        changeOwner(path)
+        sosrepfile_sha256 = sosrepfile + ".sha256"
+        cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile_sha256} {path}"'
+        run_cmd(cmd)
+        changeOwner(path)
+        return True
+    
 # run nvidia bug report
 def nvidiaBugReport(host, path):
     cmd = f'ssh {host} "cd {path}; sudo /usr/bin/nvidia-bug-report.sh"'
@@ -62,41 +81,30 @@ def nvidiaBugReport(host, path):
 # run sosreport
 def sosReport(host, path):
     os_version = getOS(host)
-    if os_version == "Oracle":
-        install_cmd = f'ssh {host} "sudo yum install -y sos"'
-        cmd = f'ssh {host} "sudo sosreport --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
-    elif os_version == "Ubuntu":
-        install_cmd = f'ssh {host} "sudo apt install -y sosreport"'
-        cmd = f'ssh {host} "sudo sos report --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
-    else:
-        print("The OS is neither Oracle Linux nor Ubuntu. Cannot run sosreport for " + host)
+    if os_version == "error":
         return False
-    install_sos = run_cmd(install_cmd)
-    if isinstance(install_sos, tuple):
-        if install_sos[0] == 9000:
-            print("Error in running sosreport for " + host)
-            print(install_sos[1])
-            return False
-    else:
-        raw_result = run_cmd(cmd)
-        if isinstance(raw_result, tuple):
-            if raw_result[0] == 9000:
+    result = getSosReport(host, os_version)
+    if result == "error":
+        return False
+    install_cmd = ""
+    if result != "installed" and os_version == "Oracle":
+        install_cmd = f'ssh {host} "sudo yum install -y sos"'
+    if result != "installed" and os_version == "Ubuntu":
+        install_cmd = f'ssh {host} "sudo apt install -y sosreport"'
+    if os_version == "Oracle":
+        cmd = f'ssh {host} "sudo sosreport --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
+    if os_version == "Ubuntu":
+        cmd = f'ssh {host} "sudo sos report --batch -q -k rpm.rpmva=off --tmp-dir /tmp/"'
+    if install_cmd != "":
+        install_sos = run_cmd(install_cmd)
+        if isinstance(install_sos, tuple):
+            if install_sos[0] == 9000:
                 print("Error in running sosreport for " + host)
-                print(raw_result[1])
+                print(install_sos[1])
                 return False
-        else:
-            filename = [match for match in raw_result if ".tar.xz" in match]
-            sosfile = filename[0].strip()
-            sosrepfile = sosfile.rsplit('/', 1)[1]
-            cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile} {path}"'
-            run_cmd(cmd)
-            changeOwner(path)
-            sosrepfile_sha256 = sosrepfile + ".sha256"
-            cmd = f'ssh {host} "sudo mv /tmp/{sosrepfile_sha256} {path}"'
-            run_cmd(cmd)
-            changeOwner(path)
-            return True
-
+        return run_sosreport(cmd, host, path)
+    else:
+        return run_sosreport(cmd, host, path)
 
 # get console history logs
 def consoleHistoryLogs(host, path, compartment):
@@ -166,6 +174,27 @@ def getOS(host):
     elif 'Ubuntu' in raw_result[0]:
         return "Ubuntu"
     else:
+        return "error"
+    
+def getSosReport(host, os_version):
+    if os_version == "Oracle":
+        cmd = f'ssh -o ConnectTimeout=10 {host} "sudo yum list installed | grep sos"'
+    elif os_version == "Ubuntu":
+        cmd = f'ssh -o ConnectTimeout=10 {host} "sudo apt list --installed | grep sosreport"'
+    else:
+        return "error"
+    raw_result = run_cmd(cmd)
+    if isinstance(raw_result, tuple):
+        if raw_result[0] == 9000:
+            return "notinstalled"
+    if os_version == "Oracle":
+        if 'sos' in raw_result[0]: 
+            return "installed"
+    elif os_version == "Ubuntu":
+        if 'sosreport' in raw_result[3]:
+            return "installed"
+    else:
+        print("Cannot determine if sosreport is installed or not")
         return "error"
     
 
