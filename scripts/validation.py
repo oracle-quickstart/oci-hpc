@@ -412,26 +412,14 @@ def inventoryNodes(metadata, cluster_names):
 
 
 def pcie_check(hostfile, path):
-    out = subprocess.Popen(["cat /etc/os-release | grep PRETTY_NAME="],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    out = subprocess.Popen(["sudo cp /opt/oci-hpc/scripts/pcie.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
-    os_name = stdout.split("\n")
-    del os_name[-1]
-    if "Linux" in os_name[0]:
-        out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/pcie_el.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-        stdout,stderr = out.communicate()
-        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie_el.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-        stdout,stderr = out.communicate()
-    elif "Ubuntu" in os_name[0]:
-        out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/pcie_ubuntu.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-        stdout,stderr = out.communicate()
-        out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie_ubuntu.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
-        stdout,stderr = out.communicate()
-    else:
-        print("Cannot run pcie check as OS is not determined to be Linux or Ubuntu")
+    out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/pcie.sh\" ; done > "+path+"/pcie-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    stdout,stderr = out.communicate()
     
 
 def gpu_throttle(hostfile, path):
-    out = subprocess.Popen(["sudo cp /opt/oci-hpc/bin/gpu_throttle.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    out = subprocess.Popen(["sudo cp /opt/oci-hpc/scripts/gpu_throttle.sh ~/."],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
     out = subprocess.Popen(["for h in `less "+hostfile+"` ; do echo $h ; ssh $h \"~/gpu_throttle.sh\" ; done > "+path+"/gpu-throttle-output"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
