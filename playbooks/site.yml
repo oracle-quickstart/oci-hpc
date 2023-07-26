@@ -8,6 +8,7 @@
   gather_facts: true
   roles: 
     - hostname
+  when: slurm  | default(false) | bool
 
 # for ubuntu, on all compute nodes, run --fix-broken install
 - hosts: compute, login
