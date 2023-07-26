@@ -32,11 +32,13 @@ fi
 # Install ansible and other required packages
 
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
-  sudo yum makecache --enablerepo=$repo
   if [ $vid == 7 ]; then
-  sudo yum install --enablerepo=$repo -y ansible python-netaddr
-      elif [ $vid == 8 ] ; then
-      sudo yum install --enablerepo=$repo -y ansible python3-netaddr
+    sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
+    sudo yum makecache --enablerepo=$repo
+    sudo yum install --enablerepo=$repo -y ansible python-netaddr
+  elif [ $vid == 8 ] ; then
+    sudo yum makecache --enablerepo=$repo
+    sudo yum install --enablerepo=$repo -y ansible python3-netaddr
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
