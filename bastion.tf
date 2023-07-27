@@ -190,7 +190,7 @@ resource "null_resource" "bastion" {
   }
 }
 resource "null_resource" "cluster" { 
-  depends_on = [null_resource.bastion, null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment, oci_core_volume_backup_policy_assignment.bastion_boot_volume_backup_policy_assignment ] 
+  depends_on = [null_resource.bastion, null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
@@ -458,5 +458,11 @@ provisioner "file" {
       user        = var.bastion_username
       private_key = tls_private_key.ssh.private_key_pem
     }
+  }
+}
+
+resource "null_resource" "bastion_boot_volume_backup_policy_assignment" { 
+  triggers = { 
+    bastion = oci_core_instance.bastion.id
   }
 }
