@@ -18,7 +18,7 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 } 
 
 resource "oci_core_volume_backup_policy_assignment" "bastion_boot_volume_backup_policy_assignment" {
-    asset_id = oci_core_volume.bastion_volume[0].id
+    asset_id = oci_core_volume.bastion_volume
     policy_id = "ocid1.volumebackuppolicy.oc1..aaaaaaaa7hwv7iscewqqcmyqe2zuzfce6setvckhbxduswtxf6ctew7e54ja"
 }
 
