@@ -18,7 +18,8 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 } 
 
 resource "oci_core_volume_backup_policy_assignment" "bastion_boot_volume_backup_policy_assignment" {
-    asset_id = oci_core_volume_attachment.bastion_volume_attachment[*].id
+    count = var.bastion_block ? 1 : 0 
+    asset_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
     policy_id = var.bastion_boot_volume_backup_policy
 }
 
