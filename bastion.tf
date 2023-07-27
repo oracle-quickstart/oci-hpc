@@ -72,7 +72,7 @@ resource "oci_core_instance" "bastion" {
 } 
 
 resource "null_resource" "bastion" { 
-  depends_on = [oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  depends_on = [oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment, oci_core_volume_backup_policy_assignment.bastion_boot_volume_backup_policy_assignment ] 
   triggers = { 
     bastion = oci_core_instance.bastion.id
   } 
