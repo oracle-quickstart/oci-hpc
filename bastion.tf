@@ -17,6 +17,11 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
+resource "oci_core_volume_backup_policy_assignment" "bastion_boot_volume_backup_policy_assignment" {
+    asset_id = oci_core_volume.bastion_volume[0].id
+    policy_id = ocid1.volumebackuppolicy.oc1..aaaaaaaa7hwv7iscewqqcmyqe2zuzfce6setvckhbxduswtxf6ctew7e54ja
+}
+
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   count = var.private_deployment ? 1 : 0
   compartment_id = var.targetCompartment
