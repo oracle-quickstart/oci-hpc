@@ -72,7 +72,7 @@ resource "oci_core_instance" "bastion" {
 } 
 
 resource "null_resource" "bastion" { 
-  depends_on = [oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment, oci_core_volume_backup_policy_assignment.bastion_boot_volume_backup_policy_assignment ] 
+  depends_on = [oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
   triggers = { 
     bastion = oci_core_instance.bastion.id
   } 
@@ -190,7 +190,7 @@ resource "null_resource" "bastion" {
   }
 }
 resource "null_resource" "cluster" { 
-  depends_on = [null_resource.bastion, null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  depends_on = [null_resource.bastion, null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment, oci_core_volume_backup_policy_assignment.bastion_boot_volume_backup_policy_assignment ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
