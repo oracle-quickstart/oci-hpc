@@ -18,8 +18,8 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 } 
 
 resource "oci_core_volume_backup_policy_assignment" "bastion_boot_volume_backup_policy_assignment" {
-    asset_id = oci_core_volume.bastion_volume
-    policy_id = "ocid1.volumebackuppolicy.oc1..aaaaaaaa7hwv7iscewqqcmyqe2zuzfce6setvckhbxduswtxf6ctew7e54ja"
+    asset_id = var.volume_id
+    policy_id = var.bastion_boot_volume_backup_policy
 }
 
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
@@ -147,6 +147,16 @@ resource "null_resource" "bastion" {
   }
   provisioner "file" {
     source      = "samples"
+    destination = "/opt/oci-hpc/"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+  provisioner "file" {
+    source      = "scripts"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host
