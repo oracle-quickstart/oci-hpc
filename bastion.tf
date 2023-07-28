@@ -17,10 +17,16 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
-resource "oci_core_volume_backup_policy_assignment" "bastion_boot_volume_backup_policy_assignment" {
-    count = var.bastion_block ? 1 : 0 
-    asset_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
-    policy_id = var.bastion_boot_volume_backup_policy
+#resource "oci_core_volume_backup_policy_assignment" "bastion_boot_volume_backup_policy_assignment" {
+#    count = var.bastion_block ? 1 : 0 
+#    asset_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
+#    policy_id = var.bastion_boot_volume_backup_policy
+#}
+
+data "oci_core_volume_backup_policies" "test_volume_backup_policies" {
+
+	#Optional
+	compartment_id = var.targetCompartment
 }
 
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
@@ -462,8 +468,8 @@ provisioner "file" {
   }
 }
 
-resource "null_resource" "bastion_boot_volume_backup_policy_assignment" { 
-  triggers = { 
-    bastion = oci_core_instance.bastion.id
-  }
-}
+#resource "null_resource" "bastion_boot_volume_backup_policy_assignment" { 
+#  triggers = { 
+#    bastion = oci_core_instance.bastion.id
+#  }
+#}
