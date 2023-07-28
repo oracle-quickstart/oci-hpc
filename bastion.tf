@@ -463,8 +463,9 @@ provisioner "file" {
   }
 }
 
-resource "null_resource" "bastion_boot_volume_backup_policy_assignment" { 
+resource "null_resource" "bastion_boot_volume_backup" { 
+  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup ] 
   triggers = { 
     bastion = oci_core_instance.bastion.id
-  }
+  } 
 }
