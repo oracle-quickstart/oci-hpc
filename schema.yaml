@@ -34,6 +34,7 @@ variableGroups:
       - ${bastion_custom_memory}
       - ${bastion_memory}
       - ${bastion_boot_volume_size}
+      - ${bastion_boot_volume_backup_policy}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}

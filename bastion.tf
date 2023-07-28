@@ -17,10 +17,11 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
-resource "oci_core_volume_backup_policy_assignment" "bastion_boot_volume_backup_policy_assignment" {
+resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
     count = var.bastion_block ? 1 : 0 
-    asset_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
-    policy_id = var.bastion_boot_volume_backup_policy
+    boot_volume_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
+    #policy_id = var.bastion_boot_volume_backup_policy
+    type      = "FULL"
 }
 
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
