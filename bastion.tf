@@ -17,19 +17,11 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
-#resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
-#    count = var.bastion_block ? 1 : 0 
-#    boot_volume_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
-#    #policy_id = var.bastion_boot_volume_backup_policy
-#    type      = "FULL"
-#}
-
 resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
     #Required
     depends_on = [oci_core_instance.bastion]
     count = var.bastion_block ? 1 : 0 
     boot_volume_id = oci_core_instance.bastion.boot_volume_id
-    #policy_id = var.bastion_boot_volume_backup_policy
     type = "FULL"
 }
 
@@ -281,7 +273,6 @@ resource "null_resource" "cluster" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-
 
   provisioner "file" {
     content     = var.node_count > 0 ? join("\n",local.cluster_instances_ips) : "\n"
