@@ -21,6 +21,7 @@ resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
     #Required
     depends_on = [oci_core_instance.bastion]
     boot_volume_id = oci_core_instance.bastion.boot_volume_id
+    display_name    = "${local.cluster_name}-bastion-boot-volume-backup"
     type = "FULL"
 }
 
