@@ -28,7 +28,7 @@ resource "oci_core_volume_backup_policy_assignment" "bastion_volume_backup_polic
     #Required
     depends_on          = [oci_core_instance.bastion]
     count = var.bastion_block ? 1 : 0 
-    asset_id = oci_core_instance.bastion.id.boot_volume_id
+    asset_id = oci_core_volume_attachment.instance_id.boot_volume_id
     policy_id = var.bastion_boot_volume_backup_policy
 }
 
