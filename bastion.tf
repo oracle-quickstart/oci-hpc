@@ -24,12 +24,18 @@ resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
     type      = "FULL"
 }
 
-resource "oci_core_volume_backup_policy_assignment" "bastion_volume_backup_policy_assignment" {
-    #Required
-    count = var.bastion_block ? 1 : 0 
-    asset_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
-    policy_id = var.bastion_boot_volume_backup_policy
+data "oci_core_boot_volume_attachments" "bastion_boot_volume_attachments" {
+	#Required
+	availability_domain = var.bastion_ad
+	compartment_id = var.targetCompartment
 }
+
+#resource "oci_core_volume_backup_policy_assignment" "bastion_volume_backup_policy_assignment" {
+    #Required
+#    count = var.bastion_block ? 1 : 0 
+#    asset_id = oci_core_volume_attachment.bastion_volume_attachment[0].id
+#    policy_id = var.bastion_boot_volume_backup_policy
+#}
 
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   count = var.private_deployment ? 1 : 0
@@ -85,6 +91,13 @@ resource "null_resource" "bastion" {
   triggers = { 
     bastion = oci_core_instance.bastion.id
   } 
+
+resource "null_resource" "bastion_boot_volume_backup" { 
+  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup, oci_core_volume_backup_policy_assignment.bastion_volume_backup_policy_assignment, oci_core_boot_volume_attachments.bastion_boot_volume_attachments ] 
+  triggers = { 
+    bastion = oci_core_instance.bastion.id
+  } 
+}
 
   provisioner "remote-exec" {
     inline = [
@@ -470,9 +483,3 @@ provisioner "file" {
   }
 }
 
-resource "null_resource" "bastion_boot_volume_backup" { 
-  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup, oci_core_volume_backup_policy_assignment.bastion_volume_backup_policy_assignment ] 
-  triggers = { 
-    bastion = oci_core_instance.bastion.id
-  } 
-}
