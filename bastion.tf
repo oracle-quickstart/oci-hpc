@@ -24,12 +24,13 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 #    type      = "FULL"
 #}
 
-resource "oci_core_volume_backup_policy_assignment" "bastion_volume_backup_policy_assignment" {
+resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
     #Required
     depends_on = [oci_core_instance.bastion]
     count = var.bastion_block ? 1 : 0 
-    asset_id = oci_core_instance.bastion.boot_volume_id
-    policy_id = var.bastion_boot_volume_backup_policy
+    boot_volume_id = oci_core_instance.bastion.boot_volume_id
+    #policy_id = var.bastion_boot_volume_backup_policy
+    type = "FULL"
 }
 
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
