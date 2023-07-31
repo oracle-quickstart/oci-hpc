@@ -189,6 +189,7 @@ variableGroups:
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
+      - ${bastion_boot_volume_bkup_policy}
     visible: false
   - title: "Debug"
     variables: 
@@ -438,6 +439,7 @@ variables:
   bastion_boot_volume_backup:
     type: boolean
     title: "Enable boot volume backup"
+    description: "Default backup policy: Silver"
     default: false
   
   bastion_block:
