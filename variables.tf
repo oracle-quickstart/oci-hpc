@@ -26,7 +26,7 @@ variable "custom_login_image" {
   default = "image.ocid" 
 }
 variable "bastion_boot_volume_size" {}
-variable "bastion_boot_volume_backup" { default = false }
+variable "bastion_boot_volume_backup" {}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" { default = 2 }
