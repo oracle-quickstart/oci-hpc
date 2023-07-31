@@ -439,7 +439,7 @@ variables:
   bastion_boot_volume_backup:
     type: boolean
     title: "Enable boot volume backup"
-    description: "Default backup policy: Silver"
+    description: "Backup policy: Silver"
     default: false
   
   bastion_block:
