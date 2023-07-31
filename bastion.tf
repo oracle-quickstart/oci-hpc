@@ -18,7 +18,6 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 } 
 
 resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
-    #Required
     count = var.bastion_boot_volume_backup ? 1 : 0
     depends_on = [oci_core_instance.bastion]
     boot_volume_id = oci_core_instance.bastion.boot_volume_id
@@ -33,6 +32,13 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   description    = "rms_private_endpoint_description"
   vcn_id         = local.vcn_id
   subnet_id      = local.subnet_id
+}
+
+resource "null_resource" "bastion_boot_volume_backup" { 
+  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup, ] 
+  triggers = { 
+    bastion = oci_core_instance.bastion.id
+  } 
 }
 
 resource "oci_core_instance" "bastion" {
@@ -462,11 +468,4 @@ provisioner "file" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-}
-
-resource "null_resource" "bastion_boot_volume_backup" { 
-  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup, ] 
-  triggers = { 
-    bastion = oci_core_instance.bastion.id
-  } 
 }
