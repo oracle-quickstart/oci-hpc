@@ -25,6 +25,12 @@ resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
     type = "FULL"
 }
 
+resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
+  #count     = var.num_instances
+  asset_id  = oci_core_instance.bastion.boot_volume_id
+  policy_id = "ocid1.volumebackuppolicy.oc1..aaaaaaaa7hwv7iscewqqcmyqe2zuzfce6setvckhbxduswtxf6ctew7e54ja"
+}
+
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   count = var.private_deployment ? 1 : 0
   compartment_id = var.targetCompartment
@@ -35,7 +41,14 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
 }
 
 resource "null_resource" "bastion_boot_volume_backup" { 
-  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup, ] 
+  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup] 
+  triggers = { 
+    bastion = oci_core_instance.bastion.id
+  } 
+}
+
+resource "null_resource" "boot_volume_backup_policy" { 
+  depends_on = [oci_core_instance.bastion, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy] 
   triggers = { 
     bastion = oci_core_instance.bastion.id
   } 
