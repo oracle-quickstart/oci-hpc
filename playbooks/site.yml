@@ -298,9 +298,6 @@
       when: ldap|default(true)|bool
 
 - hosts: all
-  serial:
-    - 1
-    - 50%
   vars:
     destroy: false
     initial: true
