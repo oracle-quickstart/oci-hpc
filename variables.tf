@@ -27,6 +27,7 @@ variable "custom_login_image" {
 }
 variable "bastion_boot_volume_size" {}
 variable "bastion_boot_volume_backup" {}
+variable "bastion_boot_volume_bkup_policy" { "default = ocid1.volumebackuppolicy.oc1..aaaaaaaa7hwv7iscewqqcmyqe2zuzfce6setvckhbxduswtxf6ctew7e54ja" }
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" { default = 2 }
