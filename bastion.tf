@@ -17,18 +17,19 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
-resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
-    count = var.bastion_boot_volume_backup ? 1 : 0
-    depends_on = [oci_core_instance.bastion]
-    boot_volume_id = oci_core_instance.bastion.boot_volume_id
-    display_name    = "${local.cluster_name}-bastion-boot-volume-backup"
-    type = "FULL"
-}
+#resource "oci_core_boot_volume_backup" "bastion_boot_volume_backup" {
+#    count = var.bastion_boot_volume_backup ? 1 : 0
+#    depends_on = [oci_core_instance.bastion]
+#    boot_volume_id = oci_core_instance.bastion.boot_volume_id
+#    display_name    = "${local.cluster_name}-bastion-boot-volume-backup"
+#    type = "FULL"
+#}
 
 resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
   #count     = var.num_instances
+  count = var.bastion_boot_volume_backup ? 1 : 0
   asset_id  = oci_core_instance.bastion.boot_volume_id
-  policy_id = "ocid1.volumebackuppolicy.oc1..aaaaaaaa7hwv7iscewqqcmyqe2zuzfce6setvckhbxduswtxf6ctew7e54ja"
+  policy_id = var.bastion_boot_volume_bkup_policy
 }
 
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
@@ -40,12 +41,12 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   subnet_id      = local.subnet_id
 }
 
-resource "null_resource" "bastion_boot_volume_backup" { 
-  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup] 
-  triggers = { 
-    bastion = oci_core_instance.bastion.id
-  } 
-}
+#resource "null_resource" "bastion_boot_volume_backup" { 
+#  depends_on = [oci_core_instance.bastion, oci_core_boot_volume_backup.bastion_boot_volume_backup] 
+#  triggers = { 
+#    bastion = oci_core_instance.bastion.id
+#  } 
+#}
 
 resource "null_resource" "boot_volume_backup_policy" { 
   depends_on = [oci_core_instance.bastion, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy] 
