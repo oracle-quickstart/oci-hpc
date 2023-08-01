@@ -17,6 +17,21 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
+resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
+	#Required
+	compartment_id = var.targetCompartment
+	#Optional
+	destination_region = var.region
+	display_name = "${local.cluster_name}-bastion_boot_volume_weekly"
+	schedules {
+		#Required
+		backup_type = INCREMENTAL
+		period = ONE_WEEK
+		retention_seconds = 2419200
+		time_zone = REGIONAL_DATA_CENTER_TIME
+	}
+}
+
 resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
   count = var.bastion_boot_volume_backup ? 1 : 0
   asset_id  = oci_core_instance.bastion.boot_volume_id
@@ -33,7 +48,7 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
 }
 
 resource "null_resource" "boot_volume_backup_policy" { 
-  depends_on = [oci_core_instance.bastion, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy] 
+  depends_on = [oci_core_instance.bastion, oci_core_volume_backup_policy.bastion_boot_volume_backup_policy, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy] 
   triggers = { 
     bastion = oci_core_instance.bastion.id
   } 
