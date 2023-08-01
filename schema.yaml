@@ -443,7 +443,7 @@ variables:
   bastion_boot_volume_backup:
     type: boolean
     title: "Enable boot volume backup"
-    description: "Backup policy: Silver"
+    description: "Schedule: Weekly, Type: Incremental, Start Time: Monday 00:00 Regional Time"
     default: false
   
   bastion_block:
