@@ -19,9 +19,10 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 
 resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
 	#Required
+  #depends_on = [oci_core_instance.bastion]
 	compartment_id = var.targetCompartment
 	#Optional
-	destination_region = var.region
+	#destination_region = var.region
 	display_name = "${local.cluster_name}-bastion_boot_volume_weekly"
 	schedules {
 		#Required
