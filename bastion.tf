@@ -30,6 +30,7 @@ resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
 }
 
 resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
+  count = var.bastion_boot_volume_backup ? 1 : 0
   depends_on = [oci_core_volume_backup_policy.bastion_boot_volume_backup_policy]
   asset_id  = oci_core_instance.bastion.boot_volume_id
   policy_id = oci_core_volume_backup_policy.bastion_boot_volume_backup_policy[0].id
