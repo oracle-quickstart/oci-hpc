@@ -20,12 +20,10 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
 	#Required
   #depends_on = [oci_core_instance.bastion]
+  count = var.bastion_boot_volume_backup ? 1 : 0
 	compartment_id = var.targetCompartment
-	#Optional
-	#destination_region = var.region
 	display_name = "${local.cluster_name}-bastion_boot_volume_weekly"
 	schedules {
-		#Required
 		backup_type = var.bastion_boot_volume_backup_type
 		period = var.bastion_boot_volume_backup_period
 		retention_seconds = var.bastion_boot_volume_backup_retention_seconds
@@ -36,7 +34,7 @@ resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
 resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
   count = var.bastion_boot_volume_backup ? 1 : 0
   asset_id  = oci_core_instance.bastion.boot_volume_id
-  policy_id = var.bastion_boot_volume_bkup_policy
+  policy_id = oci_core_volume_backup_policy_assignment.bastion_boot_volume_backup_policy.id
 }
 
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
