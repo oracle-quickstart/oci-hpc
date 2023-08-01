@@ -25,10 +25,10 @@ resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
 	display_name = "${local.cluster_name}-bastion_boot_volume_weekly"
 	schedules {
 		#Required
-		backup_type = "INCREMENTAL"
-		period = "ONE_WEEK"
-		retention_seconds = "2419200"
-		time_zone = "REGIONAL_DATA_CENTER_TIME"
+		backup_type = var.bastion_boot_volume_backup_type
+		period = var.bastion_boot_volume_backup_period
+		retention_seconds = var.bastion_boot_volume_backup_retention_seconds
+		time_zone = var.bastion_boot_volume_backup_time_zone
 	}
 }
 
