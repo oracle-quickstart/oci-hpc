@@ -20,7 +20,6 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
 	#Required
   #depends_on = [oci_core_instance.bastion]
-  count = var.bastion_boot_volume_backup ? 1 : 0
 	compartment_id = var.targetCompartment
 	display_name = "${local.cluster_name}-bastion_boot_volume_weekly"
 	schedules {
@@ -48,6 +47,7 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
 }
 
 resource "null_resource" "boot_volume_backup_policy" { 
+  count = var.bastion_boot_volume_backup ? 1 : 0
   depends_on = [oci_core_instance.bastion, oci_core_volume_backup_policy.bastion_boot_volume_backup_policy, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy] 
   triggers = { 
     bastion = oci_core_instance.bastion.id
