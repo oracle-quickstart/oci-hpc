@@ -16,18 +16,21 @@
   include_role: 
     name: safe_yum
 
+- name: Check for nvidia-smi
+  shell: nvidia-smi
+  register: nvidiasmi
+  ignore_errors: yes
+
 - name: copy telegraf.conf
   become: true
-  copy: 
-    src: "{{ item }}"
-    dest: /etc/telegraf/{{item}}
+  copy:
+    src: "{% if nvidiasmi is failed %}telegraf.conf{% else%}telegraf_gpu.conf{% endif %}"
+    dest: /etc/telegraf/telegraf.conf
     force: yes
     backup: yes
     owner: telegraf
     group: telegraf
     mode: 0744
-  with_items: 
-    - telegraf.conf
 
 - name: render conf files
   become: true
