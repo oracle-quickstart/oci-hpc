@@ -543,7 +543,7 @@ variables:
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
       - "BM.Optimized3.36"
-      - "BM.HPC.E5.128"
+      - "BM.HPC.E5.144"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
     description: "Shape of compute nodes used in permanent/initial cluster"
