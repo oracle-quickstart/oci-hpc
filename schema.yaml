@@ -189,7 +189,6 @@ variableGroups:
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
-      - ${bastion_boot_volume_bkup_policy}
       - ${bastion_boot_volume_backup_period}
       - ${bastion_boot_volume_backup_retention_seconds}
       - ${bastion_boot_volume_backup_time_zone}
