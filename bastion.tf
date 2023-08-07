@@ -20,7 +20,7 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
 resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
   count = var.bastion_boot_volume_backup ? 1 : 0
 	compartment_id = var.targetCompartment
-	display_name = "${local.cluster_name}-bastion_boot_volume_weekly"
+	display_name = "${local.cluster_name}-bastion_boot_volume_daily"
 	schedules {
 		backup_type = var.bastion_boot_volume_backup_type
 		period = var.bastion_boot_volume_backup_period
