@@ -1,3 +1,4 @@
+
 - hosts: compute
   become: true
   vars: 
@@ -5,8 +6,10 @@
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"
   gather_facts: true
-  roles: 
-    - hostname
+  tasks:
+    - include_role:
+        name: hostname
+      when: slurm  | default(false) | bool
 
 # for ubuntu, on all compute nodes, run --fix-broken install
 - hosts: compute, login
@@ -296,9 +299,6 @@
       when: ldap|default(true)|bool
 
 - hosts: all
-  serial:
-    - 1
-    - 50%
   vars:
     destroy: false
     initial: true
