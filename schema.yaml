@@ -442,8 +442,8 @@ variables:
   bastion_boot_volume_backup:
     type: boolean
     title: "Enable boot volume backup"
-    description: "Schedule: Weekly, Type: Incremental, Start Time: Monday 00:00 Regional Time"
-    default: false
+    description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
+    default: true
   
   bastion_block:
     type: boolean
