@@ -34,6 +34,7 @@ variableGroups:
       - ${bastion_custom_memory}
       - ${bastion_memory}
       - ${bastion_boot_volume_size}
+      - ${bastion_boot_volume_backup}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}
@@ -188,6 +189,10 @@ variableGroups:
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
+      - ${bastion_boot_volume_backup_period}
+      - ${bastion_boot_volume_backup_retention_seconds}
+      - ${bastion_boot_volume_backup_time_zone}
+      - ${bastion_boot_volume_backup_type}
     visible: false
   - title: "Debug"
     variables: 
@@ -433,6 +438,13 @@ variables:
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 50
+
+  bastion_boot_volume_backup:
+    type: boolean
+    title: "Enable boot volume backup"
+    description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
+    default: true
+  
   bastion_block:
     type: boolean
     title: Additional block volume for shared space
