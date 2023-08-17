@@ -89,7 +89,7 @@
         local_path: "{{ cluster_nfs_path }}"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/export/cluster"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: cluster_nfs|default(true)|bool
     - include_role: 
@@ -98,7 +98,7 @@
         local_path: "{{ scratch_nfs_path }}"
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
       when: scratch_nfs|default(true)|bool
 
@@ -133,7 +133,7 @@
         local_path: "/home"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/home"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: home_nfs|bool and (not home_fss|bool)
     - include_role:
