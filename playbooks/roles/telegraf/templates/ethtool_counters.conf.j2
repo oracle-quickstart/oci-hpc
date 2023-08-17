@@ -1,0 +1,12 @@
+# Returns ethtool statistics for given interfaces
+ [[inputs.ethtool]]
+
+  interface_include = ["rdma*","enp*"]
+  interval = "300s"
+  fieldpass = ["tx_pci_signal_integrity","rx_steer_missed_packets","rx_vport_multicast_bytes","rx_vport_rdma_unicast_packets",
+  "rx_vport_rdma_unicast_bytes","tx_vport_rdma_unicast_packets","tx_vport_rdma_unicast_bytes","tx_packets_phy","rx_packets_phy",
+  "tx_bytes_phy","rx_bytes_phy", "rx_multicast_phy","rx_65_to_127_bytes_phy","rx_2048_to_4095_bytes_phy", "rx_4096_to_8191_bytes_phy",
+  "rx_crc_errors_phy","rx_symbol_err_phy", "rx_discards_phy","tx_discards_phy","tx_errors_phy","rx_64_bytes_phy","link_down_events_phy",
+  "rx_out_of_buffer","module_bus_stuck","module_high_temp","rx_buffer_passed_thres_phy","tx_pause_storm_warning_events","tx_pause_storm_error_events",
+  "rx_pcs_symbol_err_phy","rx_pci_signal_integrity","tx_pci_signal_integrity","rx_prio0_bytes","rx_prio0_packets","tx_prio0_bytes",
+  "tx_prio0_packets","rx_prio0_buf_discard","rx_prio0_cong_discard","rx_prio0_marked","outbound_pci_buffer_overflow"]

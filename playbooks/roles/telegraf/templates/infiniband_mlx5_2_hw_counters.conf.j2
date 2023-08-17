@@ -3,7 +3,7 @@
 [[inputs.multifile]]
   name_override = "infiniband_mlx5_2_hw_counters"
   base_dir = "/sys/class/infiniband"
-  interval = "60s"
+  interval = "300s"
 
   [[inputs.multifile.tags]]
     device="mlx5_2"
@@ -110,4 +110,11 @@
   file = "mlx5_2/ports/1/hw_counters/rx_write_requests"
   conversion = "int"
   
-  
+  [[inputs.multifile.file]]
+  file = "mlx5_2/ports/1/hw_counters/roce_slow_restart"
+  conversion = "int"
+
+  [[inputs.multifile.file]]
+  file = "mlx5_2/ports/1/hw_counters/roce_adp_retrans"
+  conversion = "int"
+
