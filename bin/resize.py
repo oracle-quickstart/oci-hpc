@@ -785,9 +785,9 @@ else:
             newsize=ip_summary.size
             updateTFState(inventory,cluster_name,newsize)
         print("STDOUT: Resized to "+str(newsize)+" instances")
-        if error_code != 0 and force:
-            print("STDOUT: The nodes were forced deleted, trying to reconfigure the left over nodes")
-            reconfigure(comp_ocid,cn_ocid,inventory,CN)
+#        if error_code != 0 and force:
+#            print("STDOUT: The nodes were forced deleted, trying to reconfigure the left over nodes")
+#            reconfigure(comp_ocid,cn_ocid,inventory,CN)
 
     if args.mode == 'add':
         if CN == "CC":
