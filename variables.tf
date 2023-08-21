@@ -26,6 +26,11 @@ variable "custom_login_image" {
   default = "image.ocid" 
 }
 variable "bastion_boot_volume_size" {}
+variable "bastion_boot_volume_backup" {}
+variable "bastion_boot_volume_backup_type" {default = "INCREMENTAL"}
+variable "bastion_boot_volume_backup_period" {default = "ONE_DAY"}
+variable "bastion_boot_volume_backup_retention_seconds" {default = "7776000"}
+variable "bastion_boot_volume_backup_time_zone" {default = "REGIONAL_DATA_CENTER_TIME"}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" { default = 2 }
