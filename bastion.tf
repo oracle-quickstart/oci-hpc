@@ -292,6 +292,7 @@ resource "null_resource" "cluster" {
     }
   }
 
+
   provisioner "file" {
     content     = var.node_count > 0 ? join("\n",local.cluster_instances_ips) : "\n"
     destination = "/tmp/hosts"
@@ -480,3 +481,45 @@ provisioner "file" {
     }
   }
 }
+
+data "oci_objectstorage_namespace" "compartment_namespace" {
+    compartment_id = var.targetCompartment
+}
+
+resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
+  count = var.bastion_object_storage_par ? 1 : 0
+  compartment_id = var.targetCompartment
+  name           = "RDMA_NIC_metrics"
+  namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
+}
+
+resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {
+  count = var.bastion_object_storage_par ? 1 : 0
+  depends_on  = [oci_objectstorage_bucket.RDMA_NIC_metrics_bucket]
+  access_type = "AnyObjectWrite"
+  bucket      = oci_objectstorage_bucket.RDMA_NIC_metrics_bucket[0].name
+  name         = format("%s-%s", "RDMA_NIC_metrics_bucket", var.tenancy_ocid)
+  namespace    = data.oci_objectstorage_namespace.compartment_namespace.namespace
+  time_expires = "2030-08-01T00:00:00+00:00"
+}
+
+
+output "RDMA_NIC_metrics_url" {
+ depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
+ value = var.bastion_object_storage_par ? "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}" : ""
+}
+
+locals {
+  par_path = "/opt/oci-hpc"
+}
+/*
+saving the PAR into file: /opt/oci-hpc/PAR_file_for_metrics.
+this PAR is used by the scripts to upload NIC metrics to object storage (i.e. script: upload_rdma_nic_metrics.sh)
+*/
+resource "local_file" "PAR" {
+    count = var.bastion_object_storage_par ? 1 : 0
+    depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
+    content     = "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}"
+    filename = "${local.par_path}/PAR_file_for_metrics"
+  }
+

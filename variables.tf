@@ -15,6 +15,7 @@ variable "use_custom_name" { default = false }
 variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
 variable "bastion_shape" { default = "VM.Standard2.4" }
+variable "bastion_object_storage_par" { default = true }
 variable "use_standard_image" { default= true }
 variable "use_standard_image_login" { default= true }
 variable "custom_bastion_image" { 
