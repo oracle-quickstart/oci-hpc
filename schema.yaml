@@ -35,6 +35,7 @@ variableGroups:
       - ${bastion_memory}
       - ${bastion_boot_volume_size}
       - ${bastion_boot_volume_backup}
+      - ${bastion_object_storage_par}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}
@@ -366,7 +367,12 @@ variables:
         - and: 
             - ${bastion_custom_memory}
     required: true
-
+  bastion_object_storage_par:
+    title: Create Object Storage PAR
+    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to
+    to Object Storage and share the URL with OCI service teams."
+    type: boolean
+    default: true
   use_standard_image:
     type: boolean
     title: "use standard bastion image"

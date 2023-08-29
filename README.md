@@ -393,3 +393,20 @@ The nvidia bug report, sosreport, and console history logs for compute-permanent
 Where hostlist had the below contents
 compute-permanent-node-467
 compute-permanent-node-787
+
+
+## Collect RDMA NIC Metrics and Upload to Object Storage
+
+OCI-HPC is deployed in customer tenancy. So, OCI service teams cannot access metrics from these OCI-HPC stack clusters. Due to overcome this issue, in release,
+we introduce a feature to collect RDMA NIC Metrics and upload those metrics to Object Storage. Later on, that Object Storage URL could be shared with OCI service
+teams. After that URL, OCI service teams could access metrics and use those metrics for debugging purpose.
+
+To collect RDMA NIC Metrics and upload those to Object Storage, user needs to follow these following steps:
+
+Step 1: Create a PAR (PreAuthenticated Request)
+For creating a PAR, user needs to select check-box "Create Object Storage PAR" during Resource Manager's stack creation.
+By default, this check box is enabled. By selecting, this check-box, a PAR would be created.
+
+Step 2: Use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage.
+User needs to use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage. User could configure metrics
+collection limit and interval through config file: rdma_metrics_collection_config.conf.
