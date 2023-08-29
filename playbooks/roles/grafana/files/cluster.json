@@ -26,13 +26,13 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 928,
   "graphTooltip": 1,
-  "id": 7,
-  "iteration": 1693252888356,
+  "id": null,
+  "iteration": 1693307124814,
   "links": [],
   "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -40,1234 +40,1923 @@
         "y": 0
       },
       "id": 64974,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "center",
+                "displayMode": "color-text",
+                "filterable": false,
+                "inspect": false
+              },
+              "links": [
+                {
+                  "title": "Details",
+                  "url": "/d/00000012722/cluster-dashboard-3?orgId=1&var-datasource=InfluxDB&var-inter=10s&var-ncores=All&var-server=${__data.fields.Node}﻿&var-mountpoint=All&var-cpu=All&var-disk=All&var-netif=All&var-gpu=All&from=1692806920934&to=1692817720934&viewPanel=62657 "
+                }
+              ],
+              "mappings": [],
+              "noValue": "No GPU Detected",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "celsius"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "GPU"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Node"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 306
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 0,
+            "y": 1
+          },
+          "id": 65247,
+          "options": {
+            "footer": {
+              "enablePagination": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "alias": "",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "groupBy": [],
+              "hide": false,
+              "measurement": "nvidia_smi",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT uuid,host,max(\"temperature_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "table",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "temperature_gpu"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "max"
+                  }
+                ]
+              ]
+            },
+            {
+              "alias": "",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "groupBy": [],
+              "hide": false,
+              "measurement": "nvidia_smi",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT uuid,host,min(\"temperature_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter;",
+              "rawQuery": true,
+              "refId": "B",
+              "resultFormat": "table",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "temperature_gpu"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "max"
+                  }
+                ]
+              ]
+            }
+          ],
+          "title": "Temperature: Highest/Lowest",
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true
+                },
+                "indexByName": {},
+                "renameByName": {
+                  "host": "Node",
+                  "max": "Highest",
+                  "min": "Lowest",
+                  "uuid": "GPU"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "color-text",
+                "filterable": false,
+                "inspect": false
+              },
+              "links": [
+                {
+                  "title": "utilization",
+                  "url": "/d/00000012722/cluster-dashboard-3?orgId=1&var-datasource=InfluxDB&var-inter=10s&var-ncores=All&var-server=${__data.fields.Node}&var-mountpoint=All&var-cpu=All&var-disk=All&var-netif=All&var-gpu=GPU-04865380-bc86-dfbd-4d46-5d550037acd4&from=1692806920934&to=1692817720934&viewPanel=62521"
+                }
+              ],
+              "mappings": [],
+              "noValue": "No GPU Detected",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "GPU"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 195
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Node"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 248
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 12,
+            "y": 1
+          },
+          "id": 65383,
+          "links": [],
+          "options": {
+            "footer": {
+              "enablePagination": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 2,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "alias": "",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "groupBy": [],
+              "hide": false,
+              "measurement": "nvidia_smi",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT uuid,host,max(\"utilization_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter;",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "table",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "temperature_gpu"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "max"
+                  }
+                ]
+              ]
+            },
+            {
+              "alias": "",
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "groupBy": [],
+              "hide": false,
+              "measurement": "nvidia_smi",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "query": "SELECT uuid,host,min(\"utilization_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter;",
+              "rawQuery": true,
+              "refId": "B",
+              "resultFormat": "table",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "temperature_gpu"
+                    ],
+                    "type": "field"
+                  },
+                  {
+                    "params": [],
+                    "type": "max"
+                  }
+                ]
+              ]
+            }
+          ],
+          "title": "Utilization: Highest/Lowest",
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true
+                },
+                "indexByName": {},
+                "renameByName": {
+                  "host": "Node",
+                  "max": "Highest",
+                  "min": "Lowest",
+                  "uuid": "GPU"
+                }
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(.*)-:*",
+                "renamePattern": ""
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 2,
+            "x": 0,
+            "y": 5
+          },
+          "id": 64291,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SHOW TAG VALUES CARDINALITY FROM nvidia_smi with KEY=\"uuid\" where uuid =~ /$gpu/ ",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "table"
+            }
+          ],
+          "title": "# GPU",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "center",
+                "displayMode": "color-text",
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byType",
+                  "options": "time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 4,
+            "x": 2,
+            "y": 5
+          },
+          "id": 63202,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": false
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SHOW TAG VALUES FROM nvidia_smi with KEY=\"name\" where uuid =~ /$gpu/ ",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "GPU",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "center",
+                "displayMode": "color-text",
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byType",
+                  "options": "time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 3,
+            "x": 6,
+            "y": 5
+          },
+          "id": 63610,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": false
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SHOW TAG VALUES FROM nvidia_smi with KEY=\"pstate\" WHERE (\"uuid\" =~ /^$gpu$/) ",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "P-State",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 9,
+            "y": 5
+          },
+          "id": 65110,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"utilization_gpu\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "GPU Utilization %",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 12,
+            "y": 5
+          },
+          "id": 63747,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"utilization_memory\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Memory Utilization %",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 85
+                  },
+                  {
+                    "color": "red",
+                    "value": 95
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 15,
+            "y": 5
+          },
+          "id": 64019,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"temperature_gpu\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Temperature",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 18,
+            "y": 5
+          },
+          "id": 63883,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"fan_speed\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Fan Speed",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 21,
+            "y": 5
+          },
+          "id": 64155,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"power_draw\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Power draw",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "center",
+                "displayMode": "color-text",
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byType",
+                  "options": "time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 4,
+            "x": 2,
+            "y": 7
+          },
+          "id": 63338,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": false
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT last(\"driver_version\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"index\" SLIMIT 1",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Driver Version",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "center",
+                "displayMode": "color-text",
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byType",
+                  "options": "time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 3,
+            "x": 6,
+            "y": 7
+          },
+          "id": 63474,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": false
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT last(\"cuda_version\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"index\" SLIMIT 1",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "CUDA Version",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 3,
+            "x": 0,
+            "y": 9
+          },
+          "id": 64428,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"pcie_link_width_current\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Current link width",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 3,
+            "x": 3,
+            "y": 9
+          },
+          "id": 64427,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"pcie_link_gen_current\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Current link generation",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "rothz"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 3,
+            "x": 6,
+            "y": 9
+          },
+          "id": 64837,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"clocks_current_graphics\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Graphics clock frequency",
+          "type": "stat"
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 10,
+            "w": 15,
+            "x": 9,
+            "y": 9
+          },
+          "hiddenSeries": false,
+          "id": 62521,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "max": true,
+            "min": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.5.21",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT \"utilization_gpu\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "GPU Utilization",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(:*).* ",
+                "renamePattern": "$1"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(.*)-:*",
+                "renamePattern": "GPU-"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "}",
+                "renamePattern": ""
+              }
+            }
+          ],
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:58",
+              "format": "percent",
+              "label": "",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:59",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "rothz"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 3,
+            "x": 0,
+            "y": 14
+          },
+          "id": 64701,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"clocks_current_video\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Video clock frequency",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "rothz"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 3,
+            "x": 3,
+            "y": 14
+          },
+          "id": 64565,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"clocks_current_sm\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "SM clock frequency",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "percentage",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "rothz"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 3,
+            "x": 6,
+            "y": 14
+          },
+          "id": 64564,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.21",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT mean(\"clocks_current_memory\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "title": "Memory clock frequency",
+          "type": "stat"
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "decmbytes"
+            },
+            "overrides": []
+          },
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 19
+          },
+          "hiddenSeries": false,
+          "id": 62793,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "max": true,
+            "min": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.5.21",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT \"memory_total\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            },
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "hide": false,
+              "query": "SELECT \"memory_used\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
+              "rawQuery": true,
+              "refId": "B",
+              "resultFormat": "time_series"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Memory (Total & Used)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(:*).* ",
+                "renamePattern": "$1"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(.*)-:*",
+                "renamePattern": "GPU-"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "}",
+                "renamePattern": ""
+              }
+            }
+          ],
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:58",
+              "format": "decmbytes",
+              "label": "",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:59",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius"
+            },
+            "overrides": []
+          },
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 19
+          },
+          "hiddenSeries": false,
+          "id": 62657,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "max": true,
+            "min": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.5.21",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT \"temperature_gpu\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Temperature",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(:*).* ",
+                "renamePattern": "$1"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(.*)-:*",
+                "renamePattern": "GPU-"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "}",
+                "renamePattern": ""
+              }
+            }
+          ],
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:58",
+              "format": "celsius",
+              "label": "",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:59",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 19
+          },
+          "hiddenSeries": false,
+          "id": 62929,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "max": true,
+            "min": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.5.21",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "${datasource}"
+              },
+              "query": "SELECT \"power_draw\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
+              "rawQuery": true,
+              "refId": "A",
+              "resultFormat": "time_series"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "Power Usage",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(:*).* ",
+                "renamePattern": "$1"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "(.*)-:*",
+                "renamePattern": "GPU-"
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "}",
+                "renamePattern": ""
+              }
+            }
+          ],
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:58",
+              "format": "kwatt",
+              "label": "",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            },
+            {
+              "$$hashKey": "object:59",
+              "format": "short",
+              "logBase": 1,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        }
+      ],
       "title": "GPU",
       "type": "row"
     },
     {
+      "collapsed": false,
       "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "center",
-            "displayMode": "color-text",
-            "filterable": false,
-            "inspect": false
-          },
-          "links": [
-            {
-              "title": "Details",
-              "url": "/d/00000012722/cluster-dashboard-3?orgId=1&var-datasource=InfluxDB&var-inter=10s&var-ncores=All&var-server=${__data.fields.Node}﻿&var-mountpoint=All&var-cpu=All&var-disk=All&var-netif=All&var-gpu=All&from=1692806920934&to=1692817720934&viewPanel=62657 "
-            }
-          ],
-          "mappings": [],
-          "noValue": "No GPU Detected",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "GPU"
-            },
-            "properties": [
-              {
-                "id": "custom.width"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Node"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 306
-              }
-            ]
-          }
-        ]
+        "type": "datasource",
+        "uid": "grafana"
       },
       "gridPos": {
-        "h": 4,
-        "w": 12,
+        "h": 1,
+        "w": 24,
         "x": 0,
         "y": 1
       },
-      "id": 65247,
-      "options": {
-        "footer": {
-          "enablePagination": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "alias": "",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "groupBy": [],
-          "hide": false,
-          "measurement": "nvidia_smi",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT uuid,host,max(\"temperature_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "table",
-          "select": [
-            [
-              {
-                "params": [
-                  "temperature_gpu"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "max"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "groupBy": [],
-          "hide": false,
-          "measurement": "nvidia_smi",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT uuid,host,min(\"temperature_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter;",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "table",
-          "select": [
-            [
-              {
-                "params": [
-                  "temperature_gpu"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "max"
-              }
-            ]
-          ]
-        }
-      ],
-      "title": "Temperature: Highest/Lowest",
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {},
-            "renameByName": {
-              "host": "Node",
-              "max": "Highest",
-              "min": "Lowest",
-              "uuid": "GPU"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "color-text",
-            "filterable": false,
-            "inspect": false
-          },
-          "links": [
-            {
-              "title": "utilization",
-              "url": "/d/00000012722/cluster-dashboard-3?orgId=1&var-datasource=InfluxDB&var-inter=10s&var-ncores=All&var-server=${__data.fields.Node}&var-mountpoint=All&var-cpu=All&var-disk=All&var-netif=All&var-gpu=GPU-04865380-bc86-dfbd-4d46-5d550037acd4&from=1692806920934&to=1692817720934&viewPanel=62521"
-            }
-          ],
-          "mappings": [],
-          "noValue": "No GPU Detected",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "GPU"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 195
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Node"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 248
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 1
-      },
-      "id": 65383,
-      "links": [],
-      "options": {
-        "footer": {
-          "enablePagination": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 2,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "alias": "",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "groupBy": [],
-          "hide": false,
-          "measurement": "nvidia_smi",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT uuid,host,max(\"utilization_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter;",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "table",
-          "select": [
-            [
-              {
-                "params": [
-                  "temperature_gpu"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "max"
-              }
-            ]
-          ]
-        },
-        {
-          "alias": "",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "groupBy": [],
-          "hide": false,
-          "measurement": "nvidia_smi",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT uuid,host,min(\"utilization_gpu\") FROM \"nvidia_smi\" WHERE host =~/$server/ AND $timeFilter;",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "table",
-          "select": [
-            [
-              {
-                "params": [
-                  "temperature_gpu"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "max"
-              }
-            ]
-          ]
-        }
-      ],
-      "title": "Utilization: Highest/Lowest",
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {},
-            "renameByName": {
-              "host": "Node",
-              "max": "Highest",
-              "min": "Lowest",
-              "uuid": "GPU"
-            }
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(.*)-:*",
-            "renamePattern": ""
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 2,
-        "x": 0,
-        "y": 5
-      },
-      "id": 64291,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SHOW TAG VALUES CARDINALITY FROM nvidia_smi with KEY=\"uuid\" where uuid =~ /$gpu/ ",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "table"
-        }
-      ],
-      "title": "# GPU",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "center",
-            "displayMode": "color-text",
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byType",
-              "options": "time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 4,
-        "x": 2,
-        "y": 5
-      },
-      "id": 63202,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": false
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SHOW TAG VALUES FROM nvidia_smi with KEY=\"name\" where uuid =~ /$gpu/ ",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "GPU",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "center",
-            "displayMode": "color-text",
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byType",
-              "options": "time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 6,
-        "y": 5
-      },
-      "id": 63610,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": false
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SHOW TAG VALUES FROM nvidia_smi with KEY=\"pstate\" WHERE (\"uuid\" =~ /^$gpu$/) ",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "P-State",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 9,
-        "y": 5
-      },
-      "id": 65110,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"utilization_gpu\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "GPU Utilization %",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 12,
-        "y": 5
-      },
-      "id": 63747,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"utilization_memory\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Memory Utilization %",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 85
-              },
-              {
-                "color": "red",
-                "value": 95
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 15,
-        "y": 5
-      },
-      "id": 64019,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"temperature_gpu\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Temperature",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 18,
-        "y": 5
-      },
-      "id": 63883,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"fan_speed\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Fan Speed",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 21,
-        "y": 5
-      },
-      "id": 64155,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"power_draw\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Power draw",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "center",
-            "displayMode": "color-text",
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byType",
-              "options": "time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 4,
-        "x": 2,
-        "y": 7
-      },
-      "id": 63338,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": false
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT last(\"driver_version\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"index\" SLIMIT 1",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Driver Version",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "center",
-            "displayMode": "color-text",
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byType",
-              "options": "time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 6,
-        "y": 7
-      },
-      "id": 63474,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": false
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT last(\"cuda_version\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"index\" SLIMIT 1",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "CUDA Version",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 0,
-        "y": 9
-      },
-      "id": 64428,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"pcie_link_width_current\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Current link width",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 3,
-        "y": 9
-      },
-      "id": 64427,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"pcie_link_gen_current\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Current link generation",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "rothz"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 6,
-        "y": 9
-      },
-      "id": 64837,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"clocks_current_graphics\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Graphics clock frequency",
-      "type": "stat"
+      "id": 62045,
+      "panels": [],
+      "title": "CPU",
+      "type": "row"
     },
     {
       "aliasColors": {},
@@ -1278,41 +1967,332 @@
         "type": "influxdb",
         "uid": "${datasource}"
       },
+      "editable": true,
+      "error": false,
       "fieldConfig": {
         "defaults": {
-          "unit": "percent"
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "grid": {},
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "height": "300",
+      "hiddenSeries": false,
+      "id": 28239,
+      "interval": "$inter",
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "hideEmpty": true,
+        "hideZero": true,
+        "max": true,
+        "min": true,
+        "rightSide": false,
+        "show": true,
+        "sort": "current",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.5.21",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_host: $col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "dsType": "influxdb",
+          "function": "mean",
+          "groupBy": [
+            {
+              "interval": "auto",
+              "params": [
+                "auto"
+              ],
+              "type": "time"
+            },
+            {
+              "key": "host",
+              "params": [
+                "tag"
+              ],
+              "type": "tag"
+            }
+          ],
+          "hide": false,
+          "measurement": "cpu_percentageBusy",
+          "policy": "default",
+          "query": "SELECT mean(usage_user) as \"user\", mean(usage_system) as \"system\", mean(usage_softirq) as \"softirq\", mean(usage_steal) as \"steal\", mean(usage_nice) as \"nice\", mean(usage_irq) as \"irq\", mean(usage_iowait) as \"iowait\", mean(usage_guest) as \"guest\", mean(usage_guest_nice) as \"guest_nice\"  FROM \"cpu\" WHERE \"host\" =~ /$server$/ and cpu = 'cpu-total' AND $timeFilter GROUP BY time($interval), *",
+          "rawQuery": true,
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "CPU usage",
+      "tooltip": {
+        "msResolution": false,
+        "shared": true,
+        "sort": 0,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:506",
+          "format": "percent",
+          "logBase": 1,
+          "max": 100,
+          "min": 0,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:507",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${datasource}"
+      },
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "grid": {},
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "height": "350",
+      "hiddenSeries": false,
+      "id": 54694,
+      "interval": "$inter",
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": true,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.5.21",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_host: $col",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${datasource}"
+          },
+          "dsType": "influxdb",
+          "function": "mean",
+          "groupBy": [
+            {
+              "interval": "auto",
+              "params": [
+                "auto"
+              ],
+              "type": "time"
+            },
+            {
+              "key": "host",
+              "params": [
+                "tag"
+              ],
+              "type": "tag"
+            }
+          ],
+          "measurement": "system_load1",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(load1) as short,mean(load5) as medium,mean(load15) as long FROM \"system\" WHERE host =~ /$server$/ AND $timeFilter GROUP BY time($interval), * ORDER BY asc",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Load averages",
+      "tooltip": {
+        "msResolution": false,
+        "shared": true,
+        "sort": 0,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:581",
+          "format": "short",
+          "logBase": 1,
+          "min": 0,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:582",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${datasource}"
+      },
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {
+          "links": []
         },
         "overrides": []
       },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 10,
-        "w": 15,
-        "x": 9,
-        "y": 9
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 10
       },
+      "height": "350",
       "hiddenSeries": false,
-      "id": 62521,
+      "id": 61852,
       "legend": {
         "alignAsTable": true,
-        "avg": false,
+        "avg": true,
         "current": true,
+        "hideEmpty": true,
+        "hideZero": true,
         "max": true,
-        "min": true,
+        "min": false,
+        "rightSide": false,
         "show": true,
         "total": false,
         "values": true
       },
       "lines": true,
       "linewidth": 1,
-      "nullPointMode": "null",
+      "links": [],
+      "nullPointMode": "connected",
       "options": {
         "alertThreshold": true
       },
       "percentage": false,
       "pluginVersion": "8.5.21",
-      "pointradius": 2,
+      "pointradius": 5,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [],
@@ -1321,364 +2301,64 @@
       "steppedLine": false,
       "targets": [
         {
+          "alias": "$tag_host: $col",
           "datasource": {
             "type": "influxdb",
             "uid": "${datasource}"
           },
-          "query": "SELECT \"utilization_gpu\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "thresholds": [],
-      "timeRegions": [],
-      "title": "GPU Utilization",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(:*).* ",
-            "renamePattern": "$1"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(.*)-:*",
-            "renamePattern": "GPU-"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "}",
-            "renamePattern": ""
-          }
-        }
-      ],
-      "type": "graph",
-      "xaxis": {
-        "mode": "time",
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:58",
-          "format": "percent",
-          "label": "",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:59",
-          "format": "short",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false
-      }
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "rothz"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 0,
-        "y": 14
-      },
-      "id": 64701,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
+          "dsType": "influxdb",
+          "groupBy": [
+            {
+              "params": [
+                "$interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
           ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"clocks_current_video\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Video clock frequency",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "rothz"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 3,
-        "y": 14
-      },
-      "id": 64565,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"clocks_current_sm\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "SM clock frequency",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "rothz"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 6,
-        "y": 14
-      },
-      "id": 64564,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.21",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT mean(\"clocks_current_memory\") FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY time($__interval) fill(null)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Memory clock frequency",
-      "type": "stat"
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "decmbytes"
-        },
-        "overrides": []
-      },
-      "fill": 0,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 19
-      },
-      "hiddenSeries": false,
-      "id": 62793,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": true,
-        "max": true,
-        "min": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.5.21",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT \"memory_total\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "hide": false,
-          "query": "SELECT \"memory_used\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
+          "measurement": "processes",
+          "policy": "default",
+          "query": "SELECT mean(running) as running, mean(blocked) as blocked, mean(sleeping) as sleeping, mean(stopped) as stopped, mean(zombies) as zombies, mean(paging) as paging, mean(unknown) as unknown FROM \"processes\" WHERE host =~ /$server$/ AND $timeFilter GROUP BY time($interval), host ORDER BY asc",
           "rawQuery": true,
           "refId": "B",
-          "resultFormat": "time_series"
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "blocked"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "host",
+              "operator": "=~",
+              "value": "/^$server$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
       "timeRegions": [],
-      "title": "Memory (Total & Used)",
+      "title": "Processes",
       "tooltip": {
+        "msResolution": false,
         "shared": true,
         "sort": 0,
         "value_type": "individual"
       },
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(:*).* ",
-            "renamePattern": "$1"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(.*)-:*",
-            "renamePattern": "GPU-"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "}",
-            "renamePattern": ""
-          }
-        }
-      ],
       "type": "graph",
       "xaxis": {
         "mode": "time",
@@ -1687,252 +2367,15 @@
       },
       "yaxes": [
         {
-          "$$hashKey": "object:58",
-          "format": "decmbytes",
-          "label": "",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:59",
+          "$$hashKey": "object:657",
           "format": "short",
           "logBase": 1,
-          "min": "0",
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "fill": 0,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 19
-      },
-      "hiddenSeries": false,
-      "id": 62657,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": true,
-        "max": true,
-        "min": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.5.21",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT \"temperature_gpu\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "thresholds": [],
-      "timeRegions": [],
-      "title": "Temperature",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(:*).* ",
-            "renamePattern": "$1"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(.*)-:*",
-            "renamePattern": "GPU-"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "}",
-            "renamePattern": ""
-          }
-        }
-      ],
-      "type": "graph",
-      "xaxis": {
-        "mode": "time",
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:58",
-          "format": "celsius",
-          "label": "",
-          "logBase": 1,
-          "min": "0",
           "show": true
         },
         {
-          "$$hashKey": "object:59",
+          "$$hashKey": "object:658",
           "format": "short",
           "logBase": 1,
-          "min": "0",
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${datasource}"
-      },
-      "fill": 0,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 19
-      },
-      "hiddenSeries": false,
-      "id": 62929,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": true,
-        "max": true,
-        "min": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.5.21",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${datasource}"
-          },
-          "query": "SELECT \"power_draw\" FROM \"nvidia_smi\" WHERE (\"uuid\" =~ /^$gpu$/) AND $timeFilter GROUP BY \"uuid\"",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "thresholds": [],
-      "timeRegions": [],
-      "title": "Power Usage",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(:*).* ",
-            "renamePattern": "$1"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "(.*)-:*",
-            "renamePattern": "GPU-"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "}",
-            "renamePattern": ""
-          }
-        }
-      ],
-      "type": "graph",
-      "xaxis": {
-        "mode": "time",
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:58",
-          "format": "kwatt",
-          "label": "",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:59",
-          "format": "short",
-          "logBase": 1,
-          "min": "0",
           "show": true
         }
       ],
@@ -1950,444 +2393,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
-      },
-      "id": 62045,
-      "panels": [
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": {
-            "type": "influxdb",
-            "uid": "Kj7iy96Vz"
-          },
-          "editable": true,
-          "error": false,
-          "fieldConfig": {
-            "defaults": {
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "grid": {},
-          "gridPos": {
-            "h": 8,
-            "w": 24,
-            "x": 0,
-            "y": 2
-          },
-          "height": "300",
-          "hiddenSeries": false,
-          "id": 28239,
-          "interval": "$inter",
-          "legend": {
-            "alignAsTable": true,
-            "avg": true,
-            "current": true,
-            "hideEmpty": true,
-            "hideZero": true,
-            "max": true,
-            "min": true,
-            "rightSide": false,
-            "show": true,
-            "sort": "current",
-            "sortDesc": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "8.5.21",
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "$tag_host: $col",
-              "datasource": {
-                "type": "influxdb",
-                "uid": "Kj7iy96Vz"
-              },
-              "dsType": "influxdb",
-              "function": "mean",
-              "groupBy": [
-                {
-                  "interval": "auto",
-                  "params": [
-                    "auto"
-                  ],
-                  "type": "time"
-                },
-                {
-                  "key": "host",
-                  "params": [
-                    "tag"
-                  ],
-                  "type": "tag"
-                }
-              ],
-              "hide": false,
-              "measurement": "cpu_percentageBusy",
-              "policy": "default",
-              "query": "SELECT mean(usage_user) as \"user\", mean(usage_system) as \"system\", mean(usage_softirq) as \"softirq\", mean(usage_steal) as \"steal\", mean(usage_nice) as \"nice\", mean(usage_irq) as \"irq\", mean(usage_iowait) as \"iowait\", mean(usage_guest) as \"guest\", mean(usage_guest_nice) as \"guest_nice\"  FROM \"cpu\" WHERE \"host\" =~ /$server$/ and cpu = 'cpu-total' AND $timeFilter GROUP BY time($interval), *",
-              "rawQuery": true,
-              "refId": "B",
-              "resultFormat": "time_series",
-              "select": [
-                [
-                  {
-                    "params": [
-                      "value"
-                    ],
-                    "type": "field"
-                  },
-                  {
-                    "params": [],
-                    "type": "mean"
-                  }
-                ]
-              ],
-              "tags": []
-            }
-          ],
-          "thresholds": [],
-          "timeRegions": [],
-          "title": "CPU usage",
-          "tooltip": {
-            "msResolution": false,
-            "shared": true,
-            "sort": 0,
-            "value_type": "cumulative"
-          },
-          "type": "graph",
-          "xaxis": {
-            "mode": "time",
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "percent",
-              "logBase": 1,
-              "max": 100,
-              "min": 0,
-              "show": true
-            },
-            {
-              "format": "short",
-              "logBase": 1,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": {
-            "type": "influxdb",
-            "uid": "Kj7iy96Vz"
-          },
-          "editable": true,
-          "error": false,
-          "fieldConfig": {
-            "defaults": {
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "grid": {},
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 10
-          },
-          "height": "350",
-          "hiddenSeries": false,
-          "id": 54694,
-          "interval": "$inter",
-          "legend": {
-            "alignAsTable": true,
-            "avg": true,
-            "current": true,
-            "max": true,
-            "min": true,
-            "show": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "8.5.21",
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "$tag_host: $col",
-              "datasource": {
-                "type": "influxdb",
-                "uid": "Kj7iy96Vz"
-              },
-              "dsType": "influxdb",
-              "function": "mean",
-              "groupBy": [
-                {
-                  "interval": "auto",
-                  "params": [
-                    "auto"
-                  ],
-                  "type": "time"
-                },
-                {
-                  "key": "host",
-                  "params": [
-                    "tag"
-                  ],
-                  "type": "tag"
-                }
-              ],
-              "measurement": "system_load1",
-              "orderByTime": "ASC",
-              "policy": "default",
-              "query": "SELECT mean(load1) as short,mean(load5) as medium,mean(load15) as long FROM \"system\" WHERE host =~ /$server$/ AND $timeFilter GROUP BY time($interval), * ORDER BY asc",
-              "rawQuery": true,
-              "refId": "A",
-              "resultFormat": "time_series",
-              "select": [
-                [
-                  {
-                    "params": [
-                      "value"
-                    ],
-                    "type": "field"
-                  },
-                  {
-                    "params": [],
-                    "type": "mean"
-                  }
-                ]
-              ],
-              "tags": []
-            }
-          ],
-          "thresholds": [],
-          "timeRegions": [],
-          "title": "Load averages",
-          "tooltip": {
-            "msResolution": false,
-            "shared": true,
-            "sort": 0,
-            "value_type": "cumulative"
-          },
-          "type": "graph",
-          "xaxis": {
-            "mode": "time",
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "logBase": 1,
-              "min": 0,
-              "show": true
-            },
-            {
-              "format": "short",
-              "logBase": 1,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": {
-            "type": "influxdb",
-            "uid": "Kj7iy96Vz"
-          },
-          "editable": true,
-          "error": false,
-          "fieldConfig": {
-            "defaults": {
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 10
-          },
-          "height": "350",
-          "hiddenSeries": false,
-          "id": 61852,
-          "legend": {
-            "alignAsTable": true,
-            "avg": true,
-            "current": true,
-            "hideEmpty": true,
-            "hideZero": true,
-            "max": true,
-            "min": false,
-            "rightSide": false,
-            "show": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "connected",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "8.5.21",
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "alias": "$tag_host: $col",
-              "datasource": {
-                "type": "influxdb",
-                "uid": "Kj7iy96Vz"
-              },
-              "dsType": "influxdb",
-              "groupBy": [
-                {
-                  "params": [
-                    "$interval"
-                  ],
-                  "type": "time"
-                },
-                {
-                  "params": [
-                    "null"
-                  ],
-                  "type": "fill"
-                }
-              ],
-              "measurement": "processes",
-              "policy": "default",
-              "query": "SELECT mean(running) as running, mean(blocked) as blocked, mean(sleeping) as sleeping, mean(stopped) as stopped, mean(zombies) as zombies, mean(paging) as paging, mean(unknown) as unknown FROM \"processes\" WHERE host =~ /$server$/ AND $timeFilter GROUP BY time($interval), host ORDER BY asc",
-              "rawQuery": true,
-              "refId": "B",
-              "resultFormat": "time_series",
-              "select": [
-                [
-                  {
-                    "params": [
-                      "blocked"
-                    ],
-                    "type": "field"
-                  },
-                  {
-                    "params": [],
-                    "type": "mean"
-                  }
-                ]
-              ],
-              "tags": [
-                {
-                  "key": "host",
-                  "operator": "=~",
-                  "value": "/^$server$/"
-                }
-              ]
-            }
-          ],
-          "thresholds": [],
-          "timeRegions": [],
-          "title": "Processes",
-          "tooltip": {
-            "msResolution": false,
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "mode": "time",
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "logBase": 1,
-              "show": true
-            },
-            {
-              "format": "short",
-              "logBase": 1,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false
-          }
-        }
-      ],
-      "title": "CPU",
-      "type": "row"
-    },
-    {
-      "collapsed": true,
-      "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
-      },
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 28
+        "y": 19
       },
       "id": 62046,
       "panels": [
@@ -2398,7 +2404,7 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
@@ -2415,7 +2421,7 @@
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 2
+            "y": 3
           },
           "height": "400",
           "hiddenSeries": false,
@@ -2461,7 +2467,7 @@
               "alias": "$tag_host: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -2521,12 +2527,14 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:737",
               "format": "bytes",
               "logBase": 1,
               "min": 0,
               "show": true
             },
             {
+              "$$hashKey": "object:738",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -2550,7 +2558,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 20
       },
       "id": 62047,
       "panels": [
@@ -2561,13 +2569,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -2578,7 +2585,7 @@
             "h": 7,
             "w": 8,
             "x": 0,
-            "y": 8
+            "y": 14
           },
           "height": "",
           "hiddenSeries": false,
@@ -2598,8 +2605,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.5",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2612,7 +2622,7 @@
               "alias": "$tag_host: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "groupBy": [
@@ -2675,11 +2685,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:837",
               "format": "ops",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:838",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -2696,13 +2708,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -2713,7 +2724,7 @@
             "h": 7,
             "w": 8,
             "x": 8,
-            "y": 8
+            "y": 14
           },
           "height": "",
           "hiddenSeries": false,
@@ -2733,8 +2744,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.5",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2747,7 +2761,7 @@
               "alias": "$tag_host: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "groupBy": [
@@ -2810,11 +2824,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:913",
               "format": "ops",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:914",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -2831,13 +2847,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -2848,7 +2863,7 @@
             "h": 7,
             "w": 8,
             "x": 16,
-            "y": 8
+            "y": 14
           },
           "height": "",
           "hiddenSeries": false,
@@ -2868,8 +2883,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.5",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2892,7 +2910,7 @@
               "alias": "$tag_host: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "groupBy": [
@@ -2942,7 +2960,7 @@
               "alias": "$tag_host: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "groupBy": [
@@ -3006,11 +3024,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:989",
               "format": "short",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:990",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -3034,7 +3054,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 21
       },
       "id": 62048,
       "panels": [
@@ -3045,11 +3065,10 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3060,7 +3079,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 9
+            "y": 22
           },
           "hiddenSeries": false,
           "id": 62043,
@@ -3083,8 +3102,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.5",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3097,7 +3119,7 @@
               "alias": "$tag_host: $tag_irq",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "groupBy": [
@@ -3176,11 +3198,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:1069",
               "format": "ops",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:1070",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -3204,7 +3228,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 22
       },
       "id": 62049,
       "panels": [
@@ -3215,10 +3239,16 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "grid": {},
@@ -3226,7 +3256,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 6
+            "y": 30
           },
           "height": "",
           "hiddenSeries": false,
@@ -3253,9 +3283,10 @@
           "maxPerRow": 4,
           "nullPointMode": "connected",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3269,7 +3300,7 @@
               "alias": "$tag_host: $cpu $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -3330,6 +3361,7 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:1795",
               "format": "percent",
               "logBase": 1,
               "max": 100,
@@ -3337,6 +3369,7 @@
               "show": true
             },
             {
+              "$$hashKey": "object:1796",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -3360,7 +3393,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 23
       },
       "id": 62053,
       "panels": [
@@ -3371,7 +3404,7 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
@@ -3388,7 +3421,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 42026,
@@ -3430,7 +3463,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -3483,7 +3516,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -3573,7 +3606,7 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
@@ -3590,7 +3623,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 28572,
@@ -3632,7 +3665,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -3685,7 +3718,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -3752,12 +3785,14 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2032",
               "format": "pps",
               "label": "",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:2033",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -3774,7 +3809,7 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "decimals": 1,
           "editable": true,
@@ -3792,7 +3827,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 58901,
@@ -3829,7 +3864,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -3882,7 +3917,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -3949,6 +3984,7 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2105",
               "format": "pps",
               "label": "Drops per second",
               "logBase": 1,
@@ -3956,6 +3992,7 @@
               "show": true
             },
             {
+              "$$hashKey": "object:2106",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -3972,7 +4009,7 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
@@ -3989,7 +4026,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 50643,
@@ -4026,7 +4063,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -4079,7 +4116,7 @@
               "alias": "$tag_host: $tag_interface: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "derivative",
@@ -4146,6 +4183,7 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2178",
               "format": "short",
               "label": "Errors per second",
               "logBase": 1,
@@ -4153,6 +4191,7 @@
               "show": true
             },
             {
+              "$$hashKey": "object:2179",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -4177,7 +4216,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 43
       },
       "id": 62054,
       "panels": [
@@ -4188,10 +4227,16 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "grid": {},
@@ -4199,7 +4244,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 26024,
@@ -4221,9 +4266,10 @@
           "links": [],
           "nullPointMode": "connected",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4241,7 +4287,7 @@
               "alias": "$tag_host: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -4301,11 +4347,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2454",
               "format": "bytes",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:2455",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -4322,10 +4370,16 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "grid": {},
@@ -4333,7 +4387,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 51
           },
           "hiddenSeries": false,
           "id": 61850,
@@ -4355,9 +4409,10 @@
           "links": [],
           "nullPointMode": "connected",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4376,7 +4431,7 @@
               "alias": "$tag_host: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -4436,12 +4491,14 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2530",
               "format": "bytes",
               "logBase": 1,
               "min": 0,
               "show": true
             },
             {
+              "$$hashKey": "object:2531",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -4465,7 +4522,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 44
       },
       "id": 62055,
       "panels": [
@@ -4476,13 +4533,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -4494,7 +4550,7 @@
             "h": 7,
             "w": 8,
             "x": 0,
-            "y": 15
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 13782,
@@ -4518,8 +4574,11 @@
           "links": [],
           "maxPerRow": 6,
           "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.5",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4537,7 +4596,7 @@
               "alias": "$tag_host: $tag_name: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -4591,7 +4650,7 @@
               "alias": "$tag_host: $tag_name: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -4659,11 +4718,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2618",
               "format": "iops",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:2619",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -4680,13 +4741,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -4698,7 +4758,7 @@
             "h": 7,
             "w": 8,
             "x": 8,
-            "y": 15
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 60200,
@@ -4722,8 +4782,11 @@
           "links": [],
           "maxPerRow": 6,
           "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.5",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4741,7 +4804,7 @@
               "alias": "$tag_host: $tag_name: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -4794,7 +4857,7 @@
               "alias": "$tag_host: $tag_name: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -4861,11 +4924,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2694",
               "format": "bytes",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:2695",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -4882,13 +4947,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -4900,7 +4964,7 @@
             "h": 7,
             "w": 8,
             "x": 16,
-            "y": 15
+            "y": 59
           },
           "hiddenSeries": false,
           "id": 56720,
@@ -4924,8 +4988,11 @@
           "links": [],
           "maxPerRow": 6,
           "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.5",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4943,7 +5010,7 @@
               "alias": "$tag_host: $tag_name: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -4996,7 +5063,7 @@
               "alias": "$tag_host: $tag_name: $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -5063,11 +5130,13 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2770",
               "format": "ms",
               "logBase": 1,
               "show": true
             },
             {
+              "$$hashKey": "object:2771",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -5092,7 +5161,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 49
       },
       "id": 62056,
       "panels": [
@@ -5103,13 +5172,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -5121,7 +5189,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 85
           },
           "hiddenSeries": false,
           "id": 52240,
@@ -5147,7 +5215,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.4.1",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -5168,7 +5236,7 @@
               "alias": "$tag_host: mountpoint $tag_path - $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -5235,12 +5303,14 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:2952",
               "format": "bytes",
               "logBase": 1,
               "min": 0,
               "show": true
             },
             {
+              "$$hashKey": "object:2953",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -5257,13 +5327,12 @@
           "dashes": false,
           "datasource": {
             "type": "influxdb",
-            "uid": "Kj7iy96Vz"
+            "uid": "${datasource}"
           },
           "editable": true,
           "error": false,
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -5275,7 +5344,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 85
           },
           "hiddenSeries": false,
           "id": 33458,
@@ -5301,7 +5370,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.4.1",
+          "pluginVersion": "8.5.21",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -5328,7 +5397,7 @@
               "alias": "$tag_host: mountpoint $tag_path - $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -5381,7 +5450,7 @@
               "alias": "$tag_host: mountpoint $tag_path - $col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "Kj7iy96Vz"
+                "uid": "${datasource}"
               },
               "dsType": "influxdb",
               "function": "mean",
@@ -5448,12 +5517,14 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:3025",
               "format": "short",
               "logBase": 1,
               "min": 0,
               "show": true
             },
             {
+              "$$hashKey": "object:3026",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -5773,6 +5844,6 @@
   "timezone": "browser",
   "title": "Cluster Dashboard",
   "uid": "00000012722",
-  "version": 37,
+  "version": 50,
   "weekStart": ""
 }
