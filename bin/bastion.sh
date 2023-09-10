@@ -51,6 +51,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   sudo pip3 install oci-cli --upgrade
   sudo pip3 install netaddr --upgrade
   sudo pip3 install setuptools_rust --upgrade
+  sudo pip3 install urllib3 --upgrade
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held
