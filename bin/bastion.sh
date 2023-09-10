@@ -50,6 +50,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   sudo python3 -m pip install oci-cli --upgrade
   sudo python3 -m pip install netaddr --upgrade
   sudo python3 -m pip install setuptools_rust --upgrade
+  sudo python3 -m pip install requests --upgrade
   sudo python3 -m pip install urllib3 --upgrade
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
