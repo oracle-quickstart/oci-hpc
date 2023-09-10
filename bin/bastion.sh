@@ -39,6 +39,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python3-netaddr
+    sudo grep -qxF "ansible_python_interpreter=/usr/bin/python3" /etc/ansible/ansible.cfg || echo -e "[defaults] \n ansible_python_interpreter=/usr/bin/python3" >> /etc/ansible/ansible.cfg 
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
