@@ -37,8 +37,9 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python-netaddr
   elif [ $vid == 8 ] ; then
+    pip3 install --upgrade requests
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y ansible python-netaddr
+    sudo yum install --enablerepo=$repo -y ansible python3-netaddr
     #sudo pip3.8 install ansible cryptography netaddr
     #sudo mkdir /etc/ansible
     #sudo touch /etc/ansible/ansible.cfg
