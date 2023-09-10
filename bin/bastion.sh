@@ -38,11 +38,11 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum install --enablerepo=$repo -y ansible python-netaddr
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y python38.x86_64
-    sudo pip3.8 install ansible cryptography netaddr
-    sudo mkdir /etc/ansible
-    sudo touch /etc/ansible/ansible.cfg
-    sudo ln -s /usr/local/bin/ansible /bin/ansible
+    sudo yum install --enablerepo=$repo -y ansible python-netaddr
+    #sudo pip3.8 install ansible cryptography netaddr
+    #sudo mkdir /etc/ansible
+    #sudo touch /etc/ansible/ansible.cfg
+    #sudo ln -s /usr/local/bin/ansible /bin/ansible
    # sudo grep -qxF "ansible_python_interpreter=/usr/bin/python3" /etc/ansible/ansible.cfg || echo -e "[defaults] \nansible_python_interpreter=/usr/bin/python3" | sudo tee -a /etc/ansible/ansible.cfg
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
