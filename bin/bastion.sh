@@ -45,6 +45,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   sudo yum install -y terraform
 
   sudo pip3 install oci-cli --upgrade
+  sudo pip3 install netaddr --upgrade
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held
@@ -142,7 +143,8 @@ fi
 
 ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
 ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
-ansible-galaxy collection install ansible.posix > /dev/null
+ansible-galaxy collection install ansible.posix --force > /dev/null
+ansible-galaxy collection install community.crypto --force > /dev/null
 
 threads=$(nproc)
 forks=$(($threads * 8))
