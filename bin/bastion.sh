@@ -42,7 +42,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo python3.8 -m pip install ansible cryptography netaddr
     sudo mkdir /etc/ansible
     sudo touch /etc/ansible/ansible.cfg
-    sudo ln -s /usr/local/bin/ansible /bin/ansible
+    #sudo ln -s /usr/local/bin/ansible /bin/ansible
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
