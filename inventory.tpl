@@ -1,5 +1,5 @@
 [bastion]
-${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion ansible_python_interpreter=/usr/bin/python3
+${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion 
 [slurm_backup]
 %{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=bastion%{ endif }
 [login]
