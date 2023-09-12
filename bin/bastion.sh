@@ -41,15 +41,16 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum install --enablerepo=$repo -y python38.x86_64
     sudo python3.8 -m pip install ansible cryptography netaddr
     sudo mkdir /etc/ansible
+    sudo python3 -m pip install -U pip
+    sudo python3 -m pip install netaddr --upgrade
+    sudo python3 -m pip install setuptools_rust --upgrade
+    sudo python3 -m pip install requests --upgrade
+    sudo python3 -m pip install urllib3 --upgrade
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
-  sudo python3 -m pip install -U pip
-  sudo python3 -m pip install oci-cli --upgrade
-  sudo python3 -m pip install netaddr --upgrade
-  sudo python3 -m pip install setuptools_rust --upgrade
-  sudo python3 -m pip install requests --upgrade
-  sudo python3 -m pip install urllib3 --upgrade
+   sudo python3 -m pip install oci-cli --upgrade
+
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held
