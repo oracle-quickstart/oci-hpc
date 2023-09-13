@@ -47,6 +47,23 @@
     - influxdb.conf
     - net.conf
     - ethtool_counters.conf
+    - infiniband_mlx5_0_hw_counters.conf
+    - infiniband_mlx5_1_hw_counters.conf
+    - infiniband_mlx5_2_hw_counters.conf
+    - infiniband_mlx5_3_hw_counters.conf
+    - infiniband_mlx5_4_hw_counters.conf
+    - infiniband_mlx5_5_hw_counters.conf
+    - infiniband_mlx5_6_hw_counters.conf
+    - infiniband_mlx5_7_hw_counters.conf
+    - infiniband_mlx5_8_hw_counters.conf
+    - infiniband_mlx5_9_hw_counters.conf
+    - infiniband_mlx5_10_hw_counters.conf
+    - infiniband_mlx5_11_hw_counters.conf
+    - infiniband_mlx5_12_hw_counters.conf
+    - infiniband_mlx5_13_hw_counters.conf
+    - infiniband_mlx5_14_hw_counters.conf
+    - infiniband_mlx5_15_hw_counters.conf
+    - infiniband_mlx5_16_hw_counters.conf
 - name: restart telegraf
   become: true
   service:
