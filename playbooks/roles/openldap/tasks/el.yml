@@ -1,6 +1,5 @@
 ---
 # tasks file for openldap
-
 - name: Create /etc/opt/oci-hpc/passwords/openldap
   become: true
   file:

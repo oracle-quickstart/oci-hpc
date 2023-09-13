@@ -18,7 +18,7 @@
     - cluster.key
 
 - name: Generate an OpenSSL public key in OpenSSH v2 format
-  openssl_publickey:
+  community.crypto.openssl_publickey:
     path: "/home/{{ ansible_user }}/.ssh/id_rsa.pub"
     privatekey_path: "/home/{{ ansible_user }}/.ssh/id_rsa"
     format: OpenSSH

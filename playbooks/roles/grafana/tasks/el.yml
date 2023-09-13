@@ -15,7 +15,7 @@
 - name: install grafana
   vars: 
     package_name: 
-      - https://dl.grafana.com/oss/release/grafana-8.5.21-1.x86_64.rpm
+      - grafana
     package_state: present
   include_role: 
     name: safe_yum
