@@ -41,6 +41,8 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum install --enablerepo=$repo -y python38.x86_64
     sudo python3.8 -m pip install ansible cryptography netaddr
     sudo mkdir /etc/ansible
+    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
+    sudo ln -s /usr/local/bin/ansible /bin/ansible
     sudo python3 -m pip install -U pip
     sudo python3 -m pip install netaddr --upgrade
     sudo python3 -m pip install setuptools_rust --upgrade
