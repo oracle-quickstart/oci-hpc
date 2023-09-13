@@ -1,16 +1,6 @@
 [sssd]
-
 config_file_version = 2
-services = nss, pam
 domains = cluster
-
-[nss]
-filter_users = root
-entry_negative_timeout = 5
-
-[pam]
-pam_verbosity = 2
-pam_account_expired_message = 'Your account has expired. Please contact a system administrator'
 
 [domain/cluster]
 ldap_schema = rfc2307bis

@@ -1,5 +1,5 @@
 [bastion]
-${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion
+${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion ansible_python_interpreter=/usr/bin/python
 [slurm_backup]
 %{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=bastion%{ endif }
 [login]
@@ -74,4 +74,3 @@ inst_prin = ${inst_prin}
 api_fingerprint = ${api_fingerprint}
 api_user_ocid = ${api_user_ocid}
 sacct_limits=${sacct_limits}
-

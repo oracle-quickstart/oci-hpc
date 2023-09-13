@@ -38,12 +38,21 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum install --enablerepo=$repo -y ansible python-netaddr
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y ansible python3-netaddr
+    sudo yum install --enablerepo=$repo -y python38.x86_64
+    sudo python3.8 -m pip install ansible cryptography netaddr
+    sudo mkdir /etc/ansible
+    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
+    sudo ln -s /usr/local/bin/ansible /bin/ansible
+    sudo python3 -m pip install -U pip
+    sudo python3 -m pip install netaddr --upgrade
+    sudo python3 -m pip install setuptools_rust --upgrade
+    sudo python3 -m pip install requests --upgrade
+    sudo python3 -m pip install urllib3 --upgrade
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
+   sudo python3 -m pip install oci-cli --upgrade
 
-  sudo pip3 install oci-cli --upgrade
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held
@@ -66,15 +75,12 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
 
-
   sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
   sudo apt purge -y --auto-remove unattended-upgrades
   sudo systemctl disable apt-daily-upgrade.timer
   sudo systemctl mask apt-daily-upgrade.service
   sudo systemctl disable apt-daily.timer
   sudo systemctl mask apt-daily.service
-
-
 
   sleep 10s
 
@@ -141,7 +147,8 @@ fi
 
 ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
 ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
-ansible-galaxy collection install ansible.posix > /dev/null
+ansible-galaxy collection install ansible.posix --force > /dev/null
+ansible-galaxy collection install community.crypto --force > /dev/null
 
 threads=$(nproc)
 forks=$(($threads * 8))
