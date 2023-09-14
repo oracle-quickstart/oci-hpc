@@ -13,11 +13,17 @@
   include_tasks: common.yml
   when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
 
-- name: run server directives
+- name: run server directives ol8 bastion
+  vars:
+    slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
+  include_tasks: server.yml
+  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool) and ansible_distribution_major_version == '8'
+
+- name: run server directives ol7 bastion
   vars: 
     slurm_repos: "epel,ol7_developer_EPEL"
   include_tasks: server.yml
-  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
+  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool) and ansible_distribution_major_version == '7'
 
 - name: run compute directives
   vars: 
