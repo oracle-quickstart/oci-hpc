@@ -6,8 +6,10 @@
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"
   gather_facts: true
-  roles: 
-    - hostname
+  tasks:
+    - include_role:
+        name: hostname
+      when: slurm  | default(false) | bool
 
 # for ubuntu, on all compute nodes, run --fix-broken install
 - hosts: compute, login
@@ -138,7 +140,7 @@
         local_path: "/home"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/home"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: home_nfs|bool and (not home_fss|bool)
     - include_role:
@@ -205,7 +207,7 @@
       vars: 
         local_path: "{{ cluster_nfs_path }}"
         export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         export_path: "/export/cluster"
         lock: "all"
       when: cluster_nfs|default(true)|bool
@@ -215,7 +217,7 @@
         local_path: "{{ scratch_nfs_path }}"
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,cto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
       when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
     - include_role:

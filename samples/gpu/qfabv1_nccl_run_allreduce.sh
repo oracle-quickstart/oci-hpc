@@ -14,6 +14,7 @@ else
 fi
 
 ORDEREDMACHINEFILE="ordered_hostfile_system_name"
+ORDEREDRANKMACHINEFILE="rankfile_system_name"
 echo INPUTFILE
 cat $hostfile
 
@@ -25,10 +26,12 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 fi
 
 hostfile=$ORDEREDMACHINEFILE
+rankfile=$ORDEREDRANKMACHINEFILE
 
 echo ORDEREDMACHINEFILE
 cat $ORDEREDMACHINEFILE
-
+echo ORDEREDRANKMACHINEFILE
+cat $ORDEREDRANKMACHINEFILE
 
 # The number of GPUs to use for the test.  Has to be multiplier of 8.  If not passed, all GPUs will be used. 
 if [ -n "$3" ]; then
@@ -46,7 +49,7 @@ do
   echo $x >> $logfile
   date >> $logfile
 
-  hostfile=$hostfile; np=$np ; iter=20;
+  rankfile=$rankfile; np=$np ; iter=20;
 
   mpivars_path=`ls /usr/mpi/gcc/openmpi-*/bin/mpivars.sh`
   source $mpivars_path
@@ -82,7 +85,7 @@ fi
   -x NCCL_IB_GID_INDEX=3 \
   -x NCCL_ALGO=Ring \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
-  --np $np --hostfile $hostfile  -N 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b8  -e 4G -f 2 -n $iter >>  $logfile
+  --np $np --rankfile $rankfile /opt/oci-hpc/nccl-test/build/all_reduce_perf -b8  -e 4G -f 2 -n $iter >>  $logfile
 
   tail -n 32 $logfile
 

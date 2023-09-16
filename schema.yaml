@@ -34,6 +34,8 @@ variableGroups:
       - ${bastion_custom_memory}
       - ${bastion_memory}
       - ${bastion_boot_volume_size}
+      - ${bastion_boot_volume_backup}
+      - ${bastion_object_storage_par}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}
@@ -41,6 +43,10 @@ variableGroups:
       - ${secondary_ad}
       - ${third_ad}
       - ${cluster_network}
+      - ${compute_cluster}
+      - ${compute_cluster_exists}
+      - ${compute_cluster_id}
+      - ${compute_cluster_start_index}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
@@ -184,6 +190,10 @@ variableGroups:
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
+      - ${bastion_boot_volume_backup_period}
+      - ${bastion_boot_volume_backup_retention_seconds}
+      - ${bastion_boot_volume_backup_time_zone}
+      - ${bastion_boot_volume_backup_type}
     visible: false
   - title: "Debug"
     variables: 
@@ -357,7 +367,12 @@ variables:
         - and: 
             - ${bastion_custom_memory}
     required: true
-
+  bastion_object_storage_par:
+    title: Create Object Storage PAR
+    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to
+    to Object Storage and share the URL with OCI service teams."
+    type: boolean
+    default: true
   use_standard_image:
     type: boolean
     title: "use standard bastion image"
@@ -372,8 +387,13 @@ variables:
     type: boolean
     default: false
     visible:
-      not:
-        - ${use_standard_image}
+      or: 
+        - not:
+          - ${use_standard_image}
+        - not:
+          - eq:
+            - ${compute_username}
+            - "opc"
 
   bastion_username: 
     title: "Default username for bastion" 
@@ -382,8 +402,13 @@ variables:
     default: "opc"
     required: true
     visible:
-      not:
-        - ${use_standard_image}
+      or: 
+        - not:
+          - ${use_standard_image}
+        - not:
+          - eq:
+            - ${compute_username}
+            - "opc"
  
   unsupported_bastion_image:
     title: "Image OCID"
@@ -392,9 +417,13 @@ variables:
     required: true
     visible:
       and: 
-        - ${unsupported_bastion}
-        - not: 
+        - or: 
+          - not:
             - ${use_standard_image}
+          - not:
+            - eq:
+              - ${compute_username}
+              - "opc"
     default: "image.ocid"
   
   bastion_image_compartment:
@@ -403,24 +432,34 @@ variables:
     default: ${targetCompartment}
     visible:
       and: 
+        - or:
           - not:
-              - ${use_standard_image}
-          - not: 
-              - ${unsupported_bastion}
+            - ${use_standard_image}
+          - not:
+            - eq:
+              - ${compute_username}
+              - "opc"
+        - not: 
+          - ${unsupported_bastion}
     required: true
 
   custom_bastion_image:
     title: "Bastion Image ID"
-    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment. "
+    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 20.04 are supported as bastion image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${bastion_image_compartment}
     visible:
       and: 
+        - or: 
           - not:
-              - ${use_standard_image}
-          - not: 
-              - ${unsupported_bastion}
+            - ${use_standard_image}
+          - not:
+            - eq:
+              - ${compute_username}
+              - "opc"
+        - not: 
+            - ${unsupported_bastion}
     required: true
 
   bastion_boot_volume_size:
@@ -429,6 +468,13 @@ variables:
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 50
+
+  bastion_boot_volume_backup:
+    type: boolean
+    title: "Enable boot volume backup"
+    description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
+    default: true
+  
   bastion_block:
     type: boolean
     title: Additional block volume for shared space
@@ -496,11 +542,40 @@ variables:
         - ${use_advanced}
         - ${use_cluster_nfs}
     reguired: true
+
   cluster_network:
     title: Use cluster network
     type: boolean
     description: Use ROCEv2 cluster network
     default: true
+
+  compute_cluster:
+    title: Use compute cluster rather than cluster network
+    type: boolean
+    description: Use compute cluster instead of cluster network
+    default: false
+    visible: ${cluster_network}
+
+  compute_cluster_exists:
+    title: Use existing Compute Cluster
+    type: boolean
+    description: The compute cluster already exists
+    default: false
+    visible: ${compute_cluster}
+
+  compute_cluster_id: 
+    title: Compute Cluster ID
+    type: string
+    description: Specify the compute cluster OCID
+    default: ""
+    visible: ${compute_cluster_exists}
+
+  compute_cluster_start_index: 
+    title: Start Index
+    type: integer
+    description: Specify the start Index of the nodes in the compute cluster
+    default: 0
+    visible: ${compute_cluster_exists}
 
   cluster_network_shape:
     type: enum
@@ -510,7 +585,7 @@ variables:
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
       - "BM.Optimized3.36"
-      - "BM.HPC.E5.128"
+      - "BM.HPC.E5.144"
     default: "BM.HPC2.36"
     title: "Shape of the Compute Nodes"
     description: "Shape of compute nodes used in permanent/initial cluster"
@@ -1044,7 +1119,7 @@ variables:
     type: boolean
     title: "Enable Limits for Slurm jobs"
     default: false
-    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs of the right limits are not set"
+    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs if the right limits are not set"
     visible: ${slurm}
 
   monitoring:

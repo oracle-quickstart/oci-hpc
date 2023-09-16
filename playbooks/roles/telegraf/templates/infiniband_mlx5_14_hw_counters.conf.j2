@@ -1,0 +1,49 @@
+[[inputs.multifile]]
+    name_override = "infiniband_mlx5_14_hw_counters"
+    base_dir = "/sys/class/infiniband"
+    interval = "300s"
+
+    [[inputs.multifile.tags]]
+      device="mlx5_14"
+      port="1"
+      type="hw_counters"
+
+    [[inputs.multifile.file]]
+      file = "mlx5_14/ports/1/hw_counters/np_ecn_marked_roce_packets"
+      conversion = "int"
+
+    [[inputs.multifile.file]]
+      file = "mlx5_14/ports/1/hw_counters/out_of_sequence"
+      conversion = "int"
+
+    [[inputs.multifile.file]]
+      file = "mlx5_14/ports/1/hw_counters/packet_seq_err"
+      conversion = "int"
+
+    [[inputs.multifile.file]]
+      file = "mlx5_14/ports/1/hw_counters/local_ack_timeout_err"
+      conversion = "int"
+
+    [[inputs.multifile.file]]
+    file = "mlx5_14/ports/1/hw_counters/roce_adp_retrans"
+    conversion = "int"
+
+    [[inputs.multifile.file]]
+      file = "mlx5_14/ports/1/hw_counters/np_cnp_sent"
+      conversion = "int"
+
+    [[inputs.multifile.file]]
+      file = "mlx5_14/ports/1/hw_counters/rp_cnp_handled"
+      conversion = "int"
+
+    [[inputs.multifile.file]]
+      file = "mlx5_14/ports/1/hw_counters/rp_cnp_ignored"
+      conversion = "int"
+
+    [[inputs.multifile.file]]
+    file = "mlx5_14/ports/1/hw_counters/rx_icrc_encapsulated"
+    conversion = "int"
+
+    [[inputs.multifile.file]]
+    file = "mlx5_14/ports/1/hw_counters/roce_slow_restart"
+    conversion = "int"

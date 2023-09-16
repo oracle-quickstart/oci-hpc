@@ -17,6 +17,25 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
+resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
+  count = var.bastion_boot_volume_backup ? 1 : 0
+	compartment_id = var.targetCompartment
+	display_name = "${local.cluster_name}-bastion_boot_volume_daily"
+	schedules {
+		backup_type = var.bastion_boot_volume_backup_type
+		period = var.bastion_boot_volume_backup_period
+		retention_seconds = var.bastion_boot_volume_backup_retention_seconds
+		time_zone = var.bastion_boot_volume_backup_time_zone
+	}
+}
+
+resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
+  count = var.bastion_boot_volume_backup ? 1 : 0
+  depends_on = [oci_core_volume_backup_policy.bastion_boot_volume_backup_policy]
+  asset_id  = oci_core_instance.bastion.boot_volume_id
+  policy_id = oci_core_volume_backup_policy.bastion_boot_volume_backup_policy[0].id
+}
+
 resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   count = var.private_deployment ? 1 : 0
   compartment_id = var.targetCompartment
@@ -24,6 +43,13 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   description    = "rms_private_endpoint_description"
   vcn_id         = local.vcn_id
   subnet_id      = local.subnet_id
+}
+
+resource "null_resource" "boot_volume_backup_policy" { 
+  depends_on = [oci_core_instance.bastion, oci_core_volume_backup_policy.bastion_boot_volume_backup_policy, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy] 
+  triggers = { 
+    bastion = oci_core_instance.bastion.id
+  } 
 }
 
 resource "oci_core_instance" "bastion" {
@@ -150,6 +176,16 @@ resource "null_resource" "bastion" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+  provisioner "file" {
+    source      = "scripts"
+    destination = "/opt/oci-hpc/"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
   provisioner "file" { 
     content        = templatefile("${path.module}/configure.tpl", { 
       configure = var.configure
@@ -175,7 +211,7 @@ resource "null_resource" "bastion" {
   }
 }
 resource "null_resource" "cluster" { 
-  depends_on = [null_resource.bastion, null_resource.backup, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
+  depends_on = [null_resource.bastion, null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.bastion, oci_core_volume_attachment.bastion_volume_attachment ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
@@ -288,6 +324,7 @@ resource "null_resource" "cluster" {
   provisioner "file" {
     content        = templatefile("${path.module}/queues.conf", {  
       cluster_network = var.cluster_network,
+      compute_cluster = var.compute_cluster,
       marketplace_listing = var.use_old_marketplace_image ? var.old_marketplace_listing : var.marketplace_listing,
       image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
@@ -444,3 +481,55 @@ provisioner "file" {
     }
   }
 }
+
+data "oci_objectstorage_namespace" "compartment_namespace" {
+    compartment_id = var.targetCompartment
+}
+
+locals {
+  rdma_nic_metric_bucket_name = "RDMA_NIC_metrics"
+  par_path = ".."
+}
+/*
+saving the PAR into file: ../PAR_file_for_metrics.
+this PAR is used by the scripts to upload NIC metrics to object storage (i.e. script: upload_rdma_nic_metrics.sh)
+*/
+
+data "oci_objectstorage_bucket" "RDMA_NIC_Metrics_bucket_check" {
+  name           = local.rdma_nic_metric_bucket_name
+  namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
+}
+
+
+resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
+  count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+  compartment_id = var.targetCompartment
+  name           = local.rdma_nic_metric_bucket_name
+  namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
+  versioning     = "Enabled"
+}
+
+resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {
+  count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+  depends_on  = [oci_objectstorage_bucket.RDMA_NIC_metrics_bucket]
+  access_type = "AnyObjectWrite"
+  bucket      = local.rdma_nic_metric_bucket_name
+  name         = format("%s-%s", "RDMA_NIC_metrics_bucket", var.tenancy_ocid)
+  namespace    = data.oci_objectstorage_namespace.compartment_namespace.namespace
+  time_expires = "2030-08-01T00:00:00+00:00"
+}
+
+
+output "RDMA_NIC_metrics_url" {
+ depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
+ value = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}" : ""
+}
+
+
+resource "local_file" "PAR" {
+    count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+    depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
+    content     = "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}"
+    filename = "${local.par_path}/PAR_file_for_metrics"
+  }
+

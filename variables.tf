@@ -7,10 +7,15 @@ variable "third_ad" { default = "" }
 variable "use_multiple_ads" { default = false }
 variable "ssh_key" { }
 variable "cluster_network" { default = true } 
+variable "compute_cluster" { default = false } 
+variable "compute_cluster_exists" { default = false }
+variable "compute_cluster_id" { default = "" } 
+variable "compute_cluster_start_index" { default = 0 } 
 variable "use_custom_name" { default = false }
 variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
 variable "bastion_shape" { default = "VM.Standard2.4" }
+variable "bastion_object_storage_par" { default = true }
 variable "use_standard_image" { default= true }
 variable "use_standard_image_login" { default= true }
 variable "custom_bastion_image" { 
@@ -22,6 +27,11 @@ variable "custom_login_image" {
   default = "image.ocid" 
 }
 variable "bastion_boot_volume_size" {}
+variable "bastion_boot_volume_backup" {}
+variable "bastion_boot_volume_backup_type" {default = "INCREMENTAL"}
+variable "bastion_boot_volume_backup_period" {default = "ONE_DAY"}
+variable "bastion_boot_volume_backup_retention_seconds" {default = "7776000"}
+variable "bastion_boot_volume_backup_time_zone" {default = "REGIONAL_DATA_CENTER_TIME"}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" { default = 2 }
@@ -49,7 +59,7 @@ variable "private_subnet" { default = "172.16.4.0/22" }
 variable "ssh_cidr" { default = "0.0.0.0/0" }
 variable "slurm" { default = false }
 variable "slurm_ha" { default = false }
-variable "login_node" { default = false }
+variable "login_node" { default = true }
 variable "login_ad" {default = ""}
 variable "login_shape" { default = "VM.Standard2.4" }
 variable "login_boot_volume_size" {default = 50}

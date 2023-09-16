@@ -29,4 +29,3 @@ objectClass: olcRefintConfig
 objectClass: top
 olcOverlay: {1}refint
 olcRefintAttribute: memberof member
-

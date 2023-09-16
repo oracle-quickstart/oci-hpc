@@ -37,6 +37,8 @@ The stack allowa various combination of OS. Here is a list of what has been test
 |      OL7      |      OL7     |  
 |      OL7      |      OL8     |
 |      OL7      |    CentOS7   |
+|      OL8      |       OL8    |
+|      OL8      |       OL7    |
 | Ubuntu  20.04 | Ubuntu 20.04 |
 
 When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the bastion and compute nodes. 
@@ -358,3 +360,53 @@ You can combine all the options together such as:
 validate -n y -p y -g y -e y -cn <cluster name file>
 
 
+## /opt/oci-hpc/scripts/collect_logs.py
+This is a script to collect nvidia bug report, sosreport, console history logs. 
+
+The script needs to be run from the bastion. In the case where the host is not ssh-able, it will get only  console history logs for the same.
+
+It requires the below argument.
+--hostname <HOSTNAME>
+
+And --compartment-id <COMPARTMENT_ID> is optional (i.e. assumption is the host is in the same compartment as the bastion). 
+
+Where HOSTNAME is the node name for which you need the above logs and COMPARTMENT_ID is the OCID of the compartment where the node is.
+
+The script will get all the above logs and put them in a folder specific to each node in /home/{user}. It will give the folder name as the output.
+
+Assumption: For getting the console history logs, the script expects to have the node name in /etc/hosts file.
+
+Examples:
+
+python3 collect_logs.py --hostname compute-permanent-node-467
+The nvidia bug report, sosreport, and console history logs for compute-permanent-node-467 are at /home/ubuntu/compute-permanent-node-467_06132023191024
+
+python3 collect_logs.py --hostname inst-jxwf6-keen-drake
+The nvidia bug report, sosreport, and console history logs for inst-jxwf6-keen-drake are at /home/ubuntu/inst-jxwf6-keen-drake_11112022001138
+
+for x in `less /home/opc/hostlist` ; do echo $x ; python3 collect_logs.py --hostname $x; done ;
+compute-permanent-node-467
+The nvidia bug report, sosreport, and console history logs for compute-permanent-node-467 are at /home/ubuntu/compute-permanent-node-467_11112022011318
+compute-permanent-node-787
+The nvidia bug report, sosreport, and console history logs for compute-permanent-node-787 are at /home/ubuntu/compute-permanent-node-787_11112022011835
+
+Where hostlist had the below contents
+compute-permanent-node-467
+compute-permanent-node-787
+
+
+## Collect RDMA NIC Metrics and Upload to Object Storage
+
+OCI-HPC is deployed in customer tenancy. So, OCI service teams cannot access metrics from these OCI-HPC stack clusters. Due to overcome this issue, in release,
+we introduce a feature to collect RDMA NIC Metrics and upload those metrics to Object Storage. Later on, that Object Storage URL could be shared with OCI service
+teams. After that URL, OCI service teams could access metrics and use those metrics for debugging purpose.
+
+To collect RDMA NIC Metrics and upload those to Object Storage, user needs to follow these following steps:
+
+Step 1: Create a PAR (PreAuthenticated Request)
+For creating a PAR, user needs to select check-box "Create Object Storage PAR" during Resource Manager's stack creation.
+By default, this check box is enabled. By selecting, this check-box, a PAR would be created.
+
+Step 2: Use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage.
+User needs to use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage. User could configure metrics
+collection limit and interval through config file: rdma_metrics_collection_config.conf.

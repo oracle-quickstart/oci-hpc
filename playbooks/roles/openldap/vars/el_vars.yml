@@ -6,6 +6,10 @@ openldap_packages:
   - openldap-clients
   - rsync
 
+openldap_packages_ol8:
+  - openldap-clients
+  - rsync
+
 openldap_default_user: ldap
 openldap_default_group: ldap
 
