@@ -387,8 +387,13 @@ variables:
     type: boolean
     default: false
     visible:
-      not:
-        - ${use_standard_image}
+      or: 
+        - not:
+          - ${use_standard_image}
+        - not:
+          - eq:
+            - ${compute_username}
+            - "opc"
 
   bastion_username: 
     title: "Default username for bastion" 
@@ -397,8 +402,13 @@ variables:
     default: "opc"
     required: true
     visible:
-      not:
-        - ${use_standard_image}
+      or: 
+        - not:
+          - ${use_standard_image}
+        - not:
+          - eq:
+            - ${compute_username}
+            - "opc"
  
   unsupported_bastion_image:
     title: "Image OCID"
@@ -407,9 +417,13 @@ variables:
     required: true
     visible:
       and: 
-        - ${unsupported_bastion}
-        - not: 
+        - or: 
+          - not:
             - ${use_standard_image}
+          - not:
+            - eq:
+              - ${compute_username}
+              - "opc"
     default: "image.ocid"
   
   bastion_image_compartment:
@@ -418,10 +432,15 @@ variables:
     default: ${targetCompartment}
     visible:
       and: 
+        - or:
           - not:
-              - ${use_standard_image}
-          - not: 
-              - ${unsupported_bastion}
+            - ${use_standard_image}
+          - not:
+            - eq:
+              - ${compute_username}
+              - "opc"
+        - not: 
+          - ${unsupported_bastion}
     required: true
 
   custom_bastion_image:
@@ -432,10 +451,15 @@ variables:
       compartmentId: ${bastion_image_compartment}
     visible:
       and: 
+        - or: 
           - not:
-              - ${use_standard_image}
-          - not: 
-              - ${unsupported_bastion}
+            - ${use_standard_image}
+          - not:
+            - eq:
+              - ${compute_username}
+              - "opc"
+        - not: 
+            - ${unsupported_bastion}
     required: true
 
   bastion_boot_volume_size:
