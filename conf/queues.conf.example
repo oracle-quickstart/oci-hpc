@@ -21,7 +21,6 @@
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: true
-          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 16
           instance_pool_custom_memory: false
@@ -45,7 +44,6 @@
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: true
-          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 16
           instance_pool_custom_memory: false
@@ -71,7 +69,6 @@
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: false
-          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 16
           instance_pool_custom_memory: false
@@ -94,7 +91,6 @@
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
           boot_volume_size: 50
           use_marketplace_image: false
-          use_old_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 2
           instance_pool_custom_memory: true

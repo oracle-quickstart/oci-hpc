@@ -57,10 +57,8 @@ variableGroups:
       - ${hyperthreading}
       - ${boot_volume_size}
       - ${use_marketplace_image}
-      - ${use_old_marketplace_image}
       - ${compute_username}
       - ${marketplace_listing}
-      - ${old_marketplace_listing}
       - ${unsupported}
       - ${compute_image_compartment}
       - ${image}
@@ -75,11 +73,8 @@ variableGroups:
       - ${login_custom_memory}
       - ${login_memory}
       - ${login_boot_volume_size}
-      - ${use_standard_image_login}
       - ${use_marketplace_image_login}
-      - ${use_old_marketplace_image_login}
       - ${marketplace_listing_login}
-      - ${old_marketplace_listing_login}
       - ${unsupported_login}
       - ${login_image_compartment}
       - ${custom_login_image}
@@ -121,7 +116,8 @@ variableGroups:
       - ${fss_ad}
   - title: "Advanced bastion options"
     variables:
-      - ${use_standard_image}
+      - ${use_marketplace_image_bastion}
+      - ${marketplace_listing_bastion}
       - ${unsupported_bastion}
       - ${bastion_image_compartment}
       - ${custom_bastion_image}
@@ -184,7 +180,6 @@ variableGroups:
       - ${scratch_nfs_export}
       - ${scratch_nfs_mount}
       - ${marketplace_listing_id}
-      - ${old_marketplace_listing_id}
       - ${marketplace_listing_id_GPU}
       - ${marketplace_listing_id_HPC}
       - ${ssh_cidr}
@@ -373,27 +368,36 @@ variables:
     to Object Storage and share the URL with OCI service teams."
     type: boolean
     default: true
-  use_standard_image:
-    type: boolean
-    title: "use standard bastion image"
-    description: >
-      "Use standard bastion image (Oracle Linux)"
-    default: true
-    visible: true
 
   unsupported_bastion: 
     title: "Use unsupported image" 
     description: "Custom image ID for Bastion"
     type: boolean
     default: false
-    visible:
-      or: 
-        - not:
-          - ${use_standard_image}
-        - not:
-          - eq:
-            - ${compute_username}
-            - "opc"
+    visible: 
+      not: 
+        - ${use_marketplace_image_bastion}
+
+  use_marketplace_image_bastion:
+    type: boolean
+    title: "use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID"
+    default: true
+    visible: true
+
+
+  marketplace_listing_bastion:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC_OL7"
+      - "HPC_OL8"
+      - "GPU_OL7"
+      - "GPU_OL8"
+    default: "HPC_OL7"
+    visible: ${use_marketplace_image_bastion}
 
   bastion_username: 
     title: "Default username for bastion" 
@@ -401,29 +405,14 @@ variables:
     type: string
     default: "opc"
     required: true
-    visible:
-      or: 
-        - not:
-          - ${use_standard_image}
-        - not:
-          - eq:
-            - ${compute_username}
-            - "opc"
+    visible: true
  
   unsupported_bastion_image:
     title: "Image OCID"
     description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment."
     type: string
     required: true
-    visible:
-      and: 
-        - or: 
-          - not:
-            - ${use_standard_image}
-          - not:
-            - eq:
-              - ${compute_username}
-              - "opc"
+    visible: ${unsupported_bastion}
     default: "image.ocid"
   
   bastion_image_compartment:
@@ -432,15 +421,10 @@ variables:
     default: ${targetCompartment}
     visible:
       and: 
-        - or:
-          - not:
-            - ${use_standard_image}
-          - not:
-            - eq:
-              - ${compute_username}
-              - "opc"
         - not: 
           - ${unsupported_bastion}
+        - not:
+          - ${use_marketplace_image_bastion}
     required: true
 
   custom_bastion_image:
@@ -449,17 +433,12 @@ variables:
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${bastion_image_compartment}
-    visible:
+    visible: 
       and: 
-        - or: 
-          - not:
-            - ${use_standard_image}
-          - not:
-            - eq:
-              - ${compute_username}
-              - "opc"
         - not: 
-            - ${unsupported_bastion}
+          - ${unsupported_bastion}
+        - not:
+          - ${use_marketplace_image_bastion}
     required: true
 
   bastion_boot_volume_size:
@@ -735,15 +714,6 @@ variables:
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
 
-  use_old_marketplace_image:
-    type: boolean
-    title: "use older marketplace images"
-    description: "Images prior to September 2021"
-    default: false
-    visible:
-      and:
-        - ${use_marketplace_image}
-
   marketplace_listing:
     type: enum
     title: "Image version"
@@ -752,29 +722,10 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU"
+      - "GPU_OL7"
+      - "GPU_OL8"
     default: "HPC_OL7"
-    visible:
-      and:
-        - ${use_marketplace_image}
-        - not: 
-          - ${use_old_marketplace_image}
-
-  old_marketplace_listing:
-    type: enum
-    title: "Image version"
-    description: "Marketplace listing to use"
-    required: true
-    enum:
-      - "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
-      - "2. Oracle Linux 7.8 OFED 5.0-1.0.0.0 UEK 20200826"
-      - "3. Oracle Linux 7.7 OFED 4.4-2.0.7.0 UEK 20200229"
-      - "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
-    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
-    visible:
-      and:
-        - ${use_marketplace_image}
-        - ${use_old_marketplace_image}
+    visible: ${use_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
@@ -1512,22 +1463,17 @@ variables:
         - and:
             - ${login_block}
             - ${login_node}
-  use_standard_image_login:
-    type: boolean
-    title: "use standard login image"
-    description: >
-      "Use standard login image (Oracle Linux)"
-    default: true
-    visible: ${login_node}
 
   unsupported_login: 
     title: "Use unsupported image" 
     description: "Custom image ID for Login Node"
     type: boolean
     default: false
-    visible:
-      not:
-        - ${use_standard_image_login}
+    visible: 
+      and:
+        - ${login_node}
+        - not: 
+          - ${use_marketplace_image_login}
 
   login_image_compartment:
     title: "login image compartment"
@@ -1535,8 +1481,7 @@ variables:
     default: ${targetCompartment}
     visible:
       and: 
-          - not:
-              - ${use_standard_image_login}
+          - ${login_node}
           - not: 
               - ${unsupported_login}
           - not: 
@@ -1551,8 +1496,7 @@ variables:
       compartmentId: ${login_image_compartment}
     visible:
       and: 
-          - not:
-              - ${use_standard_image_login}
+          - ${login_node}
           - not: 
               - ${unsupported_login}
           - not: 
@@ -1567,8 +1511,6 @@ variables:
       and: 
         - ${unsupported_login}
         - not: 
-            - ${use_standard_image_login}
-        - not: 
             - ${use_marketplace_image_login}
     default: "image.ocid"
     
@@ -1578,28 +1520,14 @@ variables:
     type: string
     default: "opc"
     required: true
-    visible:
-      not:
-        - ${use_standard_image_login}
+    visible: ${login_node}
 
   use_marketplace_image_login:
     type: boolean
     title: "use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
-    visible:
-      not:
-        - ${use_standard_image_login}
-  use_old_marketplace_image_login:
-    type: boolean
-    title: "use older marketplace images"
-    description: "Images prior to September 2021"
-    default: false
-    visible:
-      and:
-        - ${use_marketplace_image_login}
-        - not:
-          - ${use_standard_image_login}
+    visible: ${login_node}
 
   marketplace_listing_login:
     type: enum
@@ -1609,30 +1537,10 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU"
+      - "GPU_OL7"
+      - "GPU_OL8"
     default: "HPC_OL7"
     visible:
       and:
         - ${use_marketplace_image_login}
-        - not: 
-          - ${use_old_marketplace_image_login}
-        - not:
-          - ${use_standard_image_login}
-
-  old_marketplace_listing_login:
-    type: enum
-    title: "Image version"
-    description: "Marketplace listing to use"
-    required: true
-    enum:
-      - "1. Oracle Linux 7.9 OFED 5.3-1.0.0.1 RHCK 20210607"
-      - "2. Oracle Linux 7.8 OFED 5.0-1.0.0.0 UEK 20200826"
-      - "3. Oracle Linux 7.7 OFED 4.4-2.0.7.0 UEK 20200229"
-      - "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
-    default: "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
-    visible:
-      and:
-        - ${use_marketplace_image_login}
-        - ${use_old_marketplace_image_login}
-        - not:
-          - ${use_standard_image_login}
+        - ${login_node}
