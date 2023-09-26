@@ -325,10 +325,9 @@ resource "null_resource" "cluster" {
     content        = templatefile("${path.module}/queues.conf", {  
       cluster_network = var.cluster_network,
       compute_cluster = var.compute_cluster,
-      marketplace_listing = var.use_old_marketplace_image ? var.old_marketplace_listing : var.marketplace_listing,
+      marketplace_listing = var.marketplace_listing,
       image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
-      use_old_marketplace_image = var.use_old_marketplace_image,
       boot_volume_size = var.boot_volume_size,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
       region = var.region,

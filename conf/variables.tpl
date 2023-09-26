@@ -15,7 +15,6 @@ variable "instance_type" {default = "##INST_TYPE##" }
 variable "node_count" { default="##NODES##" }
 variable "boot_volume_size" {default = "##BOOT##"}
 variable "use_marketplace_image" {  default = "##USEMP##" }
-variable "use_old_marketplace_image" {  default = "##USEOLDMP##" }
 variable "scratch_nfs_path" { default = "${scratch_nfs_path}" } 
 variable "use_scratch_nfs" { default = ${use_scratch_nfs} }
 variable "cluster_nfs_path" {default = "${cluster_nfs_path}"}
@@ -55,10 +54,8 @@ variable "marketplace_version_id" {
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
        "HPC_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-2023.05.18-0"
        "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.6.8.1-2023.05.18-0"
-       "HPC_OL7_old" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
-       "HPC_OL8_old" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
-       "GPU_old" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
-       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
+       "GPU_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
+       "GPU_OL8" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
   }
 }
 

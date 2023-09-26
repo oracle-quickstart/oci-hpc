@@ -16,8 +16,6 @@ variable "cluster_name" { default = "" }
 variable "bastion_ad" {}
 variable "bastion_shape" { default = "VM.Standard2.4" }
 variable "bastion_object_storage_par" { default = true }
-variable "use_standard_image" { default= true }
-variable "use_standard_image_login" { default= true }
 variable "custom_bastion_image" { 
   type = string
   default = "image.ocid" 
@@ -37,7 +35,6 @@ variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" { default = 2 }
 variable "boot_volume_size" { default = 50 }
 variable "use_marketplace_image" { default = true}
-variable "use_old_marketplace_image" { default = false}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "unsupported_bastion_image" { default = "" } 
@@ -85,10 +82,7 @@ variable "privilege_group_name" { default = "privilege" }
 
 variable "marketplace_listing" { 
   default = "HPC_OL7"
-} 
-variable "old_marketplace_listing" { 
-  default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
-} 
+}  
 variable "marketplace_version_id" { 
   type = map(string) 
   default = { 
@@ -98,18 +92,14 @@ variable "marketplace_version_id" {
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
        "HPC_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-2023.05.18-0"
        "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.6.8.1-2023.05.18-0"
-       "HPC_OL7_old" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
-       "HPC_OL8_old" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
-       "GPU_old" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
-       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
+       "GPU_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
+       "GPU_OL8" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
   }
 }
 
 # To find the Appcatalog OCID, run 
 # oci compute pic listing list --display-name "Oracle Linux 7 - HPC Cluster Networking Image"
-variable "old_marketplace_listing_id" {
-    default = "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
-}
+
 variable "marketplace_listing_id_HPC" {
     default = "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
 }
@@ -196,6 +186,10 @@ variable "unsupported_bastion" {
   type=bool
   default = false 
 }
+variable "use_marketplace_image_bastion" { 
+  type=bool
+  default = true 
+}
 variable "unsupported_login" { 
   type=bool
   default = false 
@@ -251,13 +245,11 @@ variable "log_vol" { default = false }
 variable "redundancy" { default = true }
 
 variable "use_marketplace_image_login" { default = true}
-variable "use_old_marketplace_image_login" { default = false}
 
 variable "marketplace_listing_login" { 
   default = "HPC_OL7"
 } 
- 
-variable "old_marketplace_listing_login" { 
-  default = "4. Oracle Linux 7.9 OFED 5.0-2.1.8.0 RHCK 20210709"
-}  
+variable "marketplace_listing_bastion" { 
+  default = "HPC_OL7"
+} 
   

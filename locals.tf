@@ -28,9 +28,9 @@ locals {
   
   cluster_name = var.use_custom_name ? var.cluster_name : random_pet.name.id
 
-  bastion_image = var.use_standard_image ? oci_core_app_catalog_subscription.bastion_mp_image_subscription[0].listing_resource_id : local.custom_bastion_image_ocid
+  bastion_image = var.use_marketplace_image_bastion ? oci_core_app_catalog_subscription.bastion_mp_image_subscription[0].listing_resource_id : local.custom_bastion_image_ocid
 
-  login_image = var.login_node && ( var.use_standard_image_login ||  var.use_marketplace_image_login ) ? oci_core_app_catalog_subscription.login_mp_image_subscription[0].listing_resource_id : local.custom_login_image_ocid
+  login_image = var.login_node &&  var.use_marketplace_image_login ? oci_core_app_catalog_subscription.login_mp_image_subscription[0].listing_resource_id : local.custom_login_image_ocid
 
   cluster_network_image = var.use_marketplace_image ? oci_core_app_catalog_subscription.mp_image_subscription[0].listing_resource_id : local.image_ocid
 
