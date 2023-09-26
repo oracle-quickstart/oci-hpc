@@ -3,8 +3,7 @@ resource "random_pet" "name" {
 }
 
 resource "tls_private_key" "ssh" {
-  algorithm = "RSA"
-  rsa_bits  = "4096"
+  algorithm = "ED25519"
 }
 
 data "oci_core_services" "services" {
