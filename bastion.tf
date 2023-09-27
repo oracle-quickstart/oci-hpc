@@ -200,8 +200,19 @@ resource "null_resource" "bastion" {
   }
 
   provisioner "file" {
-    content     = tls_private_key.ssh.private_key_pem
+    content     = tls_private_key.ssh.private_key_openssh
     destination = "/home/${var.bastion_username}/.ssh/cluster.key"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+    provisioner "file" {
+    content     = tls_private_key.ssh.public_key_openssh
+    destination = "/home/${var.bastion_username}/.ssh/id_rsa.pub"
     connection {
       host        = local.host
       type        = "ssh"
