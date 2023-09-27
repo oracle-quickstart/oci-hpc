@@ -1,0 +1,23 @@
+---
+- block:
+  - name: Automatically restart the services
+    become: true
+    replace:
+      path: /etc/needrestart/needrestart.conf
+      regexp: "#$nrconf{restart} = 'i';"
+      replace: "$nrconf{restart} = 'a';"
+  - name: Make sure python OpenSSL and parallel ssh is installed
+    vars: 
+      package_name: 
+        - python3-openssl
+        - python3-cryptography
+        - parted
+        - pssh
+        - pdsh
+        - python3-netaddr
+        - jq
+        - python3-pip
+      package_state: latest
+    include_role: 
+      name: safe_yum
+    ignore_errors: true
