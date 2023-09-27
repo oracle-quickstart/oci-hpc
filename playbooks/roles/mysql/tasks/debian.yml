@@ -1,6 +1,12 @@
 ---
 # tasks for mariadb role
 
+- include_vars: ubuntu_vars.yml
+  when: ansible_distribution_major_version < "22"
+
+- include_vars: ubuntu-2204_vars.yml
+  when: ansible_distribution_major_version == "22"
+
 - name: Create /etc/opt/oci-hpc/passwords/mysql
   become: true
   file: 
@@ -28,6 +34,7 @@
   apt_repository:
     repo: deb http://archive.ubuntu.com/ubuntu bionic main
     state: present
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version < "22"
 
 - name: Install MariaDB packages
   vars: 
@@ -83,12 +90,23 @@
   - meta: flush_handlers
 
   # added to resolve error unable to connect to database,check login_user and login_password are correct or/root/.my.cnf has the credentials.Exception message: (1698, "Access denied for user ''root''@''localhost''")'
-  - name: Change the authentication plugin of MySQL root user to mysql_native_password
-    shell: mysql -u root -e 'UPDATE mysql.user SET plugin="mysql_native_password" WHERE user="root" AND host="localhost"'
-  
-  - name: Flush Privileges
-    shell: mysql -u root -e 'FLUSH PRIVILEGES'
-  
+  #  - name: Change the authentication plugin of MySQL root user to mysql_native_password
+  #  shell: mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password"
+
+  #- name: Flush Privileges
+     #shell: mysql -u root -e 'FLUSH PRIVILEGES'
+
+  - name: Set MariaDB's root password
+    become: true
+    mysql_user:
+      name: 'root'
+      password: '{{ mysql_root_pwd }}'
+      host_all: yes
+      check_implicit_admin: yes
+      login_unix_socket: /run/mysqld/mysqld.sock
+      state: present
+    when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == "22"
+
   - name: Set MariaDB's root password
     become: true
     mysql_user:
@@ -97,6 +115,7 @@
       host_all: yes
       check_implicit_admin: yes
       state: present
+    when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version < "22"
 
   - name: Render /root/.my.cnf
     become: true
