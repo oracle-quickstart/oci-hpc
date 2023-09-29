@@ -91,7 +91,8 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo apt -y --fix-broken install
 
   fix_apt
-
+  
+  sudo add-apt-repository --yes --update ppa:ansible/ansible
   sudo apt-get -y install ansible 
   output=$?
   if [ $output -ne 0 ]
