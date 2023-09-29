@@ -58,7 +58,7 @@
     backup: yes
   when: ansible_distribution == 'Ubuntu'
 
-- name: Comment pam_systemd.so in /etc/pam.d/systemd-user
+- name: Comment pam_systemd.so in /etc/pam.d/systemd-user in 20.04
   become: true
   lineinfile:
     path: /etc/pam.d/systemd-user
@@ -66,7 +66,7 @@
     line: "#session optional pam_systemd.so"
     state: present
     backup: yes
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '20.04'
 
 - name: Comment pam_access.so in /etc/pam.d/common-auth
   become: true
