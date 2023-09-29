@@ -143,11 +143,20 @@
       command: dpkg-reconfigure -f noninteractive slapd
       when: not dpkgcheck.found
     
-    - name: Load OpenLDAP schemas
+
+    - name: Load OpenLDAP schemas 20.04
       command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
       args:
         creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
-      with_items: '{{ openldap_schemas }}'
+      with_items: '{{ openldap_schemas_20 }}'
+      when: ansible_distribution_version == '20.04'
+
+    - name: Load OpenLDAP schemas 22.04
+      command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
+      args:
+        creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
+      with_items: '{{ openldap_schemas_22 }}'
+      when: ansible_distribution_version == '22.04'
 
     - name: Render OpenLDAP configuration - config
       template:
@@ -179,7 +188,7 @@
         creates: '/etc/ldap/slapd.d/cn=config.ldif'
       notify: restart openldap
 
-    - name: Load OpenLDAP local configuration
+    - name: Load OpenLDAP local configuration 20.04
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
         creates: '/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
@@ -190,6 +199,20 @@
         - local.ldif
         - ppolicy.ldif
         - memberof.ldif
+      when: ansible_distribution_version == '20.04'
+      notify: restart openldap
+
+    - name: Load OpenLDAP local configuration 22.04
+      command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
+      args:
+        creates: '/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
+      register: result
+      failed_when: ( result.rc not in [ 0, 20 ] )
+      with_items:
+        - config.ldif
+        - local.ldif
+        - memberof.ldif
+      when: ansible_distribution_version == '22.04'
       notify: restart openldap
 
     - name: Check local schemas
