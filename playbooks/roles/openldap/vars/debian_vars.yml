@@ -8,7 +8,7 @@ openldap_packages:
   - libsasl2-dev
   - libldap2-dev
   - libssl-dev
-  - python-pexpect
+  - python3-pexpect
   - rpcbind
   - nscd
   - libpam-ldap
