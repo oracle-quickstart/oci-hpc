@@ -100,12 +100,10 @@
       become: true
       shell:
         cmd: cp /etc/munge/munge.key /tmp/munge.key
-        warn: false
     - name: set permissions
       become: true
       shell:
         cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
-        warn: false
     
 - name: Create DB for accounting
   become: true
