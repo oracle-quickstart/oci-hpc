@@ -20,7 +20,7 @@ dis_help()
    echo
    echo "Logs are stored at /tmp/logs"
    echo
-   echo "e.g.,  sh ./ib_write_bw.sh -s compute-permanent-node-1 -n compute-permanent-node-2 -c y -g 2
+   echo "e.g.,  sh ./ib_write_bw.sh -s compute-permanent-node-1 -n compute-permanent-node-2 -c y -g 2"
    echo
    echo "Supported shapes: BM.GPU.B4.8,BM.GPU.A100-v2.8,BM.GPU4.8"
    echo
@@ -51,13 +51,6 @@ do
     esac
 done
 
-#Set variables
-cuda_path=`ssh $server /usr/sbin/alternatives --list|grep cuda | awk -F" " '{print $3}'|tail -1`/targets/x86_64-linux/include/cuda.h
-server_ip=`grep $server /etc/hosts |grep -v rdma|awk '{print $1}'`
-logdir=/tmp/logs/ib_bw/`date +%F-%H`
-outdir=/tmp/ib_bw/
-gpu_count=`ssh $server nvidia-smi -L |wc -l`
-
 
 #Check node shape
 shape=`ssh $server 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape'`
@@ -75,6 +68,13 @@ else
   dis_help
 exit
 fi
+
+#Set variables
+cuda_path=`ssh $server /usr/sbin/alternatives --list|grep cuda | awk -F" " '{print $3}'|tail -1`/targets/x86_64-linux/include/cuda.h
+server_ip=`grep $server /etc/hosts |grep -v rdma|awk '{print $1}'`
+logdir=/tmp/logs/ib_bw/`date +%F-%H`
+outdir=/tmp/ib_bw/
+gpu_count=`ssh $server nvidia-smi -L |wc -l`
 
 #check cuda installation
 ssh -q $server [[ -f $cuda_path ]] && echo " " || echo "Please check cuda installation; exit 1";
