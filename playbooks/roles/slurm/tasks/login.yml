@@ -49,7 +49,6 @@
   become: true
   shell:
     cmd: cp /etc/munge/munge.key /tmp/munge.key
-    warn: false
   delegate_to: 127.0.0.1
   run_once: true
 
@@ -57,7 +56,6 @@
   become: true
   shell:
     cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
-    warn: false
   delegate_to: 127.0.0.1
   run_once: true
 
