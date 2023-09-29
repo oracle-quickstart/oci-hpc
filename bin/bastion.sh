@@ -97,6 +97,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   if [ $output -ne 0 ]
   then
       fix_apt
+      sleep 60s
       sudo apt-get -y install ansible 
   fi
   fix_apt
