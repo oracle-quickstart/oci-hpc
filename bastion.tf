@@ -477,6 +477,7 @@ provisioner "file" {
       "chmod a+x /opt/oci-hpc/bin/*.sh",
       "timeout --foreground 60m /opt/oci-hpc/bin/bastion.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
+      "chmod 755 /opt/oci-hpc/samples/*.sh",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh | tee /opt/oci-hpc/logs/initial_configure.log",
