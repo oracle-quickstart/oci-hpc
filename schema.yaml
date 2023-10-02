@@ -364,8 +364,7 @@ variables:
     required: true
   bastion_object_storage_par:
     title: Create Object Storage PAR
-    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to
-    to Object Storage and share the URL with OCI service teams."
+    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
     type: boolean
     default: true
 
@@ -563,6 +562,7 @@ variables:
       - "BM.GPU4.8"
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
+      - "BM.GPU.H100.8"
       - "BM.Optimized3.36"
       - "BM.HPC.E5.144"
     default: "BM.HPC2.36"
