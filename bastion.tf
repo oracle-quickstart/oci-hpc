@@ -498,7 +498,9 @@ data "oci_objectstorage_namespace" "compartment_namespace" {
 }
 
 locals {
-  rdma_nic_metric_bucket_name = "RDMA_NIC_metrics"
+  current_timestamp           = timestamp()
+  current_timestamp_formatted = formatdate("YYYYMMDDhhmmss", local.current_timestamp)
+  rdma_nic_metric_bucket_name = format("%s_%s","RDMA_NIC_metrics",local.current_timestamp_formatted)
   par_path = ".."
 }
 /*
@@ -506,14 +508,9 @@ saving the PAR into file: ../PAR_file_for_metrics.
 this PAR is used by the scripts to upload NIC metrics to object storage (i.e. script: upload_rdma_nic_metrics.sh)
 */
 
-data "oci_objectstorage_bucket" "RDMA_NIC_Metrics_bucket_check" {
-  name           = local.rdma_nic_metric_bucket_name
-  namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
-}
-
 
 resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
-  count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+  count = (var.bastion_object_storage_par) ? 1 : 0
   compartment_id = var.targetCompartment
   name           = local.rdma_nic_metric_bucket_name
   namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
@@ -521,7 +518,7 @@ resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
 }
 
 resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {
-  count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+  count = (var.bastion_object_storage_par) ? 1 : 0
   depends_on  = [oci_objectstorage_bucket.RDMA_NIC_metrics_bucket]
   access_type = "AnyObjectWrite"
   bucket      = local.rdma_nic_metric_bucket_name
@@ -533,12 +530,12 @@ resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {
 
 output "RDMA_NIC_metrics_url" {
  depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
- value = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}" : ""
+ value = (var.bastion_object_storage_par) ? "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}" : ""
 }
 
 
 resource "local_file" "PAR" {
-    count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+    count = (var.bastion_object_storage_par) ? 1 : 0
     depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
     content     = "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}"
     filename = "${local.par_path}/PAR_file_for_metrics"
