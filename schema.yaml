@@ -60,6 +60,7 @@ variableGroups:
       - ${compute_username}
       - ${marketplace_listing}
       - ${unsupported}
+      - ${use_compute_agent}
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
@@ -726,6 +727,12 @@ variables:
       - "GPU_OL8"
     default: "HPC_OL7"
     visible: ${use_marketplace_image}
+
+  use_compute_agent:
+    type: boolean
+    title: "use compute agent"
+    description: "Use compute agent"
+    default: false
 
   compute_image_compartment:
     title: "compute image compartment"

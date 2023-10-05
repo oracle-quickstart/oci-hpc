@@ -257,6 +257,7 @@ resource "null_resource" "cluster" {
       log_vol = var.log_vol,
       redundancy = var.redundancy,
       cluster_network = var.cluster_network,
+      use_compute_agent = var.use_compute_agent,
       slurm = var.slurm,
       rack_aware = var.rack_aware,
       slurm_nfs_path = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
@@ -335,6 +336,7 @@ resource "null_resource" "cluster" {
   provisioner "file" {
     content        = templatefile("${path.module}/queues.conf", {  
       cluster_network = var.cluster_network,
+      use_compute_agent = var.use_compute_agent,
       compute_cluster = var.compute_cluster,
       marketplace_listing = var.marketplace_listing,
       image = local.image_ocid,
@@ -427,7 +429,8 @@ resource "null_resource" "cluster" {
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
       pam = var.pam,
-      sacct_limits = var.sacct_limits
+      sacct_limits = var.sacct_limits, 
+      use_compute_agent = var.use_compute_agent
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
