@@ -122,7 +122,10 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
         fi
   fi
   fix_apt
-
+  sudo python3 -m pip install -U pip
+  sudo python3 -m pip install netaddr --upgrade
+  sudo python3 -m pip install requests --upgrade
+  sudo python3 -m pip install urllib3 --upgrade
   pip install pip --upgrade
   pip install pyopenssl --upgrade
 
