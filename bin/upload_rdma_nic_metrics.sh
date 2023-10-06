@@ -7,6 +7,7 @@ source  "${folder}/rdma_metrics_collection_config.conf"
 hours="$hoursAgoFromNow"
 interval="$metricsCollectionIntervalInMinute"
 par_filename="$parFileName"
+cluster_name=""
 
 if [ -z "$par_filename" ]
 then
@@ -25,16 +26,17 @@ dis_help()
    echo
    echo "Usage:"
    echo
-   echo "./upload_rdma_nic_metrics.sh -l <limit:hours ago from now> -i <Metrics Interval>"
+   echo "./upload_rdma_nic_metrics.sh -l <limit:hours ago from now> -i <Metrics Interval> -c <Cluster Name>"
    echo
    echo "Options:"
    echo "l     Hours Ago From Now (optional)"
-   echo "n     Metrics Collection Interval In Minute (optional)"
+   echo "i     Metrics Collection Interval In Minute (optional)"
+   echo "c     Cluster Name (optional)"
    echo "h     Print this help."
    echo
    echo "RDMA metrics are uploaded to Object Storage using PAR"
    echo
-   echo "e.g.,  sh ./upload_rdma_nic_metrics.sh -l 24 -i 5 "
+   echo "e.g.,  sh ./upload_rdma_nic_metrics.sh -l 24 -i 5 -c clusterName1"
    echo
    echo "Supported releases: 2.10.3+"
    echo
@@ -43,11 +45,12 @@ dis_help()
 #Do this if number of arguments passed is greater than 0
 if [ "$#" -gt "0" ]
 then
-    while getopts "l:i:h" option
+    while getopts "l:i:c:h" option
     do
         case $option in
             l) hours=${OPTARG};;
             i) interval=${OPTARG};;
+            c) cluster_name=${OPTARG};;
             h) dis_help
                exit;;
            \?) # Invalid option
@@ -78,7 +81,7 @@ then
 
     filename="infiniband_mlx5_${i}_${timestamp}"
     filename_csv="${filename}.csv"
-    filename_zip="${filename}.zip"
+    filename_zip="${cluster_name}_${filename}.zip"
 
     echo "Collecting RDMA HW  metrics of device mlx5_${i}...."
     query="SELECT * FROM ${measurementnameBackup}"
@@ -123,7 +126,7 @@ then
 
   filename="infiniband_${timestamp}"
   filename_csv="${filename}.csv"
-  filename_zip="${filename}.zip"
+  filename_zip="${cluster_name}_${filename}.zip"
 
   echo "Collecting Infiniband counter  metrics...."
   query="SELECT * FROM ${measurementnameBackup}"
