@@ -64,7 +64,7 @@ variableGroups:
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
-  - title: "Additionnal Login Node"
+  - title: "Additional Login Node"
     variables:
       - ${login_node}
       - ${login_ad}
