@@ -48,10 +48,10 @@
   tasks: 
     - include_role: 
         name: oci-cn-auth
-      when: cluster_network|bool and use_compute_agent|default(false)|bool
+      when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
         name: rdma-interface
-      when: cluster_network|bool and use_compute_agent|default(false)|bool
+      when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
         name: nvidia_peermem
 
