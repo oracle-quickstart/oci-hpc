@@ -148,7 +148,7 @@
       command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
       args:
         creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
-      with_items: '{{ openldap_schemas_20 }}'
+      with_items: '{{ openldap_schemas }}'
       when: ansible_distribution_version == '20.04'
 
     - name: Load OpenLDAP schemas 22.04
