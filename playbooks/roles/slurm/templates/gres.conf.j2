@@ -30,6 +30,9 @@ NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31]
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
+{% elif instance.shape == "BM.GPU.H100.8"%}
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=H100 Cores=[48-55]
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-7] Type=H100 Cores=[56-111]
 {% elif instance.shape == "BM.GPU.T1.2" %}
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
 {% elif instance.shape == "BM.GPU.A10.4" %}

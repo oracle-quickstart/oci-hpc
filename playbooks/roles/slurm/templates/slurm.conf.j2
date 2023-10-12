@@ -89,6 +89,10 @@ NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boar
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=8 CoresPerSocket=16 ThreadsPerCore=1 State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }} Gres=gpu:A100:8
 {% elif instance.shape == "BM.GPU.A100-v2.8" and threadspercore == 2 %}
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=1 CoresPerSocket=255 ThreadsPerCore=1 State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }} Gres=gpu:A100:8
+{% elif instance.shape == "BM.GPU.H100.8" and threadspercore == 1 %}
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=56 ThreadsPerCore=1 State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }} Gres=gpu:H100:8
+{% elif instance.shape == "BM.GPU.H100.8" and threadspercore == 2 %}
+NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=2 CoresPerSocket=56 ThreadsPerCore=2 State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }} Gres=gpu:H100:8
 {% elif instance.shape == "BM.GPU.T1.2" %}
 NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Boards=1 SocketsPerBoard=1 CoresPerSocket=32 ThreadsPerCore={{threadspercore}} State=FUTURE Features={% if instance.shape != instance.name%}{{ instance.shape }},{% endif %}{{ instance.name }} Gres=gpu:A10:2
 {% elif instance.shape == "BM.GPU.A10.4" %}
