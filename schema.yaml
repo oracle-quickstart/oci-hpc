@@ -60,10 +60,11 @@ variableGroups:
       - ${compute_username}
       - ${marketplace_listing}
       - ${unsupported}
+      - ${use_compute_agent}
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
-  - title: "Additionnal Login Node"
+  - title: "Additional Login Node"
     variables:
       - ${login_node}
       - ${login_ad}
@@ -364,8 +365,7 @@ variables:
     required: true
   bastion_object_storage_par:
     title: Create Object Storage PAR
-    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to
-    to Object Storage and share the URL with OCI service teams."
+    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
     type: boolean
     default: true
 
@@ -563,6 +563,7 @@ variables:
       - "BM.GPU4.8"
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
+      - "BM.GPU.H100.8"
       - "BM.Optimized3.36"
       - "BM.HPC.E5.144"
     default: "BM.HPC2.36"
@@ -726,6 +727,12 @@ variables:
       - "GPU_OL8"
     default: "HPC_OL7"
     visible: ${use_marketplace_image}
+
+  use_compute_agent:
+    type: boolean
+    title: "use compute agent"
+    description: "Use compute agent"
+    default: false
 
   compute_image_compartment:
     title: "compute image compartment"

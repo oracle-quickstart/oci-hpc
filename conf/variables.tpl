@@ -34,6 +34,7 @@ variable "pyxis" { default = ${pyxis} }
 variable "pam" { default = ${pam} }
 variable "sacct_limits" { default = ${sacct_limits} }
 variable "enroot" { default = ${enroot} }
+variable "use_compute_agent" { default = ${use_compute_agent} }
 variable "slurm_nfs_path" { default = "${slurm_nfs_path}" }
 variable "spack" { default = ${spack} }
 variable "instance_pool_ocpus" { default = "##OCPU##"}
