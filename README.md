@@ -240,6 +240,7 @@ sleep 1000
  
 - Instance Type: You can specify the OCI instance type that you’d like to run on as a constraint. This will make sure that you run on the right shape and also generate the right cluster. Instance types are defined in the `/opt/oci-hpc/conf/queues.conf` file in yml format. Leave all of the field in there even if they are not used. You can define multiple queues and multiple instance type in each queue. If you do not select an instance type when creating your job, it will use the default one.
 
+- cpu-bind: On Ubuntu 22.04, we are switching to Cgroup v2 and we did notice that when hyperthreading is turned off. The default cpu-bind may give some issues. If you get an error like `error: task_g_set_affinity: Invalid argument`, you can try running your job with --cpu-bind=none or --cpu-bind=sockets
 ## Clusters folders: 
 ```
 /opt/oci-hpc/autoscaling/clusters/clustername
