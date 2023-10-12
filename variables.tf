@@ -37,6 +37,7 @@ variable "boot_volume_size" { default = 50 }
 variable "use_marketplace_image" { default = true}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
+variable "use_compute_agent" { default = false }
 variable "unsupported_bastion_image" { default = "" } 
 variable "unsupported_login_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}

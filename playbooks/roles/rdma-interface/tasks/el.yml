@@ -77,7 +77,7 @@
     value: '2'
     sysctl_file: /etc/sysctl.d/80-network.conf
     reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8') and ( not new_image.stat.exists )
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
@@ -88,7 +88,7 @@
     value: '2'
     sysctl_file: /etc/sysctl.d/80-network.conf
     reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8') and ( not new_image.stat.exists )
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
@@ -100,7 +100,7 @@
     value: '1'
     sysctl_file: /etc/sysctl.d/80-network.conf
     reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8') and ( not new_image.stat.exists )
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
