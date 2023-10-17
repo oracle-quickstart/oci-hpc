@@ -67,10 +67,9 @@ except ImportError:
         for h in hosts:
             out = subprocess.run(["ssh "+h+" \"curl -s http://169.254.169.254/opc/v1/host/\""],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
             x = out.stdout.splitlines()
-            del x[-1]
-            del x[0]
-            rackId_str = x[1].split(":")[1].replace('"','')
-            rackId = rackId_str.replace(' ','')
+            json_str = ''.join(x)
+            json_data = json.loads(json_str)
+            rackId = json_data.get("rackId", None)
             if rackId in r:
                 r[rackId].append( h )
             else:
