@@ -176,7 +176,7 @@
   tasks:  
     - include_role: 
         name: latency_check
-      when: cluster_network|bool and not 'GPU' in shape
+      when: cluster_network|bool and latency_check|bool
 
 - hosts: all
   become: true
