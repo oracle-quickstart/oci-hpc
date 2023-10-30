@@ -53,7 +53,7 @@ fi
   -x HCOLL_ENABLE_MCAST_ALL=0 \
   -x coll_hcoll_enable=0 \
   -x NCCL_IB_GID_INDEX=3 \
-  -x NCCL_ALGO=Ring \
+  -x NCCL_ALGO=Auto \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
   -x NCCL_TOPO_FILE=~/H100-topology.xml \
   --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --hostfile $MACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
