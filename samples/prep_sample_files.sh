@@ -9,5 +9,6 @@ done;
 
 cp nccl_compile/compile.sh ~
 cp gpu/*.sbatch ~
+cp gpu/H100* ~
 cp /opt/oci-hpc/bin/node_ordering_by_rack.py ~
 
