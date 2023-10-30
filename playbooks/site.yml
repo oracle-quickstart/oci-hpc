@@ -51,6 +51,9 @@
   gather_facts: true
   tasks: 
     - include_role: 
+        name: cloud-agent_update
+      when: cluster_network|bool and use_compute_agent|default(false)|bool
+    - include_role: 
         name: oci-cn-auth
       when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
@@ -290,6 +293,9 @@
       when: enroot|default(true)|bool
     - include_role:
         name: tuned
+    - include_role:
+        name: rttcc
+      when: shape == "BM.GPU.H100.8" and cluster_network|bool
 
 - hosts: all
   become: true
