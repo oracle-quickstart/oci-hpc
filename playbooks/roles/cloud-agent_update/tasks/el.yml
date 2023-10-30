@@ -1,0 +1,35 @@
+--- 
+- name: Check oracle cloud agent version
+  shell: "yum info oracle-cloud-agent | grep Version | awk '{print $3}'"
+  register: version
+  when: use_compute_agent | bool
+
+- name: Install OCA v1.37 for OL8
+  vars:
+      - major_version: "{{version.stdout.split('.')[1] }}"
+      - minor_version: "{{version.stdout.split('.')[0] }}"
+  yum:
+    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/Yew5fbqcx5j-H_W_0BKHut2yEMb4DJ0u5LUEttGCcCB_F_5a1GnmaGK1wyksue1z/n/imagegen/b/agent_test/o/1.37.0/1/oracle-cloud-agent-1.37.0-10347.el8.x86_64.rpm"
+    state: present
+    disable_gpg_check: yes
+  when:
+    - ansible_os_family == 'RedHat'
+    - ansible_distribution_major_version == '8'
+    - (minor_version | int <= 1) | bool
+    - (major_version | int < 37) | bool
+    - use_compute_agent | bool
+
+- name: Install OCA v1.37 for OL7
+  vars:
+      - major_version: "{{version.stdout.split('.')[1] }}"
+      - minor_version: "{{version.stdout.split('.')[0] }}"
+  yum:
+    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/97KluWDRcyG1IBdhGvCbKGkrq6TbGefawT8nJM5ko9SAOVfeSL9AOLk_UQCX0hs4/n/imagegen/b/agent_test/o/1.37.0/1/oracle-cloud-agent-1.37.0-10347.el7.x86_64.rpm"
+    state: present
+    disable_gpg_check: yes
+  when:
+    - ansible_os_family == 'RedHat'
+    - ansible_distribution_major_version == '7'
+    - (minor_version | int <= 1) | bool
+    - (major_version | int < 37) | bool
+    - use_compute_agent | bool
