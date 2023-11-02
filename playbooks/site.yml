@@ -293,9 +293,6 @@
       when: enroot|default(true)|bool
     - include_role:
         name: tuned
-    - include_role:
-        name: rttcc
-      when: shape == "BM.GPU.H100.8" and cluster_network|bool
 
 - hosts: all
   become: true
