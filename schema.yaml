@@ -56,11 +56,11 @@ variableGroups:
       - ${node_count}
       - ${hyperthreading}
       - ${boot_volume_size}
+      - ${use_compute_agent}
       - ${use_marketplace_image}
       - ${compute_username}
       - ${marketplace_listing}
       - ${unsupported}
-      - ${use_compute_agent}
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
@@ -446,7 +446,7 @@ variables:
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 50
+    default: 100
 
   bastion_boot_volume_backup:
     type: boolean
@@ -706,7 +706,7 @@ variables:
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 50
+    default: 100
     description: "Boot volume size in GB of each compute node" 
 
   use_marketplace_image:
@@ -731,8 +731,8 @@ variables:
   use_compute_agent:
     type: boolean
     title: "use compute agent"
-    description: "Use compute agent"
-    default: false
+    description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The marketplace image does not use the compute agent for now."
+    default: true
 
   compute_image_compartment:
     title: "compute image compartment"
