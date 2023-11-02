@@ -17,7 +17,7 @@
     instance_metadata: "{{ i_metadata['content'] }}"
 
 
-- name: Are we running on a new image? 
+- name: Are we running on an image with OCI-CN-AUTH packages? 
   stat:
     path: /sbin/oci-rdma-configure
   register: new_image
