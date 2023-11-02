@@ -19,7 +19,7 @@
           private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
-          boot_volume_size: 50
+          boot_volume_size: 100
           use_marketplace_image: true
           instance_pool_ocpus: 2
           instance_pool_memory: 16
@@ -42,7 +42,7 @@
           private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
-          boot_volume_size: 50
+          boot_volume_size: 100
           use_marketplace_image: true
           instance_pool_ocpus: 2
           instance_pool_memory: 16
@@ -67,7 +67,7 @@
           private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1.eu-frankfurt-1.aaaaaaaasrw572lodukbaxlwrrq5zcqe3zldh3krkgtq3lm463lann4ksxeq #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
-          boot_volume_size: 50
+          boot_volume_size: 100
           use_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 16
@@ -89,7 +89,7 @@
           private_subnet_id: ocid1.subnet.oc1..aaaaaaaaf5greyx5b45hkh7rwm2osef7t5lofl5tag5uijjqlhw6duaaaaa #TO EDIT
           image: ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa #TO EDIT
           targetCompartment: ocid1.compartment.oc1.. #TO EDIT
-          boot_volume_size: 50
+          boot_volume_size: 100
           use_marketplace_image: false
           instance_pool_ocpus: 2
           instance_pool_memory: 2
