@@ -51,7 +51,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
-   sudo python3 -m pip install oci-cli --upgrade
+  sudo python3 -m pip install oci-cli --upgrade
 
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
