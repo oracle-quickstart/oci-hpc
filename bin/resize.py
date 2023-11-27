@@ -461,7 +461,11 @@ def get_summary(comp_ocid,cluster_name):
         elif cn_summary_tmp.lifecycle_state == "SCALING":
             scaling_clusters = scaling_clusters + 1
     if running_clusters == 0:
-        cn_summaries = computeClient.list_compute_clusters(comp_ocid,display_name=cluster_name).data.items
+        try: 
+            cn_summaries = computeClient.list_compute_clusters(comp_ocid,display_name=cluster_name).data.items
+        except:
+            print("The list_compute_clusters call returned an error, considering no Compute CLusters are present")
+            cn_summaries = []
         if len(cn_summaries) > 0:
             CN = "CC"
             for cn_summary_tmp in cn_summaries:
