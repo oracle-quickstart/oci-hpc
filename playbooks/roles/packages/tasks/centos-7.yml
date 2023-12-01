@@ -10,3 +10,11 @@
     package_state: latest
   include_role: 
     name: safe_yum
+
+- name: Upgrade Pip3
+  become: true
+  pip:
+    name: [pip]
+    state: latest
+    executable: pip3
+  ignore_errors: yes

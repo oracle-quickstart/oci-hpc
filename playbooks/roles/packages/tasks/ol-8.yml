@@ -17,6 +17,15 @@
     name: safe_yum
   ignore_errors: true
 
+
+- name: Upgrade Pip3
+  become: true
+  pip:
+    name: [pip]
+    state: latest
+    executable: pip3
+  ignore_errors: yes
+  
 - name: install oci-cli latest version
   become: true
   pip:
@@ -25,3 +34,4 @@
     executable: pip3
   ignore_errors: yes
   when: ('bastion' in group_names)
+
