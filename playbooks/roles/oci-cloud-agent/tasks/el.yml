@@ -17,14 +17,14 @@
 
 - name: Create configuration for core - modify params
   set_fact:
-    mydata: "{{ mydata | combine(newdata) }}"
+    mydata: "{{ mydata | combine(newdata, recursive=True) }}"
   vars: 
     newdata:
       plugins:
         osms:
           disabled: true
   when: agent_file.stat.exists
-
+    
 - name: Write back to a file
   copy:
     content: '{{ mydata | to_nice_yaml }}'
