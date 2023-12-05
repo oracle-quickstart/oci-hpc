@@ -69,3 +69,4 @@ compute_username=${compute_username}
 bastion_username=${bastion_username}
 pam = ${pam}
 sacct_limits=${sacct_limits}
+use_compute_agent=${use_compute_agent}
