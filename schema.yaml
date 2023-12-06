@@ -749,7 +749,7 @@ variables:
   use_compute_agent:
     type: boolean
     title: "use compute agent"
-    description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The marketplace image does not use the compute agent for now."
+    description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The new marketplace images need the compute agent enabled."
     default: true
 
   compute_image_compartment:
