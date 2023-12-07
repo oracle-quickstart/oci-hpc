@@ -7,7 +7,7 @@
 export PMI_DEBUG=1
 
 
-cd /nfs/scratch
+cd /nfs/cluster
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 
@@ -30,8 +30,6 @@ if [[ "$mpivars_path" == "" ]]; then
 
 source $mpivars_path
 
-export NCCL_DEBUG=WARN
-
 shape=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape`
 if [ $shape == \"BM.GPU.H100.8\" ]
 then
@@ -43,17 +41,28 @@ fi
 
   mpirun --mca pml ucx \
   --bind-to numa \
+  -npernode 8 \
   --mca coll ^hcoll \
+  -x NCCL_CROSS_NIC=0 \
+  -x NCCL_SOCKET_NTHREADS=16 \
   -x NCCL_DEBUG=WARN \
-  -x NCCL_IB_SL=0 \
-  -x NCCL_IB_TC=41 \
+  -x NCCL_CUMEM_ENABLE=0 \
+  -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
   -x NCCL_IB_QPS_PER_CONNECTION=16 \
-  -x UCX_TLS=tcp \
-  -x UCX_NET_DEVICES=${var_UCX_NET_DEVICES} \
+  -x NCCL_IB_GID_INDEX=3 \
+  -x NCCL_IB_TC=41 \
+  -x NCCL_IB_SL=0 \
+  -x NCCL_IB_TIMEOUT=22 \
+  -x NCCL_NET_PLUGIN=none \
   -x HCOLL_ENABLE_MCAST_ALL=0 \
   -x coll_hcoll_enable=0 \
-  -x NCCL_IB_GID_INDEX=3 \
-  -x NCCL_ALGO=Auto \
+  -x UCX_TLS=tcp \
+  -x UCX_NET_DEVICES=${var_UCX_NET_DEVICES} \
+  -x RX_QUEUE_LEN=8192 \
+  -x IB_RX_QUEUE_LEN=8192 \
+  -x NCCL_SOCKET_IFNAME=eth0 \
+  -x NCCL_ALGO=auto \
+  -x NCCL_IGNORE_CPU_AFFINITY=1 \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
   -x NCCL_TOPO_FILE=~/H100-topology.xml \
-  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --hostfile $MACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
+  --np $np --hostfile $MACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
