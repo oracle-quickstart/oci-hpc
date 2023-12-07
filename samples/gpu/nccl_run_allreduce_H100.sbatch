@@ -65,4 +65,4 @@ fi
   -x NCCL_IGNORE_CPU_AFFINITY=1 \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
   -x NCCL_TOPO_FILE=~/H100-topology.xml \
-  --np $np --hostfile $MACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
+  --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --hostfile $MACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
