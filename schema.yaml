@@ -702,7 +702,8 @@ variables:
               - "VM.Standard3.Flex"
         - and: 
             - ${instance_pool_custom_memory}
-            - ${cluster_network}
+            - not: 
+              - ${cluster_network}
     required: true
 
   node_count:
