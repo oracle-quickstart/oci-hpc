@@ -64,7 +64,7 @@
     name: slurm autoscaling
     minute: "#*"
     user: '{{ ansible_user }}'
-    job: "/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
+    job: "#/opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm_`date '+\\%Y\\%m\\%d'`.log 2>&1"
   when: not autoscaling | bool
 
 - name: Create a commented Slurm monitoring cron file under /etc/cron.d
