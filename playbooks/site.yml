@@ -104,6 +104,8 @@
         options: ""
         lock: "none"
       when: add_nfs|bool and home_fss|bool
+    - include_role: 
+        name: passwords
 
 
 - hosts: bastion
@@ -163,9 +165,7 @@
     export_name: "cluster"
     local_path:  "/export/cluster"
     iscsi_ip: "{{ bastion_mount_ip }}"
-  tasks: 
-    - include_role: 
-        name: passwords
+  tasks:
     - include_role: 
         name: iscsi
       when: bastion_block|default(false)|bool
@@ -175,16 +175,25 @@
     - include_role: 
         name: mysql
 
-- hosts: slurm_backup, login
+- hosts: slurm_backup
   become: true
   vars:
-    iscsi_ip: "{{ bastion_mount_ip }}"
+    iscsi_ip: "{{ backup_mount_ip }}"
+    local_path: "{{cluster_nfs_path}}"
   tasks: 
-    - include_role: 
-        name: passwords
     - include_role: 
         name: iscsi
       when: bastion_block|default(false)|bool
+
+- hosts: login
+  become: true
+  vars:
+    iscsi_ip: "{{ login_mount_ip }}"
+    local_path: "{{cluster_nfs_path}}"
+  tasks: 
+    - include_role: 
+        name: iscsi
+      when: login_block|default(false)|bool
 
 - hosts: nfs
   become: true

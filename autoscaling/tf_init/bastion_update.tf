@@ -56,6 +56,8 @@ resource "local_file" "inventory" {
     bastion_block = var.bastion_block,
     scratch_nfs_type = local.scratch_nfs_type,
     bastion_mount_ip = var.bastion_mount_ip,
+    backup_mount_ip = var.backup_mount_ip,
+    login_mount_ip = var.login_mount_ip,
     cluster_mount_ip = local.mount_ip,
     cluster_name = local.cluster_name,
     shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
