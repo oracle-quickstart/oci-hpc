@@ -35,6 +35,7 @@ slurm = ${slurm}
 rack_aware = ${rack_aware}
 spack = ${spack} 
 bastion_block = ${bastion_block} 
+login_block = ${login_block}
 scratch_nfs_type = ${scratch_nfs_type}
 bastion_mount_ip = ${bastion_mount_ip}
 backup_mount_ip = ${backup_mount_ip}
