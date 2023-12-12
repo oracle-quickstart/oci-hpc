@@ -54,6 +54,7 @@ resource "local_file" "inventory" {
     spack = var.spack,
     ldap = var.ldap,
     bastion_block = var.bastion_block,
+    login_block = var.login_block,
     scratch_nfs_type = local.scratch_nfs_type,
     bastion_mount_ip = var.bastion_mount_ip,
     backup_mount_ip = var.backup_mount_ip,

@@ -179,7 +179,7 @@
   become: true
   vars:
     iscsi_ip: "{{ backup_mount_ip }}"
-    local_path: "{{cluster_nfs_path}}"
+    local_path: "/mnt/block"
   tasks: 
     - include_role: 
         name: iscsi
@@ -189,7 +189,7 @@
   become: true
   vars:
     iscsi_ip: "{{ login_mount_ip }}"
-    local_path: "{{cluster_nfs_path}}"
+    local_path: "/mnt/block"
   tasks: 
     - include_role: 
         name: iscsi

@@ -99,6 +99,7 @@ variable "cluster_block_volume_performance" {default="${cluster_block_volume_per
 
 variable "ssh_cidr" {default="${ssh_cidr}"}
 variable "bastion_block" {default = "${bastion_block}"}
+variable "login_block" {default = "${login_block}"}
 
 variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
 variable "backup_mount_ip" {default = "${backup_mount_ip}"}
