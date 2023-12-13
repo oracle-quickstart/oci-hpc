@@ -15,6 +15,7 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   instance_id     = oci_core_instance.bastion.id
   display_name    = "${local.cluster_name}-bastion-volume-attachment"
   device          = "/dev/oracleoci/oraclevdb"
+  is_shareable    = true
 } 
 
 resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
@@ -267,7 +268,6 @@ resource "null_resource" "cluster" {
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
-      backup_mount_ip = local.backup_mount_ip,
       login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       autoscaling = var.autoscaling,
@@ -394,7 +394,6 @@ resource "null_resource" "cluster" {
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
-      backup_mount_ip = local.backup_mount_ip,
       login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       scratch_nfs_type_cluster = var.scratch_nfs_type_cluster,

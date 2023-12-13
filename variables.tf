@@ -93,8 +93,8 @@ variable "marketplace_version_id" {
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
        "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-2023.12.04-1"
        "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-2023.12.04-1"
-       "GPU_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2023.12.04-1"
-       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2023.12.04-1"
+       "GPU_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2023.12.04-2"
+       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2023.12.04-2"
   }
 }
 

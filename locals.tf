@@ -44,7 +44,6 @@ locals {
   is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [local.instance_pool_ocpus]:[]
   
   bastion_mount_ip = var.bastion_block ? element(concat(oci_core_volume_attachment.bastion_volume_attachment.*.ipv4, [""]), 0) : "none"
-  backup_mount_ip = var.bastion_block && var.slurm_ha ? element(concat(oci_core_volume_attachment.backup_volume_attachment.*.ipv4, [""]), 0) : "none"
   login_mount_ip = var.login_block ? element(concat(oci_core_volume_attachment.login_volume_attachment.*.ipv4, [""]), 0) : "none"
 
   scratch_nfs_type = var.cluster_network ? var.scratch_nfs_type_cluster : var.scratch_nfs_type_pool 
