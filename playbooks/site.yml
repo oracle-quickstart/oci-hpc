@@ -178,8 +178,8 @@
 - hosts: slurm_backup
   become: true
   vars:
-    iscsi_ip: "{{ backup_mount_ip }}"
-    local_path: "/mnt/block"
+    iscsi_ip: "{{ bastion_mount_ip }}"
+    local_path: "/mnt/nfs_backup"
   tasks: 
     - include_role: 
         name: iscsi

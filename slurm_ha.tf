@@ -1,20 +1,11 @@
-resource "oci_core_volume" "backup_volume" { 
-  count = var.bastion_block && var.slurm_ha ? 1 : 0
-  availability_domain = var.bastion_ad
-  compartment_id = var.targetCompartment
-  display_name = "${local.cluster_name}-backup-volume"
-  size_in_gbs = var.bastion_block_volume_size
-  vpus_per_gb = split(".", var.bastion_block_volume_performance)[0]
-} 
-
-
 resource "oci_core_volume_attachment" "backup_volume_attachment" { 
   count = var.bastion_block && var.slurm_ha ? 1 : 0
   attachment_type = "iscsi"
-  volume_id       = oci_core_volume.backup_volume[0].id
+  volume_id       = oci_core_volume.bastion_volume[0].id
   instance_id     = oci_core_instance.backup[0].id
   display_name    = "${local.cluster_name}-backup-volume-attachment"
   device          = "/dev/oracleoci/oraclevdb"
+  is_shareable    = true
 } 
 
 resource "oci_core_instance" "backup" {
@@ -60,7 +51,7 @@ resource "oci_core_instance" "backup" {
 
 resource "null_resource" "backup" { 
   count = var.slurm_ha ? 1 : 0
-  depends_on = [oci_core_instance.backup, oci_core_volume_attachment.backup_volume_attachment ] 
+  depends_on = [oci_core_instance.backup] 
   triggers = { 
     backup = oci_core_instance.backup[0].id
   } 
@@ -186,7 +177,7 @@ resource "null_resource" "backup" {
 }
 resource "null_resource" "cluster_backup" { 
   count = var.slurm_ha ? 1 : 0
-  depends_on = [null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.backup, oci_core_volume_attachment.backup_volume_attachment ] 
+  depends_on = [null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.backup ] 
   triggers = { 
     cluster_instances = join(", ", local.cluster_instances_names)
   } 
@@ -231,7 +222,6 @@ resource "null_resource" "cluster_backup" {
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
-      backup_mount_ip = local.backup_mount_ip,
       login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       autoscaling = var.autoscaling,
@@ -358,7 +348,6 @@ resource "null_resource" "cluster_backup" {
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
-      backup_mount_ip = local.backup_mount_ip,
       login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       scratch_nfs_type_cluster = var.scratch_nfs_type_cluster,

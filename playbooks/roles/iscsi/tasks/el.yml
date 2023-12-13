@@ -23,6 +23,7 @@
   filesystem:
     dev: '{{ target["devicenodes"][0] }}'
     fstype: xfs
+  when: not ('slurm_backup' in group_names)
 
 - name: Mount local volume
   mount:
