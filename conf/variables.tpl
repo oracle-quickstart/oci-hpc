@@ -53,10 +53,10 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-2023.05.18-0"
-       "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.6.8.1-2023.05.18-0"
-       "GPU_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
-       "GPU_OL8" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
+       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-2023.12.04-1"
+       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-2023.12.04-1"
+       "GPU_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2023.12.04-2"
+       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2023.12.04-2"
   }
 }
 
@@ -102,7 +102,6 @@ variable "bastion_block" {default = "${bastion_block}"}
 variable "login_block" {default = "${login_block}"}
 
 variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
-variable "backup_mount_ip" {default = "${backup_mount_ip}"}
 variable "login_mount_ip" {default = "${login_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "home_fss" { default = ${home_fss} } 
