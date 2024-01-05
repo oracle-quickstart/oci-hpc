@@ -249,7 +249,7 @@
 - name: change Node Status
   become: true
   command: "scontrol update nodename={{ item }} state=future reason=terminating"
-  ignore_errors: force
+  ignore_errors: true
   ignore_unreachable: True
   with_items: "{{unreachable_slurm_nodes}}"
   delegate_to: 127.0.0.1

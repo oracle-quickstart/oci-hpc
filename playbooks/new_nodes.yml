@@ -47,11 +47,14 @@
   gather_facts: true
   tasks: 
     - include_role: 
+        name: cloud-agent_update
+      when: cluster_network|bool and use_compute_agent|default(false)|bool
+    - include_role: 
         name: oci-cn-auth
-      when: cluster_network|bool
+      when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
         name: rdma-interface
-      when: cluster_network|bool
+      when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
         name: nvidia_peermem
 
@@ -176,7 +179,7 @@
   tasks:  
     - include_role: 
         name: latency_check
-      when: cluster_network|bool and not 'GPU' in shape
+      when: cluster_network|bool and latency_check|bool
 
 - hosts: all
   become: true

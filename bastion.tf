@@ -15,6 +15,7 @@ resource "oci_core_volume_attachment" "bastion_volume_attachment" {
   instance_id     = oci_core_instance.bastion.id
   display_name    = "${local.cluster_name}-bastion-volume-attachment"
   device          = "/dev/oracleoci/oraclevdb"
+  is_shareable    = true
 } 
 
 resource "oci_core_volume_backup_policy" "bastion_boot_volume_backup_policy" {
@@ -200,8 +201,19 @@ resource "null_resource" "bastion" {
   }
 
   provisioner "file" {
-    content     = tls_private_key.ssh.private_key_pem
+    content     = tls_private_key.ssh.private_key_openssh
     destination = "/home/${var.bastion_username}/.ssh/cluster.key"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.bastion_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+    provisioner "file" {
+    content     = tls_private_key.ssh.public_key_openssh
+    destination = "/home/${var.bastion_username}/.ssh/id_rsa.pub"
     connection {
       host        = local.host
       type        = "ssh"
@@ -246,14 +258,17 @@ resource "null_resource" "cluster" {
       log_vol = var.log_vol,
       redundancy = var.redundancy,
       cluster_network = var.cluster_network,
+      use_compute_agent = var.use_compute_agent,
       slurm = var.slurm,
       rack_aware = var.rack_aware,
       slurm_nfs_path = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack = var.spack,
       ldap = var.ldap,
       bastion_block = var.bastion_block, 
+      login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
+      login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       autoscaling = var.autoscaling,
       cluster_name = local.cluster_name,
@@ -324,11 +339,11 @@ resource "null_resource" "cluster" {
   provisioner "file" {
     content        = templatefile("${path.module}/queues.conf", {  
       cluster_network = var.cluster_network,
+      use_compute_agent = var.use_compute_agent,
       compute_cluster = var.compute_cluster,
-      marketplace_listing = var.use_old_marketplace_image ? var.old_marketplace_listing : var.marketplace_listing,
+      marketplace_listing = var.marketplace_listing,
       image = local.image_ocid,
       use_marketplace_image = var.use_marketplace_image,
-      use_old_marketplace_image = var.use_old_marketplace_image,
       boot_volume_size = var.boot_volume_size,
       shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
       region = var.region,
@@ -376,8 +391,10 @@ resource "null_resource" "cluster" {
       spack = var.spack,
       ldap = var.ldap,
       bastion_block = var.bastion_block, 
+      login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
       bastion_mount_ip = local.bastion_mount_ip,
+      login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       scratch_nfs_type_cluster = var.scratch_nfs_type_cluster,
       scratch_nfs_type_pool = var.scratch_nfs_type_pool,
@@ -390,8 +407,6 @@ resource "null_resource" "cluster" {
       ssh_cidr = var.ssh_cidr,
       use_cluster_nfs = var.use_cluster_nfs,
       cluster_nfs_path = var.cluster_nfs_path,
-      bastion_block = var.bastion_block,
-      bastion_mount_ip = local.bastion_mount_ip,
       home_nfs = var.home_nfs,
       create_fss = var.create_fss,
       home_fss = var.home_fss,
@@ -417,7 +432,8 @@ resource "null_resource" "cluster" {
       bastion_username = var.bastion_username,
       compute_username = var.compute_username,
       pam = var.pam,
-      sacct_limits = var.sacct_limits
+      sacct_limits = var.sacct_limits, 
+      use_compute_agent = var.use_compute_agent
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
@@ -467,6 +483,7 @@ provisioner "file" {
       "chmod a+x /opt/oci-hpc/bin/*.sh",
       "timeout --foreground 60m /opt/oci-hpc/bin/bastion.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
+      "chmod 755 /opt/oci-hpc/samples/*.sh",
       "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh | tee /opt/oci-hpc/logs/initial_configure.log",
@@ -487,7 +504,9 @@ data "oci_objectstorage_namespace" "compartment_namespace" {
 }
 
 locals {
-  rdma_nic_metric_bucket_name = "RDMA_NIC_metrics"
+  current_timestamp           = timestamp()
+  current_timestamp_formatted = formatdate("YYYYMMDDhhmmss", local.current_timestamp)
+  rdma_nic_metric_bucket_name = format("%s_%s","RDMA_NIC_metrics",local.current_timestamp_formatted)
   par_path = ".."
 }
 /*
@@ -495,14 +514,9 @@ saving the PAR into file: ../PAR_file_for_metrics.
 this PAR is used by the scripts to upload NIC metrics to object storage (i.e. script: upload_rdma_nic_metrics.sh)
 */
 
-data "oci_objectstorage_bucket" "RDMA_NIC_Metrics_bucket_check" {
-  name           = local.rdma_nic_metric_bucket_name
-  namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
-}
-
 
 resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
-  count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+  count = (var.bastion_object_storage_par) ? 1 : 0
   compartment_id = var.targetCompartment
   name           = local.rdma_nic_metric_bucket_name
   namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
@@ -510,7 +524,7 @@ resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
 }
 
 resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {
-  count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+  count = (var.bastion_object_storage_par) ? 1 : 0
   depends_on  = [oci_objectstorage_bucket.RDMA_NIC_metrics_bucket]
   access_type = "AnyObjectWrite"
   bucket      = local.rdma_nic_metric_bucket_name
@@ -522,12 +536,12 @@ resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {
 
 output "RDMA_NIC_metrics_url" {
  depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
- value = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}" : ""
+ value = (var.bastion_object_storage_par) ? "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}" : ""
 }
 
 
 resource "local_file" "PAR" {
-    count = (var.bastion_object_storage_par && data.oci_objectstorage_bucket.RDMA_NIC_Metrics_bucket_check.bucket_id == null) ? 1 : 0
+    count = (var.bastion_object_storage_par) ? 1 : 0
     depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
     content     = "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}"
     filename = "${local.par_path}/PAR_file_for_metrics"

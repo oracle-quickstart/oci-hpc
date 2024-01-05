@@ -53,7 +53,6 @@
   become: true
   shell:
     cmd: cp /etc/munge/munge.key /tmp/munge.key
-    warn: false
   delegate_to: 127.0.0.1
   run_once: true
 
@@ -61,7 +60,6 @@
   become: true
   shell:
     cmd: chown {{ bastion_username }}:{{ bastion_username }} /tmp/munge.key
-    warn: false
   delegate_to: 127.0.0.1
   run_once: true
 
@@ -118,7 +116,7 @@
 - name: Get nodes from Inactive Switch
   vars:
     - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
+  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}} \""
   register: inactive_switch
   run_once: true
   delegate_to: 127.0.0.1

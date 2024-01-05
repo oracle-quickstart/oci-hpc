@@ -15,7 +15,6 @@ variable "instance_type" {default = "##INST_TYPE##" }
 variable "node_count" { default="##NODES##" }
 variable "boot_volume_size" {default = "##BOOT##"}
 variable "use_marketplace_image" {  default = "##USEMP##" }
-variable "use_old_marketplace_image" {  default = "##USEOLDMP##" }
 variable "scratch_nfs_path" { default = "${scratch_nfs_path}" } 
 variable "use_scratch_nfs" { default = ${use_scratch_nfs} }
 variable "cluster_nfs_path" {default = "${cluster_nfs_path}"}
@@ -35,6 +34,7 @@ variable "pyxis" { default = ${pyxis} }
 variable "pam" { default = ${pam} }
 variable "sacct_limits" { default = ${sacct_limits} }
 variable "enroot" { default = ${enroot} }
+variable "use_compute_agent" { default = ${use_compute_agent} }
 variable "slurm_nfs_path" { default = "${slurm_nfs_path}" }
 variable "spack" { default = ${spack} }
 variable "instance_pool_ocpus" { default = "##OCPU##"}
@@ -53,12 +53,10 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC_OL7" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-2023.05.18-0"
-       "HPC_OL8" = "OracleLinux-8-RHCK-OFED-5.4-3.6.8.1-2023.05.18-0"
-       "HPC_OL7_old" = "OL7.9-RHCK-3.10.0-OFED-5.4-3.4.0-1"
-       "HPC_OL8_old" = "OracleLinux-8-RHCK-OFED-5.4-3.5.8.0-2022.11.15-0"
-       "GPU_old" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.4.0.0-GPU-510-2022.09.23-1"
-       "GPU" = "OracleLinux-7-RHCK-3.10.0-OFED-5.4-3.6.8.1-GPU-515-2023.05.18-0"
+       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-2024.01.02-0"
+       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-2024.01.02-1"
+       "GPU_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2024.01.02-0"
+       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2024.01.02-1"
   }
 }
 
@@ -101,8 +99,10 @@ variable "cluster_block_volume_performance" {default="${cluster_block_volume_per
 
 variable "ssh_cidr" {default="${ssh_cidr}"}
 variable "bastion_block" {default = "${bastion_block}"}
+variable "login_block" {default = "${login_block}"}
 
 variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
+variable "login_mount_ip" {default = "${login_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "home_fss" { default = ${home_fss} } 
 variable "latency_check" { default = ${latency_check} } 

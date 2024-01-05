@@ -1,0 +1,47 @@
+---
+- name: Check oracle cloud agent version
+  shell: "snap info oracle-cloud-agent | grep installed | awk '{print $2}'"
+  register: version
+  when : use_compute_agent | bool
+
+- name: Download Snap package
+  vars:
+    - major_version: "{{version.stdout.split('.')[1] }}"
+    - minor_version: "{{version.stdout.split('.')[0] }}"
+    - sub_version: "{{version.stdout.split('.')[2].split('-')[0] }}"
+  get_url:
+    url: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/KVgO3DVFyTiLdCJLZUNYZlYCF5mcnaTjemmMUmyOB1Ln7Vkii-llp7QoQDiRF66T/n/imagegen/b/agent_test/o/1.37.0/4/oracle-cloud-agent_1.37.2-9_amd64.snap"
+    dest: "/tmp/oracle-cloud-agent_1.37.2-9_amd64.snap"
+  when :
+    - (minor_version | int <= 1) | bool
+    - (major_version | int <= 37) | bool
+    - (sub_version | int < 2) | bool
+    - use_compute_agent | bool
+
+      ## The ansible snap module is not upgrading properly if the package already exists.
+      #  - name: Install OCA snap v1.37
+      #    vars:
+      #      - major_version: "{{version.stdout.split('.')[1] }}"
+      #      - minor_version: "{{version.stdout.split('.')[0] }}"
+      #    become: true
+      #    community.general.snap:
+      #      classic: true
+      #      dangerous: true
+      #      name: "/tmp/oracle-cloud-agent_1.37.0-2_amd64.snap"
+      #    when :
+      #      - (minor_version | int <= 1) | bool and (minor_version | int < 37) | bool
+      #      - use_compute_agent | bool
+
+- name: Snap update
+  vars:
+    - major_version: "{{version.stdout.split('.')[1] }}"
+    - minor_version: "{{version.stdout.split('.')[0] }}"
+    - sub_version: "{{version.stdout.split('.')[2].split('-')[0] }}"
+
+  become: true
+  shell: "snap install --classic --dangerous /tmp/oracle-cloud-agent_1.37.2-9_amd64.snap"
+  when :
+    - (minor_version | int <= 1) | bool
+    - (major_version | int <= 37) | bool
+    - (sub_version | int < 2) | bool
+    - use_compute_agent | bool

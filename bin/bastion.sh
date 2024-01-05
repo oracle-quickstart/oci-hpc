@@ -43,15 +43,15 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo mkdir /etc/ansible
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
-    sudo python3 -m pip install -U pip
-    sudo python3 -m pip install netaddr --upgrade
-    sudo python3 -m pip install setuptools_rust --upgrade
-    sudo python3 -m pip install requests --upgrade
-    sudo python3 -m pip install urllib3 --upgrade
   fi
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo yum install -y terraform
-   sudo python3 -m pip install oci-cli --upgrade
+  sudo python3 -m pip install -U pip
+  sudo python3 -m pip install netaddr --upgrade
+  sudo python3 -m pip install setuptools_rust --upgrade
+  sudo python3 -m pip install requests --upgrade
+  sudo python3 -m pip install urllib3 --upgrade
+  sudo python3 -m pip install oci-cli --upgrade
 
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
@@ -91,24 +91,41 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo apt -y --fix-broken install
 
   fix_apt
-
+  
+  sudo add-apt-repository --yes --update ppa:ansible/ansible
   sudo apt-get -y install ansible 
   output=$?
   if [ $output -ne 0 ]
   then
       fix_apt
+      sleep 60s
       sudo apt-get -y install ansible 
   fi
   fix_apt
-  sudo apt-get -y install python python-netaddr python3 python3-pip
+
+  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
+    sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+    sudo apt-get -y install python3 python3-netaddr python3-pip
+    sudo ln -s /usr/bin/python3 /usr/bin/python
+  else
+    sudo apt-get -y install python python-netaddr python3 python3-pip
+  fi
   output=$?
   if [ $output -ne 0 ]
   then
       fix_apt
-      sudo apt-get -y install python python-netaddr python3 python3-pip
+        if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
+          sudo apt-get -y install python3 python3-netaddr python3-pip
+
+        else
+          sudo apt-get -y install python python-netaddr python3 python3-pip
+        fi
   fi
   fix_apt
-
+  sudo python3 -m pip install -U pip
+  sudo python3 -m pip install netaddr --upgrade
+  sudo python3 -m pip install requests --upgrade
+  sudo python3 -m pip install urllib3 --upgrade
   pip install pip --upgrade
   pip install pyopenssl --upgrade
 
@@ -153,11 +170,22 @@ ansible-galaxy collection install community.crypto --force > /dev/null
 threads=$(nproc)
 forks=$(($threads * 8))
 
-sudo sed -i "s/^#forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#fact_caching_connection.*/fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#retries.*/retries=5/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^#command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
+if [ ! -d /etc/ansible ] ; then
+  sudo mkdir /etc/ansible
+  if [ $ID == "ubuntu" ] ; then
+    sudo chown ubuntu:ubuntu /etc/ansible
+  else
+    sudo chown opc:opc /etc/ansible
+  fi
+fi
+
+ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg
+sudo sed -i "s/^\(#\|;\)forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^\(#\|;\)fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
+sudo sed -i "0,/^\(#\|;\)fact_caching_connection.*/s//fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^\(#\|;\)bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^\(#\|;\)stdout_callback.*/stdout_callback=yaml/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
+sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
+

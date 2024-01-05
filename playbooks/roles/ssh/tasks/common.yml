@@ -7,7 +7,7 @@
     group: root
     mode: '0644'
 
-- name: Install ssh keys on all nodes
+- name: Install private ssh key on all nodes
   copy:
     dest: "/home/{{ ansible_user }}/.ssh/id_rsa"
     src: "/home/{{ bastion_username }}/.ssh/{{ item }}"
@@ -17,13 +17,12 @@
   with_items:
     - cluster.key
 
-- name: Generate an OpenSSL public key in OpenSSH v2 format
-  community.crypto.openssl_publickey:
-    path: "/home/{{ ansible_user }}/.ssh/id_rsa.pub"
-    privatekey_path: "/home/{{ ansible_user }}/.ssh/id_rsa"
-    format: OpenSSH
-    state: present
+- name: Install public ssh key on all nodes
+  copy:
+    dest: "/home/{{ ansible_user }}/.ssh/id_rsa.pub"
+    src: "/home/{{ bastion_username }}/.ssh/{{ item }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0644'
-  register: public_key
+  with_items:
+    - id_rsa.pub

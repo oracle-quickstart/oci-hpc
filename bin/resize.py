@@ -461,29 +461,33 @@ def get_summary(comp_ocid,cluster_name):
         elif cn_summary_tmp.lifecycle_state == "SCALING":
             scaling_clusters = scaling_clusters + 1
     if running_clusters == 0:
-        cn_summaries = computeClient.list_compute_clusters(comp_ocid,display_name=cluster_name).data.items
+        try: 
+            cn_summaries = computeClient.list_compute_clusters(comp_ocid,display_name=cluster_name).data.items
+        except:
+            print("The list_compute_clusters call returned an error, considering no Compute CLusters are present")
+            cn_summaries = []
         if len(cn_summaries) > 0:
             CN = "CC"
             for cn_summary_tmp in cn_summaries:
                 if cn_summary_tmp.lifecycle_state == "ACTIVE" and cn_summary_tmp.display_name == cluster_name :
                     cn_summary = cn_summary_tmp
                     running_clusters = running_clusters + 1 
+        if running_clusters == 0:
+            cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
+            if len(cn_summaries) > 0:
+                CN = "IP"
+                for cn_summary_tmp in cn_summaries:
+                    if cn_summary_tmp.lifecycle_state == "RUNNING":
+                        cn_summary = cn_summary_tmp
+                        running_clusters = running_clusters + 1 
+                    elif cn_summary_tmp.lifecycle_state == "SCALING":
+                        scaling_clusters = scaling_clusters + 1
             if running_clusters == 0:
-                cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
-                if len(cn_summaries) > 0:
-                    CN = "IP"
-                    for cn_summary_tmp in cn_summaries:
-                        if cn_summary_tmp.lifecycle_state == "RUNNING":
-                            cn_summary = cn_summary_tmp
-                            running_clusters = running_clusters + 1 
-                        elif cn_summary_tmp.lifecycle_state == "SCALING":
-                            scaling_clusters = scaling_clusters + 1
-                if running_clusters == 0:
-                    if scaling_clusters:
-                        print("No running cluster was found but there is a cluster in SCALING mode, try rerunning in a moment")
-                    else:
-                        print("The cluster was not found")
-                    return None,None,True
+                if scaling_clusters:
+                    print("No running cluster was found but there is a cluster in SCALING mode, try rerunning in a moment")
+                else:
+                    print("The cluster was not found")
+                return None,None,True
     if running_clusters > 1:
         print("There were multiple running clusters with this name, we selected the one with OCID:"+cn_summary.id)
     if CN == "CN":
