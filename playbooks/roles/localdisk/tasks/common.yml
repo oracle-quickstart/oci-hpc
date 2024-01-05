@@ -95,3 +95,7 @@
   when:
     - one_lv | bool 
     - lv_count.stdout == '0'
+
+- name: rebuild initramfs if ubuntu
+  shell: update-initramfs -k all -u
+  when: ansible_facts['distribution'] == "Ubuntu"
