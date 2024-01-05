@@ -3,7 +3,6 @@ from datetime import datetime
 import argparse
 import subprocess
 import sys
-import shlex
 
 
 def getDateTime():
@@ -62,18 +61,6 @@ def run_cmd(cmd=None):
     except subprocess.CalledProcessError as e:
         print (f'Command {e.cmd} failed with error {e.returncode}')
         return e.returncode
-    return output
-
-
-def run_cmd_split(cmd=None):
-    """ Run command on shell"""
-    cmd_split = shlex.split(cmd)
-    try:
-        results = subprocess.run(cmd_split, shell=False, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, check=True, encoding='utf8')
-        output = results.stdout.splitlines()
-    except subprocess.CalledProcessError as e_process_error:
-        return (9000, f"Error code: {e_process_error.returncode} Output: {e_process_error.output}")
     return output
     
 
