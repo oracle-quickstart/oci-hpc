@@ -44,8 +44,10 @@ def getSshableNodes(hosts, path):
         isSshable = run_cmd(cmd)
         if 'PRETTY_NAME' in isSshable[0]:
             sshable.write(host_value)
+            sshable.write("\n")
         else:
             notsshable.write(host_value)
+            notsshable.write("\n")
     sshable.close()
     notsshable.close()
     hosts_file.close()
