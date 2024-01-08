@@ -42,7 +42,10 @@ def getSshableNodes(hosts, path):
         host_value = host[0]
         cmd = f'ssh -o ConnectTimeout=10 {host_value} "cat /etc/os-release | grep PRETTY_NAME"'
         isSshable = run_cmd(cmd)
-        if 'PRETTY_NAME' in isSshable[0]:
+        if not isSshable:
+            notsshable.write(host_value)
+            notsshable.write("\n")
+        elif 'PRETTY_NAME' in isSshable[0]:
             sshable.write(host_value)
             sshable.write("\n")
         else:
