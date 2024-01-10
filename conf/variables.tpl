@@ -74,20 +74,20 @@ variable "marketplace_listing_id_GPU" {
 }
 
 
-variable "bastion_block_volume_performance" { 
+variable "controller_block_volume_performance" { 
 /* 
   Allowed values 
   "0.  Lower performance"
   "10. Balanced performance"
   "20. High Performance"
 */ 
-default = "${bastion_block_volume_performance}" 
+default = "${controller_block_volume_performance}" 
 }
 
 variable "scratch_nfs_type_cluster" { default = "${scratch_nfs_type_cluster}"} 
 variable "scratch_nfs_type_pool" { default = "${scratch_nfs_type_pool}" }
-variable "bastion_name" {default = "${bastion_name}"}
-variable "bastion_ip" {default = "${bastion_ip}"}
+variable "controller_name" {default = "${controller_name}"}
+variable "controller_ip" {default = "${controller_ip}"}
 variable "backup_name" {default = "${backup_name}"}
 variable "backup_ip" {default = "${backup_ip}"}
 variable "login_name" {default = "${login_name}"}
@@ -98,10 +98,10 @@ variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
 variable "cluster_block_volume_performance" {default="${cluster_block_volume_performance}"}
 
 variable "ssh_cidr" {default="${ssh_cidr}"}
-variable "bastion_block" {default = "${bastion_block}"}
+variable "controller_block" {default = "${controller_block}"}
 variable "login_block" {default = "${login_block}"}
 
-variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
+variable "controller_mount_ip" {default = "${controller_mount_ip}"}
 variable "login_mount_ip" {default = "${login_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "home_fss" { default = ${home_fss} } 
@@ -127,7 +127,7 @@ variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 variable "tags" { default = "##TAGS##" }
 variable "private_deployment" { default = ${private_deployment} }
 variable "use_multiple_ads" { default = ${use_multiple_ads} }
-variable "bastion_username" { default = "${bastion_username}" }
+variable "controller_username" { default = "${controller_username}" }
 variable "compute_username" { default = "${compute_username}" }
 
 variable "localdisk" { default = "${localdisk}" }

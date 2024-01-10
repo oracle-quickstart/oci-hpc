@@ -1,5 +1,5 @@
-{% set bastion = hostvars[groups['bastion'][0]]['ansible_fqdn'].split('.') %}
-SlurmctldHost={{ bastion[0] }}
+{% set controller = hostvars[groups['controller'][0]]['ansible_fqdn'].split('.') %}
+SlurmctldHost={{ controller[0] }}
 {% if (groups['slurm_backup']| length ) > 0 %}
 SlurmctldHost={{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[0] }}
 {% endif %}
@@ -31,7 +31,7 @@ GresTypes=gpu
 SchedulerType=sched/backfill
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core
-AccountingStorageHost={{ bastion[0] }}
+AccountingStorageHost={{ controller[0] }}
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStoreFlags=job_comment
 ClusterName=cluster

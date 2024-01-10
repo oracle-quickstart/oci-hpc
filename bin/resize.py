@@ -139,7 +139,7 @@ def backup_inventory(inventory):
 
 def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook): 
     if not os.path.isfile("/etc/ansible/hosts"):
-        print("There is no inventory file, are you on the bastion? The cluster has not been resized")
+        print("There is no inventory file, are you on the controller? The cluster has not been resized")
         exit()
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
@@ -167,7 +167,7 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
                 ips_to_remove.append(instance['ip'])
         if len(ips_to_remove) != len(nodes_to_remove):
             print("Some nodes are removed in OCI and removed from the inventory")
-            print("Try rerunning with the --nodes option and a list of IPs or Slurm Hostnames to cleanup the bastion")
+            print("Try rerunning with the --nodes option and a list of IPs or Slurm Hostnames to cleanup the controller")
     write_inventory(inventory_dict,tmp_inventory_destroy)
     if not len(ips_to_remove):
         print("No hostname found, trying anyway with "+" ".join(nodes_to_remove))
@@ -189,7 +189,7 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
 
 def destroy_reconfigure(inventory,nodes_to_remove,playbook):
     if not os.path.isfile("/etc/ansible/hosts"):
-        print("There is no inventory file, are you on the bastion? The cluster has not been resized")
+        print("There is no inventory file, are you on the controller? The cluster has not been resized")
         exit()
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
@@ -261,7 +261,7 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
     reachable_instances=instances
     unreachable_instances=[]
     if not os.path.isfile(inventory):
-        print("There is no inventory file, are you on the bastion? The cluster has been resized but not reconfigured")
+        print("There is no inventory file, are you on the controller? The cluster has been resized but not reconfigured")
         exit()
     host_to_wait_for=[]
     for node in reachable_instances:
@@ -308,7 +308,7 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
 def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
     instances = get_instances(comp_ocid,cn_ocid,CN)
     if not os.path.isfile(inventory):
-        print("There is no inventory file, are you on the bastion? Reconfigure did not happen")
+        print("There is no inventory file, are you on the controller? Reconfigure did not happen")
         exit()
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
@@ -567,7 +567,7 @@ playbooks_dir="/opt/oci-hpc/playbooks/"
 
 parser = argparse.ArgumentParser(description='Script to resize the CN')
 parser.add_argument('--compartment_ocid', help='OCID of the compartment, defaults to the Compartment OCID of the localhost')
-parser.add_argument('--cluster_name', help='Name of the cluster to resize. Defaults to the name included in the bastion')
+parser.add_argument('--cluster_name', help='Name of the cluster to resize. Defaults to the name included in the controller')
 parser.add_argument('mode', help='Mode type. add/remove node options, implicitly configures newly added nodes. Also implicitly reconfigure/restart services like Slurm to recognize new nodes. Similarly for remove option, terminates nodes and implicitly reconfigure/restart services like Slurm on rest of the cluster nodes to remove reference to deleted nodes.',choices=['add','remove','remove_unreachable','list','reconfigure'],default='list',nargs='?')
 parser.add_argument('number', type=int, help="Number of nodes to add or delete if a list of hostnames is not defined",nargs='?')
 parser.add_argument('--nodes', help="List of nodes to delete (Space Separated)",nargs='+')
@@ -586,11 +586,11 @@ else:
     comp_ocid=args.compartment_ocid
 
 if args.cluster_name is None:
-    cluster_name=metadata['displayName'].replace('-bastion','')
+    cluster_name=metadata['displayName'].replace('-controller','')
 else:
     cluster_name=args.cluster_name
 
-if cluster_name == metadata['displayName'].replace('-bastion',''):
+if cluster_name == metadata['displayName'].replace('-controller',''):
     inventory="/etc/ansible/hosts"
     host_check_file="/tmp/hosts"
     autoscaling=False

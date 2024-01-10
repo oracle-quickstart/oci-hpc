@@ -7,7 +7,7 @@
 - include_vars: ubuntu_vars.yml
   when: ansible_distribution == 'Ubuntu'
 
-- include: bastion.yml
+- include: controller.yml
   when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
   
 - include: el7.yml

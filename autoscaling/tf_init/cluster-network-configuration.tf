@@ -14,7 +14,7 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
       display_name = local.cluster_name
       metadata = {
 # TODO: add user key to the authorized_keys 
-        ssh_authorized_keys = file("/home/${var.bastion_username}/.ssh/id_rsa.pub")
+        ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/id_rsa.pub")
         user_data           = base64encode(data.template_file.config.rendered)
       }
       agent_config {
