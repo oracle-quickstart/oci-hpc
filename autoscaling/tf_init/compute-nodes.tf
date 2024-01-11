@@ -37,7 +37,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
   }
 
   metadata = {
-    ssh_authorized_keys = file("/home/${var.bastion_username}/.ssh/id_rsa.pub")
+    ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/id_rsa.pub")
     user_data           = base64encode(data.template_file.config.rendered)
   }
   source_details {

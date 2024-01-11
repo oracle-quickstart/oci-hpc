@@ -248,7 +248,7 @@ scp /tmp/ib_client.sh $client:/tmp
 ssh $server "/tmp/ib_server.sh" &
 ssh $client "/tmp/ib_client.sh"
 
-#Sync results to bastion
+#Sync results to controller
 mkdir -p $logdir
 rsync -a opc@$client:$outdir $logdir
 

@@ -4,7 +4,7 @@
 
 - name: run server directives
   include_tasks: server.yml
-  when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
+  when: ('controller' in group_names) and (not destroy|bool) and (initial| bool)
 
 - name: run compute directives
   include_tasks: "compute{{rack_aware_playbook_suffix}}.yml"

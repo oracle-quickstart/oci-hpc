@@ -4,7 +4,7 @@ ssl_cert_country: 'US'
 ssl_cert_locality: 'Seattle'
 ssl_cert_organization: 'Oracle Cloud'
 ssl_cert_state: 'WA'
-ssl_cert_altname: 'bastion.cluster'
+ssl_cert_altname: 'controller.cluster'
 
 ssl_cert_days: '3650'
 

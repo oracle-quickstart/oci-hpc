@@ -75,7 +75,7 @@ def getClusterNames():
     del x[-1]
     cluster_list = []
     for cluster in x:
-        if (cluster == "BASTION"):
+        if (cluster == "CONTROLLER"):
             continue
         else:
             cluster_list.append(cluster)
