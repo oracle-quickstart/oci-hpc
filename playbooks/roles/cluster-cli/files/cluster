@@ -6,7 +6,7 @@ import grp
 import pwd
 import os
 
-host = 'bastion'
+host = 'controller'
 bind_dn = 'cn=manager,dc=local'
 groups_dn = 'ou=Group,dc=local'
 people_dn = 'ou=People,dc=local'

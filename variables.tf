@@ -13,10 +13,10 @@ variable "compute_cluster_id" { default = "" }
 variable "compute_cluster_start_index" { default = 0 } 
 variable "use_custom_name" { default = false }
 variable "cluster_name" { default = "" }
-variable "bastion_ad" {}
-variable "bastion_shape" { default = "VM.Standard2.4" }
-variable "bastion_object_storage_par" { default = true }
-variable "custom_bastion_image" { 
+variable "controller_ad" {}
+variable "controller_shape" { default = "VM.Standard2.4" }
+variable "controller_object_storage_par" { default = true }
+variable "custom_controller_image" { 
   type = string
   default = "image.ocid" 
 }
@@ -24,12 +24,12 @@ variable "custom_login_image" {
   type = string
   default = "image.ocid" 
 }
-variable "bastion_boot_volume_size" {}
-variable "bastion_boot_volume_backup" {}
-variable "bastion_boot_volume_backup_type" {default = "INCREMENTAL"}
-variable "bastion_boot_volume_backup_period" {default = "ONE_DAY"}
-variable "bastion_boot_volume_backup_retention_seconds" {default = "7776000"}
-variable "bastion_boot_volume_backup_time_zone" {default = "REGIONAL_DATA_CENTER_TIME"}
+variable "controller_boot_volume_size" {}
+variable "controller_boot_volume_backup" {}
+variable "controller_boot_volume_backup_type" {default = "INCREMENTAL"}
+variable "controller_boot_volume_backup_period" {default = "ONE_DAY"}
+variable "controller_boot_volume_backup_retention_seconds" {default = "7776000"}
+variable "controller_boot_volume_backup_time_zone" {default = "REGIONAL_DATA_CENTER_TIME"}
 variable "cluster_network_shape" { default = "BM.HPC2.36" }
 variable "instance_pool_shape" { default = "VM.Standard2.4" }
 variable "node_count" { default = 2 }
@@ -38,7 +38,7 @@ variable "use_marketplace_image" { default = true}
 variable "image" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" }
 variable "use_compute_agent" { default = false }
-variable "unsupported_bastion_image" { default = "" } 
+variable "unsupported_controller_image" { default = "" } 
 variable "unsupported_login_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = true }
@@ -65,16 +65,16 @@ variable "slurm_nfs" { default = false }
 variable "rack_aware" { default = false }
 variable "ldap" { default = true } 
 variable "spack" { default = false } 
-variable "bastion_ocpus" { default = 2} 
-variable "bastion_ocpus_denseIO_flex" { default = 8} 
+variable "controller_ocpus" { default = 2} 
+variable "controller_ocpus_denseIO_flex" { default = 8} 
 variable "instance_pool_ocpus" { default = 2} 
 variable "instance_pool_ocpus_denseIO_flex" { default = 8} 
 variable "instance_pool_memory" { default = 16 }
 variable "instance_pool_custom_memory" { default = false }
 variable "login_ocpus" { default = 2} 
 variable "login_ocpus_denseIO_flex" { default = 8}
-variable "bastion_memory" { default = 16 }
-variable "bastion_custom_memory" { default = false }
+variable "controller_memory" { default = 16 }
+variable "controller_custom_memory" { default = false }
 variable "login_memory" { default = 16 }
 variable "login_custom_memory" { default = false }
 variable "privilege_sudo" { default = true }
@@ -92,9 +92,9 @@ variable "marketplace_version_id" {
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
        "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-2024.01.02-0"
-       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-2024.01.02-0"
+       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-2024.01.02-1"
        "GPU_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2024.01.02-0"
-       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2024.01.02-0"
+       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2024.01.02-1"
   }
 }
 
@@ -107,7 +107,7 @@ variable "marketplace_listing_id_HPC" {
 variable "marketplace_listing_id_GPU" {
     default = "ocid1.appcataloglisting.oc1..aaaaaaaab2hkpxsglxfbzitiiqv6djxzj5q5soxotwdem2dd2kbifgk4p55q"
 }
-variable "bastion_block_volume_performance" { 
+variable "controller_block_volume_performance" { 
 /* 
   Allowed values 
   "0.  Lower performance"
@@ -119,11 +119,11 @@ default = "10. Balanced performance"
 
 }
 
-variable "bastion_block" { 
+variable "controller_block" { 
   default = false
 } 
 
-variable "bastion_block_volume_size" { 
+variable "controller_block_volume_size" { 
   default = 1000
 }
 
@@ -183,11 +183,11 @@ variable "unsupported" {
 } 
 
 variable "queue" {default = "compute"}
-variable "unsupported_bastion" { 
+variable "unsupported_controller" { 
   type=bool
   default = false 
 }
-variable "use_marketplace_image_bastion" { 
+variable "use_marketplace_image_controller" { 
   type=bool
   default = true 
 }
@@ -195,7 +195,7 @@ variable "unsupported_login" {
   type=bool
   default = false 
 }
-variable "bastion_username" { 
+variable "controller_username" { 
   type = string 
   default = "opc" 
 } 
@@ -250,7 +250,7 @@ variable "use_marketplace_image_login" { default = true}
 variable "marketplace_listing_login" { 
   default = "HPC_OL7"
 } 
-variable "marketplace_listing_bastion" { 
+variable "marketplace_listing_controller" { 
   default = "HPC_OL7"
 } 
   

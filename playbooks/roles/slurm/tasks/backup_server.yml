@@ -35,7 +35,7 @@
   with_items:
     - munge
 
-- name: Render systemd units for slurmctld on backup bastion
+- name: Render systemd units for slurmctld on backup controller
   become: true
   template:
     src: 'systemd/slurmctld_backup.service.d/unit.conf.j2'

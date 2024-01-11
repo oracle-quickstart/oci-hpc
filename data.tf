@@ -43,7 +43,7 @@ data "oci_core_subnet" "private_subnet" {
 }
 
 data "oci_core_subnet" "public_subnet" { 
-  subnet_id = local.bastion_subnet_id
+  subnet_id = local.controller_subnet_id
 } 
 
 data "oci_core_images" "linux" {
@@ -61,7 +61,7 @@ data "oci_resourcemanager_private_endpoint_reachable_ip" "private_endpoint_reach
     #Required
     count = var.private_deployment ? 1 : 0
     private_endpoint_id = oci_resourcemanager_private_endpoint.rms_private_endpoint[0].id
-    private_ip = tostring(oci_core_instance.bastion.private_ip)
+    private_ip = tostring(oci_core_instance.controller.private_ip)
 }
 
 data "oci_resourcemanager_private_endpoint_reachable_ip" "private_endpoint_reachable_ip_backup" {
