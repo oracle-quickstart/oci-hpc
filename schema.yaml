@@ -759,6 +759,9 @@ variables:
     title: "use compute agent"
     description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The new marketplace images need the compute agent enabled."
     default: true
+    visible: 
+      not: 
+        - ${use_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
