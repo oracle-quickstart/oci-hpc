@@ -8,9 +8,9 @@ locals {
   custom_login_image_ocid = var.unsupported_login ? var.unsupported_login_image : var.custom_login_image
 
   shape = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape
-  instance_pool_ocpus = local.shape == "VM.DenseIO.E4.Flex" ? var.instance_pool_ocpus_denseIO_flex : var.instance_pool_ocpus
-  controller_ocpus = var.controller_shape == "VM.DenseIO.E4.Flex" ? var.controller_ocpus_denseIO_flex : var.controller_ocpus
-  login_ocpus = var.login_shape == "VM.DenseIO.E4.Flex" ? var.login_ocpus_denseIO_flex : var.login_ocpus
+  instance_pool_ocpus = ( local.shape == "VM.DenseIO.E4.Flex" || local.shape == "VM.DenseIO.E5.Flex" ) ? var.instance_pool_ocpus_denseIO_flex : var.instance_pool_ocpus
+  controller_ocpus = ( var.controller_shape == "VM.DenseIO.E4.Flex" || var.controller_shape == "VM.DenseIO.E5.Flex" ) ? var.controller_ocpus_denseIO_flex : var.controller_ocpus
+  login_ocpus = ( var.login_shape == "VM.DenseIO.E4.Flex" || var.login_shape == "VM.DenseIO.E5.Flex" ) ? var.login_ocpus_denseIO_flex : var.login_ocpus
 // ips of the instances
   cluster_instances_ips = var.compute_cluster ? oci_core_instance.compute_cluster_instances.*.private_ip : var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
 

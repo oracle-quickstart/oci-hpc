@@ -314,6 +314,9 @@ variables:
           - eq:
             - ${controller_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${controller_shape}
+            - "VM.DenseIO.E5.Flex"
     required: true
 
   controller_custom_memory: 
@@ -643,6 +646,9 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.DenseIO.E5.Flex"
     required: true
 
   instance_pool_custom_memory: 
@@ -1398,6 +1404,9 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.DenseIO.E5.Flex"
         - ${login_node}
     required: true
     
