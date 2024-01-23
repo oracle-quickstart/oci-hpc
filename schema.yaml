@@ -314,6 +314,9 @@ variables:
           - eq:
             - ${controller_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${controller_shape}
+            - "VM.DenseIO.E5.Flex"
     required: true
 
   controller_custom_memory: 
@@ -643,6 +646,9 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.DenseIO.E5.Flex"
     required: true
 
   instance_pool_custom_memory: 
@@ -753,6 +759,9 @@ variables:
     title: "use compute agent"
     description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The new marketplace images need the compute agent enabled."
     default: true
+    visible: 
+      not: 
+        - ${use_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
@@ -1398,6 +1407,9 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.DenseIO.E5.Flex"
         - ${login_node}
     required: true
     

@@ -5,7 +5,7 @@
 
 - name: Get the number of NVMe's
   set_fact:
-    nvme_count: "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list | length}}"
+    nvme_count: "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]|[1-9][0-9]n1') | list | length}}"
 
 - name: Create a LVM?
   set_fact:
@@ -18,7 +18,7 @@
     state: present
     label: gpt
   with_items:
-    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list }}"
+    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]|[1-9][0-9]n1') | list }}"
 
 - name: create a filesystem
   filesystem:
@@ -26,7 +26,7 @@
     fstype: xfs
     opts: "-L locscratch{{item | replace('nvme','') | replace('n1','')}}"
   with_items:
-    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list }}"
+    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]|[1-9][0-9]n1') | list }}"
   when: not ( one_lv | bool )
 
 - name: Mount local volume
@@ -37,7 +37,7 @@
     opts: defaults,noatime
     state: mounted
   with_items:
-    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list }}"
+    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]|[1-9][0-9]n1') | list }}"
   when: not ( one_lv | bool )
 
 - name: "set permissions on {{ nvme_path_edited }}"
@@ -50,7 +50,7 @@
     group: "{{privilege_group_name}}"
     recurse: no
   with_items:
-    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list }}"
+    - "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]|[1-9][0-9]n1') | list }}"
   when: not ( one_lv | bool )
 
 - name: Check for lvm devices
@@ -61,7 +61,7 @@
     - name: Create volume group
       lvg:
         vg: "vg_nvmes"
-        pvs: "{{['/dev/']|product(hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list)|map('join', '') | join(',')}}"
+        pvs: "{{['/dev/']|product(hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]|[1-9][0-9]n1') | list)|map('join', '') | join(',')}}"
 
     - name: Create Logical volume
       lvol:
