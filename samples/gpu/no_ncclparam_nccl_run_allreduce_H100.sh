@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# number of times to run the nccl test to stress the GPUs and RDMA network. This is different from -n iterations parameter of nccl allreduce which is set below using $iter
+# number of times to run the nccl test to stress the GPUs and RDMA network. 
 max=$1
 
 # This assume, the hostfile  passed is already ordered based on their rackId
@@ -30,7 +30,7 @@ do
   echo $x >> $logfile
   date >> $logfile
 
-  hostfile=$hostfile; np=$np ; iter=20;
+  hostfile=$hostfile; np=$np;
 
   mpivars_path=`ls /usr/mpi/gcc/openmpi-*/bin/mpivars.sh`
 
@@ -48,36 +48,21 @@ do
   if [ $shape == \"BM.GPU.H100.8\" ]
   then
     var_UCX_NET_DEVICES=eth0
-    var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17"
   else
     echo "Use the appropriate nccl test run script for non H100 nodes"
   fi
 
+  # all NCCL parameters are at /etc/nccl.conf on each compute node.
   mpirun --mca pml ucx \
   --bind-to numa \
   -npernode 8 \
   --mca coll ^hcoll \
-  -x NCCL_CROSS_NIC=0 \
-  -x NCCL_SOCKET_NTHREADS=16 \
-  -x NCCL_DEBUG=WARN \
-  -x NCCL_CUMEM_ENABLE=0 \
-  -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
-  -x NCCL_IB_QPS_PER_CONNECTION=16 \
-  -x NCCL_IB_GID_INDEX=3 \
-  -x NCCL_IB_TC=41 \
-  -x NCCL_IB_SL=0 \
-  -x NCCL_IB_TIMEOUT=22 \
-  -x NCCL_NET_PLUGIN=none \
   -x HCOLL_ENABLE_MCAST_ALL=0 \
   -x coll_hcoll_enable=0 \
   -x UCX_TLS=tcp \
   -x UCX_NET_DEVICES=${var_UCX_NET_DEVICES} \
   -x RX_QUEUE_LEN=8192 \
   -x IB_RX_QUEUE_LEN=8192 \
-  -x NCCL_SOCKET_IFNAME=eth0 \
-  -x NCCL_IGNORE_CPU_AFFINITY=1 \
-  -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
-  -x NCCL_TOPO_FILE=~/H100-topology.xml \
   --np $np --hostfile $hostfile  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -f 2 -g 1 >>  $logfile
 
   tail -n 32 $logfile

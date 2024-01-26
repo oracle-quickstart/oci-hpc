@@ -13,7 +13,7 @@
     owner: root
     group: root
     mode: '0644'
-  when: shape_nccl.stdout == "BM.GPU.H100.8"
+  when: shape_nccl.stdout == '"BM.GPU.H100.8"'
 
 - name: copy nccl.conf for BM.GPU.B4.8 and A100-v2.8
   become: true
@@ -23,7 +23,7 @@
     owner: root
     group: root
     mode: '0644'
-  when: shape_nccl.stdout == "BM.GPU.B4.8" or shape_nccl.stdout == "BM.GPU.A100-v2.8"
+  when: shape_nccl.stdout == '"BM.GPU.B4.8"' or shape_nccl.stdout == '"BM.GPU.A100-v2.8"'
 
 - name: copy nccl.conf for BM.GPU4.8
   become: true
@@ -33,4 +33,4 @@
     owner: root
     group: root
     mode: '0644'
-  when: shape_nccl.stdout == "BM.GPU4.8"
+  when: shape_nccl.stdout == '"BM.GPU4.8"'
