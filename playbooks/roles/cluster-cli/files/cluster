@@ -184,8 +184,10 @@ def add(user, password, uid, gid, name, nossh):
     if(conn.result['result'] != 0): 
       print(conn.result)
 
+  homedir='/home/{}/'.format(user)
+  os.system("sudo su - "+user+" -c "+" 'ls' 2> /dev/null")
+
   if not nossh:
-    homedir='/home/{}/'.format(user)
     os.system("sudo su - "+user+" -c "+"' ssh-keygen -t rsa -b 2048 -q -f "+homedir+".ssh/id_rsa -P \"\"' 2> /dev/null")
     os.system("sudo su - "+user+" -c "+"'mv "+homedir+".ssh/id_rsa.pub "+homedir+".ssh/authorized_keys' 2> /dev/null")
 @user.command()
