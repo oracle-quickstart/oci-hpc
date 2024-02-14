@@ -57,3 +57,18 @@ resource "oci_core_instance" "login" {
     assign_public_ip = local.login_bool_ip
   }
 } 
+
+resource "oci_dns_rrset" "rrset-login" {
+  count = var.login_node && var.dns_entries ? 1 : 0
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${var.login_node ? oci_core_instance.login[0].display_name : ""}.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${var.login_node ? oci_core_instance.login[0].display_name : ""}.${local.zone_name}"
+    rtype  = "A"
+    rdata  = var.login_node ? oci_core_instance.login[0].private_ip: ""
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}

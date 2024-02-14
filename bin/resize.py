@@ -8,6 +8,7 @@ import argparse
 import shutil
 import os
 import copy
+import ipaddress
 from datetime import datetime
 
 def get_metadata():
@@ -605,6 +606,31 @@ for inv_vars in inventory_dict["all:vars"]:
     if inv_vars.startswith("compute_username"):
         username=inv_vars.split("compute_username=")[1].strip()
         break
+zone_name=cluster_name+".local"
+for inv_vars in inventory_dict["all:vars"]:
+    if inv_vars.startswith("zone_name"):
+        zone_name=inv_vars.split("zone_name=")[1].strip()
+        break
+dns_entries=True
+for inv_vars in inventory_dict["all:vars"]:
+    if inv_vars.startswith("dns_entries"):
+        dns_entries=bool(inv_vars.split("dns_entries=")[1].strip())
+        break
+queue=None
+for inv_vars in inventory_dict["all:vars"]:
+    if inv_vars.startswith("queue"):
+        queue=inv_vars.split("queue=")[1].strip()
+        break
+instance_type=""
+for inv_vars in inventory_dict["all:vars"]:
+    if inv_vars.startswith("instance_type"):
+        instance_type=inv_vars.split("instance_type=")[1].strip()
+        break
+private_subnet_cidr=None
+for inv_vars in inventory_dict["all:vars"]:
+    if inv_vars.startswith("private_subnet"):
+        private_subnet_cidr=ipaddress.ip_network(inv_vars.split("private_subnet=")[1].strip())
+        break
 
 hostnames=args.nodes
 if hostnames is None:
@@ -650,6 +676,7 @@ if user_logging:
     computeManagementClient = oci.core.ComputeManagementClient(config_oci)
     ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
     virtualNetworkClient = oci.core.VirtualNetworkClient(config_oci)
+    dns_client = oci.dns.DnsClient(config_oci)
 else:
     signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
     computeClient = oci.core.ComputeClient(config={}, signer=signer)
@@ -657,6 +684,7 @@ else:
     computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
     ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
     virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
+    dns_client = oci.dns.DnsClient(config={}, signer=signer)
 
 cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
 if cn_summary is None:
@@ -687,6 +715,7 @@ else:
     cn_instances = get_instances(comp_ocid,cn_ocid,CN)
     inventory_instances =[]
     only_inventory_instance=[]
+    zone_id=dns_client.list_zones(compartment_id=comp_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
     for line in inventory_dict['compute_configured']:
         host=line.split('ansible_host=')[0].strip()
         ip=line.split("ansible_host=")[1].split("ansible_user=")[0].strip()
@@ -767,6 +796,16 @@ else:
                 else: 
                     instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_id,is_auto_terminate=True,is_decrement_size=True)
                     ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
+                if dns_entries:
+                    get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=instanceName+"."+zone_name,rtype="A",scope="PRIVATE")
+                    ip=None
+                    for i in cn_instances: 
+                        if i['display_name'] == instanceName:
+                            ip = ipaddress.ip_address(i['ip'])
+                    if not ip is None:
+                        index = list(private_subnet_cidr.hosts()).index(ip)+2
+                        slurm_name=queue+"-"+instance_type+"-"+str(index)+"."+zone_name
+                        get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE")
                 terminated_instances = terminated_instances + 1
                 print("STDOUT: The instance "+instanceName+" is terminating")   
             except:
@@ -794,8 +833,8 @@ else:
 #            reconfigure(comp_ocid,cn_ocid,inventory,CN)
 
     if args.mode == 'add':
+        cn_instances = get_instances(comp_ocid,cn_ocid,CN)
         if CN == "CC":
-            cn_instances = get_instances(comp_ocid,cn_ocid,CN)
             current_size=len(cn_instances)
             if len(cn_instances) == 0:
                 print("The resize script cannot work for a compute cluster if the size is there is no node in the cluster")
@@ -813,14 +852,23 @@ else:
             size = current_size - hostnames_to_remove_len + args.number
             update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
             ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
-        
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
         if CN == "CC":
-            cn_instances = get_instances(comp_ocid,cn_ocid,CN)
-            newsize=len(cn_instances)
+            new_cn_instances = get_instances(comp_ocid,cn_ocid,CN)
+            newsize=len(new_cn_instances)
         else:
+            new_cn_instances = get_instances(comp_ocid,cn_ocid,CN)
             newsize=ip_summary.size
-            updateTFState(inventory,cluster_name,newsize)
+        if dns_entries:
+            for new_instance in new_cn_instances:
+                if not new_instance in cn_instances:
+                    instanceName=new_instance['display_name']
+                    ip = ipaddress.ip_address(new_instance['ip'])
+                    index = list(private_subnet_cidr.hosts()).index(ip)+2
+                    slurm_name=queue+"-"+instance_type+"-"+str(index)+"."+zone_name
+                    get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=slurm_name,rdata=new_instance['ip'],rtype="A",ttl=3600,)]))
+                    get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=instanceName+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=instanceName+"."+zone_name,rdata=new_instance['ip'],rtype="A",ttl=3600)]))
+        updateTFState(inventory,cluster_name,newsize)
         if newsize == current_size:
             print("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
             exit(1)

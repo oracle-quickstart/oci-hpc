@@ -29,6 +29,8 @@ resource "local_file" "inventory" {
     private_subnet = var.private_subnet, 
     rdma_network = cidrhost(var.rdma_subnet, 0),
     rdma_netmask = cidrnetmask(var.rdma_subnet),
+    zone_name = var.zone_name,
+    dns_entries = var.dns_entries,
     nfs = var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,

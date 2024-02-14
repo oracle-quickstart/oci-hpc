@@ -77,3 +77,5 @@ api_fingerprint = ${api_fingerprint}
 api_user_ocid = ${api_user_ocid}
 sacct_limits=${sacct_limits}
 use_compute_agent=${use_compute_agent}
+zone_name=${zone_name}
+dns_entries=${dns_entries}

@@ -253,4 +253,10 @@ variable "marketplace_listing_login" {
 variable "marketplace_listing_controller" { 
   default = "HPC_OL7"
 } 
+variable "zone_name" {
+  default = ""
+}
+variable "dns_entries" {
+  default = true
+}
   
