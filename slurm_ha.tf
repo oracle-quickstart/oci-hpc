@@ -195,6 +195,8 @@ resource "null_resource" "cluster_backup" {
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       rdma_network = cidrhost(var.rdma_subnet, 0),
       rdma_netmask = cidrnetmask(var.rdma_subnet),
+      zone_name = local.zone_name,
+      dns_entries = var.dns_entries,
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       home_nfs = var.home_nfs,
       create_fss = var.create_fss,
@@ -356,6 +358,9 @@ resource "null_resource" "cluster_backup" {
       region = var.region,
       tenancy_ocid = var.tenancy_ocid,
       vcn_subnet = var.vcn_subnet,
+      vcn_id = local.vcn_id,
+      zone_name = local.zone_name,
+      dns_entries = var.dns_entries,
       cluster_block_volume_size = var.cluster_block_volume_size,
       cluster_block_volume_performance = var.cluster_block_volume_performance,
       ssh_cidr = var.ssh_cidr,
@@ -426,4 +431,20 @@ resource "null_resource" "cluster_backup" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+}
+
+
+resource "oci_dns_rrset" "rrset-backup" {
+  count = var.slurm_ha && var.dns_entries ? 1 : 0
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${var.slurm_ha ? oci_core_instance.backup[0].display_name : ""}.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${var.slurm_ha ? oci_core_instance.backup[0].display_name : ""}.${local.zone_name}"
+    rtype  = "A"
+    rdata  = var.slurm_ha ? oci_core_instance.backup[0].private_ip: ""
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
 }

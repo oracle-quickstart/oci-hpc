@@ -8,8 +8,11 @@ locals {
   instance_pool_ocpus = ( local.shape == "VM.DenseIO.E4.Flex" || local.shape == "VM.DenseIO.E5.Flex" ) ? var.instance_pool_ocpus_denseIO_flex : var.instance_pool_ocpus
 // ips of the instances
   cluster_instances_ips = var.compute_cluster ? oci_core_instance.compute_cluster_instances.*.private_ip : var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
+  first_vcn_ip = cidrhost(data.oci_core_subnet.private_subnet.cidr_block,0)
+  cluster_instances_ips_index = [for ip in local.cluster_instances_ips : tostring((tonumber(split(".",ip)[3])-tonumber(split(".",local.first_vcn_ip)[3]))+256*(tonumber(split(".",ip)[2])-tonumber(split(".",local.first_vcn_ip)[2]))+1)]
 
 // subnet id derived either from created subnet or existing if specified
+  vcn_id = var.use_existing_vcn ? var.vcn_id : element(concat(oci_core_vcn.vcn.*.id, [""]), 0)
   subnet_id = var.private_deployment ? var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 1) : var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
 
 // subnet id derived either from created subnet or existing if specified

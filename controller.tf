@@ -241,6 +241,8 @@ resource "null_resource" "cluster" {
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       rdma_network = cidrhost(var.rdma_subnet, 0),
       rdma_netmask = cidrnetmask(var.rdma_subnet),
+      zone_name = local.zone_name,
+      dns_entries = var.dns_entries,
       nfs = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       home_nfs = var.home_nfs,
       create_fss = var.create_fss,
@@ -402,6 +404,9 @@ resource "null_resource" "cluster" {
       region = var.region,
       tenancy_ocid = var.tenancy_ocid,
       vcn_subnet = var.vcn_subnet,
+      vcn_id = local.vcn_id,
+      zone_name = local.zone_name,
+      dns_entries = var.dns_entries,
       cluster_block_volume_size = var.cluster_block_volume_size,
       cluster_block_volume_performance = var.cluster_block_volume_performance,
       ssh_cidr = var.ssh_cidr,
@@ -546,3 +551,21 @@ resource "local_file" "PAR" {
     content     = "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}"
     filename = "${local.par_path}/PAR_file_for_metrics"
   }
+
+
+resource "oci_dns_rrset" "rrset-controller" {
+  count = var.dns_entries ? 1 : 0
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${oci_core_instance.controller.display_name}.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${oci_core_instance.controller.display_name}.${local.zone_name}"
+    rtype  = "A"
+    rdata  = oci_core_instance.controller.private_ip
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
+#oci dns record rrset update --zone-name-or-id ocid1.dns-zone.oc1.ca-toronto-1.aaaaaaaadwpfuij3w7jpg3sj6gzc5ete2yeknrmjgwzvs6qytgkqad2vhbmq --domain mint-ocelot-controller.mint-ocelot.local --rtype A --auth instance_principal --scope PRIVATE --view-id  ocid1.dnsview.oc1.ca-toronto-1.aaaaaaaamhhzrbwe4f3rx5i2hx2xlnubfjc37uvy3e7bjrbyaln5o7zjfvpa --items '[{ "rdata":"1.1.1.1","ttl":300,"domain":"mint-ocelot-controller.mint-ocelot.local","rtype":"A"}]' --force

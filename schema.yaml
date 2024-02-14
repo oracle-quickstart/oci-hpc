@@ -156,6 +156,8 @@ variableGroups:
       - ${private_subnet}
       - ${rdma_subnet}
       - ${additional_subnet}
+      - ${dns_entries}
+      - ${zone_name}
   - title: "Software"
     variables:
       - ${privilege_sudo} 
@@ -978,6 +980,17 @@ variables:
       compartmentId: ${vcn_compartment}
       vcnId: ${vcn_id}
       hidePublicSubnet: true
+    visible: ${use_existing_vcn}
+    required: true
+  dns_entries: 
+    title: DNS entry
+    type: boolean
+    default: true
+    description: "Only available for a private zone" 
+  zone_name:
+    title: Private Zone Name
+    description: "The zone needs to be private for the stack to be able to add entries"
+    type: string
     visible: ${use_existing_vcn}
     required: true
   vcn_subnet:

@@ -13,6 +13,8 @@ locals {
   login_ocpus = ( var.login_shape == "VM.DenseIO.E4.Flex" || var.login_shape == "VM.DenseIO.E5.Flex" ) ? var.login_ocpus_denseIO_flex : var.login_ocpus
 // ips of the instances
   cluster_instances_ips = var.compute_cluster ? oci_core_instance.compute_cluster_instances.*.private_ip : var.cluster_network ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
+  first_vcn_ip = cidrhost(data.oci_core_subnet.private_subnet.cidr_block,0)
+  cluster_instances_ips_index = [for ip in local.cluster_instances_ips : tostring((tonumber(split(".",ip)[3])-tonumber(split(".",local.first_vcn_ip)[3]))+256*(tonumber(split(".",ip)[2])-tonumber(split(".",local.first_vcn_ip)[2]))+1)]
 
 // vcn id derived either from created vcn or existing if specified
   vcn_id = var.use_existing_vcn ? var.vcn_id : element(concat(oci_core_vcn.vcn.*.id, [""]), 0)
@@ -67,4 +69,5 @@ locals {
   timeout_per_batch= var.cluster_network ? 30 : 15
   timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * local.timeout_per_batch,"m"])
 
+  zone_name = var.use_existing_vcn ? var.zone_name : "${local.cluster_name}.local"
 }
