@@ -47,9 +47,6 @@
   gather_facts: true
   tasks: 
     - include_role: 
-        name: cloud-agent_update
-      when: cluster_network|bool and use_compute_agent|default(false)|bool
-    - include_role: 
         name: oci-cn-auth
       when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
