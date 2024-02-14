@@ -25,8 +25,32 @@ resource "oci_core_instance" "compute_cluster_instances" {
   shape               = var.cluster_network_shape
 
   agent_config {
-    is_management_disabled = true
-    }
+
+        are_all_plugins_disabled = false
+        is_management_disabled   = true
+        is_monitoring_disabled   = false
+
+        plugins_config {
+          desired_state = "DISABLED"
+          name          = "OS Management Service Agent"
+          }
+        dynamic plugins_config {
+          
+          for_each = var.use_compute_agent ? ["ENABLED"] : ["DISABLED"]
+          content {
+          name = "Compute HPC RDMA Authentication"
+          desired_state = plugins_config.value
+           }
+         }
+        dynamic plugins_config {
+          for_each = var.use_compute_agent ? ["ENABLED"] : ["DISABLED"]
+          content {
+          name = "Compute HPC RDMA Auto-Configuration"
+          desired_state = plugins_config.value
+          }
+
+        }
+      }
 
   display_name        = "${local.cluster_name}-node-${var.compute_cluster_start_index+count.index}"
 
