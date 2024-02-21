@@ -43,7 +43,7 @@ fi
   --bind-to numa \
   -npernode 8 \
   --mca coll ^hcoll \
-  -x NCCL_CROSS_NIC=0 \
+  -x NCCL_CROSS_NIC=1 \
   -x NCCL_SOCKET_NTHREADS=16 \
   -x NCCL_DEBUG=WARN \
   -x NCCL_CUMEM_ENABLE=0 \
