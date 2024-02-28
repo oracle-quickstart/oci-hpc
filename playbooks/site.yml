@@ -19,6 +19,12 @@
         name: fix_broken
       when: ansible_os_family == 'Debian'
 
+- hosts: controller, slurm_backup
+  become: true
+  tasks:
+    - include_role: 
+        name: yaml
+        
 - hosts: all
   become: true
   vars: 
@@ -255,12 +261,6 @@
     - include_role: 
         name: hyperthreading
       when: not hyperthreading|default(false)|bool
-
-- hosts: controller, slurm_backup
-  become: true
-  tasks:
-    - include_role: 
-        name: yaml
 
 - hosts: all
   tasks: 
