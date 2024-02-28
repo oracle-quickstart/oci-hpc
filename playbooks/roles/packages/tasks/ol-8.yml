@@ -33,5 +33,5 @@
     state: latest
     executable: pip3
   ignore_errors: yes
-  when: ('bastion' in group_names)
+  when: ('controller' in group_names)
 

@@ -23,8 +23,8 @@ fi
 
 resize_type=default
 permanent=1
-bastionName=`hostname`
-cluster_name=${bastionName/-bastion/}
+controllerName=`hostname`
+cluster_name=${controllerName/-controller/}
 nodes=NULL
 for (( i=1; i<=$#; i++)); do
     if [ ${!i} == "--cluster_name" ]

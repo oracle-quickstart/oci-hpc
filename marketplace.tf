@@ -1,10 +1,10 @@
 locals {
 //  listing_number = split(".", var.marketplace_listing)[0]
     mp_listing_id = var.use_marketplace_image ? substr(var.marketplace_listing,0,3) == "HPC" ? var.marketplace_listing_id_HPC : var.marketplace_listing_id_GPU : ""
-    mp_bastion_listing_id = var.use_marketplace_image_bastion ?  substr(var.marketplace_listing_bastion,0,3) == "HPC" ? var.marketplace_listing_id_HPC : var.marketplace_listing_id_GPU : ""
+    mp_controller_listing_id = var.use_marketplace_image_controller ?  substr(var.marketplace_listing_controller,0,3) == "HPC" ? var.marketplace_listing_id_HPC : var.marketplace_listing_id_GPU : ""
     mp_login_listing_id = var.use_marketplace_image_login ? substr(var.marketplace_listing_login,0,3) == "HPC" ? var.marketplace_listing_id_HPC : var.marketplace_listing_id_GPU : ""
     mp_version_id = var.marketplace_version_id[var.marketplace_listing]
-    mp_bastion_version_id = var.marketplace_version_id[var.marketplace_listing_bastion]
+    mp_controller_version_id = var.marketplace_version_id[var.marketplace_listing_controller]
     mp_login_version_id = var.marketplace_version_id[var.marketplace_listing_login]
 }
 
@@ -48,28 +48,28 @@ resource "oci_core_app_catalog_subscription" "mp_image_subscription" {
   }
 }
 
-data "oci_core_app_catalog_listing_resource_versions" "bastion_app_catalog_listing_resource_versions" {
-    count = var.use_marketplace_image_bastion ? 1 : 0
-    listing_id = local.mp_bastion_listing_id
+data "oci_core_app_catalog_listing_resource_versions" "controller_app_catalog_listing_resource_versions" {
+    count = var.use_marketplace_image_controller ? 1 : 0
+    listing_id = local.mp_controller_listing_id
 }
 
-resource "oci_core_app_catalog_listing_resource_version_agreement" "bastion_mp_image_agreement" {
-  count = ( var.use_marketplace_image_bastion ) ? 1 : 0
+resource "oci_core_app_catalog_listing_resource_version_agreement" "controller_mp_image_agreement" {
+  count = ( var.use_marketplace_image_controller ) ? 1 : 0
 
-  listing_id               = local.mp_bastion_listing_id
-  listing_resource_version = local.mp_bastion_version_id
+  listing_id               = local.mp_controller_listing_id
+  listing_resource_version = local.mp_controller_version_id
 
 }
 
-resource "oci_core_app_catalog_subscription" "bastion_mp_image_subscription" {
-  count                    = ( var.use_marketplace_image_bastion ) ? 1 : 0
+resource "oci_core_app_catalog_subscription" "controller_mp_image_subscription" {
+  count                    = ( var.use_marketplace_image_controller ) ? 1 : 0
   compartment_id           = var.targetCompartment
-  eula_link                = oci_core_app_catalog_listing_resource_version_agreement.bastion_mp_image_agreement[0].eula_link
-  listing_id               = oci_core_app_catalog_listing_resource_version_agreement.bastion_mp_image_agreement[0].listing_id
-  listing_resource_version = oci_core_app_catalog_listing_resource_version_agreement.bastion_mp_image_agreement[0].listing_resource_version
-  oracle_terms_of_use_link = oci_core_app_catalog_listing_resource_version_agreement.bastion_mp_image_agreement[0].oracle_terms_of_use_link
-  signature                = oci_core_app_catalog_listing_resource_version_agreement.bastion_mp_image_agreement[0].signature
-  time_retrieved           = oci_core_app_catalog_listing_resource_version_agreement.bastion_mp_image_agreement[0].time_retrieved
+  eula_link                = oci_core_app_catalog_listing_resource_version_agreement.controller_mp_image_agreement[0].eula_link
+  listing_id               = oci_core_app_catalog_listing_resource_version_agreement.controller_mp_image_agreement[0].listing_id
+  listing_resource_version = oci_core_app_catalog_listing_resource_version_agreement.controller_mp_image_agreement[0].listing_resource_version
+  oracle_terms_of_use_link = oci_core_app_catalog_listing_resource_version_agreement.controller_mp_image_agreement[0].oracle_terms_of_use_link
+  signature                = oci_core_app_catalog_listing_resource_version_agreement.controller_mp_image_agreement[0].signature
+  time_retrieved           = oci_core_app_catalog_listing_resource_version_agreement.controller_mp_image_agreement[0].time_retrieved
 
   timeouts {
     create = "20m"

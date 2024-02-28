@@ -143,7 +143,7 @@
   ignore_unreachable: True
   with_items: "{{unreachable_slurm_nodes}}"
   delegate_to: 127.0.0.1
-  when: ('bastion' in group_names)
+  when: ('controller' in group_names)
 
 - name: move topology.conf on backup servers
   become: true

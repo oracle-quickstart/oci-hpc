@@ -1,4 +1,4 @@
-output "bastion" {
+output "controller" {
   value = local.host
 }
 

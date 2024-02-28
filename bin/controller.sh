@@ -4,7 +4,7 @@
 #
 
 #
-# wait for cloud-init completion on the bastion host
+# wait for cloud-init completion on the controller host
 #
 execution=1
 
@@ -39,7 +39,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
-    sudo python3.8 -m pip install ansible cryptography netaddr
+    sudo python3.8 -m pip install ansible cryptography netaddr > /dev/null
     sudo mkdir /etc/ansible
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
@@ -47,12 +47,12 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   sudo sed -i 's/$releasever/'"${vid}"'/g' /etc/yum.repos.d/hashicorp.repo
   sudo yum install -y terraform
-  sudo python3 -m pip install -U pip
-  sudo python3 -m pip install netaddr --upgrade
-  sudo python3 -m pip install setuptools_rust --upgrade
-  sudo python3 -m pip install requests --upgrade
-  sudo python3 -m pip install urllib3 --upgrade
-  sudo python3 -m pip install oci-cli --upgrade
+  sudo python3 -m pip install -U pip > /dev/null
+  sudo python3 -m pip install netaddr --upgrade > /dev/null
+  sudo python3 -m pip install setuptools_rust --upgrade > /dev/null
+  sudo python3 -m pip install requests --upgrade > /dev/null
+  sudo python3 -m pip install urllib3 --upgrade > /dev/null
+  sudo python3 -m pip install oci-cli --upgrade > /dev/null
 
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
@@ -123,18 +123,18 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
         fi
   fi
   fix_apt
-  sudo python3 -m pip install -U pip
-  sudo python3 -m pip install netaddr --upgrade
-  sudo python3 -m pip install requests --upgrade
-  sudo python3 -m pip install urllib3 --upgrade
-  pip install pip --upgrade
-  pip install pyopenssl --upgrade
+  sudo python3 -m pip install -U pip > /dev/null
+  sudo python3 -m pip install netaddr --upgrade > /dev/null
+  sudo python3 -m pip install requests --upgrade > /dev/null
+  sudo python3 -m pip install urllib3 --upgrade > /dev/null
+  pip install pip --upgrade > /dev/null
+  pip install pyopenssl --upgrade > /dev/null
 
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
-  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults
+  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults > /dev/null
 
   # install oci module
-  pip install oci
+  pip install oci > /dev/null
 
   wget -O- https://apt.releases.hashicorp.com/gpg | \
   gpg --dearmor | \
@@ -180,7 +180,7 @@ if [ ! -d /etc/ansible ] ; then
   fi
 fi
 
-ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg
+ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
 sudo sed -i "s/^\(#\|;\)forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
 sudo sed -i "0,/^\(#\|;\)fact_caching_connection.*/s//fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg

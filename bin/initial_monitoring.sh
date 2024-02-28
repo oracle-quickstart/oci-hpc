@@ -4,8 +4,8 @@ scripts=`realpath $0`
 folder=`dirname $scripts`
 
 end_timestamp=`date -u +'%F %T'`
-bastionName=`hostname`
-cluster_name=${bastionName/-bastion/}
+controllerName=`hostname`
+cluster_name=${controllerName/-controller/}
 
 autoscaling_folder=$folder/../autoscaling
 monitoring_folder=$folder/../monitoring

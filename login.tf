@@ -43,17 +43,32 @@ resource "oci_core_instance" "login" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
-    user_data           = base64encode(data.template_file.bastion_config.rendered)
+    user_data           = base64encode(data.template_file.controller_config.rendered)
   }
   source_details {
-//    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_bastion_image_ocid
+//    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
     source_id = local.login_image
     boot_volume_size_in_gbs = var.login_boot_volume_size
     source_type = "image"
   }
 
   create_vnic_details {
-    subnet_id = local.bastion_subnet_id
+    subnet_id = local.controller_subnet_id
     assign_public_ip = local.login_bool_ip
   }
 } 
+
+resource "oci_dns_rrset" "rrset-login" {
+  count = var.login_node && var.dns_entries ? 1 : 0
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${var.login_node ? oci_core_instance.login[0].display_name : ""}.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${var.login_node ? oci_core_instance.login[0].display_name : ""}.${local.zone_name}"
+    rtype  = "A"
+    rdata  = var.login_node ? oci_core_instance.login[0].private_ip: ""
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
