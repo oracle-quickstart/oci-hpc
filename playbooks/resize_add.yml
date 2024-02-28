@@ -52,6 +52,9 @@
       when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
         name: nvidia_peermem
+    - include_role: 
+        name: nccl-conf
+      when: cluster_network|bool
 
 - hosts: controller,slurm_backup,login,compute
   become: true
