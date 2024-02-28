@@ -1,7 +1,7 @@
-[bastion]
-${bastion_name} ansible_host=${bastion_ip} ansible_user=${bastion_username} role=bastion ansible_python_interpreter=/usr/bin/python
+[controller]
+${controller_name} ansible_host=${controller_ip} ansible_user=${controller_username} role=controller ansible_python_interpreter=/usr/bin/python
 [slurm_backup]
-%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${bastion_username} role=bastion%{ endif }
+%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${controller_username} role=controller%{ endif }
 [login]
 %{ if login_name != "" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
 [compute_to_add]
@@ -16,7 +16,7 @@ compute_configured
 [nfs]
 %{ if nfs != "" }${nfs} ansible_user=${compute_username} role=nfs%{ endif }
 [all:children]
-bastion
+controller
 compute
 [all:vars]
 ansible_connection=ssh
@@ -40,10 +40,10 @@ rack_aware = ${rack_aware}
 pyxis = ${pyxis}
 enroot = ${enroot}
 spack = ${spack} 
-bastion_block = ${bastion_block} 
+controller_block = ${controller_block} 
 login_block = ${login_block} 
 scratch_nfs_type = ${scratch_nfs_type}
-bastion_mount_ip = ${bastion_mount_ip}
+controller_mount_ip = ${controller_mount_ip}
 login_mount_ip = ${login_mount_ip}
 cluster_mount_ip = ${cluster_mount_ip}
 autoscaling = true
@@ -68,7 +68,9 @@ privilege_sudo=${privilege_sudo}
 privilege_group_name=${privilege_group_name}
 latency_check=${latency_check}
 compute_username=${compute_username}
-bastion_username=${bastion_username}
+controller_username=${controller_username}
 pam = ${pam}
 sacct_limits=${sacct_limits}
 use_compute_agent=${use_compute_agent}
+zone_name=${zone_name}
+dns_entries=${dns_entries}

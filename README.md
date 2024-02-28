@@ -32,7 +32,7 @@ or:
 ## Supported OS: 
 The stack allowa various combination of OS. Here is a list of what has been tested. We can't guarantee any of the other combination.
 
-|     Bastion   |    Compute   |
+|   Controller  |    Compute   |
 |---------------|--------------|
 |      OL7      |      OL7     |  
 |      OL7      |      OL8     |
@@ -41,7 +41,7 @@ The stack allowa various combination of OS. Here is a list of what has been test
 |      OL8      |       OL7    |
 | Ubuntu  20.04 | Ubuntu 20.04 |
 
-When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the bastion and compute nodes. 
+When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the controller and compute nodes. 
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
@@ -62,7 +62,7 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
  
 ## resize.sh usage 
 
-The resize.sh is deployed on the bastion node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will terminate the unreachable nodes before running the action that was requested (Example Adding a node) 
+The resize.sh is deployed on the controller node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will terminate the unreachable nodes before running the action that was requested (Example Adding a node) 
 
 ```
 /opt/oci-hpc/bin/resize.sh -h
@@ -92,7 +92,7 @@ optional arguments:
                         OCID of the localhost
   --cluster_name CLUSTER_NAME
                         Name of the cluster to resize. Defaults to the name
-                        included in the bastion
+                        included in the controller
   --nodes NODES [NODES ...]
                         List of nodes to delete
   --no_reconfigure      If present. Does not rerun the playbooks
@@ -284,14 +284,14 @@ When the cluster is already being destroyed, it will have a file `/opt/oci-hpc/a
 ## Autoscaling Monitoring
 If you selected the autoscaling monitoring, you can see what nodes are spinning up and down as well as running and queued jobs. Everything will run automatically except the import of the Dashboard in Grafana due to a problem in the Grafana API. 
 
-To do it manually, in your browser of choice, navigate to bastionIP:3000. Username and password are admin/admin, you can change those during your first login. Go to Configuration -> Data Sources. Select autoscaling. Enter Password as Monitor1234! and click on 'Save & test'. Now click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
+To do it manually, in your browser of choice, navigate to controllerIP:3000. Username and password are admin/admin, you can change those during your first login. Go to Configuration -> Data Sources. Select autoscaling. Enter Password as Monitor1234! and click on 'Save & test'. Now click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
 
 You will now see the dashboard. 
 
 
 # LDAP 
-If selected bastion host will act as an LDAP server for the cluster. It's strongly recommended to leave default, shared home directory. 
-User management can be performed from the bastion using ``` cluster ``` command. 
+If selected controller host will act as an LDAP server for the cluster. It's strongly recommended to leave default, shared home directory. 
+User management can be performed from the controller using ``` cluster ``` command. 
 Example of cluster command to add a new user: 
 ```cluster user add name```
 By default, a `privilege` group is created that has access to the NFS and can have sudo access on all nodes (Defined at the stack creation. This group has ID 9876) The group name can be modified.
@@ -301,21 +301,21 @@ To avoid generating a user-specific key for passwordless ssh between nodes, use 
 
 # Shared home folder
 
-By default, the home folder is NFS shared directory between all nodes from the bastion. You have the possibility to use a FSS to share it as well to keep working if the bastion goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files. 
+By default, the home folder is NFS shared directory between all nodes from the controller. You have the possibility to use a FSS to share it as well to keep working if the controller goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files. 
 
 # Deploy within a private subnet
 
-If "true", this will create a private endpoint in order for Oracle Resource Manager to configure the bastion VM and the future nodes in private subnet(s). 
-* If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the bastion and one for the compute nodes.  
-* If "Use Existing Subnet" is also true, the user must indicate a private subnet for the bastion VM. For the compute nodes, they can reside in another private subnet or the same private subent as the bastion VM. 
+If "true", this will create a private endpoint in order for Oracle Resource Manager to configure the controller VM and the future nodes in private subnet(s). 
+* If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the controller and one for the compute nodes.  
+* If "Use Existing Subnet" is also true, the user must indicate a private subnet for the controller VM. For the compute nodes, they can reside in another private subnet or the same private subent as the controller VM. 
 
-The bastion VM will reside in a private subnet. Therefore, the creation of a "bastion service" (https://docs.oracle.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
+The controller VM will reside in a private subnet. Therefore, the creation of a "controller service" (https://docs.oracle.com/en-us/iaas/Content/controller/Concepts/controlleroverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
 
 
 
 ## max_nodes_partition.py usage 
 
-Use the alias "max_nodes" to run the python script max_nodes_partition.py. You can run this script only from bastion.
+Use the alias "max_nodes" to run the python script max_nodes_partition.py. You can run this script only from controller.
 
 $ max_nodes --> Information about all the partitions and their respective clusters, and maximum number of nodes distributed evenly per partition
 
@@ -324,13 +324,13 @@ $ max_nodes --include_cluster_names xxx yyy zzz --> where xxx, yyy, zzz are clus
 
 ## validation.py usage
 
-Use the alias "validate" to run the python script validation.py. You can run this script only from bastion. 
+Use the alias "validate" to run the python script validation.py. You can run this script only from controller. 
 
 The script performs these checks. 
 -> Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files.
 -> PCIe bandwidth check 
 -> GPU Throttle check 
--> Check whether md5 sum of /etc/hosts file on nodes matches that on bastion
+-> Check whether md5 sum of /etc/hosts file on nodes matches that on controller
 
 Provide at least one argument: [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]
 
@@ -343,7 +343,7 @@ Below are some examples for running this script.
 
 validate -n y --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. The clusters considered will be the default cluster if any and cluster(s) found in /opt/oci-hpc/autoscaling/clusters directory. The number of nodes considered will be from the resize script using the clusters we got before. 
 
-validate -n y -cn <cluster name file> --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. It will also check whether md5 sum of /etc/hosts file on all nodes matches that on bastion. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
+validate -n y -cn <cluster name file> --> This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. It will also check whether md5 sum of /etc/hosts file on all nodes matches that on controller. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
 
 validate -p y -cn <cluster name file> --> This will run the pcie bandwidth check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
 
@@ -364,12 +364,12 @@ validate -n y -p y -g y -e y -cn <cluster name file>
 ## /opt/oci-hpc/scripts/collect_logs.py
 This is a script to collect nvidia bug report, sosreport, console history logs. 
 
-The script needs to be run from the bastion. In the case where the host is not ssh-able, it will get only  console history logs for the same.
+The script needs to be run from the controller. In the case where the host is not ssh-able, it will get only  console history logs for the same.
 
 It requires the below argument.
 --hostname <HOSTNAME>
 
-And --compartment-id <COMPARTMENT_ID> is optional (i.e. assumption is the host is in the same compartment as the bastion). 
+And --compartment-id <COMPARTMENT_ID> is optional (i.e. assumption is the host is in the same compartment as the controller). 
 
 Where HOSTNAME is the node name for which you need the above logs and COMPARTMENT_ID is the OCID of the compartment where the node is.
 

@@ -1,7 +1,7 @@
 resource "oci_core_volume_attachment" "backup_volume_attachment" { 
-  count = var.bastion_block && var.slurm_ha ? 1 : 0
+  count = var.controller_block && var.slurm_ha ? 1 : 0
   attachment_type = "iscsi"
-  volume_id       = oci_core_volume.bastion_volume[0].id
+  volume_id       = oci_core_volume.controller_volume[0].id
   instance_id     = oci_core_instance.backup[0].id
   display_name    = "${local.cluster_name}-backup-volume-attachment"
   device          = "/dev/oracleoci/oraclevdb"
@@ -11,15 +11,15 @@ resource "oci_core_volume_attachment" "backup_volume_attachment" {
 resource "oci_core_instance" "backup" {
   count = var.slurm_ha ? 1 : 0
   depends_on          = [oci_core_subnet.public-subnet]
-  availability_domain = var.bastion_ad
+  availability_domain = var.controller_ad
   compartment_id      = var.targetCompartment
-  shape               = var.bastion_shape
+  shape               = var.controller_shape
 
   dynamic "shape_config" {
-    for_each = local.is_bastion_flex_shape
+    for_each = local.is_controller_flex_shape
       content {
         ocpus = shape_config.value
-        memory_in_gbs = var.bastion_custom_memory ? var.bastion_memory : 16 * shape_config.value
+        memory_in_gbs = var.controller_custom_memory ? var.controller_memory : 16 * shape_config.value
       }
   }
   agent_config {
@@ -34,18 +34,18 @@ resource "oci_core_instance" "backup" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
-    user_data           = base64encode(data.template_file.bastion_config.rendered)
+    user_data           = base64encode(data.template_file.controller_config.rendered)
   }
   source_details {
-//    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_bastion_image_ocid
-    source_id = local.bastion_image
-    boot_volume_size_in_gbs = var.bastion_boot_volume_size
+//    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
+    source_id = local.controller_image
+    boot_volume_size_in_gbs = var.controller_boot_volume_size
     source_type = "image"
   }
 
   create_vnic_details {
-    subnet_id = local.bastion_subnet_id
-    assign_public_ip = local.bastion_bool_ip
+    subnet_id = local.controller_subnet_id
+    assign_public_ip = local.controller_bool_ip
   }
 } 
 
@@ -60,14 +60,14 @@ resource "null_resource" "backup" {
     inline = [
       "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",      
-      "sudo chown ${var.bastion_username}:${var.bastion_username} /opt/oci-hpc/",
+      "sudo chown ${var.controller_username}:${var.controller_username} /opt/oci-hpc/",
       "mkdir -p /opt/oci-hpc/bin",
       "mkdir -p /opt/oci-hpc/playbooks"
       ]
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -77,7 +77,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -88,7 +88,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -99,7 +99,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -110,7 +110,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -120,7 +120,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -130,7 +130,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -142,18 +142,18 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_pem
-    destination = "/home/${var.bastion_username}/.ssh/cluster.key"
+    destination = "/home/${var.controller_username}/.ssh/cluster.key"
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -162,15 +162,15 @@ resource "null_resource" "backup" {
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
-      "chmod 600 /home/${var.bastion_username}/.ssh/cluster.key",
-      "cp /home/${var.bastion_username}/.ssh/cluster.key /home/${var.bastion_username}/.ssh/id_rsa",
+      "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
+      "cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_rsa",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
-      "timeout --foreground 60m /opt/oci-hpc/bin/bastion.sh"
+      "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh"
       ]
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -184,8 +184,8 @@ resource "null_resource" "cluster_backup" {
 
   provisioner "file" {
     content        = templatefile("${path.module}/inventory.tpl", {  
-      bastion_name = oci_core_instance.bastion.display_name, 
-      bastion_ip = oci_core_instance.bastion.private_ip,
+      controller_name = oci_core_instance.controller.display_name, 
+      controller_ip = oci_core_instance.controller.private_ip,
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
       login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
@@ -195,6 +195,8 @@ resource "null_resource" "cluster_backup" {
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       rdma_network = cidrhost(var.rdma_subnet, 0),
       rdma_netmask = cidrnetmask(var.rdma_subnet),
+      zone_name = local.zone_name,
+      dns_entries = var.dns_entries,
       nfs = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       home_nfs = var.home_nfs,
       create_fss = var.create_fss,
@@ -218,10 +220,10 @@ resource "null_resource" "cluster_backup" {
       rack_aware = var.rack_aware,
       spack = var.spack,
       ldap = var.ldap,
-      bastion_block = var.bastion_block, 
+      controller_block = var.controller_block, 
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
-      bastion_mount_ip = local.bastion_mount_ip,
+      controller_mount_ip = local.controller_mount_ip,
       login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       autoscaling = var.autoscaling,
@@ -231,7 +233,7 @@ resource "null_resource" "cluster_backup" {
       queue=var.queue,
       monitoring = var.monitoring,
       hyperthreading = var.hyperthreading,
-      bastion_username = var.bastion_username,
+      controller_username = var.controller_username,
       compute_username = var.compute_username,
       autoscaling_monitoring = var.autoscaling_monitoring,
       autoscaling_mysql_service = var.autoscaling_mysql_service,
@@ -256,7 +258,7 @@ resource "null_resource" "cluster_backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -268,7 +270,7 @@ resource "null_resource" "cluster_backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -285,7 +287,7 @@ resource "null_resource" "cluster_backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -316,22 +318,22 @@ resource "null_resource" "cluster_backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
   
   provisioner "file" {
     content        = templatefile("${path.module}/conf/variables.tpl", {  
-      bastion_name = oci_core_instance.bastion.display_name, 
-      bastion_ip = oci_core_instance.bastion.private_ip, 
+      controller_name = oci_core_instance.controller.display_name, 
+      controller_ip = oci_core_instance.controller.private_ip, 
       backup_name = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip = var.slurm_ha ? oci_core_instance.backup[0].private_ip: "",
       login_name = var.login_node ? oci_core_instance.login[0].display_name : "",
       login_ip = var.login_node ? oci_core_instance.login[0].private_ip: "",
       compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
       public_subnet = data.oci_core_subnet.public_subnet.cidr_block,
-      public_subnet_id = local.bastion_subnet_id,
+      public_subnet_id = local.controller_subnet_id,
       private_subnet = data.oci_core_subnet.private_subnet.cidr_block, 
       private_subnet_id = local.subnet_id,
       rdma_subnet = var.rdma_subnet,
@@ -344,18 +346,21 @@ resource "null_resource" "cluster_backup" {
       rack_aware = var.rack_aware,
       spack = var.spack,
       ldap = var.ldap,
-      bastion_block = var.bastion_block, 
+      controller_block = var.controller_block, 
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
-      bastion_mount_ip = local.bastion_mount_ip,
+      controller_mount_ip = local.controller_mount_ip,
       login_mount_ip = local.login_mount_ip,
       cluster_mount_ip = local.mount_ip,
       scratch_nfs_type_cluster = var.scratch_nfs_type_cluster,
       scratch_nfs_type_pool = var.scratch_nfs_type_pool,
-      bastion_block_volume_performance = var.bastion_block_volume_performance,
+      controller_block_volume_performance = var.controller_block_volume_performance,
       region = var.region,
       tenancy_ocid = var.tenancy_ocid,
       vcn_subnet = var.vcn_subnet,
+      vcn_id = local.vcn_id,
+      zone_name = local.zone_name,
+      dns_entries = var.dns_entries,
       cluster_block_volume_size = var.cluster_block_volume_size,
       cluster_block_volume_performance = var.cluster_block_volume_performance,
       ssh_cidr = var.ssh_cidr,
@@ -384,17 +389,24 @@ resource "null_resource" "cluster_backup" {
       privilege_group_name = var.privilege_group_name,
       latency_check = var.latency_check,
       private_deployment = var.private_deployment,
-      bastion_username = var.bastion_username,
+      controller_username = var.controller_username,
       compute_username = var.compute_username,
       use_multiple_ads = var.use_multiple_ads, 
-      use_compute_agent = var.use_compute_agent
+      use_compute_agent = var.use_compute_agent,
+      BIOS = var.BIOS,
+      IOMMU = var.IOMMU,
+      SMT = var.SMT,
+      virt_instr = var.virt_instr,
+      access_ctrl = var.access_ctrl,
+      numa_nodes_per_socket = var.numa_nodes_per_socket,
+      percentage_of_cores_enabled = var.percentage_of_cores_enabled
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -406,7 +418,7 @@ resource "null_resource" "cluster_backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -422,8 +434,24 @@ resource "null_resource" "cluster_backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.bastion_username
+      user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+}
+
+
+resource "oci_dns_rrset" "rrset-backup" {
+  count = var.slurm_ha && var.dns_entries ? 1 : 0
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${var.slurm_ha ? oci_core_instance.backup[0].display_name : ""}.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${var.slurm_ha ? oci_core_instance.backup[0].display_name : ""}.${local.zone_name}"
+    rtype  = "A"
+    rdata  = var.slurm_ha ? oci_core_instance.backup[0].private_ip: ""
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
 }

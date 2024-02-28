@@ -19,7 +19,7 @@ resource "oci_core_volume_attachment" "cluster_network_volume_attachment" {
 
 resource "oci_core_cluster_network" "cluster_network" {
   count = ( ! var.compute_cluster )  && var.cluster_network && var.node_count > 0 ? 1 : 0
-  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_core_instance.bastion]
+  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_core_instance.controller]
   compartment_id = var.targetCompartment
   instance_pools {
     instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id

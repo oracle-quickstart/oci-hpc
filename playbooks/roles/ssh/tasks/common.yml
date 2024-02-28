@@ -10,7 +10,7 @@
 - name: Install private ssh key on all nodes
   copy:
     dest: "/home/{{ ansible_user }}/.ssh/id_rsa"
-    src: "/home/{{ bastion_username }}/.ssh/{{ item }}"
+    src: "/home/{{ controller_username }}/.ssh/{{ item }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0600'
@@ -20,7 +20,7 @@
 - name: Install public ssh key on all nodes
   copy:
     dest: "/home/{{ ansible_user }}/.ssh/id_rsa.pub"
-    src: "/home/{{ bastion_username }}/.ssh/{{ item }}"
+    src: "/home/{{ controller_username }}/.ssh/{{ item }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0644'

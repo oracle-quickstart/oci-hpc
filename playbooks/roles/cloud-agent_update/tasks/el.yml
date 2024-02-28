@@ -4,36 +4,36 @@
   register: version
   when: use_compute_agent | bool
 
-- name: Install OCA v1.37 for OL8
+- name: Install OCA v1.38 for OL8
   vars:
       - major_version: "{{version.stdout.split('.')[1] }}"
       - minor_version: "{{version.stdout.split('.')[0] }}"
       - sub_version: "{{version.stdout.split('.')[2].split('-')[0] }}"
   yum:
-    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/aV_mSl96KIiapAeZtsyo-SUcPCSurDfWaj06f4XVVoNKIsxvqlZ65guPTnMuNawR/n/imagegen/b/agent_test/o/1.37.0/3/oracle-cloud-agent-1.37.2-10459.el8.x86_64.rpm"
+    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/H1npAGRle5v4izHQkTysF_tfdsgO43iawRc4IC2xL5LwO6T36m8o34T8_kc_KaBS/n/imagegen/b/agent_test/o/1.38.0/3/oracle-cloud-agent-1.38.0-10815.el8.x86_64.rpm"
     state: present
     disable_gpg_check: yes
   when:
     - ansible_os_family == 'RedHat'
     - ansible_distribution_major_version == '8'
     - (minor_version | int <= 1) | bool
-    - (major_version | int <= 37) | bool
-    - (sub_version | int < 2) | bool
+    - (major_version | int <= 38) | bool
+    - (sub_version | int < 0) | bool
     - use_compute_agent | bool
 
-- name: Install OCA v1.37 for OL7
+- name: Install OCA v1.38 for OL7
   vars:
       - major_version: "{{version.stdout.split('.')[1] }}"
       - minor_version: "{{version.stdout.split('.')[0] }}"
       - sub_version: "{{version.stdout.split('.')[2].split('-')[0] }}"
   yum:
-    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/YmPlysZFl4CKrLTKN9Rj0CMPt8qiJgflvF4vXsOaaqOfcm5NMnyBJl_dlC0V0lTo/n/imagegen/b/agent_test/o/1.37.0/3/oracle-cloud-agent-1.37.2-10459.el7.x86_64.rpm"
+    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/v7U4X2bmcA_iY6UoRiGALU-A8xIrcsMZWjnfgk8zi4BDX5pfU1BV0XbHR9Iy6OJk/n/imagegen/b/agent_test/o/1.38.0/3/oracle-cloud-agent-1.38.0-10815.el7.x86_64.rpm"
     state: present
     disable_gpg_check: yes
   when:
     - ansible_os_family == 'RedHat'
     - ansible_distribution_major_version == '7'
     - (minor_version | int <= 1) | bool
-    - (major_version | int <= 37) | bool
-    - (sub_version | int < 2) | bool
+    - (major_version | int <= 38) | bool
+    - (sub_version | int < 0) | bool
     - use_compute_agent | bool
