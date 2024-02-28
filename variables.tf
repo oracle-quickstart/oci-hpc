@@ -260,3 +260,24 @@ variable "dns_entries" {
   default = true
 }
   
+variable "BIOS" {
+  default = false
+}
+variable "IOMMU" {
+  default = false
+}
+variable "SMT" {
+  default = true
+}
+variable "virt_instr" {
+  default = false
+}
+variable "access_ctrl" {
+  default = false
+}
+variable "numa_nodes_per_socket" {
+  default = "Default"
+}
+variable "percentage_of_cores_enabled" {
+  default = "Default"
+}

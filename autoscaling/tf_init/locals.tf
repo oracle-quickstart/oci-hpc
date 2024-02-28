@@ -38,4 +38,6 @@ locals {
 
   timeout_per_batch= var.cluster_network ? var.use_multiple_ads ? 15 : 30 : var.use_multiple_ads ? 6 : 15
   timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * local.timeout_per_batch,"m"])
+  platform_type = local.shape == "BM.GPU4.8" ? "AMD_ROME_BM_GPU" : local.shape == "BM.GPU.B4.8" || local.shape == "BM.GPU.H100.8" || local.shape == "BM.GPU.A100-v2.8" ? "AMD_MILAN_BM_GPU" : local.shape == "BM.Standard.E3.128" ? "AMD_ROME_BM" :  local.shape == "BM.Standard.E4.128" || local.shape == "BM.DenseIO.E4.128" ? "AMD_MILAN_BM" : "GENERIC_BM" 
+
 }

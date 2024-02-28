@@ -64,6 +64,14 @@ variableGroups:
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
+      - ${BIOS}
+      - ${IOMMU}
+      - ${SMT}
+      - ${virt_instr}
+      - ${access_ctrl}
+      - ${numa_nodes_per_socket}
+      - ${percentage_of_cores_enabled}
+
   - title: "Additional Login Node"
     variables:
       - ${login_node}
@@ -822,6 +830,65 @@ variables:
         - and: 
             - ${unsupported}
 
+  BIOS: 
+    title: "Modify BIOS options" 
+    description: "Make sure that the BIOS options are changeable for the specific shape selected"
+    type: boolean
+    default: false
+    visible: true
+
+  IOMMU: 
+    title: "IOMMU enabled" 
+    type: boolean
+    default: false
+    visible: ${BIOS}
+
+  SMT: 
+    title: "SMT Enabled" 
+    type: boolean
+    default: true
+    visible: ${BIOS}
+
+  virt_instr: 
+    title: "Virtualization instructions" 
+    description: "Virtualization instructions include Secure Virtual Machine for AMD shapes or VT-x for Intel shapes"
+    type: boolean
+    default: false
+    visible: ${BIOS}    
+
+  access_ctrl: 
+    title: "Access Control Service" 
+    description: "Access control service lets the platform enforce PCIe device isolation"
+    type: boolean
+    default: false
+    visible: ${BIOS} 
+
+  numa_nodes_per_socket: 
+    title: "Numa Node per Socket" 
+    description: "NUMA Settings"
+    type: enum
+    enum:
+      - "Default"
+      - "NPS0"
+      - "NPS1"
+      - "NPS2"
+      - "NPS4"
+    default: "Default"
+    visible: ${BIOS} 
+
+  percentage_of_cores_enabled: 
+    title: "Numa Node per Socket" 
+    description: "NUMA Settings"
+    type: enum
+    enum:
+      - "Default"
+      - "25"
+      - "50"
+      - "75"
+      - "100"
+    default: "Default"
+    visible: ${BIOS} 
+    
   use_advanced:
     type: boolean
     title: "Show advanced storage options"

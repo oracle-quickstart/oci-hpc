@@ -48,6 +48,19 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
 
         }
       }
+
+      dynamic "platform_config" {
+        for_each = var.BIOS ? range(1) : []
+        content {
+          type = local.platform_type
+          are_virtual_instructions_enabled = var.virt_instr
+          is_access_control_service_enabled = var.access_ctrl
+          is_input_output_memory_management_unit_enabled = var.IOMMU
+          is_symmetric_multi_threading_enabled = var.SMT
+          numa_nodes_per_socket = var.numa_nodes_per_socket == "Default" ? (local.platform_type == "GENERIC_BM" ? "NPS1": "NPS4" ): var.numa_nodes_per_socket
+          percentage_of_cores_enabled = var.percentage_of_cores_enabled == "Default" ? 100 : tonumber(var.percentage_of_cores_enabled)
+        }
+      }
       
 
       shape = var.cluster_network_shape
