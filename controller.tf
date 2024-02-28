@@ -438,7 +438,14 @@ resource "null_resource" "cluster" {
       compute_username = var.compute_username,
       pam = var.pam,
       sacct_limits = var.sacct_limits, 
-      use_compute_agent = var.use_compute_agent
+      use_compute_agent = var.use_compute_agent,
+      BIOS = var.BIOS,
+      IOMMU = var.IOMMU,
+      SMT = var.SMT,
+      virt_instr = var.virt_instr,
+      access_ctrl = var.access_ctrl,
+      numa_nodes_per_socket = var.numa_nodes_per_socket,
+      percentage_of_cores_enabled = var.percentage_of_cores_enabled
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"

@@ -138,3 +138,25 @@ variable "log_vol" { default = "${log_vol}" }
 variable "redundancy" { default = "${redundancy}" }
 
 variable "instance_pool_ocpus_denseIO_flex" { default = "##OCPU##"}
+
+variable "BIOS" {
+  default = ${BIOS}
+}
+variable "IOMMU" {
+  default = ${IOMMU}
+}
+variable "SMT" {
+  default = ${SMT}
+}
+variable "virt_instr" {
+  default = ${virt_instr}
+}
+variable "access_ctrl" {
+  default = ${access_ctrl}
+}
+variable "numa_nodes_per_socket" {
+  default = "${numa_nodes_per_socket}"
+}
+variable "percentage_of_cores_enabled" {
+  default = "${percentage_of_cores_enabled}"
+}
