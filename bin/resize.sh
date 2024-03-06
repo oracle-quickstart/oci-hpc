@@ -15,6 +15,12 @@ then
   exit
 fi
 
+if [ $USER != "ubuntu" ] && [ $USER != "opc" ]
+then
+  echo "Run this script as opc or ubuntu"
+  exit
+fi
+
 if [ $# -eq 0 ]
 then
   python3 $folder/resize.py --help
@@ -50,6 +56,18 @@ for (( i=1; i<=$#; i++)); do
       nodes=${@:j}
     fi
 done
+
+if [ $resize_type == "remove" ] || [ $resize_type == "remove_unreachable" ]
+then
+  echo "$(cat $folder/remove_nodes_prompt.txt)"
+  echo "Do you confirm you have done all of the above steps and wish to proceed for the termination of the nodes? Enter 1 for Yes and 2 for No (to exit)."
+  select yn in "Yes" "No"; do
+    case $yn in
+        Yes ) break;;
+        No ) exit;;
+    esac
+  done
+fi
 
 if [ $resize_type != "default" ]
 then
@@ -148,5 +166,5 @@ then
     rm currently_resizing
   fi
 else
-  python3 $folder/resize.py ${@} 
+  python3 $folder/resize.py ${@} &
 fi
