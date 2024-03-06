@@ -34,3 +34,23 @@
     group: root
     mode: '0644'
   when: shape_nccl.stdout == '"BM.GPU4.8"'
+
+- name: copy libnccl-ocituner for OL
+  become: true
+  copy: 
+    src: libnccl-ocituner.so.1.0.1_OL
+    dest: /home/opc/libnccl-ocituner.so.1.0.1
+    owner: opc
+    group: privilege
+    mode: '0775'
+  when: ( shape_nccl.stdout == '"BM.GPU.B4.8"' or shape_nccl.stdout == '"BM.GPU.A100-v2.8"' or shape_nccl.stdout == '"BM.GPU4.8"' ) and ansible_distribution == 'OracleLinux'
+
+- name: copy libnccl-ocituner for Ubuntu
+  become: true
+  copy: 
+    src: libnccl-ocituner.so.1.0.1_ubuntu
+    dest: /home/ubuntu/libnccl-ocituner.so.1.0.1
+    owner: ubuntu
+    group: privilege
+    mode: '0775'
+  when: ( shape_nccl.stdout == '"BM.GPU.B4.8"' or shape_nccl.stdout == '"BM.GPU.A100-v2.8"' or shape_nccl.stdout == '"BM.GPU4.8"' ) and ansible_os_family == 'Debian'
