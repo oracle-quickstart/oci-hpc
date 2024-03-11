@@ -1,6 +1,6 @@
 ---
 - name: Run Pam settings
-  include: compute_pam.yml
+  include_tasks: compute_pam.yml
   when: pam|bool
 
 - name: install SLURM compute packages
@@ -159,7 +159,7 @@
   notify: reconfigure slurm
 
 - name: Run Pam settings
-  include: compute_pam.yml
+  include_tasks: compute_pam.yml
   when: pam|bool
 
 - name: start slurmd

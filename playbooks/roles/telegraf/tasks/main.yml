@@ -1,2 +1,2 @@
-- include: common.yml
+- include_tasks: common.yml
   when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'

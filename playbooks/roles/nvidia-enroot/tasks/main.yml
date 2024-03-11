@@ -1,10 +1,10 @@
 --- 
 
-- include: oraclelinux.yml
+- include_tasks: oraclelinux.yml
   when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
 
-#- include: centos-7.yml
+#- include_tasks: centos-7.yml
 #  when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7'
 
-- include: ubuntu.yml
+- include_tasks: ubuntu.yml
   when: ansible_os_family == 'Debian' and ansible_distribution == 'Ubuntu' 
