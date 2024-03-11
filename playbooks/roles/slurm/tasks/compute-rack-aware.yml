@@ -237,7 +237,7 @@
   when: racks_left_list | length > 0
 
 - name: Run Pam settings
-  include: compute_pam.yml
+  include_tasks: compute_pam.yml
   when: pam|bool
 
 - name: run handlers
