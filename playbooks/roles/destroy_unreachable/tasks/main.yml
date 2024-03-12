@@ -1,7 +1,7 @@
-- include: common.yml
+- include_tasks: common.yml
 
-- include: slurm-rack-aware.yml
+- include_tasks: slurm-rack-aware.yml
   when: rack_aware | bool
 
-- include: slurm.yml
+- include_tasks: slurm.yml
   when: not rack_aware | bool

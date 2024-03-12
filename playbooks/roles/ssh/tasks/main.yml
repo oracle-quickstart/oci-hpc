@@ -1,1 +1,1 @@
-- include: common.yml
+- include_tasks: common.yml
