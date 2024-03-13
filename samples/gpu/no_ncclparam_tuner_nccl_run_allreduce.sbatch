@@ -21,9 +21,11 @@ cat $MACHINEFILE
 
 source /etc/os-release
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
-    python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+    python3 /home/opc/node_ordering_by_rack.py --input_file $hostfile > /dev/null
+    homedirectory=/home/opc
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
-    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
+    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $hostfile > /dev/null
+    homedirectory=/home/ubuntu
 fi
 
 
