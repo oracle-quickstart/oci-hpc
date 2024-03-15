@@ -56,10 +56,12 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-2024.02.27-0"
-       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-2024.02.27-0"
-       "GPU_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-CUDA-12.3-2024.02.27-0"
-       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-CUDA-12.3-2024.02.27-0"
+       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
+       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
+       "GPU_OL7_CUDA12.2" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
+       "GPU_OL8_CUDA12.2" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
+       "GPU_OL7_CUDA12.4" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
+       "GPU_OL8_CUDA12.4" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
   }
 }
 

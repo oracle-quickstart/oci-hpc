@@ -417,8 +417,10 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7"
-      - "GPU_OL8"
+      - "GPU_OL7_CUDA12.2"
+      - "GPU_OL8_CUDA12.2"
+      - "GPU_OL7_CUDA12.4"
+      - "GPU_OL8_CUDA12.4"
     default: "HPC_OL7"
     visible: ${use_marketplace_image_controller}
 
@@ -759,8 +761,10 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7"
-      - "GPU_OL8"
+      - "GPU_OL7_CUDA12.2"
+      - "GPU_OL8_CUDA12.2"
+      - "GPU_OL7_CUDA12.4"
+      - "GPU_OL8_CUDA12.4"
     default: "HPC_OL7"
     visible: ${use_marketplace_image}
 
@@ -1665,8 +1669,10 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7"
-      - "GPU_OL8"
+      - "GPU_OL7_CUDA12.2"
+      - "GPU_OL8_CUDA12.2"
+      - "GPU_OL7_CUDA12.4"
+      - "GPU_OL8_CUDA12.4"
     default: "HPC_OL7"
     visible:
       and:
