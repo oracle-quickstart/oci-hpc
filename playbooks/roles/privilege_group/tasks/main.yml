@@ -1,5 +1,5 @@
-- include: common.yml
+- include_tasks: common.yml
 
-#- include: el.yml
+#- include_tasks: el.yml
 #  when: ansible_os_family == 'RedHat'
 

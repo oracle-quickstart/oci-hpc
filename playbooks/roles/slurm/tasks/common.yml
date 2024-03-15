@@ -187,9 +187,9 @@
     state: directory
 
 - name: Include pyxis prolog files
-  include: common_pyxis.yml
+  include_tasks: common_pyxis.yml
   when: pyxis|bool
 
 - name: Include pyxis prolog files
-  include: common_pmix.yml
+  include_tasks: common_pmix.yml
   when: ansible_os_family == 'RedHat'

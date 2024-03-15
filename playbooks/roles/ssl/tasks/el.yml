@@ -41,7 +41,7 @@
         dest: '{{ ssl_cert_path }}/san.conf'
         mode: '0660'
 
-    - name: Create a certificate request for bastion
+    - name: Create a certificate request for controller
       command: >
         openssl req -new -nodes -sha512
           -subj '/C={{ ssl_cert_country }}/ST={{ ssl_cert_state }}/L={{ ssl_cert_locality }}/O={{ ssl_cert_organization }}/CN={{ ansible_fqdn }}'

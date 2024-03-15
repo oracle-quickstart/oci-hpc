@@ -45,9 +45,6 @@
   gather_facts: true
   tasks: 
     - include_role: 
-        name: cloud-agent_update
-      when: cluster_network|bool and use_compute_agent|default(false)|bool
-    - include_role: 
         name: oci-cn-auth
       when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
@@ -56,7 +53,7 @@
     - include_role: 
         name: nvidia_peermem
 
-- hosts: bastion,slurm_backup,login,compute
+- hosts: controller,slurm_backup,login,compute
   become: true
   vars: 
     destroy: false
@@ -89,7 +86,7 @@
         name: nfs-client
       vars: 
         local_path: "{{ cluster_nfs_path }}"
-        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/export/cluster"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
@@ -136,7 +133,7 @@
         name: nfs-client
       vars:
         local_path: "/home"
-        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/home"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
@@ -176,6 +173,9 @@
       when: enroot|default(true)|bool
     - include_role:
         name: tuned
+    - include_role: 
+        name: nccl-conf
+      when: cluster_network|bool
 
 - hosts: all
   become: true

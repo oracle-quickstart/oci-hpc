@@ -145,7 +145,20 @@ resource "oci_core_route_table" "private_route_table" {
     network_entity_id = oci_core_service_gateway.sg1[0].id
   }
 }
-
+resource "oci_core_dhcp_options" "cluster_dhcp_options" {
+  count          = var.use_existing_vcn ? 0 : 1
+  compartment_id = var.targetCompartment
+  options {
+        type = "DomainNameServer"
+        server_type = "VcnLocalPlusInternet"
+    }
+  options {
+        type = "SearchDomain"
+        search_domain_names = [ "${var.dns_entries? local.zone_name : "cluster.oraclevcn.com"}" ]
+    }
+  vcn_id = oci_core_vcn.vcn[0].id
+  display_name = "${local.cluster_name}_DHCP"
+}
 resource "oci_core_subnet" "public-subnet" {
   count               = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
   # availability_domain = var.ad
@@ -156,6 +169,7 @@ resource "oci_core_subnet" "public-subnet" {
   dns_label           = "public"
   display_name        = "${local.cluster_name}_public_subnet"
   route_table_id      = oci_core_route_table.public_route_table[0].id
+  dhcp_options_id     = oci_core_dhcp_options.cluster_dhcp_options[0].id
 }
 
 resource "oci_core_subnet" "private-subnet" {
@@ -169,4 +183,45 @@ resource "oci_core_subnet" "private-subnet" {
   display_name               = "${local.cluster_name}_private_subnet${count.index+1}"
   prohibit_public_ip_on_vnic = true
   route_table_id             = oci_core_route_table.private_route_table[0].id
+  dhcp_options_id            = oci_core_dhcp_options.cluster_dhcp_options[0].id
+}
+
+resource "oci_dns_zone" "dns_zone" {
+  count          = var.use_existing_vcn ? 0 : 1
+  compartment_id = var.targetCompartment
+  name = "${local.cluster_name}.local" #oci_core_dhcp_options.cluster_dhcp_options[0].options.search_domain_names[0]
+  zone_type = "PRIMARY"
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
+resource "oci_dns_rrset" "rrset-cluster-network-OCI" {
+  for_each        = var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${local.cluster_instances_names[tonumber(each.key)]}.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${local.cluster_instances_names[tonumber(each.key)]}.${local.zone_name}"
+    rtype  = "A"
+    rdata  = "${local.cluster_instances_ips[tonumber(each.key)]}"
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
+resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
+  
+  for_each        = var.slurm && var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${var.queue}-permanent-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${var.queue}-permanent-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
+    rtype  = "A"
+    rdata  = "${local.cluster_instances_ips[tonumber(each.key)]}"
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
 }

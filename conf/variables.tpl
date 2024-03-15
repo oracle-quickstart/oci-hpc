@@ -23,11 +23,14 @@ variable "image" { default = "##IMAGE##" }
 variable "vcn_compartment" { default = ""}
 variable "use_existing_vcn" {default = true}
 variable "vcn_subnet" {default = "${vcn_subnet}"}
+variable "vcn_id" {default = "${vcn_id}"}
 variable "public_subnet_id" { default = "${public_subnet_id}"}
 variable "public_subnet" {default = "${public_subnet}"}
 variable "private_subnet_id" { default = "##PRIVATE_SUBNET_ID##"}
 variable "private_subnet" {default = "##PRIVATE_SUBNET##"}
 variable "rdma_subnet" { default = "${rdma_subnet}" }
+variable "zone_name" {default = "${zone_name}"}
+variable "dns_entries" {default = "${dns_entries}"}
 variable "slurm" { default = ${slurm} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }
@@ -53,10 +56,12 @@ variable "marketplace_version_id" {
        "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
        "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
        "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-2024.01.02-0"
-       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-2024.01.02-1"
-       "GPU_OL7" = "OracleLinux-7-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2024.01.02-0"
-       "GPU_OL8" = "OracleLinux-8-OCA-RHCK-OFED-5.8-3.0.7.0-GPU-535-2024.01.02-1"
+       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
+       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
+       "GPU_OL7_CUDA12.2" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
+       "GPU_OL8_CUDA12.2" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
+       "GPU_OL7_CUDA12.4" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
+       "GPU_OL8_CUDA12.4" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
   }
 }
 
@@ -74,20 +79,20 @@ variable "marketplace_listing_id_GPU" {
 }
 
 
-variable "bastion_block_volume_performance" { 
+variable "controller_block_volume_performance" { 
 /* 
   Allowed values 
   "0.  Lower performance"
   "10. Balanced performance"
   "20. High Performance"
 */ 
-default = "${bastion_block_volume_performance}" 
+default = "${controller_block_volume_performance}" 
 }
 
 variable "scratch_nfs_type_cluster" { default = "${scratch_nfs_type_cluster}"} 
 variable "scratch_nfs_type_pool" { default = "${scratch_nfs_type_pool}" }
-variable "bastion_name" {default = "${bastion_name}"}
-variable "bastion_ip" {default = "${bastion_ip}"}
+variable "controller_name" {default = "${controller_name}"}
+variable "controller_ip" {default = "${controller_ip}"}
 variable "backup_name" {default = "${backup_name}"}
 variable "backup_ip" {default = "${backup_ip}"}
 variable "login_name" {default = "${login_name}"}
@@ -98,10 +103,10 @@ variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
 variable "cluster_block_volume_performance" {default="${cluster_block_volume_performance}"}
 
 variable "ssh_cidr" {default="${ssh_cidr}"}
-variable "bastion_block" {default = "${bastion_block}"}
+variable "controller_block" {default = "${controller_block}"}
 variable "login_block" {default = "${login_block}"}
 
-variable "bastion_mount_ip" {default = "${bastion_mount_ip}"}
+variable "controller_mount_ip" {default = "${controller_mount_ip}"}
 variable "login_mount_ip" {default = "${login_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "home_fss" { default = ${home_fss} } 
@@ -127,7 +132,7 @@ variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 variable "tags" { default = "##TAGS##" }
 variable "private_deployment" { default = ${private_deployment} }
 variable "use_multiple_ads" { default = ${use_multiple_ads} }
-variable "bastion_username" { default = "${bastion_username}" }
+variable "controller_username" { default = "${controller_username}" }
 variable "compute_username" { default = "${compute_username}" }
 
 variable "localdisk" { default = "${localdisk}" }
@@ -135,3 +140,25 @@ variable "log_vol" { default = "${log_vol}" }
 variable "redundancy" { default = "${redundancy}" }
 
 variable "instance_pool_ocpus_denseIO_flex" { default = "##OCPU##"}
+
+variable "BIOS" {
+  default = ${BIOS}
+}
+variable "IOMMU" {
+  default = ${IOMMU}
+}
+variable "SMT" {
+  default = ${SMT}
+}
+variable "virt_instr" {
+  default = ${virt_instr}
+}
+variable "access_ctrl" {
+  default = ${access_ctrl}
+}
+variable "numa_nodes_per_socket" {
+  default = "${numa_nodes_per_socket}"
+}
+variable "percentage_of_cores_enabled" {
+  default = "${percentage_of_cores_enabled}"
+}
