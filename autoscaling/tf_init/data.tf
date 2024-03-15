@@ -36,7 +36,7 @@ data "oci_core_subnet" "private_subnet" {
 }
 
 data "oci_core_subnet" "public_subnet" { 
-  subnet_id = local.bastion_subnet_id
+  subnet_id = local.controller_subnet_id
 } 
  
 data "oci_core_images" "linux" {
@@ -50,4 +50,19 @@ data "oci_core_images" "linux" {
   }
 }
 
+data "oci_core_vcn" "vcn" { 
+  vcn_id = local.vcn_id
+} 
 
+data "oci_dns_views" "dns_views" {
+  compartment_id = var.targetCompartment
+  scope = "PRIVATE"
+  display_name = data.oci_core_vcn.vcn.display_name
+}
+
+data "oci_dns_zones" "dns_zones" {
+    compartment_id = var.targetCompartment
+    name = "${var.zone_name}"
+    zone_type = "PRIMARY"
+    scope = "PRIVATE"
+}

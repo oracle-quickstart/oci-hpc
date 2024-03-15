@@ -162,3 +162,35 @@ resource "oci_core_subnet" "private-subnet" {
   prohibit_public_ip_on_vnic = true
   route_table_id             = oci_core_route_table.private_route_table[0].id
 }
+
+
+resource "oci_dns_rrset" "rrset-cluster-network-OCI" {
+  for_each        = var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${local.cluster_instances_names[tonumber(each.key)]}.${var.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${local.cluster_instances_names[tonumber(each.key)]}.${var.zone_name}"
+    rtype  = "A"
+    rdata  = "${local.cluster_instances_ips[tonumber(each.key)]}"
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
+resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
+  
+  for_each        = var.slurm && var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "${var.queue}-${var.instance_type}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${var.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "${var.queue}-${var.instance_type}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${var.zone_name}"
+    rtype  = "A"
+    rdata  = "${local.cluster_instances_ips[tonumber(each.key)]}"
+    ttl    = 3600
+  }
+  scope = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}

@@ -1,6 +1,6 @@
-{% for item in groups['bastion'] %}
+{% for item in groups['controller'] %}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
-{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} bastion 
+{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} controller 
 {% endfor %}
 {% for item in groups['slurm_backup'] %}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}

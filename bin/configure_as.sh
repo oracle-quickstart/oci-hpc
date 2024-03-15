@@ -4,7 +4,7 @@
 #
 
 #
-# wait for cloud-init completion on the bastion host
+# wait for cloud-init completion on the controller host
 #
 
 scripts=`realpath $0`

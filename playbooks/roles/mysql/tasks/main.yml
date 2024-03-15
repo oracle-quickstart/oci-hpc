@@ -1,11 +1,11 @@
-- include: centos.yml
+- include_tasks: centos.yml
   when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS'
 
-- include: el.yml
+- include_tasks: el.yml
   when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
 
-- include: debian.yml
+- include_tasks: debian.yml
   when: ansible_distribution == 'Ubuntu'
 
-- include: debian.yml
+- include_tasks: debian.yml
   when: ansible_distribution == 'Debian'

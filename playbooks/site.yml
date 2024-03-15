@@ -19,6 +19,12 @@
         name: fix_broken
       when: ansible_os_family == 'Debian'
 
+- hosts: controller, slurm_backup
+  become: true
+  tasks:
+    - include_role: 
+        name: yaml
+        
 - hosts: all
   become: true
   vars: 
@@ -51,9 +57,6 @@
   gather_facts: true
   tasks: 
     - include_role: 
-        name: cloud-agent_update
-      when: cluster_network|bool and use_compute_agent|default(false)|bool
-    - include_role: 
         name: oci-cn-auth
       when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
@@ -62,7 +65,7 @@
     - include_role: 
         name: nvidia_peermem
 
-- hosts: bastion
+- hosts: controller
   become: true
   vars:
     export_path: "/home"
@@ -73,7 +76,7 @@
         name: nfs-server
       when: home_nfs|bool and (not home_fss|bool)
 
-- hosts: bastion
+- hosts: controller
   become: true
   vars:
     tmp_home: "/tmp/home_tmp/"
@@ -92,7 +95,7 @@
         name: fss-home
       when: add_nfs|bool and home_fss|bool
 
-- hosts: bastion, slurm_backup, login
+- hosts: controller, slurm_backup, login
   become: true
   tasks:
     - include_role:
@@ -108,7 +111,7 @@
         name: passwords
 
 
-- hosts: bastion
+- hosts: controller
   become: true
   vars:
 
@@ -124,7 +127,7 @@
       when: ldap|default(true)|bool
 
 # configure if instance_principal is False
-- hosts: bastion
+- hosts: controller
   become: true
   tasks:
     - include_role:
@@ -143,7 +146,7 @@
         name: nfs-client
       vars:
         local_path: "/home"
-        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/home"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
@@ -158,17 +161,17 @@
         lock: "none"
       when: home_nfs|bool and home_fss|bool
  
-- hosts: bastion
+- hosts: controller
   become: true
   vars: 
     export_path: "{{ cluster_nfs_path }}"
     export_name: "cluster"
     local_path:  "/export/cluster"
-    iscsi_ip: "{{ bastion_mount_ip }}"
+    iscsi_ip: "{{ controller_mount_ip }}"
   tasks:
     - include_role: 
         name: iscsi
-      when: bastion_block|default(false)|bool
+      when: controller_block|default(false)|bool
     - include_role: 
         name: nfs-server
       when: cluster_nfs|default(true)|bool
@@ -178,12 +181,12 @@
 - hosts: slurm_backup
   become: true
   vars:
-    iscsi_ip: "{{ bastion_mount_ip }}"
+    iscsi_ip: "{{ controller_mount_ip }}"
     local_path: "/mnt/nfs_backup"
   tasks: 
     - include_role: 
         name: iscsi
-      when: bastion_block|default(false)|bool
+      when: controller_block|default(false)|bool
 
 - hosts: login
   become: true
@@ -218,7 +221,7 @@
         name: nfs-client
       vars: 
         local_path: "{{ cluster_nfs_path }}"
-        export_host: "{{ hostvars[groups['bastion'][0]]['ansible_default_ipv4']['address'] }}"
+        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         export_path: "/export/cluster"
         lock: "all"
@@ -258,12 +261,9 @@
     - include_role: 
         name: hyperthreading
       when: not hyperthreading|default(false)|bool
-
-- hosts: bastion, slurm_backup
-  become: true
-  tasks:
     - include_role: 
-        name: yaml
+        name: nccl-conf
+      when: cluster_network|bool
 
 - hosts: all
   tasks: 
@@ -274,7 +274,7 @@
         name: telegraf
       when: monitoring|default(false)|bool
 
-- hosts: bastion
+- hosts: controller
   tasks: 
     - include_role: 
         name: grafana
