@@ -34,3 +34,23 @@
     group: root
     mode: '0644'
   when: shape_nccl.stdout == '"BM.GPU4.8"'
+
+- name: copy libnccl-ocituner for OL
+  become: true
+  get_url: 
+    url: https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/m1Gdcbiguqst6n_aVwRZIFpRZxUG-wGMvqWS5QJeJbIvNZnqTTA3N1_DDRuYpvJx/n/hpc/b/source/o/tuner/libnccl-ocituner.so.1.0.1-OL
+    dest: /home/opc/libnccl-ocituner.so.1.0.1
+    owner: opc
+    group: privilege
+    mode: '0775'
+  when: ( shape_nccl.stdout == '"BM.GPU.B4.8"' or shape_nccl.stdout == '"BM.GPU.A100-v2.8"' or shape_nccl.stdout == '"BM.GPU4.8"' ) and ansible_distribution == 'OracleLinux'
+
+- name: copy libnccl-ocituner for Ubuntu
+  become: true
+  get_url: 
+    url: https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/m1Gdcbiguqst6n_aVwRZIFpRZxUG-wGMvqWS5QJeJbIvNZnqTTA3N1_DDRuYpvJx/n/hpc/b/source/o/tuner/libnccl-ocituner.so.1.0.1-ubuntu
+    dest: /home/ubuntu/libnccl-ocituner.so.1.0.1
+    owner: ubuntu
+    group: privilege
+    mode: '0775'
+  when: ( shape_nccl.stdout == '"BM.GPU.B4.8"' or shape_nccl.stdout == '"BM.GPU.A100-v2.8"' or shape_nccl.stdout == '"BM.GPU4.8"' ) and ansible_os_family == 'Debian'
