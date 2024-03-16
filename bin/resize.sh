@@ -32,6 +32,7 @@ permanent=1
 controllerName=`hostname`
 cluster_name=${controllerName/-controller/}
 nodes=NULL
+quietMode=False
 for (( i=1; i<=$#; i++)); do
     if [ ${!i} == "--cluster_name" ]
     then
@@ -54,10 +55,13 @@ for (( i=1; i<=$#; i++)); do
     then
       j=$((i+1))
       nodes=${@:j}
+    elif [ ${!i} == "--quiet" ]
+    then
+      quietMode=True
     fi
 done
 
-if [ $resize_type == "remove" ] || [ $resize_type == "remove_unreachable" ]
+if [ $resize_type == "remove" ] || [ $resize_type == "remove_unreachable" ] && [ $quietMode == "False" ]
 then
   echo "$(cat $folder/remove_nodes_prompt.txt)"
   echo "Do you confirm you have done all of the above steps and wish to proceed for the termination of the nodes? Enter 1 for Yes and 2 for No (to exit)."
