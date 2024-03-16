@@ -103,7 +103,7 @@ else
         for node in `scontrol show hostname $nodes 2>&1`
         do
             echo "Cleaning up node " $node
-            /opt/oci-hpc/bin/resize.sh remove_unreachable --nodes $node 
+            /opt/oci-hpc/bin/resize.sh remove_unreachable --nodes $node --quiet
         done
     fi
     cd

@@ -364,7 +364,7 @@ try:
         initial_nodes=[]
         unreachable_nodes=[]
         if cluster_name == "NOCLUSTERFOUND":
-            subprocess.Popen([script_path+'/resize.sh','remove_unreachable','--nodes']+nodes_to_destroy[cluster_name])
+            subprocess.Popen([script_path+'/resize.sh','remove_unreachable','--nodes']+nodes_to_destroy[cluster_name],'--quiet')
             continue
         for node in nodes_to_destroy[cluster_name]:
             try:
@@ -376,9 +376,9 @@ try:
             except:
                 unreachable_nodes.append(node)    
         if len(initial_nodes) > 0:
-            subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--remove_unreachable','--nodes']+initial_nodes)
+            subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--remove_unreachable','--nodes']+initial_nodes,'--quiet')
         if len(unreachable_nodes) > 0:
-            subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove_unreachable','--nodes']+unreachable_nodes)
+            subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove_unreachable','--nodes']+unreachable_nodes,'--quiet')
         time.sleep(1)
 
     for index,cluster in enumerate(cluster_to_build):
