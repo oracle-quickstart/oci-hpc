@@ -91,8 +91,8 @@ def getIdleTime(node):
     return ( datetime.datetime.now() - right_time ).total_seconds()
 
 # Get the last time a node state was changed. This is used to get how long a cluster has been idle for
-def getQueueConf(file):
-    with open(queues_conf_file) as file:
+def getQueueConf(queue_file):
+    with open(queue_file) as file:
         try:
             data = yaml.load(file,Loader=yaml.FullLoader)
         except:
@@ -328,109 +328,125 @@ def getstatus_slurm():
             cluster_destroying.append(clusterName)
     return cluster_to_build,cluster_to_destroy,nodes_to_destroy,cluster_building,cluster_destroying,used_index,current_nodes,building_nodes
 
-if os.path.isfile(lockfile):
-    print( "Lockfile "+lockfile + " is present, exiting" )
-    exit()
-open(lockfile,'w').close()
-try:
-    path = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
-    clusters_path = os.path.join(path,'clusters')
-    config = getQueueConf(queues_conf_file)
+def getAutoscaling():
+    out = subprocess.Popen(["cat /etc/ansible/hosts | grep 'autoscaling =' | awk -F  '= ' '{print $2}'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
+    stdout,stderr = out.communicate()
+    output = stdout.split("\n")
+    autoscaling_value=False
+    for i in range(0,len(output)-1):
+        autoscaling_value=output[i]
+    return autoscaling_value
 
-    cluster_to_build,cluster_to_destroy,nodes_to_destroy,cluster_building,cluster_destroying,used_index,current_nodes,building_nodes=getstatus_slurm()
+autoscaling = getAutoscaling()
 
-    print (time.strftime("%Y-%m-%d %H:%M:%S"))
-    print (cluster_to_build,'cluster_to_build')
-    print (cluster_to_destroy,'cluster_to_destroy')
-    print (nodes_to_destroy,'nodes_to_destroy')
-    print (cluster_building,'cluster_building')
-    print (cluster_destroying,'cluster_destroying')
-    print (current_nodes,'current_nodes')
-    print (building_nodes,'building_nodes')
+if autoscaling == "true":
 
-    for i in cluster_building:
-        for j in cluster_to_build:
-            if i[0]==j[0] and i[1]==j[1] and i[2]==j[2]:
-                cluster_to_build.remove(j)
-                break
-    for cluster in cluster_to_destroy:
-        cluster_name=cluster[0]
-        print ("Deleting cluster "+cluster_name)
-        subprocess.Popen([script_path+'/delete_cluster.sh',cluster_name])
-        time.sleep(5)
+    if os.path.isfile(lockfile):
+        print( "Lockfile "+lockfile + " is present, exiting" )
+        exit()
+    open(lockfile,'w').close()
+    try:
+        path = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
+        clusters_path = os.path.join(path,'clusters')
+        config = getQueueConf(queues_conf_file)
 
-    for cluster_name in nodes_to_destroy.keys():
-        print ("Resizing cluster "+cluster_name)
-        initial_nodes=[]
-        unreachable_nodes=[]
-        if cluster_name == "NOCLUSTERFOUND":
-            subprocess.Popen([script_path+'/resize.sh','remove_unreachable','--nodes']+nodes_to_destroy[cluster_name],'--quiet')
-            continue
-        for node in nodes_to_destroy[cluster_name]:
-            try:
-                alt_names=subprocess.check_output(["cat /etc/hosts | grep "+node],shell=True,universal_newlines=True)
-                for alt_name in alt_names.split("\n")[0].split():
-                    if alt_name.startswith('inst-'):
-                        initial_nodes.append(alt_name)
-                        break
-            except:
-                unreachable_nodes.append(node)    
-        if len(initial_nodes) > 0:
-            subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--remove_unreachable','--nodes']+initial_nodes,'--quiet')
-        if len(unreachable_nodes) > 0:
-            subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove_unreachable','--nodes']+unreachable_nodes,'--quiet')
-        time.sleep(1)
+        cluster_to_build,cluster_to_destroy,nodes_to_destroy,cluster_building,cluster_destroying,used_index,current_nodes,building_nodes=getstatus_slurm()
 
-    for index,cluster in enumerate(cluster_to_build):
-        nodes=cluster[0]
-        instance_type = cluster[1]
-        queue=cluster[2]
-        jobID=str(cluster[3])
-        user=str(cluster[4])
-        jobconfig=getJobConfig(config,queue,instance_type)
-        limits=getQueueLimits(config,queue,instance_type)
-        try:
-            clusterCount=len(used_index[queue][instance_type])
-        except:
-            clusterCount=0
-        if clusterCount>=limits["max_cluster_count"]:
-            print ("This would go over the number of running clusters, you have reached the max number of clusters")
-            continue
-        nextIndex=None
-        if clusterCount==0:
-            if queue in used_index.keys():
-                used_index[queue][instance_type]=[1]
-            else:
-                used_index[queue]={instance_type:[1]}
-            nextIndex=1
-        else:
-            for i in range(1,10000):
-                if not i in used_index[queue][instance_type]:
-                    nextIndex=i
-                    used_index[queue][instance_type].append(i)
+        print (time.strftime("%Y-%m-%d %H:%M:%S"))
+        print (cluster_to_build,'cluster_to_build')
+        print (cluster_to_destroy,'cluster_to_destroy')
+        print (nodes_to_destroy,'nodes_to_destroy')
+        print (cluster_building,'cluster_building')
+        print (cluster_destroying,'cluster_destroying')
+        print (current_nodes,'current_nodes')
+        print (building_nodes,'building_nodes')
+
+        for i in cluster_building:
+            for j in cluster_to_build:
+                if i[0]==j[0] and i[1]==j[1] and i[2]==j[2]:
+                    cluster_to_build.remove(j)
                     break
-        clusterName=queue+'-'+str(nextIndex)+'-'+jobconfig["instance_keyword"]
-        if not queue in current_nodes.keys():
-            current_nodes[queue]={instance_type:0}
-        else:
-            if not instance_type in current_nodes[queue].keys():
-                current_nodes[queue][instance_type]=0
-        if not queue in building_nodes.keys():
-            building_nodes[queue]={instance_type:0}
-        else:
-            if not instance_type in building_nodes[queue].keys():
-                building_nodes[queue][instance_type]=0
-        if nodes > limits["max_cluster_size"]:
-            print ("Cluster "+clusterName+" won't be created, it would go over the total number of nodes per cluster limit")
-        elif current_nodes[queue][instance_type] + building_nodes[queue][instance_type] + nodes > limits["max_number_nodes"]:
-            print ("Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit")
-        else:
-            current_nodes[queue][instance_type]+=nodes
-            clusterCount+=1
-            print ("Creating cluster "+clusterName+" with "+str(nodes)+" nodes")
-            subprocess.Popen([script_path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
+        for cluster in cluster_to_destroy:
+            cluster_name=cluster[0]
+            print ("Deleting cluster "+cluster_name)
+            subprocess.Popen([script_path+'/delete_cluster.sh',cluster_name])
             time.sleep(5)
 
-except Exception:
-    traceback.print_exc()
-os.remove(lockfile)
+        for cluster_name in nodes_to_destroy.keys():
+            print ("Resizing cluster "+cluster_name)
+            initial_nodes=[]
+            unreachable_nodes=[]
+            if cluster_name == "NOCLUSTERFOUND":
+                subprocess.Popen([script_path+'/resize.sh','remove_unreachable','--nodes']+nodes_to_destroy[cluster_name],'--quiet')
+                continue
+            for node in nodes_to_destroy[cluster_name]:
+                try:
+                    alt_names=subprocess.check_output(["cat /etc/hosts | grep "+node],shell=True,universal_newlines=True)
+                    for alt_name in alt_names.split("\n")[0].split():
+                        if alt_name.startswith('inst-'):
+                            initial_nodes.append(alt_name)
+                            break
+                except:
+                    unreachable_nodes.append(node)    
+            if len(initial_nodes) > 0:
+                subprocess.Popen([script_path+'/resize.sh','--force','--cluster_name',cluster_name,'remove','--remove_unreachable','--nodes']+initial_nodes,'--quiet')
+            if len(unreachable_nodes) > 0:
+                subprocess.Popen([script_path+'/resize.sh','--cluster_name',cluster_name,'remove_unreachable','--nodes']+unreachable_nodes,'--quiet')
+            time.sleep(1)
+
+        for index,cluster in enumerate(cluster_to_build):
+            nodes=cluster[0]
+            instance_type = cluster[1]
+            queue=cluster[2]
+            jobID=str(cluster[3])
+            user=str(cluster[4])
+            jobconfig=getJobConfig(config,queue,instance_type)
+            limits=getQueueLimits(config,queue,instance_type)
+            try:
+                clusterCount=len(used_index[queue][instance_type])
+            except:
+                clusterCount=0
+            if clusterCount>=limits["max_cluster_count"]:
+                print ("This would go over the number of running clusters, you have reached the max number of clusters")
+                continue
+            nextIndex=None
+            if clusterCount==0:
+                if queue in used_index.keys():
+                    used_index[queue][instance_type]=[1]
+                else:
+                    used_index[queue]={instance_type:[1]}
+                nextIndex=1
+            else:
+                for i in range(1,10000):
+                    if not i in used_index[queue][instance_type]:
+                        nextIndex=i
+                        used_index[queue][instance_type].append(i)
+                        break
+            clusterName=queue+'-'+str(nextIndex)+'-'+jobconfig["instance_keyword"]
+            if not queue in current_nodes.keys():
+                current_nodes[queue]={instance_type:0}
+            else:
+                if not instance_type in current_nodes[queue].keys():
+                    current_nodes[queue][instance_type]=0
+            if not queue in building_nodes.keys():
+                building_nodes[queue]={instance_type:0}
+            else:
+                if not instance_type in building_nodes[queue].keys():
+                    building_nodes[queue][instance_type]=0
+            if nodes > limits["max_cluster_size"]:
+                print ("Cluster "+clusterName+" won't be created, it would go over the total number of nodes per cluster limit")
+            elif current_nodes[queue][instance_type] + building_nodes[queue][instance_type] + nodes > limits["max_number_nodes"]:
+                print ("Cluster "+clusterName+" won't be created, it would go over the total number of nodes limit")
+            else:
+                current_nodes[queue][instance_type]+=nodes
+                clusterCount+=1
+                print ("Creating cluster "+clusterName+" with "+str(nodes)+" nodes")
+                subprocess.Popen([script_path+'/create_cluster.sh',str(nodes),clusterName,instance_type,queue,jobID,user])
+                time.sleep(5)
+
+    except Exception:
+        traceback.print_exc()
+    os.remove(lockfile)
+else:
+    print("Autoscaling is false")
+    exit()
