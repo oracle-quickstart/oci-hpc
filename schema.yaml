@@ -1062,8 +1062,11 @@ variables:
     title: Private Zone Name
     description: "The zone needs to be private for the stack to be able to add entries"
     type: string
-    visible: ${use_existing_vcn}
-    required: true
+    visible: 
+      and:
+        - ${dns_entries}
+        - ${use_existing_vcn}
+    required: ${dns_entries}
   vcn_subnet:
     type: string
     title: "VCN IP range"
