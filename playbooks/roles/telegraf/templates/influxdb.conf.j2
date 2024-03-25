@@ -1,2 +1,2 @@
 [[outputs.influxdb]]
-  urls = ["http://{{ hostvars[groups['bastion'][0]]['ansible_fqdn'] }}:8086"]
+  urls = ["http://{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}:8086"]

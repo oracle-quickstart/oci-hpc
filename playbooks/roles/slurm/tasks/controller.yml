@@ -6,11 +6,11 @@
         slurm_repos: "epel,ol7_developer_EPEL"
       when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
 
-    - name: run server directives ol7 bastion
+    - name: run server directives ol7 controller
       include_tasks: server.yml
       vars:
         slurm_repos: "epel,ol7_developer_EPEL"
-      when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
+      when: ('controller' in group_names) and (not destroy|bool) and (initial| bool)
   when: ansible_distribution_major_version == '7'
 
 - block:
@@ -20,9 +20,9 @@
         slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
       when: (not destroy|bool) and ((initial|bool) or (not initial|bool and ('compute' in group_names)))
 
-    - name: run server directives ol8 bastion
+    - name: run server directives ol8 controller
       include_tasks: server.yml
       vars:
         slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
-      when: ('bastion' in group_names) and (not destroy|bool) and (initial| bool)
+      when: ('controller' in group_names) and (not destroy|bool) and (initial| bool)
   when: ansible_distribution_major_version == '8'

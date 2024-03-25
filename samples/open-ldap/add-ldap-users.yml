@@ -1,5 +1,5 @@
 ---
-- hosts: bastion
+- hosts: controller
   become: true
   #vars:
     #ansible_remote_tmp: /tmp/ansible_remote_tmp

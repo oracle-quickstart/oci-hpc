@@ -180,7 +180,7 @@ def getResizeNodes(args, metadata, cluster_names, mode):
         cluster_node_set = set()
         for i in range(len(x)):
             if str in x[i]:
-                permanent_cluster = metadata['displayName'].replace('-bastion','')
+                permanent_cluster = metadata['displayName'].replace('-controller','')
                 if permanent_cluster in cluster_names:
                     return cluster_names, resize_cluster_node_dict
                 else:
@@ -334,9 +334,9 @@ def etcHostsSame(nodes, path):
     stdout,stderr = out.communicate()
     x = stdout.split("\n")
     del x[-1]
-    bastion_md5 = x[0].replace('"','')
+    controller_md5 = x[0].replace('"','')
     md5_set = set()
-    md5_set.add(bastion_md5)
+    md5_set.add(controller_md5)
     out = subprocess.Popen(["pdsh -w "+nodes+" 'linecount=`cat /etc/hosts | wc -l ` ; lines=$((linecount-3)) ; tail -n $lines /etc/hosts | md5sum'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True,universal_newlines=True)
     stdout,stderr = out.communicate()
     x = stdout.split("\n")
@@ -354,7 +354,7 @@ def etcHostsSame(nodes, path):
             continue
         else:
             md5 = split_str[1].lstrip()
-            if md5 != bastion_md5:
+            if md5 != controller_md5:
                 if path is None:
                     path = createDir()
                     changeOwner(path)
@@ -363,9 +363,9 @@ def etcHostsSame(nodes, path):
                 f.close()
                 md5_set.add(md5)
     if len(md5_set) > 1:
-        print("/etc/hosts on bastion and nodes is different")
+        print("/etc/hosts on controller and nodes is different")
     else:
-        print("/etc/hosts is same on bastion and all nodes that are ssh-able")
+        print("/etc/hosts is same on controller and all nodes that are ssh-able")
     return path
 
 
@@ -390,7 +390,7 @@ def ociCommand(metadata, cluster_names):
 
 def inventoryNodes(metadata, cluster_names):
     inventory_node_cluster_dict = {}
-    permanent_cluster = metadata['displayName'].replace('-bastion','')
+    permanent_cluster = metadata['displayName'].replace('-controller','')
     for cluster in cluster_names:
         if cluster == permanent_cluster:
             inventory = "/etc/ansible/hosts"
@@ -532,7 +532,7 @@ parser.add_argument('-cn', '--cluster_names', help = "Provide a file that lists 
     number of nodes and/or pcie check and/or gpu throttle check.")
 parser.add_argument('-p', '--pcie', help = "Runs PCIe bandwidth check")
 parser.add_argument('-g', '--gpu_throttle', help = "Performs GPU throttle check")
-parser.add_argument('-e', '--etc_hosts', help = "Performs md5 sum check on all hosts and checks if it matches with the bastion")
+parser.add_argument('-e', '--etc_hosts', help = "Performs md5 sum check on all hosts and checks if it matches with the controller")
 
 args = parser.parse_args()
 

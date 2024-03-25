@@ -1,4 +1,4 @@
-- include: el.yml
+- include_tasks: el.yml
   when: ansible_os_family == 'RedHat'
-- include: ubuntu.yml
+- include_tasks: ubuntu.yml
   when: ansible_os_family == 'Debian'

@@ -12,8 +12,8 @@ source:
 locale: "en"
 
 outputs:
-  bastion:
-    title: "Bastion Instance Public IP"
+  controller:
+    title: "controller Instance Public IP"
     type: copyableString
     visible: true
 
@@ -27,15 +27,15 @@ variableGroups:
       - ${ldap}
   - title: "Headnode options"
     variables:
-      - ${bastion_ad}
-      - ${bastion_shape}
-      - ${bastion_ocpus}
-      - ${bastion_ocpus_denseIO_flex}
-      - ${bastion_custom_memory}
-      - ${bastion_memory}
-      - ${bastion_boot_volume_size}
-      - ${bastion_boot_volume_backup}
-      - ${bastion_object_storage_par}
+      - ${controller_ad}
+      - ${controller_shape}
+      - ${controller_ocpus}
+      - ${controller_ocpus_denseIO_flex}
+      - ${controller_custom_memory}
+      - ${controller_memory}
+      - ${controller_boot_volume_size}
+      - ${controller_boot_volume_backup}
+      - ${controller_object_storage_par}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}
@@ -64,6 +64,14 @@ variableGroups:
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
+      - ${BIOS}
+      - ${IOMMU}
+      - ${SMT}
+      - ${virt_instr}
+      - ${access_ctrl}
+      - ${numa_nodes_per_socket}
+      - ${percentage_of_cores_enabled}
+
   - title: "Additional Login Node"
     variables:
       - ${login_node}
@@ -115,15 +123,15 @@ variableGroups:
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
-  - title: "Advanced bastion options"
+  - title: "Advanced controller options"
     variables:
-      - ${use_marketplace_image_bastion}
-      - ${marketplace_listing_bastion}
-      - ${unsupported_bastion}
-      - ${bastion_image_compartment}
-      - ${custom_bastion_image}
-      - ${unsupported_bastion_image}
-      - ${bastion_username}
+      - ${use_marketplace_image_controller}
+      - ${marketplace_listing_controller}
+      - ${unsupported_controller}
+      - ${controller_image_compartment}
+      - ${custom_controller_image}
+      - ${unsupported_controller_image}
+      - ${controller_username}
   - title: "Advanced storage options"
     variables:
       - ${use_advanced}
@@ -131,9 +139,9 @@ variableGroups:
       - ${home_fss}
       - ${use_cluster_nfs}
       - ${cluster_nfs_path}
-      - ${bastion_block}
-      - ${bastion_block_volume_size}
-      - ${bastion_block_volume_performance}
+      - ${controller_block}
+      - ${controller_block_volume_size}
+      - ${controller_block_volume_performance}
       - ${use_scratch_nfs}
       - ${scratch_nfs_path}
       - ${scratch_nfs_type_cluster}
@@ -156,6 +164,8 @@ variableGroups:
       - ${private_subnet}
       - ${rdma_subnet}
       - ${additional_subnet}
+      - ${dns_entries}
+      - ${zone_name}
   - title: "Software"
     variables:
       - ${privilege_sudo} 
@@ -186,10 +196,10 @@ variableGroups:
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
-      - ${bastion_boot_volume_backup_period}
-      - ${bastion_boot_volume_backup_retention_seconds}
-      - ${bastion_boot_volume_backup_time_zone}
-      - ${bastion_boot_volume_backup_type}
+      - ${controller_boot_volume_backup_period}
+      - ${controller_boot_volume_backup_retention_seconds}
+      - ${controller_boot_volume_backup_time_zone}
+      - ${controller_boot_volume_backup_type}
     visible: false
   - title: "Debug"
     variables: 
@@ -241,7 +251,7 @@ variables:
     default: false
   ldap:
     type: boolean
-    title: "Configure LDAP authentication from bastion"
+    title: "Configure LDAP authentication from controller"
     description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
     default: true
   cluster_name:
@@ -253,22 +263,23 @@ variables:
       and:
         - ${use_custom_name}
     required: true
-  bastion_ad:
+  controller_ad:
     type: oci:identity:availabilitydomain:name
     dependsOn:
       compartmentId: ${targetCompartment}
     visible: complexExpression
     required: true
-    description: "Availability Domain for bastion host"
+    description: "Availability Domain for controller host"
     title: "Availability Domain"
     #default: ${ad}
-  bastion_shape:
+  controller_shape:
+    title: "Controller Shape"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
     default: VM.Standard.E4.Flex
-  bastion_ocpus:
+  controller_ocpus:
     title: "Cores"
     type: integer
     description: Number of OCPU's for flex shape
@@ -279,26 +290,26 @@ variables:
       and: 
         - or: 
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.E3.Flex"
           - eq: 
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.E4.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.E5.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Optimized3.Flex"
           - eq: 
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard3.Flex"
     required: true
 
-  bastion_ocpus_denseIO_flex:
+  controller_ocpus_denseIO_flex:
     title: "Cores"
     type: enum
     description: Number of OCPU's for Dense IO flex shape
@@ -311,11 +322,14 @@ variables:
       and: 
         - or: 
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${controller_shape}
+            - "VM.DenseIO.E5.Flex"
     required: true
 
-  bastion_custom_memory: 
+  controller_custom_memory: 
     title: Use custom memory size
     type: boolean
     default: false
@@ -323,24 +337,24 @@ variables:
       and: 
         - or: 
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.E3.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Optimized3.Flex"
           - eq: 
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.E4.Flex"
           - eq: 
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.E5.Flex"
           - eq: 
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard.A1.Flex"
           - eq:
-            - ${bastion_shape}
+            - ${controller_shape}
             - "VM.Standard3.Flex"
-  bastion_memory:
+  controller_memory:
     title: Memory in GBS
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
@@ -352,42 +366,42 @@ variables:
         - and: 
           - or: 
             - eq:
-              - ${bastion_shape}
+              - ${controller_shape}
               - "VM.Standard.E3.Flex"
             - eq:
-              - ${bastion_shape}
+              - ${controller_shape}
               - "VM.Optimized3.Flex"
             - eq: 
-              - ${bastion_shape}
+              - ${controller_shape}
               - "VM.Standard.E4.Flex"
             - eq: 
-              - ${bastion_shape}
+              - ${controller_shape}
               - "VM.Standard.E5.Flex"
             - eq: 
-              - ${bastion_shape}
+              - ${controller_shape}
               - "VM.Standard.A1.Flex"
             - eq:
-              - ${bastion_shape}
+              - ${controller_shape}
               - "VM.Standard3.Flex"
         - and: 
-            - ${bastion_custom_memory}
+            - ${controller_custom_memory}
     required: true
-  bastion_object_storage_par:
+  controller_object_storage_par:
     title: Create Object Storage PAR
     description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
     type: boolean
     default: true
 
-  unsupported_bastion: 
+  unsupported_controller: 
     title: "Use unsupported image" 
-    description: "Custom image ID for Bastion"
+    description: "Custom image ID for controller"
     type: boolean
     default: false
     visible: 
       not: 
-        - ${use_marketplace_image_bastion}
+        - ${use_marketplace_image_controller}
 
-  use_marketplace_image_bastion:
+  use_marketplace_image_controller:
     type: boolean
     title: "use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
@@ -395,7 +409,7 @@ variables:
     visible: true
 
 
-  marketplace_listing_bastion:
+  marketplace_listing_controller:
     type: enum
     title: "Image version"
     description: "Marketplace listing to use"
@@ -403,74 +417,76 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7"
-      - "GPU_OL8"
+      - "GPU_OL7_CUDA12.2"
+      - "GPU_OL8_CUDA12.2"
+      - "GPU_OL7_CUDA12.4"
+      - "GPU_OL8_CUDA12.4"
     default: "HPC_OL7"
-    visible: ${use_marketplace_image_bastion}
+    visible: ${use_marketplace_image_controller}
 
-  bastion_username: 
-    title: "Default username for bastion" 
-    description: "Custom image ID for Bastion"
+  controller_username: 
+    title: "Default username for controller" 
+    description: "Custom image ID for controller"
     type: string
     default: "opc"
     required: true
     visible: true
  
-  unsupported_bastion_image:
+  unsupported_controller_image:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as bastion image at this moment."
+    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as controller image at this moment."
     type: string
     required: true
-    visible: ${unsupported_bastion}
+    visible: ${unsupported_controller}
     default: "image.ocid"
   
-  bastion_image_compartment:
-    title: "bastion image compartment"
+  controller_image_compartment:
+    title: "controller image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
       and: 
         - not: 
-          - ${unsupported_bastion}
+          - ${unsupported_controller}
         - not:
-          - ${use_marketplace_image_bastion}
+          - ${use_marketplace_image_controller}
     required: true
 
-  custom_bastion_image:
-    title: "Bastion Image ID"
-    description: "Custom image ID for bastion nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 20.04 are supported as bastion image at this moment. "
+  custom_controller_image:
+    title: "controller Image ID"
+    description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 20.04 are supported as controller image at this moment. "
     type: oci:core:image:id
     dependsOn:
-      compartmentId: ${bastion_image_compartment}
+      compartmentId: ${controller_image_compartment}
     visible: 
       and: 
         - not: 
-          - ${unsupported_bastion}
+          - ${unsupported_controller}
         - not:
-          - ${use_marketplace_image_bastion}
+          - ${use_marketplace_image_controller}
     required: true
 
-  bastion_boot_volume_size:
+  controller_boot_volume_size:
     type: integer
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 100
 
-  bastion_boot_volume_backup:
+  controller_boot_volume_backup:
     type: boolean
     title: "Enable boot volume backup"
     description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
     default: true
   
-  bastion_block:
+  controller_block:
     type: boolean
     title: Additional block volume for shared space
     visible:
       and:
         - ${use_advanced}
     default: false
-  bastion_block_volume_size:
+  controller_block_volume_size:
     required: true
     type: integer
     title: "Size of the additional volume in GB"
@@ -478,9 +494,9 @@ variables:
     visible:
       and:
         - and:
-            - ${bastion_block}
+            - ${controller_block}
             - ${use_advanced}
-  bastion_block_volume_performance:
+  controller_block_volume_performance:
     type: enum
     title: "Block volume performance"
     required: true
@@ -492,11 +508,11 @@ variables:
     visible:
       and:
         - and:
-            - ${bastion_block}
+            - ${controller_block}
             - ${use_advanced}
   home_nfs:
     type: boolean
-    title: "shared NFS /home from bastion. To use FSS, make sure you created one or added NFS mount information"
+    title: "shared NFS /home from controller. To use FSS, make sure you created one or added NFS mount information"
     visible:
       and:
         - ${use_advanced}
@@ -515,7 +531,7 @@ variables:
 
   use_cluster_nfs:
     type: boolean
-    title: "shared NFS volume from bastion"
+    title: "shared NFS volume from controller"
     visible:
       and:
         - ${use_advanced}
@@ -642,6 +658,9 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.DenseIO.E5.Flex"
     required: true
 
   instance_pool_custom_memory: 
@@ -742,8 +761,10 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7"
-      - "GPU_OL8"
+      - "GPU_OL7_CUDA12.2"
+      - "GPU_OL8_CUDA12.2"
+      - "GPU_OL7_CUDA12.4"
+      - "GPU_OL8_CUDA12.4"
     default: "HPC_OL7"
     visible: ${use_marketplace_image}
 
@@ -752,6 +773,9 @@ variables:
     title: "use compute agent"
     description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The new marketplace images need the compute agent enabled."
     default: true
+    visible: 
+      not: 
+        - ${use_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
@@ -810,6 +834,65 @@ variables:
         - and: 
             - ${unsupported}
 
+  BIOS: 
+    title: "Modify BIOS options" 
+    description: "Make sure that the BIOS options are changeable for the specific shape selected"
+    type: boolean
+    default: false
+    visible: true
+
+  IOMMU: 
+    title: "IOMMU enabled" 
+    type: boolean
+    default: false
+    visible: ${BIOS}
+
+  SMT: 
+    title: "SMT Enabled" 
+    type: boolean
+    default: true
+    visible: ${BIOS}
+
+  virt_instr: 
+    title: "Virtualization instructions" 
+    description: "Virtualization instructions include Secure Virtual Machine for AMD shapes or VT-x for Intel shapes"
+    type: boolean
+    default: false
+    visible: ${BIOS}    
+
+  access_ctrl: 
+    title: "Access Control Service" 
+    description: "Access control service lets the platform enforce PCIe device isolation"
+    type: boolean
+    default: false
+    visible: ${BIOS} 
+
+  numa_nodes_per_socket: 
+    title: "Numa Node per Socket" 
+    description: "NUMA Settings"
+    type: enum
+    enum:
+      - "Default"
+      - "NPS0"
+      - "NPS1"
+      - "NPS2"
+      - "NPS4"
+    default: "Default"
+    visible: ${BIOS} 
+
+  percentage_of_cores_enabled: 
+    title: "Numa Node per Socket" 
+    description: "NUMA Settings"
+    type: enum
+    enum:
+      - "Default"
+      - "25"
+      - "50"
+      - "75"
+      - "100"
+    default: "Default"
+    visible: ${BIOS} 
+    
   use_advanced:
     type: boolean
     title: "Show advanced storage options"
@@ -923,7 +1006,7 @@ variables:
   private_deployment:
     type: boolean
     title: "Deploy Master Node without a public IP"
-    description: "Deploy with no Public IP for the master node. 'Master Node Subnet' must be a Private subnet. This will require the creation of a bastion service, VPN or FastConnect to connect via ssh to the master node"      
+    description: "Deploy with no Public IP for the master node. 'Master Node Subnet' must be a Private subnet. This will require the creation of a controller service, VPN or FastConnect to connect via ssh to the master node"      
     default: false
   use_existing_vcn:
     type: boolean
@@ -968,6 +1051,17 @@ variables:
       compartmentId: ${vcn_compartment}
       vcnId: ${vcn_id}
       hidePublicSubnet: true
+    visible: ${use_existing_vcn}
+    required: true
+  dns_entries: 
+    title: DNS entry
+    type: boolean
+    default: true
+    description: "Only available for a private zone" 
+  zone_name:
+    title: Private Zone Name
+    description: "The zone needs to be private for the stack to be able to add entries"
+    type: string
     visible: ${use_existing_vcn}
     required: true
   vcn_subnet:
@@ -1042,7 +1136,7 @@ variables:
     title: "Create a back-up Slurm Controller"
     default: false
     required: true
-    description: "Add a second master of the same shape as the bastion as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
+    description: "Add a second master of the same shape as the controller as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
     visible: ${slurm}
 
   pyxis:
@@ -1120,7 +1214,7 @@ variables:
   inst_prin:
     type: boolean
     title: "Use Instance Principal instead of configuration file" 
-    description: "You will need to set a dynamic group and policy to allow the bastion to authenticate. This will not be created automatically." 
+    description: "You will need to set a dynamic group and policy to allow the controller to authenticate. This will not be created automatically." 
     default: true
 
   api_user_key:
@@ -1302,7 +1396,7 @@ variables:
     type: boolean
     title: "Create a Mysql Service"
     default: false
-    description: "false will use the bastion as mysqlDB"
+    description: "false will use the controller as mysqlDB"
     visible: 
       and:
         - ${autoscaling}
@@ -1397,6 +1491,9 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.DenseIO.E5.Flex"
         - ${login_node}
     required: true
     
@@ -1572,8 +1669,10 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7"
-      - "GPU_OL8"
+      - "GPU_OL7_CUDA12.2"
+      - "GPU_OL8_CUDA12.2"
+      - "GPU_OL7_CUDA12.4"
+      - "GPU_OL8_CUDA12.4"
     default: "HPC_OL7"
     visible:
       and:
