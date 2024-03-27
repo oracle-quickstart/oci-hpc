@@ -77,7 +77,7 @@ def check_rttcc_status():
             command = ['sudo', 'mlxreg', '-d', device, '-y', '--get', '--reg_name=PPCC', '--indexes=local_port=1,pnat=0,lp_msb=0,algo_slot=0,algo_param_index=0']
         else:
             command = ['mlxreg', '-d', device, '-y', '--set', 'cmd_type=3', '--reg_name=PPCC', '--indexes=local_port=1,pnat=0,lp_msb=0,algo_slot=0,algo_param_index=0']
-        result = subprocess.run(command, stdout=subprocess.PIPE)
+        result = subprocess.run(command, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         output = result.stdout.decode('utf-8')
         filtered_output = [line for line in output.split('\n') if line.startswith('value')]
         for line in filtered_output:
