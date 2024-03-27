@@ -114,7 +114,7 @@ def check_ecc_errors():
     # Find the lines containing "SRAM Correctable" and "DRAM Correctable"
     sram_matches = re.findall(r'SRAM Uncorrectable\s+:\s+(\d+)', output)
     if len(sram_matches)==0:
-        sram_matches = re.findall(r'SRAM Uncorrectable SEC-DED\s+:\s+(\d+)', output)
+        sram_matches = re.findall(r'SRAM Uncorrectable Parity\s+:\s+(\d+)', output)
     dram_matches = re.findall(r'DRAM Uncorrectable\s+:\s+(\d+)', output)
     gpu_matches = re.findall(r'\nGPU\s+(.*)\n', output)
     vol_sram_line = sram_matches[0::2]
