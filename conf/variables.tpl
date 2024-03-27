@@ -53,10 +53,6 @@ variable "marketplace_listing" {
 variable "marketplace_version_id" { 
   type = map(string) 
   default = { 
-       "1" = "OL7.9-OFED5.3-1.0.0.1-RHCK-20210607"
-       "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
-       "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
-       "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
        "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
        "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
        "GPU_OL7_CUDA12.2" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
@@ -69,9 +65,7 @@ variable "marketplace_version_id" {
 
 # To find the Appcatalog OCID, run 
 # oci compute pic listing list --display-name "Oracle Linux 7 - HPC Cluster Networking Image"
-variable "old_marketplace_listing_id" {
-    default = "ocid1.appcataloglisting.oc1..aaaaaaaahzcnanlki5vonyaeoiajjisejikzczygqqwheifymjqx3ft4iowa"
-}
+
 variable "marketplace_listing_id_HPC" {
     default = "ocid1.appcataloglisting.oc1..aaaaaaaahz2xiwfcsbebmqg7sp6lhdt6r2vsjro5jfukkl5cntlqvfhkbzaq"
 }
