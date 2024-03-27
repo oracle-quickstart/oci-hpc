@@ -193,3 +193,21 @@
 - name: Include pyxis prolog files
   include_tasks: common_pmix.yml
   when: ansible_os_family == 'RedHat'
+
+- name: Ensure prolog directory exists
+  become: true
+  file:
+    path: "{{ slurm_conf_path }}/prolog.d"
+    state: directory
+    owner: root
+    group: root
+  when: healthchecks|bool
+
+- name: copy healthchecks
+  become: true
+  copy: 
+    src: healthchecks.sh
+    dest: "{{ slurm_conf_path }}/prolog.d/healthchecks.sh"
+    owner: root
+    group: root
+    mode: '0755'

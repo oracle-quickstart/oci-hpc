@@ -12,8 +12,8 @@ SlurmdPidFile=/var/run/slurmd.pid
 SlurmdPort=6818
 SlurmdSpoolDir=/var/spool/slurmd
 SlurmUser=slurm
-{% if pyxis|bool %}
-Prolog=/etc/slurm/prolog.sh
+{% if pyxis|bool or healthchecks|bool%}
+Prolog=/etc/slurm/prolog.d/*
 {% endif %}
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log

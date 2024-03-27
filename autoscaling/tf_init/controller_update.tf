@@ -77,7 +77,8 @@ resource "local_file" "inventory" {
     compute_username = var.compute_username,
     pam = var.pam,
     sacct_limits = var.sacct_limits,
-    use_compute_agent=var.use_compute_agent
+    use_compute_agent=var.use_compute_agent,
+    healthchecks=var.healthchecks
     })
   filename   = "${local.controller_path}/inventory"
 }
