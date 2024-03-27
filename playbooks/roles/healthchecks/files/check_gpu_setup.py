@@ -340,7 +340,7 @@ def slurm_reason(message):
     slurm_error_count+=1
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Check H100 setup')
+    parser = argparse.ArgumentParser(description='Check Host setup')
     parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level default: INFO")
     parser.add_argument('--bw-test', dest='bw_test', action='store_true', default=False, help='Run GPU bandwidth test (default: False)')
     parser.add_argument('--bw-test-exe', dest='bw_test_exe', help='Location to cuda-sampels bandwidthTest')
@@ -352,7 +352,7 @@ if __name__ == '__main__':
     logger.setLevel(args.log_level)
 
     datetime_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
-    logger.info(f"Started H100 setup check at: {datetime_str}")
+    logger.info(f"Started GPU host setup check at: {datetime_str}")
     try:
         oca_version = get_oca_version()
     except Exception as e:
@@ -440,7 +440,7 @@ if __name__ == '__main__':
     slurm_drain_reason = ""
     slurm_error_count = 0
 
-    logger.info(f"--------- Summary of H100 setup check for {host_serial} ---------")
+    logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
     if oca_version < "1.39.0":
         logger.error(f"Oracle Cloud Agent: {oca_version} needs to be updated to 1.39.0 or higher")
         slurm_reason("OCA version Error")
