@@ -261,7 +261,9 @@ variable "zone_name" {
 variable "dns_entries" {
   default = true
 }
-  
+variable "healthchecks" {
+  default = true
+}
 variable "BIOS" {
   default = false
 }

@@ -31,6 +31,7 @@ variable "private_subnet" {default = "##PRIVATE_SUBNET##"}
 variable "rdma_subnet" { default = "${rdma_subnet}" }
 variable "zone_name" {default = "${zone_name}"}
 variable "dns_entries" {default = "${dns_entries}"}
+variable "healthchecks" {default = "${healthchecks}"}
 variable "slurm" { default = ${slurm} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }

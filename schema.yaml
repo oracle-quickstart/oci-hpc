@@ -181,6 +181,7 @@ variableGroups:
       - ${pyxis}
       - ${pam}
       - ${sacct_limits}
+      - ${healthchecks}
 
   - title: "Hidden"
     variables:
@@ -1196,6 +1197,13 @@ variables:
     description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs if the right limits are not set"
     visible: ${slurm}
 
+  healthchecks:
+    type: boolean
+    title: "Turn on Healthchecks for GPU nodes"
+    default: true
+    description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state"
+    visible: ${slurm}
+ 
   monitoring:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
