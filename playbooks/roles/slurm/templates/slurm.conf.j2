@@ -46,7 +46,11 @@ TopologyPlugin=topology/tree
 TopologyParam=SwitchAsNodeRank
 TreeWidth=2048
 SlurmctldParameters=enable_configless
-
+{% if healthchecks|bool %}
+HealthCheckProgram=/etc/slurm/prolog.d/healthchecks.sh
+HealthCheckInterval=300
+HealthCheckNodeState=NONDRAINED_IDLE,CYCLE
+{% endif %}
 {% if sacct_limits|bool %}
 AccountingStorageTRES=gres/gpu
 AccountingStorageEnforce=limits,associations,qos,safe
