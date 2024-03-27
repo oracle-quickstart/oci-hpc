@@ -15,7 +15,7 @@
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
   with_items: 
-    - check_h100_setup.py
+    - check_gpu_setup.py
     - gpu_bw_test.py
     - rdma_link_flapping.py
     - xid_checker.py
