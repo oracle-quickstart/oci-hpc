@@ -10,7 +10,15 @@ from rdma_link_flapping import LinkFlappingTest
 from xid_checker import XidChecker
 import platform
 import os
-import sys
+import requests
+
+def get_metadata():
+    """ Make a request to metadata endpoint """
+    headers = { 'Authorization' : 'Bearer Oracle' }
+    metadata_url = "http://169.254.169.254/opc/"
+    metadata_ver = "2"
+    request_url = metadata_url + "v" + metadata_ver + "/instance/"
+    return requests.get(request_url, headers=headers).json()
 
 def is_user_root():
     # Check if the user is root
@@ -189,8 +197,14 @@ def check_row_remap_errors():
 
 def check_rdma_link_status():
     status = True
-    devices = ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
-
+    metadata=get_metadata()
+    shape=metadata['shape']
+    if shape == "BM.GPU.H100.8":
+        devices = ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
+    elif shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8":
+        devices = ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
+    elif shape == "BM.GPU.4.8":
+        devices = ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
     link_issues = []
     for device in devices:
         # Run the mlxlink command
@@ -501,7 +515,7 @@ if __name__ == '__main__':
         slurm_reason("Missing GPU Error")
 
     datetime_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
-    logger.info(f"Finished H100 setup check at: {datetime_str}")
+    logger.info(f"Finished GPU host setup check at: {datetime_str}")
 
     if slurm_error_count > 0 and args.slurm:
         print("Healthcheck:: "+slurm_drain_reason[:-1])
