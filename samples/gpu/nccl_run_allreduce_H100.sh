@@ -57,7 +57,7 @@ do
   --bind-to numa \
   -npernode 8 \
   --mca coll ^hcoll \
-  -x NCCL_CROSS_NIC=1 \
+  -x NCCL_CROSS_NIC=2 \
   -x NCCL_DEBUG=WARN \
   -x NCCL_CUMEM_ENABLE=0 \
   -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
@@ -78,6 +78,7 @@ do
   -x NCCL_IGNORE_CPU_AFFINITY=1 \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
   -x NCCL_TOPO_FILE=~/H100-topology.xml \
+  -x NCCL_MIN_NCHANNELS=32 \
   --np $np --hostfile $hostfile  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -f 2 -g 1 >>  $logfile
 
   tail -n 32 $logfile
