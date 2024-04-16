@@ -5,9 +5,14 @@ from shared_logging import logger
 import subprocess
 import sys
 import re
+import os
 
 class XidChecker:
     def __init__(self, dmesg_cmd="dmesg", time_interval=60):
+        # if user is root
+        if not os.geteuid() == 0:
+            logger.info("The XidChecker script did not run since it must be run as root")
+            sys.exit(1)
         self.dmesg_cmd = dmesg_cmd
         self.results = {}
 
