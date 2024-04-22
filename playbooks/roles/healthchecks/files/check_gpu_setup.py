@@ -233,7 +233,7 @@ def check_rdma_link_status():
         vendor_serial_num = re.search(r'Vendor Serial Number.*', output).group().split(":")[1].strip()
         nic_fw_version = re.search(r'Firmware Version.*', output).group().split(":")[1].strip()
         cable_fw_version = re.search(r'FW Version.*', output).group().split(":")[1].strip()
-
+        physical_BER = re.search(r'Raw Physical BER.*', output).group().split(":")[1].strip()
         # Remove hidden characters from the output
         link_state = re.sub(color_pattern, '', link_state)
         nic_fw_version = re.sub(color_pattern, '', nic_fw_version)
@@ -248,8 +248,12 @@ def check_rdma_link_status():
             status = False
         if recommendation != "No issue was observed":
             logger.debug(f"{device}: {recommendation}")
-            link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {recommendation}")
-            status = False
+            if "Bad signal integrity" in recommendation and float(physical_BER) < 1e-09:
+                logger.debug(f"Recommandation is {recommendation} but the Physical error are low enough that it can be ignored")
+            else : 
+                logger.debug(f"Recommandation is {recommendation} and the Physical error count is too high to be ignored: {physical_BER}")
+                link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {recommendation}")
+                status = False
         else:
             logger.debug(f"{device}: {recommendation}")
 
