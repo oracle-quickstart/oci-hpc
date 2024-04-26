@@ -113,9 +113,6 @@
     - include_role:
         name: sssd
       when: ldap|default(true)|bool
-    - include_role: 
-        name: spack
-      when: spack|default(false)|bool
 
 - hosts: compute_to_add
   become: true
