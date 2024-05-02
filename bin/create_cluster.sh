@@ -1,4 +1,16 @@
 #!/bin/bash
+set -euo pipefail
+
+catch_grep() { grep "$@" || test $? = 1; }
+trap err_handling ERR
+err_handling() {
+    exitcode=$?
+    printf 'failed with code: %s\n' "$exitcode"
+    printf 'on command: %s\n' "$BASH_COMMAND"
+    printf 'line: %d\n' "${BASH_LINENO[0]}"
+    exit $exitcode
+}
+
 if [ $# -eq 0 ] || [ $# -eq 1 ]
 then
   echo "No enough arguments supplied, please supply number of nodes, cluster name, instance type, queue name, trigger Job ID and comma separated list of tags"
@@ -17,6 +29,7 @@ then
 else
   debug=0
 fi
+tags=${tags:-""}
 
 if [ $EUID -eq 0 ]
 then
@@ -90,8 +103,8 @@ do
 
   echo `date -u '+%Y%m%d%H%M'` >> $logs_folder/create_$2_${date}.log 2>&1
   terraform init >> $logs_folder/create_$2_${date}.log 2>&1
-  terraform apply -auto-approve -parallelism $1 >> $logs_folder/create_$2_${date}.log 2>&1
-  status=$?
+  status=0
+  terraform apply -auto-approve -parallelism $1 >> $logs_folder/create_$2_${date}.log 2>&1 || status=$?
   end=`date -u +%s`
   end_timestamp=`date -u +'%F %T'`
   runtime=$((end-start))
@@ -122,7 +135,7 @@ do
     fi
     break
   else
-    ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | grep Error: | grep -o 'Output.*'`
+    ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | catch_grep Error: | catch_grep -o 'Output.*'`
     if [ "$ERROR_MSG" == "" ]
     then
         ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | grep Error:`
@@ -135,18 +148,18 @@ do
     then
         inst_pool_work_request_error_messages=""
     else
-        requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="LaunchInstancesInPool") | .id'` >> $logs_folder/create_$2_${date}.log 2>&1
-        inst_pool_work_request_error_messages=`oci work-requests work-request-error list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $logs_folder/create_$2_${date}.log 2>&1
+        requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${inst_pool_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="LaunchInstancesInPool") | .id'` >> $logs_folder/create_$2_${date}.log 2>&1 || true
+        inst_pool_work_request_error_messages=`oci work-requests work-request-error list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $logs_folder/create_$2_${date}.log 2>&1 || true
     fi
     if [ "$inst_pool_work_request_error_messages" == "" ] && [ "$cluster_network" == "true" ]
     then
-        cn_ocid=`oci compute-management cluster-network list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $logs_folder/create_$2_${date}.log 2>&1
+        cn_ocid=`oci compute-management cluster-network list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --display-name $2 | jq '.data | sort_by(."time-created" | split(".") | .[0] | strptime("%Y-%m-%dT%H:%M:%S")) |.[-1] .id'` >> $logs_folder/create_$2_${date}.log 2>&1 || true
         if [ "$cn_ocid" == "" ]
         then
           cn_work_request_error_messages=""
         else
-          requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${cn_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="CreateClusterNetworkReservation") | .id'` >> $logs_folder/create_$2_${date}.log 2>&1
-          cn_work_request_error_messages=`oci work-requests work-request-log-entry list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $logs_folder/create_$2_${date}.log 2>&1
+          requestID=`oci work-requests work-request list --compartment-id $compartment_ocid  --auth instance_principal --region $region --all --resource-id ${cn_ocid:1:-1} | jq '.data | .[] | select(."operation-type"=="CreateClusterNetworkReservation") | .id'` >> $logs_folder/create_$2_${date}.log 2>&1 || true
+          cn_work_request_error_messages=`oci work-requests work-request-log-entry list --work-request-id ${requestID:1:-1} --auth instance_principal --region $region --all | jq '.data | .[] | .message '` >> $logs_folder/create_$2_${date}.log 2>&1 || true
         fi
     else
         cn_work_request_error_messages=""
@@ -168,6 +181,8 @@ then
   if [ $debug -eq 0 ]
   then
     $folder/delete_cluster.sh $2 FORCE
+    oci compute-management instance-pool terminate --auth instance_principal --region $region --instance-pool-id ${inst_pool_ocid:1:-1} || true
+    oci compute-management cluster-network terminate  --auth instance_principal --region $region --cluster-network-id ${cn_ocid:1:-1} || true
   else
     echo "The cluster $2 will not be deleted as we are in debug mode"
   fi
