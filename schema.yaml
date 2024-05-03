@@ -837,7 +837,8 @@ variables:
 
   BIOS: 
     title: "Modify BIOS options" 
-    description: "Make sure that the BIOS options are changeable for the specific shape selected"
+    description: "WARNING : Do NOT change those if you have not tested the changes on a single instance. Error will be \"Shape does not support the provided platform
+configuration\" "
     type: boolean
     default: false
     visible: true
