@@ -1201,7 +1201,7 @@ configuration\" "
   healthchecks:
     type: boolean
     title: "Turn on Healthchecks for GPU nodes"
-    default: true
+    default: false
     description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state"
     visible: ${slurm}
  
