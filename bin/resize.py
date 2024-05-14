@@ -753,6 +753,7 @@ else:
         if len(unreachable_instances):
             if not remove_unreachable:
                 print("STDOUT: At least one unreachable node is in the inventory")
+                print(unreachable_instances)
                 print("STDOUT: Not doing anything")
                 exit(1)
             else:
