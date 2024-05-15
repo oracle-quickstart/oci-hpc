@@ -418,11 +418,11 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7_CUDA12.2"
-      - "GPU_OL8_CUDA12.2"
-      - "GPU_OL7_CUDA12.4"
-      - "GPU_OL8_CUDA12.4"
-    default: "HPC_OL7"
+      - "GPU_OL8_NV550"
+      - "GPU_OL7_NV550"
+      - "GPU_OL8_NV535"
+      - "GPU_OL7_NV535"
+    default: "GPU_OL8_NV550"
     visible: ${use_marketplace_image_controller}
 
   controller_username: 
@@ -762,11 +762,11 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7_CUDA12.2"
-      - "GPU_OL8_CUDA12.2"
-      - "GPU_OL7_CUDA12.4"
-      - "GPU_OL8_CUDA12.4"
-    default: "HPC_OL7"
+      - "GPU_OL8_NV550"
+      - "GPU_OL7_NV550"
+      - "GPU_OL8_NV535"
+      - "GPU_OL7_NV535"
+    default: "HPC_OL8"
     visible: ${use_marketplace_image}
 
   use_compute_agent:
@@ -1681,11 +1681,11 @@ configuration\" "
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7_CUDA12.2"
-      - "GPU_OL8_CUDA12.2"
-      - "GPU_OL7_CUDA12.4"
-      - "GPU_OL8_CUDA12.4"
-    default: "HPC_OL7"
+      - "GPU_OL8_NV550"
+      - "GPU_OL7_NV550"
+      - "GPU_OL8_NV535"
+      - "GPU_OL7_NV535"
+    default: "HPC_OL8"
     visible:
       and:
         - ${use_marketplace_image_login}
