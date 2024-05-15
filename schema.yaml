@@ -908,7 +908,7 @@ configuration\" "
     visible:
       and:
         - ${use_advanced}
-    default: true
+    default: false
 
   scratch_nfs_type_cluster:
     type: enum
