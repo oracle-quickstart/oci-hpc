@@ -447,7 +447,10 @@ def getNFSnode(inventory):
         return ''
     if len(dict['nfs']) == 0:
         return ''
-    return dict['nfs'][0].split()[0]
+    if dict['nfs'][0] == '\n':
+        return ''
+    else:
+        return dict['nfs'][0].split()[0]
 
 def get_summary(comp_ocid,cluster_name):
     CN = "CN"
