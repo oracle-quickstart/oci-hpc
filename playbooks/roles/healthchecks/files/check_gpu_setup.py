@@ -248,7 +248,7 @@ def check_rdma_link_status():
             status = False
         if recommendation != "No issue was observed":
             logger.debug(f"{device}: {recommendation}")
-            if "Bad signal integrity" in recommendation and float(physical_BER) < 1e-09:
+            if "Bad signal integrity" in recommendation and float(physical_BER) < 1e-07:
                 logger.debug(f"Recommandation is {recommendation} but the Physical error are low enough that it can be ignored")
             else : 
                 logger.debug(f"Recommandation is {recommendation} and the Physical error count is too high to be ignored: {physical_BER}")
