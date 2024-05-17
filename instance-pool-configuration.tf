@@ -22,8 +22,23 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
         user_data           = base64encode(data.template_file.config.rendered)
       }
       agent_config {
-        is_management_disabled = true
+
+        are_all_plugins_disabled = false
+        is_management_disabled   = true
+        is_monitoring_disabled   = false
+
+        plugins_config {
+          desired_state = "DISABLED"
+          name          = "OS Management Service Agent"
+          }
+        dynamic plugins_config {
+          for_each = length(regexall(".*GPU.*", var.instance_pool_shape)) > 0 ? ["ENABLED"] : ["DISABLED"]
+          content {
+          name = "Compute RDMA GPU Monitoring"
+          desired_state = plugins_config.value
+          }
         }
+      }
       shape = var.instance_pool_shape
 
       dynamic "shape_config" {

@@ -181,6 +181,7 @@ variableGroups:
       - ${pyxis}
       - ${pam}
       - ${sacct_limits}
+      - ${healthchecks}
 
   - title: "Hidden"
     variables:
@@ -417,11 +418,11 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7_CUDA12.2"
-      - "GPU_OL8_CUDA12.2"
-      - "GPU_OL7_CUDA12.4"
-      - "GPU_OL8_CUDA12.4"
-    default: "HPC_OL7"
+      - "GPU_OL8_NV550"
+      - "GPU_OL7_NV550"
+      - "GPU_OL8_NV535"
+      - "GPU_OL7_NV535"
+    default: "HPC_OL8"
     visible: ${use_marketplace_image_controller}
 
   controller_username: 
@@ -761,11 +762,11 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7_CUDA12.2"
-      - "GPU_OL8_CUDA12.2"
-      - "GPU_OL7_CUDA12.4"
-      - "GPU_OL8_CUDA12.4"
-    default: "HPC_OL7"
+      - "GPU_OL8_NV550"
+      - "GPU_OL7_NV550"
+      - "GPU_OL8_NV535"
+      - "GPU_OL7_NV535"
+    default: "GPU_OL8_NV550"
     visible: ${use_marketplace_image}
 
   use_compute_agent:
@@ -836,7 +837,8 @@ variables:
 
   BIOS: 
     title: "Modify BIOS options" 
-    description: "Make sure that the BIOS options are changeable for the specific shape selected"
+    description: "WARNING : Do NOT change those if you have not tested the changes on a single instance. Error will be \"Shape does not support the provided platform
+configuration\" "
     type: boolean
     default: false
     visible: true
@@ -906,7 +908,7 @@ variables:
     visible:
       and:
         - ${use_advanced}
-    default: true
+    default: false
 
   scratch_nfs_type_cluster:
     type: enum
@@ -1062,8 +1064,11 @@ variables:
     title: Private Zone Name
     description: "The zone needs to be private for the stack to be able to add entries"
     type: string
-    visible: ${use_existing_vcn}
-    required: true
+    visible: 
+      and:
+        - ${dns_entries}
+        - ${use_existing_vcn}
+    required: ${dns_entries}
   vcn_subnet:
     type: string
     title: "VCN IP range"
@@ -1193,6 +1198,13 @@ variables:
     description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs if the right limits are not set"
     visible: ${slurm}
 
+  healthchecks:
+    type: boolean
+    title: "Turn on Healthchecks for GPU nodes"
+    default: false
+    description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state"
+    visible: ${slurm}
+ 
   monitoring:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
@@ -1669,11 +1681,11 @@ variables:
     enum:
       - "HPC_OL7"
       - "HPC_OL8"
-      - "GPU_OL7_CUDA12.2"
-      - "GPU_OL8_CUDA12.2"
-      - "GPU_OL7_CUDA12.4"
-      - "GPU_OL8_CUDA12.4"
-    default: "HPC_OL7"
+      - "GPU_OL8_NV550"
+      - "GPU_OL7_NV550"
+      - "GPU_OL8_NV535"
+      - "GPU_OL7_NV535"
+    default: "HPC_OL8"
     visible:
       and:
         - ${use_marketplace_image_login}

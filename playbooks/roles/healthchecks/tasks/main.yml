@@ -1,0 +1,22 @@
+- name: Create systemd unit dirs
+  become: true
+  file:
+    name: '/opt/oci-hpc/healthchecks'
+    state: directory
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+
+- name: Copy files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '/opt/oci-hpc/healthchecks/{{ item }}'
+    force: no
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+  with_items: 
+    - check_gpu_setup.py
+    - gpu_bw_test.py
+    - rdma_link_flapping.py
+    - xid_checker.py
+    - shared_logging.py
