@@ -297,7 +297,8 @@ resource "null_resource" "cluster" {
       region = var.region,
       tenancy_ocid = var.tenancy_ocid,
       api_fingerprint = var.api_fingerprint,
-      api_user_ocid = var.api_user_ocid
+      api_user_ocid = var.api_user_ocid,
+      healthchecks = var.healthchecks
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -445,7 +446,8 @@ resource "null_resource" "cluster" {
       virt_instr = var.virt_instr,
       access_ctrl = var.access_ctrl,
       numa_nodes_per_socket = var.numa_nodes_per_socket,
-      percentage_of_cores_enabled = var.percentage_of_cores_enabled
+      percentage_of_cores_enabled = var.percentage_of_cores_enabled,
+      healthchecks = var.healthchecks
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"

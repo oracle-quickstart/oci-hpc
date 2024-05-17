@@ -7,13 +7,21 @@
 - set_fact: 
     enroot_top_path_checked: "{{enroot_top_path}}"
   when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices" 
+  
+- name: Ensure prolog directory exists
+  become: true
+  file:
+    path: "{{ slurm_conf_path }}/prolog.d"
+    state: directory
+    owner: root
+    group: root
 
 - name: copy files
   become: true
   become_method: sudo
   template:
-    src: prolog.sh.j2
-    dest: "{{ slurm_conf_path }}/prolog.sh"
+    src: pyxis.sh.j2
+    dest: "{{ slurm_conf_path }}/prolog.d/pyxis.sh"
     owner: root
     group: root
     mode: 0755

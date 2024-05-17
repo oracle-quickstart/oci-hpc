@@ -45,7 +45,13 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
           name = "Compute HPC RDMA Auto-Configuration"
           desired_state = plugins_config.value
           }
-
+        }
+        dynamic plugins_config {
+          for_each = length(regexall(".*GPU.*", var.cluster_network_shape)) > 0 ? ["ENABLED"] : ["DISABLED"]
+          content {
+          name = "Compute RDMA GPU Monitoring"
+          desired_state = plugins_config.value
+          }
         }
       }
 

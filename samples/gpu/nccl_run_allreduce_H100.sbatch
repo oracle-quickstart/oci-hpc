@@ -43,11 +43,11 @@ fi
   --bind-to numa \
   -npernode 8 \
   --mca coll ^hcoll \
-  -x NCCL_CROSS_NIC=1 \
+  -x NCCL_CROSS_NIC=2 \
   -x NCCL_DEBUG=WARN \
   -x NCCL_CUMEM_ENABLE=0 \
   -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
-  -x NCCL_IB_QPS_PER_CONNECTION=16 \
+  -x NCCL_IB_QPS_PER_CONNECTION=1 \
   -x NCCL_IB_GID_INDEX=3 \
   -x NCCL_IB_TC=41 \
   -x NCCL_IB_SL=0 \
@@ -59,11 +59,17 @@ fi
   -x UCX_NET_DEVICES=${var_UCX_NET_DEVICES} \
   -x RX_QUEUE_LEN=8192 \
   -x IB_RX_QUEUE_LEN=8192 \
-  -x NCCL_BUFFSIZE=16777216 \
-  -x NCCL_SOCKET_IFNAME=eth0 \
+  -x NCCL_SOCKET_IFNAME=${var_UCX_NET_DEVICES} \
   -x NCCL_IGNORE_CPU_AFFINITY=1 \
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
   --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --hostfile $MACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -f 2 -g 1
 
   # If NCCL version is lower than 2.20.3, it is recommended to use the topology filefor optimal performances 
   # -x NCCL_TOPO_FILE=~/H100-topology.xml \
+
+  # If NCCL version is lower than 2.20.3, it is recommended to use 
+  # -x NCCL_CROSS_NIC=0 for multiple subnets and large scale jobs (>16 nodes)
+  # -x NCCL_CROSS_NIC=1 for single subnets and small scale jobs (<16 nodes)
+  
+  # If NCCL version is higher than 2.20.3, the absolute max NCCL throughput at large message size will be obtained with
+  # -x NCCL_MIN_NCHANNELS=32 \ But it does take some processing power away from the GPU for networking gains and is not recommended while running jobs. 
