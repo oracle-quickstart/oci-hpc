@@ -2,7 +2,10 @@ resource "oci_file_storage_file_system" "FSS" {
   count                       = var.create_fss ? 1 : 0
   availability_domain         = var.fss_ad
   compartment_id              = var.fss_compartment
-  display_name                = "${local.cluster_name}-fss"  
+  display_name                = "${local.cluster_name}-fss"    
+  lifecycle {
+      prevent_destroy = var.never_delete_fss
+    }
   }
 
 resource "oci_file_storage_file_system" "FSS_home" {
@@ -10,6 +13,9 @@ resource "oci_file_storage_file_system" "FSS_home" {
   availability_domain         = var.fss_ad
   compartment_id              = var.fss_compartment
   display_name                = "${local.cluster_name}-fss-home"  
+  lifecycle {
+      prevent_destroy = var.never_delete_fss
+    }
   }
 
 resource "oci_file_storage_mount_target" "FSSMountTarget" {
