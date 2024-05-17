@@ -447,7 +447,10 @@ def getNFSnode(inventory):
         return ''
     if len(dict['nfs']) == 0:
         return ''
-    return dict['nfs'][0].split()[0]
+    if dict['nfs'][0] == '\n':
+        return ''
+    else:
+        return dict['nfs'][0].split()[0]
 
 def get_summary(comp_ocid,cluster_name):
     CN = "CN"
@@ -577,6 +580,7 @@ parser.add_argument('--user_logging', help='If present. Use the default settings
 parser.add_argument('--force', help='If present. Nodes will be removed even if the destroy playbook failed',action='store_true',default=False)
 parser.add_argument('--ansible_crucial', help='If present during reconfiguration, only crucial ansible playbooks will be executed on the live nodes. Non live nodes will be removed',action='store_true',default=False)
 parser.add_argument('--remove_unreachable', help='If present, nodes that are not sshable will be terminated before running the action that was requested (Example Adding a node) ',action='store_true',default=False)
+parser.add_argument('--quiet', help='If present, the script will not prompt for a response when removing nodes and will not give a reminder to save data from nodes that are being removed ',action='store_true',default=False)
 
 args = parser.parse_args()
 
@@ -753,6 +757,7 @@ else:
         if len(unreachable_instances):
             if not remove_unreachable:
                 print("STDOUT: At least one unreachable node is in the inventory")
+                print(unreachable_instances)
                 print("STDOUT: Not doing anything")
                 exit(1)
             else:

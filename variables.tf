@@ -41,7 +41,7 @@ variable "use_compute_agent" { default = true }
 variable "unsupported_controller_image" { default = "" } 
 variable "unsupported_login_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}
-variable "use_scratch_nfs" { default = true }
+variable "use_scratch_nfs" { default = false }
 variable "cluster_nfs_path" { default = "/nfs/cluster" } 
 variable "scratch_nfs_path" { default = "/nfs/scratch" } 
 variable "vcn_compartment" { default = ""}
@@ -86,17 +86,13 @@ variable "marketplace_listing" {
 }  
 variable "marketplace_version_id" { 
   type = map(string) 
-  default = { 
-       "1" = "OL7.9-OFED5.3-1.0.0.1-RHCK-20210607"
-       "2" = "OL7.8-OFED5.0-1.0.0.0-UEK-20200826"
-       "3" = "OL7.7-OFED-4.4-2.0.7.0-UEK-20200229"
-       "4" = "OL7.9-OFED5.0-2.1.8.0-RHCK-20210709"
-       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
-       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
-       "GPU_OL7_CUDA12.2" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
-       "GPU_OL8_CUDA12.2" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
-       "GPU_OL7_CUDA12.4" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
-       "GPU_OL8_CUDA12.4" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
+  default = {
+       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.05.08-0"
+       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-2024.05.08-0"
+       "GPU_OL8_NV550" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.05.08-0"
+       "GPU_OL7_NV550" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.05.13-0"
+       "GPU_OL8_NV535" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.05.08-0"
+       "GPU_OL7_NV535" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.05.13-0"
   }
 }
 
@@ -261,7 +257,9 @@ variable "zone_name" {
 variable "dns_entries" {
   default = true
 }
-  
+variable "healthchecks" {
+  default = true
+}
 variable "BIOS" {
   default = false
 }

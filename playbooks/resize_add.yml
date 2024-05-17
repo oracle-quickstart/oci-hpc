@@ -52,6 +52,8 @@
       when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
         name: nvidia_peermem
+    - include_role: 
+        name: healthchecks
 
 - hosts: controller,slurm_backup,login,compute
   become: true
@@ -111,9 +113,6 @@
     - include_role:
         name: sssd
       when: ldap|default(true)|bool
-    - include_role: 
-        name: spack
-      when: spack|default(false)|bool
 
 - hosts: compute_to_add
   become: true

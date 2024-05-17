@@ -1,0 +1,4 @@
+Does your cluster run any file system like Ceph, NFS, etc. on the GPU/HPC nodes itself using local NVMe SSDs?  
+If yes, terminating nodes which store your data can result in permanent data loss, so before proceeding make sure any important data is copied to a persistent file system outside of the cluster such as to object storage, file storage, etc.
+Once data is backed up or migrated, come back and run the script. Select 2 to exit.
+Remember, once the nodes are terminated, all the data is lost forever and you won't be able to recover it.

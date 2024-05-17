@@ -104,12 +104,12 @@ optional arguments:
   --ansible_crucial     If present during reconfiguration, only crucial
                         ansible playbooks will be executed on the live nodes.
                         Non live nodes will be removed
-  --remove_unreachable  If present, nodes that are not sshable will be removed
-                        from the config. They will however not be removed from
-                        Slurm to avoid losing track of the down nodes. If you
-                        need to remove them from Slurm after terminating the
-                        nodes in the console. Run sudo scontrol update
-                        nodename=name state=Future 
+  --remove_unreachable  If present, nodes that are not sshable will be terminated 
+                        before running the action that was requested
+                        (Example Adding a node)
+  --quiet               If present, the script will not prompt for a response when 
+                        removing nodes and will not give a reminder to save data 
+                        from nodes that are being removed
 ```
 
 **Add nodes** 
@@ -162,6 +162,13 @@ Remove 3 nodes randomly from compute-1-hpc:
 /opt/oci-hpc/bin/resize.sh remove 3 --cluster_name compute-1-hpc
 
 ```
+or 
+Remove 3 nodes randomly from compute-1-hpc but do not prompt for a response when removing the nodes and do not give a reminder to save data 
+from nodes that are being removed :  
+```
+/opt/oci-hpc/bin/resize.sh remove 3 --cluster_name compute-1-hpc --quiet
+
+```
 
 **Reconfigure nodes** 
 
@@ -207,6 +214,10 @@ To turn on autoscaling:
 Uncomment the line in `crontab -e`:
 ```
 * * * * * /opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm.log 2>&1
+```
+And in /etc/ansible/hosts, below value should be true
+```
+autoscaling = true
 ```
 
 # Submit
