@@ -435,7 +435,7 @@ variables:
  
   unsupported_controller_image:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as controller image at this moment."
+    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 22.04 are supported as controller image at this moment."
     type: string
     required: true
     visible: ${unsupported_controller}
@@ -455,7 +455,7 @@ variables:
 
   custom_controller_image:
     title: "controller Image ID"
-    description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 20.04 are supported as controller image at this moment. "
+    description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 22.04 are supported as controller image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${controller_image_compartment}
@@ -791,7 +791,7 @@ variables:
 
   image:
     title: "Image"
-    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
+    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 22.04"
     type: oci:core:image:id
     required: true
     dependsOn:
@@ -825,7 +825,7 @@ variables:
 
   image_ocid:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
+    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 22.04"
     type: string
     required: true
     visible:
@@ -1634,7 +1634,7 @@ configuration\" "
 
   custom_login_image:
     title: "Login Image ID"
-    description: "Custom image ID for login nodes. Please note that only Oracle Linux and Ubuntu 20.04 are supported as login image at this moment. "
+    description: "Custom image ID for login nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as login image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${login_image_compartment}
