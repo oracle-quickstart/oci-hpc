@@ -36,10 +36,9 @@ The stack allowa various combination of OS. Here is a list of what has been test
 |---------------|--------------|
 |      OL7      |      OL7     |  
 |      OL7      |      OL8     |
-|      OL7      |    CentOS7   |
-|      OL8      |       OL8    |
-|      OL8      |       OL7    |
-| Ubuntu  20.04 | Ubuntu 20.04 |
+|      OL8      |      OL8     |
+|      OL8      |      OL7     |
+| Ubuntu  22.04 | Ubuntu 22.04 |
 
 When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the controller and compute nodes. 
 ## How is resizing different from autoscaling ?
