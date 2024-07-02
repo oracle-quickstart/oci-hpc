@@ -41,7 +41,7 @@ SlurmctldDebug=info
 SlurmdDebug=info
 EnforcePartLimits=NO
 PropagateResourceLimitsExcept=MEMLOCK
-CommunicationParameters=NoAddrCache
+CommunicationParameters=block_null_hash
 TopologyPlugin=topology/tree
 TopologyParam=SwitchAsNodeRank
 TreeWidth=2048
@@ -56,11 +56,6 @@ AccountingStorageTRES=gres/gpu
 AccountingStorageEnforce=limits,associations,qos,safe
 JobCompType=jobcomp/none
 TrackWckey=no
-{% endif %}
-
-
-{% if (groups['login']| length ) > 0 %}
-NodeName={{ hostvars[groups['login'][0]]['ansible_fqdn'].split('.')[0] }}
 {% endif %}
 
 {% for partition in queues %}

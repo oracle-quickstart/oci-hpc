@@ -23,6 +23,8 @@ slurm_all_packages:
   - "slurm-centos-pam_slurm-{{slurm_version}}.el7.x86_64.rpm"
   - "slurm-centos-libpmi-{{slurm_version}}.el7.x86_64.rpm"
   - "slurm-centos-slurmd-{{slurm_version}}.el7.x86_64.rpm"
+  - "slurm-centos-sackd-{{slurm_version}}.el7.x86_64.rpm"
+  - "slurm-centos-slurmrestd-{{slurm_version}}.el7.x86_64.rpm"
 
 slurm_common_packages:
   - "{{ download_path }}/slurm_rpms/slurm-centos-{{slurm_version}}.el7.x86_64.rpm"
@@ -36,6 +38,7 @@ slurm_common_packages:
 slurm_server_packages:
   - "{{ download_path }}/slurm_rpms/slurm-centos-slurmctld-{{slurm_version}}.el7.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/slurm-centos-slurmdbd-{{slurm_version}}.el7.x86_64.rpm"
+  - "{{ download_path }}/slurm_rpms/slurm-centos-slurmrestd-{{slurm_version}}.el7.x86_64.rpm"
 
 slurm_compute_packages:
   - "{{ download_path }}/slurm_rpms/slurm-centos-pam_slurm-{{slurm_version}}.el7.x86_64.rpm"
@@ -51,7 +54,7 @@ slurm_backup_server_packages:
 slurm_login_packages:
   - "{{ download_path }}/slurm_rpms/slurm-centos-pam_slurm-{{slurm_version}}.el7.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/slurm-centos-libpmi-{{slurm_version}}.el7.x86_64.rpm"
-  - "{{ download_path }}/slurm_rpms/slurm-centos-slurmd-{{slurm_version}}.el7.x86_64.rpm"
+  - "{{ download_path }}/slurm_rpms/slurm-centos-sackd-{{slurm_version}}.el7.x86_64.rpm"
 
 
 pmix_download_packages:

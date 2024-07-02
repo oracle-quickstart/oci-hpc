@@ -14,7 +14,7 @@
     dest: '/lib/systemd/system/{{ item }}.service'
     backup: "yes"
   with_items:
-    - slurmd
+    - sackd
   when: ansible_os_family == 'Debian'
 
 - name: Create systemd unit dirs for slurmd and munge
@@ -24,7 +24,7 @@
     state: directory
   with_items:
     - munge
-    - slurmd
+    - sackd
 
 - name: Render systemd units for slurmd and munge
   become: true
@@ -34,7 +34,7 @@
     backup: "yes"
   with_items:
     - munge
-    - slurmd
+    - sackd
 
 - name: Create munge dir
   become: true
@@ -76,9 +76,9 @@
     state: restarted
     enabled: true
 
-- name: start slurmd
+- name: start sackd
   become: true
   service:
-    name: slurmd
+    name: sackd
     state: restarted
     enabled: true
