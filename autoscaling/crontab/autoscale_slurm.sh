@@ -111,12 +111,12 @@ def getDefaultsConfig(config,queue_name):
             for instance_type in partition["instance_types"]:
                 if "default" in instance_type.keys():
                     if instance_type["default"]:
-                        return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
+                        return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "hostname_convention":instance_type["hostname_convention"]}
             if len(partition["instance_types"])>0:
                 instance_type=partition["instance_types"][0]
                 print ("No default configuration was found, there may be a problem in your queues.conf file")
                 print ("Selecting "+instance_type["name"]+" as default")
-                return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
+                return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "hostname_convention":instance_type["hostname_convention"]}
     print ("The queue "+queue_name+" was not found in the queues.conf file")
     return None
 
@@ -125,7 +125,7 @@ def getJobConfig(config,queue_name,instance_type_name):
         if queue_name == partition["name"]:
             for instance_type in partition["instance_types"]:
                 if instance_type_name == instance_type["name"]:
-                    return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "instance_keyword":instance_type["instance_keyword"]}
+                    return {"queue":partition["name"], "instance_type":instance_type["name"], "shape":instance_type["shape"], "cluster_network":instance_type["cluster_network"], "hostname_convention":instance_type["hostname_convention"]}
     return None
 
 def getQueueLimits(config,queue_name,instance_type_name):
@@ -136,11 +136,11 @@ def getQueueLimits(config,queue_name,instance_type_name):
                     return {"max_number_nodes": int(instance_type["max_number_nodes"]), "max_cluster_size": int(instance_type["max_cluster_size"]),"max_cluster_count": int(instance_type["max_cluster_count"])}
     return {"max_number_nodes": 0, "max_cluster_size": 0,"max_cluster_count": 0}
 
-def getInstanceType(config,queue_name,instance_keyword):
+def getInstanceType(config,queue_name,hostname_convention):
     for partition in config:
         if queue_name == partition["name"]:
             for instance_type in partition["instance_types"]:
-                if instance_keyword == instance_type["instance_keyword"]:
+                if hostname_convention == instance_type["hostname_convention"]:
                     return instance_type["name"]
     return None
 
@@ -298,7 +298,7 @@ def getstatus_slurm():
         instance_keyword='-'.join(clusterName.split('-')[2:])
         clusterNumber=int(clusterName.split('-')[1])
         queue=clusterName.split('-')[0]
-        instanceType=getInstanceType(config,queue,instance_keyword)
+        instanceType=getInstanceType(config,queue,hostname_convention)
         if not queue in used_index.keys():
             used_index[queue]={}
         if not instanceType in used_index[queue].keys():
