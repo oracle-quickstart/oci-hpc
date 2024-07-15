@@ -214,10 +214,10 @@ resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
   
   for_each        = var.slurm && var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "${var.queue}-permanent-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
+  domain          = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
   rtype           = "A"
   items {
-    domain = "${var.queue}-permanent-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
+    domain = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
     rtype  = "A"
     rdata  = "${local.cluster_instances_ips[tonumber(each.key)]}"
     ttl    = 3600

@@ -281,3 +281,9 @@ variable "numa_nodes_per_socket" {
 variable "percentage_of_cores_enabled" {
   default = "Default"
 }
+variable "change_hostname" {
+  default = false
+}
+variable "hostname_convention" {
+  default = "GPU"
+}

@@ -71,6 +71,8 @@ variableGroups:
       - ${access_ctrl}
       - ${numa_nodes_per_socket}
       - ${percentage_of_cores_enabled}
+      - ${change_hostname}
+      - ${hostname_convention}
 
   - title: "Additional Login Node"
     variables:
@@ -590,9 +592,10 @@ variables:
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
       - "BM.GPU.H100.8"
+      - "BM.GPU.MI300X.8"
       - "BM.Optimized3.36"
       - "BM.HPC.E5.144"
-    default: "BM.HPC2.36"
+    default: "BM.GPU.H100.8"
     title: "Shape of the Compute Nodes"
     description: "Shape of compute nodes used in permanent/initial cluster"
     required: true
@@ -895,6 +898,20 @@ configuration\" "
     default: "Default"
     visible: ${BIOS} 
     
+  change_hostname: 
+    title: "Change hostname" 
+    description: "Will modify the hostname of the node but not in the oci console"
+    type: boolean
+    default: false
+    required: true
+
+  hostname_convention:
+    type: string
+    title: "Hostname Convention"
+    description: "Will add -INDEX at the end with the index of the IP in the subnet"
+    default: "GPU"
+    visible: ${change_hostname}
+      
   use_advanced:
     type: boolean
     title: "Show advanced storage options"

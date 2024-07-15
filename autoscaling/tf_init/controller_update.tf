@@ -1,6 +1,6 @@
 
 locals {
-  controller_path = "${var.autoscaling_folder}/clusters/${var.cluster_name}"
+  controller_path = "${var.autoscaling_folder}/clusters/${local.cluster_name}"
 }
 
 resource "null_resource" "create_path" {
@@ -12,7 +12,7 @@ resource "null_resource" "create_path" {
 resource "local_file" "hosts" {
     depends_on = [null_resource.create_path,oci_core_cluster_network.cluster_network]
     content     = join("\n", local.cluster_instances_ips)
-    filename = "${local.controller_path}/hosts_${var.cluster_name}"
+    filename = "${local.controller_path}/hosts_${local.cluster_name}"
   }
 
 resource "local_file" "inventory" {
@@ -78,7 +78,9 @@ resource "local_file" "inventory" {
     pam = var.pam,
     sacct_limits = var.sacct_limits,
     use_compute_agent=var.use_compute_agent,
-    healthchecks=var.healthchecks
+    healthchecks=var.healthchecks,
+    change_hostname=var.change_hostname,
+    hostname_convention=var.hostname_convention
     })
   filename   = "${local.controller_path}/inventory"
 }

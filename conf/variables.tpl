@@ -157,3 +157,9 @@ variable "numa_nodes_per_socket" {
 variable "percentage_of_cores_enabled" {
   default = "${percentage_of_cores_enabled}"
 }
+variable "change_hostname" {
+  default = ##CH_HOST##
+}
+variable "hostname_convention" {
+  default = "##HOST_CONV##"
+}
