@@ -53,10 +53,14 @@ try:
     output = client.run_command('curl http://169.254.169.254/opc/v1/host/')
     for host_out in output:
         j = json.loads(bytearray(''.join(list(host_out.stdout)).encode()))
-        if j['rackId'] in r:
-            r[j['rackId']].append( host_out.host )
+        try: 
+            rackID=j['rdmaTopologyData']['customerLocalBlock']
+        except: 
+            rackID = j['rackId']
+        if rackID in r:
+            r[rackID].append( host_out.host )
         else:
-            r[j['rackId']] = [ host_out.host ]
+            r[rackID] = [ host_out.host ]
     hostname_output = client.run_command('/usr/bin/hostname')
     for host_out in hostname_output:
         j = bytearray(''.join(list(host_out.stdout)).encode())
