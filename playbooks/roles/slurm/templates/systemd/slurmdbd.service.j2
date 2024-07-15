@@ -1,7 +1,7 @@
 [Unit]
 Description=Slurm DBD accounting daemon
 After=network.target munge.service
-ConditionPathExists=/etc/slurm/slurmdbd.conf
+ConditionPathExists={{slurm_conf_path}}/slurmdbd.conf
 Documentation=man:slurmdbd(8)
 
 [Service]

@@ -14,7 +14,7 @@
 - name: Render systemd units for slurmd
   become: true
   template:
-    src: 'systemd/{{ item }}.service'
+    src: 'systemd/{{ item }}.service.j2'
     dest: '/lib/systemd/system/{{ item }}.service'
     backup: "yes"
   with_items:
@@ -80,6 +80,15 @@
     state: restarted
     enabled: true
 
+- name: Add to the gres.conf file on the controller.
+  become: true
+  blockinfile:
+    block: "{{ lookup('template', 'gres.conf.j2') }}"
+    path: "{{ slurm_conf_path }}/gres.conf"
+    marker: "### {{ansible_hostname}}"
+  delegate_to: 127.0.0.1
+  when: "'GPU' in shape"
+
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
@@ -113,14 +122,6 @@
       register: cluster_hostlist_condensed_results
       delegate_to: 127.0.0.1
 
-- name: Get nodes from Inactive Switch
-  vars:
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}} \""
-  register: inactive_switch
-  run_once: true
-  delegate_to: 127.0.0.1
-
 
 - name: add nodes to Switch
   become: true
@@ -128,31 +129,6 @@
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{cluster_name}}\\sNodes.*"
     line: "SwitchName={{cluster_name}} Nodes={{ cluster_hostlist_condensed_results.stdout }}"
-    state: present
-  run_once: true
-  delegate_to: 127.0.0.1
-  notify: reconfigure slurm
-
-- name: Get inactive_hostlist
-  vars:
-    - inactive_list_condensed: "{{inactive_switch.stdout.split('Nodes=')[1]}}"
-  command: "scontrol show hostname {{inactive_list_condensed }}"
-  register: inactive_hostlist
-  delegate_to: 127.0.0.1
-
-- name: Create new inactive_hostlist
-  command: "scontrol show hostlistsorted {{inactive_hostlist.stdout_lines | difference(nodes_to_add) | join(',')  }}"
-  register: inactive_hostlist_condensed
-  delegate_to: 127.0.0.1
-
-- name: remove nodes from inactive
-  become: true
-  vars:
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_hostlist_condensed.stdout }}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
@@ -168,41 +144,3 @@
     name: slurmd
     state: restarted
     enabled: true
-
-- name: Update node state on controller
-  block:
-    - name: Grab Node State
-      shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
-      register: node_state
-      delegate_to: 127.0.0.1
-    - set_fact:
-        node_state2: "{{ node_state.stdout }}"
-    - name: Update node state on controller
-      become: true
-      command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-      when: node_state2 != "idle" and node_state2 != "alloc"
-  rescue:
-    - name: Sleep 5 seconds
-      pause: 
-        seconds: 10
-
-    - name: Grab Node State
-      shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
-      register: node_state
-      delegate_to: 127.0.0.1
-      until: node_state.stdout.find("failure") == -1
-      retries: 10
-      delay: 5
-
-    - set_fact:
-        node_state2: "{{ node_state.stdout }}"
-
-    - name: Update node state on controller
-      become: true
-      command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-      when: node_state2 != "idle" and node_state2 != "alloc"
-      register: result
-      retries: 10
-      delay: 5
-      until: result is not failed
-      delegate_to: 127.0.0.1

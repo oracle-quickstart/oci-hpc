@@ -87,58 +87,9 @@
   run_once: true
   delegate_to: 127.0.0.1
 
-- name: get inactiveLine
-  shell: "scontrol show hostname `scontrol show topology inactive-{{item.split('-node-')[0]}} | rev | cut -d \"=\" -f 1 | rev`"
-  register: inactive_switch
-  run_once: true
-  delegate_to: 127.0.0.1
-  with_items: "{{unreachable_slurm_nodes}}"
-
-- name: get Inactive Nodes
-  set_fact:
-    nodes_on_inactive_switch: "{{nodes_on_inactive_switch | default({}) | combine({item.item : item.stdout_lines } ) }}"
-  with_items: "{{inactive_switch.results}}"
-  run_once: true
-  delegate_to: 127.0.0.1
-  when: ( item.stdout_lines | length ) > 0
-
-- name: get Inactive Nodes
-  set_fact:
-    nodes_on_inactive_switch: "{{nodes_on_inactive_switch | default({}) | combine({item.item : [] } ) }}"
-  with_items: "{{inactive_switch.results}}"
-  run_once: true
-  delegate_to: 127.0.0.1
-  when: ( item.stdout_lines | length ) == 0
-
-- name: generate nodes_on_inactive_switch_condensed
-  shell: "scontrol show hostlistsorted {{nodes_on_inactive_switch[item] | union([item]) | join(',')}}"
-  register: inactive_switch_condensed
-  with_items: "{{unreachable_slurm_nodes}}"
-  run_once: true
-  delegate_to: 127.0.0.1
-
-- name: get condensed_Nodes
-  set_fact:
-    nodes_on_switch_condensed: "{{nodes_on_inactive_switch_condensed | default({}) | combine({item.item : item.stdout } ) }}"
-  with_items: "{{inactive_switch_condensed.results}}"
-  run_once: true
-  delegate_to: 127.0.0.1
-
-
-- name: add node to inactive line
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{item.split('-node-')[0]}}\\sNodes.*"
-    line: "SwitchName=inactive-{{item.split('-node-')[0]}} Nodes={{nodes_on_switch_condensed[item]}}"
-    state: present
-  with_items: "{{unreachable_slurm_nodes}}"
-  ignore_unreachable: yes
-  delegate_to: 127.0.0.1
-  run_once: true
-
 - name: change Node Status
   become: true
-  command: "scontrol update nodename={{ item }} state=future reason=terminating"
+  command: "scontrol delete nodename={{ item }}"
   ignore_errors: true
   ignore_unreachable: True
   with_items: "{{unreachable_slurm_nodes}}"

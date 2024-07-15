@@ -3,3 +3,10 @@
   file: 
     path: /tmp/munge.key
     state: absent
+
+- name: Reconfigure Slurm
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
+  run_once: true
+  ignore_errors: yes
