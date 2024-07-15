@@ -110,6 +110,17 @@
   retries: 10
   delay: 5
 
+- name: move gres.conf on backup servers
+  become: true
+  copy:
+    dest: '{{ slurm_conf_path }}/gres.conf'
+    src: '{{ slurm_conf_path }}/gres.conf'
+    force: yes
+  register: gres_copied
+  until: gres_copied is not failed
+  retries: 10
+  delay: 5
+
 - name: start slurmctld
   become: true
   service:

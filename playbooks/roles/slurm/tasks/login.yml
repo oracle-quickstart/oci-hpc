@@ -7,17 +7,17 @@
   include_role: 
     name: safe_yum
 
-- name: Render systemd units for slurmd
+- name: Render systemd units for sackd
   become: true
   template:
-    src: 'systemd/{{ item }}.service'
+    src: 'systemd/{{ item }}.service.j2'
     dest: '/lib/systemd/system/{{ item }}.service'
     backup: "yes"
   with_items:
     - sackd
   when: ansible_os_family == 'Debian'
 
-- name: Create systemd unit dirs for slurmd and munge
+- name: Create systemd unit dirs for sackd and munge
   become: true
   file:
     name: '/etc/systemd/system/{{ item }}.service.d'
@@ -26,7 +26,7 @@
     - munge
     - sackd
 
-- name: Render systemd units for slurmd and munge
+- name: Render systemd units for sackd and munge
   become: true
   template:
     src: 'systemd/{{ item }}.service.d/unit.conf.j2'
