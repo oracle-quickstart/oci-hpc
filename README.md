@@ -275,10 +275,6 @@ Example:
 ```
 /opt/oci-hpc/bin/create_cluster.sh 4 compute2-1-hpc HPC_instance compute2
 ```
-The name of the cluster must be
-queueName-clusterNumber-instanceType_keyword
-
-The keyword will need to match the one from /opt/oci-hpc/conf/queues.conf to be registered in Slurm
 
 ### Cluster Deletion: 
 ```

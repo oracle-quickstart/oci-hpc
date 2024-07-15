@@ -252,7 +252,11 @@ resource "null_resource" "cluster_backup" {
       tenancy_ocid = var.tenancy_ocid,
       api_fingerprint = var.api_fingerprint,
       api_user_ocid = var.api_user_ocid,
-      healthchecks = var.healthchecks    
+      healthchecks = var.healthchecks,
+      change_hostname = var.change_hostname,
+      hostname_convention = var.hostname_convention,
+      change_hostname = var.change_hostname,
+      hostname_convention = var.hostname_convention
       })
 
     destination   = "/opt/oci-hpc/playbooks/inventory"
@@ -312,7 +316,11 @@ resource "null_resource" "cluster_backup" {
       instance_pool_memory = var.instance_pool_memory,
       instance_pool_custom_memory = var.instance_pool_custom_memory,
       queue=var.queue,
-      hyperthreading = var.hyperthreading
+      hyperthreading = var.hyperthreading,
+      cluster_name = local.cluster_name,
+      change_hostname = var.change_hostname,
+      hostname_convention = var.hostname_convention
+
       })
 
     destination   = "/opt/oci-hpc/conf/queues.conf"
@@ -401,7 +409,9 @@ resource "null_resource" "cluster_backup" {
       access_ctrl = var.access_ctrl,
       numa_nodes_per_socket = var.numa_nodes_per_socket,
       percentage_of_cores_enabled = var.percentage_of_cores_enabled,
-      healthchecks = var.healthchecks
+      healthchecks = var.healthchecks,
+      change_hostname = var.change_hostname,
+      hostname_convention = var.hostname_convention
       })
 
     destination   = "/opt/oci-hpc/conf/variables.tf"

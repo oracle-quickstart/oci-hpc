@@ -1,4 +1,3 @@
-
 - hosts: compute
   become: true
   vars: 
@@ -9,7 +8,7 @@
   tasks:
     - include_role:
         name: hostname
-      when: slurm  | default(false) | bool
+      when: change_hostname  | default(false) | bool
 
 # for ubuntu, on all compute nodes, run --fix-broken install
 - hosts: compute, login

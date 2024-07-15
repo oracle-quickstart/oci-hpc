@@ -620,10 +620,10 @@ for inv_vars in inventory_dict["all:vars"]:
     if inv_vars.startswith("dns_entries"):
         dns_entries=bool(inv_vars.split("dns_entries=")[1].strip())
         break
-queue=None
+hostname_convention=None
 for inv_vars in inventory_dict["all:vars"]:
-    if inv_vars.startswith("queue"):
-        queue=inv_vars.split("queue=")[1].strip()
+    if inv_vars.startswith("hostname_convention"):
+        hostname_convention=inv_vars.split("hostname_convention=")[1].strip()
         break
 instance_type=""
 for inv_vars in inventory_dict["all:vars"]:
@@ -809,7 +809,7 @@ else:
                             ip = ipaddress.ip_address(i['ip'])
                     if not ip is None:
                         index = list(private_subnet_cidr.hosts()).index(ip)+2
-                        slurm_name=queue+"-"+instance_type+"-"+str(index)+"."+zone_name
+                        slurm_name=hostname_convention+"-"+str(index)+"."+zone_name
                         get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE")
                 terminated_instances = terminated_instances + 1
                 print("STDOUT: The instance "+instanceName+" is terminating")   
@@ -870,7 +870,7 @@ else:
                     instanceName=new_instance['display_name']
                     ip = ipaddress.ip_address(new_instance['ip'])
                     index = list(private_subnet_cidr.hosts()).index(ip)+2
-                    slurm_name=queue+"-"+instance_type+"-"+str(index)+"."+zone_name
+                    slurm_name=hostname_convention+"-"+str(index)+"."+zone_name
                     get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=slurm_name,rdata=new_instance['ip'],rtype="A",ttl=3600,)]))
                     get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=instanceName+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=instanceName+"."+zone_name,rdata=new_instance['ip'],rtype="A",ttl=3600)]))
         updateTFState(inventory,cluster_name,newsize)
