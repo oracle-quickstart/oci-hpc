@@ -7,7 +7,7 @@ openldap_packages:
   - rsync
 
 openldap_packages_ol8:
-  - openldap-clients
+  - openldap-clients-2.4.46-18.el8.x86_64
   - rsync
 
 openldap_default_user: ldap
