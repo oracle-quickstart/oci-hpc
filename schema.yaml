@@ -119,6 +119,7 @@ variableGroups:
     variables:
       - ${add_nfs}
       - ${create_fss}
+      - ${mount_target_count}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
@@ -1292,7 +1293,18 @@ configuration\" "
     default: false
     description: "For FSS, leave options filed empty."
     visible: ${add_nfs}
-
+  
+  mount_target_count:
+    title: "Number of FSS mount targets"
+    description: "Number of FSS Mount Target to use with File System"
+    type: integer
+    default: 1
+    required: true
+    visible: 
+      and:
+        - ${add_nfs}
+        - ${create_fss}
+ 
   fss_compartment:
     title: "FSS compartment"
     description: "Compartment to add the FSS Mount Target and File System"

@@ -163,6 +163,7 @@ variable "autoscaling" { default = false }
 variable "latency_check" { default = true }
 variable "add_nfs" { default = false}
 variable "create_fss" { default = false }
+variable "mount_target_count" { default = "1" }
 variable "fss_compartment" {default = ""}
 variable "fss_ad" {default = ""}
 variable "nfs_target_path" { default = "/app"}
