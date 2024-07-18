@@ -32,7 +32,9 @@ ExecStart=
 {% elif shape == "VM.GPU.A10.1" %} 
 {% set gres = "Gres=gpu:A10:1" %}
 {% elif shape == "BM.GPU.MI300X.8" %} 
-{% set gres = "Gres=gpu:MI300X:1" %}
+{% set gres = "Gres=gpu:MI300X:8" %}
+{% elif shape == "BM.GPU.L40S.4" %} 
+{% set gres = "Gres=gpu:L40S:4" %}
 {% else %}
 {% set gres = "" %}
 {% endif %}
