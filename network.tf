@@ -230,8 +230,8 @@ resource "oci_dns_rrset" "fss-dns-round-robin" {
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id 
   domain          = "fss-${var.hostname_convention}.${local.zone_name}"
   rtype           = "A"
-  dynamic "mount_targets"
-    for_each = oci_file_storage_mount_target.FSSMountTarget.[*].private_ip_ids
+  dynamic "mount_targets" {
+    for_each = oci_file_storage_mount_target.FSSMountTarget.*.private_ip_ids
     iterator = target
     items {
       domain = "fss-${var.hostname_convention}.${local.zone_name}"
@@ -239,6 +239,7 @@ resource "oci_dns_rrset" "fss-dns-round-robin" {
       rdata  = target.value.["ip_address"]
       ttl    = 1
     }
+  }
   scope = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
