@@ -23,7 +23,8 @@ locals {
 //  subnet_id = var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
   subnet_id = var.private_deployment ? var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 1) : var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
 
-  nfs_source_IP = var.create_fss ? "[\"${join("\",\"",oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP  
+  nfs_source_IP = var.create_fss ? oci_dns_rrset.fss-dns-round-robin : var.nfs_source_IP  
+  nfs_list_of_mount_target_IPs = var.create_fss ? "[\"${join("\",\"",oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP  
 
 // subnet id derived either from created subnet or existing if specified
 // controller_subnet_id = var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
