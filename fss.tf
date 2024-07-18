@@ -23,13 +23,13 @@ resource "oci_file_storage_mount_target" "FSSMountTarget" {
   availability_domain = var.fss_ad 
   compartment_id      = var.fss_compartment
   subnet_id           = local.subnet_id
-  display_name        = "${local.cluster_name}-mt"  
-  hostname_label      = "fileserver"
+  display_name        = "${local.cluster_name}-mt-${count.index}"  
+  hostname_label      = "fileserver${count.index}"
 }
 
 resource "oci_file_storage_export" "FSSExport" {
   count          = var.create_fss ? var.mount_target_count : 0
-  export_set_id  = oci_file_storage_mount_target.FSSMountTarget.0.export_set_id
+  export_set_id  = oci_file_storage_mount_target.FSSMountTarget.[count.index].export_set_id
   file_system_id = oci_file_storage_file_system.FSS.0.id
   path           = var.nfs_source_path  
   export_options {
@@ -42,7 +42,7 @@ resource "oci_file_storage_export" "FSSExport" {
 
 resource "oci_file_storage_export" "FSSExport_home" {
   count          = var.create_fss && var.home_fss ? var.mount_target_count : 0
-  export_set_id  = oci_file_storage_mount_target.FSSMountTarget.0.export_set_id
+  export_set_id  = oci_file_storage_mount_target.FSSMountTarget.[count.index].export_set_id
   file_system_id = oci_file_storage_file_system.FSS_home.0.id
   path           = "/home"
   export_options {
