@@ -32,6 +32,9 @@ NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=H100 Cores=[48
 NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[4-7] Type=H100 Cores=[56-111]
 {% elif shape == "BM.GPU.MI300X.8"%}
 NodeName={{ansible_hostname}} Name=gpu File=/dev/dri/renderD[128,136,144,152,160,168,176,184] Type=MI300X
+{% elif shape == "BM.GPU.L40S.4"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=L40S Cores=[0-55]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[2-3] Type=L40S Cores=[56-111]
 {% elif shape == "BM.GPU.T1.2" %}
 NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
 {% elif shape == "BM.GPU.A10.4" %}
