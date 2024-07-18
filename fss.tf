@@ -19,7 +19,7 @@ resource "oci_file_storage_file_system" "FSS_home" {
   }
 
 resource "oci_file_storage_mount_target" "FSSMountTarget" {
-  count               = var.create_fss ? 1 : 0
+  count               = var.create_fss ? var.mount_target_count : 0
   availability_domain = var.fss_ad 
   compartment_id      = var.fss_compartment
   subnet_id           = local.subnet_id
@@ -28,7 +28,7 @@ resource "oci_file_storage_mount_target" "FSSMountTarget" {
 }
 
 resource "oci_file_storage_export" "FSSExport" {
-  count          = var.create_fss ? 1 : 0
+  count          = var.create_fss ? var.mount_target_count : 0
   export_set_id  = oci_file_storage_mount_target.FSSMountTarget.0.export_set_id
   file_system_id = oci_file_storage_file_system.FSS.0.id
   path           = var.nfs_source_path  
@@ -41,7 +41,7 @@ resource "oci_file_storage_export" "FSSExport" {
 
 
 resource "oci_file_storage_export" "FSSExport_home" {
-  count          = var.create_fss && var.home_fss ? 1 : 0
+  count          = var.create_fss && var.home_fss ? var.mount_target_count : 0
   export_set_id  = oci_file_storage_mount_target.FSSMountTarget.0.export_set_id
   file_system_id = oci_file_storage_file_system.FSS_home.0.id
   path           = "/home"
