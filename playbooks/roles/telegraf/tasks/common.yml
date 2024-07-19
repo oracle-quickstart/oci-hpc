@@ -21,10 +21,16 @@
   register: nvidiasmi
   ignore_errors: yes
 
+- name: Check for rocm-smi
+  shell: rocm-smi
+  register: rocmsmi
+  ignore_errors: yes
+  when: nvidiasmi is failed
+
 - name: copy telegraf.conf
   become: true
   copy:
-    src: "{% if nvidiasmi is failed %}telegraf.conf{% else%}telegraf_gpu.conf{% endif %}"
+    src: "{% if nvidiasmi is failed %}{% if rocmsmi is failed %}telegraf.conf{% else%}telegraf_amd_gpu.conf{% endif %}{% else%}telegraf_nvidia_gpu.conf{% endif %}"
     dest: /etc/telegraf/telegraf.conf
     force: yes
     backup: yes
