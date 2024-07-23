@@ -73,6 +73,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
     source_id = local.cluster_network_image
     source_type             = "image"
     boot_volume_size_in_gbs = var.boot_volume_size
+    boot_volume_vpus_per_gb = 30
   }
   compute_cluster_id=length(var.compute_cluster_id) > 2 ? var.compute_cluster_id : oci_core_compute_cluster.compute_cluster[0].id
   create_vnic_details {

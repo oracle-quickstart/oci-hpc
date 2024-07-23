@@ -64,6 +64,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       source_details {
         source_type             = "image"
         boot_volume_size_in_gbs = var.boot_volume_size
+        boot_volume_vpus_per_gb = 30
         image_id                = local.instance_pool_image
       }
     }
