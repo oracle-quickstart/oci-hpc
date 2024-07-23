@@ -474,7 +474,7 @@ variables:
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 100
+    default: 1024
 
   controller_boot_volume_backup:
     type: boolean
@@ -507,6 +507,7 @@ variables:
       - "0.  Lower performance"
       - "10. Balanced performance"
       - "20. High Performance"
+      - "30. Ultra High Performance"
     default: "10. Balanced performance"
     visible:
       and:
@@ -749,7 +750,7 @@ variables:
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 100
+    default: 256
     description: "Boot volume size in GB of each compute node" 
 
   use_marketplace_image:
@@ -1592,7 +1593,7 @@ configuration\" "
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 250
+    default: 512
     visible:  ${login_node}
 
   login_block:

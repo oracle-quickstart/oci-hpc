@@ -84,6 +84,7 @@ resource "oci_core_instance" "controller" {
 //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
     source_id = local.controller_image
     boot_volume_size_in_gbs = var.controller_boot_volume_size
+    boot_volume_vpus_per_gb = 30
     source_type = "image"
   }
 
