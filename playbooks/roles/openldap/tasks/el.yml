@@ -34,11 +34,6 @@
         state: present
         disable_gpg_check: true
 
-    - name: Match the version of openldap (part of OL8 install) package with the version of openldap-servers for OL8
-      ansible.builtin.yum:
-        name: openldap-2.4.46-18.el8.x86_64
-        state: present
-        allow_downgrade: true
   when: ansible_distribution_major_version == '8'
 
 - name: Generate openldap root password 
