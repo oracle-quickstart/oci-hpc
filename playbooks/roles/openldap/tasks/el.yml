@@ -33,6 +33,7 @@
         name: https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/openldap-servers-2.4.46-18.el8.x86_64.rpm
         state: present
         disable_gpg_check: true
+
   when: ansible_distribution_major_version == '8'
 
 - name: Generate openldap root password 
