@@ -843,8 +843,7 @@ variables:
 
   BIOS: 
     title: "Modify BIOS options" 
-    description: "WARNING : Do NOT change those if you have not tested the changes on a single instance. Error will be \"Shape does not support the provided platform
-configuration\" "
+    description: "WARNING : Do NOT change those if you have not tested the changes on a single instance. Error will be \"Shape does not support the provided platform configuration\" "
     type: boolean
     default: false
     visible: true
@@ -1058,12 +1057,6 @@ configuration\" "
       compartmentId: ${vcn_compartment}
       vcnId: ${vcn_id}
       hidePrivateSubnet: false
-    # visible: 
-      # and:
-      #   - not:
-      #     - ${private_deployment}
-      #   - and: 
-      #     - ${use_existing_vcn}
     visible: ${use_existing_vcn}  
     required: true
   private_subnet_id:
@@ -1137,9 +1130,6 @@ configuration\" "
     default: "0.0.0.0/0"
     description: "Allowed SSH network in CIDR notation"
     required: true
-#   visible:
-#     not:
-#       - ${use_existing_vcn}
   slurm:
     type: boolean
     title: "Install SLURM"
@@ -1229,7 +1219,7 @@ configuration\" "
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: false
-    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
+    description: "Install Grafana, Telegrapf, and Prometheus tools for system monitoring."
 
   autoscaling:
     type: boolean
