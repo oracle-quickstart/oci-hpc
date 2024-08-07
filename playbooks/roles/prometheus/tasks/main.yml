@@ -1,0 +1,99 @@
+---
+# tasks file for prometheus
+- name: Create user for prometheus
+  become: true
+  user:
+    name: "{{ prometheus_user }}"  # Username
+    state: present  # Ensure the user is present
+    createhome: no  # Create the user's home directory  
+    shell: /usr/sbin/nologin
+    append: yes
+  become: true  
+
+- name: Create installation folder in etc
+  become: true
+  file:
+    path: "{{ prometheus_dest_dir }}"
+    state: directory
+    owner: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}"    
+    mode: '0775'
+    recurse: yes
+
+- name: Create data folder
+  become: true
+  file:
+    path: "{{ prometheus_data_dir }}"
+    state: directory
+    owner: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}"     
+    mode: '0775'
+    recurse: yes
+
+- name: Download/unarchive Packages for prometheus
+  become: true
+  unarchive:
+    src: "{{ prometheus_download_url }}"
+    dest: /tmp
+    owner: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}" 
+    remote_src: yes
+    creates: "{{ prometheus_download_dir }}"
+
+- name: Copying the service binary for prometheus
+  become: true
+  copy:
+    src: "{{ prometheus_download_dir }}/"
+    dest: /usr/local/bin/
+    owner: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}"    
+    mode: '0775'
+  with_items:
+   - prometheus
+   - promtool 
+     
+- name: Copying the console binary
+  become: true
+  copy:
+    src: "{{ prometheus_download_dir }}/"
+    dest: "{{ prometheus_dest_dir }}"
+    owner: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}"    
+    mode: '0775'
+  with_items:
+   - consoles
+   - console_libraries 
+
+- name: Removing the tar file of prometheus
+  become: true
+  file:
+    path: "{{ prometheus_download_dir }}"
+    state: absent
+
+- name: Create prometheus systemd service file
+  become: true
+  template:
+    src: templates/prometheus.service.j2
+    dest: "{{ service_dest_dir }}/prometheus.service"   
+
+- name: Get current nodes in /etc/hosts
+  shell: "cat /etc/hosts | grep .local.vcn | awk '{print $2}'"
+  register: nodes_in_etc_hosts
+  delegate_to: 127.0.0.1
+  run_once: true
+  ignore_errors: yes
+
+- set_fact:
+    nodelist: "{{ nodes_in_etc_hosts.stdout_lines }}"
+  run_once: true
+    
+- name: Copying the scrape config
+  become: true
+  template:  
+    src: templates/prometheus.yml.j2
+    dest: "{{ prometheus_dest_dir }}/prometheus.yml"
+    owner: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}" 
+    mode: '0775'
+  notify:
+  - restart prometheus 

@@ -1,12 +1,37 @@
 ---
-- name: Create database
-  shell: "python3 -c \"import influxdb; influxdb.InfluxDBClient(host='{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}', port=8086).create_database('telegraph')\""
-
+#- name: Create database
+#  shell: "python3 -c \"import influxdb; influxdb.InfluxDBClient(host='{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}', port=8086).create_database('telegraph')\""
+#  when: ('controller' in group_names)
+  
 #- name: Create database
 #  influxdb_database:
 #      hostname: "{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}"
 #      database_name: "telegraf"
 #  run_once: true
+- name: Add influxdb repository
+  become: true
+  yum_repository: 
+    name: influxdb
+    description: InfluxDB Repository - RHEL $releasever
+    baseurl: https://repos.influxdata.com/rhel/{{ ansible_distribution_major_version }}/$basearch/stable
+    enabled: 1
+    gpgcheck: 1
+    gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+  when: ansible_os_family == 'RedHat'
+  
+- name: Add InfluxData's key
+  become: true
+  apt_key:
+    state: present
+    url: https://repos.influxdata.com/influxdata-archive_compat.key
+  when: ansible_os_family == 'Debian'
+
+- name: Manage InfluxData APT repositories
+  become: true
+  apt_repository:
+    repo: deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+    state: present
+  when: ansible_os_family == 'Debian'
 
 - name: Install telegraf
   vars: 
@@ -25,7 +50,6 @@
   shell: rocm-smi
   register: rocmsmi
   ignore_errors: yes
-  when: nvidiasmi is failed
 
 - name: copy telegraf.conf
   become: true
@@ -50,7 +74,7 @@
     mode: 0744
   with_items: 
     - infiniband.conf
-    - influxdb.conf
+    - prometheus.conf
     - net.conf
     - ethtool_counters.conf
     - infiniband_mlx5_0_hw_counters.conf
@@ -70,6 +94,35 @@
     - infiniband_mlx5_14_hw_counters.conf
     - infiniband_mlx5_15_hw_counters.conf
     - infiniband_mlx5_16_hw_counters.conf
+
+- name: render conf files
+  become: true
+  template: 
+    src: "{{ item }}.j2"
+    dest: /etc/telegraf/telegraf.d/{{item}}
+    force: yes
+    backup: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0744
+  with_items: 
+    - nvidia_gpu.conf
+  when: not nvidiasmi is failed
+
+- name: render conf files
+  become: true
+  template: 
+    src: "{{ item }}.j2"
+    dest: /etc/telegraf/telegraf.d/{{item}}
+    force: yes
+    backup: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0744
+  with_items: 
+    - amd_gpu.conf
+  when: not rocmsmi is failed
+
 - name: restart telegraf
   become: true
   service:

@@ -209,7 +209,7 @@
         name: slurm
       when: slurm|default(false)|bool
     - include_role: 
-        name: influxdb
+        name: prometheus
       when: monitoring|default(false)|bool
     - include_role: 
         name: telegraf

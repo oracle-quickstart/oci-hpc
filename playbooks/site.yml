@@ -50,6 +50,8 @@
     - include_role: 
         name: localdisk
       when: localdisk | default(true) | bool
+    - include_role: 
+        name: healthchecks
 
 - hosts: compute
   become: true
@@ -63,8 +65,6 @@
       when: cluster_network|bool and not use_compute_agent|default(false)|bool
     - include_role: 
         name: nvidia_peermem
-    - include_role: 
-        name: healthchecks
 
 - hosts: controller
   become: true
@@ -269,7 +269,7 @@
 - hosts: all
   tasks: 
     - include_role: 
-        name: influxdb
+        name: prometheus
       when: monitoring|default(false)|bool
     - include_role: 
         name: telegraf
