@@ -67,23 +67,23 @@
     ds_url: "http://localhost:9090"
   ignore_errors: yes
 
-- name: Import grafana dashboards through API
-  uri:
-    url: "{{ grafana_api_url }}/api/dashboards/db"
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    method: POST
-    body_format: json
-    body: >
-      {
-        "dashboard": {{ lookup("file", item) }},
-        "overwrite": true,
-        "message": "Updated by ansible"
-      }
-  no_log: false
-  with_fileglob:
-    - files/cluster_prometheus.json
+# - name: Import grafana dashboards through API
+#   uri:
+#     url: "{{ grafana_api_url }}/api/dashboards/db"
+#     user: "{{ grafana_security.admin_user }}"
+#     password: "{{ grafana_security.admin_password }}"
+#     force_basic_auth: true
+#     method: POST
+#     body_format: json
+#     body: >
+#       {
+#         "dashboard": {{ lookup("file", item) }},
+#         "overwrite": true,
+#         "message": "Updated by ansible"
+#       }
+#   no_log: false
+#   with_fileglob:
+#     - files/cluster_prometheus.json
 
 #- name: Import Grafana dashboard foo
 #  community.grafana.grafana_dashboard:
