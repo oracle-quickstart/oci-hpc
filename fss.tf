@@ -4,7 +4,7 @@ resource "oci_file_storage_file_system" "FSS" {
   compartment_id              = var.fss_compartment
   display_name                = "${local.cluster_name}-fss"    
   lifecycle {
-      prevent_destroy = true
+      prevent_destroy = var.never_delete_fss
     }
   }
 
@@ -14,7 +14,7 @@ resource "oci_file_storage_file_system" "FSS_home" {
   compartment_id              = var.fss_compartment
   display_name                = "${local.cluster_name}-fss-home"  
   lifecycle {
-      prevent_destroy = true
+      prevent_destroy = var.never_delete_fss
     }
   }
 
