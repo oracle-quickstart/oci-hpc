@@ -71,17 +71,9 @@
 
     # Creating raid arrays
     - name: Creating Array
-      shell: "yes | mdadm --create /dev/md0 --level=10 --raid-devices={{ nvmes | count }} {{ nvme_devices | join(' ') }}"
+      shell: "yes | mdadm --create /dev/md0 {% if redundancy | bool %}--level=10{% else%}--level=0{% endif} --raid-devices={{ nvmes | count }} {{ nvme_devices | join(' ') }}"
       register: "array_created"
       when: array_check.rc != 0 
-     
-
-         #    - name: Create Logical volume
-         #      lvol:
-         #        vg: "vg_nvmes"
-         #        lv: "lv_nvmes"
-         #        size: 100%FREE
-         #        opts: "{% if redundancy | bool %}--type raid10{% else%}{% if ( nvme_count | int ) > 3 %}-i4{% else%}-i2{% endif %}{% endif %}"
      
     # Capture the raid array details to append to mdadm.conf
     - name: Capturing Array Details
