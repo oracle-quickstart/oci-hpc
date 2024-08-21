@@ -56,7 +56,6 @@ variableGroups:
       - ${node_count}
       - ${hyperthreading}
       - ${boot_volume_size}
-      - ${use_compute_agent}
       - ${use_marketplace_image}
       - ${compute_username}
       - ${marketplace_listing}
@@ -204,6 +203,7 @@ variableGroups:
       - ${controller_boot_volume_backup_retention_seconds}
       - ${controller_boot_volume_backup_time_zone}
       - ${controller_boot_volume_backup_type}
+      - ${use_compute_agent}
     visible: false
   - title: "Debug"
     variables: 
@@ -774,15 +774,6 @@ variables:
       - "GPU_OL7_NV535"
     default: "GPU_OL8_NV550"
     visible: ${use_marketplace_image}
-
-  use_compute_agent:
-    type: boolean
-    title: "use compute agent"
-    description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The new marketplace images need the compute agent enabled."
-    default: true
-    visible: 
-      not: 
-        - ${use_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
