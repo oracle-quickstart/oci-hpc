@@ -30,6 +30,14 @@
     name: safe_yum
   when: ansible_os_family == 'Debian'
 
+- name: install SLURM server packages Ubuntu
+  vars:
+    package_name: '{{ slurm_server_packages }}'
+    package_state: present
+  include_role:
+    name: safe_yum
+  when: ansible_os_family == 'Debian'
+
 - name: install SLURM server packages RedHat
   vars: 
     package_name: '{{ slurm_server_packages }}'
