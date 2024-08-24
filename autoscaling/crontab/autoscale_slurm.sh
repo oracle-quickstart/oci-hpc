@@ -161,26 +161,33 @@ def getAllClusterNames(config):
     return availableNames
 
 def getClusterName(node):
-    out = subprocess.Popen(['scontrol','show','topology',node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-    stdout,stderr = out.communicate()
-    clusterName = None
-    try:
-        if len(stdout.split('\n')) > 2:
-            for output in stdout.split('\n')[:-1]:
-                if "Switches=" in output:
-                    clusterName=output.split()[0].split('SwitchName=')[1]
-                    break
-                elif "SwitchName=inactive-" in output:
-                    continue
-                else:
-                    clusterName=output.split()[0].split('SwitchName=')[1]
-        elif len(stdout.split('\n')) == 2:
-            clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
-        if clusterName.startswith("inactive-"):
+    details=getNodeDetails(node)
+    clusterName="NOCLUSTERFOUND"
+    for feature in details[0].split(","):
+        if feature.startswith('CN__'):
+            clusterName=feature[4:]
+    if clusterName == "NOCLUSTERFOUND":
+        out = subprocess.Popen(['scontrol','show','topology',node], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        stdout,stderr = out.communicate()
+        clusterName = None
+        try:
+            if len(stdout.split('\n')) > 2:
+                for output in stdout.split('\n')[:-1]:
+                    if "Switches=" in output:
+                        clusterName=output.split()[0].split('SwitchName=')[1]
+                        break
+                    elif "SwitchName=inactive-" in output:
+                        continue
+                    else:
+                        clusterName=output.split()[0].split('SwitchName=')[1]
+            elif len(stdout.split('\n')) == 2:
+                clusterName=stdout.split('\n')[0].split()[0].split('SwitchName=')[1]
+            if clusterName.startswith("inactive-"):
+                return "NOCLUSTERFOUND"
+        except: 
+            print('No ClusterName could be found for '+node)
+            print('There seems to be some issues in the slurm topology file')
             return "NOCLUSTERFOUND"
-    except: 
-        print('No ClusterName could be found for '+node)
-        return "NOCLUSTERFOUND"
     return clusterName
 
 def getstatus_slurm():
@@ -246,7 +253,7 @@ def getstatus_slurm():
             clustername=getClusterName(node)
             if clustername is None:
                 continue
-            instanceType=features[-1]
+            instanceType=features[0]
             if queue in current_nodes.keys():
                 if instanceType in current_nodes[queue].keys():
                     current_nodes[queue][instanceType]+=1
@@ -276,7 +283,9 @@ def getstatus_slurm():
     cluster_to_destroy=[]
     for clustername in nodes_to_destroy_temp.keys():
         destroyEntireCluster=True
-        if clustername in running_cluster or clustername == "NOCLUSTERFOUND":
+        if clustername == "NOCLUSTERFOUND":
+            destroyEntireCluster=False
+        elif clustername in running_cluster:
             nodes_to_destroy[clustername]=nodes_to_destroy_temp[clustername]
             destroyEntireCluster=False
         else:
@@ -295,7 +304,7 @@ def getstatus_slurm():
     for clusterName in os.listdir(clusters_path):
         if len(clusterName.split('-')) < 3:
             continue
-        instance_keyword='-'.join(clusterName.split('-')[2:])
+        hostname_convention='-'.join(clusterName.split('-')[2:])
         clusterNumber=int(clusterName.split('-')[1])
         queue=clusterName.split('-')[0]
         instanceType=getInstanceType(config,queue,hostname_convention)
@@ -311,19 +320,19 @@ def getstatus_slurm():
                 nodes = line.split()[0]
                 instance_type = line.split()[1]
                 queue = line.split()[2]
-            try:
-                cluster_building.append([int(nodes),instance_type,queue])
-                if queue in building_nodes.keys():
-                    if instance_type in building_nodes[queue].keys():
-                        building_nodes[queue][instance_type]+=int(nodes)
+                try:
+                    cluster_building.append([int(nodes),instance_type,queue])
+                    if queue in building_nodes.keys():
+                        if instance_type in building_nodes[queue].keys():
+                            building_nodes[queue][instance_type]+=int(nodes)
+                        else:
+                            building_nodes[queue][instance_type]=int(nodes)
                     else:
-                        building_nodes[queue][instance_type]=int(nodes)
-                else:
-                    building_nodes[queue]={instance_type:int(nodes)}
-            except ValueError:
-                print ('The cluster '+ clusterName + ' does not have a valid entry for \"currently_building\"')
-                print ('Ignoring')
-                continue
+                        building_nodes[queue]={instance_type:int(nodes)}
+                except ValueError:
+                    print ('The cluster '+ clusterName + ' does not have a valid entry for \"currently_building\"')
+                    print ('Ignoring')
+                    continue
         if os.path.isfile(os.path.join(clusters_path,clusterName,'currently_destroying')):
             cluster_destroying.append(clusterName)
     return cluster_to_build,cluster_to_destroy,nodes_to_destroy,cluster_building,cluster_destroying,used_index,current_nodes,building_nodes
@@ -422,7 +431,7 @@ if autoscaling == "true":
                         nextIndex=i
                         used_index[queue][instance_type].append(i)
                         break
-            clusterName=queue+'-'+str(nextIndex)+'-'+jobconfig["instance_keyword"]
+            clusterName=queue+'-'+str(nextIndex)+'-'+jobconfig["hostname_convention"]
             if not queue in current_nodes.keys():
                 current_nodes[queue]={instance_type:0}
             else:
@@ -448,5 +457,5 @@ if autoscaling == "true":
         traceback.print_exc()
     os.remove(lockfile)
 else:
-    print("Autoscaling is false")
+    print("Autoscaling is false (set in /etc/ansible/hosts)")
     exit()
