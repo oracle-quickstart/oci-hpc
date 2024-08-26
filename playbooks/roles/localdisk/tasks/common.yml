@@ -1,89 +1,101 @@
 ---
-- name: check path
-  set_fact:
+- name: Check NVMe path and names
+  set_fact: 
     nvme_path_edited: "{% if nvme_path[-1] == '/' %}{{nvme_path[:-1]}}{% else%}{{nvme_path}}{% endif %}"
+    nvmes: "{{ (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[1-9][0-9]n1') | list ) + (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list) }}"
+    dev_prefix: "/dev/" 
 
-- name: Get the number of NVMe's
+- name: Prefix Devices
   set_fact:
-    nvme_count: "{{ hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]|[1-9][0-9]n1') | list | length}}"
+    nvme_devices: "{{ [dev_prefix] | product(nvmes) | map('join') | list }}"
 
-- name: Create a LVM?
+- name: Create Mdadm Raid?
   set_fact:
-    one_lv: "{{( log_vol | bool ) and ( ( nvme_count | int ) > 1 )}}"
+    mdadm_vol: "{{( log_vol | bool ) and ( ( nvmes | count ) > 1 )}}"
 
-- name: Create a new primary partition
-  parted:
-    device: "/dev/{{item}}"
-    number: 1
-    state: present
-    label: gpt
-  with_items:
-    - "{{ (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[1-9][0-9]n1') | list ) + (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list) }}"
 
-- name: create a filesystem
-  filesystem:
-    dev: "/dev/{{item}}p1"
-    fstype: xfs
-    opts: "-L locscratch{{item | replace('nvme','') | replace('n1','')}}"
-  with_items:
-    - "{{ (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[1-9][0-9]n1') | list ) + (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list) }}"
-  when: not ( one_lv | bool )
-
-- name: Mount local volume
-  mount:
-    path: "{% if item | replace('nvme','') | replace('n1','') == '0' %}{{ nvme_path_edited}}{% else%}{{ nvme_path_edited}}{{item | replace('nvme','') | replace('n1','')}}{% endif %}"
-    src: "LABEL=locscratch{{item | replace('nvme','') | replace('n1','')}}"
-    fstype: xfs
-    opts: defaults,noatime
-    state: mounted
-  with_items:
-    - "{{ (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[1-9][0-9]n1') | list ) + (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list) }}"
-  when: not ( one_lv | bool )
-
-- name: "set permissions on {{ nvme_path_edited }}"
-  become: true
-  file:
-    path: "{% if item | replace('nvme','') | replace('n1','') == '0' %}{{ nvme_path_edited}}{% else%}{{ nvme_path_edited}}{{item | replace('nvme','') | replace('n1','')}}{% endif %}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    mode: 0775
-    group: "{{privilege_group_name}}"
-    recurse: no
-  with_items:
-    - "{{ (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[1-9][0-9]n1') | list ) + (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list) }}"
-  when: not ( one_lv | bool )
-
-- name: Check for lvm devices
-  shell: fdisk -l|grep vg_nvmes|wc -l
-  register: lv_count
-
-- block:
-    - name: Create volume group
-      lvg:
-        vg: "vg_nvmes"
-        pvs: "{{['/dev/']|product((hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[1-9][0-9]n1') | list ) + (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list) )|map('join', '') | join(',')}}"
-
-    - name: Create Logical volume
-      lvol:
-        vg: "vg_nvmes"
-        lv: "lv_nvmes"
-        size: 100%FREE
-        opts: "{% if redundancy | bool %}--type raid10{% else%}{% if ( nvme_count | int ) > 3 %}-i4{% else%}-i2{% endif %}{% endif %}"
-
-    - name: Create file system
+- name: Partition Per Disk
+  block:
+    - name: Create A New Primary Partition
+      parted:
+        device: "/dev/{{item}}"
+        number: 1
+        state: present
+        label: gpt
+      with_items:
+        - "{{ nvmes }}"
+    
+    - name: Create A Filesystem
       filesystem:
+        dev: "/dev/{{item}}p1"
         fstype: xfs
-        dev: "/dev/vg_nvmes/lv_nvmes"
-
-    - name: Mount local volume
+        opts: "-L locscratch{{item | replace('nvme','') | replace('n1','')}}"
+      with_items:
+        - "{{ nvmes }}"
+    
+    - name: Mount Local Volume
       mount:
-        path: "{{ nvme_path_edited}}"
-        src: "/dev/vg_nvmes/lv_nvmes"
+        path: "{% if item | replace('nvme','') | replace('n1','') == '0' %}{{ nvme_path_edited}}{% else%}{{ nvme_path_edited}}{{item | replace('nvme','') | replace('n1','')}}{% endif %}"
+        src: "LABEL=locscratch{{item | replace('nvme','') | replace('n1','')}}"
         fstype: xfs
         opts: defaults,noatime
         state: mounted
-
+      with_items:
+        - "{{ nvmes }}"
+    
     - name: "set permissions on {{ nvme_path_edited }}"
+      become: true
+      file:
+        path: "{% if item | replace('nvme','') | replace('n1','') == '0' %}{{ nvme_path_edited}}{% else%}{{ nvme_path_edited}}{{item | replace('nvme','') | replace('n1','')}}{% endif %}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: 0775
+        group: "{{privilege_group_name}}"
+        recurse: no
+      with_items:
+        - "{{ nvmes }}"
+      
+  when: not ( mdadm_vol | bool )
+
+- name: Arrays
+  block:
+    - name: Checking Status Of Array
+      shell: "cat /proc/mdstat | grep md0"
+      register: "array_check"
+      changed_when: false
+      failed_when: false
+      check_mode: no
+    
+    - debug: 
+        msg: "{{ array_check.rc }}"
+
+    # Creating raid arrays
+    - name: Creating Array
+      shell: "yes | mdadm --create /dev/md0 {% if redundancy | bool %}--level=10{% else%}--level=0{% endif} --raid-devices={{ nvmes | count }} {{ nvme_devices | join(' ') }}"
+      register: "array_created"
+      when: array_check.rc != 0 
+     
+    # Capture the raid array details to append to mdadm.conf
+    - name: Capturing Array Details
+      command: "mdadm --detail --scan"
+      register: "array_details"
+      changed_when: false
+    
+    - name: Create Filesystem
+      filesystem:
+        fstype: xfs
+        dev: "/dev/md0"
+        opts: -f
+
+    - name: Mount Array
+      mount:
+        path: "{{ nvme_path_edited}}"
+        src: "/dev/md0"
+        fstype: xfs
+        opts: defaults,nofail,noatime,discard
+        state: mounted
+
+    - name: "Set Permissions On {{ nvme_path_edited }}"
       become: true
       file:
         path: "{{ nvme_path_edited}}"
@@ -92,10 +104,33 @@
         mode: 0775
         group: "{{privilege_group_name}}"
         recurse: no
+     
+    - name: Ensure mdadm_conf's directory exists
+      file:
+        path: /etc/mdadm
+        state: directory
+    
+    - name: Ensure mdadm_conf file exists
+      copy:
+        content: ""
+        dest: /etc/mdadm/mdadm.conf
+        force: no
+    
+    # Updating mdadm.conf in order to persist between reboots
+    - name: Updating mdadm_conf
+      lineinfile:
+        dest: /etc/mdadm/mdadm.conf
+        regexp: "^{{ item }}"
+        line: "{{ item }}"
+        state: "present"
+      with_items: '{{ array_details.stdout_lines }}'
+      when: array_created.changed
+   
+    - name: rebuild initramfs if ubuntu
+      shell: update-initramfs -k all -u
+      when: ansible_facts['distribution'] == "Ubuntu" and array_created.changed 
+  
   when:
-    - one_lv | bool 
-    - lv_count.stdout == '0'
+    - mdadm_vol | bool 
 
-- name: rebuild initramfs if ubuntu
-  shell: update-initramfs -k all -u
-  when: ansible_facts['distribution'] == "Ubuntu"
+
