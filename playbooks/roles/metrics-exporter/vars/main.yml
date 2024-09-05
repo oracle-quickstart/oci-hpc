@@ -1,0 +1,23 @@
+---
+# Variables
+gpu_ports: 9400
+prometheus_user: prometheus
+
+go_version: "1.23.0"
+go_tarball: "go{{ go_version }}.linux-amd64.tar.gz"
+go_url: "https://go.dev/dl/{{ go_tarball }}"
+go_install_dir: "/usr/local"
+go_path: "/usr/local/go/bin"
+dcgm_repo: "https://github.com/NVIDIA/dcgm-exporter.git"
+dcgm_service_path: "/etc/systemd/system/dcgm-exporter.service"
+dependencies: "{{ rhel_dependencies if ansible_os_family == 'RedHat' else ubuntu_dependencies }}"
+ubuntu_dependencies:
+  - wget
+  - git
+  - make
+  - build-essential
+rhel_dependencies:
+  - wget
+  - git
+  - make
+  - gcc

@@ -2,3 +2,5 @@
   when: ansible_os_family == 'RedHat'
 - include_tasks: ubuntu.yml
   when: ansible_os_family == 'Debian'
+- include_tasks: dashboard.yml
+  when: ansible_os_family == 'RedHat' or ansible_os_family == 'Debian'

@@ -1,3 +1,9 @@
+user: "{{ ol_user if ansible_os_family == 'RedHat' else ubuntu_user }}"
+ol_user: "opc"
+ubuntu_user: "ubuntu"
+dashboard_build_dir: "/tmp/dashboard-build"
+grafonnet_lib_repo_url: "github.com/grafana/grafonnet-lib/grafonnet@master"
+grafonnet_gen_repo_url: "github.com/grafana/grafonnet/gen/grafonnet-latest@main"
 grafana_api_keys_dir: /etc/opt/oci-hpc/passwords/grafana
 grafana_api_url: "http://localhost:3000"
 grafana_security:

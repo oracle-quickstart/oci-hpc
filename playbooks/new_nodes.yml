@@ -200,11 +200,11 @@
         name: spack
       when: spack|default(false)|bool
     - include_role: 
-        name: slurm
-      when: slurm|default(false)|bool
-    - include_role: 
         name: prometheus
       when: monitoring|default(false)|bool
     - include_role: 
-        name: telegraf
+        name: metrics-exporter
       when: monitoring|default(false)|bool
+    - include_role: 
+        name: slurm
+      when: slurm|default(false)|bool

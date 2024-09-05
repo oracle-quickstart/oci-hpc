@@ -1,0 +1,12 @@
+[Unit]
+Description=NVIDIA DCGM Exporter
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/dcgm-exporter
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=dcgm-exporter
+
+[Install]
+WantedBy=multi-user.target
