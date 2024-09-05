@@ -6,4 +6,11 @@ global:
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
-      - targets: [{{ nodelist|join(",") }}]   
+{% for host, info in host_info.items() %}
+      - targets: [{% for port in exporter_ports  %}{{ host }}:{{port}}{{ "," if not loop.last }}{%- endfor %}]
+        labels:
+          serial: {{ info.serial_number }}
+          cluster_name: {{ info.cluster_name }}
+          ocid: {{ info.ocid }}
+          oci_name: {{ info.oci_name }}
+{% endfor %}

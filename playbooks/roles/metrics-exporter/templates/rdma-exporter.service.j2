@@ -1,0 +1,13 @@
+[Unit]
+Description=RDMA Hardware counter exporter for RDMA NICs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User={{ prometheus_user }}
+Group={{ prometheus_user }}
+Type=simple
+ExecStart=/usr/bin/env python3 /usr/local/bin/rdma_counters_exporter.py
+
+[Install]
+WantedBy=multi-user.target

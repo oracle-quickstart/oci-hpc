@@ -1,0 +1,69 @@
+---
+- name: Copy binaries
+  copy:
+    src: "{{ item }}"
+    dest: /usr/local/bin
+    owner: "{{ user }}"
+    group: "{{ user }}"
+    mode: '0755'
+  loop:
+    - jb
+    - jsonnet
+  become: true
+
+- name: Delete existing build directory
+  file:
+    path: "{{ dashboard_build_dir }}"
+    state: absent
+
+- name: Create temporary build directory
+  ansible.builtin.file:
+    path: "{{ dashboard_build_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ user }}"
+    group: "{{ user }}"
+
+- name: Copy dashboard source files to build directory
+  copy:
+    src: "{{ item }}"
+    dest: "{{ dashboard_build_dir }}"
+    owner: "{{ user }}"
+    group: "{{ user }}"
+  loop:
+    - main.jsonnet
+    - g.libsonnet
+    - variables.libsonnet
+
+- name: Build dashboard with Jsonnet
+  ansible.builtin.shell: |
+    /usr/local/bin/jb init
+    /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
+    /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
+    /usr/local/bin/jsonnet -J vendor main.jsonnet -o cluster_prometheus_v2.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Save generated dashboard
+  copy:
+    src: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
+    dest: "{{ playbook_dir }}/grafana/files/cluster_prometheus_v2.json"
+
+- name: Import DCGM, RDMA, NVLink Grafana dashboards
+  community.grafana.grafana_dashboard:
+    grafana_url: http://localhost:3000
+    state: present
+    commit_message: Updated by ansible
+    overwrite: true
+    path: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
+
+- name: Import Node Exporter Grafana dashboard 
+  community.grafana.grafana_dashboard:
+    grafana_url: http://localhost:3000
+    state: present
+    commit_message: Updated by ansible
+    dashboard_id: 1860
+    dashboard_revision: 37
+
+
+

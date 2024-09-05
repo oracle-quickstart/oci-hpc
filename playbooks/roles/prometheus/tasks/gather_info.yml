@@ -1,0 +1,22 @@
+- name: Gather serial number
+  command: "sudo dmidecode -s system-serial-number"
+  register: serial_output
+  delegate_to: "{{ item }}"
+
+- name: gather metadata
+  uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    headers:
+      Authorization: 'Bearer Oracle'
+    return_content: yes
+  register: i_metadata
+  delegate_to: "{{ item }}"
+
+- name: set fact
+  set_fact:
+    instance_metadata: "{{ i_metadata['content'] }}"
+
+- name: Build the host_info dictionary
+  set_fact:
+    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': instance_metadata['freeformTags']['cluster_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName']}})   }}"
