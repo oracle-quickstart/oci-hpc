@@ -248,3 +248,9 @@
     name: slurmd
     state: restarted
     enabled: true
+
+- name: Reconfigure Slurm for topology
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
+  run_once: true
