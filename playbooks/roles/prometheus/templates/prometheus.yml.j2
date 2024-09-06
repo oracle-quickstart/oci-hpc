@@ -13,4 +13,10 @@ scrape_configs:
           cluster_name: {{ info.cluster_name }}
           ocid: {{ info.ocid }}
           oci_name: {{ info.oci_name }}
+          AD: {{ info.availabilityDomain }}
+          compartment: {{ info.compartmentId }}
+          rackID: {{ info.rackID }}
+          networkBlockId: {{ info.networkBlockId }}
+          rail_id: {{ info.rail_id }}
+          hpc_island: {{ info.hpc_island }}
 {% endfor %}
