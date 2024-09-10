@@ -75,8 +75,7 @@ def oca_version_metric(min_version):
 
     with open(tmp_tf_path, "a") as tmp_tf:
         tmp_tf.write('\n')
-        metric_text = "oca_version{agent_version=" + "\"" + version + "\"" + "} " \
-                + str(oca_ver_metric_value) \
+        metric_text = "oca_agent_version " + "\"" + version + "\"" \
                 + "\n"
         tmp_tf.write('{}'.format(metric_text))
     tmp_tf.close()
@@ -246,13 +245,13 @@ def check_bus_metric():
             bus_issues.append(line)
     if len(bus_issues) == 0:
         logger.info(f"No devices have fallen off the bus")
-        checkbus_metric = 1
+        checkbus_metric = len(bus_issues)
     elif len(bus_issues) > 0:
         logger.error("Devices have fallen off the bus")
-        checkbus_metric = 0
+        checkbus_metric = len(bus_issues)
     else:
         logger.warning("Bus Check Test: Failed")
-        checkbus_metric = 0
+        checkbus_metric = len(bus_issues)
 
     # Textfile name for metrics
     tf_name = 'check_bus.prom'
@@ -271,8 +270,7 @@ def check_bus_metric():
 
     with open(tmp_tf_path, "a") as tmp_tf:
         tmp_tf.write('\n')
-        metric_text = "check_bus_issue(count_reported=" + "\"" + str(len(bus_issues)) + "\"" + "} " \
-                + str(checkbus_metric) \
+        metric_text = "check_bus_issue_count " + str(checkbus_metric) \
                 + "\n"
         tmp_tf.write('{}'.format(metric_text))
     tmp_tf.close()
