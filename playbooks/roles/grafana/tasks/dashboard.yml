@@ -44,26 +44,21 @@
   args:
     chdir: "{{ dashboard_build_dir }}"
 
+- name: Ensure /opt/oci-hpc/monitoring exists
+  file:
+    path: "/opt/oci-hpc/monitoring"
+    state: directory
+
 - name: Save generated dashboard
   copy:
     src: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-    dest: "{{ playbook_dir }}/grafana/files/cluster_prometheus_v2.json"
+    dest: "/opt/oci-hpc/monitoring/cluster_prometheus_v2.json"
 
-- name: Import DCGM, RDMA, NVLink Grafana dashboards
+- name: Import NodeExporter, DCGM, RDMA, NVLink Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
     state: present
     commit_message: Updated by ansible
     overwrite: true
     path: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-
-- name: Import Node Exporter Grafana dashboard 
-  community.grafana.grafana_dashboard:
-    grafana_url: http://localhost:3000
-    state: present
-    commit_message: Updated by ansible
-    dashboard_id: 1860
-    dashboard_revision: 37
-
-
 
