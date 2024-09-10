@@ -41,6 +41,24 @@
   include_role: 
     name: safe_yum
 
+- name: force telegraf gid 998
+  become: true
+  lineinfile:
+    path: /etc/group
+    state: present
+    regexp: '^telegraf:x:(.*)$'
+    line: 'telegraf:x:998:'
+    backrefs: yes
+
+- name: force telegraf uid 998
+  become: true
+  lineinfile:
+    path: /etc/passwd
+    state: present
+    regexp: '^telegraf:x:(.*)$'
+    line: 'telegraf:x:998:998::/etc/telegraf:/bin/false'
+    backrefs: yes
+
 - name: Check for nvidia-smi
   shell: nvidia-smi
   register: nvidiasmi

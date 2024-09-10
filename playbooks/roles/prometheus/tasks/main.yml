@@ -8,7 +8,6 @@
     createhome: no  # Create the user's home directory  
     shell: /usr/sbin/nologin
     append: yes
-  become: true  
 
 - name: Create installation folder in etc
   become: true
@@ -48,6 +47,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"    
     mode: '0775'
+    remote_src: yes
   with_items:
    - prometheus
    - promtool 
@@ -60,6 +60,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"    
     mode: '0775'
+    remote_src: yes
   with_items:
    - consoles
    - console_libraries 

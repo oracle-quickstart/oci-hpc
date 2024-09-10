@@ -19,6 +19,31 @@
   include_role: 
     name: safe_yum
 
+- name: force influxdb gid 997
+  become: true
+  lineinfile:
+    path: /etc/group
+    state: present
+    regexp: '^influxdb:x:(.*)$'
+    line: 'influxdb:x:997:'
+    backrefs: yes
+
+- name: force influxd uid 997
+  become: true
+  lineinfile:
+    path: /etc/passwd
+    state: present
+    regexp: '^influxdb:x:(.*)$'
+    line: 'influxdb:x:997:997::/var/lib/influxdb:/bin/false'
+    backrefs: yes
+
+- name: restart influxdb
+  become: true
+  service:
+    name: influxdb
+    state: restarted
+    enabled: yes
+
 - name: install influx pip
   become: true
   vars:
