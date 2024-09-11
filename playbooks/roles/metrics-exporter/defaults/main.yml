@@ -1,4 +1,2 @@
 node_exporter: 1.8.2
-nvidia-gpu-exporter: 1.2.0
-gpu_ports: 9835
 cpu_ports: 9100

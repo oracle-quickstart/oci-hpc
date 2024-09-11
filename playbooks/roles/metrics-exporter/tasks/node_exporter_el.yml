@@ -1,6 +1,6 @@
 ---
 
-- name: Create /etc/prometheus directory
+- name: Create /var/lib/prometheus/node_exporter directory
   become: true
   file:
     path: "/var/lib/prometheus/node_exporter"
@@ -102,31 +102,3 @@
     enabled: true 
   delegate_to: "{{ groups['monitoring_server'][0] }}" 
   when: ('bastion' in group_names)  
-
-#- name: Get prometheus information for cpu instances
-#  shell: curl -g 'http://{{ groups['monitoring_server'][0] }}:9090/api/v1/series?' --data-urlencode 'match[]=up' --data-urlencode 'match[]=process_start_time_seconds{job="node_exporter"}' | jq -r ".data[]" | jq -r ".instance"
-#  register: cpu_instances
-#  when: ('bastion' in group_names)
-
-#- name: Print return information from curl command
-#  debug:
-#    msg: "{{ cpu_instances.stdout.split() }}"
-#  when: ('bastion' in group_names)
-
-
-#- name: split on element
-#  shell: curl -X POST -g 'http://{{ groups['monitoring_server'][0] }}:9090/api/v1/admin/tsdb/delete_series?match[]=up&match[]={instance="{{ item }}"}'
-##  debug:
-##    msg: "{{ item.split(':')[0] }} is in sinfo"
-#  loop: "{{ cpu_instances.stdout.split() }}"
-#  when: ('bastion' in group_names) and (sinfo.stdout.split()[2:] is not search(item.split(':')[0]))
-  
-
-# - name: Clean when running is no
-#   shell: curl -X POST -g 'http://{{ groups['monitoring_server'][0] }}:9090/api/v1/admin/tsdb/delete_series?match[]=up&match[]={running="no"}'
-#   when: ('bastion' in group_names)
-
-# - name: Clean all 
-#   shell: curl -X POST -g 'http://{{ groups['monitoring_server'][0] }}:9090/api/v1/admin/tsdb/clean_tombstones'
-#   when: ('bastion' in group_names) 
-   
