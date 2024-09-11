@@ -57,7 +57,7 @@ def get_instances(comp_ocid,cn_ocid,CN):
                 vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
             except:
                 continue
-            cn_instances.append({'display_name':instance.display_name,'ip':vnic.private_ip,'ocid':instance.id})   
+            cn_instances.append({'display_name':instance.display_name,'ip':vnic.private_ip,'ocid':instance.id})
     else:
         if CN == "CN":
             instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_cluster_network_instances,comp_ocid,cn_ocid).data
@@ -72,7 +72,7 @@ def get_instances(comp_ocid,cn_ocid,CN):
                 vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
             except:
                 continue
-            cn_instances.append({'display_name':instance_summary.display_name,'ip':vnic.private_ip,'ocid':instance_summary.id})   
+            cn_instances.append({'display_name':instance_summary.display_name,'ip':vnic.private_ip,'ocid':instance_summary.id})
     return cn_instances
 
 def parse_inventory(inventory):
@@ -138,7 +138,7 @@ def backup_inventory(inventory):
         print("File "+tmp_file_do_not_edit+" exist, it means previous reconfigure had failed. Hence updating inventory to previous state")
         shutil.move(tmp_file_do_not_edit,inventory)
 
-def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook): 
+def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
     if not os.path.isfile("/etc/ansible/hosts"):
         print("STDOUT: There is no inventory file, are you on the controller? The cluster has not been resized")
         exit(1)
@@ -170,7 +170,7 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
             print("STDOUT: Some nodes are removed in OCI and removed from the inventory")
             print("STDOUT: Try rerunning with the --nodes option and a list of IPs or Slurm Hostnames to cleanup the controller")
     write_inventory(inventory_dict,tmp_inventory_destroy)
-    if not len(ips_to_remove):
+    if not len(ips_to_remove) or slurm_name_change:
         print("STDOUT: No hostname found, trying anyway with "+" ".join(nodes_to_remove))
         for node in nodes_to_remove: # Temporary fix while the playbook is changed to be able to run multiple at the time
             update_flag = update_cluster(tmp_inventory_destroy,playbook,add_vars={"unreachable_node_list":node})
@@ -466,7 +466,7 @@ def get_summary(comp_ocid,cluster_name):
         elif cn_summary_tmp.lifecycle_state == "SCALING":
             scaling_clusters = scaling_clusters + 1
     if running_clusters == 0:
-        try: 
+        try:
             cn_summaries = computeClient.list_compute_clusters(comp_ocid,display_name=cluster_name).data.items
         except:
             print("The list_compute_clusters call returned an error, considering no Compute CLusters are present")
@@ -476,7 +476,7 @@ def get_summary(comp_ocid,cluster_name):
             for cn_summary_tmp in cn_summaries:
                 if cn_summary_tmp.lifecycle_state == "ACTIVE" and cn_summary_tmp.display_name == cluster_name :
                     cn_summary = cn_summary_tmp
-                    running_clusters = running_clusters + 1 
+                    running_clusters = running_clusters + 1
         if running_clusters == 0:
             cn_summaries = computeManagementClient.list_instance_pools(comp_ocid,display_name=cluster_name).data
             if len(cn_summaries) > 0:
@@ -484,7 +484,7 @@ def get_summary(comp_ocid,cluster_name):
                 for cn_summary_tmp in cn_summaries:
                     if cn_summary_tmp.lifecycle_state == "RUNNING":
                         cn_summary = cn_summary_tmp
-                        running_clusters = running_clusters + 1 
+                        running_clusters = running_clusters + 1
                     elif cn_summary_tmp.lifecycle_state == "SCALING":
                         scaling_clusters = scaling_clusters + 1
             if running_clusters == 0:
@@ -555,7 +555,7 @@ def getLaunchInstanceDetails(instance,comp_ocid,cn_ocid,max_previous_index,index
     create_vnic_details=oci.core.models.CreateVnicDetails(assign_public_ip=False,subnet_id=vnic_attachment.subnet_id)
 
     shape_config=instance.shape_config
-    try: 
+    try:
         nvmes=shape_config.local_disks
         launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,nvmes=nvmes,ocpus=shape_config.ocpus)
     except:
@@ -564,7 +564,7 @@ def getLaunchInstanceDetails(instance,comp_ocid,cn_ocid,max_previous_index,index
     splitted_name[-1]=str(max_previous_index+1+index)
     new_display_name = '-'.join(splitted_name)
     launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=comp_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
-    return launch_instance_details      
+    return launch_instance_details
 
 batchsize=12
 inventory="/etc/ansible/hosts"
@@ -635,6 +635,11 @@ private_subnet_cidr=None
 for inv_vars in inventory_dict["all:vars"]:
     if inv_vars.startswith("private_subnet"):
         private_subnet_cidr=ipaddress.ip_network(inv_vars.split("private_subnet=")[1].strip())
+        break
+slurm_name_change=None
+for inv_vars in inventory_dict["all:vars"]:
+    if inv_vars.startswith("change_hostname"):
+        slurm_name_change=inv_vars.split("change_hostname=")[1].strip()
         break
 
 hostnames=args.nodes
@@ -737,7 +742,7 @@ else:
             print("STDOUT: "+host+" with IP: "+ip+" is in the inventory but not in the cluster")
             only_inventory_instance.append({'display_name':host,'ip':ip,'ocid':None})
     if args.mode == 'remove_unreachable':
-        if len(hostnames) == 0: 
+        if len(hostnames) == 0:
             reachable_instances,unreachable_instances=getreachable(cn_instances+only_inventory_instance,username,delay=10)
             if len(unreachable_instances):
                 hostnames_to_remove=[i['display_name'] for i in unreachable_instances]
@@ -792,20 +797,20 @@ else:
                     print("STDOUT: Force deleting the nodes")
         terminated_instances=0
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
-        if CN != "CC": 
+        if CN != "CC":
             current_size = ip_summary.size
         for instanceName in hostnames_to_remove:
             try:
                 instance_id = computeClient.list_instances(comp_ocid,display_name=instanceName).data[0].id
                 if CN == "CC":
                     ComputeClientCompositeOperations.terminate_instance_and_wait_for_state(instance_id,wait_for_states=["TERMINATING","TERMINATED"])
-                else: 
+                else:
                     instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_id,is_auto_terminate=True,is_decrement_size=True)
                     ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
                 if dns_entries:
                     get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=instanceName+"."+zone_name,rtype="A",scope="PRIVATE")
                     ip=None
-                    for i in cn_instances: 
+                    for i in cn_instances:
                         if i['display_name'] == instanceName:
                             ip = ipaddress.ip_address(i['ip'])
                     if not ip is None:
@@ -813,7 +818,7 @@ else:
                         slurm_name=hostname_convention+"-"+str(index)+"."+zone_name
                         get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE")
                 terminated_instances = terminated_instances + 1
-                print("STDOUT: The instance "+instanceName+" is terminating")   
+                print("STDOUT: The instance "+instanceName+" is terminating")
             except:
                 print("STDOUT: The instance "+instanceName+" does not exist")
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
@@ -824,7 +829,7 @@ else:
                     instance_state = computeClient.get_instance(instance_id).data.lifecycle_state
                     if instance_state == "TERMINATED":
                         break
-                    else: 
+                    else:
                         time.sleep(10)
                 except:
                     break
