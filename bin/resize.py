@@ -31,13 +31,13 @@ def wait_for_running_status(cluster_name,comp_ocid,cn_ocid,CN,expected_size=None
             instances=computeManagementClient.list_instance_pool_instances(comp_ocid,cn_ocid).data
         if state != 'RUNNING':
             print("Cluster state is "+state+", cannot add or remove nodes")
-            print ("Waiting...")
+            print("Waiting...")
             time.sleep(30)
         elif not expected_size is None:
             if expected_size == len(instances):
                 break
             else:
-                print("The instance list does not match the expected size")
+                print("STDOUT: The instance list does not match the expected size")
                 time.sleep(30)
         else:
             break
@@ -140,8 +140,8 @@ def backup_inventory(inventory):
 
 def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook): 
     if not os.path.isfile("/etc/ansible/hosts"):
-        print("There is no inventory file, are you on the controller? The cluster has not been resized")
-        exit()
+        print("STDOUT: There is no inventory file, are you on the controller? The cluster has not been resized")
+        exit(1)
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
     tmp_inventory_destroy="/tmp/"+inventory.replace('/','_')+"_destroy"
@@ -167,11 +167,11 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
             if instance['display_name'] in nodes_to_remove and not instance['ip'] in ips_to_remove:
                 ips_to_remove.append(instance['ip'])
         if len(ips_to_remove) != len(nodes_to_remove):
-            print("Some nodes are removed in OCI and removed from the inventory")
-            print("Try rerunning with the --nodes option and a list of IPs or Slurm Hostnames to cleanup the controller")
+            print("STDOUT: Some nodes are removed in OCI and removed from the inventory")
+            print("STDOUT: Try rerunning with the --nodes option and a list of IPs or Slurm Hostnames to cleanup the controller")
     write_inventory(inventory_dict,tmp_inventory_destroy)
     if not len(ips_to_remove):
-        print("No hostname found, trying anyway with "+" ".join(nodes_to_remove))
+        print("STDOUT: No hostname found, trying anyway with "+" ".join(nodes_to_remove))
         for node in nodes_to_remove: # Temporary fix while the playbook is changed to be able to run multiple at the time
             update_flag = update_cluster(tmp_inventory_destroy,playbook,add_vars={"unreachable_node_list":node})
             time.sleep(10)
@@ -190,8 +190,8 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
 
 def destroy_reconfigure(inventory,nodes_to_remove,playbook):
     if not os.path.isfile("/etc/ansible/hosts"):
-        print("There is no inventory file, are you on the controller? The cluster has not been resized")
-        exit()
+        print("STDOUT: There is no inventory file, are you on the controller? The cluster has not been resized")
+        exit(1)
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
     inventory_dict['compute_to_destroy']=[]
@@ -262,8 +262,8 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
     reachable_instances=instances
     unreachable_instances=[]
     if not os.path.isfile(inventory):
-        print("There is no inventory file, are you on the controller? The cluster has been resized but not reconfigured")
-        exit()
+        print("STDOUT: There is no inventory file, are you on the controller? The cluster has been resized but not reconfigured")
+        exit(1)
     host_to_wait_for=[]
     for node in reachable_instances:
         name=node['display_name']
@@ -303,14 +303,15 @@ def add_reconfigure(comp_ocid,cn_ocid,inventory,CN,specific_hosts=None):
         write_inventory(inventory_dict,tmp_inventory)
         os.system('sudo mv '+tmp_inventory+' '+inventory)
     else:
-        print("The reconfiguration to add the node(s) had an error")
-        print("Try rerunning this command: ansible-playbook -i "+tmp_inventory_add+' '+playbooks_dir+"resize_add.yml" )
+        print("STDOUT: The reconfiguration to add the node(s) had an error")
+        print("STDOUT: Try rerunning this command: ansible-playbook -i "+tmp_inventory_add+' '+playbooks_dir+"resize_add.yml" )
+        exit(1)
 
 def reconfigure(comp_ocid,cn_ocid,inventory,CN, crucial=False):
     instances = get_instances(comp_ocid,cn_ocid,CN)
     if not os.path.isfile(inventory):
-        print("There is no inventory file, are you on the controller? Reconfigure did not happen")
-        exit()
+        print("STDOUT: There is no inventory file, are you on the controller? Reconfigure did not happen")
+        exit(1)
     backup_inventory(inventory)
     inventory_dict = parse_inventory(inventory)
     host_to_wait_for=[]
@@ -642,11 +643,11 @@ if hostnames is None:
 
 if args.mode=='remove' and args.number is None and args.nodes is None:
     print("STDOUT: No Nodes to remove")
-    exit()
+    exit(1)
 
 if args.mode=='add' and args.number is None:
     print("STDOUT: No Nodes to add")
-    exit()
+    exit(1)
 
 if args.no_reconfigure is None:
     no_reconfigure=False
@@ -692,7 +693,7 @@ else:
 
 cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
 if cn_summary is None:
-    exit()
+    exit(1)
 cn_ocid =cn_summary.id
 
 if CN != "CC":
@@ -814,7 +815,7 @@ else:
                 terminated_instances = terminated_instances + 1
                 print("STDOUT: The instance "+instanceName+" is terminating")   
             except:
-                print("The instance "+instanceName+" does not exist")
+                print("STDOUT: The instance "+instanceName+" does not exist")
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
         if CN == "CC":
             instance_id = computeClient.list_instances(comp_ocid,display_name=hostnames_to_remove[-1]).data[0].id
@@ -842,7 +843,7 @@ else:
         if CN == "CC":
             current_size=len(cn_instances)
             if len(cn_instances) == 0:
-                print("The resize script cannot work for a compute cluster if the size is there is no node in the cluster")
+                print("STDOUT: The resize script cannot work for a compute cluster if the size is there is no node in the cluster")
             else:
                 for cn_instance in cn_instances:
                     max_index=-1
@@ -875,7 +876,7 @@ else:
                     get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=instanceName+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=instanceName+"."+zone_name,rdata=new_instance['ip'],rtype="A",ttl=3600)]))
         updateTFState(inventory,cluster_name,newsize)
         if newsize == current_size:
-            print("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
+            print("STDOUT: No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
             exit(1)
         if not no_reconfigure:
             add_reconfigure(comp_ocid,cn_ocid,inventory,CN)
