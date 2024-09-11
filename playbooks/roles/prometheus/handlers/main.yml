@@ -1,9 +1,0 @@
----
-# handlers file for prometheus
-- name: restart prometheus
-  become: true
-  service: 
-    name: prometheus 
-    state: restarted
-    daemon_reload: yes
-    enabled: yes 

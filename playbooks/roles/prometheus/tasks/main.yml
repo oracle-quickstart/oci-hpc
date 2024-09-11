@@ -47,6 +47,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"    
     mode: '0775'
+    remote_src: true
   with_items:
    - prometheus
    - promtool 
@@ -59,6 +60,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"    
     mode: '0775'
+    remote_src: true
   with_items:
    - consoles
    - console_libraries 
@@ -101,5 +103,13 @@
     group: "{{ prometheus_user }}"
     mode: '0775'
   run_once: true
-  notify:
-  - restart prometheus
+  delegate_to: 127.0.0.1
+  
+- name: restart prometheus
+  become: true
+  service: 
+    name: prometheus 
+    state: restarted
+    daemon_reload: yes
+    enabled: yes 
+  delegate_to: 127.0.0.1
