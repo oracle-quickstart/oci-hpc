@@ -47,3 +47,11 @@
     owner: root  
     group: root
     mode: '0755'
+
+- name: Enable and Start Custom Metric Service
+  become: true
+  service:
+    name=customMetrics.service
+    state=started
+    enabled=yes
+
