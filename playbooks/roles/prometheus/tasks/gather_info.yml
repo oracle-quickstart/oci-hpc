@@ -1,0 +1,46 @@
+- name: Gather serial number
+  command: "sudo dmidecode -s system-serial-number"
+  register: serial_output
+  delegate_to: "{{ item }}"
+
+- name: gather metadata
+  uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    headers:
+      Authorization: 'Bearer Oracle'
+    return_content: yes
+  register: i_metadata
+  delegate_to: "{{ item }}"
+
+- name: set fact
+  set_fact:
+    instance_metadata: "{{ i_metadata['content'] }}"
+
+- name: gather RDMA metadata
+  uri:
+    url: http://169.254.169.254/opc/v1/host/
+    method: GET
+    headers:
+      Authorization: 'Bearer Oracle'
+    return_content: yes
+  register: h_metadata
+  delegate_to: "{{ item }}"
+
+- name: set fact
+  set_fact:
+    rdma_metadata: "{{ h_metadata['content'] }}"
+
+- name: add empty networkblockID
+  set_fact:
+    rdma_metadata : "{{ rdma_metadata | combine({'networkBlockId': 'None'}) }}"
+  when: "not 'networkBlockId' in rdma_metadata"
+
+- name: add empty rdmaTopologyData
+  set_fact:
+    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None'}}) }}"
+  when: "not 'rdmaTopologyData' in rdma_metadata"
+
+- name: Build the host_info dictionary
+  set_fact:
+    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': instance_metadata['freeformTags']['cluster_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] }})   }}"

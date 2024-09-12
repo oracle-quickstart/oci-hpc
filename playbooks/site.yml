@@ -260,7 +260,7 @@
         name: prometheus
       when: monitoring|default(false)|bool
     - include_role: 
-        name: telegraf
+        name: metrics-exporter
       when: monitoring|default(false)|bool
 
 - hosts: controller

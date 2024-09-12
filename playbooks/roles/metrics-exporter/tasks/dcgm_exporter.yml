@@ -1,0 +1,76 @@
+---
+- name: Install dependencies
+  become: true
+  package:
+    name: "{{ dependencies }}"
+    state: present
+
+- name: Download Go tarball
+  become: true
+  get_url:
+    url: "{{ go_url }}"
+    dest: "/tmp/{{ go_tarball }}"
+
+- name: Remove old Go installation
+  become: true
+  file:
+    path: "{{ go_install_dir }}/go"
+    state: absent
+
+- name: Extract Go tarball
+  become: true
+  unarchive:
+    src: "/tmp/{{ go_tarball }}"
+    dest: "{{ go_install_dir }}"
+    remote_src: yes
+
+- name: Ensure Go binary path is in PATH
+  become: true
+  lineinfile:
+    path: /etc/profile.d/go.sh
+    line: "export PATH=$PATH:{{ go_path }}"
+    create: yes
+    state: present
+
+- name: Clone DCGM Exporter repository
+  become: true
+  git:
+    repo: "{{ dcgm_repo }}"
+    dest: "/tmp/dcgm-exporter"
+    update: no
+  environment:
+    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+
+- name: Build DCGM Exporter binary
+  become: true
+  command: make binary
+  args:
+    chdir: /tmp/dcgm-exporter
+  environment:
+    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+
+- name: Install DCGM Exporter
+  become: true
+  command: make install
+  args:
+    chdir: /tmp/dcgm-exporter
+  environment:
+    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+
+- name: Create systemd service for DCGM-Exporter
+  become: true
+  template:
+    src: dcgm-exporter.service.j2
+    dest: "{{ dcgm_service_path }}"
+
+- name: Reload systemd daemon
+  become: true
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start DCGM-Exporter service
+  become: true
+  systemd:
+    name: dcgm-exporter
+    enabled: yes
+    state: started
