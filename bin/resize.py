@@ -171,7 +171,8 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
             print("STDOUT: Try rerunning with the --nodes option and a list of IPs or Slurm Hostnames to cleanup the controller")
     write_inventory(inventory_dict,tmp_inventory_destroy)
     if not len(ips_to_remove) or slurm_name_change:
-        print("STDOUT: No hostname found, trying anyway with "+" ".join(nodes_to_remove))
+        if not len(ips_to_remove):
+            print("STDOUT: No hostname found, trying anyway with "+" ".join(nodes_to_remove))
         for node in nodes_to_remove: # Temporary fix while the playbook is changed to be able to run multiple at the time
             update_flag = update_cluster(tmp_inventory_destroy,playbook,add_vars={"unreachable_node_list":node})
             time.sleep(10)
@@ -783,9 +784,8 @@ else:
         else:
             # first check if all hostnames passed via --nodes exist. Exit if that's not the case
             for host in hostnames:
-                if host not in cn_instances:
+                if host not in [i["display_name"] for i in cn_instances]:
                     print(f"ERROR: node {host} does not appear to exist in this cluster. Please check your arguments and rerun")
-                    sys.exit(1)
             hostnames_to_remove2 = list(hostnames)
             hostnames_to_remove2.extend(x for x in hostnames_to_remove if x not in hostnames_to_remove2)
             hostnames_to_remove=hostnames_to_remove2
