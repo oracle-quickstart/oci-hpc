@@ -38,6 +38,22 @@
       name: safe_yum
     ignore_errors: true
 
+  - name: force docker gid 999
+    become: true
+    lineinfile:
+      path: /etc/group
+      state: present
+      regexp: '^docker:x:(.*)$'
+      line: 'docker:x:999:{{ansible_user}}'
+      backrefs: yes
+
+  - name: restart docker
+    become: true
+    service:
+      name: docker.socket
+      state: restarted
+      enabled: yes
+
 # start is not needed - it starts dokcer as part of install
   - name: Enable service Docker
     ansible.builtin.service:
@@ -53,8 +69,8 @@
 #    pip:
 #      name: docker
 
-  - name: add ubuntu user to docker group
-    user:
-      name: ubuntu
-      groups: docker
-      append: yes
+#  - name: add ubuntu user to docker group
+#    user:
+#      name: ubuntu
+#      groups: docker
+#      append: yes
