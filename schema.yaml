@@ -897,7 +897,7 @@ variables:
     title: "Change hostname" 
     description: "Will modify the hostname of the node but not in the oci console"
     type: boolean
-    default: false
+    default: true
     required: true
 
   hostname_convention:

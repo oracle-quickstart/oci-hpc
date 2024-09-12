@@ -21,7 +21,7 @@ then
   exit
 fi
 
-if [ $# -eq 0 ]
+if [ $# -eq 0 ] || [ $1 == "--help" ]
 then
   python3 $folder/resize.py --help
   exit
@@ -170,5 +170,5 @@ then
     rm currently_resizing
   fi
 else
-  python3 $folder/resize.py ${@} &
+  python3 $folder/resize.py ${@}
 fi

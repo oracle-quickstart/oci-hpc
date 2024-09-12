@@ -1,0 +1,104 @@
+---
+- name: Create prometheus group on compute
+  become: true
+  group:
+    name: prometheus
+    state: present
+    system: yes
+  when: "'compute' in group_names"
+
+- name: Create prometheus user on compute
+  become: true
+  user:
+    name: prometheus
+    comment: "prometheus user"
+    group: prometheus
+    createhome: no  # Optional: depending on if you want to create a home directory
+  when: "'compute' in group_names"
+
+- name: Create /var/lib/prometheus/node_exporter directory
+  become: true
+  file:
+    path: "/var/lib/prometheus/node_exporter"
+    state: directory
+    owner: 'prometheus'
+    group: 'prometheus'
+  when: "'compute' in group_names"
+
+- name: Download node_exporter {{ node_exporter }}
+  become: true
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+  when: "'compute' in group_names"
+
+- name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
+  become: true
+  unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    dest: "/var/lib/prometheus/node_exporter/"
+    extra_opts: ["--strip-components=1"]
+    remote_src: yes
+  when: "'compute' in group_names"
+
+- name: Recursively change ownership of /var/lib/prometheus/node_exporter/
+  become: true
+  file:
+    path: /var/lib/prometheus/node_exporter
+    state: directory
+    recurse: yes
+    owner: prometheus
+    group: prometheus 
+  when: "'compute' in group_names"
+
+- name: Create a symbolic link for node_exporter
+  become: true
+  file:
+    src: /var/lib/prometheus/node_exporter/node_exporter
+    dest: /usr/bin/node_exporter
+    state: link     
+  when: "'compute' in group_names"
+
+- name: Configure node_exporter service
+  become: true
+  copy:
+    src: 'node_exporter.service'
+    dest: '/etc/systemd/system/node_exporter.service' 
+  when: "'compute' in group_names"
+
+- name: Start and enable node_exporter service
+  become: true
+  systemd:
+    name: node_exporter.service
+    state: restarted
+    enabled: true
+  when: "'compute' in group_names"
+
+- name: Get nodes information
+  shell: /usr/bin/sinfo -o "%o %f"
+  register: sinfo
+  when: "'bastion' in group_names"
+
+- name: Print return information from the previous task
+  debug:
+    msg: "{{ sinfo.stdout.split()[2:] }}"
+  when: "'bastion' in group_names"
+
+- name: Configure prometheus jobs in prometheus.yml
+  become: true
+  template:
+    src: 'prometheus.yml.j2'
+    dest: '/etc/prometheus/prometheus.yml'
+    owner: prometheus
+    group: prometheus 
+  delegate_to: "{{ groups['monitoring_server'][0] }}"
+  when: "'bastion' in group_names"
+
+- name: Restart prometheus.service
+  become: true
+  service:
+    name: prometheus.service
+    state: restarted
+    enabled: true 
+  delegate_to: "{{ groups['monitoring_server'][0] }}" 
+  when: "'bastion' in group_names"

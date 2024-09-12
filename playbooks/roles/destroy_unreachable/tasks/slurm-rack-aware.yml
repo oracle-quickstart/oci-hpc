@@ -5,7 +5,7 @@
   register: current_switch
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
 
 - name: getNodes
   set_fact:
@@ -28,7 +28,7 @@
   register: current_switchName
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
 
 - name: get Switchname
   set_fact:
@@ -51,7 +51,7 @@
   register: current_UpperSwitchName
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
 
 - name: get UpperSwitchName
   set_fact:
@@ -72,7 +72,7 @@
 # - name: debug
 #   debug: 
 #     msg: "Removing line SwitchName={{switchnames[item]}}\\sNodes=.*"
-#   with_items: "{{unreachable_slurm_nodes}}"
+#   with_items: "{{all_unreachable_nodes}}"
 #   ignore_unreachable: yes
 #   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) < 2 ) and ( switchnames[item] | length ) > 1
 #   run_once: true
@@ -83,7 +83,7 @@
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{switchnames[item]}}\\sNodes=.*"
     state: absent
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_unreachable: yes
   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) < 2 ) and ( switchnames[item] | length ) > 1
   run_once: true
@@ -94,7 +94,7 @@
   register: racks_on_switch
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
 
 - name: getRacks
   set_fact:
@@ -115,7 +115,7 @@
 # - name: debug
 #   debug:
 #     msg: "Replacing line: SwitchName={{upperswitchnames[item]}}\\sSwitches.* with SwitchName={{upperswitchnames[item]}} Switches={{racks_on_switch_dict[item] | difference([switchnames[item]]) | join(',') }}"
-#   with_items: "{{unreachable_slurm_nodes}}"
+#   with_items: "{{all_unreachable_nodes}}"
 #   when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference([switchnames[item]]) | length ) > 0 ) and ( upperswitchnames[item] | length ) > 1 
 #   run_once: true
 #   delegate_to: 127.0.0.1
@@ -126,7 +126,7 @@
     regexp: "SwitchName={{upperswitchnames[item]}}\\sSwitches.*"
     line: "SwitchName={{upperswitchnames[item]}} Switches={{racks_on_switch_dict[item] | difference([switchnames[item]]) | join(',') }}"
     state: present
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_errors: yes
   when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference([switchnames[item]]) | length ) > 0 ) and ( upperswitchnames[item] | length ) > 1 and ( nodes_on_switch[item] | length ) < 2 
   run_once: true
@@ -135,7 +135,7 @@
 # - name: debug
 #   debug:
 #     msg: "removing line line: SwitchName={{upperswitchnames[item]}}\\sSwitches.*"
-#   with_items: "{{unreachable_slurm_nodes}}"
+#   with_items: "{{all_unreachable_nodes}}"
 #   ignore_unreachable: yes
 #   when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference([switchnames[item]]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1
 #   run_once: true
@@ -146,7 +146,7 @@
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp:  "SwitchName={{upperswitchnames[item]}}\\sSwitches.*"
     state: absent
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_unreachable: yes
   when: ( not upperswitchnames[item] is match("inactive-.*") ) and ( ( racks_on_switch_dict[item] | difference([switchnames[item]]) | length ) == 0 ) and ( upperswitchnames[item] | length ) > 1 and ( nodes_on_switch[item] | length ) < 2 
   run_once: true
@@ -155,7 +155,7 @@
 - name: generate nodes_on_switch_condensed
   shell: "scontrol show hostlistsorted {{nodes_on_switch[item] | difference([item]) | join(',')}}"
   register: switch_condensed
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_unreachable: yes
   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) > 1 ) and ( switchnames[item] | length ) > 1
   run_once: true
@@ -172,7 +172,7 @@
 # - name: debug
 #   debug:
 #     msg: "replacing line SwitchName={{switchnames[item]}}\\sNodes.* with SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
-#   with_items: "{{unreachable_slurm_nodes}}"
+#   with_items: "{{all_unreachable_nodes}}"
 #   ignore_errors: yes
 #   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch_condensed[item] | length ) > 1 )
 #   run_once: true
@@ -184,7 +184,7 @@
     regexp: "SwitchName={{switchnames[item]}}\\sNodes.*"
     line: "SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
     state: present
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_errors: yes
   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch_condensed[item] | length ) > 1 )
   run_once: true
@@ -195,7 +195,7 @@
   command: "scontrol delete nodename={{ item }}"
   ignore_errors: true
   ignore_unreachable: True
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   delegate_to: 127.0.0.1
   when: ('controller' in group_names)
 

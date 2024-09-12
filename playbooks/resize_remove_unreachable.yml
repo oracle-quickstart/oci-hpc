@@ -10,3 +10,10 @@
   tasks:
     - include_role:
         name: destroy_unreachable
+
+
+- hosts: controller
+  become: true
+  tasks:
+    - include_role:
+        name: prometheus

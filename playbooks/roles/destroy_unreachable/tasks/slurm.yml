@@ -5,7 +5,7 @@
   register: current_switch
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
 
 - name: getNodes
   set_fact:
@@ -28,7 +28,7 @@
   register: current_switchName
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
 
 - name: get Switchname
   set_fact:
@@ -52,7 +52,7 @@
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{switchnames[item]}}\\sNodes=.*"
     state: absent
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_unreachable: yes
   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) < 2 ) and ( switchnames[item] | length ) > 1
   run_once: true
@@ -61,7 +61,7 @@
 - name: generate nodes_on_switch_condensed
   shell: "scontrol show hostlistsorted {{nodes_on_switch[item] | difference([item]) | join(',')}}"
   register: switch_condensed
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_unreachable: yes
   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch[item] | length ) > 1 ) and ( switchnames[item] | length ) > 1
   run_once: true
@@ -81,7 +81,7 @@
     regexp: "SwitchName={{switchnames[item]}}\\sNodes.*"
     line: "SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
     state: present
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   ignore_errors: yes
   when: ( not switchnames[item] is match("inactive-.*") ) and ( ( nodes_on_switch_condensed[item] | length ) > 1 )
   run_once: true
@@ -92,7 +92,7 @@
   command: "scontrol delete nodename={{ item }}"
   ignore_errors: true
   ignore_unreachable: True
-  with_items: "{{unreachable_slurm_nodes}}"
+  with_items: "{{all_unreachable_nodes}}"
   delegate_to: 127.0.0.1
   when: ('controller' in group_names)
 

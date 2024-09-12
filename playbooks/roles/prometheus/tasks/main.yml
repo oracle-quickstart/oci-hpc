@@ -47,7 +47,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"    
     mode: '0775'
-    remote_src: yes
+    remote_src: true
   with_items:
    - prometheus
    - promtool 
@@ -60,7 +60,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"    
     mode: '0775'
-    remote_src: yes
+    remote_src: true
   with_items:
    - consoles
    - console_libraries 
@@ -84,17 +84,32 @@
   run_once: true
   ignore_errors: yes
 
-- set_fact:
+- name: set fact
+  set_fact:
     nodelist: "{{ nodes_in_etc_hosts.stdout_lines }}"
   run_once: true
-    
+
+- name: Loop over the list of hosts and gather serial number and cluster name
+  loop: "{{ nodelist }}"
+  include_tasks: gather_info.yml
+  run_once: true
+
 - name: Copying the scrape config
   become: true
-  template:  
+  template:
     src: templates/prometheus.yml.j2
     dest: "{{ prometheus_dest_dir }}/prometheus.yml"
-    owner: "{{ prometheus_user }}" 
-    group: "{{ prometheus_user }}" 
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
     mode: '0775'
-  notify:
-  - restart prometheus 
+  run_once: true
+  delegate_to: 127.0.0.1
+  
+- name: restart prometheus
+  become: true
+  service: 
+    name: prometheus 
+    state: restarted
+    daemon_reload: yes
+    enabled: yes 
+  delegate_to: 127.0.0.1
