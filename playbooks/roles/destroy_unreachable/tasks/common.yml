@@ -4,22 +4,37 @@
   vars:
     - index: "{{ unreachable_nodes | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   set_fact:
-    all_unreachable_nodes: "{{all_unreachable_nodes | default([]) + [hostname_convention+'-'+ item | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) ] }}"
+    unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [hostname_convention+'-'+ item | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) ] }}"
   with_items: "{{unreachable_nodes}}"
   when: item | ipaddr
   ignore_unreachable: yes
   delegate_to: 127.0.0.1
   run_once: true
 
+- name: Get Slurm hostnames
+  set_fact:
+    unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
+  with_items: "{{unreachable_nodes}}"
+  when: not ( item | ipaddr ) and item.split('-')[0] == hostname_convention
+  ignore_unreachable: yes
+  delegate_to: 127.0.0.1
+  run_once: true
 
 - name: Get non-Slurm hostnames
   set_fact:
-    all_unreachable_nodes: "{{all_unreachable_nodes | default([]) + [item] }}"
+    unreachable_oci_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
   with_items: "{{unreachable_nodes}}"
   when: not ( item | ipaddr ) and item.split('-')[0] != hostname_convention
   ignore_unreachable: yes
   delegate_to: 127.0.0.1
   run_once: true
+
+- name: Get all hostnames
+  set_fact: 
+    all_unreachable_nodes: "{{ unreachable_slurm_nodes | default([]) + unreachable_oci_nodes | default([]) }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+  ignore_unreachable: yes
 
 - name: remove from /etc/hosts
   become: true
