@@ -15,7 +15,7 @@
   set_fact:
     unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
   with_items: "{{unreachable_nodes}}"
-  when: not ( item | ipaddr ) and item.split('-')[0] == hostname_convention
+  when: not ( item | ipaddr ) and ( item.split('-')[0] == hostname_convention or (not change_hostname|bool) )
   ignore_unreachable: yes
   delegate_to: 127.0.0.1
   run_once: true
@@ -24,7 +24,7 @@
   set_fact:
     unreachable_oci_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
   with_items: "{{unreachable_nodes}}"
-  when: not ( item | ipaddr ) and item.split('-')[0] != hostname_convention
+  when: not ( item | ipaddr ) and item.split('-')[0] != hostname_convention and (change_hostname|bool)
   ignore_unreachable: yes
   delegate_to: 127.0.0.1
   run_once: true
