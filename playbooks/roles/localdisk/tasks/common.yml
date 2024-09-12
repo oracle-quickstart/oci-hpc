@@ -77,7 +77,7 @@
      
     # Capture the raid array details to append to mdadm.conf
     - name: Capturing Array Details
-      command: "mdadm --detail --scan"
+      command: "mdadm --detail --scan --verbose"
       register: "array_details"
       changed_when: false
     

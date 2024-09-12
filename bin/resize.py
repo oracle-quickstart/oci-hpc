@@ -781,6 +781,11 @@ else:
                 else:
                     hostnames_to_remove=[cn_instances[i]['display_name'] for i in range(len(cn_instances))]
         else:
+            # first check if all hostnames passed via --nodes exist. Exit if that's not the case
+            for host in hostnames:
+                if host not in cn_instances:
+                    print(f"ERROR: node {host} does not appear to exist in this cluster. Please check your arguments and rerun")
+                    sys.exit(1)
             hostnames_to_remove2 = list(hostnames)
             hostnames_to_remove2.extend(x for x in hostnames_to_remove if x not in hostnames_to_remove2)
             hostnames_to_remove=hostnames_to_remove2
