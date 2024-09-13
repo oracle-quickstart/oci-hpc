@@ -73,32 +73,3 @@
     state: restarted
     enabled: true
   when: "'compute' in group_names"
-
-- name: Get nodes information
-  shell: /usr/bin/sinfo -o "%o %f"
-  register: sinfo
-  when: "'bastion' in group_names"
-
-- name: Print return information from the previous task
-  debug:
-    msg: "{{ sinfo.stdout.split()[2:] }}"
-  when: "'bastion' in group_names"
-
-- name: Configure prometheus jobs in prometheus.yml
-  become: true
-  template:
-    src: 'prometheus.yml.j2'
-    dest: '/etc/prometheus/prometheus.yml'
-    owner: prometheus
-    group: prometheus 
-  delegate_to: "{{ groups['monitoring_server'][0] }}"
-  when: "'bastion' in group_names"
-
-- name: Restart prometheus.service
-  become: true
-  service:
-    name: prometheus.service
-    state: restarted
-    enabled: true 
-  delegate_to: "{{ groups['monitoring_server'][0] }}" 
-  when: "'bastion' in group_names"
