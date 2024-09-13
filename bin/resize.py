@@ -170,7 +170,7 @@ def destroy_unreachable_reconfigure(inventory,nodes_to_remove,playbook):
             print("STDOUT: Some nodes are removed in OCI and removed from the inventory")
             print("STDOUT: Try rerunning with the --nodes option and a list of IPs or Slurm Hostnames to cleanup the controller")
     write_inventory(inventory_dict,tmp_inventory_destroy)
-    if not len(ips_to_remove) or slurm_name_change:
+    if not len(ips_to_remove) or not slurm_name_change:
         if not len(ips_to_remove):
             print("STDOUT: No hostname found, trying anyway with "+" ".join(nodes_to_remove))
         for node in nodes_to_remove: # Temporary fix while the playbook is changed to be able to run multiple at the time
@@ -640,7 +640,7 @@ for inv_vars in inventory_dict["all:vars"]:
 slurm_name_change=None
 for inv_vars in inventory_dict["all:vars"]:
     if inv_vars.startswith("change_hostname"):
-        slurm_name_change=inv_vars.split("change_hostname=")[1].strip()
+        slurm_name_change=bool(inv_vars.split("change_hostname=")[1].strip())
         break
 
 hostnames=args.nodes
