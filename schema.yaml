@@ -1212,7 +1212,7 @@ variables:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: false
-    description: "Install Grafana, Telegrapf, and Prometheus tools for system monitoring."
+    description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
 
   autoscaling:
     type: boolean
