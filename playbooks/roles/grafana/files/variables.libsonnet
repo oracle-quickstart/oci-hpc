@@ -54,14 +54,6 @@ local var = g.dashboard.variable;
     + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),
 
-  instance:
-    var.query.new('instance')
-    + var.query.withDatasourceFromVariable(self.prometheus)
-    + var.query.queryTypes.withLabelValues('instance', 'rdma_device_status')
-    + var.query.selectionOptions.withMulti()
-    + var.query.selectionOptions.withIncludeAll()
-    + var.query.withRefresh(1),
-
   hostname:
     var.query.new('hostname')
     + var.query.withDatasourceFromVariable(self.prometheus)
