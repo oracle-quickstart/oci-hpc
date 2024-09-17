@@ -1,0 +1,34 @@
+groups:
+- name: InstanceAvailability
+  rules:
+  - alert: InstanceDown
+    expr: up == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.hostname }} is down"
+      description: "The instance {{ $labels.hostname }} has been unreachable for more than 5 minutes."
+
+- name: HostResourceUsage
+  rules:
+  - alert: HighMemoryUsage
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High memory usage on {{ $labels.hostname }}"
+      description: "Memory usage is above 90% (currently at {{ printf \"%.2f\" $value }}%) on instance {{ $labels.hostname }}."
+
+- name: GPUAlerts
+  rules:
+  - alert: GPUFallenOffBus
+    expr: increase(dcgm_gpu_errors_xid_count{XID="79"}[5m]) > 0
+    for: 0m
+    labels:
+      severity: critical
+    annotations:
+      summary: "GPU Fallen Off the Bus on {{ $labels.instance }} (GPU {{ $labels.gpu }})"
+      description: "GPU {{ $labels.gpu }} on instance {{ $labels.instance }} has reported XID error 79 (GPU fallen off the bus). Immediate attention is required."
+

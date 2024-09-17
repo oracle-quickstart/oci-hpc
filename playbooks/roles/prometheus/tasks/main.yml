@@ -65,6 +65,15 @@
    - consoles
    - console_libraries 
 
+- name: Copying default alert rules
+  become: true
+  copy:
+    src: files/alert.rules.yml
+    dest: /etc/prometheus
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: '0775'
+
 - name: Removing the tar file of prometheus
   become: true
   file:

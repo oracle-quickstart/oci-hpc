@@ -3,6 +3,9 @@ global:
   external_labels:
     monitor: 'prometheus'
 
+rule_files:
+  - alert.rules.yml
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
