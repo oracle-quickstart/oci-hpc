@@ -70,6 +70,17 @@ local health_status = [
 { expr: 'rttcc_status{oci_name=~"$oci_name"}', legend_format: '{{oci_name}} {{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
 ];
 
+local nfs_metrics = [
+{ expr: 'sum(rate(node_mountstats_nfs_total_read_bytes_total[$__range]))', legend_format: '{{hostname}}', title: 'Read Throughput', unit: 'Bps' },
+{ expr: 'sum(rate(node_mountstats_nfs_total_write_bytes_total[$__range]))', legend_format: '{{hostname}}', title: 'Write Throughput', unit: 'Bps' },
+{ expr: 'sum(rate(node_mountstats_nfs_operations_requests_total{operation!~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
+{ expr: 'sum(rate(node_mountstats_nfs_operations_requests_total{operation=~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
+{ expr: 'avg(node_nfs_rpc_retransmissions_total)', legend_format: '{{hostname}}', title: 'NFS Retransmissions', unit: 'counter' },
+{ expr: 'avg(rate(node_mountstats_nfs_operations_request_time_seconds_total[$__range]))', legend_format: '{{hostname}}', title: 'NFS Request Time', unit: 'seconds' },
+{ expr: 'avg(rate(node_mountstats_nfs_operations_response_time_seconds_total[$__range]))', legend_format: '{{hostname}}', title: 'NFS Response Time', unit: 'seconds' },
+{ expr: 'avg(rate(node_mountstats_nfs_operations_queue_time_seconds_total[$__range]))', legend_format: '{{hostname}}', title: 'NFS Queue Time', unit: 'seconds' },
+];
+
 g.dashboard.new('Cluster Dashboard')
 + g.dashboard.withUid('cluster-dashboard')
 + g.dashboard.withDescription(|||
@@ -87,7 +98,6 @@ g.dashboard.new('Cluster Dashboard')
   variables.cluster,
   variables.oci_name,
   variables.hostname,
-  variables.instance,
   variables.mountpoint,
   variables.fstype,
   variables.device,
@@ -192,6 +202,22 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.gridPos.withW(24)
         + g.panel.timeSeries.gridPos.withH(8)
       for metric in nvlink_metrics      
+      ]),
+    row.new('NFS')
+    + row.withCollapsed(true)
+    + row.withPanels([
+      g.panel.timeSeries.new(metric.title)
+        + g.panel.timeSeries.queryOptions.withTargets([
+            g.query.prometheus.new(
+                '$PROMETHEUS_DS',
+                metric.expr,
+            )
+            + g.query.prometheus.withLegendFormat(metric.legend_format)
+        ])
+        + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
+        + g.panel.timeSeries.gridPos.withW(24)
+        + g.panel.timeSeries.gridPos.withH(8)
+      for metric in nfs_metrics
       ]),
   ])  
 )
