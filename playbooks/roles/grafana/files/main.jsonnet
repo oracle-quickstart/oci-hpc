@@ -71,14 +71,14 @@ local health_status = [
 ];
 
 local nfs_metrics = [
-{ expr: 'sum(rate(node_mountstats_nfs_total_read_bytes_total[$__range]))', legend_format: '{{hostname}}', title: 'Read Throughput', unit: 'Bps' },
-{ expr: 'sum(rate(node_mountstats_nfs_total_write_bytes_total[$__range]))', legend_format: '{{hostname}}', title: 'Write Throughput', unit: 'Bps' },
-{ expr: 'sum(rate(node_mountstats_nfs_operations_requests_total{operation!~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
-{ expr: 'sum(rate(node_mountstats_nfs_operations_requests_total{operation=~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
-{ expr: 'avg(node_nfs_rpc_retransmissions_total)', legend_format: '{{hostname}}', title: 'NFS Retransmissions', unit: 'counter' },
-{ expr: 'avg(rate(node_mountstats_nfs_operations_request_time_seconds_total[$__range]))', legend_format: '{{hostname}}', title: 'NFS Request Time', unit: 'seconds' },
-{ expr: 'avg(rate(node_mountstats_nfs_operations_response_time_seconds_total[$__range]))', legend_format: '{{hostname}}', title: 'NFS Response Time', unit: 'seconds' },
-{ expr: 'avg(rate(node_mountstats_nfs_operations_queue_time_seconds_total[$__range]))', legend_format: '{{hostname}}', title: 'NFS Queue Time', unit: 'seconds' },
+{ expr: 'rate(node_mountstats_nfs_total_read_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Read Throughput', unit: 'mbytes' },
+{ expr: 'rate(node_mountstats_nfs_total_write_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Write Throughput', unit: 'mbytes' },
+{ expr: 'sum by(hostname) (rate(node_mountstats_nfs_operations_requests_total{operation!~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
+{ expr: 'sum by(hostname) (rate(node_mountstats_nfs_operations_requests_total{operation=~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
+{ expr: 'sum by(hostname, export) (node_nfs_rpc_retransmissions_total)', legend_format: '{{hostname}} - {{export}}', title: 'NFS Retransmissions', unit: 'cps' },
+{ expr: 'avg by(hostname, export) (rate(node_mountstats_nfs_operations_request_time_seconds_total[$__range]))', legend_format: '{{hostname}} - {{export}}', title: 'NFS Request Time', unit: 's' },
+{ expr: 'avg by(hostname, export) (rate(node_mountstats_nfs_operations_response_time_seconds_total[$__range]))', legend_format: '{{hostname}} - {{export}}', title: 'NFS Response Time', unit: 's' },
+{ expr: 'avg by(hostname, export) (rate(node_mountstats_nfs_operations_queue_time_seconds_total[$__range]))', legend_format: '{{hostname}} - {{export}}', title: 'NFS Queue Time', unit: 's' },
 ];
 
 g.dashboard.new('Cluster Dashboard')
