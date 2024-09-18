@@ -71,8 +71,8 @@ local health_status = [
 ];
 
 local nfs_metrics = [
-{ expr: 'rate(node_mountstats_nfs_total_read_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Read Throughput', unit: 'mbytes' },
-{ expr: 'rate(node_mountstats_nfs_total_write_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Write Throughput', unit: 'mbytes' },
+{ expr: 'rate(node_mountstats_nfs_total_read_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Read Throughput', unit: 'MiBs' },
+{ expr: 'rate(node_mountstats_nfs_total_write_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Write Throughput', unit: 'MiBs' },
 { expr: 'sum by(hostname) (rate(node_mountstats_nfs_operations_requests_total{operation!~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
 { expr: 'sum by(hostname) (rate(node_mountstats_nfs_operations_requests_total{operation=~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
 { expr: 'sum by(hostname, export) (node_nfs_rpc_retransmissions_total)', legend_format: '{{hostname}} - {{export}}', title: 'NFS Retransmissions', unit: 'cps' },
