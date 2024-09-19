@@ -95,7 +95,7 @@ variable "privilege_group_name" { default = "privilege" }
 
 
 variable "marketplace_listing" { 
-  default = "HPC_OL7"
+  default = "HPC_OL8"
 }  
 variable "marketplace_version_id" { 
   type = map(string) 
