@@ -63,6 +63,12 @@
     src: dcgm-exporter.service.j2
     dest: "{{ dcgm_service_path }}"
 
+- name: Copy DCGM-Exporter counter configuration
+  become: true
+  copy:
+    src: files/dcgm-counters.csv
+    dest: "{{ dcgm_counter_config_path }}"
+
 - name: Reload systemd daemon
   become: true
   systemd:
