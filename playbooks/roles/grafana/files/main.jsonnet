@@ -98,6 +98,7 @@ g.dashboard.new('Cluster Dashboard')
   variables.cluster,
   variables.oci_name,
   variables.hostname,
+  variables.fss_mount,
   variables.mountpoint,
   variables.fstype,
   variables.device,

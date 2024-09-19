@@ -92,6 +92,8 @@ variable "backup_name" {default = "${backup_name}"}
 variable "backup_ip" {default = "${backup_ip}"}
 variable "login_name" {default = "${login_name}"}
 variable "login_ip" {default = "${login_ip}"}
+variable "monitoring_name" {default = "${monitoring_name}"}
+variable "monitoring_ip" {default = "${monitoring_ip}"}
 variable "scripts_folder" {default = "/opt/oci-hpc/bin/"}
 variable "autoscaling_folder" {default = "/opt/oci-hpc/autoscaling/"}
 variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
@@ -120,7 +122,7 @@ variable "hyperthreading" { default = ##HT## }
 variable "unsupported" { default = ${unsupported} }
 variable "image_ocid" { default = "##IMAGE##" }
 variable "ldap" { default = ${ldap} }
-variable "monitoring" { default = ${monitoring} }
+variable "cluster_monitoring" { default = ${cluster_monitoring} }
 variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 

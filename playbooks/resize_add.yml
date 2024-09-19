@@ -49,7 +49,7 @@
     - include_role: 
         name: healthchecks
 
-- hosts: controller,slurm_backup,login,compute
+- hosts: controller,slurm_backup,login,compute, monitoring
   become: true
   vars: 
     destroy: false
@@ -194,10 +194,10 @@
       when: spack|default(false)|bool
     - include_role: 
         name: prometheus
-      when: monitoring|default(false)|bool
+      when: cluster_monitoring|default(false)|bool
     - include_role: 
         name: metrics-exporter
-      when: monitoring|default(false)|bool
+      when: cluster_monitoring|default(false)|bool
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool

@@ -9,7 +9,7 @@
     - include_role:
         name: slurm
       when: slurm|default(false)|bool
-- hosts: controller, slurm_backup, login
+- hosts: controller, slurm_backup, login, monitoring
   become: true
   vars:
     destroy: true

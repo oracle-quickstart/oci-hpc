@@ -8,6 +8,8 @@
     createhome: no  # Create the user's home directory  
     shell: /usr/sbin/nologin
     append: yes
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
 - name: Create installation folder in etc
   become: true
@@ -18,6 +20,9 @@
     group: "{{ prometheus_user }}"    
     mode: '0775'
     recurse: yes
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+
 
 - name: Create data folder
   become: true
@@ -28,6 +33,8 @@
     group: "{{ prometheus_user }}"     
     mode: '0775'
     recurse: yes
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
 - name: Download/unarchive Packages for prometheus
   become: true
@@ -38,6 +45,8 @@
     group: "{{ prometheus_user }}" 
     remote_src: yes
     creates: "{{ prometheus_download_dir }}"
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
 - name: Copying the service binary for prometheus
   become: true
@@ -51,6 +60,8 @@
   with_items:
    - prometheus
    - promtool 
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
      
 - name: Copying the console binary
   become: true
@@ -64,6 +75,8 @@
   with_items:
    - consoles
    - console_libraries 
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
 - name: Copying default alert rules
   become: true
@@ -79,12 +92,16 @@
   file:
     path: "{{ prometheus_download_dir }}"
     state: absent
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
 - name: Create prometheus systemd service file
   become: true
   template:
     src: templates/prometheus.service.j2
     dest: "{{ service_dest_dir }}/prometheus.service"   
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
 - name: Get current nodes in /etc/hosts
   shell: "cat /etc/hosts | grep .local.vcn | awk '{print $2}'"
@@ -93,9 +110,16 @@
   run_once: true
   ignore_errors: yes
 
+- name: Get controller and login nodes
+  shell: "cat /etc/hosts | grep \"controller\\|login\" | grep -v \"ANSIBLE MANAGED BLOCK\" | awk '{print $3}'"
+  register: c_l_nodes_in_etc_hosts
+  delegate_to: 127.0.0.1
+  run_once: true
+  ignore_errors: yes
+
 - name: set fact
   set_fact:
-    nodelist: "{{ nodes_in_etc_hosts.stdout_lines }}"
+    nodelist: "{{ nodes_in_etc_hosts.stdout_lines + c_l_nodes_in_etc_hosts.stdout_lines }}"
   run_once: true
 
 - name: Loop over the list of hosts and gather serial number and cluster name
@@ -112,7 +136,7 @@
     group: "{{ prometheus_user }}"
     mode: '0775'
   run_once: true
-  delegate_to: 127.0.0.1
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   
 - name: restart prometheus
   become: true
@@ -121,4 +145,4 @@
     state: restarted
     daemon_reload: yes
     enabled: yes 
-  delegate_to: 127.0.0.1
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
