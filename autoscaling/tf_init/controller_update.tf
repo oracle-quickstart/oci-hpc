@@ -24,6 +24,8 @@ resource "local_file" "inventory" {
     backup_ip = var.backup_ip,
     login_name = var.login_name,
     login_ip = var.login_ip,
+    monitoring_name = var.monitoring_name,
+    monitoring_ip = var.monitoring_ip,
     compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
     public_subnet = var.public_subnet, 
     private_subnet = var.private_subnet, 
@@ -66,7 +68,7 @@ resource "local_file" "inventory" {
     instance_pool_ocpus=local.instance_pool_ocpus,
     queue=var.queue,
     instance_type=var.instance_type,
-    monitoring=var.monitoring,
+    cluster_monitoring=var.cluster_monitoring,
     autoscaling_monitoring = var.autoscaling_monitoring,
     unsupported = var.unsupported,
     hyperthreading = var.hyperthreading,

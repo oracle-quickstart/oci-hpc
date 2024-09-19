@@ -1,4 +1,4 @@
-- hosts: controller,slurm_backup,compute,login
+- hosts: controller,slurm_backup,compute,login, monitoring
   gather_facts: true
   vars:
     destroy: false

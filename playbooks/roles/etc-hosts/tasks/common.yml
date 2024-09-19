@@ -52,13 +52,13 @@
   run_once: true
   when: not destroy|bool and groups['compute']|length > 0
 
-- name: move /etc/hosts on backup slurm and login node
+- name: move /etc/hosts on backup slurm, login node and monitoring node
   become: true
   copy:
     dest: /etc/hosts
     src: /etc/hosts
     force: yes
-  when: ( not destroy|bool ) and (('slurm_backup' in group_names) or ('login' in group_names))
+  when: ( not destroy|bool ) and (('slurm_backup' in group_names) or ('login' in group_names) or ('monitoring' in group_names))
 
 - name: Make sure the IP for each node was not left over in another cluster
   become: true
@@ -66,7 +66,7 @@
     dest: /etc/hosts
     regexp: "^127.0.1.1\\s{{hostvars[groups['controller'][0]]['inventory_hostname']}}.*"
     state: absent
-  when: ( not destroy|bool ) and (('slurm_backup' in group_names) or ('login' in group_names))
+  when: ( not destroy|bool ) and (('slurm_backup' in group_names) or ('login' in group_names) or ('monitoring' in group_names))
 
 - name: move /etc/hosts on all compute nodes
   become: true
@@ -74,7 +74,7 @@
     dest: /etc/hosts
     src: /tmp/hosts.etc.{{ cluster_name }}
     force: yes
-  when: ( not destroy|bool ) and (not 'controller' in group_names) and (not 'slurm_backup' in group_names) and (not 'login' in group_names)
+  when: ( not destroy|bool ) and (not 'controller' in group_names) and (not 'slurm_backup' in group_names) and (not 'login' in group_names) and (not 'monitoring' in group_names)
 
 - name: remove cluster from etc-host
   become: true
@@ -105,3 +105,13 @@
   delegate_to: "{{ groups['login'][0] }}"
   run_once: true
   when: destroy|bool and (groups['login']|length > 0)|bool
+
+- name: remove cluster from etc-host on monitoring
+  become: true
+  blockinfile:
+    dest: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED BLOCK {{ cluster_name }}"
+    state: absent
+  delegate_to: "{{ groups['monitoring'][0] }}"
+  run_once: true
+  when: destroy|bool and (groups['monitoring']|length > 0)|bool

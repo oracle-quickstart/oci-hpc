@@ -110,4 +110,11 @@ local var = g.dashboard.variable;
     + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),
 
+  fss_mount:
+    var.query.new('fss_mount')
+    + var.query.withDatasourceFromVariable(self.prometheus)
+    + var.query.queryTypes.withLabelValues('fss_mount', 'up')
+    + var.query.selectionOptions.withMulti()
+    + var.query.selectionOptions.withIncludeAll()
+    + var.query.withRefresh(1),
 }

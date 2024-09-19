@@ -53,7 +53,7 @@
 - name: install grafana
   include_role: 
     name: grafana
-  when: not monitoring|default(false)|bool
+  when: not cluster_monitoring|default(false)|bool
 
 # - name: Import mysql-2022 key 
 #   become: true
