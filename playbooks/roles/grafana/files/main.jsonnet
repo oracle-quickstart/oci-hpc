@@ -17,7 +17,6 @@ local dcgm_metrics = [
   { name: 'DCGM_FI_DEV_XID_ERRORS', title: 'Value of the last XID error encountered', unit: 'none' },
   { name: 'DCGM_FI_DEV_FB_FREE', title: 'Framebuffer memory free (in MiB)', unit: 'megabytes' },
   { name: 'DCGM_FI_DEV_FB_USED', title: 'Framebuffer memory used (in MiB)', unit: 'megabytes' },  
-  { name: 'DCGM_FI_DEV_VGPU_LICENSE_STATUS', title: 'vGPU License status', unit: 'none' },
   { name: 'DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL', title: 'Total number of NVLink bandwidth counters for all lanes', unit: 'none' },
   { name: 'DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS', title: 'Number of remapped rows for uncorrectable errors', unit: 'none' },
   { name: 'DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS', title: 'Number of remapped rows for correctable errors', unit: 'none' },
@@ -38,10 +37,10 @@ local rdma_metrics = [
 ];
 
 local nvlink_metrics = [
-{ name: 'nvlink_data_tx_kib', title: 'Total data in KiB transmitted', unit: 'Bps' },
-{ name: 'nvlink_data_rx_kib', title: 'Total data in KiB received', unit: 'Bps' },
-{ name: 'nvlink_raw_tx_kib', title: 'Total raw bytes in KiB transmitted', unit: 'Bps' },
-{ name: 'nvlink_raw_rx_kib', title: 'Total raw bytes in KiB received', unit: 'Bps' },
+{ name: 'nvlink_data_tx_kib', title: 'Total data transmitted', unit: 'KBs' },
+{ name: 'nvlink_data_rx_kib', title: 'Total data received', unit: 'KBs' },
+{ name: 'nvlink_raw_tx_kib', title: 'Total raw bytes transmitted', unit: 'KBs' },
+{ name: 'nvlink_raw_rx_kib', title: 'Total raw bytes received', unit: 'KBs' },
 ];
 
 local cluster_metrics = [
@@ -58,16 +57,17 @@ local node_metrics = [
 { expr: 'ceil((1 - (node_filesystem_avail_bytes{mountpoint=~"$mountpoint",device!~"rootfs"} / node_filesystem_size_bytes{mountpoint=~"$mountpoint",device!~"rootfs"}))*100)', legend_format: '{{mountpoint}}', title: 'Storage utilization', unit: 'percent'},
 { expr: 'irate(node_disk_reads_completed_total[$__rate_interval])', legend_format: '{{oci_name}} {{device}}', title: 'Disk reads completed iops', unit: 'iops'},
 { expr: 'irate(node_disk_writes_completed_total[$__rate_interval])', legend_format: '{{oci_name}} {{device}}', title: 'Disk writes completed iops', unit: 'iops'},
-{ expr: 'irate(node_disk_read_bytes_total[$__rate_interval])', legend_format: '{{oci_name}} {{device}}', title: 'Disk read bytes', unit: 'Bps'},
-{ expr: 'irate(node_disk_written_bytes_total[$__rate_interval])', legend_format: '{{oci_name}} {{device}}', title: 'Disk write bytes', unit: 'Bps'},
+{ expr: 'irate(node_disk_read_bytes_total[$__rate_interval])', legend_format: '{{oci_name}} {{device}}', title: 'Disk read bytes', unit: 'MiBs'},
+{ expr: 'irate(node_disk_written_bytes_total[$__rate_interval])', legend_format: '{{oci_name}} {{device}}', title: 'Disk write bytes', unit: 'MiBs'},
 { expr: 'irate(node_disk_io_time_seconds_total[$__rate_interval])', legend_format: '{{oci_name}} {{device}}', title: 'Time spent doing I/Os', unit: 'percentunit'},
-{ expr: 'rate(node_network_receive_bytes_total{oci_name=~"$oci_name",device=~"$device"}[$__rate_interval])', legend_format: "{{oci_name}} {{device}}", title: 'Network Traffic Received', unit: 'Bps'},
-{ expr: 'rate(node_network_transmit_bytes_total{oci_name=~"$oci_name",device=~"$device"}[$__rate_interval])', legend_format: "{{oci_name}} {{device}}", title: 'Network Traffic Sent', unit: 'Bps'}
+{ expr: 'rate(node_network_receive_bytes_total{oci_name=~"$oci_name",device=~"$device"}[$__rate_interval])', legend_format: "{{oci_name}} {{device}}", title: 'Network Traffic Received', unit: 'MiBs'},
+{ expr: 'rate(node_network_transmit_bytes_total{oci_name=~"$oci_name",device=~"$device"}[$__rate_interval])', legend_format: "{{oci_name}} {{device}}", title: 'Network Traffic Sent', unit: 'MiBs'}
 ];
 
 local health_status = [
-{ expr: 'rdma_device_status{oci_name=~"$oci_name"}', legend_format: '{{oci_name}} {{rdma_device}}', title: 'RDMA Device Status', unit: 'none' },
-{ expr: 'rttcc_status{oci_name=~"$oci_name"}', legend_format: '{{oci_name}} {{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
+{ expr1: 'topk(1, up==0)', expr2: 'topk(1, up==0)', legend_format: '{{hostname}}', title: 'Node status', unit: 'none' },
+{ expr1: 'rdma_device_status==0', expr2: 'rdma_device_status==1', legend_format: '{{hostname}} {{rdma_device}}', title: 'RDMA Device Status', unit: 'none' },
+{ expr1: 'rttcc_status==0', expr2: 'rttcc_status==1', legend_format: '{{hostname}} {{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
 ];
 
 local nfs_metrics = [
@@ -114,14 +114,28 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.stateTimeline.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                metric.expr,
+                metric.expr1,
             )
-            + g.query.prometheus.withLegendFormat(metric.legend_format)
+            + g.query.prometheus.withLegendFormat(metric.legend_format),
+            g.query.prometheus.new(
+                '$PROMETHEUS_DS',
+                metric.expr2,
+            )
+            + g.query.prometheus.withLegendFormat(metric.legend_format),
         ])
         + g.panel.stateTimeline.standardOptions.withUnit(metric.unit)
         + g.panel.stateTimeline.options.withShowValue('never')
         + g.panel.stateTimeline.gridPos.withW(24)
         + g.panel.stateTimeline.gridPos.withH(8)
+        + g.panel.stateTimeline.standardOptions.withMappings(
+           g.panel.stateTimeline.standardOptions.mapping.ValueMap.withType() +  
+           g.panel.stateTimeline.standardOptions.mapping.ValueMap.withOptions(
+            {
+              '0': { text: 'down', color: 'red' },
+              '1': { text: 'up', color: 'green' },
+            }
+           )
+          )
       for metric in health_status
       ]),
     row.new('Cluster')
