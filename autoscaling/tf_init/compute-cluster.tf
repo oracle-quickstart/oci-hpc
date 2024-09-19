@@ -7,6 +7,7 @@ resource "oci_core_compute_cluster" "compute_cluster" {
     #Optional
     display_name = local.cluster_name
     freeform_tags = {
+      "user" = var.tags
       "cluster_name" = local.cluster_name
       "parent_cluster" = local.cluster_name
   }

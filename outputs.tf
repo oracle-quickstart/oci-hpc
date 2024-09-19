@@ -13,3 +13,7 @@ output "backup" {
 output "login" {
   value = var.login_node ? local.host_login : "No Login Node Defined"
 }
+
+output "monitoring" {
+  value = var.monitoring_node ? local.host_monitoring : "No Monitoring Node Defined"
+}

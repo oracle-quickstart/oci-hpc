@@ -3,6 +3,22 @@
   register: serial_output
   delegate_to: "{{ item }}"
 
+- name: Gather FSS IP
+  shell: "cat /etc/fstab | grep {{nfs_source_path}}"
+  register: nfs_output
+  delegate_to: "{{ item }}"
+  ignore_errors: yes
+
+- name: Extract the IP address using regex
+  set_fact:
+    ip_address: "{{ nfs_output.stdout | regex_search('([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})') }}"
+  when: nfs_output.rc == 0
+
+- name: Extract the IP address using regex
+  set_fact:
+    ip_address: "None"
+  when: nfs_output.rc != 0
+
 - name: gather metadata
   uri:
     url: http://169.254.169.254/opc/v2/instance/
@@ -43,4 +59,4 @@
 
 - name: Build the host_info dictionary
   set_fact:
-    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': instance_metadata['freeformTags']['cluster_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] }})   }}"
+    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': instance_metadata['freeformTags']['cluster_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] }})   }}"

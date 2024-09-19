@@ -28,6 +28,8 @@ resource "oci_core_cluster_network" "cluster_network" {
   }
   freeform_tags = {
       "user" = var.tags
+      "cluster_name" = local.cluster_name
+      "parent_cluster" = local.cluster_name
   }
   placement_configuration {
     availability_domain = var.ad

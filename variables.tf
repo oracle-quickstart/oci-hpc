@@ -24,6 +24,10 @@ variable "custom_login_image" {
   type = string
   default = "image.ocid" 
 }
+variable "custom_monitoring_image" { 
+  type = string
+  default = "image.ocid" 
+}
 variable "controller_boot_volume_size" {}
 variable "controller_boot_volume_backup" {}
 variable "controller_boot_volume_backup_type" {default = "INCREMENTAL"}
@@ -40,6 +44,7 @@ variable "image_ocid" { default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm
 variable "use_compute_agent" { default = true }
 variable "unsupported_controller_image" { default = "" } 
 variable "unsupported_login_image" { default = "" } 
+variable "unsupported_monitoring_image" { default = "" } 
 variable "use_cluster_nfs" { default = true}
 variable "use_scratch_nfs" { default = false }
 variable "cluster_nfs_path" { default = "/nfs/cluster" } 
@@ -61,6 +66,10 @@ variable "login_node" { default = true }
 variable "login_ad" {default = ""}
 variable "login_shape" { default = "VM.Standard2.4" }
 variable "login_boot_volume_size" {default = 50}
+variable "monitoring_node" { default = false }
+variable "monitoring_ad" {default = ""}
+variable "monitoring_shape" { default = "VM.Standard2.4" }
+variable "monitoring_boot_volume_size" {default = 50}
 variable "slurm_nfs" { default = false }
 variable "rack_aware" { default = false }
 variable "ldap" { default = true } 
@@ -73,10 +82,14 @@ variable "instance_pool_memory" { default = 16 }
 variable "instance_pool_custom_memory" { default = false }
 variable "login_ocpus" { default = 2} 
 variable "login_ocpus_denseIO_flex" { default = 8}
+variable "monitoring_ocpus" { default = 2} 
+variable "monitoring_ocpus_denseIO_flex" { default = 8}
 variable "controller_memory" { default = 16 }
 variable "controller_custom_memory" { default = false }
 variable "login_memory" { default = 16 }
 variable "login_custom_memory" { default = false }
+variable "monitoring_memory" { default = 16 }
+variable "monitoring_custom_memory" { default = false }
 variable "privilege_sudo" { default = true }
 variable "privilege_group_name" { default = "privilege" }
 
@@ -134,9 +147,7 @@ variable "login_block_volume_performance" {
 */ 
 
 default = "10. Balanced performance" 
-
 }
-
 variable "login_block" { 
   default = false
 } 
@@ -171,8 +182,8 @@ variable "nfs_source_IP" { default = ""}
 variable "nfs_list_of_mount_target_IPs" { default = ""}
 variable "nfs_source_path" { default = "/app"}
 variable "nfs_options" {default = ""}
-variable "monitoring" { default = true }
 variable "enroot" { default = false }
+variable "cluster_monitoring" { default = false }
 variable "pyxis" { default = false }
 variable "pam" { default = false }
 variable "sacct_limits" { default = false }
@@ -195,6 +206,10 @@ variable "unsupported_login" {
   type=bool
   default = false 
 }
+variable "unsupported_monitoring" { 
+  type=bool
+  default = false 
+}
 variable "controller_username" { 
   type = string 
   default = "opc" 
@@ -208,7 +223,10 @@ variable "login_username" {
   type = string
   default = "opc" 
 } 
-
+variable "monitoring_username" { 
+  type = string
+  default = "opc" 
+}
 variable "autoscaling_monitoring" { 
   type= bool
   default = false
@@ -246,12 +264,16 @@ variable "log_vol" { default = false }
 variable "redundancy" { default = true }
 
 variable "use_marketplace_image_login" { default = true}
+variable "use_marketplace_image_monitoring" { default = true}
 
 variable "marketplace_listing_login" { 
-  default = "HPC_OL7"
+  default = "HPC_OL8"
+} 
+variable "marketplace_listing_monitoring" { 
+  default = "HPC_OL8"
 } 
 variable "marketplace_listing_controller" { 
-  default = "HPC_OL7"
+  default = "HPC_OL8"
 } 
 variable "zone_name" {
   default = ""

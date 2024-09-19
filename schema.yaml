@@ -93,6 +93,26 @@ variableGroups:
       - ${login_block}
       - ${login_block_volume_size}
       - ${login_block_volume_performance}
+
+  - title: "Additional Monitoring Node"
+    variables:
+      - ${cluster_monitoring}
+      - ${monitoring_node}
+      - ${monitoring_ad}
+      - ${monitoring_shape}
+      - ${monitoring_ocpus}
+      - ${monitoring_ocpus_denseIO_flex}
+      - ${monitoring_custom_memory}
+      - ${monitoring_memory}
+      - ${monitoring_boot_volume_size}
+      - ${use_marketplace_image_monitoring}
+      - ${marketplace_listing_monitoring}
+      - ${unsupported_monitoring}
+      - ${monitoring_image_compartment}
+      - ${custom_monitoring_image}
+      - ${unsupported_monitoring_image}
+      - ${monitoring_username}
+
   - title: Autoscaling
     variables:
       - ${autoscaling}
@@ -104,7 +124,7 @@ variableGroups:
       - ${api_user_ocid}
       - ${api_fingerprint}
       - ${api_user_key}
-  - title: "Monitoring"
+  - title: "Autoscaling Monitoring"
     variables: 
       - ${autoscaling_mysql_service}
       - ${monitoring_shape_name}
@@ -178,7 +198,6 @@ variableGroups:
       - ${rack_aware}
       - ${queue}
       - ${spack}
-      - ${monitoring}
       - ${enroot}
       - ${pyxis}
       - ${pam}
@@ -1187,6 +1206,12 @@ variables:
     description: "Install Enroot, Nvidia Container Toolkit, and docker."
     visible: ${slurm}
 
+  cluster_monitoring:
+    type: boolean
+    title: "Install HPC Cluster Monitoring Tools"
+    default: false
+    description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
+
   pam:
     type: boolean
     title: "Enable PAM"
@@ -1207,12 +1232,6 @@ variables:
     default: false
     description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state"
     visible: ${slurm}
- 
-  monitoring:
-    type: boolean
-    title: "Install HPC Cluster Monitoring Tools"
-    default: false
-    description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
 
   autoscaling:
     type: boolean
@@ -1704,3 +1723,235 @@ variables:
       and:
         - ${use_marketplace_image_login}
         - ${login_node}
+
+
+
+  monitoring_node:
+    type: boolean
+    title: "Monitoring Node"
+    default: false
+    description: "Create an additional monitoring node for users"
+    visible: cluster_monitoring
+
+  monitoring_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    visible: 
+      and:
+        - complexExpression
+        - ${monitoring_node}
+    required: true
+    description: "Availability Domain for monitoring node"
+    title: "Availability Domain For monitoring Node"
+    default: ${ad}  
+
+  monitoring_shape:
+    type: oci:core:instanceshape:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: true
+    default: VM.Standard.E4.Flex
+    visible: ${monitoring_node}
+
+  monitoring_ocpus:
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 32
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E5.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard3.Flex"
+        - ${monitoring_node}
+    required: true
+
+  monitoring_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 16
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.DenseIO.E5.Flex"
+        - ${monitoring_node}
+    required: true
+    
+  monitoring_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E5.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard3.Flex"
+        - ${monitoring_node}
+  monitoring_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 256
+    visible:
+      and: 
+        - and: 
+          - or: 
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.E3.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Optimized3.Flex"
+            - eq: 
+              - ${monitoring_shape}
+              - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${monitoring_shape}
+              - "VM.Standard.E5.Flex"
+            - eq: 
+              - ${monitoring_shape}
+              - "VM.Standard.A1.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard3.Flex"
+        - and: 
+            - ${monitoring_custom_memory}
+            - ${monitoring_node}
+    required: true
+    
+  monitoring_boot_volume_size:
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 512
+    visible:  ${monitoring_node}
+
+  unsupported_monitoring: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for monitoring Node"
+    type: boolean
+    default: false
+    visible: 
+      and:
+        - ${monitoring_node}
+        - not: 
+          - ${use_marketplace_image_monitoring}
+
+  monitoring_image_compartment:
+    title: "monitoring image compartment"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible:
+      and: 
+          - ${monitoring_node}
+          - not: 
+              - ${unsupported_monitoring}
+          - not: 
+              - ${use_marketplace_image_monitoring}
+    required: true
+
+  custom_monitoring_image:
+    title: "monitoring Image ID"
+    description: "Custom image ID for monitoring nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as monitoring image at this moment. "
+    type: oci:core:image:id
+    dependsOn:
+      compartmentId: ${monitoring_image_compartment}
+    visible:
+      and: 
+          - ${monitoring_node}
+          - not: 
+              - ${unsupported_monitoring}
+          - not: 
+              - ${use_marketplace_image_monitoring}
+    required: true
+  unsupported_monitoring_image:
+    title: "Image OCID"
+    description: "Custom image ID for monitoring nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported_monitoring}
+        - not: 
+            - ${use_marketplace_image_monitoring}
+    default: "image.ocid"
+    
+  monitoring_username: 
+    title: "Default username for monitoring node" 
+    description: "Custom image ID for monitoring node"
+    type: string
+    default: "opc"
+    required: true
+    visible: ${monitoring_node}
+
+  use_marketplace_image_monitoring:
+    type: boolean
+    title: "use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID"
+    default: true
+    visible: ${monitoring_node}
+
+  marketplace_listing_monitoring:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC_OL7"
+      - "HPC_OL8"
+      - "GPU_OL8_NV550"
+      - "GPU_OL7_NV550"
+      - "GPU_OL8_NV535"
+      - "GPU_OL7_NV535"
+    default: "HPC_OL8"
+    visible:
+      and:
+        - ${use_marketplace_image_monitoring}
+        - ${monitoring_node}
