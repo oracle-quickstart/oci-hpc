@@ -53,6 +53,7 @@
   copy:
     src: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
     dest: "/opt/oci-hpc/monitoring/cluster_prometheus_v2.json"
+    remote_src: true
 
 - name: Import NodeExporter, DCGM, RDMA, NVLink Grafana dashboards
   community.grafana.grafana_dashboard:

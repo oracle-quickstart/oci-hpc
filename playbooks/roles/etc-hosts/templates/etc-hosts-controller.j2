@@ -10,3 +10,7 @@
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
 {{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} login 
 {% endfor %}
+{% for item in groups['monitoring'] %}
+{% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
+{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }} monitoring 
+{% endfor %}

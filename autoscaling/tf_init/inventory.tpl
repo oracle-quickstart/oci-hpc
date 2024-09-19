@@ -4,6 +4,8 @@ ${controller_name} ansible_host=${controller_ip} ansible_user=${controller_usern
 %{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${controller_username} role=controller%{ endif }
 [login]
 %{ if login_name != "" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
+[monitoring]
+%{ if monitoring_name != "" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring%{ endif }
 [compute_to_add]
 [compute_configured]
 %{ for host, ip in compute ~}
@@ -62,7 +64,7 @@ log_vol=${log_vol}
 ldap=${ldap}
 queue=${queue}
 instance_type=${instance_type}
-monitoring=${monitoring}
+cluster_monitoring=${cluster_monitoring}
 hyperthreading=${hyperthreading}
 privilege_sudo=${privilege_sudo}
 privilege_group_name=${privilege_group_name}

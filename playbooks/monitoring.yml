@@ -1,0 +1,25 @@
+- hosts: all,!monitoring
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: metrics-exporter
+      when: cluster_monitoring|default(false)|bool
+
+- hosts: monitoring
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: grafana
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) 
+
+- hosts: controller
+  tasks: 
+    - include_role: 
+        name: grafana
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) 
+
+- hosts: controller, monitoring
+  tasks: 
+    - include_role: 
+        name: prometheus
+      when: cluster_monitoring|default(false)|bool

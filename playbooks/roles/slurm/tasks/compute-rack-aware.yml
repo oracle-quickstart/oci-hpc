@@ -124,7 +124,7 @@
 - name: Get rackIDs for all compute nodes
   set_fact:
     racks_to_add_temp: "{{cluster_name}}:{{hostvars[item]['rackID']}}"
-  with_items: "{{ play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login'])}}"
+  with_items: "{{ play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login'])| difference(groups['monitoring'])}}"
   run_once: true
   register: racks_to_add_temp_results
 
@@ -135,7 +135,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup']) | difference(groups['login']) }}"
+  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup']) | difference(groups['login']) | difference(groups['monitoring'])}}"
   run_once: true
   register: nodes_to_add_temp_results
 
@@ -162,7 +162,7 @@
 
 - name: Get hostlist if switch exists
   vars:
-    new_line: "{% for node in ( play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+    new_line: "{% for node in ( play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) | difference(groups['monitoring'])) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   command: "scontrol show hostlistsorted {{ item.stdout_lines | union (new_line[:-1].split(',') | list )| join(',') }}"
   register: rack_hostlist1
   delegate_to: 127.0.0.1
@@ -172,7 +172,7 @@
 
 - name: Get hostlist if switch does not exists
   vars:
-    new_line: "{% for node in ( play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+    new_line: "{% for node in ( play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login']) | difference(groups['monitoring'])) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   command: "scontrol show hostlistsorted {{ new_line[:-1] }}"
   register: rack_hostlist2
   delegate_to: 127.0.0.1
