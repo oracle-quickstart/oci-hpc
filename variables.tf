@@ -488,7 +488,10 @@ variable "nfs_source_IP" {
   default = ""
   type = string
   }
-#variable "nfs_list_of_mount_target_IPs" { default = ""}
+variable "nfs_list_of_mount_target_IPs" { 
+  default = ""
+  type = string
+  }
 variable "nfs_source_path" { 
   default = "/app"
   type = string
