@@ -223,7 +223,6 @@ variableGroups:
       - ${controller_boot_volume_backup_time_zone}
       - ${controller_boot_volume_backup_type}
       - ${use_compute_agent}
-      - ${nfs_list_of_mount_target_IPs}
       
     visible: false
   - title: "Debug"
