@@ -45,9 +45,12 @@
     chdir: "{{ dashboard_build_dir }}"
 
 - name: Ensure /opt/oci-hpc/monitoring exists
+  become: true
   file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
+    owner: "ubuntu"
+    group: "ubuntu"
 
 - name: Save generated dashboard
   copy:
