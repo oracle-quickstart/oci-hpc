@@ -11,6 +11,7 @@ import sys
 from custom_metric_common import *
 import platform
 import time
+from rdma_link_flapping import LinkFlappingTest
 
 def oca_version_metric(min_version):
 
@@ -279,6 +280,77 @@ def check_bus_metric():
 
     return True
 
+def rdma_link_flap_check():
+
+    metadata=get_metadata()
+    oci_shape=metadata['shape']
+
+    # Check for RDMA link flapping
+    try:
+        lf_interval = "6"
+        lft = LinkFlappingTest(time_interval=lf_interval)
+        lft.get_rdma_link_failures()
+        lft_issues = lft.process_rdma_link_flapping()
+    except Exception as e:
+        logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+        lft_issues = {"failures": [], "link_down": []}
+
+    # Get RDMA and Network Devices
+    rdma_netdev_map = get_net_devices()
+    
+    # Textfile name for metrics
+    tf_name = 'rdma_link_flap.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # List of unhealthy net devices
+    unhealthy_net_devices = []
+
+    if len(lft_issues["failures"]) > 0 or len(lft_issues["link_down"]) > 0:
+        if len(lft_issues["failures"]) > 0:
+            for issue in lft_issues["failures"]:
+                for net_dev in issue.keys():
+                    unhealthy_net_devices.append(net_dev)
+        if len(lft_issues["link_down"]) > 0:
+            for issue in lft_issues["link_down"]:
+                for net_dev in issue.keys():
+                    unhealthy_net_devices.append(net_dev)
+
+    # Write RDMA Link Flapping metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP rdma_link_flap Check if RDMA devices are flaping "
+        type_text = "# TYPE rdma_link_flap gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        for rdma_dev in rdma_netdev_map.keys():
+            lft_error = ""
+            if "rdma" in rdma_netdev_map[rdma_dev]:
+                if rdma_netdev_map[rdma_dev] in unhealthy_net_devices:
+                    lft_error = "0"
+                    metric_text = "rdma_link_noflap{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                            + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
+                            + str(lft_error) \
+                            + "\n"
+                    tmp_tf.write('{}'.format(metric_text))
+                else:
+                    lft_error = "1"
+                    metric_text = "rdma_link_noflap{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                            + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
+                            + str(lft_error) \
+                            + "\n"
+                    tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+    
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
 if __name__ == '__main__':
 
     # User and group under which node expoerter service is being run
@@ -323,6 +395,8 @@ if __name__ == '__main__':
             rdma_link_metric(textfile_dir_path, node_exporter_user, node_exporter_group)
             # Check and update status of RTTCC
             rttcc_status_metric()
+            # Check flapping RDMA links
+            rdma_link_flap_check()
 
         # Check and update information about version of OCA installed
         min_required_oca_version = "1.39.0"
