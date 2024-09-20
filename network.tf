@@ -154,7 +154,7 @@ resource "oci_core_dhcp_options" "cluster_dhcp_options" {
   }
   options {
     type                = "SearchDomain"
-    search_domain_names = ["${var.dns_entries ? local.zone_name : "cluster.oraclevcn.com"}"]
+    search_domain_names = [var.dns_entries ? local.zone_name : "cluster.oraclevcn.com"]
   }
   vcn_id       = oci_core_vcn.vcn[0].id
   display_name = "${local.cluster_name}_DHCP"
