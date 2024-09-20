@@ -63,6 +63,7 @@
     - linux-oracle 
     - linux-headers-oracle 
     - linux-image-oracle
+  ignore_errors: yes
 
 - name: Ensure apt process is completed
   become: true
