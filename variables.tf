@@ -589,6 +589,11 @@ variable "scratch_nfs_mount" {
   default = ""
   type = string
   }
+variable "scratch_nfs_export" { 
+ 
+  default = ""
+  type = string
+  }
 variable "cluster_nfs_mount" { 
   default = "" 
   type = string
