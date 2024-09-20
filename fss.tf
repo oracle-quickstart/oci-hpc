@@ -24,7 +24,7 @@ resource "oci_file_storage_mount_target" "FSSMountTarget" {
 resource "oci_file_storage_export" "FSSExport" {
   count          = var.create_fss ? var.mount_target_count : 0
   export_set_id  = oci_file_storage_mount_target.FSSMountTarget[count.index].export_set_id
-  file_system_id = oci_file_storage_file_system.FSS.0.id
+  file_system_id = oci_file_storage_file_system.FSS[0].id
   path           = var.nfs_source_path  
   export_options {
     source = data.oci_core_vcn.vcn.cidr_block
@@ -37,7 +37,7 @@ resource "oci_file_storage_export" "FSSExport" {
 resource "oci_file_storage_export" "FSSExport_home" {
   count          = var.create_fss && var.home_fss ? var.mount_target_count : 0
   export_set_id  = oci_file_storage_mount_target.FSSMountTarget[count.index].export_set_id
-  file_system_id = oci_file_storage_file_system.FSS_home.0.id
+  file_system_id = oci_file_storage_file_system.FSS_home[0].id
   path           = "/home"
   export_options {
     source = data.oci_core_vcn.vcn.cidr_block
