@@ -46,17 +46,6 @@ data "oci_core_subnet" "public_subnet" {
   subnet_id = local.controller_subnet_id
 } 
 
-data "oci_core_images" "linux" {
-  compartment_id = var.targetCompartment
-  operating_system = "Oracle Linux"
-  operating_system_version = "7.9"
-  filter {
-    name = "display_name"
-    values = ["^([a-zA-z]+)-([a-zA-z]+)-([\\.0-9]+)-([\\.0-9-]+)$"]
-    regex = true
-  }
-}
-
 data "oci_resourcemanager_private_endpoint_reachable_ip" "private_endpoint_reachable_ip" {
     #Required
     count = var.private_deployment ? 1 : 0
