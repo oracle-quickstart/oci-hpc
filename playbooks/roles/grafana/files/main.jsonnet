@@ -68,34 +68,34 @@ local cluster_metrics = [
 ];
 
 local node_metrics = [
-{ expr: '(node_load1{hostname=~"$hostname"})', legend_format: '{{hostname}}', title: 'Instance 1m load average', unit: 'percent' },
-{ expr: '(node_load5{hostname=~"$hostname"})', legend_format: '{{hostname}}', title: 'Instance 5m load average', unit: 'percent' },
-{ expr: '(node_load15{hostname=~"$hostname"})', legend_format: '{{hostname}}', title: 'Instance 15m load average', unit: 'percent' },
-{ expr: 'ceil((1 - (node_memory_MemAvailable_bytes{hostname=~"$hostname"}/node_memory_MemTotal_bytes{hostname=~"$hostname"}))*100)', legend_format: '{{hostname}}',  title: 'Memory utilization', unit: 'percent' },
-{ expr: 'ceil((1 - (node_filesystem_avail_bytes{mountpoint=~"$mountpoint",device!~"rootfs"} / node_filesystem_size_bytes{mountpoint=~"$mountpoint",device!~"rootfs"}))*100)', legend_format: '{{mountpoint}}', title: 'Storage utilization', unit: 'percent'},
-{ expr: 'irate(node_disk_reads_completed_total[$__rate_interval])', legend_format: '{{hostname}} {{device}}', title: 'Disk reads completed iops', unit: 'iops'},
-{ expr: 'irate(node_disk_writes_completed_total[$__rate_interval])', legend_format: '{{hostname}} {{device}}', title: 'Disk writes completed iops', unit: 'iops'},
-{ expr: 'irate(node_disk_read_bytes_total[$__rate_interval])', legend_format: '{{hostname}} {{device}}', title: 'Disk read bytes', unit: 'MiBs'},
-{ expr: 'irate(node_disk_written_bytes_total[$__rate_interval])', legend_format: '{{hostname}} {{device}}', title: 'Disk write bytes', unit: 'MiBs'},
-{ expr: 'irate(node_disk_io_time_seconds_total[$__rate_interval])', legend_format: '{{hostname}} {{device}}', title: 'Time spent doing I/Os', unit: 'percentunit'},
-{ expr: 'rate(node_network_receive_bytes_total{hostname=~"$hostname",device=~"$device"}[$__rate_interval])', legend_format: "{{hostname}} {{device}}", title: 'Network Traffic Received', unit: 'MiBs'},
-{ expr: 'rate(node_network_transmit_bytes_total{hostname=~"$hostname",device=~"$device"}[$__rate_interval])', legend_format: "{{hostname}} {{device}}", title: 'Network Traffic Sent', unit: 'MiBs'}
+{ expr: '(node_load1{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 1m load average', unit: 'percent' },
+{ expr: '(node_load5{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 5m load average', unit: 'percent' },
+{ expr: '(node_load15{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 15m load average', unit: 'percent' },
+{ expr: 'ceil((1 - (node_memory_MemAvailable_bytes{hostname=~"$hostname",oci_name=~"$oci_name"}/node_memory_MemTotal_bytes{hostname=~"$hostname",oci_name=~"$oci_name"}))*100)', legend_format: '{{oci_name}} {{hostname}}',  title: 'Memory utilization', unit: 'percent' },
+{ expr: 'ceil((1 - (node_filesystem_avail_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"$mountpoint",device!~"rootfs"} / node_filesystem_size_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"$mountpoint",device!~"rootfs"}))*100)', legend_format: '{{oci_name}} {{hostname}} {{mountpoint}}', title: 'Storage utilization', unit: 'percent'},
+{ expr: 'irate(node_disk_reads_completed_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk reads completed iops', unit: 'iops'},
+{ expr: 'irate(node_disk_writes_completed_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk writes completed iops', unit: 'iops'},
+{ expr: 'irate(node_disk_read_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk read bytes', unit: 'Bps'},
+{ expr: 'irate(node_disk_written_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk write bytes', unit: 'Bps'},
+{ expr: 'irate(node_disk_io_time_seconds_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Time spent doing I/Os', unit: 'percentunit'},
+{ expr: 'rate(node_network_receive_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name",device=~"$device"}[5m])', legend_format: "{{oci_name}} {{hostname}} {{device}}", title: 'Network Traffic Received', unit: 'Bps'},
+{ expr: 'rate(node_network_transmit_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name",device=~"$device"}[5m])', legend_format: "{{oci_name}} {{hostname}} {{device}}", title: 'Network Traffic Sent', unit: 'Bps'}
 ];
 
 local health_status = [
-{ expr1: 'rdma_device_status==0', expr2: 'rdma_device_status==1', legend_format: '{{hostname}} {{rdma_device}}', title: 'RDMA Device Status', unit: 'none' },
-{ expr1: 'rttcc_status==0', expr2: 'rttcc_status==1', legend_format: '{{hostname}} {{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
+{ expr1: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Device Status', unit: 'none' },
+{ expr1: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
 ];
 
 local nfs_metrics = [
-{ expr: 'rate(node_mountstats_nfs_total_read_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Read Throughput', unit: 'MiBs' },
-{ expr: 'rate(node_mountstats_nfs_total_write_bytes_total[$__range])', legend_format: '{{hostname}} - {{export}}', title: 'Write Throughput', unit: 'MiBs' },
-{ expr: 'sum by(hostname) (rate(node_mountstats_nfs_operations_requests_total{operation!~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
-{ expr: 'sum by(hostname) (rate(node_mountstats_nfs_operations_requests_total{operation=~"READ|WRITE"}[$__range]))', legend_format: '{{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
-{ expr: 'sum by(hostname, export) (node_nfs_rpc_retransmissions_total)', legend_format: '{{hostname}} - {{export}}', title: 'NFS Retransmissions', unit: 'cps' },
-{ expr: 'avg by(hostname, export) (rate(node_mountstats_nfs_operations_request_time_seconds_total[$__range]))', legend_format: '{{hostname}} - {{export}}', title: 'NFS Request Time', unit: 's' },
-{ expr: 'avg by(hostname, export) (rate(node_mountstats_nfs_operations_response_time_seconds_total[$__range]))', legend_format: '{{hostname}} - {{export}}', title: 'NFS Response Time', unit: 's' },
-{ expr: 'avg by(hostname, export) (rate(node_mountstats_nfs_operations_queue_time_seconds_total[$__range]))', legend_format: '{{hostname}} - {{export}}', title: 'NFS Queue Time', unit: 's' },
+{ expr: 'rate(node_mountstats_nfs_total_read_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range])', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'Read Throughput', unit: 'Bps' },
+{ expr: 'rate(node_mountstats_nfs_total_write_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range])', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'Write Throughput', unit: 'Bps' },
+{ expr: 'sum by(oci_name, hostname) (rate(node_mountstats_nfs_operations_requests_total{hostname=~"$hostname", oci_name=~"$oci_name", operation!~"READ|WRITE"}[$__range]))', legend_format: '{{oci_name}} {{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
+{ expr: 'sum by(oci_name, hostname) (rate(node_mountstats_nfs_operations_requests_total{hostname=~"$hostname", oci_name=~"$oci_name", operation=~"READ|WRITE"}[$__range]))', legend_format: '{{oci_name}} {{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
+{ expr: 'sum by(oci_name, hostname, export) (node_nfs_rpc_retransmissions_total{hostname=~"$hostname", oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Retransmissions', unit: 'cps' },
+{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_request_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Request Time', unit: 's' },
+{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_response_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Response Time', unit: 's' },
+{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_queue_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Queue Time', unit: 's' },
 ];
 
 g.dashboard.new('Cluster Dashboard')
@@ -210,9 +210,9 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                'avg by(Hostname) (' + metric.name + '{Hostname=~"$hostname"})',
+                'avg by(Hostname) (' + metric.name + '{Hostname=~"$hostname", oci_name=~"$oci_name"})',
             )
-            + g.query.prometheus.withLegendFormat('Host {{ Hostname }}')
+            + g.query.prometheus.withLegendFormat('{{ Hostname }}')
         ])
         + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
         + g.panel.timeSeries.gridPos.withW(24)
@@ -226,9 +226,9 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                'avg by(Hostname) (' + metric.name + '{Hostname=~"$hostname"})',
+                'avg by(Hostname) (' + metric.name + '{Hostname=~"$hostname", oci_name=~"$oci_name"})',
             )
-            + g.query.prometheus.withLegendFormat('Host {{ Hostname }}')
+            + g.query.prometheus.withLegendFormat('{{ Hostname }}')
         ])
         + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
         + g.panel.timeSeries.gridPos.withW(24)
@@ -242,9 +242,9 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                'sum by(gpu) (' + metric.name + '{hostname=~"$hostname",gpu=~"$gpu"})',
+                'sum by(gpu) (' + metric.name + '{hostname=~"$hostname",oci_name=~"$oci_name", gpu=~"$gpu"})',
             )
-            + g.query.prometheus.withLegendFormat('Total NVLink bandwidth usage by gpu {{ gpu }}')
+            + g.query.prometheus.withLegendFormat('{{ gpu }}')
         ])
         + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
         + g.panel.timeSeries.gridPos.withW(24)
@@ -258,9 +258,9 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                '(' + metric.name + '{hostname=~"$hostname",interface=~"$interface"})',
+                '(' + metric.name + '{hostname=~"$hostname", oci_name=~"$oci_name", interface=~"$interface"})',
             )
-            + g.query.prometheus.withLegendFormat('host {{ hostname }} and nic {{ interface }}')
+            + g.query.prometheus.withLegendFormat('{{oci_name}}:{{ hostname }}:{{ interface }}')
         ])
         + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
         + g.panel.timeSeries.gridPos.withW(24)
@@ -274,9 +274,9 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                '(' + metric.name + '{hostname=~"$hostname",interface=~"$interface"})',
+                '(' + metric.name + '{hostname=~"$hostname", oci_name=~"$oci_name", interface=~"$interface"})',
             )
-            + g.query.prometheus.withLegendFormat('host {{ hostname }} and nic {{ interface }}')
+            + g.query.prometheus.withLegendFormat('{{oci_name}}:{{ hostname }}:{{ interface }}')
         ])
         + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
         + g.panel.timeSeries.gridPos.withW(24)
