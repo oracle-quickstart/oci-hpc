@@ -95,17 +95,15 @@ variable "privilege_group_name" { default = "privilege" }
 
 
 variable "marketplace_listing" { 
-  default = "HPC_OL7"
+  default = "HPC_OL8"
 }  
 variable "marketplace_version_id" { 
   type = map(string) 
   default = {
        "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.05.08-0"
-       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-2024.05.08-0"
+       "GPU_OL8_NV560" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-560-CUDA-12.6-2024.05.08-0"
        "GPU_OL8_NV550" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.05.08-0"
-       "GPU_OL7_NV550" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.05.13-0"
        "GPU_OL8_NV535" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.05.08-0"
-       "GPU_OL7_NV535" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.05.13-0"
   }
 }
 

@@ -440,12 +440,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC_OL7"
       - "HPC_OL8"
+      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
-      - "GPU_OL7_NV535"
     default: "HPC_OL8"
     visible: ${use_marketplace_image_controller}
 
@@ -787,12 +785,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC_OL7"
       - "HPC_OL8"
+      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
-      - "GPU_OL7_NV535"
     default: "GPU_OL8_NV550"
     visible: ${use_marketplace_image}
 
@@ -809,7 +805,7 @@ variables:
 
   image:
     title: "Image"
-    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 22.04"
+    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)"
     type: oci:core:image:id
     required: true
     dependsOn:
@@ -843,7 +839,7 @@ variables:
 
   image_ocid:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 22.04"
+    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)"
     type: string
     required: true
     visible:
@@ -1712,12 +1708,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC_OL7"
       - "HPC_OL8"
+      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
-      - "GPU_OL7_NV535"
     default: "HPC_OL8"
     visible:
       and:
@@ -1944,12 +1938,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC_OL7"
       - "HPC_OL8"
+      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
-      - "GPU_OL7_NV535"
     default: "HPC_OL8"
     visible:
       and:
