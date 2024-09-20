@@ -20,19 +20,19 @@ resource "oci_core_security_list" "internal-security-list" {
     destination = "0.0.0.0/0"
   }
 
-  ingress_security_rules { 
+  ingress_security_rules {
     protocol = "1"
-    source = "0.0.0.0/0"
-    icmp_options { 
+    source   = "0.0.0.0/0"
+    icmp_options {
       type = "3"
       code = "4"
     }
   }
 
-  ingress_security_rules { 
+  ingress_security_rules {
     protocol = "1"
-    source = var.vcn_subnet
-    icmp_options { 
+    source   = var.vcn_subnet
+    icmp_options {
       type = "3"
     }
   }
@@ -65,19 +65,19 @@ resource "oci_core_security_list" "public-security-list" {
       min = "3000"
     }
   }
-  ingress_security_rules { 
+  ingress_security_rules {
     protocol = "1"
-    source = "0.0.0.0/0"
-    icmp_options { 
+    source   = "0.0.0.0/0"
+    icmp_options {
       type = "3"
       code = "4"
     }
   }
 
-  ingress_security_rules { 
+  ingress_security_rules {
     protocol = "1"
-    source = var.vcn_subnet
-    icmp_options { 
+    source   = var.vcn_subnet
+    icmp_options {
       type = "3"
     }
   }
@@ -149,38 +149,38 @@ resource "oci_core_dhcp_options" "cluster_dhcp_options" {
   count          = var.use_existing_vcn ? 0 : 1
   compartment_id = var.targetCompartment
   options {
-        type = "DomainNameServer"
-        server_type = "VcnLocalPlusInternet"
-    }
+    type        = "DomainNameServer"
+    server_type = "VcnLocalPlusInternet"
+  }
   options {
-        type = "SearchDomain"
-        search_domain_names = [ "${var.dns_entries? local.zone_name : "cluster.oraclevcn.com"}" ]
-    }
-  vcn_id = oci_core_vcn.vcn[0].id
+    type                = "SearchDomain"
+    search_domain_names = [var.dns_entries ? local.zone_name : "cluster.oraclevcn.com"]
+  }
+  vcn_id       = oci_core_vcn.vcn[0].id
   display_name = "${local.cluster_name}_DHCP"
 }
 resource "oci_core_subnet" "public-subnet" {
-  count               = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
+  count = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
   # availability_domain = var.ad
-  vcn_id              = oci_core_vcn.vcn[0].id
-  compartment_id      = var.targetCompartment
-  cidr_block          = trimspace(var.public_subnet)
-  security_list_ids   = [oci_core_security_list.public-security-list[0].id]
-  dns_label           = "public"
-  display_name        = "${local.cluster_name}_public_subnet"
-  route_table_id      = oci_core_route_table.public_route_table[0].id
-  dhcp_options_id     = oci_core_dhcp_options.cluster_dhcp_options[0].id
+  vcn_id            = oci_core_vcn.vcn[0].id
+  compartment_id    = var.targetCompartment
+  cidr_block        = trimspace(var.public_subnet)
+  security_list_ids = [oci_core_security_list.public-security-list[0].id]
+  dns_label         = "public"
+  display_name      = "${local.cluster_name}_public_subnet"
+  route_table_id    = oci_core_route_table.public_route_table[0].id
+  dhcp_options_id   = oci_core_dhcp_options.cluster_dhcp_options[0].id
 }
 
 resource "oci_core_subnet" "private-subnet" {
-  count                      = var.use_existing_vcn ? 0 : var.private_deployment ? 2 : 1
+  count = var.use_existing_vcn ? 0 : var.private_deployment ? 2 : 1
   # availability_domain        = var.ad
   vcn_id                     = oci_core_vcn.vcn[0].id
   compartment_id             = var.targetCompartment
   cidr_block                 = trimspace(local.private_subnet_cidr[count.index])
   security_list_ids          = [oci_core_security_list.internal-security-list[0].id]
-  dns_label                  = "private${count.index+1}"
-  display_name               = "${local.cluster_name}_private_subnet${count.index+1}"
+  dns_label                  = "private${count.index + 1}"
+  display_name               = "${local.cluster_name}_private_subnet${count.index + 1}"
   prohibit_public_ip_on_vnic = true
   route_table_id             = oci_core_route_table.private_route_table[0].id
   dhcp_options_id            = oci_core_dhcp_options.cluster_dhcp_options[0].id
@@ -189,10 +189,10 @@ resource "oci_core_subnet" "private-subnet" {
 resource "oci_dns_zone" "dns_zone" {
   count          = var.use_existing_vcn ? 0 : 1
   compartment_id = var.targetCompartment
-  name = "${local.cluster_name}.local" #oci_core_dhcp_options.cluster_dhcp_options[0].options.search_domain_names[0]
-  zone_type = "PRIMARY"
-  scope = "PRIVATE"
-  view_id = data.oci_dns_views.dns_views.views[0].id
+  name           = "${local.cluster_name}.local" #oci_core_dhcp_options.cluster_dhcp_options[0].options.search_domain_names[0]
+  zone_type      = "PRIMARY"
+  scope          = "PRIVATE"
+  view_id        = data.oci_dns_views.dns_views.views[0].id
 }
 
 resource "oci_dns_rrset" "rrset-cluster-network-OCI" {
@@ -203,15 +203,15 @@ resource "oci_dns_rrset" "rrset-cluster-network-OCI" {
   items {
     domain = "${local.cluster_instances_names[tonumber(each.key)]}.${local.zone_name}"
     rtype  = "A"
-    rdata  = "${local.cluster_instances_ips[tonumber(each.key)]}"
+    rdata  = local.cluster_instances_ips[tonumber(each.key)]
     ttl    = 3600
   }
-  scope = "PRIVATE"
+  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
 
 resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
-  
+
   for_each        = var.slurm && var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
@@ -219,15 +219,15 @@ resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
   items {
     domain = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
     rtype  = "A"
-    rdata  = "${local.cluster_instances_ips[tonumber(each.key)]}"
+    rdata  = local.cluster_instances_ips[tonumber(each.key)]
     ttl    = 3600
   }
-  scope = "PRIVATE"
+  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
 
 resource "oci_dns_rrset" "fss-dns-round-robin" {
-  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id 
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "fss-${var.hostname_convention}.${local.zone_name}"
   rtype           = "A"
   dynamic "items" {
@@ -240,6 +240,6 @@ resource "oci_dns_rrset" "fss-dns-round-robin" {
       ttl    = 1
     }
   }
-  scope = "PRIVATE"
+  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
