@@ -49,8 +49,8 @@
   file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
-    owner: "ubuntu"
-    group: "ubuntu"
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
 
 - name: Save generated dashboard
   copy:
