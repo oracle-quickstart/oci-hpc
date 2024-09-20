@@ -84,6 +84,7 @@ local node_metrics = [
 
 local health_status = [
 { expr1: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Device Status', unit: 'none' },
+{ expr1: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Link flapping', unit: 'none' },
 { expr1: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
 ];
 
