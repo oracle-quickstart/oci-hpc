@@ -14,6 +14,7 @@ SlurmdSpoolDir=/var/spool/slurmd
 SlurmUser=slurm
 {% if pyxis|bool or healthchecks|bool%}
 Prolog={{slurm_conf_path}}/prolog.d/*
+SchedulerParameters=nohold_on_prolog_fail
 {% endif %}
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log
@@ -50,7 +51,7 @@ MaxNodeCount=10000
 {% if healthchecks|bool %}
 HealthCheckProgram={{slurm_conf_path}}/prolog.d/healthchecks.sh
 HealthCheckInterval=300
-HealthCheckNodeState=NONDRAINED_IDLE,CYCLE
+HealthCheckNodeState=IDLE,CYCLE
 {% endif %}
 {% if sacct_limits|bool %}
 AccountingStorageTRES=gres/gpu
