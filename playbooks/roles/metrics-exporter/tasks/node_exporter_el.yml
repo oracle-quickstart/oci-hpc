@@ -64,6 +64,15 @@
       - platform-python-setuptools
   include_role: 
     name: safe_yum
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Make sure the python setuptools are installed
+  vars: 
+    package_name: 
+      - python3-setuptools
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
     
 - name: Run command deactivate selinux for node_exporter, semanage  
   become: true
