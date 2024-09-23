@@ -6,6 +6,11 @@ then
     DRAIN_MSG=`cat /tmp/latest_healthcheck.log | grep "Healthcheck::"`
     if [ "$DRAIN_MSG" != "" ]
     then
-        scontrol update nodename=`hostname` state=drain reason="${DRAIN_MSG}"
+       if [ -n "$SLURM_JOB_ID" ]; then
+         echo "${DRAIN_MSG}"
+	       exit 1
+       else
+	       scontrol update nodename=`hostname` state=drain reason="${DRAIN_MSG}"
+       fi
     fi
 fi
