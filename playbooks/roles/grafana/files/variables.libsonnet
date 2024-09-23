@@ -57,7 +57,7 @@ local var = g.dashboard.variable;
   hostname:
     var.query.new('hostname')
     + var.query.withDatasourceFromVariable(self.prometheus)
-    + var.query.queryTypes.withLabelValues('Hostname', 'DCGM_FI_DEV_GPU_UTIL')
+    + var.query.queryTypes.withLabelValues('hostname', 'up')
     + var.query.selectionOptions.withMulti()
     + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),
