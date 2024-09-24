@@ -94,7 +94,7 @@ variableGroups:
       - ${login_block_volume_size}
       - ${login_block_volume_performance}
 
-  - title: "Additional Monitoring Node"
+  - title: "Cluster Monitoring"
     variables:
       - ${cluster_monitoring}
       - ${monitoring_node}
@@ -1724,7 +1724,7 @@ variables:
     type: boolean
     title: "Monitoring Node"
     default: false
-    description: "Create an additional monitoring node for users"
+    description: "Create an additional monitoring node"
     visible: cluster_monitoring
 
   monitoring_ad:
