@@ -3,12 +3,17 @@
   shell: "sudo snap refresh --hold=forever oracle-cloud-agent"
   when : ansible_distribution == 'Ubuntu'
 
+- name: Check if the updater file exists
+  stat:
+    path: /etc/oracle-cloud-agent/updater.yml
+  register: updater_exist
 
 - name: Disable OCA updater
   replace:
     path: /etc/oracle-cloud-agent/updater.yml
     regexp: 'upgrade_interval: 3600'
     replace: 'upgrade_interval: -1'
+  when: updater_exist.stat.exists
 
 
 - name: Restart cloud agent updater
@@ -18,6 +23,7 @@
   retries: 5
   register: restart_cloud_agent_updater
   until: restart_cloud_agent_updater is not failed
+  when: updater_exist.stat.exists
 
 # oracle-cloud-agent runs by default on ubuntu 
 # However it doesn't have osms (OS Management Service) which we had to disable on Oracle Linux
