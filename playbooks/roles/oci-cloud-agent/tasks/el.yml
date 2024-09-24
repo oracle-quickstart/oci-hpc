@@ -31,6 +31,27 @@
     dest: /etc/oracle-cloud-agent/agent.yml
   when: agent_file.stat.exists
 
+
+- name: Install yum-plugin-versionlock for OL8
+  yum:
+    name: python3-dnf-plugin-versionlock
+    state: latest
+    disable_gpg_check: yes
+  when:
+    - ansible_os_family == 'RedHat' and ansible_distribution_major_version == '8'
+- name: Hold latest OCA for OL
+  community.general.yum_versionlock:
+    name: oracle-cloud-agent
+    state: present
+  when:
+    - ansible_os_family == 'RedHat'
+    
+- name: Disable OCA updater
+  replace:
+    path: /etc/oracle-cloud-agent/updater.yml
+    regexp: 'upgrade_interval: 3600'
+    replace: 'upgrade_interval: -1'
+    
 - name: Restart cloud agent
   service: 
     name: oracle-cloud-agent
@@ -80,27 +101,3 @@
   shell: "sudo kill -9 {{yum_process.stdout}}"
   when: yum_process.stdout != ""
   ignore_errors: True
-
-- name: Install yum-plugin-versionlock for OL8
-  yum:
-    name: python3-dnf-plugin-versionlock
-    state: latest
-    disable_gpg_check: yes
-  when:
-    - ansible_os_family == 'RedHat' and ansible_distribution_major_version == '8'
-- name: Hold latest OCA for OL
-  community.general.yum_versionlock:
-    name: oracle-cloud-agent
-    state: present
-  when:
-    - ansible_os_family == 'RedHat'
-    
-- name: Hold Oracle cloud-agent
-  shell: "sudo snap refresh --hold=forever oracle-cloud-agent"
-  when : ansible_distribution == 'Ubuntu'
-
-- name: Disable OCA updater
-  replace:
-    path: /etc/oracle-cloud-agent/updater.yml
-    regexp: 'upgrade_interval: 3600'
-    replace: 'upgrade_interval: -1'
