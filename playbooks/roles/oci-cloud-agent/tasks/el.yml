@@ -1,4 +1,9 @@
 --- 
+
+- name: call oracle cloud agent updater role
+  include_role: 
+    name: oci-cloud-agent-updater
+
 - name: Check if agent.yml exists
   stat:
     path: /etc/oracle-cloud-agent/agent.yml
