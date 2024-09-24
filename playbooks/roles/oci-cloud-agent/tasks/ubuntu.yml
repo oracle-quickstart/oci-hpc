@@ -1,6 +1,4 @@
 ---
-- block:
-
 - name: Hold Oracle cloud-agent
   shell: "sudo snap refresh --hold=forever oracle-cloud-agent"
   when : ansible_distribution == 'Ubuntu'
@@ -13,13 +11,13 @@
     replace: 'upgrade_interval: -1'
 
 
-- name: Restart cloud agent
+- name: Restart cloud agent updater
   service: 
-    name: oracle-cloud-agent
+    name: snap.oracle-cloud-agent.oracle-cloud-agent-updater.service
     state: restarted
   retries: 5
-  register: restart_cloud_agent
-  until: restart_cloud_agent is not failed
+  register: restart_cloud_agent_updater
+  until: restart_cloud_agent_updater is not failed
 
 # oracle-cloud-agent runs by default on ubuntu 
 # However it doesn't have osms (OS Management Service) which we had to disable on Oracle Linux
