@@ -51,7 +51,15 @@
     path: /etc/oracle-cloud-agent/updater.yml
     regexp: 'upgrade_interval: 3600'
     replace: 'upgrade_interval: -1'
-    
+
+- name: Restart cloud agent updater
+  service: 
+    name: oracle-cloud-agent-updater
+    state: restarted
+  retries: 5
+  register: restart_cloud_agent_updater
+  until: restart_cloud_agent_updater is not failed
+
 - name: Restart cloud agent
   service: 
     name: oracle-cloud-agent
