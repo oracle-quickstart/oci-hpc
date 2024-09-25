@@ -340,10 +340,10 @@ variable "marketplace_listing" {
 variable "marketplace_version_id" {
   type = map(string)
   default = {
-    "HPC_OL8"       = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.05.08-0"
-    "GPU_OL8_NV560" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-560-CUDA-12.6-2024.05.08-0"
-    "GPU_OL8_NV550" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.05.08-0"
-    "GPU_OL8_NV535" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.05.08-0"
+    "HPC_OL8"       = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.09.18-0"
+    "GPU_OL8_NV560" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-560-CUDA-12.6-2024.09.18-0"
+    "GPU_OL8_NV550" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.09.18-0"
+    "GPU_OL8_NV535" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.09.18-0"
   }
 }
 
