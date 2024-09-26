@@ -249,6 +249,10 @@
     state: restarted
     enabled: true
 
+- name: Give some time to the slurmd to start
+  pause:
+    seconds: 10
+
 - name: Reconfigure Slurm for topology
   become: true
   command: "scontrol reconfigure"
