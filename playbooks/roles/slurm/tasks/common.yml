@@ -65,13 +65,13 @@
   block:
     - name: Download on each node
       block: 
-      - name: Check if the deb file exist 
+      - name: Check if the deb file exists 
         stat: 
           path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
         register: slurm_dwld
         delegate_to: 127.0.0.1
         run_once: true
-      - name: First try downloading .deb in tmp
+      - name: First try downloading .deb
         get_url:
           url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
           dest: "{{ download_path }}/slurm_rpms"
@@ -80,11 +80,11 @@
 
     - name: Download in shared location
       block:  
-      - name: Check if the deb file exist in /tmp
+      - name: Check if the deb file exists in /tmp
         stat: 
           path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
         register: slurm_dwld
-      - name: First try downloading .deb
+      - name: First try downloading .deb in /tmp
         get_url:
           url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
           dest: "{{ download_path }}/slurm_rpms"
