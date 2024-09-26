@@ -726,7 +726,8 @@ else:
     cn_instances = get_instances(comp_ocid,cn_ocid,CN)
     inventory_instances =[]
     only_inventory_instance=[]
-    zone_id=dns_client.list_zones(compartment_id=comp_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
+    if dns_entries:
+        zone_id=dns_client.list_zones(compartment_id=comp_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
     for line in inventory_dict['compute_configured']:
         host=line.split('ansible_host=')[0].strip()
         ip=line.split("ansible_host=")[1].split("ansible_user=")[0].strip()
