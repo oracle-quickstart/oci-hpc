@@ -2,6 +2,7 @@
 - name: Hold Oracle cloud-agent
   shell: "sudo snap refresh --hold=forever oracle-cloud-agent"
   when : ansible_distribution == 'Ubuntu'
+  ignore_errors: yes
 
 - name: Check if the updater file exists
   stat:
