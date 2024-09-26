@@ -2,6 +2,20 @@
 
 if [ "$1" == "-h" ]; then
   echo "Usage: ./run_meshpinger.sh [options]"
+  echo "INFO:"
+  echo "Meshpinger is a tool for validating network layer connectivity between RDMA NICs on a"
+  echo "cluster network in OCI. The tool is capable of initiating ICMP ping from every RDMA NIC"
+  echo "port on the cluster network to every other RDMA NIC port on the same cluster network and"
+  echo "reporting back the success/failure status of the pings performed in the form of logs"
+
+  echo "Running the tool before starting workload on a cluster network should serve as a good precheck"
+  echo "step to gain confidence on the network reachability between RDMA NICs. Typical causes for"
+  echo "reachability failures that the tool can help pinpoint are,"
+  echo "1. Link down on the RDMA NIC"
+  echo "2. RDMA interface initialization or configuration issues including IP address assignment to"
+  echo "the interface"
+  echo "3. Insufficient ARP table size on the node to store all needed peer mac addresses"
+  echo " "
   echo "Options:"
   echo "  -h           Display this help message"
   echo "  [arg1]       Enter either --clustername or --hostlist"

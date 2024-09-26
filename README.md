@@ -417,3 +417,14 @@ By default, this check box is enabled. By selecting, this check-box, a PAR would
 Step 2: Use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage.
 User needs to use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage. User could configure metrics
 collection limit and interval through config file: rdma_metrics_collection_config.conf.
+
+## Meshpinger
+
+Meshpinger is a tool for validating network layer connectivity between RDMA NICs on a cluster network in OCI. The tool is capable of initiating ICMP ping from every RDMA NIC port on the cluster network to every other RDMA NIC port on the same cluster network and
+reporting back the success/failure status of the pings performed in the form of logs
+
+Running the tool before starting workload on a cluster network should serve as a good precheck step to gain confidence on the network reachability between RDMA NICs. Typical causes for reachability failures that the tool can help pinpoint are,
+1. Link down on the RDMA NIC
+2. RDMA interface initialization or configuration issues including IP address assignment to
+the interface
+3. Insufficient ARP table size on the node to store all needed peer mac addresses
