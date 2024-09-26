@@ -15,7 +15,8 @@ from rdma_link_flapping import LinkFlappingTest
 
 def oca_version_metric(min_version):
 
-    metadata=get_metadata()
+    metadata = get_metadata()
+    oci_name = metadata['displayName']
     # Run the shell command
     os_name = platform.system()
 
@@ -76,7 +77,9 @@ def oca_version_metric(min_version):
 
     with open(tmp_tf_path, "a") as tmp_tf:
         tmp_tf.write('\n')
-        metric_text = "oca_agent_version " + "\"" + version + "\"" \
+        metric_text = "oca_version{version=" + "\"" + version + "\"" + "," \
+                + "hostname=" + "\"" + oci_name + "\"" + "} " \
+                + str(oca_ver_metric_value) \
                 + "\n"
         tmp_tf.write('{}'.format(metric_text))
     tmp_tf.close()
@@ -219,7 +222,8 @@ def rttcc_status_metric():
         tmp_tf.write('\n')
         for rdma_dev in link_status.keys():
             metric_text = "rttcc_status{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
-                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
+                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "," \
+                    + "instance_shape=" + "\"" + oci_shape + "\"" + "} " \
                     + str(link_status[rdma_dev]) \
                     + "\n"
             tmp_tf.write('{}'.format(metric_text))
@@ -297,7 +301,7 @@ def rdma_link_flap_check():
 
     # Get RDMA and Network Devices
     rdma_netdev_map = get_net_devices()
-    
+
     # Textfile name for metrics
     tf_name = 'rdma_link_flap.prom'
     tf_path = os.path.join(textfile_dir_path, tf_name)
@@ -346,7 +350,72 @@ def rdma_link_flap_check():
                             + "\n"
                     tmp_tf.write('{}'.format(metric_text))
     tmp_tf.close()
-    
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def check_nvidia_gpu_count():
+
+    # get metadata
+    metadata = get_metadata()
+    oci_shape = metadata['shape']
+
+    # GPUs allocated available per shape
+    if oci_shape == "BM.GPU.H100.8":
+        alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.B4.8":
+         alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.A100-v2.8":
+        alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU4.8":
+        alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.A10.4":
+        alloc_gpu_count = 4
+    elif oci_shape == "VM.GPU.A10.1":
+        alloc_gpu_count = 1
+    elif oci_shape == "VM.GPU.A10.2":
+        alloc_gpu_count = 2
+
+    # Command to list all available GPUs
+    command = ['nvidia-smi', '--list-gpus']
+    result = subprocess.run(command, stdout=subprocess.PIPE)
+    output = result.stdout.decode('utf-8')
+    output_to_lines = output.split('\n')
+    # remove empty lines and total entries
+    lines = [line for line in output_to_lines if line]
+    avail_gpu_count = len(lines)
+
+    # Check if available count is equal to allocated
+    gpu_metric = ""
+    if avail_gpu_count == alloc_gpu_count:
+        gpu_metric = 1
+    else:
+        gpu_metric = 0
+
+    # Textfile name for metrics
+    tf_name = 'gpu_count_metric.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write GPU count metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP gpu_count Count of GPUs"
+        type_text = "# TYPE gpu_count gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        metric_text = "gpu_count{instance_shape=" + "\"" + oci_shape + "\"" + "} " \
+                + str(gpu_metric) \
+                + "\n"
+        tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
     copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
 
     return True
@@ -404,5 +473,12 @@ if __name__ == '__main__':
 
         # Check if devices have fallen off the bus
         check_bus_metric()
+
+        # Check if nvidia-smi command exists and get the count of GPUs
+        try:
+           subprocess.call(["nvidia-smi"])
+           check_nvidia_gpu_count()
+        except FileNotFoundError:
+           logger.debug(f'Shape does not support nvidia-smi command')
 
         time.sleep(600)
