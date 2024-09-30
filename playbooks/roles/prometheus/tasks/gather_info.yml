@@ -40,7 +40,7 @@
 
 - name: make sure cluster_name in included
   set_fact:
-    cluster_name: instance_metadata['freeformTags']['cluster_name']
+    cluster_name: "{{instance_metadata['freeformTags']['cluster_name']}}"
   when: "'cluster_name' in instance_metadata['freeformTags']"
 
 - name: gather RDMA metadata
