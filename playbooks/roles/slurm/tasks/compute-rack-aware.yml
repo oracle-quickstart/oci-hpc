@@ -82,7 +82,8 @@
   blockinfile:
     block: "{{ lookup('template', 'gres.conf.j2') }}"
     path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {{ansible_hostname}}"
+    marker: "### {mark} {{ansible_hostname}}"
+  throttle: 1
   delegate_to: 127.0.0.1
   when: "'GPU' in shape"
 
