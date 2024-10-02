@@ -10,7 +10,7 @@
   become: true
   blockinfile:
     path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {{ansible_hostname}}"
+    marker: "### {mark} {{ansible_hostname}}"
   delegate_to: 127.0.0.1
 
 - name: Get hostnames
