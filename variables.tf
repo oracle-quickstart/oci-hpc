@@ -469,8 +469,8 @@ variable "create_fss" {
   type = bool
   }
 variable "mount_target_count" { 
-  default = "1"
-  type = string
+  default = 1
+  type = number
   }
 variable "fss_compartment" { 
   default = ""

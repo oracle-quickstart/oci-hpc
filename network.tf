@@ -227,6 +227,7 @@ resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
 }
 
 resource "oci_dns_rrset" "fss-dns-round-robin" {
+  count           = var.create_fss && var.dns_entries ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "fss-${var.hostname_convention}.${local.zone_name}"
   rtype           = "A"
