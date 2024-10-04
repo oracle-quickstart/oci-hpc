@@ -21,14 +21,6 @@
     state: directory
     owner: 'prometheus'
     group: 'prometheus'
-
-- name: Make sure the python setuptools are installed
-  vars: 
-    package_name: 
-      - platform-python-setuptools
-  include_role: 
-    name: safe_yum
-  when: ansible_distribution == 'Ubuntu'
   
 - name: Download node_exporter {{ node_exporter }}
   become: true
