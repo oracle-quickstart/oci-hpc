@@ -22,7 +22,7 @@
   unarchive:
     src: "/tmp/{{ go_tarball }}"
     dest: "{{ go_install_dir }}"
-    remote_src: yes
+    remote_src: true
 
 - name: Ensure Go binary path is in PATH
   become: true

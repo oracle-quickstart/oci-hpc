@@ -43,7 +43,7 @@
     dest: /tmp
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}" 
-    remote_src: yes
+    remote_src: true
     creates: "{{ prometheus_download_dir }}"
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"

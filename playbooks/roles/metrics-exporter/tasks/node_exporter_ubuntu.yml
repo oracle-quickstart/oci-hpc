@@ -34,7 +34,7 @@
     src: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
     dest: "/var/lib/prometheus/node_exporter/"
     extra_opts: ["--strip-components=1"]
-    remote_src: yes
+    remote_src: true
 
 - name: Recursively change ownership of /var/lib/prometheus/node_exporter/
   become: true
