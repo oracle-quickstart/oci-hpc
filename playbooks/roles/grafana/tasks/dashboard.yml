@@ -1,15 +1,24 @@
 ---
-- name: Copy binaries
-  copy:
-    src: "{{ item }}"
-    dest: /usr/local/bin
-    owner: "{{ user }}"
-    group: "{{ user }}"
-    mode: '0755'
-  loop:
-    - jb
-    - jsonnet
+- name: Download jb
   become: true
+  get_url:
+    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-amd64
+    dest: /usr/local/bin/jb
+    mode: '0755'
+
+- name: Download jsonnet
+  become: true
+  get_url:
+    url: https://github.com/google/go-jsonnet/releases/download/v0.20.0/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+    dest: /tmp
+
+- name: Extract jsonnet
+  become: true
+  unarchive:
+    src: /tmp/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+    dest: /usr/local/bin
+    mode: '0755'
+    
 
 - name: Delete existing build directory
   file:

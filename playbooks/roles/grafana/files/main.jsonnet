@@ -86,6 +86,8 @@ local health_status = [
 { expr1: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Device Status', unit: 'none' },
 { expr1: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Link flapping', unit: 'none' },
 { expr1: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
+{ expr1: 'gpu_count{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'gpu_count{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{instance_shape}}', title: 'GPU Status', unit: 'none' },
+{ expr1: 'oca_version{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'oca_version{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{version}}', title: 'OCA Version', unit: 'none' },
 ];
 
 local nfs_metrics = [
@@ -211,9 +213,9 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                'avg by(Hostname) (' + metric.name + '{Hostname=~"$hostname", oci_name=~"$oci_name"})',
+                'avg by(Hostname, gpu) (' + metric.name + '{Hostname=~"$hostname", oci_name=~"$oci_name"})',
             )
-            + g.query.prometheus.withLegendFormat('{{ Hostname }}')
+            + g.query.prometheus.withLegendFormat('{{ Hostname }}:{{ gpu }}')
         ])
         + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
         + g.panel.timeSeries.gridPos.withW(24)
@@ -227,9 +229,9 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.timeSeries.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                'avg by(Hostname) (' + metric.name + '{Hostname=~"$hostname", oci_name=~"$oci_name"})',
+                'avg by(Hostname, gpu) (' + metric.name + '{Hostname=~"$hostname", oci_name=~"$oci_name"})',
             )
-            + g.query.prometheus.withLegendFormat('{{ Hostname }}')
+            + g.query.prometheus.withLegendFormat('{{ Hostname }}:{{ gpu }}')
         ])
         + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
         + g.panel.timeSeries.gridPos.withW(24)
