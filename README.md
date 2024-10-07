@@ -23,6 +23,7 @@ Allow dynamic-group instance_principal to manage compute-management-family in co
 Allow dynamic-group instance_principal to manage instance-family in compartment compartmentName
 Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
 Allow dynamic-group instance_principal to use volumes in compartment compartmentName
+Allow dynamic-group instance_principal to manage dns in compartment compartmentName
 ```
 or:
 
