@@ -68,7 +68,7 @@ def get_oca_version():
 
 
         if version < "1.39.0":
-            logger.error(f"Oracle Cloud Agent: {version} needs to be updated to 1.38.0 or higher")
+            logger.error(f"Oracle Cloud Agent: {version} needs to be updated to 1.39.0 or higher")
         else:
             logger.info(f"Oracle Cloud Agent: {version}")
 
