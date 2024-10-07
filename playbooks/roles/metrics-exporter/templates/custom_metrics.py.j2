@@ -316,12 +316,15 @@ def rdma_link_flap_check():
     if len(lft_issues["failures"]) > 0 or len(lft_issues["link_down"]) > 0:
         if len(lft_issues["failures"]) > 0:
             for issue in lft_issues["failures"]:
-                for net_dev in issue.keys():
-                    unhealthy_net_devices.append(net_dev)
+                unhealthy_dev = issue.split(":")[0]
+                if unhealthy_dev not in unhealthy_net_devices:
+                    unhealthy_net_devices.append(unhealthy_dev)
+
         if len(lft_issues["link_down"]) > 0:
             for issue in lft_issues["link_down"]:
-                for net_dev in issue.keys():
-                    unhealthy_net_devices.append(net_dev)
+                unhealthy_dev = issue.split(":")[0]
+                if unhealthy_dev not in unhealthy_net_devices:
+                    unhealthy_net_devices.append(unhealthy_dev)
 
     # Write RDMA Link Flapping metric file
     with open(tmp_tf_path, "w") as tmp_tf:
