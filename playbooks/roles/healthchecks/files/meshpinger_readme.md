@@ -2,9 +2,9 @@
 # OCI Meshpinger
 
 Meshpinger is a tool for validating network layer connectivity between RDMA NICs on a
-cluster network in OCI. The tool is capable of initiating ICMP ping from every RDMA NIC
+cluster network in OCI. The tool initiates an ICMP ping from every RDMA NIC
 port on the cluster network to every other RDMA NIC port on the same cluster network and
-reporting back the success/failure status of the pings performed in the form of logs
+reports back the success/failure status of the pings performed in the form of logs
 
 Running the tool before starting workload on a cluster network should serve as a good precheck
 step to gain confidence on the network reachability between RDMA NICs. Typical causes for
@@ -18,23 +18,23 @@ reachability failures that the tool can help pinpoint are,
 
 4. Host rdma interface enumeration issues
 
-5. ping failure between a <src,dst> pair of IPs
+5. Network connectivity issues between <src,dst> pair of IPs
 
 # Running Meshpinger
 
-Meshpinger is installed on controller node of the hpc cluster and can be run in following ways after logging into the controller node
+Meshpinger is installed on the controller host of the hpc cluster. Once user is logged into the controller host, they can trigger meshpinger using the following options,
 
-- Run meshpinger on all nodes in the cluster, cluster is auto-detected in this case
+- Run meshpinger on all hosts in the cluster. The cluster is auto-detected in this option.
 ```
 /opt/oci-hpc/healthchecks/run_meshpinger.sh
 ```
 
-- Run meshpinger on all nodes in the cluster explicitly specified by clustername
+- Run meshpinger on all hosts in the cluster explicitly specified by clustername
 ```
 /opt/oci-hpc/healthchecks/run_meshpinger.sh --hpcclustername <hpcclustername>
 ```
 
-Run meshpinger on a list of nodes specified in a file. A host can be specified by its ssh IP address or hostname but it should be SSH-able from controller node
+Run meshpinger on a list of hosts specified in a file. A host can be specified by its IP address or hostname. It is expected that the host will be SSH-able from the controller host
 ```
 /opt/oci-hpc/healthchecks/run_meshpinger.sh --hostlisttfile <filename>
 ```
@@ -65,7 +65,7 @@ ICMP ping failures per host
 Logfile of the current run that enumerates all <srcInterface,dstInterface> combinations that failed ping is printed like,
 
 ```
-<src,dst> interfaces that failed ping is listed at end of the log file meshpinger_log_20241008220615_ocid1.tenancy.oc1..aaaaaaaabddc4obuhgvifcrh6esmw6554ityaqrvxulcksl255gbwehtcq.txt
+<src,dst> interfaces that failed ping are listed at end of the log file meshpinger_log_20241008220615_ocid1.tenancy.oc1..aaaaaaaabddc4obuhgvifcrh6esmw6554ityaqrvxulcksl255gbwehtcq.txt
 ```
 
 
@@ -73,6 +73,10 @@ Logfile of the current run that enumerates all <srcInterface,dstInterface> combi
 
 ```
 All pings succeeded!!
+```
+- Cluster information that includes rdma interface details gathered from the run is stored in a file cluster_info.txt in the current directory, same is printed as below,
+```
+clusterinfo file - cluster_info.txt
 ```
 
 # Options
@@ -114,9 +118,9 @@ optional arguments:
   --objectstoreurl OBJECTSTOREURL
                         ObjectStore PAR URL where mesh pinger logs will be
                         uploaded
-  --singlesubnet        Include this argument if all RDMA NICs are on a single
-                        subnetted cluster network. If so pinger will do a full
-                        mesh ping
+  --enable_inter_rail_ping
+                        Include this argument to perform pings across the rails.
+                        If so pinger will do a full mesh ping
   --threads_per_intf THREADS_PER_INTF
                         parallel ping threads per local rdma interface,
                         default is 16
@@ -162,11 +166,11 @@ NIC model to use (e.g MT2910 for CX-7) for filtering out RDMA interfaces from fr
 
 **--objectstoreurl**
 
-Pre-Authenticated Request(PAR) url where meshpinger logs will be uploaded. This can be used by customers to easily share meshpinger logs to OCI operator. OCI operator can create a PAR to objectstore bucket owned by them and share it with customer to enable them to share the logs
+Pre-Authenticated Request(PAR) url where meshpinger logs will be uploaded. This can be used by customers to easily share meshpinger logs with OCI during any incidents. OCI can provide a PAR to objectstore bucket and share it with customer to enable sharing of meshpinger logs.
 
-**--singlesubnet**
+**--enable_inter_rail_ping**
 
-This option specifies all rdma interfaces on hosts in the hostlist file are part of a single subnet. In this case meshpinger will do pings to all remote IPs from all local interfaces on a given host. It is to be noted that when this option is chosen net.ipv4.neigh.default.gc_threshX [X=1-3] sysctl setting on every host may need to be bumped up to hold the necessary arp entries per local interface. Eg. For running meshpinger on a 512 host cluster with each host having 16 rdma interface, size of the arp table should be atleast 130816(511 * 16 * 16). Accordingly it is recommended to set all the 3 sysctl thresholds -  net.ipv4.neigh.default.gc_threshX[X=1-3] to 130816. Be default meshpinger assumes each rdma interface on a host is on a separate subnet and performs pings between rdma interfaces that have the same pci address.
+This option specifies all rdma interfaces on hosts in the hostlist file are part of a single subnet. In this case meshpinger will do pings to all remote IPs from all local interfaces on a given host. It is to be noted that when this option is chosen net.ipv4.neigh.default.gc_threshX [X=1-3] sysctl setting on every host may need to be bumped up to hold the necessary arp entries per local interface. Eg. For running meshpinger on a 512 host cluster with each host having 16 rdma interface, size of the arp table should be atleast 130816(511 * 16 * 16). Accordingly it is recommended to set all the 3 sysctl thresholds -  net.ipv4.neigh.default.gc_threshX[X=1-3] to 130816. By default, meshpinger only pings along the rails.
 
 **--threads_per_intf**
 
