@@ -2,6 +2,61 @@ local g = import './g.libsonnet';
 local variables = import './variables.libsonnet';
 local row = g.panel.row;
 
+local critical_status_ts = [
+{ expr: 'count_values("hostname", oca_version) by(version)', legend_format: '{{version}}', title: 'Hosts with OCA version', unit: 'none' },
+{ expr: 'count_values("hostname", gpu_count) by (instance_shape)', legend_format: '{{instance_shape}}', title: 'Shapes with matching GPU count', unit: 'none' },
+{ expr: 'count_values("hostname", up{instance=~".*9100"})', legend_format: '{{hostname}}', title: 'Hosts up', unit: 'none' },
+{ expr: 'check_bus_issue_count{hostname=~"$hostname", oci_name=~"$oci_name"}', legend_format: '{{ hostname }}', title: 'Devices fallen off bus error count', unit: 'none' },
+{ expr: 'DCGM_FI_DEV_XID_ERRORS{Hostname=~"$hostname", gpu=~"$gpu", oci_name=~"$oci_name"}', legend_format: '{{ Hostname }}:{{ gpu }}', title: 'Value of the last XID error encountered', unit: 'none' },
+];
+
+local critical_status_stl = [
+{ expr1: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Device Status', unit: 'none', colors: {'0': { text: 'down', color: 'red' },'1': { text: 'up', color: 'green' },} },
+{ expr1: 'gpu_row_remap_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'gpu_row_remap_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}', title: 'GPU Row Remap Error Check', unit: 'none', colors: {'0': { text: 'failed', color: 'red' },'1': { text: 'passed', color: 'green' },} },
+{ expr1: 'gpu_ecc_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'gpu_ecc_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}', title: 'GPU ECC Error Check', unit: 'none', colors: {'0': { text: 'failed', color: 'red' },'1': { text: 'passed', color: 'green' },} },
+{ expr1: 'xid_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'xid_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}', title: 'Xid Error Check', unit: 'none', colors: {'0': { text: 'passed', color: 'green' },'1': { text: 'failed', color: 'red' },} },
+];
+
+local health_status = [
+{ expr1: 'ib_link_state{hostname=~"$hostname", oci_name=~"$oci_name"}==1 or vector(0)', expr2: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"} > 1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Device Status', unit: 'none', colors: {'1': { text: 'down', color: 'red' },} },
+{ expr1: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Link flapping', unit: 'none', colors: {'0': { text: 'down', color: 'red' },'1': { text: 'up', color: 'green' },}  },
+{ expr1: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RTTCC Status', unit: 'none', colors: {'0': { text: 'disabled', color: 'green' },'1': { text: 'enabled', color: 'red' },}  },
+{ expr1: 'gpu_count{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'gpu_count{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{instance_shape}}', title: 'GPU Count', unit: 'none', colors: {'0': { text: 'down', color: 'red' },'1': { text: 'up', color: 'green' },}  },
+{ expr1: 'oca_version{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'oca_version{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{version}}', title: 'OCA Version', unit: 'none', colors: {'0': { text: 'down', color: 'red' },'1': { text: 'up', color: 'green' },}  },
+];
+
+local cluster_metrics = [
+{ expr: 'avg by (cluster_name) (node_load1)', legend_format: '1m load average {{cluster_name}}', title: 'Cluster 1m load average', unit: 'percent' },
+{ expr: 'avg by (cluster_name) (node_load5)', legend_format: '5m load average {{cluster_name}}', title: 'Cluster 5m load average', unit: 'percent' },
+{ expr: 'avg by (cluster_name) (node_load15)', legend_format: '15m load average {{cluster_name}}', title: 'Cluster 15m load average', unit: 'percent' },
+];
+
+local node_metrics = [
+{ expr: '(node_load1{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 1m load average', unit: 'percent' },
+{ expr: '(node_load5{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 5m load average', unit: 'percent' },
+{ expr: '(node_load15{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 15m load average', unit: 'percent' },
+{ expr: 'ceil((1 - (node_memory_MemAvailable_bytes{hostname=~"$hostname",oci_name=~"$oci_name"}/node_memory_MemTotal_bytes{hostname=~"$hostname",oci_name=~"$oci_name"}))*100)', legend_format: '{{oci_name}} {{hostname}}',  title: 'Memory utilization', unit: 'percent' },
+{ expr: 'ceil((1 - (node_filesystem_avail_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"$mountpoint",device!~"rootfs"} / node_filesystem_size_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"$mountpoint",device!~"rootfs"}))*100)', legend_format: '{{oci_name}} {{hostname}} {{mountpoint}}', title: 'Storage utilization', unit: 'percent'},
+{ expr: 'irate(node_disk_reads_completed_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk reads completed iops', unit: 'iops'},
+{ expr: 'irate(node_disk_writes_completed_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk writes completed iops', unit: 'iops'},
+{ expr: 'irate(node_disk_read_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk read bytes', unit: 'Bps'},
+{ expr: 'irate(node_disk_written_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk write bytes', unit: 'Bps'},
+{ expr: 'irate(node_disk_io_time_seconds_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Time spent doing I/Os', unit: 'percentunit'},
+{ expr: 'rate(node_network_receive_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name",device=~"$device"}[5m])', legend_format: "{{oci_name}} {{hostname}} {{device}}", title: 'Network Traffic Received', unit: 'Bps'},
+{ expr: 'rate(node_network_transmit_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name",device=~"$device"}[5m])', legend_format: "{{oci_name}} {{hostname}} {{device}}", title: 'Network Traffic Sent', unit: 'Bps'}
+];
+
+local nfs_metrics = [
+{ expr: 'rate(node_mountstats_nfs_total_read_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range])', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'Read Throughput', unit: 'Bps' },
+{ expr: 'rate(node_mountstats_nfs_total_write_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range])', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'Write Throughput', unit: 'Bps' },
+{ expr: 'sum by(oci_name, hostname) (rate(node_mountstats_nfs_operations_requests_total{hostname=~"$hostname", oci_name=~"$oci_name", operation!~"READ|WRITE"}[$__range]))', legend_format: '{{oci_name}} {{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
+{ expr: 'sum by(oci_name, hostname) (rate(node_mountstats_nfs_operations_requests_total{hostname=~"$hostname", oci_name=~"$oci_name", operation=~"READ|WRITE"}[$__range]))', legend_format: '{{oci_name}} {{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
+{ expr: 'sum by(oci_name, hostname, export) (node_nfs_rpc_retransmissions_total{hostname=~"$hostname", oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Retransmissions', unit: 'cps' },
+{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_request_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Request Time', unit: 's' },
+{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_response_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Response Time', unit: 's' },
+{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_queue_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Queue Time', unit: 's' },
+];
+
 local dcgm_metrics = [
   { name: 'DCGM_FI_DEV_SM_CLOCK', title: 'SM Clock', unit: 'hertz' },
   { name: 'DCGM_FI_DEV_MEM_CLOCK', title: 'Memory Clock', unit: 'hertz' },
@@ -30,6 +85,13 @@ local dcgm_errors = [
   { name: 'DCGM_FI_DEV_ROW_REMAP_FAILURE', title: 'Whether remapping of rows has failed', unit: 'cps' },
 ];
 
+local nvlink_metrics = [
+{ name: 'nvlink_data_tx_kib', title: 'Total data transmitted', unit: 'KBs' },
+{ name: 'nvlink_data_rx_kib', title: 'Total data received', unit: 'KBs' },
+{ name: 'nvlink_raw_tx_kib', title: 'Total raw bytes transmitted', unit: 'KBs' },
+{ name: 'nvlink_raw_rx_kib', title: 'Total raw bytes received', unit: 'KBs' },
+];
+
 local ib_port_metrics = [
 { name: 'ib_port_xmit_data', title: 'Total number of data octets transmitted', unit: 'MiBs' },
 { name: 'ib_port_rcv_data', title: 'Total number of data octets received', unit: 'MiBs' },
@@ -52,53 +114,6 @@ local roce2_errors = [
 { name: 'rdma_rp_cnp_ignored', title: 'Number of CNP packets received and ignored', unit: 'none' },
 { name: 'rdma_rx_icrc_encapsulated', title: 'Number of RoCE packets with ICRC (Invertible Cyclic Redundancy Check) errors', unit: 'none' },
 { name: 'rdma_roce_slow_restart', title: 'Number of times RoCE slow restart was used', unit: 'none' },
-];
-
-local nvlink_metrics = [
-{ name: 'nvlink_data_tx_kib', title: 'Total data transmitted', unit: 'KBs' },
-{ name: 'nvlink_data_rx_kib', title: 'Total data received', unit: 'KBs' },
-{ name: 'nvlink_raw_tx_kib', title: 'Total raw bytes transmitted', unit: 'KBs' },
-{ name: 'nvlink_raw_rx_kib', title: 'Total raw bytes received', unit: 'KBs' },
-];
-
-local cluster_metrics = [
-{ expr: 'avg by (cluster_name) (node_load1)', legend_format: '1m load average {{cluster_name}}', title: 'Cluster 1m load average', unit: 'percent' },
-{ expr: 'avg by (cluster_name) (node_load5)', legend_format: '5m load average {{cluster_name}}', title: 'Cluster 5m load average', unit: 'percent' },
-{ expr: 'avg by (cluster_name) (node_load15)', legend_format: '15m load average {{cluster_name}}', title: 'Cluster 15m load average', unit: 'percent' },
-];
-
-local node_metrics = [
-{ expr: '(node_load1{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 1m load average', unit: 'percent' },
-{ expr: '(node_load5{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 5m load average', unit: 'percent' },
-{ expr: '(node_load15{hostname=~"$hostname",oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}}', title: 'Instance 15m load average', unit: 'percent' },
-{ expr: 'ceil((1 - (node_memory_MemAvailable_bytes{hostname=~"$hostname",oci_name=~"$oci_name"}/node_memory_MemTotal_bytes{hostname=~"$hostname",oci_name=~"$oci_name"}))*100)', legend_format: '{{oci_name}} {{hostname}}',  title: 'Memory utilization', unit: 'percent' },
-{ expr: 'ceil((1 - (node_filesystem_avail_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"$mountpoint",device!~"rootfs"} / node_filesystem_size_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"$mountpoint",device!~"rootfs"}))*100)', legend_format: '{{oci_name}} {{hostname}} {{mountpoint}}', title: 'Storage utilization', unit: 'percent'},
-{ expr: 'irate(node_disk_reads_completed_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk reads completed iops', unit: 'iops'},
-{ expr: 'irate(node_disk_writes_completed_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk writes completed iops', unit: 'iops'},
-{ expr: 'irate(node_disk_read_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk read bytes', unit: 'Bps'},
-{ expr: 'irate(node_disk_written_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Disk write bytes', unit: 'Bps'},
-{ expr: 'irate(node_disk_io_time_seconds_total{hostname=~"$hostname",oci_name=~"$oci_name"}[5m])', legend_format: '{{oci_name}} {{hostname}} {{device}}', title: 'Time spent doing I/Os', unit: 'percentunit'},
-{ expr: 'rate(node_network_receive_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name",device=~"$device"}[5m])', legend_format: "{{oci_name}} {{hostname}} {{device}}", title: 'Network Traffic Received', unit: 'Bps'},
-{ expr: 'rate(node_network_transmit_bytes_total{hostname=~"$hostname",oci_name=~"$oci_name",device=~"$device"}[5m])', legend_format: "{{oci_name}} {{hostname}} {{device}}", title: 'Network Traffic Sent', unit: 'Bps'}
-];
-
-local health_status = [
-{ expr1: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Device Status', unit: 'none' },
-{ expr1: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_link_noflap{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Link flapping', unit: 'none' },
-{ expr1: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rttcc_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RTTCC Status', unit: 'none' },
-{ expr1: 'gpu_count{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'gpu_count{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{instance_shape}}', title: 'GPU Status', unit: 'none' },
-{ expr1: 'oca_version{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'oca_version{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{version}}', title: 'OCA Version', unit: 'none' },
-];
-
-local nfs_metrics = [
-{ expr: 'rate(node_mountstats_nfs_total_read_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range])', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'Read Throughput', unit: 'Bps' },
-{ expr: 'rate(node_mountstats_nfs_total_write_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range])', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'Write Throughput', unit: 'Bps' },
-{ expr: 'sum by(oci_name, hostname) (rate(node_mountstats_nfs_operations_requests_total{hostname=~"$hostname", oci_name=~"$oci_name", operation!~"READ|WRITE"}[$__range]))', legend_format: '{{oci_name}} {{hostname}}', title: 'Metadata IOPS', unit: 'iops' },
-{ expr: 'sum by(oci_name, hostname) (rate(node_mountstats_nfs_operations_requests_total{hostname=~"$hostname", oci_name=~"$oci_name", operation=~"READ|WRITE"}[$__range]))', legend_format: '{{oci_name}} {{hostname}}', title: 'Read/Write IOPS', unit: 'iops' },
-{ expr: 'sum by(oci_name, hostname, export) (node_nfs_rpc_retransmissions_total{hostname=~"$hostname", oci_name=~"$oci_name"})', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Retransmissions', unit: 'cps' },
-{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_request_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Request Time', unit: 's' },
-{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_response_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Response Time', unit: 's' },
-{ expr: 'avg by(oci_name, hostname, export) (rate(node_mountstats_nfs_operations_queue_time_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name"}[$__range]))', legend_format: '{{oci_name}} {{hostname}} {{export}}', title: 'NFS Queue Time', unit: 's' },
 ];
 
 g.dashboard.new('Cluster Dashboard')
@@ -127,6 +142,44 @@ g.dashboard.new('Cluster Dashboard')
 ])
 + g.dashboard.withPanels(
   g.util.grid.makeGrid([
+    row.new('Critical Status')
+    + row.withCollapsed(true)
+    + row.withPanels([
+      g.panel.timeSeries.new(metric.title)
+        + g.panel.timeSeries.queryOptions.withTargets([
+            g.query.prometheus.new(
+                '$PROMETHEUS_DS',
+                metric.expr,
+            )
+            + g.query.prometheus.withLegendFormat(metric.legend_format)
+        ])
+        + g.panel.timeSeries.standardOptions.withUnit(metric.unit)
+        + g.panel.timeSeries.gridPos.withW(24)
+        + g.panel.timeSeries.gridPos.withH(8)
+      for metric in critical_status_ts] +
+      [g.panel.stateTimeline.new(metric.title)
+        + g.panel.stateTimeline.queryOptions.withTargets([
+            g.query.prometheus.new(
+                '$PROMETHEUS_DS',
+                metric.expr1,
+            )
+            + g.query.prometheus.withLegendFormat(metric.legend_format),
+            g.query.prometheus.new(
+                '$PROMETHEUS_DS',
+                metric.expr2,
+            )
+            + g.query.prometheus.withLegendFormat(metric.legend_format),
+        ])
+        + g.panel.stateTimeline.standardOptions.withUnit(metric.unit)
+        + g.panel.stateTimeline.options.withShowValue('never')
+        + g.panel.stateTimeline.gridPos.withW(24)
+        + g.panel.stateTimeline.gridPos.withH(8)
+        + g.panel.stateTimeline.standardOptions.withMappings(
+           g.panel.stateTimeline.standardOptions.mapping.ValueMap.withType() +  
+           g.panel.stateTimeline.standardOptions.mapping.ValueMap.withOptions(metric.colors)
+          )
+      for metric in critical_status_stl]
+      ),
     row.new('Health Status')
     + row.withCollapsed(true)
     + row.withPanels([
@@ -149,12 +202,7 @@ g.dashboard.new('Cluster Dashboard')
         + g.panel.stateTimeline.gridPos.withH(8)
         + g.panel.stateTimeline.standardOptions.withMappings(
            g.panel.stateTimeline.standardOptions.mapping.ValueMap.withType() +  
-           g.panel.stateTimeline.standardOptions.mapping.ValueMap.withOptions(
-            {
-              '0': { text: 'down', color: 'red' },
-              '1': { text: 'up', color: 'green' },
-            }
-           )
+           g.panel.stateTimeline.standardOptions.mapping.ValueMap.withOptions(metric.colors)
           )
       for metric in health_status
       ]),
@@ -288,4 +336,3 @@ g.dashboard.new('Cluster Dashboard')
       ]),    
   ])  
 )
-

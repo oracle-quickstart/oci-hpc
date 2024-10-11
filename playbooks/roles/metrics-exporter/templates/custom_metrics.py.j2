@@ -221,12 +221,15 @@ def rttcc_status_metric():
     with open(tmp_tf_path, "a") as tmp_tf:
         tmp_tf.write('\n')
         for rdma_dev in link_status.keys():
-            metric_text = "rttcc_status{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
-                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "," \
-                    + "instance_shape=" + "\"" + oci_shape + "\"" + "} " \
+            if rdma_dev in rdma_netdev_map.keys():
+                metric_text = "rttcc_status{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
                     + str(link_status[rdma_dev]) \
                     + "\n"
-            tmp_tf.write('{}'.format(metric_text))
+                tmp_tf.write('{}'.format(metric_text))
+            else:
+                print("rdma dev not found in rdma_netdev_map:" + rdma_dev)
+                print(rdma_netdev_map.keys())
     tmp_tf.close()
 
     copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
@@ -469,7 +472,7 @@ def check_ecc_errors():
     process_pid = os.getpid()
     tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
 
-    # Write Xid Error Check metric file
+    # Write ECC Error Check metric file
     with open(tmp_tf_path, "w") as tmp_tf:
         help_text = "# HELP gpu_ecc_error_check Pass or Fail based on row remap errors found in a GPU"
         type_text = "# TYPE gpu_ecc_error_check gauge"
@@ -480,9 +483,20 @@ def check_ecc_errors():
             print(metric_text)
             tmp_tf.write('{}'.format(metric_text))  
         else:
-            metric_text = "gpu_ecc_error_check 0" + "\n"
-            print(metric_text)
-            tmp_tf.write('{}'.format(metric_text))
+            ecc_error=False
+            for issue in ecc_issues:
+                if "Skipped" in issue:
+                    logger.warning(f"{host_serial} - {issue}")
+                else:
+                    if "Aggregate" in issue:
+                        logger.warning(f"{host_serial} - ECC issues: {issue}")
+                    else:
+                        logger.error(f"{host_serial} - ECC issues: {issue}")
+                        ecc_error=True
+            if ecc_error:
+                metric_text = "gpu_ecc_error_check 0" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))            
     tmp_tf.close()
 
     copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
@@ -531,19 +545,28 @@ def check_row_remap_errors():
     process_pid = os.getpid()
     tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
 
-    # Write Xid Error Check metric file
+    # Write Row Remap Error Check metric file
     with open(tmp_tf_path, "w") as tmp_tf:
         help_text = "# HELP gpu_row_remap_error_check Pass or Fail based on row remap errors found in a GPU"
         type_text = "# TYPE gpu_row_remap_error_check gauge"
         tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
-        if len(remap_issues) == 0:
-            metric_text = "gpu_row_remap_error_check 1" + "\n"
-            print(metric_text)
-            tmp_tf.write('{}'.format(metric_text))            
-        else:
-            metric_text = "gpu_row_remap_error_check 0" + "\n"
-            print(metric_text)
-            tmp_tf.write('{}'.format(metric_text))
+    
+        remap_error=False
+        if len(remap_issues) > 0:        
+            for issue in remap_issues:
+                if "<512" in issue:
+                    logger.warning(f"{host_serial} - {issue}")
+                else:
+                    logger.error(f"{host_serial} - {issue}")
+                    remap_error=True
+            if remap_error:
+                metric_text = "gpu_row_remap_error_check 1" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))            
+            else:
+                metric_text = "gpu_row_remap_error_check 0" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))
     tmp_tf.close()
 
     copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
