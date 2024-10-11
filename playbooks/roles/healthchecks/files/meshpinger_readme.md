@@ -24,12 +24,12 @@ reachability failures that the tool can help pinpoint are,
 
 Meshpinger is installed on the controller host of the hpc cluster. Once user is logged into the controller host, they can trigger meshpinger using the following options,
 
-- Run meshpinger on all hosts in the cluster. The cluster is auto-detected in this option.
+- If controller host is supporting only one cluster, run meshpinger on all hosts in that cluster. The cluster is auto-detected in this option.
 ```
 /opt/oci-hpc/healthchecks/run_meshpinger.sh
 ```
 
-- Run meshpinger on all hosts in the cluster explicitly specified by clustername
+- If controller host is supporting more than 1 cluster, run meshpinger on all hosts in a cluster explicitly specified by its clustername
 ```
 /opt/oci-hpc/healthchecks/run_meshpinger.sh --hpcclustername <hpcclustername>
 ```
@@ -91,7 +91,7 @@ usage: ./run_meshpinger.sh [-h]
                             [--ping_timeout PING_TIMEOUT]
                             [--dump_arp_on_failure] [--flush_arp]
                             [--nic_model NIC_MODEL]
-                            [--objectstoreurl OBJECTSTOREURL] [--singlesubnet]
+                            [--objectstoreurl OBJECTSTOREURL] [--enable_inter_rail_ping]
                             [--threads_per_intf THREADS_PER_INTF] [--verbose]
 
 optional arguments:
