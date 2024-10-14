@@ -567,6 +567,10 @@ def check_row_remap_errors():
                 metric_text = "gpu_row_remap_error_check 0" + "\n"
                 print(metric_text)
                 tmp_tf.write('{}'.format(metric_text))
+        else:
+            metric_text = "gpu_row_remap_error_check 0" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))
     tmp_tf.close()
 
     copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
