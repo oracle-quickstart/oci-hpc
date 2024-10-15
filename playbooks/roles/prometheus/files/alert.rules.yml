@@ -2,7 +2,7 @@ groups:
 - name: InstanceAvailability
   rules:
   - alert: InstanceDown
-    expr: up == 0
+    expr: up{instance=~".*9100"}==0
     for: 5m
     labels:
       severity: critical
@@ -25,7 +25,7 @@ groups:
   rules:
   - alert: GPUFallenOffBus
     expr: increase(dcgm_gpu_errors_xid_count{XID="79"}[5m]) > 0
-    for: 0m
+    for: 5m
     labels:
       severity: critical
     annotations:

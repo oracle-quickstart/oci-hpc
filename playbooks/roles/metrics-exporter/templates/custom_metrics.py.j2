@@ -13,6 +13,19 @@ import platform
 import time
 from rdma_link_flapping import LinkFlappingTest
 
+def get_host_serial():
+    # Run the shell command
+    if not is_user_root():
+        result = subprocess.run(['sudo', 'dmidecode', '-s', 'system-serial-number'], stdout=subprocess.PIPE)
+    else:
+        result = subprocess.run(['dmidecode', '-s', 'system-serial-number'], stdout=subprocess.PIPE)
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+
+    # Return the serial number
+    return output.strip()
+
 def oca_version_metric(min_version):
 
     metadata = get_metadata()
@@ -221,12 +234,15 @@ def rttcc_status_metric():
     with open(tmp_tf_path, "a") as tmp_tf:
         tmp_tf.write('\n')
         for rdma_dev in link_status.keys():
-            metric_text = "rttcc_status{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
-                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "," \
-                    + "instance_shape=" + "\"" + oci_shape + "\"" + "} " \
+            if rdma_dev in rdma_netdev_map.keys():
+                metric_text = "rttcc_status{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
                     + str(link_status[rdma_dev]) \
                     + "\n"
-            tmp_tf.write('{}'.format(metric_text))
+                tmp_tf.write('{}'.format(metric_text))
+            else:
+                print("rdma dev not found in rdma_netdev_map:" + rdma_dev)
+                print(rdma_netdev_map.keys())
     tmp_tf.close()
 
     copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
@@ -423,6 +439,189 @@ def check_nvidia_gpu_count():
 
     return True
 
+def check_ecc_errors():
+    ecc_issues = []
+    try:
+        # Run the nvidia-smi -q command
+        result = subprocess.run(['nvidia-smi', '-q'], stdout=subprocess.PIPE)
+    except FileNotFoundError:
+        logger.warning("Skipping SRAM/DRAM ECC Test: nvidia-smi command not found")
+        return []
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+
+    # Find the lines containing "SRAM Correctable" and "DRAM Correctable"
+    sram_matches = re.findall(r'SRAM Uncorrectable\s+:\s+(\d+)', output)
+    if len(sram_matches)==0:
+        sram_matches = re.findall(r'SRAM Uncorrectable Parity\s+:\s+(\d+)', output)
+    dram_matches = re.findall(r'DRAM Uncorrectable\s+:\s+(\d+)', output)
+    gpu_matches = re.findall(r'\nGPU\s+(.*)\n', output)
+    vol_sram_line = sram_matches[0::2]
+    vol_dram_line = dram_matches[0::2]
+    agg_sram_line = sram_matches[1::2]
+    agg_dram_line = dram_matches[1::2]
+
+    for i, gpu in enumerate(gpu_matches):
+        logger.debug(f"GPU: {gpu}")
+        if vol_sram_line[i] != "0":
+            logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
+        if vol_dram_line[i] != "0":
+            logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
+        if agg_sram_line[i] != "0":
+            logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
+        if agg_dram_line[i] != "0":
+            logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
+
+    # Textfile name for metrics
+    tf_name = 'gpu_ecc_error_check.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write ECC Error Check metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP gpu_ecc_error_check Pass or Fail based on row remap errors found in a GPU"
+        type_text = "# TYPE gpu_ecc_error_check gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+        # Check if there are ecc_issues
+        if len(ecc_issues) == 0:
+            metric_text = "gpu_ecc_error_check 1" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))  
+        else:
+            ecc_error=False
+            for issue in ecc_issues:
+                if "Skipped" in issue:
+                    logger.warning(f"{host_serial} - {issue}")
+                else:
+                    if "Aggregate" in issue:
+                        logger.warning(f"{host_serial} - ECC issues: {issue}")
+                    else:
+                        logger.error(f"{host_serial} - ECC issues: {issue}")
+                        ecc_error=True
+            if ecc_error:
+                metric_text = "gpu_ecc_error_check 0" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))            
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def check_row_remap_errors():
+    remap_issues = []
+    try:
+        # Run the nvidia-smi -q command
+        result = subprocess.run(['nvidia-smi', '--query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable', '--format=csv,noheader'], stdout=subprocess.PIPE)
+
+        if result.returncode != 0:
+            logger.debug(f"Check row remap command exited with error code: {result.returncode}")
+
+    except FileNotFoundError:
+        logger.warning("Skipping Row Remap Test: nvidia-smi command not found")
+        return []
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+    logger.debug("Output: {}".format(output))
+    for i, line in enumerate(output.split('\n')):
+        if line == "":
+            continue
+        tmp_data = line.split(",")
+        tmp_data = [x.strip() for x in tmp_data]
+        if tmp_data[0] != "0":
+            logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
+            remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
+        if tmp_data[1] != "0":
+            logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
+            #remap_issues.append(f"GPU: {i} Row Remap Failure: {tmp_data[1]}")
+        if tmp_data[2] != "0":
+            logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
+            if int(tmp_data[2]) > 512:
+                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
+            else:
+                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable <512: {tmp_data[2]}")# Check if there are ecc_issues
+
+    # Textfile name for metrics
+    tf_name = 'gpu_row_remap_error_check.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write Row Remap Error Check metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP gpu_row_remap_error_check Pass or Fail based on row remap errors found in a GPU"
+        type_text = "# TYPE gpu_row_remap_error_check gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    
+        remap_error=False
+        if len(remap_issues) > 0:        
+            for issue in remap_issues:
+                if "<512" in issue:
+                    logger.warning(f"{host_serial} - {issue}")
+                else:
+                    logger.error(f"{host_serial} - {issue}")
+                    remap_error=True
+            if remap_error:
+                metric_text = "gpu_row_remap_error_check 1" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))            
+            else:
+                metric_text = "gpu_row_remap_error_check 0" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))
+        else:
+            metric_text = "gpu_row_remap_error_check 0" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def xid_check():    
+    result = subprocess.run(['sudo', 'python3', 'xid_checker.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = result.stderr.decode('utf-8')
+
+    # Textfile name for metrics
+    tf_name = 'xid_error_check.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write Xid Error Check metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP xid_error_check Pass or Fail based on xid errors thrown by GPU on a PCI Device "
+        type_text = "# TYPE xid_error_check gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+        if output.find("Passed") > 0:
+            metric_text = "xid_error_check 1" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))
+        else:
+            metric_text = "xid_error_check 0" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+
 if __name__ == '__main__':
 
     # User and group under which node expoerter service is being run
@@ -456,6 +655,12 @@ if __name__ == '__main__':
     metadata=get_metadata()
     oci_shape=metadata['shape']
     rdma_devices = get_rdma_devices(oci_shape)
+    host_serial = ""
+    try:
+        host_serial = get_host_serial()
+    except Exception as e:
+        logger.warning(f"Failed to get host serial number with error: {e}")
+        host_serial = "Unknown"
 
     # Run the checks every 10 minutes
     while True:
@@ -477,10 +682,16 @@ if __name__ == '__main__':
         # Check if devices have fallen off the bus
         check_bus_metric()
 
-        # Check if nvidia-smi command exists and get the count of GPUs
+        # Check if Xid check Passed
+        xid_check()
+
+        # Check if nvidia-smi command exists and run health checks
         try:
            subprocess.call(["nvidia-smi"])
            check_nvidia_gpu_count()
+           check_ecc_errors()
+           check_row_remap_errors()
+
         except FileNotFoundError:
            logger.debug(f'Shape does not support nvidia-smi command')
 
