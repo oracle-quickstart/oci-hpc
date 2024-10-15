@@ -13,6 +13,19 @@ import platform
 import time
 from rdma_link_flapping import LinkFlappingTest
 
+def get_host_serial():
+    # Run the shell command
+    if not is_user_root():
+        result = subprocess.run(['sudo', 'dmidecode', '-s', 'system-serial-number'], stdout=subprocess.PIPE)
+    else:
+        result = subprocess.run(['dmidecode', '-s', 'system-serial-number'], stdout=subprocess.PIPE)
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+
+    # Return the serial number
+    return output.strip()
+
 def oca_version_metric(min_version):
 
     metadata = get_metadata()
@@ -642,6 +655,12 @@ if __name__ == '__main__':
     metadata=get_metadata()
     oci_shape=metadata['shape']
     rdma_devices = get_rdma_devices(oci_shape)
+    host_serial = ""
+    try:
+        host_serial = get_host_serial()
+    except Exception as e:
+        logger.warning(f"Failed to get host serial number with error: {e}")
+        host_serial = "Unknown"
 
     # Run the checks every 10 minutes
     while True:
