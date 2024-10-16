@@ -37,6 +37,7 @@
     - custom_metric_common.py
     - shared_logging.py
     - rdma_link_flapping.py
+    - xid_checker.py
 
 - name: Copying custom metric service file
   become: true
