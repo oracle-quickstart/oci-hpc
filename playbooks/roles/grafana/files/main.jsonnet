@@ -14,7 +14,7 @@ local critical_status_stl = [
 { expr1: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'rdma_device_status{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}:{{rdma_device}}', title: 'RDMA Device Status', unit: 'none', colors: {'0': { text: 'down', color: 'red' },'1': { text: 'up', color: 'green' },} },
 { expr1: 'gpu_row_remap_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'gpu_row_remap_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}', title: 'GPU Row Remap Error Check', unit: 'none', colors: {'0': { text: 'passed', color: 'green' },'1': { text: 'failed', color: 'red' },} },
 { expr1: 'gpu_ecc_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'gpu_ecc_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}', title: 'GPU ECC Error Check', unit: 'none', colors: {'0': { text: 'failed', color: 'red' },'1': { text: 'passed', color: 'green' },} },
-{ expr1: 'xid_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'xid_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}', title: 'Xid Error Check', unit: 'none', colors: {'0': { text: 'passed', color: 'green' },'1': { text: 'failed', color: 'red' },} },
+{ expr1: 'xid_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==0', expr2: 'xid_error_check{hostname=~"$hostname", oci_name=~"$oci_name"}==1', legend_format: '{{hostname}}', title: 'Xid Error Check', unit: 'none', colors: {'1': { text: 'passed', color: 'green' },'0': { text: 'failed', color: 'red' },} },
 ];
 
 local health_status = [
