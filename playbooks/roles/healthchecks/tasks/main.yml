@@ -20,3 +20,41 @@
     - rdma_link_flapping.py
     - xid_checker.py
     - shared_logging.py
+
+- name: Download oci-mesh-pinger
+  get_url:
+    url: "{{mp_download_link}}"
+    dest: "/tmp/"
+  when: ('controller' in group_names)
+
+- name: untar meshpinger
+  unarchive:
+    src: "/tmp/{{mp_filename}}"
+    dest: "/opt/oci-hpc/healthchecks"
+  when: ('controller' in group_names)
+
+- name: Copy files
+  become: true
+  copy: 
+    src: '{{ item }}'
+    dest: '/opt/oci-hpc/healthchecks/{{ item }}'
+    force: no
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: 0755
+  with_items: 
+    - run_meshpinger.sh
+  when: ('controller' in group_names)
+
+- name: Make sure meshpinger dependencies are installed. 
+  vars: 
+    package_name: 
+      - fping
+      - jq
+      - lshw
+      - ethtool
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true
+  

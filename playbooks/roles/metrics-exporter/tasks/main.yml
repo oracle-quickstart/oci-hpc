@@ -1,0 +1,17 @@
+- include_tasks: node_exporter_el.yml
+  when: ansible_os_family == 'RedHat'
+
+- include_tasks: node_exporter_ubuntu.yml
+  when: ansible_distribution == 'Ubuntu'
+
+- include_tasks: dcgm_exporter.yml
+  when: ('compute' in group_names) and 'GPU' in shape
+
+- include_tasks: rdma_exporter.yml
+  when: ('compute' in group_names) and cluster_network|bool
+
+- include_tasks: nvlink_exporter.yml
+  when: ('compute' in group_names) and 'GPU' in shape
+
+- include_tasks: custom_metrics.yml
+  when: ('compute' in group_names) and cluster_network|bool

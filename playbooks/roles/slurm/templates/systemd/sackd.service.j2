@@ -1,0 +1,28 @@
+[Unit]
+Description=Slurm auth and cred kiosk daemon
+After=network-online.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/sysconfig/sackd
+EnvironmentFile=-/etc/default/sackd
+User=slurm
+Group=slurm
+RuntimeDirectory=slurm
+RuntimeDirectoryMode=0755
+ExecStart={{slurm_exec}}/sbin/sackd --systemd --conf-server {{ hostvars[groups['controller'][0]]['ansible_fqdn'].split('.')[0] }}{% if (groups['slurm_backup']| length ) > 0 %},{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[0] }}{% endif %} $SACKD_OPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+LimitNOFILE=131072
+LimitMEMLOCK=infinity
+LimitSTACK=infinity
+TasksMax=infinity
+
+# Uncomment the following lines to disable logging through journald.
+# NOTE: It may be preferable to set these through an override file instead.
+#StandardOutput=null
+#StandardError=null
+
+[Install]
+WantedBy=multi-user.target

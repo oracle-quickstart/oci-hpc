@@ -1,0 +1,66 @@
+---
+- name: Create prometheus group on compute
+  become: true
+  group:
+    name: prometheus
+    state: present
+    system: yes
+
+- name: Create prometheus user on compute
+  become: true
+  user:
+    name: prometheus
+    comment: "prometheus user"
+    group: prometheus
+    createhome: no  # Optional: depending on if you want to create a home directory
+
+- name: Create /var/lib/prometheus/node_exporter directory
+  become: true
+  file:
+    path: "/var/lib/prometheus/node_exporter"
+    state: directory
+    owner: 'prometheus'
+    group: 'prometheus'
+  
+- name: Download node_exporter {{ node_exporter }}
+  become: true
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+
+- name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
+  become: true
+  unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    dest: "/var/lib/prometheus/node_exporter/"
+    extra_opts: ["--strip-components=1"]
+    remote_src: true
+
+- name: Recursively change ownership of /var/lib/prometheus/node_exporter/
+  become: true
+  file:
+    path: /var/lib/prometheus/node_exporter
+    state: directory
+    recurse: yes
+    owner: prometheus
+    group: prometheus 
+
+- name: Create a symbolic link for node_exporter
+  become: true
+  file:
+    src: /var/lib/prometheus/node_exporter/node_exporter
+    dest: /usr/bin/node_exporter
+    state: link     
+
+- name: Configure node_exporter service
+  become: true
+  copy:
+    src: 'node_exporter.service'
+    dest: '/etc/systemd/system/node_exporter.service' 
+
+- name: Start and enable node_exporter service
+  become: true
+  systemd:
+    name: node_exporter.service
+    state: restarted
+    enabled: true

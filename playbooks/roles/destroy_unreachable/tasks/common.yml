@@ -3,9 +3,8 @@
 - name: Get Slurm hostnames
   vars:
     - index: "{{ unreachable_nodes | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
   set_fact:
-    unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [queue+'-'+keyword+'-node-'+ item | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) ] }}"
+    unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [hostname_convention+'-'+ item | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) ] }}"
   with_items: "{{unreachable_nodes}}"
   when: item | ipaddr
   ignore_unreachable: yes
@@ -16,7 +15,7 @@
   set_fact:
     unreachable_slurm_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
   with_items: "{{unreachable_nodes}}"
-  when: not ( item | ipaddr ) and '-node-' in item
+  when: not ( item | ipaddr ) and ( item.split('-')[0] == hostname_convention or (not change_hostname|bool) )
   ignore_unreachable: yes
   delegate_to: 127.0.0.1
   run_once: true
@@ -25,7 +24,7 @@
   set_fact:
     unreachable_oci_nodes: "{{unreachable_slurm_nodes | default([]) + [item] }}"
   with_items: "{{unreachable_nodes}}"
-  when: not ( item | ipaddr ) and not ('-node-' in item )
+  when: not ( item | ipaddr ) and item.split('-')[0] != hostname_convention and (change_hostname|bool)
   ignore_unreachable: yes
   delegate_to: 127.0.0.1
   run_once: true

@@ -1,14 +1,10 @@
 ---
-- block:
-
-
-  - name: debug
-    debug:
-      msg: "no change for ubuntu"
+- name: call oracle cloud agent updater
+  include_role: 
+    name: oci-cloud-agent-updater
 
 # oracle-cloud-agent runs by default on ubuntu 
 # However it doesn't have osms (OS Management Service) which we had to disable on Oracle Linux
 # sudo snap list  | grep oracle-cloud-agent
 # to check for version
 # snap info oracle-cloud-agent
-

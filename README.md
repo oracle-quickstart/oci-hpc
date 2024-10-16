@@ -23,6 +23,7 @@ Allow dynamic-group instance_principal to manage compute-management-family in co
 Allow dynamic-group instance_principal to manage instance-family in compartment compartmentName
 Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
 Allow dynamic-group instance_principal to use volumes in compartment compartmentName
+Allow dynamic-group instance_principal to manage dns in compartment compartmentName
 ```
 or:
 
@@ -34,12 +35,9 @@ The stack allowa various combination of OS. Here is a list of what has been test
 
 |   Controller  |    Compute   |
 |---------------|--------------|
-|      OL7      |      OL7     |  
-|      OL7      |      OL8     |
-|      OL7      |    CentOS7   |
-|      OL8      |       OL8    |
-|      OL8      |       OL7    |
-| Ubuntu  20.04 | Ubuntu 20.04 |
+|      OL8      |      OL8     |
+|      OL8      |      OL7     |
+| Ubuntu  22.04 | Ubuntu 22.04 |
 
 When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the controller and compute nodes. 
 ## How is resizing different from autoscaling ?
@@ -276,10 +274,6 @@ Example:
 ```
 /opt/oci-hpc/bin/create_cluster.sh 4 compute2-1-hpc HPC_instance compute2
 ```
-The name of the cluster must be
-queueName-clusterNumber-instanceType_keyword
-
-The keyword will need to match the one from /opt/oci-hpc/conf/queues.conf to be registered in Slurm
 
 ### Cluster Deletion: 
 ```
@@ -422,3 +416,14 @@ By default, this check box is enabled. By selecting, this check-box, a PAR would
 Step 2: Use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage.
 User needs to use shell script: upload_rdma_nic_metrics.sh to collect metrics and upload to object storage. User could configure metrics
 collection limit and interval through config file: rdma_metrics_collection_config.conf.
+
+## Meshpinger
+
+Meshpinger is a tool for validating network layer connectivity between RDMA NICs on a cluster network in OCI. The tool is capable of initiating ICMP ping from every RDMA NIC port on the cluster network to every other RDMA NIC port on the same cluster network and
+reporting back the success/failure status of the pings performed in the form of logs
+
+Running the tool before starting workload on a cluster network should serve as a good precheck step to gain confidence on the network reachability between RDMA NICs. Typical causes for reachability failures that the tool can help pinpoint are,
+1. Link down on the RDMA NIC
+2. RDMA interface initialization or configuration issues including IP address assignment to
+the interface
+3. Insufficient ARP table size on the node to store all needed peer mac addresses

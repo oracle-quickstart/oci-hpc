@@ -6,7 +6,7 @@
   tasks: 
     - include_role:  
         name: hostname
-      when: slurm  | default(false) | bool
+      when: change_hostname  | default(false) | bool
 
 # for ubuntu, on all compute nodes, run --fix-broken install
 - hosts: compute_to_add
@@ -45,17 +45,11 @@
   gather_facts: true
   tasks: 
     - include_role: 
-        name: oci-cn-auth
-      when: cluster_network|bool and not use_compute_agent|default(false)|bool
-    - include_role: 
-        name: rdma-interface
-      when: cluster_network|bool and not use_compute_agent|default(false)|bool
-    - include_role: 
         name: nvidia_peermem
     - include_role: 
         name: healthchecks
 
-- hosts: controller,slurm_backup,login,compute
+- hosts: controller,slurm_backup,login,compute, monitoring
   become: true
   vars: 
     destroy: false
@@ -199,11 +193,11 @@
         name: spack
       when: spack|default(false)|bool
     - include_role: 
+        name: prometheus
+      when: cluster_monitoring|default(false)|bool
+    - include_role: 
+        name: metrics-exporter
+      when: cluster_monitoring|default(false)|bool
+    - include_role: 
         name: slurm
       when: slurm|default(false)|bool
-    - include_role: 
-        name: influxdb
-      when: monitoring|default(false)|bool
-    - include_role: 
-        name: telegraf
-      when: monitoring|default(false)|bool

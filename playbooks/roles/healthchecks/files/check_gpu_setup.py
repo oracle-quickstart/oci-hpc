@@ -68,7 +68,7 @@ def get_oca_version():
 
 
         if version < "1.39.0":
-            logger.error(f"Oracle Cloud Agent: {version} needs to be updated to 1.38.0 or higher")
+            logger.error(f"Oracle Cloud Agent: {version} needs to be updated to 1.39.0 or higher")
         else:
             logger.info(f"Oracle Cloud Agent: {version}")
 
@@ -77,7 +77,14 @@ def get_oca_version():
 
 def check_rttcc_status():
     link_status = []
-    devices = ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
+    metadata=get_metadata()
+    shape=metadata['shape']
+    if shape == "BM.GPU.H100.8":
+        devices = ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
+    elif shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8":
+        devices = ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
+    elif shape == "BM.GPU4.8":
+        devices = ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
     status = "disabled"
     status_dict = {"devices": {}}
     for device in devices:
@@ -175,13 +182,13 @@ def check_row_remap_errors():
             continue
         tmp_data = line.split(",")
         tmp_data = [x.strip() for x in tmp_data]
-        if tmp_data[0] != "0":
+        if tmp_data[0] != "0" and tmp_data[0] != "No":
             logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
             remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
-        if tmp_data[1] != "0":
+        if tmp_data[1] != "0" and tmp_data[0] != "No":
             logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
             #remap_issues.append(f"GPU: {i} Row Remap Failure: {tmp_data[1]}")
-        if tmp_data[2] != "0":
+        if tmp_data[2] != "0" and tmp_data[0] != "No":
             logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
             if int(tmp_data[2]) > 512:
                 remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
@@ -246,7 +253,7 @@ def check_rdma_link_status():
             logger.debug(f"{device}: {link_state}")
             link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {link_state}")
             status = False
-        if recommendation != "No issue was observed":
+        if not "No issue was observed" in recommendation:
             logger.debug(f"{device}: {recommendation}")
             if "Bad signal integrity" in recommendation and float(physical_BER) < 1e-07:
                 logger.debug(f"Recommandation is {recommendation} but the Physical error are low enough that it can be ignored")

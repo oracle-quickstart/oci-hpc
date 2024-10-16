@@ -11,7 +11,7 @@
 - name: Render systemd units for slurm, slurmdbd and munge
   become: true
   template:
-    src: 'systemd/{{ item }}.service'
+    src: 'systemd/{{ item }}.service.j2'
     dest: '/lib/systemd/system/{{ item }}.service'
     backup: "yes"
   with_items:
@@ -77,6 +77,16 @@
     state: restarted
     enabled: true
 
+- name: Add to the gres.conf file on the controller.
+  become: true
+  blockinfile:
+    block: "{{ lookup('template', 'gres.conf.j2') }}"
+    path: "{{ slurm_conf_path }}/gres.conf"
+    marker: "### {mark} {{ansible_hostname}}"
+  throttle: 1
+  delegate_to: 127.0.0.1
+  when: "'GPU' in shape"
+
 - name: Run the script to get the RackID
   shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host | jq .rackId'
 #  shell: echo $RANDOM | md5sum | head -c 20
@@ -85,22 +95,37 @@
   delay: 5
   until: rackID_script is not failed
 
-- name: Set RackID fact
+- name: H100 Block
+  block: 
+    - name: Run the script to get the RDMA Block ID
+      shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host/rdmaTopologyData/customerLocalBlock | grep ocid'
+    #  shell: echo $RANDOM | md5sum | head -c 20
+      register: blockID_script
+      retries: 3
+      delay: 1
+      ignore_errors: true
+      until: blockID_script is not failed
+
+    - name: Set BlockID fact
+      set_fact:
+        rackID: "{{ blockID_script.stdout.split('.')[4][-16:-1]}}"
+      when: blockID_script is not failed 
+
+    - name: Set RackID fact
+      set_fact:
+        rackID: "{{ rackID_script.stdout[1:-41]}}"
+      when: blockID_script is failed
+  when: shape == 'BM.GPU.H100.8'
+
+- name: Set Rack ID fact on nodes other than H100
   set_fact:
     rackID: "{{ rackID_script.stdout[1:-41]}}"
-
-- name: Get nodes from Inactive Switch
-  vars:
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
-  register: inactive_switch
-  run_once: true
-  delegate_to: 127.0.0.1
+  when: shape != 'BM.GPU.H100.8'
 
 - name: Get rackIDs for all compute nodes
   set_fact:
     racks_to_add_temp: "{{cluster_name}}:{{hostvars[item]['rackID']}}"
-  with_items: "{{ play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login'])}}"
+  with_items: "{{ play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login'])| difference(groups['monitoring'])}}"
   run_once: true
   register: racks_to_add_temp_results
 
@@ -111,7 +136,7 @@
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup']) | difference(groups['login']) }}"
+  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup']) | difference(groups['login']) | difference(groups['monitoring'])}}"
   run_once: true
   register: nodes_to_add_temp_results
 
@@ -138,7 +163,7 @@
 
 - name: Get hostlist if switch exists
   vars:
-    new_line: "{% for node in ( play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+    new_line: "{% for node in ( play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) | difference(groups['monitoring'])) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   command: "scontrol show hostlistsorted {{ item.stdout_lines | union (new_line[:-1].split(',') | list )| join(',') }}"
   register: rack_hostlist1
   delegate_to: 127.0.0.1
@@ -148,7 +173,7 @@
 
 - name: Get hostlist if switch does not exists
   vars:
-    new_line: "{% for node in ( play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login']) ) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
+    new_line: "{% for node in ( play_hosts | difference(groups['controller'])  | difference(groups['slurm_backup']) | difference(groups['login']) | difference(groups['monitoring'])) %}{% if cluster_name+':'+hostvars[node]['rackID'] == item.item.item %}{{hostvars[node]['ansible_hostname']}},{% endif %}{% endfor %}"
   command: "scontrol show hostlistsorted {{ new_line[:-1] }}"
   register: rack_hostlist2
   delegate_to: 127.0.0.1
@@ -184,32 +209,6 @@
   delegate_to: 127.0.0.1
   notify: reconfigure slurm
 
-- name: Get inactive_hostlist
-  vars:
-    - inactive_list_condensed: "{{inactive_switch.stdout.split('Nodes=')[1]}}"
-  command: "scontrol show hostname {{inactive_list_condensed }}"
-  register: inactive_hostlist
-  delegate_to: 127.0.0.1
-
-- name: Create new inactive_hostlist
-  command: "scontrol show hostlistsorted {{inactive_hostlist.stdout_lines | difference(nodes_to_add) | join(',')  }}"
-  register: inactive_hostlist_condensed
-  delegate_to: 127.0.0.1
-
-- name: remove nodes from inactive
-  become: true
-  vars:
-    - inactive_list: "{{inactive_switch.stdout.split('Nodes=')[1].split(',')}}"
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{inactive_hostlist_condensed.stdout}}"
-    state: present
-  run_once: true
-  delegate_to: 127.0.0.1
-  notify: reconfigure slurm
-
 - name: Get racks in the Cluster
   block:
     - name: Get Racks from topology.conf
@@ -234,6 +233,7 @@
     state: present
   run_once: true
   delegate_to: 127.0.0.1
+  notify: reconfigure slurm
   when: racks_left_list | length > 0
 
 - name: Run Pam settings
@@ -250,41 +250,12 @@
     state: restarted
     enabled: true
 
+- name: Give some time to the slurmd to start
+  pause:
+    seconds: 10
 
-- name: Update node state on controller
-  block:
-    - name: Grab Node State
-      shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
-      register: node_state
-      delegate_to: 127.0.0.1
-    - set_fact:
-        node_state2: "{{ node_state.stdout }}"
-    - name: Update node state on controller
-      become: true
-      command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-      when: node_state2 != "idle" and node_state2 != "alloc"
-  rescue:
-    - name: Sleep 5 seconds
-      pause: 
-        seconds: 10
-
-    - name: Grab Node State
-      shell: 'sinfo -h -o "%t" -n {{ ansible_hostname }}'
-      register: node_state
-      delegate_to: 127.0.0.1
-      until: node_state.stdout.find("failure") == -1
-      retries: 10
-      delay: 5
-
-    - set_fact:
-        node_state2: "{{ node_state.stdout }}"
-
-    - name: Update node state on controller
-      become: true
-      command: scontrol update nodename={{ ansible_hostname }} state=RESUME
-      when: node_state2 != "idle" and node_state2 != "alloc"
-      register: result
-      retries: 10
-      delay: 5
-      until: result is not failed
-      delegate_to: 127.0.0.1
+- name: Reconfigure Slurm for topology
+  become: true
+  command: "scontrol reconfigure"
+  delegate_to: 127.0.0.1
+  run_once: true

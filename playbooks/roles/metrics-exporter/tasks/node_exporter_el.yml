@@ -1,0 +1,81 @@
+---
+
+- name: Create user for prometheus
+  become: true
+  user:
+    name: "{{ prometheus_user }}" 
+    state: present 
+    createhome: no   
+    shell: /usr/sbin/nologin
+    append: yes
+
+- name: Create /var/lib/prometheus/node_exporter directory
+  become: true
+  file:
+    path: "/var/lib/prometheus/node_exporter"
+    state: directory
+    owner: 'prometheus'
+    group: 'prometheus'
+
+- name: Download node_exporter {{ node_exporter }}
+  become: true
+  get_url:
+    url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz
+    dest: /tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz 
+
+- name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
+  become: true
+  unarchive:
+    src: /tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz 
+    dest: /var/lib/prometheus/node_exporter/
+    extra_opts: [--strip-components=1]
+    remote_src: true    
+
+- name: Recursively change ownership of a /var/lib/prometheus/node_exporter/
+  become: true
+  file:
+    path: /var/lib/prometheus/node_exporter
+    state: directory
+    recurse: yes
+    owner: prometheus
+    group: prometheus 
+
+- name: Create a symbolic link node_exporter
+  become: true
+  file:
+    src: /var/lib/prometheus/node_exporter/node_exporter
+    dest: /usr/bin/node_exporter
+    state: link     
+
+- name: Configure node_exporter service
+  become: true
+  copy:
+    src: 'node_exporter.service'
+    dest: '/usr/lib/systemd/system/node_exporter.service' 
+
+
+- name: Run command deactivate selinux for node_exporter, chcon  
+  become: true
+  command: chcon --reference=/bin/less /usr/bin/node_exporter
+
+- name: Make sure the python setuptools are installed
+  vars: 
+    package_name: 
+      - python3-setuptools
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
+    
+- name: Run command deactivate selinux for node_exporter, semanage  
+  become: true
+  command: semanage fcontext -a -t bin_t "/usr/bin/node_exporter"
+  register: node_exporter
+  failed_when: "node_exporter.rc != 0 and 'already defined' not in node_exporter.stderr"
+
+- name: start node_exporter.service
+  become: true
+  service:
+    name: node_exporter.service
+    state: restarted
+    enabled: true

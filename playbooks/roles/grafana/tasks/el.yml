@@ -43,44 +43,13 @@
   no_log: false
   register: existing_api_keys
 
-# adding ignore errors as yes because of an issue with grafana >=9.1 versions - https://github.com/grafana/grafana/issues/53995
-- name: Create influxdb datasource
+- name: Create prometheus datasource
   grafana_datasource:
-    name: "InfluxDB"
+    name: "Prometheus"
     grafana_url: "{{ grafana_api_url }}"
     grafana_user: "{{ grafana_security.admin_user }}"
     grafana_password: "{{ grafana_security.admin_password }}"
-    org_id: "1"
-    ds_type: "influxdb"
-    ds_url: "http://localhost:8086"
-    database: "telegraf"
-    time_interval: ">10s"
+    ds_type: "prometheus"
+    ds_url: "http://localhost:9090"
   ignore_errors: yes
 
-- name: Import grafana dashboards through API
-  uri:
-    url: "{{ grafana_api_url }}/api/dashboards/db"
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    method: POST
-    body_format: json
-    body: >
-      {
-        "dashboard": {{ lookup("file", item) }},
-        "overwrite": true,
-        "message": "Updated by ansible"
-      }
-  no_log: false
-  with_fileglob:
-    - files/cluster.json
-
-#- name: Import Grafana dashboard foo
-#  community.grafana.grafana_dashboard:
-#    grafana_url: "{{ grafana_api_url }}"
-#    grafana_user: "{{ grafana_security.admin_user }}"
-#    grafana_password: "{{ grafana_security.admin_password }}"
-#    state: present
-#    message: Updated by ansible
-#    overwrite: yes
-#    path: files/cluster.json

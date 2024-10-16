@@ -56,7 +56,6 @@ variableGroups:
       - ${node_count}
       - ${hyperthreading}
       - ${boot_volume_size}
-      - ${use_compute_agent}
       - ${use_marketplace_image}
       - ${compute_username}
       - ${marketplace_listing}
@@ -71,6 +70,8 @@ variableGroups:
       - ${access_ctrl}
       - ${numa_nodes_per_socket}
       - ${percentage_of_cores_enabled}
+      - ${change_hostname}
+      - ${hostname_convention}
 
   - title: "Additional Login Node"
     variables:
@@ -92,6 +93,26 @@ variableGroups:
       - ${login_block}
       - ${login_block_volume_size}
       - ${login_block_volume_performance}
+
+  - title: "Cluster Monitoring"
+    variables:
+      - ${cluster_monitoring}
+      - ${monitoring_node}
+      - ${monitoring_ad}
+      - ${monitoring_shape}
+      - ${monitoring_ocpus}
+      - ${monitoring_ocpus_denseIO_flex}
+      - ${monitoring_custom_memory}
+      - ${monitoring_memory}
+      - ${monitoring_boot_volume_size}
+      - ${use_marketplace_image_monitoring}
+      - ${marketplace_listing_monitoring}
+      - ${unsupported_monitoring}
+      - ${monitoring_image_compartment}
+      - ${custom_monitoring_image}
+      - ${unsupported_monitoring_image}
+      - ${monitoring_username}
+
   - title: Autoscaling
     variables:
       - ${autoscaling}
@@ -103,7 +124,7 @@ variableGroups:
       - ${api_user_ocid}
       - ${api_fingerprint}
       - ${api_user_key}
-  - title: "Monitoring"
+  - title: "Autoscaling Monitoring"
     variables: 
       - ${autoscaling_mysql_service}
       - ${monitoring_shape_name}
@@ -117,6 +138,7 @@ variableGroups:
     variables:
       - ${add_nfs}
       - ${create_fss}
+      - ${mount_target_count}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
@@ -176,7 +198,6 @@ variableGroups:
       - ${rack_aware}
       - ${queue}
       - ${spack}
-      - ${monitoring}
       - ${enroot}
       - ${pyxis}
       - ${pam}
@@ -201,6 +222,9 @@ variableGroups:
       - ${controller_boot_volume_backup_retention_seconds}
       - ${controller_boot_volume_backup_time_zone}
       - ${controller_boot_volume_backup_type}
+      - ${use_compute_agent}
+      - ${nfs_list_of_mount_target_IPs}
+      
     visible: false
   - title: "Debug"
     variables: 
@@ -416,12 +440,10 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC_OL7"
       - "HPC_OL8"
+      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
-      - "GPU_OL7_NV535"
     default: "HPC_OL8"
     visible: ${use_marketplace_image_controller}
 
@@ -435,7 +457,7 @@ variables:
  
   unsupported_controller_image:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 20.04 are supported as controller image at this moment."
+    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 22.04 are supported as controller image at this moment."
     type: string
     required: true
     visible: ${unsupported_controller}
@@ -455,7 +477,7 @@ variables:
 
   custom_controller_image:
     title: "controller Image ID"
-    description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 20.04 are supported as controller image at this moment. "
+    description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 22.04 are supported as controller image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${controller_image_compartment}
@@ -472,7 +494,7 @@ variables:
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 100
+    default: 1024
 
   controller_boot_volume_backup:
     type: boolean
@@ -505,6 +527,7 @@ variables:
       - "0.  Lower performance"
       - "10. Balanced performance"
       - "20. High Performance"
+      - "30. Ultra High Performance"
     default: "10. Balanced performance"
     visible:
       and:
@@ -590,9 +613,11 @@ variables:
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
       - "BM.GPU.H100.8"
+      - "BM.GPU.MI300X.8"
+      - "BM.GPU.L40S.4"
       - "BM.Optimized3.36"
       - "BM.HPC.E5.144"
-    default: "BM.HPC2.36"
+    default: "BM.GPU.H100.8"
     title: "Shape of the Compute Nodes"
     description: "Shape of compute nodes used in permanent/initial cluster"
     required: true
@@ -745,7 +770,7 @@ variables:
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 100
+    default: 256
     description: "Boot volume size in GB of each compute node" 
 
   use_marketplace_image:
@@ -760,23 +785,12 @@ variables:
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC_OL7"
       - "HPC_OL8"
+      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
-      - "GPU_OL7_NV535"
     default: "GPU_OL8_NV550"
     visible: ${use_marketplace_image}
-
-  use_compute_agent:
-    type: boolean
-    title: "use compute agent"
-    description: "Select if your image has the OCA agent rather than the oci-cn-auth package. The new marketplace images need the compute agent enabled."
-    default: true
-    visible: 
-      not: 
-        - ${use_marketplace_image}
 
   compute_image_compartment:
     title: "compute image compartment"
@@ -791,7 +805,7 @@ variables:
 
   image:
     title: "Image"
-    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
+    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)"
     type: oci:core:image:id
     required: true
     dependsOn:
@@ -825,7 +839,7 @@ variables:
 
   image_ocid:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes. Supported OS are OL7, OL8, CentOS7 and Ubuntu 20.04"
+    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)"
     type: string
     required: true
     visible:
@@ -837,8 +851,7 @@ variables:
 
   BIOS: 
     title: "Modify BIOS options" 
-    description: "WARNING : Do NOT change those if you have not tested the changes on a single instance. Error will be \"Shape does not support the provided platform
-configuration\" "
+    description: "WARNING : Do NOT change those if you have not tested the changes on a single instance. Error will be \"Shape does not support the provided platform configuration\" "
     type: boolean
     default: false
     visible: true
@@ -895,6 +908,20 @@ configuration\" "
     default: "Default"
     visible: ${BIOS} 
     
+  change_hostname: 
+    title: "Change hostname" 
+    description: "Will modify the hostname of the node but not in the oci console"
+    type: boolean
+    default: true
+    required: true
+
+  hostname_convention:
+    type: string
+    title: "Hostname Convention"
+    description: "Will add -INDEX at the end with the index of the IP in the subnet"
+    default: "GPU"
+    visible: ${change_hostname}
+      
   use_advanced:
     type: boolean
     title: "Show advanced storage options"
@@ -1038,12 +1065,6 @@ configuration\" "
       compartmentId: ${vcn_compartment}
       vcnId: ${vcn_id}
       hidePrivateSubnet: false
-    # visible: 
-      # and:
-      #   - not:
-      #     - ${private_deployment}
-      #   - and: 
-      #     - ${use_existing_vcn}
     visible: ${use_existing_vcn}  
     required: true
   private_subnet_id:
@@ -1117,9 +1138,6 @@ configuration\" "
     default: "0.0.0.0/0"
     description: "Allowed SSH network in CIDR notation"
     required: true
-#   visible:
-#     not:
-#       - ${use_existing_vcn}
   slurm:
     type: boolean
     title: "Install SLURM"
@@ -1184,6 +1202,12 @@ configuration\" "
     description: "Install Enroot, Nvidia Container Toolkit, and docker."
     visible: ${slurm}
 
+  cluster_monitoring:
+    type: boolean
+    title: "Install HPC Cluster Monitoring Tools"
+    default: false
+    description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
+
   pam:
     type: boolean
     title: "Enable PAM"
@@ -1204,12 +1228,6 @@ configuration\" "
     default: false
     description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state"
     visible: ${slurm}
- 
-  monitoring:
-    type: boolean
-    title: "Install HPC Cluster Monitoring Tools"
-    default: false
-    description: "Install Grafana, Telegrapf, and InfluxDB tools for system monitoring."
 
   autoscaling:
     type: boolean
@@ -1275,7 +1293,18 @@ configuration\" "
     default: false
     description: "For FSS, leave options filed empty."
     visible: ${add_nfs}
-
+  
+  mount_target_count:
+    title: "Number of FSS mount targets"
+    description: "Number of FSS Mount Target to use with File System"
+    type: integer
+    default: 1
+    required: true
+    visible: 
+      and:
+        - ${add_nfs}
+        - ${create_fss}
+ 
   fss_compartment:
     title: "FSS compartment"
     description: "Compartment to add the FSS Mount Target and File System"
@@ -1574,7 +1603,7 @@ configuration\" "
     required: true
     minimum: 50
     title: "Size of the boot volume in GB"
-    default: 250
+    default: 512
     visible:  ${login_node}
 
   login_block:
@@ -1634,7 +1663,7 @@ configuration\" "
 
   custom_login_image:
     title: "Login Image ID"
-    description: "Custom image ID for login nodes. Please note that only Oracle Linux and Ubuntu 20.04 are supported as login image at this moment. "
+    description: "Custom image ID for login nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as login image at this moment. "
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${login_image_compartment}
@@ -1679,14 +1708,242 @@ configuration\" "
     description: "Marketplace listing to use"
     required: true
     enum:
-      - "HPC_OL7"
       - "HPC_OL8"
+      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
-      - "GPU_OL7_NV535"
     default: "HPC_OL8"
     visible:
       and:
         - ${use_marketplace_image_login}
         - ${login_node}
+
+
+
+  monitoring_node:
+    type: boolean
+    title: "Monitoring Node"
+    default: false
+    description: "Create an additional monitoring node"
+    visible: cluster_monitoring
+
+  monitoring_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    visible: 
+      and:
+        - complexExpression
+        - ${monitoring_node}
+    required: true
+    description: "Availability Domain for monitoring node"
+    title: "Availability Domain For monitoring Node"
+    default: ${ad}  
+
+  monitoring_shape:
+    type: oci:core:instanceshape:name
+    dependsOn:
+      compartmentId: ${targetCompartment}
+    required: true
+    default: VM.Standard.E4.Flex
+    visible: ${monitoring_node}
+
+  monitoring_ocpus:
+    type: integer
+    description: Number of OCPU's for flex shape
+    minimum: 1
+    maximum: 64
+    default: 32
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.E3.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E5.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard3.Flex"
+        - ${monitoring_node}
+    required: true
+
+  monitoring_ocpus_denseIO_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPU's for Dense IO flex shape
+    enum:
+      - 8
+      - 16
+      - 32
+    default: 16
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.DenseIO.E4.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.DenseIO.E5.Flex"
+        - ${monitoring_node}
+    required: true
+    
+  monitoring_custom_memory: 
+    title: Use custom memory size
+    type: boolean
+    default: false
+    visible:
+      and: 
+        - or: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Optimized3.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E4.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.E5.Flex"
+          - eq: 
+            - ${monitoring_shape}
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard3.Flex"
+        - ${monitoring_node}
+  monitoring_memory:
+    title: Memory in GBS
+    type: integer
+    description: Number of memory for flex shape. Minimum 1GB per core.
+    minimum: 1
+    maximum: 1024
+    default: 256
+    visible:
+      and: 
+        - and: 
+          - or: 
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.E3.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Optimized3.Flex"
+            - eq: 
+              - ${monitoring_shape}
+              - "VM.Standard.E4.Flex"
+            - eq: 
+              - ${monitoring_shape}
+              - "VM.Standard.E5.Flex"
+            - eq: 
+              - ${monitoring_shape}
+              - "VM.Standard.A1.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard3.Flex"
+        - and: 
+            - ${monitoring_custom_memory}
+            - ${monitoring_node}
+    required: true
+    
+  monitoring_boot_volume_size:
+    type: integer
+    required: true
+    minimum: 50
+    title: "Size of the boot volume in GB"
+    default: 512
+    visible:  ${monitoring_node}
+
+  unsupported_monitoring: 
+    title: "Use unsupported image" 
+    description: "Custom image ID for monitoring Node"
+    type: boolean
+    default: false
+    visible: 
+      and:
+        - ${monitoring_node}
+        - not: 
+          - ${use_marketplace_image_monitoring}
+
+  monitoring_image_compartment:
+    title: "monitoring image compartment"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible:
+      and: 
+          - ${monitoring_node}
+          - not: 
+              - ${unsupported_monitoring}
+          - not: 
+              - ${use_marketplace_image_monitoring}
+    required: true
+
+  custom_monitoring_image:
+    title: "monitoring Image ID"
+    description: "Custom image ID for monitoring nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as monitoring image at this moment. "
+    type: oci:core:image:id
+    dependsOn:
+      compartmentId: ${monitoring_image_compartment}
+    visible:
+      and: 
+          - ${monitoring_node}
+          - not: 
+              - ${unsupported_monitoring}
+          - not: 
+              - ${use_marketplace_image_monitoring}
+    required: true
+  unsupported_monitoring_image:
+    title: "Image OCID"
+    description: "Custom image ID for monitoring nodes"
+    type: string
+    required: true
+    visible:
+      and: 
+        - ${unsupported_monitoring}
+        - not: 
+            - ${use_marketplace_image_monitoring}
+    default: "image.ocid"
+    
+  monitoring_username: 
+    title: "Default username for monitoring node" 
+    description: "Custom image ID for monitoring node"
+    type: string
+    default: "opc"
+    required: true
+    visible: ${monitoring_node}
+
+  use_marketplace_image_monitoring:
+    type: boolean
+    title: "use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID"
+    default: true
+    visible: ${monitoring_node}
+
+  marketplace_listing_monitoring:
+    type: enum
+    title: "Image version"
+    description: "Marketplace listing to use"
+    required: true
+    enum:
+      - "HPC_OL8"
+      - "GPU_OL8_NV560"
+      - "GPU_OL8_NV550"
+      - "GPU_OL8_NV535"
+    default: "HPC_OL8"
+    visible:
+      and:
+        - ${use_marketplace_image_monitoring}
+        - ${monitoring_node}

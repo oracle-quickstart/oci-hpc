@@ -53,12 +53,10 @@ variable "marketplace_listing" {
 variable "marketplace_version_id" { 
   type = map(string) 
   default = { 
-       "HPC_OL7" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
-       "HPC_OL8" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.03.15-0"
-       "GPU_OL7_CUDA12.2" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
-       "GPU_OL8_CUDA12.2" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.03.15-0"
-       "GPU_OL7_CUDA12.4" = "OracleLinux-7-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
-       "GPU_OL8_CUDA12.4" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.4-2024.03.15-0"
+    "HPC_OL8"       = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.09.18-0"
+    "GPU_OL8_NV560" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-560-CUDA-12.6-2024.09.18-0"
+    "GPU_OL8_NV550" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.09.18-0"
+    "GPU_OL8_NV535" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.09.18-0"
   }
 }
 
@@ -92,6 +90,8 @@ variable "backup_name" {default = "${backup_name}"}
 variable "backup_ip" {default = "${backup_ip}"}
 variable "login_name" {default = "${login_name}"}
 variable "login_ip" {default = "${login_ip}"}
+variable "monitoring_name" {default = "${monitoring_name}"}
+variable "monitoring_ip" {default = "${monitoring_ip}"}
 variable "scripts_folder" {default = "/opt/oci-hpc/bin/"}
 variable "autoscaling_folder" {default = "/opt/oci-hpc/autoscaling/"}
 variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
@@ -120,7 +120,7 @@ variable "hyperthreading" { default = ##HT## }
 variable "unsupported" { default = ${unsupported} }
 variable "image_ocid" { default = "##IMAGE##" }
 variable "ldap" { default = ${ldap} }
-variable "monitoring" { default = ${monitoring} }
+variable "cluster_monitoring" { default = ${cluster_monitoring} }
 variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 
@@ -156,4 +156,10 @@ variable "numa_nodes_per_socket" {
 }
 variable "percentage_of_cores_enabled" {
   default = "${percentage_of_cores_enabled}"
+}
+variable "change_hostname" {
+  default = ##CH_HOST##
+}
+variable "hostname_convention" {
+  default = "##HOST_CONV##"
 }

@@ -14,7 +14,8 @@ munge_packages:
 
 slurm_common_packages: []
 
-slurm_server_packages: []
+slurm_server_packages: 
+  - libjwt-dev
 
 slurm_compute_packages:
   - libpmi0
