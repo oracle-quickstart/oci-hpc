@@ -591,7 +591,7 @@ def check_row_remap_errors():
     return True
 
 def xid_check():    
-    result = subprocess.run(['sudo', 'python3', 'xid_checker.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(['sudo', 'python3', '/opt/oci-hpc/nodeexporter/scripts/xid_checker.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = result.stderr.decode('utf-8')
 
     # Textfile name for metrics
