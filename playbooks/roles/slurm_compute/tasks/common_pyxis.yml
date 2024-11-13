@@ -1,0 +1,70 @@
+---
+
+- set_fact: 
+    enroot_top_path_checked: "/etc/enroot/"
+  when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+
+- set_fact: 
+    enroot_top_path_checked: "{{enroot_top_path}}"
+  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices" 
+  
+- name: Ensure prolog directory exists
+  become: true
+  file:
+    path: "{{ slurm_conf_path }}/prolog.d"
+    state: directory
+    owner: root
+    group: root
+
+- name: copy files
+  become: true
+  become_method: sudo
+  template:
+    src: pyxis.sh.j2
+    dest: "{{ slurm_conf_path }}/prolog.d/pyxis.sh"
+    owner: root
+    group: root
+    mode: 0755
+    force: yes
+    backup: yes  
+
+- name: install required packages
+  vars: 
+    package_name: 
+      - gcc-c++
+      - git
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
+
+- name: install required packages
+  vars: 
+    package_name: 
+      - gcc
+      - git
+      - make
+  include_role: 
+    name: safe_yum
+  when: ansible_os_family == 'Debian'
+
+- name: clone pyxis repo
+  git:
+    repo: https://github.com/NVIDIA/pyxis.git
+    dest: /tmp/pyxis
+  ignore_errors: yes
+
+- name: compile 
+  command: bash -c "sudo make install"
+  args:
+    chdir: /tmp/pyxis/
+  ignore_errors: yes
+
+- name: create plugstack.conf
+  become: true
+  copy:
+    dest: "{{ slurm_conf_path }}/plugstack.conf"
+    content: |
+      required /usr/local/lib/slurm/spank_pyxis.so
+    mode: '0775'
+    owner: "{{controller_username}}"
+    group: "{{privilege_group_name}}"

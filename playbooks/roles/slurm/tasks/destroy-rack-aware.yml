@@ -10,7 +10,7 @@
   become: true
   blockinfile:
     path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {{ansible_hostname}}"
+    marker: "### {mark} {{ansible_hostname}}"
   delegate_to: 127.0.0.1
 
 - name: Get hostnames
@@ -75,14 +75,6 @@
   register: nodes_in_switch
   delegate_to: 127.0.0.1
   with_items: "{{racks_to_remove}}"
-
-- name: Remove Rack Completely
-  debug:
-    msg: "Removing rack {{item.item}}"
-  run_once: true
-  delegate_to: 127.0.0.1
-  with_items: "{{nodes_in_switch.results}}"
-  when: (item.stdout_lines | difference(nodes_to_remove) | length ) == 0
 
 - name: Remove Node From Rack
   debug:

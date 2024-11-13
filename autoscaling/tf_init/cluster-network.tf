@@ -30,6 +30,7 @@ resource "oci_core_cluster_network" "cluster_network" {
       "user" = var.tags
       "cluster_name" = local.cluster_name
       "parent_cluster" = local.cluster_name
+      "controller_name" = var.controller_name
   }
   placement_configuration {
     availability_domain = var.ad

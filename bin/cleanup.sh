@@ -12,7 +12,7 @@ then
   exit
 fi
 
-ssh_options="-i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+ssh_options="-i ~/.ssh/ed25519 -o StrictHostKeyChecking=no"
 iplist=`cat $inventory_path/inventory | awk '{print $2}' | sed 's/ansible_host=//'`
 if [[ "$2" == "FORCE" ]]
 then

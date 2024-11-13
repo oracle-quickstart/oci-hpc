@@ -1,0 +1,6 @@
+- hosts: controller
+  roles:
+    - get_nodes_in_cluster
+    - fix_ldap_add_node
+    - prometheus_add_node
+    - slurm_manage_node

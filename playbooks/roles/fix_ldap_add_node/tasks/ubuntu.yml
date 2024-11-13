@@ -1,0 +1,20 @@
+---
+- name: restart nscd
+  become: true
+  systemd:
+    name: nscd
+    state: restarted
+    daemon_reload: true
+    enabled: true
+  delegate_to: item
+  with_items: "{{all_hosts_info.keys() }}"
+
+- name: restart sssd
+  become: true
+  service:
+    name: sssd
+    state: restarted
+    daemon_reload: true
+    enabled: true
+  delegate_to: item
+  with_items: "{{all_hosts_info.keys()}}"

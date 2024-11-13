@@ -33,11 +33,12 @@ resource "oci_core_instance" "compute_cluster_instances" {
   freeform_tags = {
     "cluster_name" = local.cluster_name
     "parent_cluster" = local.cluster_name
+    "controller_name" = var.controller_name
     "user" = var.tags
   }
 
   metadata = {
-    ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/id_rsa.pub")
+    ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/ed25519.pub")
     user_data           = base64encode(data.template_file.config.rendered)
   }
   source_details {

@@ -49,24 +49,10 @@
     group: munge
     mode: 0700
 
-- name: copy munge.key to tmp
-  become: true
-  shell:
-    cmd: cp /etc/munge/munge.key /tmp/munge.key
-  delegate_to: 127.0.0.1
-  run_once: true
-
-- name: set permissions
-  become: true
-  shell:
-    cmd: chown {{ controller_username }}:{{ controller_username }} /tmp/munge.key
-  delegate_to: 127.0.0.1
-  run_once: true
-
 - name: Copy munge key
   become: true
   copy:
-    src: /tmp/munge.key
+    src: /config/key/munge.key
     dest: /etc/munge/munge.key
     owner: munge
     group: munge

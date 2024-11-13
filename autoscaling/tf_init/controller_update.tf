@@ -16,7 +16,6 @@ resource "local_file" "hosts" {
   }
 
 resource "local_file" "inventory" {
-  depends_on          = [oci_core_cluster_network.cluster_network, oci_core_cluster_network.cluster_network]
   content        = templatefile("${local.controller_path}/inventory.tpl", {  
     controller_name = var.controller_name,
     controller_ip = var.controller_ip, 
@@ -26,14 +25,12 @@ resource "local_file" "inventory" {
     login_ip = var.login_ip,
     monitoring_name = var.monitoring_name,
     monitoring_ip = var.monitoring_ip,
-    compute = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([],[])
     public_subnet = var.public_subnet, 
     private_subnet = var.private_subnet, 
     rdma_network = cidrhost(var.rdma_subnet, 0),
     rdma_netmask = cidrnetmask(var.rdma_subnet),
     zone_name = var.zone_name,
     dns_entries = var.dns_entries,
-    nfs = var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
     home_nfs = var.home_nfs,
@@ -82,15 +79,8 @@ resource "local_file" "inventory" {
     use_compute_agent=var.use_compute_agent,
     healthchecks=var.healthchecks,
     change_hostname=var.change_hostname,
-    hostname_convention=var.hostname_convention
+    hostname_convention=var.hostname_convention,
+    queue_ocid=var.queue_ocid
     })
-  filename   = "${local.controller_path}/inventory"
-}
-
-
-resource "null_resource" "configure" {
-  depends_on          = [oci_core_cluster_network.cluster_network,local_file.inventory,local_file.hosts]
-  provisioner "local-exec" {
-    command = "timeout 60m ${var.scripts_folder}/configure_as.sh ${local.cluster_name}"  
-  }
+  filename   = "/config/playbooks/inventory_${local.cluster_name}"
 }

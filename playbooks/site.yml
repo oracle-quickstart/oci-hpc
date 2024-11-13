@@ -1,18 +1,6 @@
-- hosts: compute
+- hosts: login, monitoring
   become: true
-  vars: 
-    initial: true
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
   gather_facts: true
-  tasks:
-    - include_role:
-        name: hostname
-      when: change_hostname  | default(false) | bool
-
-# for ubuntu, on all compute nodes, run --fix-broken install
-- hosts: compute, login, monitoring
-  become: true
   tasks:
     - include_role:
         name: fix_broken
@@ -52,13 +40,6 @@
       when: localdisk | default(true) | bool
     - include_role: 
         name: healthchecks
-
-- hosts: compute
-  become: true
-  gather_facts: true
-  tasks: 
-    - include_role: 
-        name: nvidia_peermem
 
 - hosts: controller
   become: true
@@ -153,6 +134,16 @@
 - hosts: controller
   become: true
   vars: 
+    export_path: "/config"
+    export_name: "config"
+    local_path:  "/config"
+  tasks:
+    - include_role: 
+        name: nfs-server
+
+- hosts: controller
+  become: true
+  vars: 
     export_path: "{{ cluster_nfs_path }}"
     export_name: "cluster"
     local_path:  "/export/cluster"
@@ -186,22 +177,6 @@
     - include_role: 
         name: iscsi
       when: login_block|default(false)|bool
-
-- hosts: nfs
-  become: true
-  vars:
-     export_path: "{{ scratch_nfs_path }}"
-     export_name: "scratch"
-     local_path:  "/mnt/localdisk/nfs"
-     iscsi_ip: "{{ cluster_mount_ip }}"
-
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
-    - include_role: 
-        name: nfs-server
-      when: scratch_nfs|default(true)|bool
 
 - hosts: all
   become: true
@@ -242,19 +217,9 @@
         name: sssd
       when: ldap|default(true)|bool
 
-
-- hosts: compute
-  become: true
-  gather_facts: true
-  tasks: 
-    - include_role: 
-        name: hyperthreading
-      when: not hyperthreading|default(false)|bool
-    - include_role: 
-        name: nccl-conf
-      when: cluster_network|bool
-
 - hosts: all,!monitoring
+  vars: 
+    compute_node: false
   tasks: 
     - include_role: 
         name: metrics-exporter
@@ -285,23 +250,12 @@
       when: autoscaling_monitoring|default(false)|bool
     - include_role: 
         name: cron
-
-- hosts: compute
+        
+- hosts: controller
   become: true
-  vars:
-    enroot_top_path: "{{ nvme_path }}/enroot/"
-  tasks:
+  tasks: 
     - include_role: 
-        name: docker
-      when: enroot|default(true)|bool
-    - include_role: 
-        name: nvidia-container
-      when: enroot|default(true)|bool
-    - include_role: 
-        name: nvidia-enroot
-      when: enroot|default(true)|bool
-    - include_role:
-        name: tuned
+        name: mongoDB
 
 - hosts: all
   become: true
@@ -329,3 +283,12 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+
+- hosts: all
+  become: true
+  vars:
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    http_server_status: "configured"
+  gather_facts: true
+  roles: 
+    - http_server

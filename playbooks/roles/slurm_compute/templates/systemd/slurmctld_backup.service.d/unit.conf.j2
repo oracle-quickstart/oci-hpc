@@ -1,0 +1,6 @@
+[Unit]
+Requires=munge.service
+
+[Service]
+Environment="SLURMCTLD_OPTIONS=-R"
+Restart=always

@@ -1,22 +1,18 @@
 [controller]
 ${controller_name} ansible_host=${controller_ip} ansible_user=${controller_username} role=controller ansible_python_interpreter=/usr/bin/python
 [slurm_backup]
-%{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${controller_username} role=controller%{ endif }
+%{ if backup_name !="" }${backup_name} ansible_host=${backup_ip} ansible_user=${controller_username} role=controller%{ endif }
 [login]
-%{ if login_name != "" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
+%{ if login_name !="" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
 [monitoring]
-%{ if monitoring_name != "" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring%{ endif }
+%{ if monitoring_name !="" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring%{ endif }
 [compute_to_add]
 [compute_configured]
-%{ for host, ip in compute ~}
-${host} ansible_host=${ip} ansible_user=${compute_username} role=compute
-%{ endfor ~}
 [compute_to_destroy]
 [compute:children]
 compute_to_add
 compute_configured
 [nfs]
-%{ if nfs != "" }${nfs} ansible_user=${compute_username} role=nfs%{ endif }
 [all:children]
 controller
 compute
@@ -28,29 +24,29 @@ rdma_netmask=${rdma_netmask}
 public_subnet=${public_subnet} 
 private_subnet=${private_subnet}
 nvme_path=/mnt/localdisk/
-scratch_nfs = ${scratch_nfs}
-home_nfs = ${home_nfs} 
-create_fss = ${create_fss} 
-home_fss = ${home_fss} 
-cluster_nfs = ${cluster_nfs}
-cluster_nfs_path = ${cluster_nfs_path}
-slurm_nfs_path = ${slurm_nfs_path}
-scratch_nfs_path = ${scratch_nfs_path}
-cluster_network = ${cluster_network}
-slurm = ${slurm}
-rack_aware = ${rack_aware}
-pyxis = ${pyxis}
-enroot = ${enroot}
-spack = ${spack} 
-controller_block = ${controller_block} 
-login_block = ${login_block} 
-scratch_nfs_type = ${scratch_nfs_type}
-controller_mount_ip = ${controller_mount_ip}
-login_mount_ip = ${login_mount_ip}
-cluster_mount_ip = ${cluster_mount_ip}
-autoscaling = true
-force = no
-cluster_name = ${cluster_name}
+scratch_nfs=${scratch_nfs}
+home_nfs=${home_nfs} 
+create_fss=${create_fss} 
+home_fss=${home_fss} 
+cluster_nfs=${cluster_nfs}
+cluster_nfs_path=${cluster_nfs_path}
+slurm_nfs_path=${slurm_nfs_path}
+scratch_nfs_path=${scratch_nfs_path}
+cluster_network=${cluster_network}
+slurm=${slurm}
+rack_aware=${rack_aware}
+pyxis=${pyxis}
+enroot=${enroot}
+spack=${spack} 
+controller_block=${controller_block} 
+login_block=${login_block} 
+scratch_nfs_type=${scratch_nfs_type}
+controller_mount_ip=${controller_mount_ip}
+login_mount_ip=${login_mount_ip}
+cluster_mount_ip=${cluster_mount_ip}
+autoscaling=true
+force=no
+cluster_name=${cluster_name}
 shape=${shape}
 instance_pool_ocpus=${instance_pool_ocpus}
 add_nfs=${add_nfs}
@@ -71,7 +67,7 @@ privilege_group_name=${privilege_group_name}
 latency_check=${latency_check}
 compute_username=${compute_username}
 controller_username=${controller_username}
-pam = ${pam}
+pam=${pam}
 sacct_limits=${sacct_limits}
 use_compute_agent=${use_compute_agent}
 zone_name=${zone_name}
@@ -79,3 +75,10 @@ dns_entries=${dns_entries}
 healthchecks=${healthchecks}
 change_hostname=${change_hostname}
 hostname_convention=${hostname_convention}
+controller_hostname=${controller_name}
+monitoring_hostname=%{ if monitoring_name !="" }${monitoring_name}%{ else }%{ if cluster_monitoring}${controller_name}%{ endif }%{ endif }
+slurm_backup_hostname=%{ if backup_name !="" }${backup_name}%{ endif }
+http_server_port=8080
+db_name=network_scan
+collection_name=http_servers
+queue_ocid=${queue_ocid}

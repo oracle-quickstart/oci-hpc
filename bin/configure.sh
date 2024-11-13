@@ -11,7 +11,7 @@ execution=1
 if [ -n "$1" ]; then
   playbook=$1
 else
-  playbook="/opt/oci-hpc/playbooks/site.yml"
+  playbook="/config/playbooks/site.yml"
 fi
 
 if [ -n "$2" ]; then
@@ -21,9 +21,13 @@ else
 fi
 
 
-if [ -f /opt/oci-hpc/playbooks/inventory ] ; then 
-  sudo mv /opt/oci-hpc/playbooks/inventory /etc/ansible/hosts
+if [ -f /config/playbooks/inventory ] ; then 
+  sudo cp /config/playbooks/inventory /etc/ansible/hosts
+  clustername=`cat /etc/ansible/hosts | grep cluster_name= | tail -n 1| awk -F "=" '{print $2}'`
+  sudo cp /config/playbooks/inventory /config/playbooks/inventory_${clustername}
 fi 
+
+
 
 if [ -f /tmp/configure.conf ] ; then
         configure=$(cat /tmp/configure.conf)
@@ -38,12 +42,11 @@ fi
 
 
 username=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
+clustername=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
 if [ "$username" == "" ]
 then
 username=$USER
 fi
-
-/opt/oci-hpc/bin/wait_for_hosts.sh /tmp/hosts $username
 
 # Update the forks to a 8 * threads
 
@@ -60,7 +63,7 @@ else
 
         cat <<- EOF > /tmp/motd
         At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run:
-        ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /opt/oci-hpc/playbooks/site.yml
+        ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /config/playbooks/site.yml
 EOF
 
 sudo mv /tmp/motd /etc/motd

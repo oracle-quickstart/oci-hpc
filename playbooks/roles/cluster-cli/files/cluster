@@ -188,8 +188,8 @@ def add(user, password, uid, gid, name, nossh):
   os.system("sudo su - "+user+" -c "+" 'ls' 2> /dev/null")
 
   if not nossh:
-    os.system("sudo su - "+user+" -c "+"' ssh-keygen -t rsa -b 2048 -q -f "+homedir+".ssh/id_rsa -P \"\"' 2> /dev/null")
-    os.system("sudo su - "+user+" -c "+"'mv "+homedir+".ssh/id_rsa.pub "+homedir+".ssh/authorized_keys' 2> /dev/null")
+    os.system("sudo su - "+user+" -c "+"' ssh-keygen -t ed25519 -q -f "+homedir+".ssh/id_ed25519 -P \"\"' 2> /dev/null")
+    os.system("sudo su - "+user+" -c "+"'mv "+homedir+".ssh/id_ed25519.pub "+homedir+".ssh/authorized_keys' 2> /dev/null")
 @user.command()
 @click.argument('user')
 def delete(user):

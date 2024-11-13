@@ -62,6 +62,7 @@ locals {
 
   mount_ip = local.scratch_nfs_type == "block" ? local.iscsi_ip : "none"
 
+  queue_ocid = oci_queue_queue.queue.id
   // Cluster OCID
 
 

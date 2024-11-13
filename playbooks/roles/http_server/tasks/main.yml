@@ -1,0 +1,126 @@
+---
+- name: create directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: '0755'
+    recurse: yes
+  with_items:
+    - "{{http_server_directory}}/files"
+    - "{{http_server_directory}}/bin"
+
+- name: Copy Python script
+  become: true
+  template:
+    src: templates/http_server.py.j2
+    dest: "{{http_server_directory}}/bin/http_server.py"
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: '0775'
+  run_once: true
+
+- name: Create systemd service unit file
+  template:
+    src: templates/systemd/python-http-server.service
+    dest: /etc/systemd/system/python-http-server.service
+    mode: '0644'
+
+- name: Gather serial number
+  command: "sudo dmidecode -s system-serial-number"
+  register: serial_output
+
+- name: Gather FSS IP
+  shell: "cat /etc/fstab | grep {{nfs_source_path}}"
+  register: nfs_output
+  ignore_errors: yes
+
+- name: Extract the IP address using regex
+  set_fact:
+    ip_address: "{{ nfs_output.stdout | regex_search('([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})') }}"
+  when: nfs_output.rc == 0
+
+- name: Extract the IP address using regex
+  set_fact:
+    ip_address: "None"
+  when: nfs_output.rc != 0
+
+- name: gather metadata
+  uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    headers:
+      Authorization: 'Bearer Oracle'
+    return_content: yes
+  register: i_metadata
+
+- name: set fact
+  set_fact:
+    instance_metadata: "{{ i_metadata['content'] }}"
+
+- name: make sure freeformTags in included
+  set_fact:
+    instance_metadata: "{{ instance_metadata | combine({'freeformTags': {'cluster_name':'','controller_name':''}}) }}"
+  when: "not 'freeformTags' in instance_metadata"
+
+- name: make sure cluster_name in included
+  set_fact:
+    cluster_name: "{{ instance_metadata['displayName'].split('-') | slice(2, 10) | join('-') }}"
+  when: "not 'cluster_name' in instance_metadata['freeformTags']"
+
+- name: make sure cluster_name in included
+  set_fact:
+    cluster_name: "{{instance_metadata['freeformTags']['cluster_name']}}"
+  when: "'cluster_name' in instance_metadata['freeformTags']"
+
+- name: gather RDMA metadata
+  uri:
+    url: http://169.254.169.254/opc/v1/host/
+    method: GET
+    headers:
+      Authorization: 'Bearer Oracle'
+    return_content: yes
+  register: h_metadata
+
+- name: set fact
+  set_fact:
+    rdma_metadata: "{{ h_metadata['content'] }}"
+
+- name: add empty networkblockID
+  set_fact:
+    rdma_metadata : "{{ rdma_metadata | combine({'networkBlockId': 'None'}) }}"
+  when: "not 'networkBlockId' in rdma_metadata"
+
+- name: add empty rdmaTopologyData
+  set_fact:
+    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None'}}) }}"
+  when: "not 'rdmaTopologyData' in rdma_metadata"
+
+- name: Set http_role based on hostvars or default to "compute"
+  set_fact:
+    http_role: "{{ hostvars[inventory_hostname]['role'] | default('compute') }}"
+
+- name: Build the host_info dictionary
+  set_fact:
+    host_info: "{{ {'host': ansible_hostname, 'role': http_role,'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'controller_name': instance_metadata['freeformTags']['controller_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'railId': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] } }}"
+
+- name: Copying the info to the HTTP directory
+  become: true
+  template:
+    src: templates/initial_info.j2
+    dest: "{{http_server_directory}}/files/info"
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: '0775'
+  run_once: true
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Start and enable the service
+  service:
+    name: python-http-server
+    state: started
+    enabled: yes

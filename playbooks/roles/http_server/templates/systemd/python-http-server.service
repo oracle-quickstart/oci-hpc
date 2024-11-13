@@ -1,0 +1,12 @@
+[Unit]
+Description=Python HTTP Server with File Watcher
+After=network.target
+
+[Service]
+User={{ ansible_user }}
+Group={{ ansible_user }}
+ExecStart=/usr/bin/python3 /opt/oci-hpc/http_server/bin/http_server.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

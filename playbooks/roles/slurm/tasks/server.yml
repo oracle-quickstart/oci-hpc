@@ -107,11 +107,11 @@
     - name: copy munge.key
       become: true
       shell:
-        cmd: "cp {{ munge_conf_path }}/munge.key /tmp/munge.key"
+        cmd: "cp {{ munge_conf_path }}/munge.key /config/key/munge.key"
     - name: set permissions
       become: true
       shell:
-        cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
+        cmd: chown {{ ansible_user }}:{{ ansible_user }} /config/key/munge.key
     
 - name: Create DB for accounting
   become: true

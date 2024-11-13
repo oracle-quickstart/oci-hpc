@@ -29,6 +29,7 @@ resource "oci_core_instance_pool" "instance_pool" {
       "user" = var.tags
       "cluster_name" = local.cluster_name
       "parent_cluster" = local.cluster_name
+      "controller_name" = var.controller_name
   }
   placement_configurations {
     availability_domain = var.ad

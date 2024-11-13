@@ -4,17 +4,14 @@
     - index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   hostname:
     name: "{{hostname_convention}}-{{index}}"
-  when: ('compute' in group_names )
-
 - name: Check Hostname
   shell:
     cmd: "hostname"
   register: hostname_output
-  when: ('compute' in group_names )
 
 - name: update hostname for HPC cluster
   vars:
     - index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   hostname:
     name: "{{hostname_convention}}-{{index}}"
-  when:  ('compute' in group_names ) and ( hostname_output.stdout != ansible_fqdn.split('.')[0] )
+  when:  hostname_output.stdout != ansible_fqdn.split('.')[0]

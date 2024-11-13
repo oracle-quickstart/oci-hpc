@@ -35,7 +35,7 @@ else
 fi
 
 date
-eval "$(ssh-agent -s)" >/dev/null ; ssh-add ~/.ssh/id_rsa >/dev/null
+eval "$(ssh-agent -s)" >/dev/null ; ssh-add ~/.ssh/id_ed25519 >/dev/null
 
 if [ -z "$cluster_name" ]; then
   if [ -f "$2" ]; then

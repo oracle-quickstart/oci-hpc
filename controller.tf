@@ -74,6 +74,7 @@ resource "oci_core_instance" "controller" {
   freeform_tags = {
     "cluster_name"   = local.cluster_name
     "parent_cluster" = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
   }
 
   metadata = {
@@ -106,7 +107,12 @@ resource "null_resource" "controller" {
       "sudo mkdir -p /opt/oci-hpc",
       "sudo chown ${var.controller_username}:${var.controller_username} /opt/oci-hpc/",
       "mkdir -p /opt/oci-hpc/bin",
-      "mkdir -p /opt/oci-hpc/playbooks"
+      "sudo mkdir /config",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config",
+      "mkdir -p /config/key",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
+      "mkdir -p /config/hosts",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/hosts"
     ]
     connection {
       host        = local.host
@@ -117,7 +123,7 @@ resource "null_resource" "controller" {
   }
   provisioner "file" {
     source      = "playbooks"
-    destination = "/opt/oci-hpc/"
+    destination = "/config"
     connection {
       host        = local.host
       type        = "ssh"
@@ -203,6 +209,17 @@ resource "null_resource" "controller" {
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_openssh
+    destination = "/config/key/cluster.key"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
+    content     = tls_private_key.ssh.private_key_openssh
     destination = "/home/${var.controller_username}/.ssh/cluster.key"
     connection {
       host        = local.host
@@ -214,7 +231,17 @@ resource "null_resource" "controller" {
 
   provisioner "file" {
     content     = tls_private_key.ssh.public_key_openssh
-    destination = "/home/${var.controller_username}/.ssh/id_rsa.pub"
+    destination = "/home/${var.controller_username}/.ssh/ed25519.pub"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+  provisioner "file" {
+    content     = tls_private_key.ssh.public_key_openssh
+    destination = "/config/key/public"
     connection {
       host        = local.host
       type        = "ssh"
@@ -224,10 +251,7 @@ resource "null_resource" "controller" {
   }
 }
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.controller, oci_core_volume_attachment.controller_volume_attachment]
-  triggers = {
-    cluster_instances = join(", ", local.cluster_instances_names)
-  }
+  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller, oci_core_volume_attachment.controller_volume_attachment]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
@@ -239,7 +263,6 @@ resource "null_resource" "cluster" {
       login_ip                  = var.login_node ? oci_core_instance.login[0].private_ip : "",
       monitoring_name           = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
       monitoring_ip             = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
-      compute                   = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([], [])
       public_subnet             = data.oci_core_subnet.public_subnet.cidr_block,
       private_subnet            = data.oci_core_subnet.private_subnet.cidr_block,
       rdma_network              = cidrhost(var.rdma_subnet, 0),
@@ -303,22 +326,11 @@ resource "null_resource" "cluster" {
       api_user_ocid             = var.api_user_ocid,
       healthchecks              = var.healthchecks,
       change_hostname           = var.change_hostname,
-      hostname_convention       = var.hostname_convention
+      hostname_convention       = var.hostname_convention,
+      queue_ocid                = local.queue_ocid
     })
 
-    destination = "/opt/oci-hpc/playbooks/inventory"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-
-  provisioner "file" {
-    content     = var.node_count > 0 ? join("\n", local.cluster_instances_ips) : "\n"
-    destination = "/tmp/hosts"
+    destination = "/config/playbooks/inventory"
     connection {
       host        = local.host
       type        = "ssh"
@@ -457,7 +469,8 @@ resource "null_resource" "cluster" {
       access_ctrl                         = var.access_ctrl,
       numa_nodes_per_socket               = var.numa_nodes_per_socket,
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
-      healthchecks                        = var.healthchecks
+      healthchecks                        = var.healthchecks,
+      queue_ocid                          = local.queue_ocid
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"
@@ -503,7 +516,11 @@ resource "null_resource" "cluster" {
     inline = [
       "#!/bin/bash",
       "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
-      "cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_rsa",
+      "cp /opt/oci-hpc/bin/compute.sh /config/",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/compute.sh",
+      "sudo chmod 775 /config/compute.sh",
+      "sudo chmod 600 /config/key/cluster.key",
+      "sudo cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
@@ -586,5 +603,3 @@ resource "oci_dns_rrset" "rrset-controller" {
   scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
-
-#oci dns record rrset update --zone-name-or-id ocid1.dns-zone.oc1.ca-toronto-1.aaaaaaaadwpfuij3w7jpg3sj6gzc5ete2yeknrmjgwzvs6qytgkqad2vhbmq --domain mint-ocelot-controller.mint-ocelot.local --rtype A --auth instance_principal --scope PRIVATE --view-id  ocid1.dnsview.oc1.ca-toronto-1.aaaaaaaamhhzrbwe4f3rx5i2hx2xlnubfjc37uvy3e7bjrbyaln5o7zjfvpa --items '[{ "rdata":"1.1.1.1","ttl":300,"domain":"mint-ocelot-controller.mint-ocelot.local","rtype":"A"}]' --force

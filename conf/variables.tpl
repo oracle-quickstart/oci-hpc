@@ -163,3 +163,6 @@ variable "change_hostname" {
 variable "hostname_convention" {
   default = "##HOST_CONV##"
 }
+variable "queue_ocid" {
+  default = "${queue_ocid}"
+}

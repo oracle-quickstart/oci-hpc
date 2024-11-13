@@ -15,11 +15,12 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
       freeform_tags = {
         "cluster_name"   = local.cluster_name
         "parent_cluster" = local.cluster_name
+        "controller_name" = oci_core_instance.controller.display_name
       }
       metadata = {
         # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
-        user_data           = base64encode(data.template_file.config.rendered)
+        user_data           = base64encode(file("cloud-init.sh"))
       }
       agent_config {
 

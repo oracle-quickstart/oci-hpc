@@ -30,6 +30,7 @@ resource "oci_core_instance" "backup" {
   freeform_tags = {
     "cluster_name"   = local.cluster_name
     "parent_cluster" = local.cluster_name
+    "controller_name" = oci_core_instance.controller.display_name
   }
 
   metadata = {
@@ -164,7 +165,7 @@ resource "null_resource" "backup" {
     inline = [
       "#!/bin/bash",
       "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
-      "cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_rsa",
+      "cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh"
     ]
@@ -178,7 +179,7 @@ resource "null_resource" "backup" {
 }
 resource "null_resource" "cluster_backup" {
   count      = var.slurm_ha ? 1 : 0
-  depends_on = [null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.backup]
+  depends_on = [null_resource.backup, oci_core_instance.backup]
   triggers = {
     cluster_instances = join(", ", local.cluster_instances_names)
   }
@@ -259,7 +260,7 @@ resource "null_resource" "cluster_backup" {
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
       change_hostname           = var.change_hostname,
-      hostname_convention       = var.hostname_convention
+      queue_ocid                = local.queue_ocid
     })
 
     destination = "/opt/oci-hpc/playbooks/inventory"
@@ -416,7 +417,8 @@ resource "null_resource" "cluster_backup" {
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
       healthchecks                        = var.healthchecks,
       change_hostname                     = var.change_hostname,
-      hostname_convention                 = var.hostname_convention
+      hostname_convention                 = var.hostname_convention,
+      queue_ocid                          = local.queue_ocid
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"

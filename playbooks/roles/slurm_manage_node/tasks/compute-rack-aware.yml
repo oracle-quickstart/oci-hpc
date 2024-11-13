@@ -1,0 +1,119 @@
+---
+- name: Add to the gres.conf file on the controller.
+  become: true
+  blockinfile:
+    block: "{{ lookup('template', 'gres.conf.j2') }}"
+    path: "{{ slurm_conf_path }}/gres.conf"
+    marker: "### {mark} {{new_compute_info[item].hostname}}"
+  delegate_to: 127.0.0.1
+  when: "'GPU' in new_compute_info[item].shape"
+  with_items: "{{ new_compute_info }}"
+
+- name: Build dictionary of unique switches names
+  set_fact:
+    unique_switches_with_hostnames: "{{ unique_switches_with_hostnames | default({}) | combine({pair_key: (unique_switches_with_hostnames[pair_key] | default([])) + [new_compute_info[item].hostname]}) }}"
+  vars:
+    pair_key: "{{ new_compute_info[item].cluster_name }}:{{ new_compute_info[item].railId[-40:] if new_compute_info[item].railId != 'None' else new_compute_info[item].rackID[-40:] }}"
+  with_items: "{{ new_compute_info }}"
+
+- name: Get rackIDs for all compute nodes
+  set_fact:
+    racks_to_add_temp: "{{ new_compute_info[item].cluster_name }}:{{ new_compute_info[item].railId[-40:] if new_compute_info[item].railId != 'None' else new_compute_info[item].rackID[-40:] }}"
+  with_items: "{{ new_compute_info }}"
+  run_once: true
+  register: racks_to_add_temp_results
+
+- name: Make a list of racks to add
+  set_fact: racks_to_add="{{unique_switches_with_hostnames.keys()}}"
+  run_once: true
+
+- name: Get current nodes in Switch
+  shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}}\" | grep Nodes="
+  register: nodes_in_switch
+  delegate_to: 127.0.0.1
+  run_once: true
+  with_items: "{{racks_to_add}}"
+  ignore_errors: yes
+
+- name: Get current nodes in Switch hostlist
+  vars:
+    - switch_list_condensed: "{{item.stdout.split('Nodes=')[1]}}"
+  command: "scontrol show hostname {{switch_list_condensed }}"
+  register: switch_hostlist
+  delegate_to: 127.0.0.1
+  with_items: "{{nodes_in_switch.results}}"
+  when: item.rc == 0
+
+- name: Get hostlist if switch exists
+  command: "scontrol show hostlistsorted {{ item.stdout_lines | union (unique_switches_with_hostnames[item.item.item] | list) | join(',') }}"
+  register: rack_hostlist1
+  delegate_to: 127.0.0.1
+  with_items: "{{switch_hostlist.results}}"
+  run_once: true
+  when: item.item.rc == 0
+
+- name: Get hostlist if switch does not exists
+  command: "scontrol show hostlistsorted {{ unique_switches_with_hostnames[item.item.item] | list | join(',') }}"
+  register: rack_hostlist2
+  delegate_to: 127.0.0.1
+  with_items: "{{switch_hostlist.results}}"
+  run_once: true
+  when: item.item.rc > 0
+
+- name: get Nodes on switch if switch exists
+  set_fact:
+    nodes_on_switches: "{{nodes_on_switches | default({}) | combine({item.item.item.item : item.stdout } ) }}"
+  with_items: "{{rack_hostlist1.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: item.item.item.rc== 0
+
+- name: get Nodes on switch if switch does not exists
+  set_fact:
+    nodes_on_switches: "{{nodes_on_switches | default({}) | combine({item.item.item.item : item.stdout } ) }}"
+  with_items: "{{rack_hostlist2.results}}"
+  run_once: true
+  delegate_to: 127.0.0.1
+  when: item.item.item.rc > 0
+
+- name: Add the nodes in the rack switches
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{item.item.item}}\\sNodes.*"
+    line: "SwitchName={{item.item.item}} Nodes={{nodes_on_switches[item.item.item]}}"
+    state: present
+  run_once: true
+  with_items: "{{switch_hostlist.results}}"
+  delegate_to: 127.0.0.1
+  notify: reconfigure slurm
+
+- name: Get racks in the Cluster
+  block:
+    - name: Get Racks from topology.conf
+      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{cluster_name}}:\" | awk '{print $1}' | sed 's/SwitchName=//' | tr '\n' ',' | sed 's/,$/\\n/'"
+      register: racks_left
+      run_once: true
+      delegate_to: 127.0.0.1
+    - name: Create list of racks
+      set_fact:
+        racks_left_list: "{{racks_left.stdout.split(',') | list}}"
+  rescue:
+    - name: Empty racks
+      set_fact:
+        racks_left_list: []
+
+- name: Update Rack switches for the cluster
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{cluster_name}}\\sSwitches.*"
+    line: "SwitchName={{cluster_name}} Switches={{ racks_left_list | join(',') }}"
+    state: present
+  run_once: true
+  delegate_to: 127.0.0.1
+  notify: reconfigure slurm
+  when: racks_left_list | length > 0
+
+- name: run handlers
+  meta: flush_handlers
