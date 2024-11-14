@@ -9,7 +9,6 @@ EnvironmentFile=-/etc/sysconfig/slurmd
 EnvironmentFile=-/etc/default/slurmd
 RuntimeDirectory=slurm
 RuntimeDirectoryMode=0755
-ExecStart={{slurm_exec}}/sbin/slurmd --systemd --conf-server {{ controller_hostname }}{% if (slurm_backup| length ) > 0 %},{{ slurm_backup }}{% endif %} $SLURMD_OPTIONS
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
 LimitNOFILE=131072

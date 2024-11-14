@@ -1,4 +1,4 @@
-- include_vars: /opt/oci-hpc/playbooks/roles/openldap/vars/debian_vars.yml
+- include_vars: /config/playbooks/roles/openldap/vars/debian_vars.yml
   when: ansible_distribution == 'Ubuntu'
 
 - include_tasks: el-7.yml
