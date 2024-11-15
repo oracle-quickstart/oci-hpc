@@ -71,7 +71,6 @@ def scan_network():
                     message = oci.queue.models.PutMessagesDetailsEntry(content="{\"ip_address\": \""+ip_address+"\", \"status\": \"starting\"}")
                     messages_details = oci.queue.models.PutMessagesDetails(messages=[message])
                     response=queue_client.put_messages(queue_ocid, messages_details)
-                    messages_response = queue_client.get_messages(queue_ocid,limit=20)
                 else:
                     print(f"Entry exists in the DB: {ip_address}")
     except Exception as e:
