@@ -14,8 +14,7 @@
     mode: '0775'
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
-  when: ( remove_compute_info | length > 0 ) or ( new_compute_info | length > 0 ) or ( new_hosts_info | length > 0 )
-
+  when: ( cluster_monitoring | bool ) and (( remove_compute_info | length > 0 ) or ( new_compute_info | length > 0 ) or ( new_hosts_info | length > 0 ))
 - name: restart prometheus
   become: true
   service: 
@@ -24,4 +23,4 @@
     daemon_reload: yes
     enabled: yes 
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
-  when: ( remove_compute_info | length > 0 ) or ( new_compute_info | length > 0 ) or ( new_hosts_info | length > 0 )
+  when:  ( cluster_monitoring | bool ) and (( remove_compute_info | length > 0 ) or ( new_compute_info | length > 0 ) or ( new_hosts_info | length > 0 ))
