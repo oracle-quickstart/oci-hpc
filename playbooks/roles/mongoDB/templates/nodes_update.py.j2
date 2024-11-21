@@ -5,7 +5,6 @@ import re
 import sys
 import json
 from datetime import datetime, timedelta
-import pprint
 
 
 import oci
@@ -68,7 +67,8 @@ def scan_network():
                 ip_address = match.group(1)
                 print("ip_address found in line: "+ip_address)
                 if not collection.find_one({"ip_address": ip_address}):
-                    message = oci.queue.models.PutMessagesDetailsEntry(content="{\"ip_address\": \""+ip_address+"\", \"status\": \"starting\"}")
+                    channel_id_md=oci.queue.models.MessageMetadata(controller_name)
+                    message = oci.queue.models.PutMessagesDetailsEntry(content="{\"ip_address\": \""+ip_address+"\", \"status\": \"starting\"}",metadata=channel_id_md)
                     messages_details = oci.queue.models.PutMessagesDetails(messages=[message])
                     response=queue_client.put_messages(queue_ocid, messages_details)
                 else:
@@ -80,7 +80,7 @@ def scan_network():
 def scan_queue():
     new_ips=[]
     while True:
-        messages_response = queue_client.get_messages(queue_ocid,limit=20)
+        messages_response = queue_client.get_messages(queue_ocid,limit=20,channel_filter=controller_name)
         if len(messages_response.data.messages) == 0:
             break
         messages = messages_response.data.messages
@@ -134,14 +134,17 @@ def process_started_nodes():
                 json_data = json.loads(content)
                 if json_data["controller_name"]==controller_name:
                     json_data["lastTimeReachable"]=current_time_str
+                    if not 'FirstTimeReachable' in doc:
+                        set_data=json_data | {"FirstTimeReachable":current_time_str}
+                    else:
+                        set_data=json_data
 
                     # Upsert the dictionary into MongoDB
                     collection.update_one(
                         {"ip_address": ip_address},  # Query to find the document
                         {
-                        "$set": json_data,
+                        "$set": set_data,
                         "$inc": {"update_count": 1},  # Increment update count
-                        "$setOnInsert": {"FirstTimeReachable":current_time_str}
                         },
                         upsert=True  # Create if it does not exist
                     )
