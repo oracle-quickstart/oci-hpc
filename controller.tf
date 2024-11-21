@@ -470,7 +470,12 @@ resource "null_resource" "cluster" {
       numa_nodes_per_socket               = var.numa_nodes_per_socket,
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
       healthchecks                        = var.healthchecks,
-      queue_ocid                          = local.queue_ocid
+      queue_ocid                          = local.queue_ocid,
+      current_user_ocid                   = var.current_user_ocid,
+      use_existing_registry               = var.use_existing_registry,
+      registry_id                         = local.registry_id,
+      use_existing_auth_token             = var.use_existing_auth_token,
+      auth_token                          = local.auth_token
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"

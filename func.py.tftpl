@@ -1,0 +1,120 @@
+import os
+import oci
+import logging
+import io
+import json
+from fdk import response
+
+queue_ocid = "${queue_ocid}"
+controller_name = "${cluster_name}-controller"
+
+def get_tag(instance_ocid, controller_name):
+    """
+    fetch the private ip of the instance
+    """
+    signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
+    #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    core_client = oci.core.ComputeClient(config={}, signer=signer)
+
+    get_instance_response = core_client.get_instance(
+        instance_id=instance_ocid)
+    if get_instance_response.data.freeform_tags and "controller_name" in get_instance_response.data.freeform_tags and get_instance_response.data.freeform_tags["controller_name"] == controller_name:
+        return True
+    else:
+        return False
+
+
+def get_private_ip(instance_ocid,compartment_ocid):
+    """
+    fetch the private ip of the instance
+    """
+
+    signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
+    #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+
+    core_client = oci.core.ComputeClient(config={}, signer=signer)
+    virtual_network_client = oci.core.VirtualNetworkClient(config={}, signer=signer)
+
+    vnic_attachments = oci.pagination.list_call_get_all_results(
+        core_client.list_vnic_attachments,
+        compartment_id=compartment_ocid,
+        instance_id=instance_ocid
+    ).data
+
+    vnics = [virtual_network_client.get_vnic(va.vnic_id).data for va in vnic_attachments]
+
+    private_ips_for_vnic = oci.pagination.list_call_get_all_results(
+        virtual_network_client.list_private_ips,
+        vnic_id=vnics[0].id
+    ).data[0].ip_address
+    return private_ips_for_vnic
+
+
+def write_message_queue(controller_name, queue_ocid,instance_ocid,compartment_ocid,event_type):
+    """
+    write message to queue with private ip and "starting" status
+    """
+    logging.getLogger().info("check if instance has matching controller_name tag")
+    # check if instance has matching controller_name tag
+    is_instance = get_tag(instance_ocid, controller_name)
+
+    if not is_instance:
+        logging.getLogger().info("not a matching instance")
+        return
+    else:
+        logging.getLogger().info("matching instance")
+        signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
+        private_ip = get_private_ip(instance_ocid,compartment_ocid)
+        logging.getLogger().info("private ip obtained")
+        #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+
+
+        if event_type == "com.oraclecloud.computeapi.launchinstance.begin":
+            content_dict = {"ip_address": private_ip,"status": "starting"}
+        else:
+            content_dict = {"ip_address": private_ip,"status": "terminating"}    
+        content = json.dumps(content_dict, indent = 4) 
+        cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
+        endpoint = cp_client.get_queue(queue_ocid).data.messages_endpoint
+        queue_client = oci.queue.QueueClient(config={}, signer=signer, service_endpoint=endpoint)
+
+        logging.getLogger().info("sending message to queue")
+        put_messages_response = queue_client.put_messages(
+            queue_id = queue_ocid,
+            put_messages_details=oci.queue.models.PutMessagesDetails(
+                messages=[
+                    oci.queue.models.PutMessagesDetailsEntry(
+                        content=content,
+                        metadata=oci.queue.models.MessageMetadata(
+                            channel_id="to_controller"))]))
+        logging.getLogger().info("message sent to queue")
+        return (put_messages_response.data)                    
+
+def handler(ctx, data: io.BytesIO=None):
+    logging.getLogger().info("function start")
+
+
+    try:
+        payload_bytes = data.getvalue()
+        if payload_bytes==b'':
+            raise KeyError('No keys in payload')
+        payload = json.loads(payload_bytes)
+        logging.getLogger().info(str(payload))
+        instance_ocid = payload["data"]["resourceId"]
+        compartment_ocid = payload["data"]["compartmentId"]
+        event_type = payload["eventType"]
+    except Exception as ex:
+        print('ERROR: Missing key in payload', ex, flush=True)
+        raise
+
+    resp = ""
+    logging.getLogger().info("entering writing function")
+    write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid,event_type)
+
+
+    logging.getLogger().info("function end")
+    return response.Response(
+        ctx,
+        response_data=resp,
+        headers={"Content-Type": "application/json"}
+    )

@@ -25,6 +25,12 @@ variableGroups:
       - ${use_custom_name}
       - ${cluster_name}
       - ${ldap}
+  - title: "Function and events configuration"
+    variables:
+      - ${use_existing_auth_token}
+      - ${auth_token}  
+      - ${use_existing_registry}
+      - ${registry_id}  
   - title: "Headnode options"
     variables:
       - ${controller_ad}
@@ -207,6 +213,7 @@ variableGroups:
   - title: "Hidden"
     variables:
       - ${region}
+      - ${current_user_ocid}
       - ${tenancy_ocid}
       - ${cluster_nfs_mount}
       - ${cluster_nfs_export}
@@ -1947,3 +1954,34 @@ variables:
       and:
         - ${use_marketplace_image_monitoring}
         - ${monitoring_node}
+
+  use_existing_auth_token:
+    type: boolean
+    title: "Use existing auth token"
+    default : "false"
+    description: "Use existing auth token to authenticate to registry"
+    required: true
+  auth_token:
+    title: "Auth token"
+    type: password
+    default : ""
+    description: "Auth token as a string"
+    required: true
+    visible:
+      and:
+        - ${use_existing_auth_token}
+  use_existing_registry:
+    type: boolean
+    title: "Use existing registry"
+    default : "false"
+    description: "Use existing registry to push serverless function"
+    required: true    
+  registry_id:
+    type: string
+    title: "OCID of existing registry"
+    default : ""
+    description: "OCID of existing registry"
+    required: true
+    visible:
+      and:
+        - ${use_existing_registry}

@@ -39,5 +39,12 @@ locals {
   timeout_per_batch= var.cluster_network ? var.use_multiple_ads ? 15 : 30 : var.use_multiple_ads ? 6 : 15
   timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * local.timeout_per_batch,"m"])
   platform_type = local.shape == "BM.GPU4.8" ? "AMD_ROME_BM_GPU" : local.shape == "BM.GPU.B4.8" || local.shape == "BM.GPU.A100-v2.8" ? "AMD_MILAN_BM_GPU" : local.shape == "BM.Standard.E3.128" ? "AMD_ROME_BM" :  local.shape == "BM.Standard.E4.128" || local.shape == "BM.DenseIO.E4.128" ? "AMD_MILAN_BM" : "GENERIC_BM" 
+  
+  // variables to create functions and events
+  ocir_namespace = lookup(data.oci_objectstorage_namespace.namespace, "namespace")
+  compartment_name = lookup(data.oci_identity_compartment.compartment, "name")
+  region_key = [ for d in flatten(data.oci_identity_regions.regions.regions): lower(d.key) if d.name == var.region][0]
+  auth_token = var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token) 
+  registry_id = var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id     
 
 }

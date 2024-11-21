@@ -88,3 +88,22 @@ data "oci_dns_zones" "dns_zones" {
   zone_type      = "PRIMARY"
   scope          = "PRIVATE"
 }
+
+data "oci_identity_regions" "regions" {
+}
+
+data "oci_artifacts_container_repository" "container_repo" {
+    repository_id = local.registry_id
+}
+
+data "oci_identity_user" "user" {
+    user_id = var.current_user_ocid
+}
+
+data "oci_objectstorage_namespace" "namespace" {
+    compartment_id = var.targetCompartment
+}
+
+data "oci_identity_compartment" "compartment" {
+    id = var.targetCompartment
+}

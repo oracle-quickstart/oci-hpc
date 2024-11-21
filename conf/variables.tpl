@@ -166,3 +166,25 @@ variable "hostname_convention" {
 variable "queue_ocid" {
   default = "${queue_ocid}"
 }
+
+
+
+variable current_user_ocid { 
+  default = "${current_user_ocid}"
+  }
+
+variable use_existing_registry {  
+  default = "${use_existing_registry}"
+  }
+
+variable registry_id { 
+  default = "${registry_id}" 
+  }
+
+variable use_existing_auth_token {  
+  default = "${use_existing_auth_token}" 
+  }
+
+variable auth_token { 
+  default = "${auth_token}" 
+  }

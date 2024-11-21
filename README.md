@@ -11,7 +11,15 @@ allow service compute_management to read app-catalog-listing in tenancy
 allow group user to manage all-resources in compartment compartmentName
 ```
 ## Policies for autoscaling or resizing:
-As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group and give the following policies to it: 
+As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group including one or more instance in a compartment and all the functions of the compartment. Example with the dynamic group *instance_principal*
+
+```
+All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
+ALL {resource.type = 'fnfunc', resource.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
+```
+
+Give the following policies to it:
+
 ```
 Allow dynamic-group instance_principal to read app-catalog-listing in tenancy
 Allow dynamic-group instance_principal to use tag-namespace in tenancy
@@ -39,6 +47,12 @@ The stack allowa various combination of OS. Here is a list of what has been test
 | Ubuntu  22.04 | Ubuntu 22.04 |
 
 When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the controller and compute nodes. 
+
+## Consideration with Functions and Events
+This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth tokens are limited and an existing one can be specified during the configuration.
+
+**WARNING**: if a region different from the "Home Region" is used, the creation of the auth token will fail. Please create your Auth Token in your home region prior to deploying the stack and use *"Use existing auth token"* 
+
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
@@ -313,7 +327,7 @@ If "true", this will create a private endpoint in order for Oracle Resource Mana
 * If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the controller and one for the compute nodes.  
 * If "Use Existing Subnet" is also true, the user must indicate a private subnet for the controller VM. For the compute nodes, they can reside in another private subnet or the same private subent as the controller VM. 
 
-The controller VM will reside in a private subnet. Therefore, the creation of a "controller service" (https://docs.oracle.com/en-us/iaas/Content/controller/Concepts/controlleroverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
+The controller VM will reside in a private subnet. Therefore, the creation of a "bastion service" (https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
 
 
 
