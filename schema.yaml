@@ -29,6 +29,7 @@ variableGroups:
     variables:
       - ${use_existing_auth_token}
       - ${auth_token}  
+      - ${home_region} 
       - ${use_existing_registry}
       - ${registry_id}  
   - title: "Headnode options"
@@ -1970,6 +1971,16 @@ variables:
     visible:
       and:
         - ${use_existing_auth_token}
+  home_region:
+    type: oci:identity:region:name 
+    title: "Home Region"
+    default: ${region}
+    required: true
+    description: "Home region to generate Auth Token"
+    visible:
+      and:
+        - not:      
+            - ${use_existing_auth_token}         
   use_existing_registry:
     type: boolean
     title: "Use existing registry"

@@ -5,6 +5,7 @@ resource "local_file" "updateFuncVariables" {
 
 resource "oci_identity_auth_token" "auth_token" {
     count          = !var.use_existing_auth_token ? 1 : 0
+    provider = oci.home    
     description = "${local.cluster_name}-token"
     user_id = var.current_user_ocid
 }

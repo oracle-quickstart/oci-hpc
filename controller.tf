@@ -475,6 +475,7 @@ resource "null_resource" "cluster" {
       use_existing_registry               = var.use_existing_registry,
       registry_id                         = local.registry_id,
       use_existing_auth_token             = var.use_existing_auth_token,
+      home_region                         = var.home_region,
       auth_token                          = local.auth_token
     })
 

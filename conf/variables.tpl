@@ -188,3 +188,8 @@ variable use_existing_auth_token {
 variable auth_token { 
   default = "${auth_token}" 
   }
+
+variable "home_region" {
+  default = "${home_region}"
+  type = string
+  }

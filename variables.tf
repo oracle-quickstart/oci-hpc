@@ -718,3 +718,8 @@ variable auth_token {
   default = "" 
   type = string
   }
+
+variable "home_region" {
+  default = ""
+  type = string
+  }
