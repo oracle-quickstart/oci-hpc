@@ -418,13 +418,7 @@ resource "null_resource" "cluster_backup" {
       healthchecks                        = var.healthchecks,
       change_hostname                     = var.change_hostname,
       hostname_convention                 = var.hostname_convention,
-      queue_ocid                          = local.queue_ocid,
-      current_user_ocid                   = var.current_user_ocid,
-      use_existing_registry               = var.use_existing_registry,
-      registry_id                         = local.registry_id,
-      use_existing_auth_token             = var.use_existing_auth_token,
-      home_region                         = var.home_region,
-      auth_token                          = local.auth_token
+      queue_ocid                          = local.queue_ocid
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"
