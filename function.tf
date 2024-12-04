@@ -1,5 +1,5 @@
 resource "local_file" "updateFuncVariables" {
-  content  = templatefile("func.py.tftpl", {queue_ocid = local.queue_ocid, cluster_name = local.cluster_name})
+  content  = templatefile("func.py.tftpl", {queue_ocid = local.queue_ocid, cluster_name = local.cluster_name, private_subnet = var.private_subnet})
   filename = "${path.module}/function/func.py"  
 }
 
@@ -26,8 +26,14 @@ resource "oci_functions_application" "fn_application" {
     shape = "GENERIC_ARM"
 }
 
+resource "time_sleep" "wait_for_registry_to_be_ready" {
+  count          = !var.use_existing_auth_token ? 1 : 0
+  depends_on = [oci_identity_auth_token.auth_token]
+  create_duration = "240s"
+}
+
 resource "null_resource" "Login2OCIR" {
-  depends_on = [oci_functions_application.fn_application, local.registry_id, local.auth_token]
+  depends_on = [oci_functions_application.fn_application, oci_artifacts_container_repository.container_repository, oci_identity_auth_token.auth_token, time_sleep.wait_for_registry_to_be_ready ]
 
   provisioner "local-exec" {
     command     = "echo '${local.auth_token}' | docker login -u '${local.ocir_namespace}/${data.oci_identity_user.user.name}' ${local.region_key}.ocir.io --password-stdin"

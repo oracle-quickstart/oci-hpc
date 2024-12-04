@@ -3,14 +3,18 @@ import oci
 import logging
 import io
 import json
+import ipaddress
 from fdk import response
 
 queue_ocid = "${queue_ocid}"
 controller_name = "${cluster_name}-controller"
+private_subnet= "${private_subnet}"
+zone_name = "${cluster_name}.local"
 
-def get_tag(instance_ocid, controller_name):
+
+def get_tag_controller(instance_ocid, controller_name):
     """
-    fetch the private ip of the instance
+    Check if instance has the right tag for controller and get hostname_convention via instance tag
     """
     signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
     #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
@@ -19,9 +23,10 @@ def get_tag(instance_ocid, controller_name):
     get_instance_response = core_client.get_instance(
         instance_id=instance_ocid)
     if get_instance_response.data.freeform_tags and "controller_name" in get_instance_response.data.freeform_tags and get_instance_response.data.freeform_tags["controller_name"] == controller_name:
-        return True
+        hostname_convention = get_instance_response.data.freeform_tags["hostname_convention"]
+        return True, hostname_convention
     else:
-        return False
+        return False, None
 
 
 def get_private_ip(instance_ocid,compartment_ocid):
@@ -49,14 +54,36 @@ def get_private_ip(instance_ocid,compartment_ocid):
     ).data[0].ip_address
     return private_ips_for_vnic
 
-
-def write_message_queue(controller_name, queue_ocid,instance_ocid,compartment_ocid,event_type):
+def update_dns(private_subnet, private_ip, hostname, hostname_convention, zone_name, compartment_ocid, instance_launch):
     """
-    write message to queue with private ip and "starting" status
+    Update DNS for instance launching and instance terminating
+    """
+    signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
+    #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()    
+    dns_client = oci.dns.DnsClient(config={}, signer=signer)
+    ip = ipaddress.ip_address(private_ip)
+    private_subnet_cidr=ipaddress.ip_network(private_subnet)
+    index = list(private_subnet_cidr.hosts()).index(ip)+2
+    zone_id=dns_client.list_zones(compartment_id=compartment_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
+    slurm_name=hostname_convention+"-"+str(index)+"."+zone_name
+    if instance_launch:
+        get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=slurm_name,rdata=private_ip,rtype="A",ttl=3600,)]))
+        get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600)]))
+        logging.getLogger().info("DNS updated for instance launch")
+    else:
+        get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE") 
+        get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE") 
+        logging.getLogger().info("DNS updated for instance terminated")  
+    return
+
+
+def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, hostname, zone_name):
+    """
+    write message to queue with private ip and "starting" or "terminating" status
     """
     logging.getLogger().info("check if instance has matching controller_name tag")
     # check if instance has matching controller_name tag
-    is_instance = get_tag(instance_ocid, controller_name)
+    is_instance, hostname_convention = get_tag_controller(instance_ocid, controller_name)
 
     if not is_instance:
         logging.getLogger().info("not a matching instance")
@@ -64,14 +91,19 @@ def write_message_queue(controller_name, queue_ocid,instance_ocid,compartment_oc
     else:
         logging.getLogger().info("matching instance")
         signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
+        #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
         private_ip = get_private_ip(instance_ocid,compartment_ocid)
         logging.getLogger().info("private ip obtained")
-        #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+
 
 
         if event_type == "com.oraclecloud.computeapi.launchinstance.begin":
+            instance_launch = True
+            update_dns(private_subnet, private_ip, hostname, hostname_convention, zone_name, compartment_ocid, instance_launch)
             content_dict = {"ip_address": private_ip,"status": "starting"}
         else:
+            instance_launch = False
+            update_dns(private_subnet, private_ip, hostname, hostname_convention, zone_name, compartment_ocid, instance_launch)
             content_dict = {"ip_address": private_ip,"status": "terminating"}    
         content = json.dumps(content_dict, indent = 4) 
         cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
@@ -88,7 +120,7 @@ def write_message_queue(controller_name, queue_ocid,instance_ocid,compartment_oc
                         metadata=oci.queue.models.MessageMetadata(
                             channel_id="to_controller"))]))
         logging.getLogger().info("message sent to queue")
-        return (put_messages_response.data)                    
+        return (put_messages_response.data)   
 
 def handler(ctx, data: io.BytesIO=None):
     logging.getLogger().info("function start")
@@ -102,6 +134,7 @@ def handler(ctx, data: io.BytesIO=None):
         logging.getLogger().info(str(payload))
         instance_ocid = payload["data"]["resourceId"]
         compartment_ocid = payload["data"]["compartmentId"]
+        hostname = payload["data"]["resourceName"]
         event_type = payload["eventType"]
     except Exception as ex:
         print('ERROR: Missing key in payload', ex, flush=True)
@@ -109,7 +142,7 @@ def handler(ctx, data: io.BytesIO=None):
 
     resp = ""
     logging.getLogger().info("entering writing function")
-    write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid,event_type)
+    write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, hostname, zone_name)
 
 
     logging.getLogger().info("function end")

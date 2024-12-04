@@ -51,7 +51,7 @@ When switching to Ubuntu, make sure the username is changed from opc to Ubuntu i
 ## Consideration with Functions and Events
 This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth tokens are limited and an existing one can be specified during the configuration.
 
-**WARNING**: if a region different from the "Home Region" is used, the creation of the auth token will fail. Please create your Auth Token in your home region prior to deploying the stack and use *"Use existing auth token"* 
+**WARNING**: Auth token are limited to "2" per user by default. It is recommended to use an existing Auth Token that can be created in your home region prior to the stack deployment. In case you do not select *"Use existing auth token"*, a Auth Token will be created. Please note that after the creation, some time is needed for the Auth Token to be valid to authenticate with "docker login" which is why a "time_sleep" resource is executed in terraform.
 
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
