@@ -720,6 +720,6 @@ variable auth_token {
   }
 
 variable "home_region" {
-  default = ""
+  default = "us-ashburn-1"
   type = string
   }
