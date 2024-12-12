@@ -118,7 +118,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
                     oci.queue.models.PutMessagesDetailsEntry(
                         content=content,
                         metadata=oci.queue.models.MessageMetadata(
-                            channel_id="to_controller"))]))
+                            channel_id=controller_name))]))
         logging.getLogger().info("message sent to queue")
         return (put_messages_response.data)   
 
