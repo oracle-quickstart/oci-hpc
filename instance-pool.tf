@@ -29,6 +29,7 @@ resource "oci_core_instance_pool" "instance_pool" {
     "cluster_name"   = local.cluster_name
     "parent_cluster" = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
+    "hostname_convention" = var.hostname_convention
   }
   placement_configurations {
     availability_domain = var.ad

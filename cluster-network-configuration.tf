@@ -16,6 +16,7 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
         "cluster_name"   = local.cluster_name
         "parent_cluster" = local.cluster_name
         "controller_name" = oci_core_instance.controller.display_name
+        "hostname_convention" = var.hostname_convention
       }
       metadata = {
         # TODO: add user key to the authorized_keys 

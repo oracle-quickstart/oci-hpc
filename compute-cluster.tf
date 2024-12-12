@@ -10,5 +10,6 @@ resource "oci_core_compute_cluster" "compute_cluster" {
     "cluster_name"   = local.cluster_name
     "parent_cluster" = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
+    "hostname_convention" = var.hostname_convention
   }
 }
