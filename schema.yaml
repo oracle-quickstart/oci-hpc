@@ -1978,9 +1978,8 @@ variables:
     required: true
     description: "Home region to generate Auth Token"
     visible:
-      and:
-        - not:      
-            - ${use_existing_auth_token}         
+      not: 
+        - ${use_existing_auth_token}         
   use_existing_registry:
     type: boolean
     title: "Use existing registry"

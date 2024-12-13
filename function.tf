@@ -1,4 +1,5 @@
 resource "local_file" "updateFuncVariables" {
+  depends_on = [oci_queue_queue.queue]
   content  = templatefile("func.py.tftpl", {queue_ocid = local.queue_ocid, cluster_name = local.cluster_name, private_subnet = var.private_subnet})
   filename = "${path.module}/function/func.py"  
 }
@@ -43,7 +44,7 @@ resource "null_resource" "Login2OCIR" {
 
 
 resource "null_resource" "function_Push2OCIR" {
-  depends_on = [null_resource.Login2OCIR]
+  depends_on = [null_resource.Login2OCIR, local_file.updateFuncVariables]
 
   provisioner "local-exec" {
     command     = "fn update context oracle.compartment-id ${var.targetCompartment}"
