@@ -23,6 +23,7 @@
     destroy: false
   gather_facts: true
   roles: 
+    - timezone
     - oci-cloud-agent
     - privilege_group
     - oci-legacy

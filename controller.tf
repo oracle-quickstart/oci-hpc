@@ -266,6 +266,7 @@ resource "null_resource" "cluster" {
       slurm_nfs_path = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack = var.spack,
       ldap = var.ldap,
+      timezone = var.timezone,
       controller_block = var.controller_block, 
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
@@ -393,6 +394,7 @@ resource "null_resource" "cluster" {
       slurm_nfs_path = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack = var.spack,
       ldap = var.ldap,
+      timezone = var.timezone,
       controller_block = var.controller_block, 
       login_block = var.login_block, 
       scratch_nfs_type = local.scratch_nfs_type,
