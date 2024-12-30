@@ -711,7 +711,7 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
-    default: VM.Standard.E4.Flex
+    default: VM.Standard.E5.Flex
   controller_ocpus:
     title: "Cores"
     type: integer
@@ -823,7 +823,7 @@ variables:
     title: Create Object Storage PAR
     description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
     type: boolean
-    default: true
+    default: false
 
   unsupported_controller: 
     title: "Use unsupported image" 
@@ -910,7 +910,7 @@ variables:
     type: boolean
     title: "Enable boot volume backup"
     description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
-    default: true
+    default: false
   
   controller_block:
     type: boolean
@@ -1024,7 +1024,7 @@ variables:
       - "BM.GPU.H100.8"
       - "BM.Optimized3.36"
       - "BM.HPC.E5.144"
-    default: "BM.HPC2.36"
+    default: "BM.Optimized3.36"
     title: "Shape of the Compute Nodes"
     description: "Shape of compute nodes used in permanent/initial cluster"
     required: true
@@ -1163,13 +1163,13 @@ variables:
     type: integer
     minimum: 0
     title: "Initial cluster size"
-    default: 2
+    default: 0
     description: "Number of Compute Instances (Permanent Cluster when autoscaling)"
 
   hyperthreading:
     type: boolean
     title: "Hyperthreading enabled"
-    default: true
+    default: false
     description: "When unchecked SMT will be disabled" 
 
   boot_volume_size:
@@ -1198,7 +1198,7 @@ variables:
       - "GPU_OL7_NV550"
       - "GPU_OL8_NV535"
       - "GPU_OL7_NV535"
-    default: "GPU_OL8_NV550"
+    default: "HPC_OL8"
     visible: ${use_marketplace_image}
 
   use_compute_agent:
@@ -1589,7 +1589,7 @@ configuration\" "
   rack_aware:
     type: boolean
     title: "Create Rack aware topology"
-    default: true
+    default: false
     required: true
     description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted" 
     visible: ${slurm}
@@ -1866,7 +1866,7 @@ configuration\" "
   login_node:
     type: boolean
     title: "Login Node"
-    default: true
+    default: false
     description: "Create an additional login node for users"
 
   login_ad:
