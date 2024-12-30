@@ -55,6 +55,7 @@ resource "local_file" "inventory" {
     enroot = var.enroot,
     spack = var.spack,
     ldap = var.ldap,
+    timezone = var.timezone,
     controller_block = var.controller_block,
     login_block = var.login_block,
     scratch_nfs_type = local.scratch_nfs_type,

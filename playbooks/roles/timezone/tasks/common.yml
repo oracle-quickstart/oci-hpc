@@ -1,0 +1,9 @@
+---
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Restart rsyslogd
+  service:
+    name: rsyslog.service
+    state: restarted
