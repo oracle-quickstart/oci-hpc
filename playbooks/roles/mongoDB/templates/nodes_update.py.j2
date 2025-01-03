@@ -135,15 +135,12 @@ def process_started_nodes():
                 if json_data["controller_name"]==controller_name:
                     json_data["lastTimeReachable"]=current_time_str
                     if not 'FirstTimeReachable' in doc:
-                        set_data=json_data | {"FirstTimeReachable":current_time_str}
-                    else:
-                        set_data=json_data
-
+                        json_data.update({"FirstTimeReachable":current_time_str})
                     # Upsert the dictionary into MongoDB
                     collection.update_one(
                         {"ip_address": ip_address},  # Query to find the document
                         {
-                        "$set": set_data,
+                        "$set": json_data,
                         "$inc": {"update_count": 1},  # Increment update count
                         },
                         upsert=True  # Create if it does not exist
