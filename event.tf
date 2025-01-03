@@ -10,7 +10,7 @@ resource "oci_events_rule" "generated_oci_events_rule" {
 		}
 	}
 	compartment_id = var.targetCompartment
-	condition = "{\"eventType\":[\"com.oraclecloud.computeapi.launchinstance.begin\"],\"data\":{\"compartmentId\":[\"${var.targetCompartment}\"]}}"
+	condition = "{\"eventType\":[\"com.oraclecloud.computeapi.launchinstance.end\"],\"data\":{\"compartmentId\":[\"${var.targetCompartment}\"]}}"
 	description = "write_node_starting_event"
 	display_name = "${local.cluster_name}_write_node_starting_event"
 	is_enabled = "true"

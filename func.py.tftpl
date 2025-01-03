@@ -149,7 +149,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
 
 
 
-        if event_type == "com.oraclecloud.computeapi.launchinstance.begin":
+        if event_type == "com.oraclecloud.computeapi.launchinstance.end":
             instance_launch = True
             if slurm:
                 new_hostname = update_dns(private_subnet, private_ip, hostname_convention, zone_name, compartment_ocid, instance_launch)
