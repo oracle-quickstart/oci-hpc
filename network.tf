@@ -195,36 +195,6 @@ resource "oci_dns_zone" "dns_zone" {
   view_id        = data.oci_dns_views.dns_views.views[0].id
 }
 
-resource "oci_dns_rrset" "rrset-cluster-network-OCI" {
-  for_each        = var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
-  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "${local.cluster_instances_names[tonumber(each.key)]}.${local.zone_name}"
-  rtype           = "A"
-  items {
-    domain = "${local.cluster_instances_names[tonumber(each.key)]}.${local.zone_name}"
-    rtype  = "A"
-    rdata  = local.cluster_instances_ips[tonumber(each.key)]
-    ttl    = 3600
-  }
-  scope   = "PRIVATE"
-  view_id = data.oci_dns_views.dns_views.views[0].id
-}
-
-resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
-
-  for_each        = var.slurm && var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
-  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
-  rtype           = "A"
-  items {
-    domain = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
-    rtype  = "A"
-    rdata  = local.cluster_instances_ips[tonumber(each.key)]
-    ttl    = 3600
-  }
-  scope   = "PRIVATE"
-  view_id = data.oci_dns_views.dns_views.views[0].id
-}
 
 resource "oci_dns_rrset" "fss-dns-round-robin" {
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id

@@ -1,6 +1,6 @@
 resource "local_file" "updateFuncVariables" {
   depends_on = [oci_queue_queue.queue]
-  content  = templatefile("func.py.tftpl", {queue_ocid = local.queue_ocid, cluster_name = local.cluster_name, private_subnet = var.private_subnet})
+  content  = templatefile("func.py.tftpl", {queue_ocid = local.queue_ocid, cluster_name = local.cluster_name, private_subnet = var.private_subnet, slurm = var.slurm})
   filename = "${path.module}/function/func.py"  
 }
 
