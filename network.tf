@@ -225,3 +225,25 @@ resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
   scope = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
+
+
+resource "oci_dns_rrset" "fss-dns-round-robin" {
+  count           = var.create_fss && var.dns_entries ? 1 : 0
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "fss-${local.cluster_name}.${local.zone_name}"
+  rtype           = "A"
+
+  dynamic "items" {
+    for_each = oci_file_storage_mount_target.FSSMountTarget[*]
+    iterator = target
+    content {
+      domain = "fss-${local.cluster_name}.${local.zone_name}"
+      rtype  = "A"
+      rdata  = target.value["ip_address"]
+      ttl    = 1
+    }
+  }
+  scope   = "PRIVATE"
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
