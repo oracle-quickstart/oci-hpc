@@ -113,8 +113,8 @@ def update_display_name(instance_ocid, new_hostname):
     core_client = oci.core.ComputeClient(config={}, signer=signer)
     update_instance_response = core_client.update_instance(
         instance_id=instance_ocid,
-        update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname) 
-        )
+        update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname), 
+        retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
     logging.getLogger().info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")    
     return   
 
