@@ -208,7 +208,7 @@ def getLaunchInstanceDetails(instance,comp_ocid,cn_ocid,max_previous_index,index
 
 def mongo_remove(hostnames):
     try:
-        command = "mongosh "+db_name+" --quiet --eval 'db."+collection_name+".updateMany({ hostname: { $in: ["+hostnames.join(',')+"] } },{ $set: { status: \"to_terminate\",terminated:"+current_time_str+" } });'"
+        command = "mongosh "+db_name+" --quiet --eval 'db."+collection_name+".updateMany({ hostname: { $in: ["+','.join(hostnames)+"] } },{ $set: { status: \"to_terminate\",terminated:"+current_time_str+" } });'"
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         return result.stdout
     except Exception as e:
@@ -267,16 +267,6 @@ username="opc"
 for inv_vars in inventory_dict["all:vars"]:
     if inv_vars.startswith("compute_username"):
         username=inv_vars.split("compute_username=")[1].strip()
-        break
-zone_name=cluster_name+".local"
-for inv_vars in inventory_dict["all:vars"]:
-    if inv_vars.startswith("zone_name"):
-        zone_name=inv_vars.split("zone_name=")[1].strip()
-        break
-dns_entries=True
-for inv_vars in inventory_dict["all:vars"]:
-    if inv_vars.startswith("dns_entries"):
-        dns_entries=(inv_vars.split("dns_entries=")[1].strip().lower() == "true")
         break
 hostname_convention=None
 for inv_vars in inventory_dict["all:vars"]:
@@ -367,8 +357,6 @@ else:
     cn_instances = get_instances(comp_ocid,cn_ocid,CN)
     inventory_instances =[]
     only_inventory_instance=[]
-    if dns_entries:
-        zone_id=dns_client.list_zones(compartment_id=comp_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
     if args.mode == 'remove':
         if len(hostnames) == 0:
             hostnames=[i['display_name'] for i in cn_instances[-args.number:]]
@@ -387,16 +375,6 @@ else:
                     else:
                         instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_id,is_auto_terminate=True,is_decrement_size=True)
                         ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
-                    if dns_entries:
-                        get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=instanceName+"."+zone_name,rtype="A",scope="PRIVATE")
-                        ip=None
-                        for i in cn_instances:
-                            if i['display_name'] == instanceName:
-                                ip = ipaddress.ip_address(i['ip'])
-                        if not ip is None:
-                            index = list(private_subnet_cidr.hosts()).index(ip)+2
-                            slurm_name=hostname_convention+"-"+str(index)+"."+zone_name
-                            get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE")
                     terminated_instances = terminated_instances + 1
                     print("STDOUT: The instance "+instanceName+" is terminating")
                 except:
@@ -442,7 +420,7 @@ else:
                     launch_instance_details=getLaunchInstanceDetails(instance,comp_ocid,cn_ocid,max_index,i)
                     ComputeClientCompositeOperations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
         else:
-            size = current_size - hostnames_to_remove_len + args.number
+            size = current_size + args.number
             update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
             ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ipa_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
         cn_summary,ip_summary,CN = get_summary(comp_ocid,cluster_name)
@@ -452,15 +430,6 @@ else:
         else:
             new_cn_instances = get_instances(comp_ocid,cn_ocid,CN)
             newsize=ip_summary.size
-        if dns_entries:
-            for new_instance in new_cn_instances:
-                if not new_instance in cn_instances:
-                    instanceName=new_instance['display_name']
-                    ip = ipaddress.ip_address(new_instance['ip'])
-                    index = list(private_subnet_cidr.hosts()).index(ip)+2
-                    slurm_name=hostname_convention+"-"+str(index)+"."+zone_name
-                    get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=slurm_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=slurm_name,rdata=new_instance['ip'],rtype="A",ttl=3600,)]))
-                    get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=instanceName+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=instanceName+"."+zone_name,rdata=new_instance['ip'],rtype="A",ttl=3600)]))
         updateTFState(inventory,cluster_name,newsize)
         if newsize == current_size:
             print("STDOUT: No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
