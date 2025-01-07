@@ -72,7 +72,8 @@ resource "oci_functions_function" "function" {
     application_id = oci_functions_application.fn_application.id
     display_name = "write_node_function"
     image = "${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo.display_name}:latest"
-    memory_in_mbs = "256" 
+    memory_in_mbs = "2048"
+    timeout_in_seconds = "300" 
     config = { 
       "REGION" : "${var.region}"
     shape = "GENERIC_ARM"

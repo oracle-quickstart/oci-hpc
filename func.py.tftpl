@@ -4,6 +4,7 @@ import logging
 import io
 import json
 import ipaddress
+import time
 from fdk import response
 
 queue_ocid = "${queue_ocid}"
@@ -111,11 +112,22 @@ def update_display_name(instance_ocid, new_hostname):
     #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
 
     core_client = oci.core.ComputeClient(config={}, signer=signer)
-    update_instance_response = core_client.update_instance(
-        instance_id=instance_ocid,
-        update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname), 
-        retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
-    logging.getLogger().info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")    
+
+    max_retries = 30
+    retries = 0
+    # adding a while loop because retry_strategy doesn't work as expected. Check the state and make sure it's RUNNING before changing hostname
+    while core_client.get_instance(instance_ocid).data.display_name != new_hostname and retries <= max_retries:    
+        if core_client.get_instance(instance_ocid).data.lifecycle_state != "RUNNING":
+            print ("not ready")
+            print (retries)
+            time.sleep(2*(1+retries))
+            retries +=1
+        else:    
+            update_instance_response = core_client.update_instance(
+                instance_id=instance_ocid,
+                update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname),
+                retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+            logging.getLogger().info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")    
     return   
 
 
@@ -133,19 +145,19 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
     outputs:
         put_messages_response.data: response from teh API call. Returns the message
     """
-    logging.getLogger().info(f"check if instance {instance_ocid} has matching controller_name tag")
+#    logging.getLogger().info(f"check if instance {instance_ocid} has matching controller_name tag")
     # check if instance has matching controller_name tag
     is_instance, hostname_convention = get_tag_controller(instance_ocid, controller_name)
 
     if not is_instance:
-        logging.getLogger().info("not a matching instance")
+#        logging.getLogger().info("not a matching instance")
         return
     else:
-        logging.getLogger().info("matching instance")
+#        logging.getLogger().info("matching instance")
         signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
         #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
         private_ip = get_private_ip(instance_ocid,compartment_ocid)
-        logging.getLogger().info("private ip obtained")
+#        logging.getLogger().info("private ip obtained")
 
 
 
@@ -153,7 +165,11 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
             instance_launch = True
             if slurm:
                 new_hostname = update_dns(private_subnet, private_ip, hostname_convention, zone_name, compartment_ocid, instance_launch)
-                update_display_name(instance_ocid, new_hostname)
+                try:
+                    update_display_name(instance_ocid, new_hostname)
+                except Exception as ex:
+                    logging.getLogger().error(str(ex))
+                    raise  
             content_dict = {"ip_address": private_ip,"status": "starting"}
         else:
             instance_launch = False
@@ -165,7 +181,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
         endpoint = cp_client.get_queue(queue_ocid).data.messages_endpoint
         queue_client = oci.queue.QueueClient(config={}, signer=signer, service_endpoint=endpoint)
 
-        logging.getLogger().info(f"sending message to queue: {content}")
+#        logging.getLogger().info(f"sending message to queue: {content}")
         put_messages_response = queue_client.put_messages(
             queue_id = queue_ocid,
             put_messages_details=oci.queue.models.PutMessagesDetails(
@@ -174,11 +190,11 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
                         content=content,
                         metadata=oci.queue.models.MessageMetadata(
                             channel_id=controller_name))]))
-        logging.getLogger().info(f"message sent to queue {content}")
+#        logging.getLogger().info(f"message sent to queue {content}")
         return (put_messages_response.data)   
 
 def handler(ctx, data: io.BytesIO=None):
-    logging.getLogger().info("function start")
+#    logging.getLogger().info("function start")
 
 
     try:
@@ -186,7 +202,7 @@ def handler(ctx, data: io.BytesIO=None):
         if payload_bytes==b'':
             raise KeyError('No keys in payload')
         payload = json.loads(payload_bytes)
-        logging.getLogger().info(str(payload))
+#        logging.getLogger().info(str(payload))
         instance_ocid = payload["data"]["resourceId"]
         compartment_ocid = payload["data"]["compartmentId"]
         event_type = payload["eventType"]
@@ -198,7 +214,7 @@ def handler(ctx, data: io.BytesIO=None):
     write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, zone_name,slurm)
 
 
-    logging.getLogger().info("function end")
+#    logging.getLogger().info("function end")
     return response.Response(
         ctx,
         response_data=resp,
