@@ -6,13 +6,16 @@ import sys
 import json
 from datetime import datetime, timedelta
 
-
 import oci
 
+retaining_period=timedelta(hours=72)
+unreachable_timeout=timedelta(hours=6)
 
 # Get the current date and time with milliseconds
 current_time = datetime.now()
 current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
+
+print(f"Started the nodes_update script at {current_time_str}")
 
 # MongoDB Connection Details
 MONGO_URI = "mongodb://localhost:27017/"
@@ -78,7 +81,8 @@ def scan_network():
         sys.exit(1)
 
 def scan_queue():
-    new_ips=[]
+    new_ips_to_add=[]
+    new_ips_to_remove=[]
     while True:
         messages_response = queue_client.get_messages(queue_ocid,limit=20,channel_filter=controller_name)
         if len(messages_response.data.messages) == 0:
@@ -87,14 +91,16 @@ def scan_queue():
         for message in messages:
             try:
                 content=eval(message.content)
-                if content['status'] == "starting" and content['ip_address'] not in new_ips:
-                    new_ips.append(content['ip_address'])
+                if content['status'] == "starting" and content['ip_address'] not in new_ips_to_add:
+                    new_ips_to_add.append(content['ip_address'])
+                elif content['status'] == "terminating" and content['ip_address'] not in new_ips_to_remove:
+                    new_ips_to_remove.append(content['ip_address'])
             except Exception as e:
                 print(f"Error evaluating message {message.content}: {e}")
             # Delete the message after processing
             queue_client.delete_message(queue_ocid, message.receipt)
             print("Message deleted:", message.id)
-    return(new_ips)
+    return new_ips_to_add,new_ips_to_remove
 
 # Run Ansible
 def run_ansible():
@@ -113,7 +119,7 @@ def process_and_store(ip_list):
         if collection.find({"ip_address": ip_address}):
             collection.update_one(
                 {"ip_address": ip_address},  # Filter
-                {"$set": {"startedTime": current_time_str, "status": "Starting"}},  # Update
+                {"$set": {"startedTime": current_time_str, "status": "starting"}},  # Update
                 upsert=True  # Create if it does not exist
             )
             node_added=True
@@ -122,7 +128,7 @@ def process_and_store(ip_list):
 # Parse starting nodes and update records in MongoDB
 def process_started_nodes():
     node_added=False
-    results = collection.find({"status": "Starting"})
+    results = collection.find({"status": "starting"})
     for doc in results:
         ip_address=doc['ip_address']
         url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"
@@ -154,31 +160,66 @@ def process_started_nodes():
             except json.JSONDecodeError as e:
                 print(f"Failed to decode JSON from {url}: {e}")
         else:
-            print("Node is not ready")
+            print(f"Node with {ip_address} is not ready yet. The node is up but the webserver is not available")
     return node_added
 
-def get_unreachable_nodes():
+def terminate_nodes(terminating_ip_list):
     time_threshold = current_time.utcnow() - timedelta(hours=6)
-    results = collection.find()
+    results = collection.find({"status": {"$nin": ["terminated", "starting"]}})
+    unreachable_nodes_count=len(terminating_ip_list)
     for doc in results:
-        last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
-        if last_time_reachable < time_threshold:
-            if doc["status"]=="to_terminate":
-                collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminated"}})
+        ip_address=doc["ip_address"]
+        if ip_address in terminating_ip_list:
+            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
+        else:
+            if "lastTimeReachable" in doc:
+                last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
+                if doc["status"]=="to_terminate":
+                    collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminated"}})
+                else:
+                    url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"   # Fetch the content from the URL
+                    content = fetch_content(url)
+                    if content:
+                        collection.update_one({"_id": doc["_id"]}, {"$set": {"lastTimeReachable": current_time_str}})
+                    else:
+                        if last_time_reachable < time_threshold:
+                            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
+                            unreachable_nodes_count+=1    
             else:
-                collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
-    return results
+                print("The doc did not conatin a single lastTimeReachable entry")
+                print(doc) # To Remove
+    return unreachable_nodes_count
+
+def clean_old_terminated_nodes():
+    time_threshold = current_time.utcnow() - retaining_period
+    results = collection.find({"status": "terminated"})
+    for doc in results:
+        if "lastTimeReachable" in doc:
+            last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
+            if last_time_reachable < time_threshold:
+                collection.delete_one({"_id": doc["_id"]})   
+                print("This document with has been removed from the DB")
+                print(doc)
 
 # Main function
 if __name__ == "__main__":
     #scan_network()
-    starting_ip_list = scan_queue()
+    starting_ip_list,terminating_ip_list = scan_queue()
+    print(starting_ip_list,"starting_ip_list")
+    print(terminating_ip_list,"terminating_ip_list")
+    terminated_nodes_count=terminate_nodes(terminating_ip_list)
+    clean_old_terminated_nodes()
+
     starting_nodes = process_and_store(starting_ip_list)
     started_nodes = process_started_nodes()
 
     print("Scan completed and data inserted/updated in MongoDB.")
-    if len(list(get_unreachable_nodes())) or started_nodes:
-        print("Adding/Removing nodes")
+
+    if terminated_nodes_count or started_nodes:
+        print("Adding/Removing nodes in Ansible")
         ansible_output=run_ansible()
         print(ansible_output)
         print("Ansible run completed")
+    
+
+print(f"Finished the nodes_update script that started at {current_time_str}")
