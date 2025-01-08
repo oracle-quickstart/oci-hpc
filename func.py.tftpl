@@ -13,7 +13,6 @@ private_subnet= "${private_subnet}"
 zone_name = "${cluster_name}.local"
 slurm = "${slurm}".title()
 
-
 def get_tag_controller(instance_ocid, controller_name):
     """
     Check if instance has the right tag for controller and get hostname_convention via instance tag
@@ -22,7 +21,8 @@ def get_tag_controller(instance_ocid, controller_name):
         controller_name: controller name with <cluster_name>-controller coming from Terraform, type=string
     outputs:
         boolean: has the right tag or not 
-        hostname_convention: hostname convention according to freeform tags, type=string    
+        hostname_convention: hostname convention according to freeform tags, type=string
+        hostname: instance hostname, type=string    
     """
     signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
     #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
@@ -32,9 +32,10 @@ def get_tag_controller(instance_ocid, controller_name):
         instance_id=instance_ocid)
     if get_instance_response.data.freeform_tags and "controller_name" in get_instance_response.data.freeform_tags and get_instance_response.data.freeform_tags["controller_name"] == controller_name:
         hostname_convention = get_instance_response.data.freeform_tags["hostname_convention"]
-        return True, hostname_convention
+        hostname = get_instance_response.data.display_name
+        return True, hostname_convention, hostname
     else:
-        return False, None
+        return False, None, None
 
 
 def get_private_ip(instance_ocid,compartment_ocid):
@@ -145,19 +146,15 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
     outputs:
         put_messages_response.data: response from teh API call. Returns the message
     """
-#    logging.getLogger().info(f"check if instance {instance_ocid} has matching controller_name tag")
     # check if instance has matching controller_name tag
-    is_instance, hostname_convention = get_tag_controller(instance_ocid, controller_name)
+    is_instance, hostname_convention, hostname = get_tag_controller(instance_ocid, controller_name)
 
     if not is_instance:
-#        logging.getLogger().info("not a matching instance")
         return
     else:
-#        logging.getLogger().info("matching instance")
         signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
         #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
         private_ip = get_private_ip(instance_ocid,compartment_ocid)
-#        logging.getLogger().info("private ip obtained")
 
 
 
@@ -175,13 +172,12 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
             instance_launch = False
             if slurm:
                 update_dns(private_subnet, private_ip, hostname_convention, zone_name, compartment_ocid, instance_launch)
-            content_dict = {"ip_address": private_ip,"status": "terminating"}    
+            content_dict = {"hostname": hostname,"status": "terminating"}    
         content = json.dumps(content_dict, indent = 4) 
         cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
         endpoint = cp_client.get_queue(queue_ocid).data.messages_endpoint
         queue_client = oci.queue.QueueClient(config={}, signer=signer, service_endpoint=endpoint)
 
-#        logging.getLogger().info(f"sending message to queue: {content}")
         put_messages_response = queue_client.put_messages(
             queue_id = queue_ocid,
             put_messages_details=oci.queue.models.PutMessagesDetails(
@@ -190,19 +186,14 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
                         content=content,
                         metadata=oci.queue.models.MessageMetadata(
                             channel_id=controller_name))]))
-#        logging.getLogger().info(f"message sent to queue {content}")
         return (put_messages_response.data)   
 
 def handler(ctx, data: io.BytesIO=None):
-#    logging.getLogger().info("function start")
-
-
     try:
         payload_bytes = data.getvalue()
         if payload_bytes==b'':
             raise KeyError('No keys in payload')
         payload = json.loads(payload_bytes)
-#        logging.getLogger().info(str(payload))
         instance_ocid = payload["data"]["resourceId"]
         compartment_ocid = payload["data"]["compartmentId"]
         event_type = payload["eventType"]
@@ -214,7 +205,6 @@ def handler(ctx, data: io.BytesIO=None):
     write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, zone_name,slurm)
 
 
-#    logging.getLogger().info("function end")
     return response.Response(
         ctx,
         response_data=resp,
