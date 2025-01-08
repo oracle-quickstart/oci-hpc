@@ -1,8 +1,8 @@
 [Unit]
-Description=Run Node discovery every 10 minutes
+Description=Run Node discovery every 2 minutes
 
 [Timer]
-OnCalendar=*:0/10
+OnCalendar=*:0/2
 Persistent=true
 
 [Install]
