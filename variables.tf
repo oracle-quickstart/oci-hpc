@@ -690,7 +690,7 @@ variable "change_hostname" {
   type = bool
 }
 variable "hostname_convention" {
-  default = "GPU"
+  default = "None"
   type = string
 }
 
