@@ -82,7 +82,7 @@ def scan_network():
 
 def scan_queue():
     new_ips_to_add=[]
-    new_ips_to_remove=[]
+    new_hosts_to_remove=[]
     while True:
         messages_response = queue_client.get_messages(queue_ocid,limit=20,channel_filter=controller_name)
         if len(messages_response.data.messages) == 0:
@@ -91,16 +91,18 @@ def scan_queue():
         for message in messages:
             try:
                 content=eval(message.content)
-                if content['status'] == "starting" and content['ip_address'] not in new_ips_to_add:
-                    new_ips_to_add.append(content['ip_address'])
-                elif content['status'] == "terminating" and content['ip_address'] not in new_ips_to_remove:
-                    new_ips_to_remove.append(content['ip_address'])
+                if content['status'] == "starting":
+                    if content['ip_address'] not in new_ips_to_add:
+                        new_ips_to_add.append(content['ip_address'])
+                elif content['status'] == "terminating"
+                    if content['hostname'] not in new_hosts_to_remove:
+                        new_hosts_to_remove.append(content['ip_address'])
             except Exception as e:
                 print(f"Error evaluating message {message.content}: {e}")
             # Delete the message after processing
             queue_client.delete_message(queue_ocid, message.receipt)
             print("Message deleted:", message.id)
-    return new_ips_to_add,new_ips_to_remove
+    return new_ips_to_add,new_hosts_to_remove
 
 # Run Ansible
 def run_ansible():
@@ -163,32 +165,34 @@ def process_started_nodes():
             print(f"Node with {ip_address} is not ready yet. The node is up but the webserver is not available")
     return node_added
 
-def terminate_nodes(terminating_ip_list):
-    time_threshold = current_time.utcnow() - timedelta(hours=6)
+def check_nodes_status():
+    time_threshold = current_time.utcnow() - unreachable_timeout
     results = collection.find({"status": {"$nin": ["terminated", "starting"]}})
-    unreachable_nodes_count=len(terminating_ip_list)
+    unreachable_nodes=[]
     for doc in results:
         ip_address=doc["ip_address"]
-        if ip_address in terminating_ip_list:
-            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
-        else:
-            if "lastTimeReachable" in doc:
-                last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
-                if doc["status"]=="to_terminate":
-                    collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminated"}})
-                else:
-                    url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"   # Fetch the content from the URL
-                    content = fetch_content(url)
-                    if content:
-                        collection.update_one({"_id": doc["_id"]}, {"$set": {"lastTimeReachable": current_time_str}})
-                    else:
-                        if last_time_reachable < time_threshold:
-                            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
-                            unreachable_nodes_count+=1    
+        hostname=doc["hostname"]
+        if "lastTimeReachable" in doc: 
+            last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
+            url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"   # Fetch the content from the URL
+            content = fetch_content(url)
+            if content:
+                collection.update_one({"_id": doc["_id"]}, {"$set": {"lastTimeReachable": current_time_str}})
             else:
-                print("The doc did not conatin a single lastTimeReachable entry")
-                print(doc) # To Remove
-    return unreachable_nodes_count
+                if last_time_reachable < time_threshold:
+                    collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
+                    unreachable_nodes.append(hostname)
+        else:
+            print("The doc did not conatin a single lastTimeReachable entry")
+            print(doc) # To Remove
+    return unreachable_nodes
+
+def terminate_nodes(terminating_host_list):
+    results = collection.find({"status": {"$nin": ["terminated", "starting"]}})
+    for doc in results:
+        hostname=doc["hostname"]
+        if hostname in terminating_host_list:
+            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
 
 def clean_old_terminated_nodes():
     time_threshold = current_time.utcnow() - retaining_period
@@ -203,11 +207,12 @@ def clean_old_terminated_nodes():
 
 # Main function
 if __name__ == "__main__":
-    #scan_network()
-    starting_ip_list,terminating_ip_list = scan_queue()
+
+    starting_ip_list,terminating_host_list = scan_queue()
     print(starting_ip_list,"starting_ip_list")
-    print(terminating_ip_list,"terminating_ip_list")
-    terminated_nodes_count=terminate_nodes(terminating_ip_list)
+    print(terminating_host_list,"terminating_host_list")
+    unreachable_nodes = check_nodes_status()
+    terminated_nodes_count=terminate_nodes(terminating_host_list+unreachable_nodes)
     clean_old_terminated_nodes()
 
     starting_nodes = process_and_store(starting_ip_list)
