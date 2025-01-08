@@ -45,7 +45,7 @@
   loop: "{{ get_new_non_compute_nodes_results.stdout }}"
 
 - name: Get all nodes to remove
-  shell: "mongosh {{db_name}} --quiet --eval 'print(JSON.stringify(db.{{collection_name}}.find({\"controller_name\": \"{{controller_hostname}}\",\"role\": { $ne: \"compute\"}, \"status\": \"to_terminate\"}).toArray()))'"
+  shell: "mongosh {{db_name}} --quiet --eval 'print(JSON.stringify(db.{{collection_name}}.find({\"controller_name\": \"{{controller_hostname}}\",\"role\": \"compute\", \"status\": \"to_terminate\"}).toArray()))'"
   register: remove_nodes_results
 
 - name: Create an empty dir
