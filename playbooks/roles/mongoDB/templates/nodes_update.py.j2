@@ -130,17 +130,20 @@ def process_and_store(ip_list):
 # Parse nodes and update records in MongoDB
 def check_nodes_status():
     time_threshold = current_time.utcnow() - unreachable_timeout
-    results = collection.find({"status": {"$neq": "terminated"}})
+    results = collection.find({"status": {"$ne": "terminated"}})
     unreachable_nodes=[]
+    starting_nodes_count=0
     for doc in results:
-        ip_address=doc["ip_address"]
-        hostname=doc["hostname"]
         status=doc["status"]
+        ip_address=doc["ip_address"]
         url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"   # Fetch the content from the URL
         content = fetch_content(url)
         if content:
             try:
+                json_data = json.loads(content)
                 json_data["lastTimeReachable"]=current_time_str
+                if status=="starting":
+                    json_data["status"]="configuring"
                 if not 'FirstTimeReachable' in doc:
                     json_data.update({"FirstTimeReachable":current_time_str})
                 collection.update_one(
@@ -152,21 +155,24 @@ def check_nodes_status():
                     upsert=True  # Create if it does not exist
                 )
                 print(f"Stored content for {url}")
+                if status == "starting":
+                    starting_nodes_count+=1
             except json.JSONDecodeError as e:
                 print(f"Failed to decode JSON from {url}: {e}")
         else:
             if status != "starting":
+                hostname=doc["hostname"]
                 if "lastTimeReachable" in doc: 
                     last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
-                        if last_time_reachable < time_threshold:
-                            collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminating","status": "unreachable"}})
-                            unreachable_nodes.append(hostname)
+                    if last_time_reachable < time_threshold:
+                        collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminating","status": "unreachable"}})
+                        unreachable_nodes.append(hostname)
                 else:
                     print("The doc did not conatin a single lastTimeReachable entry")
                     print(doc)
             else:
                 print(f"Node with {ip_address} is not ready yet. The node is up but the webserver is not available")
-    return unreachable_nodes
+    return unreachable_nodes,starting_nodes_count
 
 def clean_old_terminated_nodes():
     time_threshold = current_time.utcnow() - retaining_period
@@ -193,12 +199,12 @@ def update_configuration_status(started_nodes,terminating_host_list,ansible_outp
             collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminated"}})
 
 def terminate_nodes(terminating_host_list):    
-    results = collection.find()
+    results = collection.find({"status": {"$ne": "starting"}})
     count=0
     for doc in results:
         hostname=doc["hostname"]
         if hostname in terminating_host_list:
-            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminated","terminated":current_time_str}})
+            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminating","terminated":current_time_str}})
             count+=1
     return count
 # Main function
@@ -208,18 +214,19 @@ if __name__ == "__main__":
     print(starting_ip_list,"starting_ip_list")
     print(terminating_host_list,"terminating_host_list")
     starting_nodes = process_and_store(starting_ip_list)
-    unreachable_nodes = check_nodes_status()
+    unreachable_nodes,starting_nodes_count = check_nodes_status()
     terminated_nodes_count=terminate_nodes(terminating_host_list+unreachable_nodes)
     clean_old_terminated_nodes()
 
     print("Scan completed and data inserted/updated in MongoDB.")
-    if terminated_nodes_count or len(started_nodes):
+    if terminated_nodes_count or starting_nodes_count:
         print("Adding/Removing nodes in Ansible")
         ansible_output,failure_count=run_ansible()
         if failure_count > 0: 
             print(ansible_output)
         else: 
             print("Ansible finished successfully")
-            update_configuration_status(started_nodes,terminating_host_list,ansible_output)
+            print(ansible_output)
+            update_configuration_status(starting_nodes,terminating_host_list,ansible_output)
 
 print(f"Finished the nodes_update script that started at {current_time_str}")
