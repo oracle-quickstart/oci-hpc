@@ -1,3 +1,26 @@
+
+'''
+This script is updating the MongoDB about the node status as well as launching ansible on the controller. 
+Ansible on the controller is only doing the tasks that cannot be run on the host locally. 
+Current roles: 
+- Update Slurm topology
+- Update Prometheus hosts 
+- Fix LDAP (Hopefully can be removed once the problem is fixed)
+- ... 
+
+When nodes are created or deleted, an OCI function sends a message to an OCI queue. 
+The OCI queue is parsed with the scan_queue function. Nodes are set in Starting or Terminating status. 
+
+Nodes in the DB are checked for config file on port {{http_server_port}}. All the relevant details are pulled. 
+If the node is in starting mode and the URL is available, it will be picked up by Ansible for configuration. 
+If the node is in terminating state, it will be picked up by Ansible for unconfiguration 
+Nodes unreachable for over 6 hours will be removed as well through Ansible. 
+Nodes that have been terminated are kept in the DB for 72 hours before being cleaned up. 
+TODO: How to warn users that nodes are unreachable and should be checked. 
+
+After running Ansible, all hosts that were selected will be updated to avoid re-running the script. 
+'''
+
 import subprocess
 import pymongo
 from pymongo import MongoClient
@@ -55,31 +78,6 @@ def fetch_content(url):
         print(f"Error fetching content from {url}: {e}")
         return None
 
-def scan_network():
-    try:
-        command_private = f"nmap -T5 -p {HTTP_SERVER_PORT} --open -oG - {PRIVATE_SUBNET}"
-        command_public = f"nmap -T5 -p {HTTP_SERVER_PORT} --open -oG - {PUBLIC_SUBNET}"
-        result_private = subprocess.run(command_private, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        result_public = subprocess.run(command_public, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-
-        pattern = re.compile(r"Host:\s+(\d+\.\d+\.\d+\.\d+)\s+\(.*\)\s+Ports:\s+{}/open/tcp".format(HTTP_SERVER_PORT))
-        scan_output=result_private.stdout + result_public.stdout
-        for line in scan_output.splitlines():
-            match = pattern.search(line)
-            if match:
-                ip_address = match.group(1)
-                print("ip_address found in line: "+ip_address)
-                if not collection.find_one({"ip_address": ip_address}):
-                    channel_id_md=oci.queue.models.MessageMetadata(controller_name)
-                    message = oci.queue.models.PutMessagesDetailsEntry(content="{\"ip_address\": \""+ip_address+"\", \"status\": \"starting\"}",metadata=channel_id_md)
-                    messages_details = oci.queue.models.PutMessagesDetails(messages=[message])
-                    response=queue_client.put_messages(queue_ocid, messages_details)
-                else:
-                    print(f"Entry exists in the DB: {ip_address}")
-    except Exception as e:
-        print(f"Error running Nmap: {e}")
-        sys.exit(1)
-
 def scan_queue():
     new_ips_to_add=[]
     new_hosts_to_remove=[]
@@ -94,7 +92,7 @@ def scan_queue():
                 if content['status'] == "starting":
                     if content['ip_address'] not in new_ips_to_add:
                         new_ips_to_add.append(content['ip_address'])
-                elif content['status'] == "terminating"
+                elif content['status'] == "terminating":
                     if content['hostname'] not in new_hosts_to_remove:
                         new_hosts_to_remove.append(content['ip_address'])
             except Exception as e:
@@ -109,7 +107,9 @@ def run_ansible():
     try:
         command = "ansible-playbook /config/playbooks/manage_nodes.yml"
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        return result.stdout
+        last_line=[s for s in result.stdout.split('\n') if s.startswith(controller_name)][-1]
+        failure_count=int([s for s in last_line.split(' ') if s.startswith('failed')][-1].split('=')[1])
+        return result.stdout,failure_count
     except Exception as e:
         print(f"Error running ansible: {e}")
         sys.exit(1)
@@ -127,72 +127,46 @@ def process_and_store(ip_list):
             node_added=True
     return node_added
 
-# Parse starting nodes and update records in MongoDB
-def process_started_nodes():
-    node_added=False
-    results = collection.find({"status": "starting"})
-    for doc in results:
-        ip_address=doc['ip_address']
-        url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"
-                    # Fetch the content from the URL
-        content = fetch_content(url)
-        if content:
-            try:
-                # Convert JSON string to a dictionary
-                json_data = json.loads(content)
-                if json_data["controller_name"]==controller_name:
-                    json_data["lastTimeReachable"]=current_time_str
-                    if not 'FirstTimeReachable' in doc:
-                        json_data.update({"FirstTimeReachable":current_time_str})
-                    # Upsert the dictionary into MongoDB
-                    collection.update_one(
-                        {"ip_address": ip_address},  # Query to find the document
-                        {
-                        "$set": json_data,
-                        "$inc": {"update_count": 1},  # Increment update count
-                        },
-                        upsert=True  # Create if it does not exist
-                    )
-                    print(f"Stored content for {url}")
-                    node_added=True
-                else:
-                    controller_name_found=json_data["controller_name"]
-                    print(f"The clustername did not match, {controller_name} wanted but got {controller_name_found} ")
-
-            except json.JSONDecodeError as e:
-                print(f"Failed to decode JSON from {url}: {e}")
-        else:
-            print(f"Node with {ip_address} is not ready yet. The node is up but the webserver is not available")
-    return node_added
-
+# Parse nodes and update records in MongoDB
 def check_nodes_status():
     time_threshold = current_time.utcnow() - unreachable_timeout
-    results = collection.find({"status": {"$nin": ["terminated", "starting"]}})
+    results = collection.find({"status": {"$neq": "terminated"}})
     unreachable_nodes=[]
     for doc in results:
         ip_address=doc["ip_address"]
         hostname=doc["hostname"]
-        if "lastTimeReachable" in doc: 
-            last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
-            url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"   # Fetch the content from the URL
-            content = fetch_content(url)
-            if content:
-                collection.update_one({"_id": doc["_id"]}, {"$set": {"lastTimeReachable": current_time_str}})
-            else:
-                if last_time_reachable < time_threshold:
-                    collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
-                    unreachable_nodes.append(hostname)
+        status=doc["status"]
+        url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"   # Fetch the content from the URL
+        content = fetch_content(url)
+        if content:
+            try:
+                json_data["lastTimeReachable"]=current_time_str
+                if not 'FirstTimeReachable' in doc:
+                    json_data.update({"FirstTimeReachable":current_time_str})
+                collection.update_one(
+                    {"ip_address": ip_address},  # Query to find the document
+                    {
+                    "$set": json_data,
+                    "$inc": {"update_count": 1},  # Increment update count
+                    },
+                    upsert=True  # Create if it does not exist
+                )
+                print(f"Stored content for {url}")
+            except json.JSONDecodeError as e:
+                print(f"Failed to decode JSON from {url}: {e}")
         else:
-            print("The doc did not conatin a single lastTimeReachable entry")
-            print(doc) # To Remove
+            if status != "starting":
+                if "lastTimeReachable" in doc: 
+                    last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
+                        if last_time_reachable < time_threshold:
+                            collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminating","status": "unreachable"}})
+                            unreachable_nodes.append(hostname)
+                else:
+                    print("The doc did not conatin a single lastTimeReachable entry")
+                    print(doc)
+            else:
+                print(f"Node with {ip_address} is not ready yet. The node is up but the webserver is not available")
     return unreachable_nodes
-
-def terminate_nodes(terminating_host_list):
-    results = collection.find({"status": {"$nin": ["terminated", "starting"]}})
-    for doc in results:
-        hostname=doc["hostname"]
-        if hostname in terminating_host_list:
-            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "to_terminate","terminated":current_time_str}})
 
 def clean_old_terminated_nodes():
     time_threshold = current_time.utcnow() - retaining_period
@@ -205,26 +179,47 @@ def clean_old_terminated_nodes():
                 print("This document with has been removed from the DB")
                 print(doc)
 
+def update_configuration_status(started_nodes,terminating_host_list,ansible_output):
+    results = collection.find({"controller_status": "configuring"})
+    for doc in results:
+        ip_address=doc["ip_address"]
+        if ip_address in started_nodes:
+            collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "configured"}})
+    
+    results = collection.find({"controller_status": "terminating"})
+    for doc in results:
+        hostname=doc["hostname"]
+        if hostname in terminating_host_list:
+            collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminated"}})
+
+def terminate_nodes(terminating_host_list):    
+    results = collection.find()
+    count=0
+    for doc in results:
+        hostname=doc["hostname"]
+        if hostname in terminating_host_list:
+            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminated","terminated":current_time_str}})
+            count+=1
+    return count
 # Main function
 if __name__ == "__main__":
 
     starting_ip_list,terminating_host_list = scan_queue()
     print(starting_ip_list,"starting_ip_list")
     print(terminating_host_list,"terminating_host_list")
+    starting_nodes = process_and_store(starting_ip_list)
     unreachable_nodes = check_nodes_status()
     terminated_nodes_count=terminate_nodes(terminating_host_list+unreachable_nodes)
     clean_old_terminated_nodes()
 
-    starting_nodes = process_and_store(starting_ip_list)
-    started_nodes = process_started_nodes()
-
     print("Scan completed and data inserted/updated in MongoDB.")
-
-    if terminated_nodes_count or started_nodes:
+    if terminated_nodes_count or len(started_nodes):
         print("Adding/Removing nodes in Ansible")
-        ansible_output=run_ansible()
-        print(ansible_output)
-        print("Ansible run completed")
-    
+        ansible_output,failure_count=run_ansible()
+        if failure_count > 0: 
+            print(ansible_output)
+        else: 
+            print("Ansible finished successfully")
+            update_configuration_status(started_nodes,terminating_host_list,ansible_output)
 
 print(f"Finished the nodes_update script that started at {current_time_str}")

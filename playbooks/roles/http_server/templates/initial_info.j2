@@ -2,6 +2,7 @@
     "AD": "{{ host_info.availabilityDomain }}",
     "cluster_name": "{{ host_info.cluster_name }}",
     "compartment": "{{ host_info.compartmentId }}",
+    "compute_status": "{{ http_server_status }}",
     "controller_name": "{{ host_info.controller_name }}",
     "fss_mount": "{{ host_info.fss_ip }}",
     "hpc_island": "{{ host_info.hpc_island }}",
@@ -13,6 +14,5 @@
     "railId": "{{ host_info.railId }}",
     "role": "{{ host_info.role }}",
     "serial": "{{ host_info.serial_number }}",
-    "shape": "{{ host_info.shape }}",
-    "status": "{{ http_server_status }}"
+    "shape": "{{ host_info.shape }}"
 }
