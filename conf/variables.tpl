@@ -121,7 +121,6 @@ variable "unsupported" { default = ${unsupported} }
 variable "image_ocid" { default = "##IMAGE##" }
 variable "ldap" { default = ${ldap} }
 variable "cluster_monitoring" { default = ${cluster_monitoring} }
-variable "autoscaling_monitoring" { default = ${autoscaling_monitoring} }
 
 
 variable "tags" { default = "##TAGS##" }

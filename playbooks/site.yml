@@ -246,9 +246,6 @@
 - hosts: controller
   tasks: 
     - include_role: 
-        name: autoscaling_mon
-      when: autoscaling_monitoring|default(false)|bool
-    - include_role: 
         name: cron
         
 - hosts: controller

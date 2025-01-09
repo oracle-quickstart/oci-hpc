@@ -66,7 +66,6 @@ resource "local_file" "inventory" {
     queue=var.queue,
     instance_type=var.instance_type,
     cluster_monitoring=var.cluster_monitoring,
-    autoscaling_monitoring = var.autoscaling_monitoring,
     unsupported = var.unsupported,
     hyperthreading = var.hyperthreading,
     privilege_sudo = var.privilege_sudo,

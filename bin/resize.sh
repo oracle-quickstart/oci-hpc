@@ -98,12 +98,6 @@ then
     log=$logs_folder/resize_${cluster_id}.log
   fi
 
-  if [ -f $monitoring_folder/activated ]
-  then
-    source $monitoring_folder/env
-    mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET started_resize='$start_timestamp',state='resizing' WHERE id='$cluster_id'" >> $log 2>&1
-  fi
-
   python3 $folder/resize.py ${@} | tee -a $log 2>&1 | grep STDOUT
   status=${PIPESTATUS[0]}
   end=`date -u +%s`
@@ -113,57 +107,8 @@ then
   if [ $status -eq 0 ]
   then
     echo "Successfully Resized cluster $cluster_name in $runtime seconds"
-    if [ -f $monitoring_folder/activated ]
-    then
-      nodes_list=`python3 $folder/resize.py --cluster_name $cluster_name list | grep ocid1.instance`
-
-      length=`echo $nodes_list | wc -w`
-      newSize=$((length/3))
-      existing_nodes=`mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; select hostname from nodes WHERE cluster_id='$cluster_id' and state <> 'deleted';" 2>&1 | grep inst`
-      max_index=`mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; select max(cluster_index) from nodes WHERE cluster_id='$cluster_id';" 2>&1 | tail -n 1`
-      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET nodes=$newSize,state='running',resize_log='$logs_folder/resize_${cluster_id}.log' WHERE id='$cluster_id'" >> $log 2>&1
-      if [ $resize_type == "remove" ] || [ $resize_type == "remove_unreachable" ]
-      then
-        if [ "$nodes" == "NULL" ] || [ $resize_type == "remove_unreachable" ]
-        then
-          for node in $existing_nodes; do
-            if [ `echo $nodes_list | grep $node | wc -l` == 0 ]
-            then
-              echo $node Deleted
-              mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id' AND hostname='$node'" >> $log 2>&1
-            fi
-          done
-        else
-          for node in $nodes; do
-            echo $node Deleted
-            mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.nodes SET started_deletion='$start_timestamp',deleted='$end_timestamp',state='deleted' WHERE cluster_id='$cluster_id' AND hostname='$node'" >> $log 2>&1
-          done
-        fi
-      else
-        for node in ${nodes_list}; do
-            nl_array+=( $node )
-        done
-        length=`echo $nodes_list | wc -w`
-        for (( c=0; c<=$((length-1)); c=c+3 )); do
-          max_index=$((max_index+1))
-          ip=`echo ${nl_array[$c+1]}`
-          hostname=`echo ${nl_array[$((c))]}`
-          ocid=`echo ${nl_array[$((c+2))]}`
-          if [ `echo $existing_nodes | grep $hostname | wc -l` == 0 ]
-          then
-            max_index=$((max_index+1))
-            mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT IGNORE INTO cluster_log.nodes (cluster_id,cluster_index,cpus,created,state,class_name,shape,hostname,ip,node_OCID) VALUES ('$cluster_name',$max_index,36,'$end_timestamp','running','$queue','$shape','${hostname}','${ip}','${ocid}');"  >> $log 2>&1
-          fi
-        done
-      fi
-    fi
   else
     echo "Could not resize cluster $cluster_name in 5 tries (Time: $runtime seconds)"
-    if [ -f $monitoring_folder/activated ]
-    then
-      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,created_on_m) VALUES ('$cluster_id','resize','$logs_folder/resize_${cluster_id}.log','`tail $log | grep Error`','$end_timestamp');" >> $log 2>&1
-      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET started_resizing=NULL,state='running' WHERE id='$cluster_id'" >> $log 2>&1
-    fi
   fi
   if [ $permanent -eq 0 ]
   then

@@ -563,10 +563,6 @@ variable "monitoring_username" {
   type    = string
   default = "opc"
 }
-variable "autoscaling_monitoring" {
-  type    = bool
-  default = false
-}
 
 variable "autoscaling_mysql_service" {
   type    = bool

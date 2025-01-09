@@ -123,7 +123,6 @@ variableGroups:
   - title: Autoscaling
     variables:
       - ${autoscaling}
-      - ${autoscaling_monitoring}
       - ${latency_check}
   - title: "API authentication, needed for autoscaling"
     variables:
@@ -137,10 +136,7 @@ variableGroups:
       - ${monitoring_shape_name}
       - ${admin_username}
       - ${admin_password}
-    visible: 
-      and:
-        - ${autoscaling_monitoring}
-        - ${autoscaling}
+    visible: ${autoscaling}
   - title: "Additional file system"
     variables:
       - ${add_nfs}
@@ -1432,24 +1428,12 @@ variables:
         - ${autoscaling_mysql_service}
     required: true
 
-  autoscaling_monitoring:
-    type: boolean
-    title: "Monitor the autoscaling"
-    default: false
-    description: ""
-    visible: 
-      and:
-        - ${autoscaling}
-
   autoscaling_mysql_service:
     type: boolean
     title: "Create a Mysql Service"
     default: false
     description: "false will use the controller as mysqlDB"
-    visible: 
-      and:
-        - ${autoscaling}
-        - ${autoscaling_monitoring}
+    visible: ${autoscaling}
 
   privilege_sudo:
     type: boolean

@@ -54,7 +54,6 @@ queue=${queue}
 cluster_monitoring=${cluster_monitoring}
 hyperthreading=${hyperthreading}
 ldap=${ldap}
-autoscaling_monitoring=${autoscaling_monitoring}
 autoscaling_mysql_service=${autoscaling_mysql_service}
 monitoring_mysql_ip=${monitoring_mysql_ip}
 admin_password=${admin_password}

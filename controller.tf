@@ -269,7 +269,6 @@ resource "null_resource" "cluster" {
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
       zone_name                 = local.zone_name,
       dns_entries               = var.dns_entries,
-      nfs                       = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       home_nfs                  = var.home_nfs,
       create_fss                = var.create_fss,
       home_fss                  = var.home_fss,
@@ -307,9 +306,6 @@ resource "null_resource" "cluster" {
       hyperthreading            = var.hyperthreading,
       controller_username       = var.controller_username,
       compute_username          = var.compute_username,
-      autoscaling_monitoring    = var.autoscaling_monitoring,
-      autoscaling_mysql_service = var.autoscaling_mysql_service,
-      monitoring_mysql_ip       = var.autoscaling_monitoring && var.autoscaling_mysql_service ? oci_mysql_mysql_db_system.monitoring_mysql_db_system[0].ip_address : "localhost",
       admin_password            = var.admin_password,
       admin_username            = var.autoscaling_mysql_service ? var.admin_username : "root",
       enroot                    = var.enroot,
@@ -405,7 +401,6 @@ resource "null_resource" "cluster" {
       private_subnet                      = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id                   = local.subnet_id,
       rdma_subnet                         = var.rdma_subnet,
-      nfs                                 = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       scratch_nfs                         = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path                    = var.scratch_nfs_path,
       use_scratch_nfs                     = var.use_scratch_nfs,
@@ -448,7 +443,6 @@ resource "null_resource" "cluster" {
       cluster_monitoring                  = var.cluster_monitoring,
       hyperthreading                      = var.hyperthreading,
       unsupported                         = var.unsupported,
-      autoscaling_monitoring              = var.autoscaling_monitoring,
       enroot                              = var.enroot,
       pyxis                               = var.pyxis,
       privilege_sudo                      = var.privilege_sudo,
@@ -482,25 +476,6 @@ resource "null_resource" "cluster" {
   }
 
   provisioner "file" {
-    content = templatefile("${path.module}/initial_mon.tpl", {
-      cluster_ocid    = local.cluster_ocid,
-      shape           = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
-      queue           = var.queue,
-      cluster_network = var.cluster_network,
-      ocids           = join(",", local.cluster_instances_ids),
-      hostnames       = join(",", local.cluster_instances_names),
-      ips             = join(",", local.cluster_instances_ips)
-    })
-
-    destination = "/tmp/initial.mon"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-  provisioner "file" {
     content     = base64decode(var.api_user_key)
     destination = "/opt/oci-hpc/autoscaling/credentials/key.pem"
     connection {
@@ -528,7 +503,6 @@ resource "null_resource" "cluster" {
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /opt/oci-hpc/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
-      "/opt/oci-hpc/bin/initial_monitoring.sh",
     "exit $exit_code"]
     connection {
       host        = local.host
