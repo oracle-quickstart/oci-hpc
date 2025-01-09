@@ -94,12 +94,12 @@ def scan_queue():
                         new_ips_to_add.append(content['ip_address'])
                 elif content['status'] == "terminating":
                     if content['hostname'] not in new_hosts_to_remove:
-                        new_hosts_to_remove.append(content['ip_address'])
+                        new_hosts_to_remove.append(content['hostname'])        
+                # Delete the message after processing
+                queue_client.delete_message(queue_ocid, message.receipt)
+                print("Message deleted:", message.id)
             except Exception as e:
                 print(f"Error evaluating message {message.content}: {e}")
-            # Delete the message after processing
-            queue_client.delete_message(queue_ocid, message.receipt)
-            print("Message deleted:", message.id)
     return new_ips_to_add,new_hosts_to_remove
 
 # Run Ansible
