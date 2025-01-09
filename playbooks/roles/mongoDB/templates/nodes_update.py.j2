@@ -28,11 +28,13 @@ import re
 import sys
 import json
 from datetime import datetime, timedelta
+from concurrent.futures import ProcessPoolExecutor
 
 import oci
 
 retaining_period=timedelta(hours=72)
 unreachable_timeout=timedelta(hours=6)
+curl_timeout=3
 
 # Get the current date and time with milliseconds
 current_time = datetime.now()
@@ -68,10 +70,9 @@ queue_client = oci.queue.QueueClient(config={}, signer=signer, service_endpoint=
 def fetch_content(url):
     try:
         # Use subprocess to call curl
-        result = subprocess.Popen(['curl', '-s', '--max-time', '10' ,url], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.Popen(['curl', '-s', '--max-time', str(curl_timeout) ,url], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = result.communicate()  # Wait for the command to complete
         if result.returncode != 0:
-            print(f"Error fetching content from {url}: {stderr.decode('utf-8')}")
             return None
         return stdout.decode('utf-8')  # Return the fetched content as a string
     except Exception as e:
@@ -79,8 +80,8 @@ def fetch_content(url):
         return None
 
 def scan_queue():
-    new_ips_to_add=[]
-    new_hosts_to_remove=[]
+    new_ips_to_add={}
+    new_hosts_to_remove={}
     while True:
         messages_response = queue_client.get_messages(queue_ocid,limit=20,channel_filter=controller_name)
         if len(messages_response.data.messages) == 0:
@@ -91,13 +92,10 @@ def scan_queue():
                 content=eval(message.content)
                 if content['status'] == "starting":
                     if content['ip_address'] not in new_ips_to_add:
-                        new_ips_to_add.append(content['ip_address'])
+                        new_ips_to_add[content['ip_address']]=message.receipt
                 elif content['status'] == "terminating":
                     if content['hostname'] not in new_hosts_to_remove:
-                        new_hosts_to_remove.append(content['hostname'])        
-                # Delete the message after processing
-                queue_client.delete_message(queue_ocid, message.receipt)
-                print("Message deleted:", message.id)
+                        new_hosts_to_remove[content['hostname']]=message.receipt
             except Exception as e:
                 print(f"Error evaluating message {message.content}: {e}")
     return new_ips_to_add,new_hosts_to_remove
@@ -115,35 +113,44 @@ def run_ansible():
         sys.exit(1)
 
 # Parse Newly added nodes and insert records in MongoDB
-def process_and_store(ip_list):
-    node_added=False
-    for ip_address in ip_list:
-        if collection.find({"ip_address": ip_address}):
-            collection.update_one(
-                {"ip_address": ip_address},  # Filter
-                {"$set": {"startedTime": current_time_str, "status": "starting"}},  # Update
-                upsert=True  # Create if it does not exist
-            )
-            node_added=True
+def process_and_store(ip_dict):
+    node_added=[]
+    for ip_address in ip_dict.keys():
+        collection.update_one(
+            {"ip_address": ip_address},  # Filter
+            {"$set": {"startedTime": current_time_str, "status": "starting", "controller_status": "waiting_for_info"}},  # Update
+            upsert=True  # Create if it does not exist
+        )
+        node_added.append(ip_address)
+        # Delete the message after processing   
+        queue_client.delete_message(queue_ocid, ip_dict[ip_address])
+        print("Message deleted for Starting IP:", ip_address)
     return node_added
 
 # Parse nodes and update records in MongoDB
 def check_nodes_status():
     time_threshold = current_time.utcnow() - unreachable_timeout
-    results = collection.find({"status": {"$ne": "terminated"}})
+    results = list(collection.find({"status": {"$nin": ["terminated","terminating"]}}))
     unreachable_nodes=[]
-    starting_nodes_count=0
+    started_nodes=[]
+    ip_addresses=[doc["ip_address"] for doc in results]
+    urls=[f"http://{ip_address}:{HTTP_SERVER_PORT}/info" for ip_address in ip_addresses]
+    with ProcessPoolExecutor(max_workers=10) as executor:
+        content_results = list(executor.map(fetch_content, urls))
+    result_dict = dict(zip(ip_addresses, content_results))
     for doc in results:
         status=doc["status"]
         ip_address=doc["ip_address"]
-        url = f"http://{ip_address}:{HTTP_SERVER_PORT}/info"   # Fetch the content from the URL
-        content = fetch_content(url)
+        content=result_dict[ip_address]
+        url=f"http://{ip_address}:{HTTP_SERVER_PORT}/info"
         if content:
             try:
                 json_data = json.loads(content)
                 json_data["lastTimeReachable"]=current_time_str
                 if status=="starting":
-                    json_data["status"]="configuring"
+                    json_data["controller_status"]="configuring"
+                    json_data["status"]="running"
+                    started_nodes.append(ip_address)
                 if not 'FirstTimeReachable' in doc:
                     json_data.update({"FirstTimeReachable":current_time_str})
                 collection.update_one(
@@ -155,8 +162,6 @@ def check_nodes_status():
                     upsert=True  # Create if it does not exist
                 )
                 print(f"Stored content for {url}")
-                if status == "starting":
-                    starting_nodes_count+=1
             except json.JSONDecodeError as e:
                 print(f"Failed to decode JSON from {url}: {e}")
         else:
@@ -171,15 +176,15 @@ def check_nodes_status():
                     else:
                         print(f"Node {hostname} was not reachable")
                 else:
-                    print("The doc did not conatin a single lastTimeReachable entry")
+                    print("The doc did not contain a single lastTimeReachable entry")
                     print(doc)
             else:
-                print(f"Node with {ip_address} is not ready yet. The node is up but the webserver is not available")
-    return unreachable_nodes,starting_nodes_count
+                print(f"Node with {ip_address} is not ready yet. The webserver containing the node info is not available")
+    return unreachable_nodes,started_nodes
 
 def clean_old_terminated_nodes():
     time_threshold = current_time.utcnow() - retaining_period
-    results = collection.find({"status": "terminated"})
+    results = list(collection.find({"status": "terminated"}))
     for doc in results:
         if "lastTimeReachable" in doc:
             last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
@@ -189,40 +194,45 @@ def clean_old_terminated_nodes():
                 print(doc)
 
 def update_configuration_status(started_nodes,terminating_host_list,ansible_output):
-    results = collection.find({"controller_status": "configuring"})
+    results = list(collection.find({"controller_status": "configuring"}))
     for doc in results:
         ip_address=doc["ip_address"]
         if ip_address in started_nodes:
             collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "configured"}})
     
-    results = collection.find({"controller_status": "terminating"})
+    results = list(collection.find({"controller_status": "terminating"}))
     for doc in results:
         hostname=doc["hostname"]
         if hostname in terminating_host_list:
             collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminated"}})
 
-def terminate_nodes(terminating_host_list):    
-    results = collection.find({"status": {"$ne": "starting"}})
-    count=0
+def terminate_nodes(terminating_host_dict):    
+    results = list(collection.find({"status": {"$ne": "starting"}}))
+    terminated_nodes=[]
     for doc in results:
         hostname=doc["hostname"]
-        if hostname in terminating_host_list:
-            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminating","terminated":current_time_str}})
-            count+=1
-    return count
+        if hostname in terminating_host_dict.keys():
+            collection.update_one({"_id": doc["_id"]}, {"$set": {"status": "terminated","controller_status": "terminating","terminated":current_time_str}})
+            terminated_nodes.append(hostname)
+            # Delete the message after processing   
+            queue_client.delete_message(queue_ocid, terminating_host_dict[hostname])
+            print("Message deleted for Hostname:", hostname)
+    return terminated_nodes
 # Main function
 if __name__ == "__main__":
 
-    starting_ip_list,terminating_host_list = scan_queue()
-    print(starting_ip_list,"starting_ip_list")
-    print(terminating_host_list,"terminating_host_list")
-    starting_nodes = process_and_store(starting_ip_list)
-    unreachable_nodes,starting_nodes_count = check_nodes_status()
-    terminated_nodes_count=terminate_nodes(terminating_host_list+unreachable_nodes)
+    starting_ip_dict,terminating_host_dict = scan_queue()
+    print(starting_ip_dict.keys(),"starting_ips")
+    print(terminating_host_dict.keys(),"terminating_hosts")
+    starting_nodes = process_and_store(starting_ip_dict)
+    terminated_nodes=terminate_nodes(terminating_host_dict)
+    unreachable_nodes,started_nodes = check_nodes_status()
     clean_old_terminated_nodes()
 
     print("Scan completed and data inserted/updated in MongoDB.")
-    if terminated_nodes_count or starting_nodes_count:
+    print(terminated_nodes)
+    print(starting_nodes)
+    if len(terminated_nodes) or len(started_nodes):
         print("Adding/Removing nodes in Ansible")
         ansible_output,failure_count=run_ansible()
         if failure_count > 0: 
@@ -230,6 +240,10 @@ if __name__ == "__main__":
         else: 
             print("Ansible finished successfully")
             print(ansible_output)
-            update_configuration_status(starting_nodes,terminating_host_list,ansible_output)
+            update_configuration_status(started_nodes,terminated_nodes,ansible_output)
 
-print(f"Finished the nodes_update script that started at {current_time_str}")
+finish_time = datetime.now()
+script_execution_time=finish_time-current_time
+script_execution_time_str=str(script_execution_time.seconds)
+
+print(f"Finished the nodes_update script that started at {current_time_str}, the script took {script_execution_time_str} sec")
