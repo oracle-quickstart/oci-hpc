@@ -400,7 +400,6 @@ resource "null_resource" "cluster" {
       login_ip                            = var.login_node ? oci_core_instance.login[0].private_ip : "",
       monitoring_name                     = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
       monitoring_ip                       = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
-      compute                             = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([], [])
       public_subnet                       = data.oci_core_subnet.public_subnet.cidr_block,
       public_subnet_id                    = local.controller_subnet_id,
       private_subnet                      = data.oci_core_subnet.private_subnet.cidr_block,
