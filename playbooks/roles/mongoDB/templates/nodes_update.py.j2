@@ -68,7 +68,7 @@ queue_client = oci.queue.QueueClient(config={}, signer=signer, service_endpoint=
 def fetch_content(url):
     try:
         # Use subprocess to call curl
-        result = subprocess.Popen(['curl', '-s', url], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.Popen(['curl', '-s', '--max-time', '10' ,url], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = result.communicate()  # Wait for the command to complete
         if result.returncode != 0:
             print(f"Error fetching content from {url}: {stderr.decode('utf-8')}")
@@ -167,6 +167,9 @@ def check_nodes_status():
                     if last_time_reachable < time_threshold:
                         collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminating","status": "unreachable"}})
                         unreachable_nodes.append(hostname)
+                        print(f"Node {hostname} was not reachable for 6 hours")
+                    else:
+                        print(f"Node {hostname} was not reachable")
                 else:
                     print("The doc did not conatin a single lastTimeReachable entry")
                     print(doc)
