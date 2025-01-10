@@ -218,6 +218,16 @@ def terminate_nodes(terminating_host_dict):
             queue_client.delete_message(queue_ocid, terminating_host_dict[hostname])
             print("Message deleted for Hostname:", hostname)
     return terminated_nodes
+
+def find_nodes_configuring(started_nodes):
+    configuring_nodes=[]
+    results = list(collection.find({"controller_status": "configuring" }))
+    for doc in results:
+        ip_address=doc["ip_address"]
+        if not ip_address in started_nodes:
+            configuring_nodes.append(ip_address)
+    return configuring_nodes
+
 # Main function
 if __name__ == "__main__":
 
@@ -228,19 +238,21 @@ if __name__ == "__main__":
     terminated_nodes=terminate_nodes(terminating_host_dict)
     unreachable_nodes,started_nodes = check_nodes_status()
     clean_old_terminated_nodes()
-
+    nodes_not_yet_configured=find_nodes_configuring(started_nodes)
     print("Scan completed and data inserted/updated in MongoDB.")
-    print(terminated_nodes)
-    print(starting_nodes)
-    if len(terminated_nodes) or len(started_nodes):
+    print(terminated_nodes,"terminated_nodes")
+    print(started_nodes,"started_nodes")
+    print(nodes_not_yet_configured,"nodes_not_yet_configured")
+
+    if len(terminated_nodes) or len(started_nodes) or len(nodes_not_yet_configured):
         print("Adding/Removing nodes in Ansible")
         ansible_output,failure_count=run_ansible()
-        if failure_count > 0: 
+        if failure_count > 0:
             print(ansible_output)
-        else: 
+        else:
             print("Ansible finished successfully")
             print(ansible_output)
-            update_configuration_status(started_nodes,terminated_nodes,ansible_output)
+            update_configuration_status(started_nodes+nodes_not_yet_configured,terminated_nodes,ansible_output)
 
 finish_time = datetime.now()
 script_execution_time=finish_time-current_time
