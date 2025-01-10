@@ -53,7 +53,6 @@ PRIVATE_SUBNET = "{{private_subnet}}"
 PUBLIC_SUBNET = "{{public_subnet}}"
 
 queue_ocid = "{{queue_ocid}}"
-region = "{{region}}"
 controller_name = "{{controller_hostname}}"
 
 # Connect to MongoDB
@@ -221,7 +220,7 @@ def terminate_nodes(terminating_host_dict):
 
 def find_nodes_configuring(started_nodes):
     configuring_nodes=[]
-    results = list(collection.find({"controller_status": "configuring" }))
+    results = list(collection.find({"controller_status": {"$in": ["terminating","configuring"]}}))
     for doc in results:
         ip_address=doc["ip_address"]
         if not ip_address in started_nodes:
@@ -251,7 +250,6 @@ if __name__ == "__main__":
             print(ansible_output)
         else:
             print("Ansible finished successfully")
-            print(ansible_output)
             update_configuration_status(started_nodes+nodes_not_yet_configured,terminated_nodes,ansible_output)
 
 finish_time = datetime.now()
