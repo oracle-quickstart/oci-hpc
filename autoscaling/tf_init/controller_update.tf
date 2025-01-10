@@ -9,12 +9,6 @@ resource "null_resource" "create_path" {
   }
 }
 
-resource "local_file" "hosts" {
-    depends_on = [null_resource.create_path,oci_core_cluster_network.cluster_network]
-    content     = join("\n", local.cluster_instances_ips)
-    filename = "${local.controller_path}/hosts_${local.cluster_name}"
-  }
-
 resource "local_file" "inventory" {
   content        = templatefile("${local.controller_path}/inventory.tpl", {  
     controller_name = var.controller_name,
