@@ -1,14 +1,26 @@
 ---
 
+- name: include common tasks
+  include_tasks: common.yml
+  vars:
+    slurm_repos: "epel,ol7_developer_EPEL"
+  when: ansible_distribution_major_version == '7'
+
+- name: include common tasks
+  include_tasks: common.yml
+  vars:
+    slurm_repos: "ol8_developer_EPEL,ol8_codeready_builder"
+  when: ansible_distribution_major_version == '8'
+
 - name: install SLURM compute packages
-  vars: 
+  vars:
     package_name: '{{ slurm_compute_packages }}'
     package_repo: "{{ slurm_repos }}"
     disable_gpg_check_var: True
-  include_role: 
+  include_role:
     name: safe_yum
 
-- name: Render systemd units for slurmd
+- name: Render systemd units for slurm, slurmdbd and munge
   become: true
   template:
     src: 'systemd/{{ item }}.service.j2'
@@ -46,20 +58,6 @@
     group: munge
     mode: 0700
 
-- name: copy munge.key to tmp
-  become: true
-  shell:
-    cmd: cp /etc/munge/munge.key /tmp/munge.key
-  delegate_to: 127.0.0.1
-  run_once: true
-
-- name: set permissions
-  become: true
-  shell:
-    cmd: chown {{ controller_username }}:{{ controller_username }} /tmp/munge.key
-  delegate_to: 127.0.0.1
-  run_once: true
-
 - name: Copy munge key
   become: true
   copy:
@@ -81,6 +79,9 @@
   include_tasks: compute_pam.yml
   when: pam|bool
 
+- name: run handlers
+  meta: flush_handlers
+  
 - name: start slurmd
   become: true
   service:

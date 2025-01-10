@@ -2,7 +2,7 @@
   include_tasks: common.yml
 
 - name: run compute directives
-  include_tasks: "compute{{rack_aware_playbook_suffix}}.yml"
+  include_tasks: "compute.yml"
   
 - name: cleanup
   include_tasks: cleanup.yml

@@ -1,5 +1,15 @@
 ---
 
+- name: Remove from the gres.conf file on the controller.
+  become: true
+  blockinfile:
+    path: "{{ slurm_conf_path }}/gres.conf"
+    marker: "### {mark} {{new_compute_info[item].hostname}}"
+    state: absent
+  delegate_to: 127.0.0.1
+  when: "'GPU' in new_compute_info[item].shape"
+  with_items: "{{ remove_compute_info }}"
+
 - name: create a list of hostnames to remove
   set_fact:
     hostnames_list: "{{ remove_compute_info | dict2items | map(attribute='value.hostname') | list }}"
@@ -148,7 +158,7 @@
   shell: "scontrol show hostlistsorted {{nodes_on_switch[item] | difference(hostnames_list) | join(',')}}"
   register: switch_condensed
   with_items: "{{hostnames_list}}"
-  when: ( ( nodes_on_switch[item] | difference(hostnames_list) | length ) > 1 ) and ( switchnames[item] | length ) > 1
+  when: ( ( nodes_on_switch[item] | difference(hostnames_list) | length ) > 0 ) and ( switchnames[item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
 
@@ -156,7 +166,7 @@
   set_fact:
     nodes_on_switch_condensed: "{{nodes_on_switch_condensed | default({}) | combine({item.item : item.stdout } ) }}"
   with_items: "{{switch_condensed.results}}"
-  when: ( ( nodes_on_switch[item.item] | difference(hostnames_list) | length ) > 1 ) and ( switchnames[item.item] | length ) > 1
+  when: ( ( nodes_on_switch[item.item] | difference(hostnames_list) | length ) > 0 ) and ( switchnames[item.item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
   ignore_errors: yes
@@ -170,7 +180,7 @@
     state: present
   with_items: "{{hostnames_list}}"
   ignore_errors: yes
-  when: ( ( nodes_on_switch[item] | difference(hostnames_list) | length ) > 1 ) and ( switchnames[item] | length ) > 1
+  when: ( ( nodes_on_switch[item] | difference(hostnames_list) | length ) > 0 ) and ( switchnames[item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
 
