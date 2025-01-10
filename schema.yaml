@@ -42,7 +42,6 @@ variableGroups:
       - ${controller_memory}
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
-      - ${controller_object_storage_par}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}
@@ -130,12 +129,6 @@ variableGroups:
       - ${api_user_ocid}
       - ${api_fingerprint}
       - ${api_user_key}
-  - title: "Autoscaling Monitoring"
-    variables: 
-      - ${autoscaling_mysql_service}
-      - ${monitoring_shape_name}
-      - ${admin_username}
-      - ${admin_password}
     visible: ${autoscaling}
   - title: "Additional file system"
     variables:
@@ -415,11 +408,6 @@ variables:
         - and: 
             - ${controller_custom_memory}
     required: true
-  controller_object_storage_par:
-    title: Create Object Storage PAR
-    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
-    type: boolean
-    default: true
 
   unsupported_controller: 
     title: "Use unsupported image" 
@@ -1399,41 +1387,6 @@ variables:
         - ${add_nfs} 
         - not:
           - ${create_fss}
-  monitoring_shape_name:
-    type: string
-    title: "MySQL Shape Name"
-    default: "MySQL.VM.Standard.E3.1.16GB"
-    required: true
-    description: "MySQL Shape Name"
-    visible: 
-      and:
-        - ${autoscaling_mysql_service} 
-    
-  admin_username:
-    type: string
-    title: "MySQL Monitoring username"
-    default: "admin"
-    required: true
-    description: ""
-    visible: 
-      and:
-        - ${autoscaling_mysql_service}
-
-  admin_password:
-    title: "MySQL Monitoring password"
-    default: "Monitor1234!"
-    description: "" 
-    visible: 
-      and:
-        - ${autoscaling_mysql_service}
-    required: true
-
-  autoscaling_mysql_service:
-    type: boolean
-    title: "Create a Mysql Service"
-    default: false
-    description: "false will use the controller as mysqlDB"
-    visible: ${autoscaling}
 
   privilege_sudo:
     type: boolean

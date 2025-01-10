@@ -239,8 +239,6 @@ resource "null_resource" "cluster_backup" {
       hyperthreading            = var.hyperthreading,
       controller_username       = var.controller_username,
       compute_username          = var.compute_username,
-      admin_password            = var.admin_password,
-      admin_username            = var.autoscaling_mysql_service ? var.admin_username : "root",
       enroot                    = var.enroot,
       pyxis                     = var.pyxis,
       pam                       = var.pam,
@@ -261,18 +259,6 @@ resource "null_resource" "cluster_backup" {
     })
 
     destination = "/opt/oci-hpc/playbooks/inventory"
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-
-  provisioner "file" {
-    content     = var.node_count > 0 ? join("\n", local.cluster_instances_ips) : "\n"
-    destination = "/tmp/hosts"
     connection {
       host        = local.host_backup
       type        = "ssh"
@@ -343,13 +329,11 @@ resource "null_resource" "cluster_backup" {
       login_ip                            = var.login_node ? oci_core_instance.login[0].private_ip : "",
       monitoring_name                     = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
       monitoring_ip                       = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
-      compute                             = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([], [])
       public_subnet                       = data.oci_core_subnet.public_subnet.cidr_block,
       public_subnet_id                    = local.controller_subnet_id,
       private_subnet                      = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id                   = local.subnet_id,
       rdma_subnet                         = var.rdma_subnet,
-      nfs                                 = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       scratch_nfs                         = var.use_scratch_nfs && var.node_count > 0,
       scratch_nfs_path                    = var.scratch_nfs_path,
       use_scratch_nfs                     = var.use_scratch_nfs,

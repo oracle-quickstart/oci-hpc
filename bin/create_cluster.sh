@@ -75,20 +75,6 @@ do
   start=`date -u +%s`
   start_timestamp=`date -u +'%F %T'`
   echo $2_${date} > cluster_id
-  if [ -f $monitoring_folder/activated ]
-  then
-    source $monitoring_folder/env
-    mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.clusters (id,creation_log,nodes,trigger_job_id,class_name,shape,CN,cpu_per_node,cluster_name,state,started_creation) VALUES ('$2_${date}','create_$2_${date}.log','$1','$5','$4','$shape',$cluster_network,36,'$2','creating','$start_timestamp');" >> $logs_folder/create_$2_${date}.log 2>&1
-    for i in $(eval echo "{1..$1}"); do
-      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,started_creation,state,class_name,shape) VALUES ('$2_${date}',$i,36,'$start_timestamp','provisioning','$4','$shape');" >> $logs_folder/create_$2_${date}.log 2>&1
-      succeded=$?
-      if [ $succeded -ne 0 ]
-      then
-        sleep 1
-        mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.nodes (cluster_id,cluster_index,cpus,started_creation,state,class_name,shape) VALUES ('$2_${date}',$i,36,'$start_timestamp','provisioning','$4','$shape');" >> $logs_folder/create_$2_${date}.log 2>&1
-      fi
-    done
-  fi
 
   echo `date -u '+%Y%m%d%H%M'` >> $logs_folder/create_$2_${date}.log 2>&1
   terraform init >> $logs_folder/create_$2_${date}.log 2>&1
@@ -101,27 +87,6 @@ do
   then
     echo "Successfully created $2 in $runtime seconds"
     rm currently_building
-    if [ -f $monitoring_folder/activated ]
-    then
-      ocid=`tail $logs_folder/create_$2_${date}.log | grep "cluster_ocid =" | awk '{print $3}'`
-      ips=`tail $logs_folder/create_$2_${date}.log | grep "private_ips =" | awk '{print $3}'`
-      hostnames=`tail $logs_folder/create_$2_${date}.log | grep "hostnames =" | awk '{print $3}'`
-      ocids=`tail $logs_folder/create_$2_${date}.log | grep "ocids =" | awk '{print $3}'`
-      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET cluster_OCID='${ocid:1:-1}',created='$end_timestamp',state='running',creation_time=SEC_TO_TIME($runtime) WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
-      export IFS=","
-      for ip in ${ips:1:-5}; do
-        ip_array+=( $ip )
-      done
-      for ocid in ${ocids:1:-5}; do
-        ocid_array+=( $ocid )
-      done
-      for hostname in ${hostnames:1:-1}; do
-        hostname_array+=( $hostname )
-      done
-      for index in "${!ip_array[@]}"; do
-          mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE nodes SET created='$end_timestamp',state='running',hostname='${hostname_array[$index]}',ip='${ip_array[$index]}',node_OCID='${ocid_array[$index]}' WHERE cluster_id='$2_${date}' AND cluster_index=$(($index+1));" >> $logs_folder/create_$2_${date}.log 2>&1
-      done
-    fi
     break
   else
     ERROR_MSG=`cat $logs_folder/create_$2_${date}.log | grep Error: | grep -o 'Output.*'`
@@ -155,12 +120,6 @@ do
     fi
     echo "Could not create $2 with $1 nodes in $runtime seconds"
     echo "$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages" | tee -a  $logs_folder/create_$2_${date}.log 2>&1
-
-    if [ -f $monitoring_folder/activated ]
-    then
-      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,nodes,created_on_m,class_name) VALUES ('$2_${date}','creation','$logs_folder/create_$2_${date}.log','$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages','$1','$end_timestamp','$4');" >> $logs_folder/create_$2_${date}.log 2>&1
-      mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET state='deleting',creation_error='`tail $logs_folder/create_$2_${date}.log | grep Error`' WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
-    fi
     rm currently_building
   fi
 done

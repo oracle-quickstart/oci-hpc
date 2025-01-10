@@ -60,10 +60,6 @@ variable "controller_shape" {
   default = "VM.Standard2.4" 
   type = string
   }
-variable "controller_object_storage_par" { 
-  default = true 
-  type = bool
-  }
 
 variable "custom_controller_image" {
   type    = string
@@ -562,26 +558,6 @@ variable "login_username" {
 variable "monitoring_username" {
   type    = string
   default = "opc"
-}
-
-variable "autoscaling_mysql_service" {
-  type    = bool
-  default = false
-}
-
-variable "monitoring_shape_name" {
-  type    = string
-  default = "MySQL.VM.Standard.E3.1.16GB"
-}
-
-variable "admin_username" {
-  type    = string
-  default = "admin"
-}
-
-variable "admin_password" {
-  type    = string
-  default = "Monitor1234!"
 }
 
 variable "scratch_nfs_mount" { 

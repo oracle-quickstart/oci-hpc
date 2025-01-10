@@ -110,9 +110,7 @@ resource "null_resource" "controller" {
       "sudo mkdir /config",
       "sudo chown ${var.controller_username}:${var.controller_username} /config",
       "mkdir -p /config/key",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
-      "mkdir -p /config/hosts",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/hosts"
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/key"
     ]
     connection {
       host        = local.host
@@ -306,8 +304,6 @@ resource "null_resource" "cluster" {
       hyperthreading            = var.hyperthreading,
       controller_username       = var.controller_username,
       compute_username          = var.compute_username,
-      admin_password            = var.admin_password,
-      admin_username            = var.autoscaling_mysql_service ? var.admin_username : "root",
       enroot                    = var.enroot,
       pyxis                     = var.pyxis,
       privilege_sudo            = var.privilege_sudo,
@@ -527,39 +523,6 @@ locals {
 saving the PAR into file: ../PAR_file_for_metrics.
 this PAR is used by the scripts to upload NIC metrics to object storage (i.e. script: upload_rdma_nic_metrics.sh)
 */
-
-
-resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
-  count          = (var.controller_object_storage_par) ? 1 : 0
-  compartment_id = var.targetCompartment
-  name           = local.rdma_nic_metric_bucket_name
-  namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
-  versioning     = "Enabled"
-}
-
-resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {
-  count        = (var.controller_object_storage_par) ? 1 : 0
-  depends_on   = [oci_objectstorage_bucket.RDMA_NIC_metrics_bucket]
-  access_type  = "AnyObjectWrite"
-  bucket       = local.rdma_nic_metric_bucket_name
-  name         = format("%s-%s", "RDMA_NIC_metrics_bucket", var.tenancy_ocid)
-  namespace    = data.oci_objectstorage_namespace.compartment_namespace.namespace
-  time_expires = "2030-08-01T00:00:00+00:00"
-}
-
-
-output "RDMA_NIC_metrics_url" {
-  depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
-  value      = (var.controller_object_storage_par) ? "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}" : ""
-}
-
-
-resource "local_file" "PAR" {
-  count      = (var.controller_object_storage_par) ? 1 : 0
-  depends_on = [oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par]
-  content    = "https://objectstorage.${var.region}.oraclecloud.com${oci_objectstorage_preauthrequest.RDMA_NIC_metrics_par[0].access_uri}"
-  filename   = "${local.par_path}/PAR_file_for_metrics"
-}
 
 
 resource "oci_dns_rrset" "rrset-controller" {
