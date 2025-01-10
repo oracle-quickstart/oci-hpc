@@ -7,3 +7,4 @@ Group={{ ansible_user }}
 ExecStart=/usr/bin/python3 /opt/oci-hpc/bin/nodes_update.py 
 StandardOutput=append:/opt/oci-hpc/logs/nodes_update.log
 StandardError=append:/opt/oci-hpc/logs/nodes_update.log
+TimeoutStartSec=300
