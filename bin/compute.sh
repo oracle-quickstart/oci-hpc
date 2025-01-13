@@ -34,11 +34,30 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   if [ $vid == 7 ]; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y ansible python-netaddr
+    while true; do
+      sudo yum install --enablerepo=$repo -y ansible python-netaddr
+      if [ $? -eq 0 ]; then
+          echo "ansible installed"
+          break
+      else
+          echo "ansible install failed. Retrying in 10s..."
+          sleep 10  # Sleep for 10 seconds
+      fi
+    done
+    
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
-    sudo python3.8 -m pip install ansible cryptography netaddr > /dev/null
+    while true; do
+      sudo python3.8 -m pip install ansible cryptography netaddr
+      if [ $? -eq 0 ]; then
+          echo "ansible installed"
+          break
+      else
+          echo "ansible install failed. Retrying in 10s..."
+          sleep 10  # Sleep for 10 seconds
+      fi
+    done
     sudo mkdir /etc/ansible
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
