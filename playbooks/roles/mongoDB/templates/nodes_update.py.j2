@@ -218,14 +218,20 @@ def terminate_nodes(terminating_host_dict):
             print("Message deleted for Hostname:", hostname)
     return terminated_nodes
 
-def find_nodes_configuring(started_nodes):
+def find_nodes_configuring(started_nodes,terminated_nodes):
     configuring_nodes=[]
+    terminating_nodes=[]
     results = list(collection.find({"controller_status": {"$in": ["terminating","configuring"]}}))
     for doc in results:
-        ip_address=doc["ip_address"]
-        if not ip_address in started_nodes:
-            configuring_nodes.append(ip_address)
-    return configuring_nodes
+        if doc["status"]=="terminating":
+            hostname=doc["hostname"]
+            if not hostname in terminated_nodes:
+                terminating_nodes.append(hostname)
+        else:
+            ip_address=doc["ip_address"]
+            if not ip_address in started_nodes:
+                configuring_nodes.append(ip_address)
+    return configuring_nodes,terminating_nodes
 
 # Main function
 if __name__ == "__main__":
@@ -237,20 +243,21 @@ if __name__ == "__main__":
     terminated_nodes=terminate_nodes(terminating_host_dict)
     unreachable_nodes,started_nodes = check_nodes_status()
     clean_old_terminated_nodes()
-    nodes_not_yet_configured=find_nodes_configuring(started_nodes)
+    nodes_not_yet_configured,nodes_not_yet_terminated=find_nodes_configuring(started_nodes,terminated_nodes)
     print("Scan completed and data inserted/updated in MongoDB.")
     print(terminated_nodes,"terminated_nodes")
     print(started_nodes,"started_nodes")
     print(nodes_not_yet_configured,"nodes_not_yet_configured")
+    print(nodes_not_yet_terminated,"nodes_not_yet_terminated")
 
-    if len(terminated_nodes) or len(started_nodes) or len(nodes_not_yet_configured):
+    if len(terminated_nodes) or len(started_nodes) or len(nodes_not_yet_configured) or len(nodes_not_yet_terminated):
         print("Adding/Removing nodes in Ansible")
         ansible_output,failure_count=run_ansible()
         if failure_count > 0:
             print(ansible_output)
         else:
             print("Ansible finished successfully")
-            update_configuration_status(started_nodes+nodes_not_yet_configured,terminated_nodes,ansible_output)
+            update_configuration_status(started_nodes+nodes_not_yet_configured,terminated_nodes+nodes_not_yet_terminated,ansible_output)
 
 finish_time = datetime.now()
 script_execution_time=finish_time-current_time
