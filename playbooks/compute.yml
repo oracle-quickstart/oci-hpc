@@ -28,6 +28,7 @@
     - limits
     - boot-volume
     - mpivars
+    - queue_read
 
 - hosts: localhost
   become: true

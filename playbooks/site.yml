@@ -253,6 +253,8 @@
   tasks: 
     - include_role: 
         name: mongoDB
+    - include_role: 
+        name: queue_write
 
 - hosts: all
   become: true
