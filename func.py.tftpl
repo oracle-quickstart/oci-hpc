@@ -12,6 +12,39 @@ controller_name = "${cluster_name}-controller"
 private_subnet= "${private_subnet}"
 zone_name = "${cluster_name}.local"
 
+# define a retry strategy
+retry_strategy_via_constructor = oci.retry.RetryStrategyBuilder(
+    # Make up to 10 service calls
+    max_attempts_check=True,
+    max_attempts=10,
+
+    # Don't exceed a total of 600 seconds for all service calls
+    total_elapsed_time_check=True,
+    total_elapsed_time_seconds=300,
+
+    # Wait 45 seconds between attempts
+    retry_max_wait_between_calls_seconds=45,
+
+    # Use 2 seconds as the base number for doing sleep time calculations
+    retry_base_sleep_time_seconds=2,
+
+    # Retry on certain service errors:
+    #
+    #   - 5xx code received for the request
+    #   - 409s where the code is QuotaExceeded or LimitExceeded
+    service_error_check=True,
+    service_error_retry_on_any_5xx=True,
+    service_error_retry_config={
+        409: []
+    },
+
+    # Use exponential backoff and retry with full jitter, but on throttles use
+    # exponential backoff and retry with equal jitter
+    backoff_type=oci.retry.BACKOFF_FULL_JITTER_EQUAL_ON_THROTTLE_VALUE
+).get_retry_strategy()
+
+
+
 
 def get_tag_controller(instance_ocid, controller_name):
     """
@@ -138,7 +171,8 @@ def update_display_name(instance_ocid, new_hostname):
             update_instance_response = core_client.update_instance(
                 instance_id=instance_ocid,
                 update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname),
-                retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+                #retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+                retry_strategy=retry_strategy_via_constructor)
             logging.getLogger().info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")    
     return   
 
