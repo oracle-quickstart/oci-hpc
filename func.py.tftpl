@@ -14,16 +14,16 @@ zone_name = "${cluster_name}.local"
 
 # define a retry strategy
 retry_strategy_via_constructor = oci.retry.RetryStrategyBuilder(
-    # Make up to 10 service calls
+    # Make up to 20 service calls
     max_attempts_check=True,
-    max_attempts=10,
+    max_attempts=20,
 
-    # Don't exceed a total of 600 seconds for all service calls
+    # Don't exceed a total of 300 seconds for all service calls
     total_elapsed_time_check=True,
     total_elapsed_time_seconds=300,
 
-    # Wait 45 seconds between attempts
-    retry_max_wait_between_calls_seconds=45,
+    # Wait 10 seconds between attempts
+    retry_max_wait_between_calls_seconds=10,
 
     # Use 2 seconds as the base number for doing sleep time calculations
     retry_base_sleep_time_seconds=2,
@@ -31,11 +31,12 @@ retry_strategy_via_constructor = oci.retry.RetryStrategyBuilder(
     # Retry on certain service errors:
     #
     #   - 5xx code received for the request
-    #   - 409s where the code is QuotaExceeded or LimitExceeded
+    #   - 409s and 429
     service_error_check=True,
     service_error_retry_on_any_5xx=True,
     service_error_retry_config={
-        409: []
+        409: [],
+        429: []
     },
 
     # Use exponential backoff and retry with full jitter, but on throttles use
