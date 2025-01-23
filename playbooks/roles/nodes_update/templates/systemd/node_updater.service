@@ -1,0 +1,10 @@
+[Unit]
+Description=Python Node Updater
+
+[Service]
+User={{ ansible_user }}
+Group={{ ansible_user }}
+ExecStart=/opt/oci-hpc/venv/bin/python3 /opt/oci-hpc/bin/nodes_update.py 
+StandardOutput=append:/opt/oci-hpc/logs/nodes_update.log
+StandardError=append:/opt/oci-hpc/logs/nodes_update.log
+TimeoutStartSec=300

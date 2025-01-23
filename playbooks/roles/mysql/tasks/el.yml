@@ -57,6 +57,14 @@
       pip:
         name: pymysql
         state: present
+        executable: /opt/oci-hpc/venv/bin/pip3
+
+    - name: Make sure pymysql is present
+      become: true 
+      pip:
+        name: pymysql
+        state: present
+        executable: /usr/bin/pip3
   when: ansible_distribution_major_version == '8' 
 
 - name: Update SELinux context for {{ mysql_db_path }}
