@@ -31,19 +31,17 @@ def scan_queue():
             break
         messages = messages_response_hostname.data.messages + messages_response_ip.data.messages
         for message in messages:
-            try:
-                content=eval(message.content)
-                if 'command' in content:
-                    commands.append(content['command'])
+            content=eval(message.content)
+            if 'command' in content:
+                commands.append(content['command'])
             # Delete the message after processing
             queue_client.delete_message(queue_ocid, message.receipt)
             print("Message deleted:", content['command'])
     return commands
 
 # Run Ansible
-def run_command():
+def run_command(command):
     try:
-        command = "ansible-playbook /config/playbooks/manage_nodes.yml"
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         return result.stdout
     except Exception as e:
