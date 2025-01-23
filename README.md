@@ -90,7 +90,7 @@ or:
 
 
 ## Supported OS: 
-The stack allowa various combination of OS. Here is a list of what has been tested. We can't guarantee any of the other combination.
+The stack allows a various combination of OS. Here is a list of what has been tested. We can't guarantee any of the other combination.
 
 |   Controller  |    Compute   |
 |---------------|--------------|
@@ -98,7 +98,7 @@ The stack allowa various combination of OS. Here is a list of what has been test
 |      OL8      |      OL7     |
 | Ubuntu  22.04 | Ubuntu 22.04 |
 
-When switching to Ubuntu, make sure the username is changed from opc to Ubuntu in the ORM for both the controller and compute nodes. 
+When switching to Ubuntu, make sure the username is changed from `opc` to `ubuntu` in ORM for both the controller and compute nodes. 
 
 
 ## How is resizing different from autoscaling ?
@@ -106,7 +106,7 @@ Autoscaling is the idea of launching new clusters for jobs in the queue.
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
 So while there may be capacity available in the DC, you may not be able to grow your current cluster.  
 
-# Cluster Network Resizing (via resize.sh)
+## Cluster Network Resizing (via resize.sh)
 
 Cluster resizing refers to ability to add or remove nodes from an existing cluster network. Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
 
@@ -119,7 +119,7 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
 
   Cluster created by the autoscaling script can also be resized by using the flag --cluster_name cluster-1-hpc
  
-## resize.sh usage 
+### resize.sh usage 
 
 The resize.sh is deployed on the controller node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will terminate the unreachable nodes before running the action that was requested (Example Adding a node) 
 
@@ -247,7 +247,7 @@ Full reconfiguration of all nodes of the cluster.   This will run the same steps
 - OCI console only resizes the Cluster Network/Instance Pool, but it doesn't execute the ansible tasks (HPC Cluster Stack) required to configure the newly added nodes or to update the existing nodes when a node is removed (eg: updating /etc/hosts, slurm config, etc).   
 
 
-# Autoscaling
+## Autoscaling
 
 The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next.
 
@@ -279,7 +279,7 @@ And in /etc/ansible/hosts, below value should be true
 autoscaling = true
 ```
 
-# Submit
+## Submit
 How to submit jobs: 
 Slurm jobs can be submitted as always but a few more constraints can be set: 
 Example in `/opt/oci-hpc/samples/submit/`: 
@@ -355,7 +355,7 @@ To do it manually, in your browser of choice, navigate to controllerIP:3000. Use
 You will now see the dashboard. 
 
 
-# LDAP 
+## LDAP 
 If selected controller host will act as an LDAP server for the cluster. It's strongly recommended to leave default, shared home directory. 
 User management can be performed from the controller using ``` cluster ``` command. 
 Example of cluster command to add a new user: 
@@ -365,11 +365,11 @@ By default, a `privilege` group is created that has access to the NFS and can ha
 To avoid generating a user-specific key for passwordless ssh between nodes, use --nossh. 
 ```cluster user add name --nossh --gid 9876```
 
-# Shared home folder
+## Shared home folder
 
 By default, the home folder is NFS shared directory between all nodes from the controller. You have the possibility to use a FSS to share it as well to keep working if the controller goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files. 
 
-# Deploy within a private subnet
+## Deploy within a private subnet
 
 If "true", this will create a private endpoint in order for Oracle Resource Manager to configure the controller VM and the future nodes in private subnet(s). 
 * If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the controller and one for the compute nodes.  
