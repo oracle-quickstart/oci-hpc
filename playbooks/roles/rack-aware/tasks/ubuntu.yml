@@ -4,7 +4,7 @@
     ansible_python_interpreter: /usr/bin/python3
   pip:
     name: ['pssh', 'parallel-ssh']
-    executable: pip3
+    executable: /usr/bin/pip3  
     state: latest
   ignore_errors: yes
 

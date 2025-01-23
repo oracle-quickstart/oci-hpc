@@ -30,6 +30,7 @@
       - Flask
       - oci
       - waitress
+    executable: /usr/bin/pip3  
   become: yes
 
 - name: Copy webhook script to server

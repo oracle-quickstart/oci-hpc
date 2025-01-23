@@ -1,0 +1,73 @@
+---
+#mongosh {{db_name}} --quiet --eval 'printjson(db.{{collection_name}}.find({}, {"lastTimeReachable": 1, "_id": 0}).sort({"lastTimeReachable": -1}).limit(1).toArray()[0].lastTimeReachable)' Get latest run of the script. 
+#mongosh {{db_name}} --quiet --eval 'printjson(db.{{collection_name}}.distinct("cluster_name"))'    Get all clustername values
+
+- name: Get All nodes in the cluster
+  shell: "mongosh {{db_name}} --quiet --eval 'print(JSON.stringify(db.{{collection_name}}.find({\"controller_name\": \"{{controller_hostname}}\",\"role\": \"compute\",\"cluster_name\": \"{{cluster_name}}\"}).toArray()))'"
+  register: get_cluster_nodes_results
+
+- name: Create an empty dir for all nodes
+  set_fact:
+    cluster_hosts_info: {}
+  when: "{{get_cluster_nodes_results.stdout == '[]' }}"
+
+- name: Create a dictionary from curl results for all nodes
+  set_fact:
+    cluster_hosts_info: "{{ cluster_hosts_info  | default({}) | combine({item.ip_address: item}) }}"
+  loop: "{{ get_cluster_nodes_results.stdout }}"
+
+- name: Get all new compute nodes
+  shell: "mongosh {{db_name}} --quiet --eval 'print(JSON.stringify(db.{{collection_name}}.find({\"controller_name\": \"{{controller_hostname}}\",\"role\": \"compute\", \"controller_status\": \"configuring\"}).toArray()))'"
+  register: get_new_compute_nodes_results
+
+- name: Create an empty dir of all new compute nodes
+  set_fact:
+    new_compute_info: {}
+  when: "{{get_new_compute_nodes_results.stdout == '[]' }}"
+
+- name: Create a dictionary from curl results of all new compute nodes
+  set_fact:
+    new_compute_info: "{{ new_compute_info  | default({}) | combine({item.ip_address: item}) }}"
+  loop: "{{ get_new_compute_nodes_results.stdout }}"
+
+- name: Get all new non-compute nodes 
+  shell: "mongosh {{db_name}} --quiet --eval 'print(JSON.stringify(db.{{collection_name}}.find({\"controller_name\": \"{{controller_hostname}}\",\"role\": { $ne: \"compute\"}, \"controller_status\": \"configuring\"}).toArray()))'"
+  register: get_new_non_compute_nodes_results
+
+- name: Create an empty dir of all new non-compute nodes 
+  set_fact:
+    new_hosts_info: {}
+  when: "{{get_new_non_compute_nodes_results.stdout == '[]' }}"
+
+- name: Create a dictionary from curl results of all new non-compute nodes 
+  set_fact:
+    new_hosts_info: "{{ new_hosts_info  | default({}) | combine({item.ip_address: item}) }}"
+  loop: "{{ get_new_non_compute_nodes_results.stdout }}"
+
+- name: Get all nodes to remove
+  shell: "mongosh {{db_name}} --quiet --eval 'print(JSON.stringify(db.{{collection_name}}.find({\"controller_name\": \"{{controller_hostname}}\",\"role\": \"compute\", \"controller_status\": \"terminating\"}).toArray()))'"
+  register: remove_nodes_results
+
+- name: Create an empty dir of all nodes to remove
+  set_fact:
+    remove_compute_info: {}
+  when: "{{remove_nodes_results.stdout == '[]' }}"
+
+- name: Create a dictionary from curl results of all nodes to remove
+  set_fact:
+    remove_compute_info: "{{ remove_compute_info  | default({}) | combine({item.ip_address: item}) }}"
+  loop: "{{ remove_nodes_results.stdout }}"
+
+- name: Get all hosts attached to the head node.
+  shell: "mongosh {{db_name}} --quiet --eval 'print(JSON.stringify(db.{{collection_name}}.find({\"controller_name\": \"{{controller_hostname}}\"}).toArray()))'"
+  register: get_all_nodes_results
+
+- name: Create an empty dir of all hosts
+  set_fact:
+    all_hosts_info: {}
+  when: "{{get_all_nodes_results.stdout == '[]' }}"
+
+- name: Create a dictionary from curl results of all hosts
+  set_fact:
+    all_hosts_info: "{{ all_hosts_info  | default({}) | combine({item.ip_address: item}) }}"
+  loop: "{{ get_all_nodes_results.stdout }}"

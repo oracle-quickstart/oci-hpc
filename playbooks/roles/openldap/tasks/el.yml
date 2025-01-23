@@ -116,12 +116,12 @@
       pip:
         name: pip
         extra_args: --upgrade
-        executable: pip3
+        executable: /usr/bin/pip3  
 
     - name: Install ladap3 and click
       pip:
         name: ['ldap3', 'click']
-        executable: pip3
+        executable: /usr/bin/pip3  
 
     - name: update /etc/openldap/ldap.conf
       lineinfile:

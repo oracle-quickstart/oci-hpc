@@ -21,4 +21,4 @@
   become: true
   pip:
     name: influxdb
-    executable: pip3
+    executable: /usr/bin/pip3  

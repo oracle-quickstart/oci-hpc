@@ -27,6 +27,7 @@
       - Flask
       - oci
       - waitress
+    executable: /usr/bin/pip3  
 
 - name: Copy webhook script to server
   become: true

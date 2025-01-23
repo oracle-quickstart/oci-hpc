@@ -5,7 +5,7 @@
   become: true
   pip:
     name: ['pssh', 'parallel-ssh']
-    executable: pip3
+    executable: /usr/bin/pip3  
     state: latest
   with_items:
     - pssh

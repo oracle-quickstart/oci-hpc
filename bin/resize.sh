@@ -23,7 +23,8 @@ fi
 
 if [ $# -eq 0 ] || [ $1 == "--help" ]
 then
-  python3 $folder/resize.py --help
+  source /opt/oci-hpc/venv/bin/activate
+  /opt/oci-hpc/venv/bin/python3 $folder/resize.py --help
   exit
 fi
 
@@ -98,7 +99,8 @@ then
     log=$logs_folder/resize_${cluster_id}.log
   fi
 
-  python3 $folder/resize.py ${@} | tee -a $log 2>&1 | grep STDOUT
+  source /opt/oci-hpc/venv/bin/activate
+  /opt/oci-hpc/venv/bin/python3 $folder/resize.py ${@} | tee -a $log 2>&1 | grep STDOUT
   status=${PIPESTATUS[0]}
   end=`date -u +%s`
   end_timestamp=`date -u +'%F %T'`
@@ -115,5 +117,6 @@ then
     rm currently_resizing
   fi
 else
-  python3 $folder/resize.py ${@}
+  source /opt/oci-hpc/venv/bin/activate
+  /opt/oci-hpc/venv/bin/python3 $folder/resize.py ${@}
 fi
