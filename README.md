@@ -3,7 +3,7 @@
 [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/oracle-quickstart/oci-hpc/archive/refs/heads/master.zip)
 
 ## Introduction
-This Terraform stack is intended to be used in [Oracle Resource Manager](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Concepts/resourcemanager.htm). It makes use of different [OCI services](#cloud-services-used) described in the section cloud services used and considerations before deployment. The goal is to deploy and configure a HPC/GPU cluster with at minimum a controller node with compute nodes residing in a [Virtual Cloud Network](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm) (VCN). The following diagram shows the target architecture:
+This Terraform stack is intended to be used in [Oracle Resource Manager](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Concepts/resourcemanager.htm). It makes use of different OCI services described in the section [cloud services used](#cloud-services-used) and considerations before deployment. The goal is to deploy and configure a HPC/GPU cluster with at minimum a controller node with compute nodes residing in a [Virtual Cloud Network](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm) (VCN). The following diagram shows the target architecture:
 
 ![Target architecture deployed via this Terraform stack.](/images/architecture_diagram.png)
 
