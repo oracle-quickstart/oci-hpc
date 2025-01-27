@@ -63,6 +63,21 @@ With the following policy:
 Allow dynamic-group fn_dg to manage all-resources in compartment compartmentName
 ```
 
+### Policies for queues 
+In order to read messages from the OCI queue service, the controller and compute nodes need to be part of a dynamic group with the adequate policies (see [instance principals](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm)).
+
+Example with the dynamic group *instance_principal*
+```
+All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
+```
+
+With the following policies:
+```
+Allow dynamic-group instance_principal to use queue-pull in compartment CompartmentName
+Allow dynamic-group instance_principal to use queue-pull in compartment CompartmentName
+allow dynamic-group instance_principal to manage queues in compartment CompartmentName
+```
+
 ### Policies for autoscaling or resizing:
 As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group including one or more instance in a compartment and all the functions of the compartment. Example with the dynamic group *instance_principal*
 
@@ -100,13 +115,58 @@ The stack allows a various combination of OS. Here is a list of what has been te
 
 When switching to Ubuntu, make sure the username is changed from `opc` to `ubuntu` in ORM for both the controller and compute nodes. 
 
+## Workflow
+
+![Workflow for node configuration](/images/workflow.png)
+
+### Serverless function
+When nodes are added/removed, this triggers an event which triggers an OCI function. This serverless function will register nodes in the DNS and change the OCI display name to the Slurm name if `Change hostname` is set to `true` is the configuration. The current approach is using the Oracle DNS service instead of the `/etc/hosts`
+
+When a node is created:
+  * Send a message to the queue with the IP of the node and status 'starting'
+  * Add DNS entry (hostname_convention must be a tag)
+  * Change the OCI display name to the Slurm name (if option checked)
+
+When a node is deleted:
+  * Send a message to the queue with the IP of the node and status 'terminating'
+  * Remove DNS entry 
+
+### Node configuration
+Each compute node will run an Ansible script locally. The nodes will be tagged with the name of the controller they belong to. That node will mount a nfs `/config` folder to get the Ansible Playbooks and the keys. The ansible playbook will run all the tasks that can be run on the host where one task creates a small HTTP server that boradcasts information on port 8080. Here is an example of the information:
+```
+ip_address: '172.16.0.66',
+AD: 'xXXX:CA-TORONTO-1-AD-1',
+cluster_name: 'loving-flounder',
+compartment: 'ocid1.compartment.oc1..xxxxxxxxxxxxxxxxx',
+controller_name: 'loving-flounder-controller',
+fss_mount: 'None',
+hostname: 'loving-flounder-controller',
+hpc_island: 'None',
+networkBlockId: 'None',
+oci_name: 'loving-flounder-controller',
+ocid: 'ocid1.instance.oc1.ca-toronto-1.xxxxxxxxxxxxxxxxxxxxxxxx',
+rackID: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+railId: 'None',
+role: 'controller',
+serial: 'Not Specified',
+shape: 'VM.Standard.E4.Flex',
+status: 'configured',
+```
+
+### Controller service and actions for configuration
+The Controller is running a service that will read messages in the queue and store the information in a MySQL database. It also queries the information of the webservers of the compute nodes and add this to the database as well. Finally, it runs ansible roles locally when the nodes are marked as "Ready" in order to finalise the cluster setup:
+  * run role `Fix_ldap`
+  * Add/remove the node to prometheus.yml
+  * Add/remove the node in slurm configuration i.e. topology.conf and gres.conf
 
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
-Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle CLoud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
+Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle Cloud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
 So while there may be capacity available in the DC, you may not be able to grow your current cluster.  
 
 ## Cluster Network Resizing (via resize.sh)
+> [!WARNING]
+> This section is deprecated and needs to be improved. It is now possible to resize directly from the OCI web console thanks to the event/function/queue approach.
 
 Cluster resizing refers to ability to add or remove nodes from an existing cluster network. Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
 
@@ -240,16 +300,11 @@ Full reconfiguration of all nodes of the cluster.   This will run the same steps
 ```
 
 
-
-## Resizing (via OCI console)
-**Things to consider:**  
-- If you resize from OCI console to reduce cluster network/instance pool size(scale down),  the OCI platform decides which node to terminate (oldest node first)
-- OCI console only resizes the Cluster Network/Instance Pool, but it doesn't execute the ansible tasks (HPC Cluster Stack) required to configure the newly added nodes or to update the existing nodes when a node is removed (eg: updating /etc/hosts, slurm config, etc).   
-
-
 ## Autoscaling
+> [!WARNING]
+> Not to be confused with the [Autoscaling service](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/autoscalinginstancepools.htm) from OCI.
 
-The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next.
+The autoscaling will work in a “cluster per job” approach. This means that for job waiting in the queue, we will launch a new cluster specifically for that job. Autoscaling will also take care of spinning down clusters. By default, a cluster is left Idle for 10 minutes before shutting down. Autoscaling is achieved with a cronjob to be able to quickly switch from one scheduler to the next.
 
 Smaller jobs can run on large clusters and the clusters will be resized down after the grace period to only the running nodes. Cluster will NOT be resized up. We will spin up a new larger cluster and spin down the smaller cluster to avoid capacity issues in the HPC island. 
 
@@ -278,6 +333,13 @@ And in /etc/ansible/hosts, below value should be true
 ```
 autoscaling = true
 ```
+
+## Autoscaling Monitoring
+If you selected the autoscaling monitoring, you can see what nodes are spinning up and down as well as running and queued jobs. Everything will run automatically except the import of the Dashboard in Grafana due to a problem in the Grafana API. 
+
+To do it manually, in your browser of choice, navigate to controllerIP:3000. Username and password are admin/admin, you can change those during your first login. Go to Configuration -> Data Sources. Select autoscaling. Enter Password as Cluster1234! and click on 'Save & test'. Now click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
+
+You will now see the dashboard. 
 
 ## Submit
 How to submit jobs: 
@@ -347,14 +409,6 @@ In case something goes wrong during the deletion, you can force the deletion wit
 ```
 When the cluster is already being destroyed, it will have a file `/opt/oci-hpc/autoscaling/clusters/clustername/currently_destroying` 
 
-## Autoscaling Monitoring
-If you selected the autoscaling monitoring, you can see what nodes are spinning up and down as well as running and queued jobs. Everything will run automatically except the import of the Dashboard in Grafana due to a problem in the Grafana API. 
-
-To do it manually, in your browser of choice, navigate to controllerIP:3000. Username and password are admin/admin, you can change those during your first login. Go to Configuration -> Data Sources. Select autoscaling. Enter Password as Cluster1234! and click on 'Save & test'. Now click on the + sign on the left menu bar and select import. Click on Upload JSON file and upload the file the is located at `/opt/oci-hpc/playbooks/roles/autoscaling_mon/files/dashboard.json`. Select autoscaling (MySQL) as your datasource. 
-
-You will now see the dashboard. 
-
-
 ## LDAP 
 If selected controller host will act as an LDAP server for the cluster. It's strongly recommended to leave default, shared home directory. 
 User management can be performed from the controller using ``` cluster ``` command. 
@@ -375,7 +429,7 @@ If "true", this will create a private endpoint in order for Oracle Resource Mana
 * If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the controller and one for the compute nodes.  
 * If "Use Existing Subnet" is also true, the user must indicate a private subnet for the controller VM. For the compute nodes, they can reside in another private subnet or the same private subent as the controller VM. 
 
-The controller VM will reside in a private subnet. Therefore, the creation of a "bastion service" (https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
+The controller VM will reside in a private subnet. Therefore, the creation of a [bastion service](https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
 
 
 
