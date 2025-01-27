@@ -42,11 +42,11 @@ This Terraform stack is intended to be used in [Oracle Resource Manager](https:/
 This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth tokens are limited and an existing one can be specified during the configuration.
 
 > [!WARNING]
-> Auth token are limited to "2" per user by default. It is recommended to use an existing Auth Token that can be created in your home region prior to the stack deployment. In case you do not select *"Use existing auth token"*, a Auth Token will be created. Please note that after the creation, some time (up to 5mins) is needed for the Auth Token to be valid to authenticate with "docker login". This is why a "time_sleep" resource is executed in terraform.
+> Auth token are limited to "2" per user by default. It is recommended to use an existing Auth Token that can be created in your home region prior to the stack deployment. In case you do not select *"Use existing auth token"*, a Auth Token will be created. Please note that after the creation, some time (up to 5mins) is needed for the Auth Token to be valid to authenticate with `docker login`. This is why a `time_sleep` resource is executed in terraform.
 
 **Using an existing VCN**
 
-This implementation uses Private DNS view. When using an existing VCN, make sure you have a private zone with <cluster-name>.local. You also must have the correct DCHP options created set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP options of the different subnets must be set to this newly created DCHP options and not "Default DHCP Options..."
+This implementation uses Private DNS view. When using an existing VCN, make sure you have a private zone with <cluster-name>.local. You also must have the correct DCHP options created set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP options of the different subnets must be set to the newly created DCHP options and not "Default DHCP Options..."
 
 > [!WARNING]
 > If the DHCP options and the private zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
@@ -174,8 +174,8 @@ Resizing a cluster is changing the size of a cluster. In some case growing your 
 So while there may be capacity available in the DC, you may not be able to grow your current cluster.  
 
 ## Cluster Network Resizing (via resize.sh)
-> [!WARNING]
-> This section is deprecated and needs to be improved. It is now possible to resize directly from the OCI web console thanks to the event/function/queue approach.
+> [!NOTE]
+> This section might need some improvements. It is now possible to resize directly from the OCI web console thanks to the event/function/queue approach.
 
 Cluster resizing refers to ability to add or remove nodes from an existing cluster network. Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
 
@@ -189,7 +189,6 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
   Cluster created by the autoscaling script can also be resized by using the flag --cluster_name cluster-1-hpc
  
 ### resize.sh usage 
-
 The resize.sh is deployed on the controller node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will terminate the unreachable nodes before running the action that was requested (Example Adding a node) 
 
 ```
@@ -429,21 +428,19 @@ To avoid generating a user-specific key for passwordless ssh between nodes, use 
 ```cluster user add name --nossh --gid 9876```
 
 ## Shared home folder
-
 By default, the home folder is NFS shared directory between all nodes from the controller. You have the possibility to use a FSS to share it as well to keep working if the controller goes down. You can either create the FSS from the GUI. Be aware that it will get destroyed when you destroy the stack. Or you can pass an existing FSS IP and path. If you share an existing FSS, do not use /home as mountpoint. The stack will take care of creating a $nfsshare/home directory and mounting it at /home after copying all the appropriate files. 
 
 ## Deploy within a private subnet
+If `true`, this will create a private endpoint in order for Oracle Resource Manager to configure the controller VM and the future nodes in private subnet(s). 
+* If "Use Existing Network" is false, Terraform will create 2 private subnets, one for the controller and one for the compute nodes.  
+* If "Use Existing Network" is true, the user must indicate a private subnet for the controller VM. For the compute nodes, they can reside in another private subnet or the same private subent as the controller VM. 
 
-If "true", this will create a private endpoint in order for Oracle Resource Manager to configure the controller VM and the future nodes in private subnet(s). 
-* If "Use Existing Subnet" is false, Terraform will create 2 private subnets, one for the controller and one for the compute nodes.  
-* If "Use Existing Subnet" is also true, the user must indicate a private subnet for the controller VM. For the compute nodes, they can reside in another private subnet or the same private subent as the controller VM. 
-
-The controller VM will reside in a private subnet. Therefore, the creation of a [bastion service](https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
+> [!IMPORTANT]
+> The controller VM will reside in a private subnet. Therefore, the creation of a [bastion service](https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
 
 
 
 ## max_nodes_partition.py usage 
-
 Use the alias "max_nodes" to run the python script max_nodes_partition.py. You can run this script only from controller.
 
 $ max_nodes --> Information about all the partitions and their respective clusters, and maximum number of nodes distributed evenly per partition
@@ -452,7 +449,6 @@ $ max_nodes --include_cluster_names xxx yyy zzz --> where xxx, yyy, zzz are clus
 
 
 ## validation.py usage
-
 Use the alias "validate" to run the python script validation.py. You can run this script only from controller. 
 
 The script performs these checks. 
@@ -526,7 +522,6 @@ compute-permanent-node-787
 
 
 ## Collect RDMA NIC Metrics and Upload to Object Storage
-
 OCI-HPC is deployed in customer tenancy. So, OCI service teams cannot access metrics from these OCI-HPC stack clusters. Due to overcome this issue, in release,
 we introduce a feature to collect RDMA NIC Metrics and upload those metrics to Object Storage. Later on, that Object Storage URL could be shared with OCI service
 teams. After that URL, OCI service teams could access metrics and use those metrics for debugging purpose.
@@ -542,7 +537,6 @@ User needs to use shell script: upload_rdma_nic_metrics.sh to collect metrics an
 collection limit and interval through config file: rdma_metrics_collection_config.conf.
 
 ## Meshpinger
-
 Meshpinger is a tool for validating network layer connectivity between RDMA NICs on a cluster network in OCI. The tool is capable of initiating ICMP ping from every RDMA NIC port on the cluster network to every other RDMA NIC port on the same cluster network and
 reporting back the success/failure status of the pings performed in the form of logs
 
