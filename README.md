@@ -37,10 +37,17 @@ This Terraform stack is intended to be used in [Oracle Resource Manager](https:/
 > Be sure to have the appropriate limit for each service that is used. In case you reach *limit exceeded*, you can create a [Service Limit Increase Request](https://docs.oracle.com/en-us/iaas/Content/GSG/support/create-incident-limit.htm)
 
 ### Considerations 
+**Serverless part** 
 This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth tokens are limited and an existing one can be specified during the configuration.
 
 > [!WARNING]
 > Auth token are limited to "2" per user by default. It is recommended to use an existing Auth Token that can be created in your home region prior to the stack deployment. In case you do not select *"Use existing auth token"*, a Auth Token will be created. Please note that after the creation, some time (up to 5mins) is needed for the Auth Token to be valid to authenticate with "docker login". This is why a "time_sleep" resource is executed in terraform.
+
+**Using an existing VCN**
+This implementation uses Private DNS view. When using an existing VCN, make sure you have a private zone with <cluster-name>.local. You also must have the correct DCHP options created set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP options of the different subnets must be set to this newly created DCHP options and not "Default DHCP Options..."
+
+> [!WARNING]
+> If the DHCP options and the private zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
 
 ## Policies
 ### Policies to deploy the stack: 
@@ -120,7 +127,7 @@ When switching to Ubuntu, make sure the username is changed from `opc` to `ubunt
 ![Workflow for node configuration](/images/workflow.png)
 
 ### Serverless function
-When nodes are added/removed, this triggers an event which triggers an OCI function. This serverless function will register nodes in the DNS and change the OCI display name to the Slurm name if `Change hostname` is set to `true` is the configuration. The current approach is using the Oracle DNS service instead of the `/etc/hosts`
+When nodes are added/removed, this triggers an event which triggers an OCI function. This serverless function will register nodes in the DNS and change the OCI display name to the Slurm name if `Change hostname` is set to `true` in the configuration. The current approach is using the Oracle DNS service instead of the `/etc/hosts`
 
 When a node is created:
   * Send a message to the queue with the IP of the node and status 'starting'
