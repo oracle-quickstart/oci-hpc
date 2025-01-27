@@ -46,7 +46,7 @@ This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/
 
 **Using an existing VCN**
 
-This implementation uses Private DNS view. When using an existing VCN, make sure you have a private zone with <cluster-name>.local. You also must have the correct DCHP options created set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP options of the different subnets must be set to the newly created DCHP options and not "Default DHCP Options..."
+This implementation uses Private DNS view. When using an existing VCN, make sure you have a private zone with `<cluster-name>.local`. You also must create the correct DCHP options set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP options of the different subnets must be set to the newly created DCHP options and not "Default DHCP Options..."
 
 > [!WARNING]
 > If the DHCP options and the private zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
