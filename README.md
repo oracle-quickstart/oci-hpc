@@ -38,12 +38,14 @@ This Terraform stack is intended to be used in [Oracle Resource Manager](https:/
 
 ### Considerations 
 **Serverless part** 
+
 This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth tokens are limited and an existing one can be specified during the configuration.
 
 > [!WARNING]
 > Auth token are limited to "2" per user by default. It is recommended to use an existing Auth Token that can be created in your home region prior to the stack deployment. In case you do not select *"Use existing auth token"*, a Auth Token will be created. Please note that after the creation, some time (up to 5mins) is needed for the Auth Token to be valid to authenticate with "docker login". This is why a "time_sleep" resource is executed in terraform.
 
 **Using an existing VCN**
+
 This implementation uses Private DNS view. When using an existing VCN, make sure you have a private zone with <cluster-name>.local. You also must have the correct DCHP options created set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP options of the different subnets must be set to this newly created DCHP options and not "Default DHCP Options..."
 
 > [!WARNING]
