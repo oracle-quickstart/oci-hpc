@@ -205,24 +205,6 @@ def getLaunchInstanceDetails(instance,comp_ocid,cn_ocid,max_previous_index,index
     new_display_name = '-'.join(splitted_name)
     launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=comp_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
     return launch_instance_details
-
-def mongo_remove(hostnames):
-    try:
-        command = "mongosh "+db_name+" --quiet --eval 'db."+collection_name+".updateMany({ hostname: { $in: ["+','.join(hostnames)+"] } },{ $set: { status: \"to_terminate\",terminated:"+current_time_str+" } });'"
-        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        return result.stdout
-    except Exception as e:
-        print(f"Error running mongosh: {e}")
-        sys.exit(1)
-
-def restart_node_updater():
-    try:
-        command = "sudo systemctl start node_updater.service"
-        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        return result.stdout
-    except Exception as e:
-        print(f"Error running mongosh: {e}")
-        sys.exit(1)
    
 batchsize=12
 inventory="/etc/ansible/hosts"
@@ -398,8 +380,6 @@ else:
             else:
                 newsize=ip_summary.size
                 updateTFState(inventory,cluster_name,newsize)
-            mongo_remove(hostnames_removed)
-            restart_node_updater()
             print("STDOUT: Resized to "+str(newsize)+" instances")
             # Run Nmap scan to find open HTTP servers
 
