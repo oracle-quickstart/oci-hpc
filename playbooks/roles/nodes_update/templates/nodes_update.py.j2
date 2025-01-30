@@ -1,6 +1,6 @@
 
 '''
-This script is updating the MongoDB about the node status as well as launching ansible on the controller. 
+This script is updating the MySQL DB about the node status as well as launching ansible on the controller. 
 Ansible on the controller is only doing the tasks that cannot be run on the host locally. 
 Current roles: 
 - Update Slurm topology
@@ -41,7 +41,7 @@ current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
 print(f"Started the nodes_update script at {current_time_str}")
 
-# MongoDB Connection Details
+# DB Connection Details
 db_host="localhost"
 db_user="clusterUser"
 db_pw="Cluster1234!"
@@ -131,11 +131,11 @@ def scan_queue():
                         UPDATE nodes
                         SET status = 'terminated',
                             controller_status = 'terminating',
-                            terminated = %s
-                        WHERE hostname = %s;
+                            terminatedTime = %s
+                        WHERE hostname = %s ;
                         """
                         run_query(query,args=(current_time_str, hostname))
-                        #collection.update_one({"hostname": hostname}, {"$set": {"status": "terminated","controller_status": "terminating","terminated":current_time_str}})
+                        #collection.update_one({"hostname": hostname}, {"$set": {"status": "terminated","controller_status": "terminating","terminatedTime":current_time_str}})
                         new_hosts_to_remove.append(hostname)
                         queue_client.delete_message(queue_ocid, message.receipt)
                         print("Message deleted for Hostname:", hostname)
@@ -156,7 +156,7 @@ def run_ansible():
         sys.exit(1)
 
 
-# Parse nodes and update records in MongoDB
+# Parse nodes and update records in DB
 def check_nodes_status():
     time_threshold = current_time.utcnow() - unreachable_timeout
     query = """
@@ -164,7 +164,6 @@ def check_nodes_status():
     WHERE status NOT IN ('terminated', 'terminating');
     """
     results = run_query(query,results_wanted=True)
-    #results = list(collection.find({"status": {"$nin": ["terminated","terminating"]}}))
     unreachable_nodes=[]
     started_nodes=[]
     ip_addresses=[doc["ip_address"] for doc in results]
@@ -257,7 +256,6 @@ def update_configuration_status(started_nodes,terminating_host_list,ansible_outp
     WHERE controller_status IN ('configuring');
     """
     results = run_query(query,results_wanted=True)
-    #results = list(collection.find({"controller_status": "configuring"}))
     for doc in results:
         ip_address=doc["ip_address"]
         if ip_address in started_nodes:
@@ -283,7 +281,7 @@ def update_configuration_status(started_nodes,terminating_host_list,ansible_outp
             SET controller_status = 'terminated'
             WHERE id = %s;
             """
-            run_query(query,args=(controller_status, doc["id"]))
+            run_query(query,args=(doc["id"],))
             #collection.update_one({"_id": doc["_id"]}, {"$set": {"controller_status": "terminated"}})
 
 def find_nodes_configuring(started_nodes,terminated_nodes):
@@ -314,7 +312,7 @@ if __name__ == "__main__":
     unreachable_nodes,started_nodes = check_nodes_status()
     clean_old_terminated_nodes()
     nodes_not_yet_configured,nodes_not_yet_terminated=find_nodes_configuring(started_nodes,terminating_host_list)
-    print("Scan completed and data inserted/updated in MongoDB.")
+    print("Scan completed and data inserted/updated in DB.")
     print(terminating_host_list,"terminated_nodes")
     print(started_nodes,"started_nodes")
     print(nodes_not_yet_configured,"nodes_not_yet_configured")

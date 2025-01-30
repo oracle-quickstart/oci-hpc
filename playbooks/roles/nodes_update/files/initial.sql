@@ -22,5 +22,6 @@ CREATE TABLE IF NOT EXISTS clusterDB.nodes (
     role VARCHAR(64),
     serial VARCHAR(64),
     shape VARCHAR(64),
+    terminatedTime VARCHAR(64),
     update_count INT
 );
