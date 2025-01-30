@@ -13,7 +13,7 @@
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
 
-- name: Copying the Mongo Scraper config
+- name: Copying the DB Scraper config
   become: true
   template:
     src: queue_read.py.j2
