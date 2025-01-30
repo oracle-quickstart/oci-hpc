@@ -1,7 +1,7 @@
 import pymysql
 import json
 
-# MongoDB Connection Details
+#DB Connection Details
 db_host="localhost"
 db_user="clusterUser"
 db_pw="Cluster1234!"

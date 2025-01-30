@@ -50,6 +50,21 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0775'  
+
+- name: Ensure db directory exists
+  file:
+    path: "/opt/oci-hpc/db"
+    state: directory
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+
+- name: Generate env file
+  template: 
+    src: get_nodes_from_db.py
+    dest: /opt/oci-hpc/bin/get_nodes_from_db.py
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: 0775
     
 - name: Create systemd service unit file
   template:
