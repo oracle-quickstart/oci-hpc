@@ -189,6 +189,9 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
   Cluster created by the autoscaling script can also be resized by using the flag --cluster_name cluster-1-hpc
  
 ### resize.sh usage 
+> [!IMPORTANT]
+> Before using the script, make sure you activate the virtual environment: `source /opt/oci-hpc/venv/bin/activate`
+
 The resize.sh is deployed on the controller node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will terminate the unreachable nodes before running the action that was requested (Example Adding a node) 
 
 ```
