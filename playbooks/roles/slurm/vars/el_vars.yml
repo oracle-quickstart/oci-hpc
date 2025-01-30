@@ -63,3 +63,5 @@ pmix_download_packages:
 pmix_packages:
   - "{{ download_path }}/slurm_rpms/pmix-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/pmix-devel-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
+
+slurm_repos: "{% if ansible_distribution_major_version == '8' %}ol8_developer_EPEL,ol8_codeready_builder{% else%}epel,ol7_developer_EPEL{% endif %}"

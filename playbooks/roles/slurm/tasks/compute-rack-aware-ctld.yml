@@ -117,3 +117,11 @@
 
 - name: run handlers
   meta: flush_handlers
+
+- name: reconfigure slurm
+  become: true
+  command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5

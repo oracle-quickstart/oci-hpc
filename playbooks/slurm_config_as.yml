@@ -6,8 +6,7 @@
 - hosts: compute, slurm_backup
   gather_facts: true
   vars:
-    destroy: false
-    initial: false
+    slurm_mode: 'controller'
     download_path: "{{ cluster_nfs_path if cluster_nfs|bool else '/tmp' }}"
     enroot_top_path: "{{ nvme_path }}/enroot/"
   vars_files:

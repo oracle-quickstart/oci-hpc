@@ -167,7 +167,6 @@
     owner: slurm
     group: slurm
   notify: restart slurm server
-  when: initial | bool
 
 - name: add alias for node status
   lineinfile:

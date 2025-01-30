@@ -12,7 +12,6 @@
 - hosts: localhost
   become: true
   vars:
-    destroy: false
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configuring"
   gather_facts: true
@@ -109,8 +108,7 @@
 
 - hosts: localhost
   vars:
-    destroy: false
-    initial: false
+    slurm_mode: 'compute'
     download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
@@ -126,7 +124,7 @@
         name: metrics-exporter
       when: cluster_monitoring|default(false)|bool
     - include_role:
-        name: slurm_compute
+        name: slurm
       when: slurm|default(false)|bool
 
 - hosts: localhost

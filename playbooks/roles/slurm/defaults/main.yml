@@ -1,5 +1,9 @@
 munge_conf_path: '/etc/munge'
 slurm_spool_path: '/var/spool/slurmd'
+slurm_conf_path: '/etc/slurm'
+slurm_log_path: '/var/log/slurm'
+slurm_exec: '/usr'
+slurm_conf_file: slurm.conf.j2
 munge_log_path: '/var/log/munge'
 munge_run_path: '/var/run/munge'
 slurm_db_user: 'slurm_accounting' 
