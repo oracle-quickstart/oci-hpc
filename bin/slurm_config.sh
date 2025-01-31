@@ -9,7 +9,7 @@ scripts=`realpath $0`
 folder=`dirname $scripts`
 autoscaling_folder=$folder/../autoscaling/
 conf_folder=$folder/../conf/
-playbooks_path=$folder/../playbooks/
+playbooks_path=/config/playbooks/
 
 source /etc/os-release
 
