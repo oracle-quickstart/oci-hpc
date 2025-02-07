@@ -25,12 +25,17 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       agent_config {
 
         are_all_plugins_disabled = false
-        is_management_disabled   = true
+        is_management_disabled   = false
         is_monitoring_disabled   = false
 
         plugins_config {
           desired_state = "DISABLED"
           name          = "OS Management Service Agent"
+        }
+
+        plugins_config {
+          desired_state = "DISABLED"
+          name          = "Compute Instance Run Command"
         }
         dynamic "plugins_config" {
           for_each = length(regexall(".*GPU.*", var.instance_pool_shape)) > 0 ? ["ENABLED"] : ["DISABLED"]
