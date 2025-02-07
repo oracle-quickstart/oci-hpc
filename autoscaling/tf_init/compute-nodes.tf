@@ -17,6 +17,14 @@ resource "oci_core_volume_attachment" "compute_cluster_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 } 
 
+resource "random_string" "cc_name" {
+  count = var.compute_cluster ? var.node_count : 0
+  length = 5
+  lower  = true
+  numeric = false
+  special = false
+}
+
 resource "oci_core_instance" "compute_cluster_instances" {
   count = var.compute_cluster ? var.node_count : 0
   depends_on          = [oci_core_compute_cluster.compute_cluster]
@@ -28,7 +36,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
     is_management_disabled = true
     }
 
-  display_name        = "${local.cluster_name}-node-${var.compute_cluster_start_index+count.index}"
+  display_name        = "inst-" + random_string.cc_name[count.index].result + "-${local.cluster_name}"
 
   freeform_tags = {
     "cluster_name" = local.cluster_name
@@ -40,7 +48,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
 
   metadata = {
     ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/ed25519.pub")
-    user_data           = base64encode(data.template_file.config.rendered)
+    user_data           = base64encode(file("cloud-init.sh"))
   }
   source_details {
     source_id = local.cluster_network_image

@@ -17,6 +17,14 @@ resource "oci_core_volume_attachment" "compute_cluster_volume_attachment" {
   device          = "/dev/oracleoci/oraclevdb"
 }
 
+resource "random_string" "cc_name" {
+  count = var.compute_cluster ? var.node_count : 0
+  length = 5
+  lower  = true
+  numeric = false
+  special = false
+}
+
 resource "oci_core_instance" "compute_cluster_instances" {
   count               = var.compute_cluster ? var.node_count : 0
   depends_on          = [oci_core_compute_cluster.compute_cluster, oci_functions_function.function]
@@ -36,14 +44,14 @@ resource "oci_core_instance" "compute_cluster_instances" {
     }
     dynamic "plugins_config" {
 
-      for_each = var.use_compute_agent ? ["ENABLED"] : ["DISABLED"]
+      for_each = var.cluster_network ? ["ENABLED"] : ["DISABLED"]
       content {
         name          = "Compute HPC RDMA Authentication"
         desired_state = plugins_config.value
       }
     }
     dynamic "plugins_config" {
-      for_each = var.use_compute_agent ? ["ENABLED"] : ["DISABLED"]
+      for_each = var.cluster_network ? ["ENABLED"] : ["DISABLED"]
       content {
         name          = "Compute HPC RDMA Auto-Configuration"
         desired_state = plugins_config.value
@@ -57,8 +65,8 @@ resource "oci_core_instance" "compute_cluster_instances" {
       }
     }
   }
-
-  display_name = "${local.cluster_name}-node-${var.compute_cluster_start_index + count.index}"
+ 
+  display_name = "inst-${random_string.cc_name[count.index].result}-${local.cluster_name}"
 
   freeform_tags = {
     "cluster_name"   = local.cluster_name
@@ -69,7 +77,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
-    user_data           = base64encode(data.template_file.controller_config.rendered)
+    user_data           = base64encode(file("cloud-init.sh"))
   }
   source_details {
     source_id               = local.cluster_network_image
@@ -82,4 +90,4 @@ resource "oci_core_instance" "compute_cluster_instances" {
     subnet_id        = local.subnet_id
     assign_public_ip = false
   }
-} 
+}
