@@ -218,7 +218,6 @@ resource "null_resource" "cluster_backup" {
       log_vol                   = var.log_vol,
       redundancy                = var.redundancy,
       cluster_network           = var.cluster_network,
-      use_compute_agent         = var.use_compute_agent,
       slurm                     = var.slurm,
       slurm_nfs_path            = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path,
       rack_aware                = var.rack_aware,
@@ -284,10 +283,9 @@ resource "null_resource" "cluster_backup" {
     }
   }
 
-  provisioner "file" {
-    content = templatefile("${path.module}/queues.conf", {
+provisioner "file" {
+    content = templatefile("${path.module}/conf/queues.conf.example", {
       cluster_network             = var.cluster_network,
-      use_compute_agent           = var.use_compute_agent,
       compute_cluster             = var.compute_cluster,
       marketplace_listing         = var.marketplace_listing,
       image                       = local.image_ocid,
@@ -296,8 +294,8 @@ resource "null_resource" "cluster_backup" {
       shape                       = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
       region                      = var.region,
       ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
-      private_subnet              = var.private_subnet,
-      private_subnet_id           = var.private_subnet_id,
+      private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
+      private_subnet_id           = local.subnet_id,
       targetCompartment           = var.targetCompartment,
       instance_pool_ocpus         = local.instance_pool_ocpus,
       instance_pool_memory        = var.instance_pool_memory,
@@ -307,12 +305,43 @@ resource "null_resource" "cluster_backup" {
       cluster_name                = local.cluster_name,
       change_hostname             = var.change_hostname,
       hostname_convention         = var.hostname_convention
+    })
 
+    destination = "/opt/oci-hpc/conf/queues.conf.example"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+  provisioner "file" {
+    content = templatefile("${path.module}/conf/queues.conf", {
+      cluster_network             = var.cluster_network,
+      compute_cluster             = var.compute_cluster,
+      marketplace_listing         = var.marketplace_listing,
+      image                       = local.image_ocid,
+      use_marketplace_image       = var.use_marketplace_image,
+      boot_volume_size            = var.boot_volume_size,
+      shape                       = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      region                      = var.region,
+      ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
+      private_subnet_id           = local.subnet_id,
+      targetCompartment           = var.targetCompartment,
+      instance_pool_ocpus         = local.instance_pool_ocpus,
+      instance_pool_memory        = var.instance_pool_memory,
+      instance_pool_custom_memory = var.instance_pool_custom_memory,
+      queue                       = var.queue,
+      hyperthreading              = var.hyperthreading,
+      cluster_name                = local.cluster_name,
+      change_hostname             = var.change_hostname,
+      hostname_convention         = var.hostname_convention
     })
 
     destination = "/opt/oci-hpc/conf/queues.conf"
     connection {
-      host        = local.host_backup
+      host        = local.host
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
@@ -387,7 +416,6 @@ resource "null_resource" "cluster_backup" {
       controller_username                 = var.controller_username,
       compute_username                    = var.compute_username,
       use_multiple_ads                    = var.use_multiple_ads,
-      use_compute_agent                   = var.use_compute_agent,
       BIOS                                = var.BIOS,
       IOMMU                               = var.IOMMU,
       SMT                                 = var.SMT,

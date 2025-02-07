@@ -109,6 +109,8 @@ resource "null_resource" "controller" {
       "mkdir -p /opt/oci-hpc/bin",
       "sudo mkdir /config",
       "sudo chown ${var.controller_username}:${var.controller_username} /config",
+      "mkdir -p /config/logs",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
       "mkdir -p /config/key",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/key"
     ]
@@ -162,6 +164,18 @@ resource "null_resource" "controller" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+
+  provisioner "file" {
+    source      = "cloud-init.sh"
+    destination = "/opt/oci-hpc/autoscaling/tf_init/"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "file" {
     source      = "logs"
     destination = "/opt/oci-hpc/"
@@ -283,7 +297,6 @@ resource "null_resource" "cluster" {
       log_vol                   = var.log_vol,
       redundancy                = var.redundancy,
       cluster_network           = var.cluster_network,
-      use_compute_agent         = var.use_compute_agent,
       slurm                     = var.slurm,
       rack_aware                = var.rack_aware,
       slurm_nfs_path            = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
@@ -349,9 +362,40 @@ resource "null_resource" "cluster" {
   }
 
   provisioner "file" {
-    content = templatefile("${path.module}/queues.conf", {
+    content = templatefile("${path.module}/conf/queues.conf.example", {
       cluster_network             = var.cluster_network,
-      use_compute_agent           = var.use_compute_agent,
+      compute_cluster             = var.compute_cluster,
+      marketplace_listing         = var.marketplace_listing,
+      image                       = local.image_ocid,
+      use_marketplace_image       = var.use_marketplace_image,
+      boot_volume_size            = var.boot_volume_size,
+      shape                       = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      region                      = var.region,
+      ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
+      private_subnet_id           = local.subnet_id,
+      targetCompartment           = var.targetCompartment,
+      instance_pool_ocpus         = local.instance_pool_ocpus,
+      instance_pool_memory        = var.instance_pool_memory,
+      instance_pool_custom_memory = var.instance_pool_custom_memory,
+      queue                       = var.queue,
+      hyperthreading              = var.hyperthreading,
+      cluster_name                = local.cluster_name,
+      change_hostname             = var.change_hostname,
+      hostname_convention         = var.hostname_convention
+    })
+
+    destination = "/opt/oci-hpc/conf/queues.conf.example"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+  provisioner "file" {
+    content = templatefile("${path.module}/conf/queues.conf", {
+      cluster_network             = var.cluster_network,
       compute_cluster             = var.compute_cluster,
       marketplace_listing         = var.marketplace_listing,
       image                       = local.image_ocid,
@@ -450,7 +494,6 @@ resource "null_resource" "cluster" {
       compute_username                    = var.compute_username,
       pam                                 = var.pam,
       sacct_limits                        = var.sacct_limits,
-      use_compute_agent                   = var.use_compute_agent,
       BIOS                                = var.BIOS,
       IOMMU                               = var.IOMMU,
       SMT                                 = var.SMT,

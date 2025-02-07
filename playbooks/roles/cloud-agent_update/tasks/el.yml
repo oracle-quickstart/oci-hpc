@@ -2,7 +2,7 @@
 - name: Check oracle cloud agent version
   shell: "yum info oracle-cloud-agent | grep Version | awk '{print $3}'"
   register: version
-  when: use_compute_agent | bool
+  when: cluster_network | bool
 
 - name: Install OCA v1.38 for OL8
   vars:
@@ -19,7 +19,7 @@
     - (minor_version | int <= 1) | bool
     - (major_version | int <= 38) | bool
     - (sub_version | int < 0) | bool
-    - use_compute_agent | bool
+    - cluster_network | bool
 
 - name: Install OCA v1.38 for OL7
   vars:
@@ -36,4 +36,4 @@
     - (minor_version | int <= 1) | bool
     - (major_version | int <= 38) | bool
     - (sub_version | int < 0) | bool
-    - use_compute_agent | bool
+    - cluster_network | bool

@@ -123,10 +123,6 @@ variable "image_ocid" {
   default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa" 
   type = string
   }
-variable "use_compute_agent" { 
-  default = true 
-  type = bool
-  }
 variable "unsupported_controller_image" { 
   default = "" 
   type = string

@@ -42,6 +42,13 @@ variableGroups:
       - ${controller_memory}
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
+      - ${use_marketplace_image_controller}
+      - ${marketplace_listing_controller}
+      - ${unsupported_controller}
+      - ${controller_image_compartment}
+      - ${custom_controller_image}
+      - ${unsupported_controller_image}
+      - ${controller_username}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}
@@ -141,15 +148,6 @@ variableGroups:
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
-  - title: "Advanced controller options"
-    variables:
-      - ${use_marketplace_image_controller}
-      - ${marketplace_listing_controller}
-      - ${unsupported_controller}
-      - ${controller_image_compartment}
-      - ${custom_controller_image}
-      - ${unsupported_controller_image}
-      - ${controller_username}
   - title: "Advanced storage options"
     variables:
       - ${use_advanced}
@@ -219,7 +217,6 @@ variableGroups:
       - ${controller_boot_volume_backup_retention_seconds}
       - ${controller_boot_volume_backup_time_zone}
       - ${controller_boot_volume_backup_type}
-      - ${use_compute_agent}
       - ${nfs_list_of_mount_target_IPs}
       
     visible: false
