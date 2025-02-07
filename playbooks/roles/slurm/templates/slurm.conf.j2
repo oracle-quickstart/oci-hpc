@@ -1,4 +1,4 @@
-SlurmctldHost={{ controller_hostname}}
+SlurmctldHost={{ controller_hostname }}
 MpiDefault=none
 ProctrackType=proctrack/cgroup
 ReturnToService=1
@@ -58,7 +58,11 @@ TrackWckey=no
 
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
+{% if instance.permanent  %}
 Nodeset={{instance.name}} Feature={{instance.name}}
+{% else %}
+Nodename={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] State=CLOUD Feature={{instance.name}}
+{% endif %}
 {% endfor %}
 {% endfor %}
 
@@ -66,13 +70,21 @@ Nodeset={{instance.name}} Feature={{instance.name}}
 {% if partition.default  %}
 {% set nodesList = [] %}
 {% for instance in partition.instance_types %}
-{{ nodesList.append(instance.name)}}
+{% if instance.permanent  %}
+{{ nodesList.append(instance.name) }}
+{% else %}
+{{ nodesList.append(instance.hostname_convention+'-[1-'+(instance.max_number_nodes | string )+']') }}
+{% endif %}
 {%- endfor %}
 PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=YES
 {% else %}
 {% set nodesList = [] %}
 {% for instance in partition.instance_types %}
+{% if instance.permanent  %}
 {{ nodesList.append(instance.name)}}
+{% else %}
+{{ nodesList.append(instance.hostname_convention+'-[1-'+(instance.max_number_nodes | string )+']') }}
+{% endif %}
 {%- endfor %}
 PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO
 {% endif %}
