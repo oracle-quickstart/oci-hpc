@@ -26,5 +26,5 @@
   pip:
     name: [pip]
     state: latest
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: /config/venv/bin/pip3
   ignore_errors: yes

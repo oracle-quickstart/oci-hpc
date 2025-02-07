@@ -1,6 +1,6 @@
 ---
 - name: get All nodes with this controller
-  shell: "source /opt/oci-hpc/venv/bin/activate; /opt/oci-hpc/venv/bin/python3 /opt/oci-hpc/bin/get_nodes_from_db.py"
+  shell: "source /config/venv/bin/activate; /config/venv/bin/python3 /opt/oci-hpc/bin/get_nodes_from_db.py"
   register: get_cluster_nodes_results
 
 - name: Convert the Python script output to a list of dictionaries

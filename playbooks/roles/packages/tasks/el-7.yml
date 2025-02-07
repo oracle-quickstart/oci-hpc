@@ -26,7 +26,7 @@
   pip:
     name: [pip]
     state: latest
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: /config/venv/bin/pip3
   ignore_errors: yes
   
 - name: install oci-cli latest version
@@ -34,6 +34,6 @@
   pip:
     name: [oci-cli]
     state: latest
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: /config/venv/bin/pip3
   ignore_errors: yes
   when: ('controller' in group_names)
