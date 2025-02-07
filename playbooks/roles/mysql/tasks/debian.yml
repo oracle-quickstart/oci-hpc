@@ -73,11 +73,19 @@
     src: innodb.cnf
     dest: /etc/my.cnf.d/innodb.cnf
 
+- name: Make sure pymysql is present
+  become: true 
+  pip:
+    name: pymysql
+    state: present
+    executable: /config/venv/bin/pip3
+
 - name: Enable MariaDB service
   become: true
   service:
     name: mariadb
     enabled: yes
+
 
 - block:
 
