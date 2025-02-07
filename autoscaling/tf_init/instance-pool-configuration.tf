@@ -11,11 +11,10 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       compartment_id      = var.targetCompartment
       create_vnic_details {
       }
-      display_name = local.cluster_name
       metadata = {
 # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/ed25519.pub")
-        user_data           = base64encode(data.template_file.config.rendered)
+        user_data           = base64encode(file("cloud-init.sh"))
       }
       agent_config {
 

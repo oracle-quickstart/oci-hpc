@@ -1,5 +1,5 @@
 resource "oci_core_instance_configuration" "cluster-network-instance_configuration" {
-  count          = (!var.compute_cluster) && var.cluster_network ? 1 : 0
+  count          = var.cluster_network ? 1 : 0
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
@@ -11,7 +11,6 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
       compartment_id      = var.targetCompartment
       create_vnic_details {
       }
-      display_name = local.cluster_name
       freeform_tags = {
         "cluster_name"   = local.cluster_name
         "parent_cluster" = local.cluster_name
@@ -35,14 +34,14 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
         }
         dynamic "plugins_config" {
 
-          for_each = var.use_compute_agent ? ["ENABLED"] : ["DISABLED"]
+          for_each = var.cluster_network ? ["ENABLED"] : ["DISABLED"]
           content {
             name          = "Compute HPC RDMA Authentication"
             desired_state = plugins_config.value
           }
         }
         dynamic "plugins_config" {
-          for_each = var.use_compute_agent ? ["ENABLED"] : ["DISABLED"]
+          for_each = var.cluster_network ? ["ENABLED"] : ["DISABLED"]
           content {
             name          = "Compute HPC RDMA Auto-Configuration"
             desired_state = plugins_config.value

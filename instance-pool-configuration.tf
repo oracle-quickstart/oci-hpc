@@ -11,7 +11,6 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       compartment_id      = var.targetCompartment
       create_vnic_details {
       }
-      display_name = local.cluster_name
       freeform_tags = {
         "cluster_name"   = local.cluster_name
         "parent_cluster" = local.cluster_name
