@@ -40,6 +40,7 @@
 
   - name: move topology.conf on backup slurm controller
     include_tasks: move-topology.yml
+    when: ('slurm_backup' in group_names)
 
   when: slurm_mode == 'compute-ctld'
 
