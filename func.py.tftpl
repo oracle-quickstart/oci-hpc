@@ -57,6 +57,7 @@ def get_tag_controller(instance_ocid, controller_name):
         boolean: has the right controller tag or not 
         hostname_convention: hostname convention according to freeform tags, type=string or None
         hostname: instance hostname, type=string    or None if not matching
+        defined_hostname: New hostname to be set when autoscaling, type=string    or None if not matching
     """
     signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
     #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
@@ -69,10 +70,14 @@ def get_tag_controller(instance_ocid, controller_name):
             hostname_convention = get_instance_response.data.freeform_tags["hostname_convention"]
         else: 
             hostname_convention = None
+        if "defined_hostname" in get_instance_response.data.freeform_tags and get_instance_response.data.freeform_tags["defined_hostname"].title().strip() != "None":
+            defined_hostname = get_instance_response.data.freeform_tags["defined_hostname"]
+        else: 
+            defined_hostname = None
         hostname = get_instance_response.data.display_name
-        return True, hostname_convention, hostname
+        return True, hostname_convention, hostname, defined_hostname
     else:
-        return False, None, None
+        return False, None, None, None
 
 
 def get_private_ip(instance_ocid,compartment_ocid):
@@ -105,7 +110,7 @@ def get_private_ip(instance_ocid,compartment_ocid):
     ).data[0].ip_address
     return private_ips_for_vnic
 
-def update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch, hostname):
+def update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch, hostname, defined_hostname):
     """
     Update DNS for instance launching and instance terminating
     inputs: 
@@ -116,6 +121,7 @@ def update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, co
         compartment_ocid: Compartment OCID from event payload (same as var.targetCompartment in terraform), type=string
         instance_launch: launching or terminating instance type=boolean
         hostname: current instance name from OCI web console, type=string
+        defined_hostname: New hostname to be set when autoscaling, type=string    or None if not matching
     output: 
         hostname: new display name in web console hostname_convention+"-"+str(index), type=string if updated or corresponds to hostname if not
         private_ip: private IP if instance is launch type=string, None otherwise
@@ -127,17 +133,17 @@ def update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, co
     private_ip = None
     if instance_launch:
         private_ip = get_private_ip(instance_ocid,compartment_ocid)
-        if hostname_convention:
+        if hostname_convention and not defined_hostname:
             ip = ipaddress.ip_address(private_ip)
             private_subnet_cidr=ipaddress.ip_network(private_subnet)
             index = list(private_subnet_cidr.hosts()).index(ip)+2
             convention_zone=hostname_convention+"-"+str(index)+"."+zone_name
             hostname = hostname_convention+"-"+str(index)
+        if defined_hostname:
+            hostname = defined_hostname
 
-            get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=convention_zone,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=convention_zone,rdata=private_ip,rtype="A",ttl=3600,)]))
-            logging.getLogger().info(f"DNS updated for instance launch with IP {private_ip} and {convention_zone}")
-        else:    
-            get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600)]))
+        get_rr_set_response = dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600,)]))
+        logging.getLogger().info(f"DNS updated for instance launch with IP {private_ip} and {hostname}")
     else:
         get_rr_set_response = dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE") 
         logging.getLogger().info(f"DNS updated for instance terminated with hostname: {hostname}")
@@ -192,7 +198,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
         put_messages_response.data: response from teh API call. Returns the message
     """
     # check if instance has matching controller_name tag
-    is_instance, hostname_convention, hostname = get_tag_controller(instance_ocid, controller_name)
+    is_instance, hostname_convention, hostname, defined_hostname = get_tag_controller(instance_ocid, controller_name)
 
     if not is_instance:
         return
@@ -203,7 +209,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
 
         if event_type == "com.oraclecloud.computeapi.launchinstance.end":
             instance_launch = True            
-            new_hostname, private_ip = update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname)
+            new_hostname, private_ip = update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname)
             if hostname_convention:    
                 try:
                     update_display_name(instance_ocid, new_hostname)
@@ -213,7 +219,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
             content_dict = {"ip_address": private_ip,"status": "starting"}
         else:
             instance_launch = False
-            update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname)
+            update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname)
             content_dict = {"hostname": hostname,"status": "terminating"}    
         content = json.dumps(content_dict, indent = 4) 
         cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
