@@ -1,18 +1,18 @@
 #!/bin/bash
 if [ $# -eq 0 ] || [ $# -eq 1 ]
 then
-  echo "No enough arguments supplied, please supply number of nodes, cluster name, instance type, queue name, trigger Job ID and comma separated list of tags"
+  echo "No enough arguments supplied, please supply number of nodes, cluster name, instance type, queue name, and comma separated list of tags"
   echo "To avoid deleting clusters if an error occurs. Add -DEBUG as last argument"
   exit
 fi
 if [ ${@: -1} == "-DEBUG" ]
 then
   debug=1
-  if [ $6 == "-DEBUG" ]
+  if [ $5 == "-DEBUG" ]
   then
     tags=""
   else
-    tags=$6
+    tags=$5
   fi
 else
   debug=0
