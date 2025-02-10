@@ -37,14 +37,14 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python-netaddr
     sudo python3 -m pip install virtualenv
-    virtualenv /config/venv
+    virtualenv /config/venv --always-copy
     source /config/venv/bin/activate
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
     sudo python3.8 -m pip install --upgrade pip
     sudo python3.8 -m pip install virtualenv
-    virtualenv /config/venv
+    virtualenv /config/venv --always-copy
     source /config/venv/bin/activate
     /config/venv/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
     sudo mkdir /etc/ansible
@@ -130,7 +130,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fi
   fix_apt
   sudo python3 -m pip install virtualenv
-  virtualenv /config/venv
+  virtualenv /config/venv 
   source /config/venv/bin/activate
   /config/venv/bin/python3 -m pip install -U pip > /dev/null
   /config/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null

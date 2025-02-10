@@ -46,8 +46,8 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     done
     
   elif [ $vid == 8 ] ; then
-    # sudo yum makecache --enablerepo=$repo
-    # sudo yum install --enablerepo=$repo -y python38.x86_64
+    sudo yum makecache --enablerepo=$repo
+    sudo yum install --enablerepo=$repo -y python38.x86_64
     # sudo python3.8 -m pip install virtualenv
     # virtualenv /config/venv
     # source /config/venv/bin/activate
