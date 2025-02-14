@@ -1138,9 +1138,9 @@ variables:
     title: "SLURM version"
     description: "24.xx has new feature but topology plugin is broken" 
     enum:
-      - "24.05.1-1" 
+      - "24.05.1-2" 
       - "23.11.8-1" 
-    default: "24.05.1-1" 
+    default: "24.05.1-2" 
     visible: ${slurm}
     required: true
   slurm_nfs:

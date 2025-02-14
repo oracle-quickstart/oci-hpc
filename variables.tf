@@ -200,7 +200,7 @@ variable "slurm" {
   type = bool
   }
 variable "slurm_version" { 
-  default = "24.05.1-1" 
+  default = "24.05.1-2" 
   type = string
   }
 variable "slurm_ha" { 
