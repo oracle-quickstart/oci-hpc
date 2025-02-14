@@ -10,6 +10,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       availability_domain = var.ad
       compartment_id      = var.targetCompartment
       create_vnic_details {
+        subnet_id      = local.subnet_id
       }
       freeform_tags = {
         "cluster_name"   = local.cluster_name
@@ -25,7 +26,6 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       agent_config {
 
         are_all_plugins_disabled = false
-        is_management_disabled   = false
         is_monitoring_disabled   = false
 
         plugins_config {
