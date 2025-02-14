@@ -1,8 +1,7 @@
 #!/bin/bash
-echo test
-
 source /etc/os-release
 if [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
+    default_user=ubuntu
     function fix_apt {
         apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
         apt_process=$(( apt_process -1 ))
@@ -41,6 +40,8 @@ if [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
             sleep 10  # Sleep for 10 seconds
         fi
     done
+else
+    default_user=opc
 fi
 
 controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller_name`
@@ -62,4 +63,4 @@ while true; do
     fi
 done
 
-/config/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
+su - $default_user /config/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
