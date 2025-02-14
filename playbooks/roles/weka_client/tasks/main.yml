@@ -18,7 +18,7 @@
 
 - name: Get vnic metadata
   uri:
-    url: http://169.254.169.254/opc/v1/vnics/
+    url: http://169.254.169.254/opc/v2/vnics/
     method: GET
     return_content: true
     status_code: 200

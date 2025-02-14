@@ -76,7 +76,7 @@
 
 - name: gather RDMA metadata
   uri:
-    url: http://169.254.169.254/opc/v1/host/
+    url: http://169.254.169.254/opc/v2/host/
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
