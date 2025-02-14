@@ -187,6 +187,7 @@ variableGroups:
       - ${privilege_sudo} 
       - ${privilege_group_name} 
       - ${slurm}
+      - ${slurm_version}
       - ${slurm_nfs}
       - ${slurm_ha}
       - ${rack_aware}
@@ -1132,7 +1133,16 @@ variables:
     title: "Install SLURM"
     default: true
     description: "Needed for autoscaling" 
-
+  slurm_version:
+    type: enum
+    title: "SLURM version"
+    description: "24.xx has new feature but topology plugin is broken" 
+    enum:
+      - "24.05.1-1" 
+      - "23.11.8-1" 
+    default: "24.05.1-1" 
+    visible: ${slurm}
+    required: true
   slurm_nfs:
     type: boolean
     title: "Share spool directory"

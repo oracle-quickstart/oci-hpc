@@ -34,6 +34,7 @@ slurm_nfs_path=${slurm_nfs_path}
 scratch_nfs_path=${scratch_nfs_path}
 cluster_network=${cluster_network}
 slurm=${slurm}
+slurm_version=${slurm_version}
 rack_aware=${rack_aware}
 pyxis=${pyxis}
 enroot=${enroot}

@@ -199,6 +199,10 @@ variable "slurm" {
   default = false 
   type = bool
   }
+variable "slurm_version" { 
+  default = "24.05.1-1" 
+  type = string
+  }
 variable "slurm_ha" { 
   default = false
   type = bool

@@ -44,6 +44,7 @@ resource "local_file" "inventory" {
     scratch_nfs_path = var.scratch_nfs_path,
     cluster_network = var.cluster_network,
     slurm = var.slurm,
+    slurm_version = var.slurm_version,
     pyxis = var.pyxis,
     enroot = var.enroot,
     spack = var.spack,

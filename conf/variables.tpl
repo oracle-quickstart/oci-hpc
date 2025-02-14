@@ -33,6 +33,7 @@ variable "zone_name" {default = "${zone_name}"}
 variable "dns_entries" {default = "${dns_entries}"}
 variable "healthchecks" {default = "${healthchecks}"}
 variable "slurm" { default = ${slurm} }
+variable "slurm_version" { default = ${slurm_version} }
 variable "rack_aware" { default = ${rack_aware} }
 variable "pyxis" { default = ${pyxis} }
 variable "pam" { default = ${pam} }

@@ -298,6 +298,7 @@ resource "null_resource" "cluster" {
       redundancy                = var.redundancy,
       cluster_network           = var.cluster_network,
       slurm                     = var.slurm,
+      slurm_version             = var.slurm_version,
       rack_aware                = var.rack_aware,
       slurm_nfs_path            = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack                     = var.spack,
@@ -445,6 +446,7 @@ resource "null_resource" "cluster" {
       scratch_nfs_path                    = var.scratch_nfs_path,
       use_scratch_nfs                     = var.use_scratch_nfs,
       slurm                               = var.slurm,
+      slurm_version                       = var.slurm_version,
       rack_aware                          = var.rack_aware,
       slurm_nfs_path                      = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack                               = var.spack,
@@ -533,7 +535,8 @@ resource "null_resource" "cluster" {
       "sudo chown ${var.controller_username}:${var.controller_username} /config/compute.sh",
       "sudo chmod 775 /config/compute.sh",
       "sudo chmod 600 /config/key/cluster.key",
-      "sudo cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/key/cluster.key",
+      "sudo cp -pr /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
       "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
