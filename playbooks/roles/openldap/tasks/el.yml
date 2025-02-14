@@ -69,6 +69,20 @@
         mode: 0644
   when: ansible_distribution_major_version == '8'
 
+- block:
+    - name: Install OpenLDAP packages ol9
+      vars: 
+        package_name: "{{openldap_packages_ol9}}"
+      include_role: 
+        name: safe_yum
+
+    - name: Create sysconfig-slapd
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/sysconfig/slapd
+        mode: 0644
+  when:  ansible_distribution_major_version == '9' 
+
 - name: Selinux fcontext on files
   sefcontext:
     target: "{{ openldap_server_conf_path }}(/.*)?"
@@ -127,7 +141,7 @@
       lineinfile:
         dest: /etc/openldap/ldap.conf
         line: TLS_REQSAN allow
-  when: ansible_distribution_major_version == '8'
+  when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
 
 - block:
     - name: Ensure OpenLDAP data directory exists
@@ -213,7 +227,7 @@
           copy:
             src: 'el_memberof_ol8.ldif'
             dest: /tmp/memberof.ldif
-      when: ansible_distribution_major_version == '8'
+      when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
 
     - name: Load OpenLDAP global configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
@@ -238,7 +252,7 @@
         name: slapd
         state: restarted
         enabled: yes
-      when: ansible_distribution_major_version == '8'
+      when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
 
     - name: Load OpenLDAP local configuration ol8
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
@@ -249,7 +263,7 @@
         - local.ldif
         - memberof.ldif
       notify: restart openldap
-      when: ansible_distribution_major_version == '8'
+      when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'

@@ -16,9 +16,11 @@ source /etc/os-release
 vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
   if [ $vid == 7 ] ; then
-     repo="ol7_developer_EPEL"
-       elif [ $vid == 8 ] ; then
-       repo="ol8_developer_EPEL"
+    repo="ol7_developer_EPEL"
+  elif [ $vid == 8 ] ; then
+    repo="ol8_developer_EPEL"
+  elif [ $vid == 9 ] ; then
+    repo="ol9_developer_EPEL"
   fi
 elif [ $ID == "centos" ] ; then
   repo="epel"
@@ -45,6 +47,15 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo python3.8 -m pip install --upgrade pip
     sudo python3.8 -m pip install virtualenv
     virtualenv /config/venv --always-copy
+    source /config/venv/bin/activate
+    /config/venv/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
+    sudo mkdir /etc/ansible
+    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
+    sudo ln -s /usr/local/bin/ansible /bin/ansible
+  elif [ $vid == 9 ] ; then
+    sudo python3 -m pip install --upgrade pip
+    sudo python3 -m pip install virtualenv
+    virtualenv /config/venv
     source /config/venv/bin/activate
     /config/venv/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
     sudo mkdir /etc/ansible

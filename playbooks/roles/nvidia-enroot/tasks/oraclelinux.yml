@@ -23,6 +23,18 @@
       name: safe_yum
     when: ansible_distribution_major_version == '8'
 
+  - name: install required packages
+    vars: 
+      package_name: 
+        - zstd
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
+        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot+caps-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
+      package_repo: "ol9_developer_EPEL"
+      disable_gpg_check_var: True
+    include_role: 
+      name: safe_yum
+    when: ansible_distribution_major_version == '9' 
+    
   # needs reboot
   - name: update namespace.unpriv_enable=1 kernel parameters 
     command: bash -c "sudo grubby --args="namespace.unpriv_enable=1" --update-kernel=`sudo grubby --default-kernel`"
@@ -53,7 +65,7 @@
       mode: '0755'
       owner: opc
       group: opc
-    when: ansible_distribution_major_version == '8'
+    when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
 
   - name: execute enroot-check_*.run
     command: bash -c "/tmp/enroot-check_*.run --verify"

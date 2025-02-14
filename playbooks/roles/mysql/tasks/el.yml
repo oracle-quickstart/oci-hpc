@@ -51,21 +51,34 @@
         package_repo: ol8_MySQL80
       include_role: 
         name: safe_yum
-
-    - name: Make sure pymysql is present
-      become: true 
-      pip:
-        name: pymysql
-        state: present
-        executable: /config/venv/bin/pip3
-
-    - name: Make sure pymysql is present
-      become: true 
-      pip:
-        name: pymysql
-        state: present
-        executable: /usr/bin/pip3
   when: ansible_distribution_major_version == '8' 
+
+- block:
+    - name: Select mysql package ol9
+      set_fact:
+        package_name: mysql-release-el9
+
+    - name: Install MySQL packages ol9
+      vars: 
+        package_name: "{{ mysql_packages_ol9 }}"
+        package_repo: ol9_MySQL80
+      include_role: 
+        name: safe_yum
+  when: ansible_distribution_major_version == '9' 
+
+- name: Make sure pymysql is present
+  become: true 
+  pip:
+    name: pymysql
+    state: present
+    executable: /config/venv/bin/pip3
+
+- name: Make sure pymysql is present
+  become: true 
+  pip:
+    name: pymysql
+    state: present
+    executable: /usr/bin/pip3
 
 - name: Update SELinux context for {{ mysql_db_path }}
   become: true
@@ -174,7 +187,7 @@
       - name: update expired root user password
         command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
         when: dbstatus.rc != 0 
-    when: ansible_distribution_major_version == '8'
+    when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
   
   - name: Render /root/.my.cnf
     become: true

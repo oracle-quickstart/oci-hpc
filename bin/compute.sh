@@ -6,8 +6,14 @@
 #
 # wait for cloud-init completion on the controller host
 #
-execution=1
-echo "ClusterName:" $1
+if [ $# -eq 0 ] 
+then
+  cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`
+else
+  cluster_name=$1
+fi
+
+echo "ClusterName:" $cluster_name
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
 source /etc/os-release
@@ -15,9 +21,11 @@ source /etc/os-release
 vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
   if [ $vid == 7 ] ; then
-     repo="ol7_developer_EPEL"
-       elif [ $vid == 8 ] ; then
-       repo="ol8_developer_EPEL"
+    repo="ol7_developer_EPEL"
+  elif [ $vid == 8 ] ; then
+    repo="ol8_developer_EPEL"
+  elif [ $vid == 9 ] ; then
+    repo="ol9_developer_EPEL"
   fi
 elif [ $ID == "centos" ] ; then
   repo="epel"
@@ -34,44 +42,10 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   if [ $vid == 7 ]; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
-    while true; do
-      sudo yum install --enablerepo=$repo -y ansible python-netaddr
-      if [ $? -eq 0 ]; then
-          echo "ansible installed"
-          break
-      else
-          echo "ansible install failed. Retrying in 10s..."
-          sleep 10  # Sleep for 10 seconds
-      fi
-    done
-    
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
-    # sudo python3.8 -m pip install virtualenv
-    # virtualenv /config/venv
-    # source /config/venv/bin/activate
-    # while true; do
-    #   /config/venv/bin/python3 -m pip install ansible cryptography netaddr
-    #   if [ $? -eq 0 ]; then
-    #       echo "ansible installed"
-    #       break
-    #   else
-    #       echo "ansible install failed. Retrying in 10s..."
-    #       sleep 10  # Sleep for 10 seconds
-    #   fi
-    # done
-    sudo mkdir /etc/ansible
-    #sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
-    #sudo ln -s /usr/local/bin/ansible /bin/ansible
   fi
-  #/config/venv/bin/python3 -m pip install --upgrade pip
-  #/config/venv/bin/python3 -m pip install -U pip > /dev/null
-  #/config/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null
-  #/config/venv/bin/python3 -m pip install setuptools_rust --upgrade > /dev/null
-  #/config/venv/bin/python3 -m pip install requests --upgrade > /dev/null
-  #/config/venv/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-  #/config/venv/bin/python3 -m pip install oci-cli --upgrade > /dev/null
 
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
@@ -217,7 +191,7 @@ sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ans
 log=/config/logs/`hostname`.log
 while true; do
     echo "Attempting to configure the node"
-    ansible-playbook -i /config/playbooks/inventory_$1 /config/playbooks/compute.yml 2>&1 | tee -a $log
+    ansible-playbook -i /config/playbooks/inventory_$cluster_name /config/playbooks/compute.yml 2>&1 | tee -a $log
     if [ $? -eq 0 ]; then
         echo "Ansible succeeded!"
         break

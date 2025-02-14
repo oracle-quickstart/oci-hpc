@@ -14,6 +14,10 @@ mysql_packages_ol8:
   - mysql
   - mysql-connector-python
 
+mysql_packages_ol9:
+  - mysql-server
+  - mysql
+
 deb_mariadb_packages:
   - mariadb-server
   - mariadb-common

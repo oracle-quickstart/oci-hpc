@@ -14,7 +14,7 @@
 - name: Install PyMySQL
   vars: 
     package_name:
-      - python2-PyMySQL
+      - python3-PyMySQL
     package_repo: "{{slurm_repos}}"
     package_state: present
   include_role: 
