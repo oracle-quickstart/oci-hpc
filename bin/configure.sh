@@ -20,11 +20,19 @@ else
   inventory="/etc/ansible/hosts"
 fi
 
+username=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
+clustername=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
+if [ "$username" == "" ]
+then
+username=$USER
+fi
 
 if [ -f /config/playbooks/inventory ] ; then 
   sudo cp /config/playbooks/inventory /etc/ansible/hosts
+  sudo chown $username:$username /etc/ansible/hosts
   clustername=`cat /etc/ansible/hosts | grep cluster_name= | tail -n 1| awk -F "=" '{print $2}'`
   sudo cp /config/playbooks/inventory /config/playbooks/inventory_${clustername}
+  sudo chown $username:$username /config/playbooks/inventory_${clustername}
 fi 
 
 
@@ -38,14 +46,6 @@ fi
 if [[ $configure != true ]] ; then
         echo "Do not configure is set. Exiting"
         exit
-fi
-
-
-username=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
-clustername=`cat $inventory | grep compute_username= | tail -n 1| awk -F "=" '{print $2}'`
-if [ "$username" == "" ]
-then
-username=$USER
 fi
 
 # Update the forks to a 8 * threads
