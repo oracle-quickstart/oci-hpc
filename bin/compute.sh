@@ -85,17 +85,6 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo apt -y --fix-broken install
 
   fix_apt
-  
-  sudo add-apt-repository --yes --update ppa:ansible/ansible
-  sudo apt-get -y install ansible 
-  output=$?
-  if [ $output -ne 0 ]
-  then
-      fix_apt
-      sleep 60s
-      sudo apt-get -y install ansible 
-  fi
-  fix_apt
 
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
@@ -115,49 +104,6 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
           sudo apt-get -y install python python-netaddr python3 python3-pip
         fi
   fi
-  fix_apt
-
-  sudo python3 -m pip install virtualenv
-  virtualenv /config/venv
-  source /config/venv/bin/activate
-  /config/venv/bin/python3 -m pip install -U pip > /dev/null
-  /config/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null
-  /config/venv/bin/python3 -m pip install requests --upgrade > /dev/null
-  /config/venv/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-  /config/venv/bin/pip install pip --upgrade > /dev/null
-  /config/venv/bin/pip install pyopenssl --upgrade > /dev/null
-
-  # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
-  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults > /dev/null
-
-  # install oci module
-  /config/venv/bin/pip install oci > /dev/null
-
-  wget -O- https://apt.releases.hashicorp.com/gpg | \
-  gpg --dearmor | \
-  sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-
-  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
-    https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
-    sudo tee /etc/apt/sources.list.d/hashicorp.list
-  
-  sudo apt update && sudo apt install terraform
-  output=$?
-  if [ $output -ne 0 ]
-  then
-      fix_apt  
-      echo "Terraform second try"
-      wget -O- https://apt.releases.hashicorp.com/gpg | \
-      gpg --dearmor | \
-      sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-
-      echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
-      https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
-      sudo tee /etc/apt/sources.list.d/hashicorp.list
-  
-      sudo apt update && sudo apt install terraform
-  fi
-  fix_apt
 fi 
 
 #ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
