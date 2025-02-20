@@ -32,14 +32,20 @@
     create: yes
     state: present
 
+- name: Check if file already exists
+  stat:
+    path: /config/3rdparty/dcgm-exporter
+  register: dcgm_exporter
+
 - name: Clone DCGM Exporter repository
   become: true
   git:
     repo: "{{ dcgm_repo }}"
-    dest: "/tmp/dcgm-exporter"
+    dest: "/config/3rdparty/dcgm-exporter"
     update: no
   environment:
     PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+  when: not node_exporter_file_3.4.0.stat.exists | bool
 
 - name: Build DCGM Exporter binary
   become: true

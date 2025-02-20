@@ -30,16 +30,22 @@
     name: safe_yum
   when: ansible_distribution == 'Ubuntu'
   
+- name: Check if file already exists
+  stat:
+    path: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+  register: node_exporter
+
 - name: Download node_exporter {{ node_exporter }}
   become: true
   get_url:
     url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
-    dest: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    dest: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+  when: not node_exporter.stat.exists | bool
 
 - name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
   become: true
   unarchive:
-    src: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    src: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
     dest: "/var/lib/prometheus/node_exporter/"
     extra_opts: ["--strip-components=1"]
     remote_src: yes
