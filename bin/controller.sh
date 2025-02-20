@@ -53,6 +53,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
   elif [ $vid == 9 ] ; then
+    sudo dnf install python3 python3-pip
     sudo python3 -m pip install --upgrade pip
     sudo python3 -m pip install virtualenv
     virtualenv /config/venv
@@ -109,17 +110,6 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo apt -y --fix-broken install
 
   fix_apt
-  
-  sudo add-apt-repository --yes --update ppa:ansible/ansible
-  sudo apt-get -y install ansible 
-  output=$?
-  if [ $output -ne 0 ]
-  then
-      fix_apt
-      sleep 60s
-      sudo apt-get -y install ansible 
-  fi
-  fix_apt
 
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
@@ -143,6 +133,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo python3 -m pip install virtualenv
   virtualenv /config/venv 
   source /config/venv/bin/activate
+  /config/venv/bin/python3 -m pip install ansible
   /config/venv/bin/python3 -m pip install -U pip > /dev/null
   /config/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null
   /config/venv/bin/python3 -m pip install requests --upgrade > /dev/null
