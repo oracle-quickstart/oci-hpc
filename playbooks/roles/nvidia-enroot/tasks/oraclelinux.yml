@@ -1,39 +1,33 @@
 ---
-- block:
-  - name: install required packages
-    vars: 
-      package_name: 
-        - zstd
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el7.{{ ansible_architecture }}.rpm"
-      package_repo: "epel,ol7_developer_EPEL"
-    include_role: 
-      name: safe_yum
-    when: ansible_distribution_major_version == '7'
-    
-  - name: install required packages
-    vars: 
-      package_name: 
-        - zstd
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot+caps-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
-      package_repo: "ol8_developer_EPEL"
-      disable_gpg_check_var: True
-    include_role: 
-      name: safe_yum
-    when: ansible_distribution_major_version == '8'
+- block: 
+  - name: Ensure /config/3rdparty exists
+    file:
+      path: /config/3rdparty/
+      state: directory
+      mode: '0755'
+  - name: Check if required RPMs are already downloaded
+    stat:
+      path: "/config/3rdparty/{{ item | basename }}"
+    register: rpm_files
+    with_items:
+      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
+      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
+  - name: Download RPMs if not already present
+    get_url:
+      url: "{{ item.item }}"
+      dest: "/config/3rdparty/{{ item.item | basename }}"
+    when: not item.stat.exists
+    with_items:  "{{deb_files.results}}"
 
   - name: install required packages
     vars: 
       package_name: 
         - zstd
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot+caps-3.4.1-1.el8.{{ ansible_architecture }}.rpm"
-      package_repo: "ol9_developer_EPEL"
-      disable_gpg_check_var: True
+        - "/config/3rdparty/enroot-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
+        - "/config/3rdparty/enroot+caps-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
+      package_repo: "epel,ol{{ansible_distribution_major_version}}_developer_EPEL"
     include_role: 
       name: safe_yum
-    when: ansible_distribution_major_version == '9' 
     
   # needs reboot
   - name: update namespace.unpriv_enable=1 kernel parameters 
@@ -48,15 +42,24 @@
       sysctl_file: /etc/sysctl.d/81-enroot.conf
       reload: yes
 
+  - name: Check if file already exists
+    stat:
+      path: /config/3rdparty/enroot-check_3.4.0_{{ ansible_architecture }}.run
+    register: node_exporter_file_3.4.0
+
+  - name: Check if file already exists
+    stat:
+      path: /config/3rdparty/enroot-check_3.4.1_{{ ansible_architecture }}.run
+    register: node_exporter_file_3.4.1
 
   - name: Download enroot-check
     get_url:
       url: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-check_3.4.0_{{ ansible_architecture }}.run"
-      dest: "/tmp"
+      dest: "/config/3rdparty"
       mode: '0755'
       owner: opc
       group: opc
-    when: ansible_distribution_major_version == '7'
+    when: ansible_distribution_major_version == '7' and ( not node_exporter_file_3.4.0.stat.exists | bool )
 
   - name: Download enroot-check
     get_url:
@@ -65,7 +68,7 @@
       mode: '0755'
       owner: opc
       group: opc
-    when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
+    when: (ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' ) and ( not node_exporter_file_3.4.1.stat.exists | bool )
 
   - name: execute enroot-check_*.run
     command: bash -c "/tmp/enroot-check_*.run --verify"

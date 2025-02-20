@@ -13,12 +13,18 @@
   include_role: 
     name: safe_yum
 
+- name: Check if SPACK directory is present
+  stat:
+    path: "/config/3rdparty/spack"
+  register: spack_present
+
 - name: Clone SPACK
   git: 
     repo: "{{ spack_repo }}"
-    dest: "{{ cluster_nfs_path }}/spack"
+    dest: "/config/3rdparty/spack"
     update: no
   run_once: true
+  when: not spack_present.stat.exists
 
 - name: Add SPACK initialization 
   template: 

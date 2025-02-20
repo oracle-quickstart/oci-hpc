@@ -47,16 +47,22 @@
     name: safe_yum
   when: ansible_os_family == 'Debian'
 
+- name: Check if pyxis directory is present
+  stat:
+    path: "/config/3rdparty/pyxis"
+  register: pyxis_present
+
 - name: clone pyxis repo
   git:
     repo: https://github.com/NVIDIA/pyxis.git
-    dest: /tmp/pyxis
+    dest: /config/3rdparty/pyxis
   ignore_errors: yes
+  when: not pyxis_present.stat.exists
 
 - name: compile 
   command: bash -c "sudo make install"
   args:
-    chdir: /tmp/pyxis/
+    chdir: /config/3rdparty/pyxis
   ignore_errors: yes
 
 - name: create plugstack.conf

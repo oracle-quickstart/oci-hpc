@@ -5,14 +5,36 @@
     set_fact:
       dpkg_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
 
+  - name: Ensure /config/3rdparty exists
+    file:
+      path: /config/3rdparty/
+      state: directory
+      mode: '0755'
+      
+  - name: Check if required RPMs are already downloaded
+    stat:
+      path: "/config/3rdparty/{{ item | basename }}"
+    register: deb_files
+    with_items:
+      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
+      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
+
+  - name: Download RPMs if not already present
+    get_url:
+      url: "{{ item.item }}"
+      dest: "/config/3rdparty/{{ item.item | basename }}"
+    when: not item.stat.exists
+    with_items:  "{{deb_files.results}}"
+
   - name: install required packages
     vars: 
       deb_name: 
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
+        - "/config/3rdparty/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
+        - "/config/3rdparty/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
       package_state: present
     include_role: 
       name: safe_yum
+
   - name: set kernel.unprivileged_userns_clone using sysctl
     ansible.posix.sysctl:
       name: kernel.unprivileged_userns_clone
@@ -20,6 +42,10 @@
       sysctl_file: /etc/sysctl.d/81-enroot.conf
       reload: yes
 
+  - name: Check if file already exists
+    stat:
+      path: /config/3rdparty/enroot-check_3.4.0_{{ ansible_architecture }}.run
+    register: node_exporter_file
 
   - name: Download enroot-check
     get_url:
@@ -28,6 +54,7 @@
       mode: '0755'
       owner: "{{ ansible_user }}"
       group: "{{ ansible_user }}"
+    when: not node_exporter_file.stat.exists
 
   - name: execute enroot-check_*.run
     command: bash -c "/tmp/enroot-check_*.run --verify"

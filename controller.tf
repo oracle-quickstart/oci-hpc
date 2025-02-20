@@ -112,7 +112,9 @@ resource "null_resource" "controller" {
       "mkdir -p /config/logs",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
       "mkdir -p /config/key",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/key"
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
+      "mkdir -p /config/3rdparty",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/3rdparty"
     ]
     connection {
       host        = local.host
