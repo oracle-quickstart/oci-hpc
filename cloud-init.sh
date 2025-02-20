@@ -49,10 +49,13 @@ cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/
 
 mkdir /config
 
+echo "$controller:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
+systemctl daemon-reload
+
 while true; do
     echo "Attempting to mount $controller:/config"
     # Run the mount command and check if it succeeds
-    mount $controller:/config /config
+    mount /config
     
     if [ $? -eq 0 ]; then
         echo "Mount succeeded!"
