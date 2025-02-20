@@ -17,7 +17,7 @@
       url: "{{ item.item }}"
       dest: "/config/3rdparty/{{ item.item | basename }}"
     when: not item.stat.exists
-    with_items:  "{{deb_files.results}}"
+    with_items:  "{{rpm_files.results}}"
 
   - name: install required packages
     vars: 
