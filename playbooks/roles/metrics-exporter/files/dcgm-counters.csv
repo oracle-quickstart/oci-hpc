@@ -75,4 +75,9 @@ DCGM_FI_DEV_SERIAL,            label, Device Serial Number
 # DCGM_FI_DEV_POWER_INFOROM_VER, label, Power management object inforom version
 # DCGM_FI_DEV_INFOROM_IMAGE_VER, label, Inforom image version
 # DCGM_FI_DEV_VBIOS_VERSION,     label, VBIOS version of the device
-
+DCGM_FI_DEV_ROW_REMAP_PENDING, gauge, Whether remapping of rows is pending
+DCGM_FI_DEV_COUNT, gauge, Number of Devices on the node
+DCGM_FI_DEV_MEM_MAX_OP_TEMP, gauge, Maximum operating temperature for the memory of this GPU
+DCGM_FI_DEV_GPU_MAX_OP_TEMP, gauge, Maximum operating temperature for this GPU
+DCGM_FI_DEV_SLOWDOWN_TEMP, gauge, Slowdown temperature for the device
+DCGM_FI_DEV_SHUTDOWN_TEMP, gauge, Shutdown temperature for the device

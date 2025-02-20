@@ -30,7 +30,7 @@
       - Flask
       - oci
       - waitress
-    executable: /usr/bin/pip3  
+    extra_args: --ignore-installed
   become: yes
 
 - name: Copy webhook script to server
@@ -55,12 +55,11 @@
     dest: /etc/systemd/system/ons-webhook.service
     force: yes
     backup: yes
-    owner: prometheus
-    group: prometheus
     mode: '0644'
     remote_src: true
 
 - name: Start and enable webhook service
+  become: true
   systemd:
     name: ons-webhook.service
     state: started
@@ -103,8 +102,9 @@
     ds_type: "prometheus"
     ds_url: "http://localhost:9090"
   ignore_errors: yes
+  register: output
 
-  - name: Copy alert rules to grafana provisioning
+- name: Copy alert rules to grafana provisioning
   become: true
   copy:
     src: files/alert-rules.yaml
@@ -122,10 +122,4 @@
   become: true
   ansible.builtin.service:
     name: grafana-server
-    state: restarted
-
-- name: Restart ons-webhook
-  become: true
-  ansible.builtin.service:
-    name: ons-webhook
     state: restarted

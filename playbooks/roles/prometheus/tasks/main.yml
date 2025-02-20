@@ -43,7 +43,7 @@
     dest: /tmp
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}" 
-    remote_src: yes
+    remote_src: true
     creates: "{{ prometheus_download_dir }}"
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
@@ -77,15 +77,6 @@
    - console_libraries 
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
-
-- name: Copying default alert rules
-  become: true
-  copy:
-    src: files/alert.rules.yml
-    dest: /etc/prometheus
-    owner: "{{ prometheus_user }}"
-    group: "{{ prometheus_user }}"
-    mode: '0775'
 
 - name: Removing the tar file of prometheus
   become: true
@@ -145,4 +136,5 @@
     state: restarted
     daemon_reload: yes
     enabled: yes 
+  run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"

@@ -11,6 +11,7 @@ from xid_checker import XidChecker
 import platform
 import os
 import requests
+import glob
 
 def get_metadata():
     """ Make a request to metadata endpoint """
@@ -23,7 +24,7 @@ def get_metadata():
 def is_user_root():
     # Check if the user is root
     if os.geteuid() != 0:
-        logger.debug("User is root")
+        logger.debug("User is not root!")
         return False
     return True
 
@@ -68,7 +69,7 @@ def get_oca_version():
 
 
         if version < "1.39.0":
-            logger.error(f"Oracle Cloud Agent: {version} needs to be updated to 1.38.0 or higher")
+            logger.error(f"Oracle Cloud Agent: {version} needs to be updated to 1.39.0 or higher")
         else:
             logger.info(f"Oracle Cloud Agent: {version}")
 
@@ -85,6 +86,11 @@ def check_rttcc_status():
         devices = ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
     elif shape == "BM.GPU4.8":
         devices = ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
+    elif shape == "BM.GPU.H200.8":
+        devices = ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"]
+    else:
+        logger.info(f"RTTCC status check not required")
+        return link_status
     status = "disabled"
     status_dict = {"devices": {}}
     for device in devices:
@@ -163,6 +169,7 @@ def check_ecc_errors():
 
 def check_row_remap_errors():
     remap_issues = []
+    recommended_action=None
     try:
         # Run the nvidia-smi -q command
         result = subprocess.run(['nvidia-smi', '--query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable', '--format=csv,noheader'], stdout=subprocess.PIPE)
@@ -185,34 +192,42 @@ def check_row_remap_errors():
         if tmp_data[0] != "0" and tmp_data[0] != "No":
             logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
             remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
-        if tmp_data[1] != "0" and tmp_data[0] != "No":
+            recommended_action = "Reboot"
+        if tmp_data[1] != "0" and tmp_data[1] != "No":
             logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
             #remap_issues.append(f"GPU: {i} Row Remap Failure: {tmp_data[1]}")
-        if tmp_data[2] != "0" and tmp_data[0] != "No":
+            recommended_action = "Terminate"
+        if tmp_data[2] != "0" and tmp_data[2] != "No":
             logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
             if int(tmp_data[2]) > 512:
                 remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
+                recommended_action = "Terminate"
             else:
                 remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable <512: {tmp_data[2]}")# Check if there are ecc_issues
-
+                recommended_action = "Reboot"
     if len(remap_issues) == 0:
         logger.info("GPU Remap Test: Passed")
     else:
         logger.warning("GPU Remap Test: Failed")
 
-    return remap_issues
+    return remap_issues, recommended_action
 
 def check_rdma_link_status():
     status = True
     metadata=get_metadata()
     shape=metadata['shape']
+    link_issues = []
     if shape == "BM.GPU.H100.8":
         devices = ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
+    elif shape == "BM.GPU.H200.8":
+        devices = ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"]
     elif shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8":
         devices = ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
     elif shape == "BM.GPU4.8":
         devices = ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
-    link_issues = []
+    else:
+        logger.info(f"RDMA Link Status check not required")
+        return link_issues
     for device in devices:
         # Run the mlxlink command
         if not is_user_root():
@@ -257,8 +272,12 @@ def check_rdma_link_status():
             logger.debug(f"{device}: {recommendation}")
             if "Bad signal integrity" in recommendation and float(physical_BER) < 1e-07:
                 logger.debug(f"Recommandation is {recommendation} but the Physical error are low enough that it can be ignored")
-            else : 
+            elif "Bad signal integrity" in recommendation and float(physical_BER) > 1e-07:
                 logger.debug(f"Recommandation is {recommendation} and the Physical error count is too high to be ignored: {physical_BER}")
+                link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {recommendation}")
+                status = False
+            else : 
+                logger.debug(f"Recommandation is {recommendation}")
                 link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {recommendation}")
                 status = False
         else:
@@ -306,7 +325,7 @@ def check_bus():
 
 def check_gpu_count():
 
-    lspci_expected_results = [  '0f:00.0 3D controller: NVIDIA Corporation Device 2330 (rev a1)',
+    lspci_expected_results_gpu = [  '0f:00.0 3D controller: NVIDIA Corporation Device 2330 (rev a1)',
                                 '2d:00.0 3D controller: NVIDIA Corporation Device 2330 (rev a1)',
                                 '44:00.0 3D controller: NVIDIA Corporation Device 2330 (rev a1)',
                                 '5b:00.0 3D controller: NVIDIA Corporation Device 2330 (rev a1)',
@@ -315,6 +334,16 @@ def check_gpu_count():
                                 'c0:00.0 3D controller: NVIDIA Corporation Device 2330 (rev a1)',
                                 'd8:00.0 3D controller: NVIDIA Corporation Device 2330 (rev a1)'
                              ]
+    lspci_expected_results_l40s = [  '16:00.0 3D controller: NVIDIA Corporation Device 26b9 (rev a1)',
+                                     '38:00.0 3D controller: NVIDIA Corporation Device 26b9 (rev a1)',
+                                     '82:00.0 3D controller: NVIDIA Corporation Device 26b9 (rev a1)',
+                                     'ac:00.0 3D controller: NVIDIA Corporation Device 26b9 (rev a1)'
+                                ]
+    lspci_expected_results_a10 = [  '17:00.0 3D controller: NVIDIA Corporation GA102GL [A10] (rev a1)',
+                                    '31:00.0 3D controller: NVIDIA Corporation GA102GL [A10] (rev a1)',
+                                    'b1:00.0 3D controller: NVIDIA Corporation GA102GL [A10] (rev a1)',
+                                    'ca:00.0 3D controller: NVIDIA Corporation GA102GL [A10] (rev a1)'
+                                ]
 
     # Check the number of GPUs
     try:
@@ -324,7 +353,16 @@ def check_gpu_count():
         tmp_results = []
         # remove empty lines
         lines = [line for line in lines if line]
-        if len(lines) == 8:
+        metadata=get_metadata()
+        shape=metadata['shape']
+        if shape == "BM.GPU.L40S-NC.4" or shape == "BM.GPU.A10.4":
+            if len(lines) == 4:
+                logger.info("GPU Count Test: Passed")
+            else:
+                logger.warning("GPU Count Test: Failed")
+                tmp_results.append(f"Expected 4 GPUs, found {len(lines)} using nvidia-smi command")
+            return tmp_results
+        elif len(lines) == 8:
             logger.info("GPU Count Test: Passed")
         else:
             logger.warning("GPU Count Test: Failed")
@@ -341,11 +379,28 @@ def check_gpu_count():
             lines = output.split('\n')
             tmp_results = []
             missing_gpus = []
+            metadata=get_metadata()
+            shape=metadata['shape']
+            find_number = ""
+            expected_gpus = ""
+            lspci_expected_results = ""
+            if shape == "BM.GPU.L40S-NC.4":
+                find_number = "26b9"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_l40s
+            elif shape == "BM.GPU.A10.4":
+                find_number = "GA102GL"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_a10
+            else:
+                find_number = "2330"
+                expected_gpus = 8
+                lspci_expected_results = lspci_expected_results_gpu
             for line in lines:
-                if line.find("NVIDIA") != -1 and line.find("2330") != -1:
+                if line.find("NVIDIA") != -1 and line.find(find_number) != -1:
                     tmp_results.append(line)
-            if not len(tmp_results) == 8:
-                logger.debug(f"Expected 8 GPUs, found {len(tmp_results)} in lspci output")
+            if not len(tmp_results) == expected_gpus:
+                logger.debug(f"Expected {expected_gpus} GPUs, found {len(tmp_results)} in lspci output")
                 for line in lspci_expected_results:
                     if line not in tmp_results:
                         missing_gpus.append(f"Missing GPU: {line}")
@@ -358,13 +413,168 @@ def check_gpu_count():
             logger.warning("Skipping GPU count test: nvidia-smi and lspci commands not found")
             return None
 
+def check_gpu_pcie():
+    # A100, H100 and H200 have x16
+    pcie_w = 16
+    result = subprocess.run(['nvidia-smi', '--query-gpu=pcie.link.width.current', '--format=csv,noheader'], stdout=subprocess.PIPE)
+    if result.returncode != 0:
+        logger.warning("GPU PCIe Widths Test: Command nvidia-smi failed")
+    else:
+        output = result.stdout.decode('utf-8').rstrip()
+        widths = list(map(int, output.split('\n')))
+        if all(width == pcie_w for width in widths):
+            logger.info("GPU PCIe Width Test: Passed")
+        else:
+            logger.warning("GPU PCIe Width Test: Failed")
+            return pcie_w - int( sum(widths) / len(widths) )
+    return None
+
+def check_wpa_auth(metadata):
+    # Determine the shape and required authenticated count
+    shape = metadata.get('shape')
+    if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"]:
+        interface_range = range(16)
+        required_authenticated = 16
+    elif shape in ["BM.GPU.H200.8", "BM.GPU.MI300X.8"]:
+        interface_range = range(8)
+        required_authenticated = 8 
+    else:
+        logger.error("Unsupported machine shape.")
+        return ["Unsupported machine shape."]
+    
+    authenticated_count = 0 
+    wpa_auth_issues = []
+    current_state = "None"  # Define initial state, can be updated based on actual logic
+    
+    for i in range(5):
+    # Check each RDMA interface for WPA authentication status
+        for i in interface_range:
+            interface = f"rdma{i}"
+            try:
+                if not is_user_root():
+                    command = ['sudo', 'wpa_cli', 'status', '-i', interface]
+                else:
+                    command = ['wpa_cli', 'status', '-i', interface]
+
+                result = subprocess.run(command, capture_output=True, text=True)
+
+                for line in result.stdout.splitlines():
+                    if "Supplicant PAE state" in line:
+                        if "AUTHENTICATED" in line:
+                            authenticated_count += 1
+                        break
+            except subprocess.CalledProcessError as e:
+                wpa_auth_issues.append(f"Error checking {interface}: {e}")
+                logger.warning(f"Error checking {interface}: {e}")
+        if authenticated_count >= required_authenticated:
+            break
+        else:
+            time.sleep(5)
+        # Determine action based on authentication result
+    if authenticated_count < required_authenticated:
+        action = "Reboot"  # Set action as needed, e.g., "Reboot" if a reset is recommended
+        wpa_auth_issues.append(f"Only {authenticated_count} interfaces are AUTHENTICATED; expected at least {required_authenticated}.")
+        logger.error("WPA Authentication Check: Failed")
+    else:
+        action = None  # No action if check passes
+        logger.info("WPA Authentication Check: Passed")
+
+    # Call the recommanded_action function
+    final_action = recommended_action(current_state, action)
+    
+
+    return wpa_auth_issues if wpa_auth_issues else []
+
+def check_fabric_manager():
+    fabric_manager_health = False
+    try:
+        # Run the nvidia-smi -q -i 0 | grep -i -A 2 Fabric
+        result = subprocess.run('nvidia-smi -q -i 0 | grep -i -A 2 Fabric', shell=True, stdout=subprocess.PIPE)
+        if result.returncode != 0:
+            logger.debug(f"Fabric Manager Check exited with error code: {result.returncode}")
+
+    except FileNotFoundError:
+        logger.warning("Skipping Fabric Manager test: nvidia-smi command not found")
+        return fabric_manager_health
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+    logger.debug("Output: {}".format(output))
+    fabric_manager_status=False
+    fabric_manager_state=False
+    for i, line in enumerate(output.split('\n')):
+        if "State" in line:
+            if "Completed" in line:
+                fabric_manager_state = True
+        elif "Status" in line:
+            if "Success" in line:
+                fabric_manager_status = True
+        else:
+            continue
+    fabric_manager_health= ( fabric_manager_status and fabric_manager_state )
+    return fabric_manager_health
+
+def get_current_cpu_profile():
+    # List all scaling governor files for CPUs
+    cpu_governor_files = glob.glob('/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor')
+    cpu_profile_issues = []
+
+    for cpu_file in cpu_governor_files:
+        try:
+            with open(cpu_file, 'r') as f:
+                result = f.read().strip()
+            if result != 'performance':
+                cpu_id = cpu_file.split('/')[-3]
+                logger.warning(f"CPU {cpu_id} Profile is {result}, expected 'performance'.")
+                cpu_profile_issues.append(f"CPU {cpu_id}: {result}")
+        except Exception as e:
+            logger.error(f"Failed to read {cpu_file}: {e}")
+            cpu_profile_issues.append(f"Error reading {cpu_file}")
+
+    if not cpu_profile_issues:
+        logger.info("CPU Profile Check: Passed")
+    else:
+        logger.error("Some CPUs failed the profile check.")
+    return cpu_profile_issues
+
 def slurm_reason(message):
     global slurm_drain_reason
     global slurm_error_count
     slurm_drain_reason+=(message+"\n")
     slurm_error_count+=1
 
+def recommended_action(current, action):
+    if action not in [None,"FabricManagerRestart","Reboot","LiveFix","Reboot&LiveFix","Terminate"]:
+        print("No action was found")
+        return 0
+    if action == "Reboot" or action == "FabricManagerRestart":
+        if current == "Terminate":
+            return current
+        elif current == "LiveFix":
+            return "Reboot&LiveFix"
+        elif current == "Reboot&LiveFix":
+            return "Reboot&LiveFix"
+        else:
+            return action
+    if action == "LiveFix":
+        if current == "Terminate":
+            return current
+        elif current == "Reboot":
+            return "Reboot&LiveFix"
+        elif current == "Reboot&LiveFix":
+            return "Reboot&LiveFix"
+        elif current == "FabricManagerRestart":
+            return "Reboot&LiveFix"
+        else:
+            return action
+    if action is None: 
+        return current
+    if action == "Terminate":
+        return action
+
 if __name__ == '__main__':
+    
+    action = None
     parser = argparse.ArgumentParser(description='Check Host setup')
     parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level default: INFO")
     parser.add_argument('--bw-test', dest='bw_test', action='store_true', default=False, help='Run GPU bandwidth test (default: False)')
@@ -372,21 +582,30 @@ if __name__ == '__main__':
     parser.add_argument('--lf-interval', dest='lf_interval', default=6, type=int, help='Link flapping interval with no flapping or link down events (default: 6 (hours))')
     parser.add_argument('-a','--all', dest='run_all', action='store_true', default=False, help='Run all checks (default: False)')
     parser.add_argument('-slurm','--slurm', dest='slurm', action='store_true', default=False, help='Add a Slurm message')
+    parser.add_argument('-wa', '--wpa-auth', action="store_true", default=True, help="Run WPA authentication check")
     args = parser.parse_args()
 
     logger.setLevel(args.log_level)
 
     datetime_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
     logger.info(f"Started GPU host setup check at: {datetime_str}")
+
+    metadata=get_metadata()
+    shape=metadata['shape']
+
     try:
         oca_version = get_oca_version()
     except Exception as e:
         logger.warning(f"Failed to get Oracle Cloud Agent version with error: {e}")
         oca_version = "Unknown"
-    try:
-        rttcc_issues = check_rttcc_status()
-    except Exception as e:
-        logger.warning(f"Failed to check RTTCC status with error: {e}")
+
+    if shape != "BM.GPU.H200.8":
+        try:
+            rttcc_issues = check_rttcc_status()
+        except Exception as e:
+            logger.warning(f"Failed to check RTTCC status with error: {e}")
+            rttcc_issues = []
+    else:
         rttcc_issues = []
 
     # Check for ECC errors
@@ -398,7 +617,7 @@ if __name__ == '__main__':
 
     # Check for row remap errors
     try:
-        remap_results = check_row_remap_errors()
+        remap_results,row_remap_action = check_row_remap_errors()
     except Exception as e:
         logger.warning(f"Failed to check row remap errors with error: {e}")
         remap_results = []
@@ -412,9 +631,15 @@ if __name__ == '__main__':
 
     # Check for RDMA link flapping
     try:
-        lft = LinkFlappingTest(time_interval=args.lf_interval)
-        lft.get_rdma_link_failures()
-        lft_issues = lft.process_rdma_link_flapping()
+        metadata=get_metadata()
+        shape=metadata['shape']
+        if shape == "BM.GPU.H100.8" or shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8" or shape == "BM.GPU4.8" or shape == "BM.GPU.H200.8" or shape == "BM.GPU.MI300X.8":
+            lft = LinkFlappingTest(time_interval=args.lf_interval)
+            lft.get_rdma_link_failures()
+            lft_issues = lft.process_rdma_link_flapping()
+        else:
+            logger.info(f"RDMA link flapping/down test not required")
+            lft_issues = {"failures": [], "link_down": []}
     except Exception as e:
         logger.warning(f"Failed to check RDMA link flapping with error: {e}")
         lft_issues = {"failures": [], "link_down": []}
@@ -455,6 +680,43 @@ if __name__ == '__main__':
         logger.warning(f"Failed to check the number of GPUs with error: {e}")
         gpu_results = None
 
+    # Check GPU PCIe Widths
+    try:
+        gpu_pcie_results = check_gpu_pcie()
+    except Exception as e:
+        logger.warning(f"Failed to check GPU PCIe Width with error: {e}")
+        gpu_pcie_results = None
+
+    # Check WPA authentication if the option is set
+    wpa_auth_results = None
+    if args.wpa_auth:
+        try:
+            metadata = get_metadata()
+            wpa_auth_results = check_wpa_auth(metadata)
+        except Exception as e:
+            logger.warning(f"Failed to get WPA Authentication status: {e}")
+            wpa_auth_results = None
+
+    if shape == "BM.GPU.H100.8" or shape == "BM.GPU.H200.8":
+        # Check for Fabric Manager Started
+        try:
+            fabric_manager_health = check_fabric_manager()
+        except Exception as e:
+            logger.warning(f"Failed to check Fabric Manager with error: {e}")
+            fabric_manager_health = True
+
+        if fabric_manager_health:
+            logger.info("Fabric Manager Running: Passed")
+    else:
+        fabric_manager_health=True
+    
+    # Check CPU Profile is performance
+    try:
+        cpu_profile_issues = get_current_cpu_profile()
+    except Exception as e:
+        logger.warning(f"Failed to check CPU profile with error: {e}")
+        cpu_profile_issues = []
+
     # Summarize the results
     try:
         host_serial = get_host_serial()
@@ -485,6 +747,7 @@ if __name__ == '__main__':
                     ecc_error=True
         if ecc_error:
             slurm_reason("ECC Error")
+            action = recommended_action(action, "Reboot")
     if len(remap_results) > 0:
         remap_error=False
         for issue in remap_results:
@@ -495,38 +758,78 @@ if __name__ == '__main__':
                 remap_error=True
         if remap_error:
             slurm_reason("Remap Error")
+            action = recommended_action(action, row_remap_action)
     if xid_results["status"] == "Failed":
         for xid in xid_results["results"]:
             for pci in xid_results["results"][xid]["results"]:
                 logger.error(f"{host_serial} - GPU Xid {xid} device: {pci}, {xid_results['results'][xid]['description']}")
                 slurm_reason("XID Error")
+                action = recommended_action(action, "Reboot")
     if len(rdma_link_issues) > 0:
         for issue in rdma_link_issues:
             logger.error(f"{host_serial} - RDMA link issues: {issue}")
             slurm_reason("RDMA Link Error")
+            if "signal not detected" in issue:
+                logger.info("No signal detected doesn't always come from a bad cable and require a termination for investigation")
+                action = recommended_action(action, "Terminate")
+            else:
+                action = recommended_action(action, "LiveFix")
     if len(lft_issues["failures"]) > 0 or len(lft_issues["link_down"]) > 0:
         if len(lft_issues["failures"]) > 0:
             for issue in lft_issues["failures"]:
                 logger.error(f"{host_serial} - RDMA link flapping issues: {issue}")
                 slurm_reason("RDMA Link Flapping Error")
+                action = recommended_action(action, "LiveFix")
         if len(lft_issues["link_down"]) > 0:
             for issue in lft_issues["link_down"]:
                 logger.error(f"{host_serial} - RDMA link down issues: {issue}")
                 slurm_reason("RDMA Link Down Error")
+                action = recommended_action(action, "LiveFix")
     if bwt_results != None:
         if bwt_results["status"] == "Failed":
             for issue in bwt_results["issues"]:
                 logger.error(f"{host_serial} - GPU bandwidth issues: {issue}")
                 slurm_reason("GPU Bwt Error")
+                action = recommended_action(action, "Terminate")
     if bus_results:
         logger.error(f"{host_serial} - Bus issues: {bus_results}")
         slurm_reason("GPU Bus Error")
+        action = recommended_action(action, "Terminate")
     if gpu_results:
         logger.error(f"{host_serial} - Missing GPU(s): {gpu_results}")
         slurm_reason("Missing GPU Error")
-
+        action = recommended_action(action, "Reboot")
+    if gpu_pcie_results:
+        logger.error(f"{host_serial} - GPU PCIe Width: {gpu_pcie_results}")
+        slurm_reason("GPU PCIe Width Error")
+        action = recommended_action(action, "Terminate")
+    if wpa_auth_results:
+        for issue in wpa_auth_results:
+            logger.error(f"{host_serial} - WPA authentication issue: {issue}")
+        slurm_reason("WPA Auth Error")
+        action = recommended_action(action, "Reboot")
+    if not fabric_manager_health:
+        logger.error(f"{host_serial} - Fabric Manager not started")
+        slurm_reason("Fabric Manager Error")
+        action = recommended_action(action, "FabricManagerRestart")
     datetime_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
+    if  cpu_profile_issues:
+        logger.error(f"CPU Profile need to be 'performance'.")
+        for issue in cpu_profile_issues:
+            logger.error(f" - {issue}")
+        slurm_reason("CPU Profile error")
+        action = recommended_action(action, "Reboot&LiveFix")
+    
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
+    if action == "Reboot":
+        logger.error("Recommended Action is to Force Reboot from the console or API")
+    if action == "LiveFix":
+        logger.error("Recommended Action is to Create a SR to Get the node fixed live")
+    if action == "Reboot&LiveFix":
+        logger.error("Recommended Action is to Create a SR to Get the node fixed live as well as force reboot the node")
+    if action == "Terminate":
+        logger.error("Recommended Action is to Terminate the node and Create a SR")
 
     if slurm_error_count > 0 and args.slurm:
         print("Healthcheck:: "+slurm_drain_reason[:-1])
+        print("Healthcheck:: Recommended Action:"+str(action))

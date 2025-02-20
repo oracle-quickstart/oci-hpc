@@ -1,0 +1,32 @@
+---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Filter existing services
+  ansible.builtin.set_fact:
+    existing_services: "{{ oom_services | select('in', ansible_facts.services.keys()) | list }}"
+
+- name: Ensure directories exist for systemd overrides
+  become: true
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.d"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  with_items: "{{ existing_services }}"
+  
+- name: Copy oom-adjust.conf to the override directory
+  become: true
+  ansible.builtin.copy:
+    src: oom-adjust.conf
+    dest: "/etc/systemd/system/{{ item }}.d/override.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items: "{{ existing_services }}"
+
+- name: Reload systemd daemon
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true

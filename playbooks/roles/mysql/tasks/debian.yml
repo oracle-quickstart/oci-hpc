@@ -86,7 +86,6 @@
     name: mariadb
     enabled: yes
 
-
 - block:
 
   - name: Start MariaDB service

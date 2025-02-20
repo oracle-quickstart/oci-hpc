@@ -4,9 +4,6 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/dcgm-exporter -f /etc/dcgm-counters.csv
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=dcgm-exporter
 
 [Install]
 WantedBy=multi-user.target
