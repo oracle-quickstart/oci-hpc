@@ -165,5 +165,7 @@ variable "hostname_convention" {
 variable "queue_ocid" {
   default = "${queue_ocid}"
 }
-
+variable "ons_topic_ocid" {
+  default = ${ons_topic_ocid}
+}
 

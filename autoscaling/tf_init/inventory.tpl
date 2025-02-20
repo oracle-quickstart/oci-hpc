@@ -82,3 +82,4 @@ http_server_port=8080
 db_name=network_scan
 collection_name=http_servers
 queue_ocid=${queue_ocid}
+ons_topic_ocid=${ons_topic_ocid}

@@ -46,6 +46,12 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   subnet_id      = local.subnet_id
 }
 
+resource "oci_ons_notification_topic" "grafana_alerts" {
+  compartment_id = var.targetCompartment
+  name           = "grafana-alerts-${random_pet.name.id}"
+  description    = "Topic for Grafana Alerts"
+}
+
 resource "null_resource" "boot_volume_backup_policy" {
   depends_on = [oci_core_instance.controller, oci_core_volume_backup_policy.controller_boot_volume_backup_policy, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy]
   triggers = {
@@ -335,7 +341,8 @@ resource "null_resource" "cluster" {
       healthchecks              = var.healthchecks,
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
-      queue_ocid                = local.queue_ocid
+      queue_ocid                = local.queue_ocid,
+      ons_topic_ocid            = oci_ons_notification_topic.grafana_alerts.id
     })
 
     destination = "/config/playbooks/inventory"
@@ -506,7 +513,8 @@ resource "null_resource" "cluster" {
       numa_nodes_per_socket               = var.numa_nodes_per_socket,
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
       healthchecks                        = var.healthchecks,
-      queue_ocid                          = local.queue_ocid
+      queue_ocid                          = local.queue_ocid,
+      ons_topic_ocid                      = oci_ons_notification_topic.grafana_alerts.id
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"
