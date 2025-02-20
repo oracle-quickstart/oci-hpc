@@ -1,6 +1,7 @@
 
 [Unit]
 Requires=munge.service
+After=munge.service network-online.target remote-fs.target sssd.service
 
 [Service]
 Restart=always
