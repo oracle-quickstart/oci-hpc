@@ -104,5 +104,5 @@
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias nodes="python3 /opt/oci-hpc/bin/get_nodes_from_db.py | jq -r .[].hostname"
+    line: alias nodes="python3 /opt/oci-hpc/bin/get_nodes_from_db.py | jq -r '.[] | select(.role == \"compute\") | .hostname'"
     state: present
