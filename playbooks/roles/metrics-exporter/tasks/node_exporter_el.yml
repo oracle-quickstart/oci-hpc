@@ -20,14 +20,14 @@
 - name: Check if file already exists
   stat:
     path: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz 
-  register: node_exporter
+  register: node_exporter_file
 
 - name: Download node_exporter {{ node_exporter }}
   become: true
   get_url:
     url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz
     dest: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz 
-  when: not node_exporter.stat.exists | bool
+  when: not node_exporter_file.stat.exists | bool
 
 - name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
   become: true
