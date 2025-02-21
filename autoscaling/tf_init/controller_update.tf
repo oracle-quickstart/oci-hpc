@@ -74,7 +74,7 @@ resource "local_file" "inventory" {
     change_hostname=var.change_hostname,
     hostname_convention=var.hostname_convention,
     queue_ocid=var.queue_ocid,
-    ons_topic_ocid=oci_ons_notification_topic.grafana_alerts.id
+    ons_topic_ocid=var.ons_topic_ocid
     })
   filename   = "/config/playbooks/inventory_${local.cluster_name}"
 }
