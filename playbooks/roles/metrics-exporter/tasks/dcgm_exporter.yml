@@ -22,7 +22,7 @@
   unarchive:
     src: "/tmp/{{ go_tarball }}"
     dest: "{{ go_install_dir }}"
-    remote_src: yes
+    remote_src: true
 
 - name: Ensure Go binary path is in PATH
   become: true
@@ -37,29 +37,55 @@
     path: /config/3rdparty/dcgm-exporter
   register: dcgm_exporter
 
-- name: Clone DCGM Exporter repository
+- name: Get current DCGM version
   become: true
-  git:
-    repo: "{{ dcgm_repo }}"
-    dest: "/config/3rdparty/dcgm-exporter"
-    update: no
-  environment:
-    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
-  when: not node_exporter_file_3.4.0.stat.exists | bool
+  shell:
+    cmd: dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'
+  register: dcgm_version
+  when: not dcgm_exporter.stat.exists | bool
+
+
+- name: Find DCGM Exporter releases
+  become: true
+  shell:
+    cmd: curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"'
+  register: dcgm_exporter_releases
+  when: not dcgm_exporter.stat.exists | bool
+
+- name: Select appropriate DCGM Exporter version
+  set_fact:
+    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version.stdout) | first | split(' ') | last }}"
+  when: not dcgm_exporter.stat.exists | bool
+
+- name: Download DCGM Exporter tarball
+  become: true
+  get_url:
+    url: "{{ dcgm_exporter_url }}"
+    dest: "/config/3rdparty/dcgm-exporter.tar.gz"
+  when: not dcgm_exporter.stat.exists | bool
+
+- name: Extract DCGM Exporter tarball
+  become: true
+  unarchive:
+    src: "/config/3rdparty/dcgm-exporter.tar.gz"
+    dest: "/config/3rdparty"
+    remote_src: true
+  when: not dcgm_exporter.stat.exists | bool
 
 - name: Build DCGM Exporter binary
   become: true
   command: make binary
   args:
-    chdir: /tmp/dcgm-exporter
+    chdir: "/config/3rdparty/dcgm-exporter"
   environment:
     PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+  when: not dcgm_exporter.stat.exists | bool
 
 - name: Install DCGM Exporter
   become: true
   command: make install
   args:
-    chdir: /tmp/dcgm-exporter
+    chdir: /config/3rdparty/dcgm-exporter
   environment:
     PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
 
