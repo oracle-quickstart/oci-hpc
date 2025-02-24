@@ -79,7 +79,6 @@ resource "oci_core_instance" "controller" {
 
   freeform_tags = {
     "cluster_name"   = local.cluster_name
-    "parent_cluster" = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
   }
 

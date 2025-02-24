@@ -29,7 +29,6 @@ resource "oci_core_instance" "backup" {
 
   freeform_tags = {
     "cluster_name"   = local.cluster_name
-    "parent_cluster" = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
   }
 

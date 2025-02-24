@@ -11,6 +11,11 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       compartment_id      = var.targetCompartment
       create_vnic_details {
       }
+      freeform_tags = {
+        "cluster_name"   = local.cluster_name
+        "controller_name" = var.controller_name
+        "hostname_convention" = var.hostname_convention
+      }
       metadata = {
 # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/ed25519.pub")

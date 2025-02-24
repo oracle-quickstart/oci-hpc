@@ -40,7 +40,6 @@ resource "oci_core_instance" "compute_cluster_instances" {
 
   freeform_tags = {
     "cluster_name" = local.cluster_name
-    "parent_cluster" = local.cluster_name
     "controller_name" = var.controller_name
     "user" = var.tags
     "hostname_convention" = var.hostname_convention

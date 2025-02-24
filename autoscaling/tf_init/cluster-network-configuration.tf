@@ -11,6 +11,11 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
       compartment_id      = var.targetCompartment
       create_vnic_details {
       }
+      freeform_tags = {
+        "cluster_name"   = local.cluster_name
+        "controller_name" = var.controller_name
+        "hostname_convention" = var.hostname_convention
+      }
       metadata = {
         ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/ed25519.pub")
         user_data           = base64encode(file("cloud-init.sh"))
