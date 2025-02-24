@@ -5,17 +5,22 @@
       path: /config/3rdparty/
       state: directory
       mode: '0755'
+      
   - name: Check if required RPMs are already downloaded
     stat:
       path: "/config/3rdparty/{{ item | basename }}"
     register: rpm_files
     with_items:
-      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
-      - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
+      - "{{enroot_file}}"
+      - "{{enroot_caps_file}}"
+
   - name: Download RPMs if not already present
     get_url:
       url: "{{ item.item }}"
       dest: "/config/3rdparty/{{ item.item | basename }}"
+      mode: '0755'
+      owner: opc
+      group: opc
     when: not item.stat.exists
     with_items:  "{{rpm_files.results}}"
 
@@ -23,9 +28,10 @@
     vars: 
       package_name: 
         - zstd
-        - "/config/3rdparty/enroot-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
-        - "/config/3rdparty/enroot+caps-3.4.0-2.el{{ansible_distribution_major_version}}.{{ ansible_architecture }}.rpm"
+        - "/config/3rdparty/{{ enroot_file | basename }}"
+        - "/config/3rdparty/{{ enroot_caps_file | basename }}"
       package_repo: "epel,ol{{ansible_distribution_major_version}}_developer_EPEL"
+      disable_gpg_check_var: true
     include_role: 
       name: safe_yum
     
@@ -42,33 +48,28 @@
       sysctl_file: /etc/sysctl.d/81-enroot.conf
       reload: yes
 
-  - name: Check if file already exists
+      
+  - name: Check if enroot check RPMs are already downloaded
     stat:
-      path: /config/3rdparty/enroot-check_3.4.0_{{ ansible_architecture }}.run
-    register: node_exporter_file_3.4.0
-
-  - name: Check if file already exists
-    stat:
-      path: /config/3rdparty/enroot-check_3.4.1_{{ ansible_architecture }}.run
-    register: node_exporter_file_3.4.1
+      path: "/config/3rdparty/{{ enroot_check_file | basename }}"
+    register: enroot_check_files
 
   - name: Download enroot-check
     get_url:
-      url: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-check_3.4.0_{{ ansible_architecture }}.run"
+      url: "{{enroot_check_file}}"
       dest: "/config/3rdparty"
       mode: '0755'
       owner: opc
       group: opc
-    when: ansible_distribution_major_version == '7' and ( not node_exporter_file_3.4.0.stat.exists | bool )
+    when: not enroot_check_files.stat.exists | bool
 
   - name: Download enroot-check
-    get_url:
-      url: "https://github.com/NVIDIA/enroot/releases/download/v3.4.1/enroot-check_3.4.1_{{ ansible_architecture }}.run"
+    copy:
+      src: "/config/3rdparty/{{ enroot_check_file | basename }}"
       dest: "/tmp"
       mode: '0755'
       owner: opc
       group: opc
-    when: (ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' ) and ( not node_exporter_file_3.4.1.stat.exists | bool )
 
   - name: execute enroot-check_*.run
     command: bash -c "/tmp/enroot-check_*.run --verify"
