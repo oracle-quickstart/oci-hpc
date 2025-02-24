@@ -134,7 +134,9 @@ sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
 
-log=/config/logs/`hostname`.log
+modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
+echo $modified_hostname
+log=/config/logs/${modified_hostname}.log
 while true; do
     echo "Attempting to configure the node"
     ansible-playbook -i /config/playbooks/inventory_$cluster_name /config/playbooks/compute.yml 2>&1 | tee -a $log
