@@ -58,3 +58,12 @@
     name: safe_yum
   ignore_errors: true
   
+- name: Install psutil and distro
+  pip:
+    name: ['psutil', 'distro']
+    executable: /usr/bin/pip3
+
+- name: Install psutil and distro
+  pip:
+    name: ['psutil', 'distro']
+    executable: /config/venv/bin/pip3
