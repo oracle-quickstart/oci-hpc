@@ -204,7 +204,7 @@
       when: ansible_distribution_major_version == '7' 
 
     - block:
-        - name: Render OpenLDAP configuration - config ol8
+        - name: Render OpenLDAP configuration - config ol8 and ol9
           template:
             src: '{{ item }}.j2'
             dest: '/tmp/{{ item }}'
@@ -261,6 +261,7 @@
       with_items:
         - config.ldif
         - local.ldif
+        - ppolicy.ldif
         - memberof.ldif
       notify: restart openldap
       when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' 
