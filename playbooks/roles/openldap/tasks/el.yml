@@ -170,6 +170,7 @@
         - rfc2307bis.ldif
         - autoinc.ldif
         - local_schema.ldif
+        - ppolicy.ldif
 
     - name: Load OpenLDAP schemas
       command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}.ldif
