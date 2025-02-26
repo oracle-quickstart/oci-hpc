@@ -10,7 +10,7 @@
     group: opc
     recurse: yes
 
-- name: Install dependencies
+- name: Install dependencies (OL7, OL8, OL9)
   vars:
     package_name: >-
       {{
@@ -29,7 +29,7 @@
         disable_gpg_check: true
   when: ansible_distribution_major_version == '8'
 
-- name: Install OpenLDAP packages
+- name: Install OpenLDAP packages (OL7, OL8, OL9)
   vars:
     package_name: >-
       {{
@@ -154,13 +154,11 @@
         dest: "/tmp/{{ item }}"
       with_items:
         - config.ldif
-      changed_when: false
 
     - name: Render OpenLDAP configuration - local OL7
       template:
         src: "el_local.ldif.j2"
         dest: "/tmp/local.ldif"
-      changed_when: false
 
     - name: Copy OpenLDAP overlay configurations - ppolicy OL7
       copy:
