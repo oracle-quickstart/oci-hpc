@@ -38,12 +38,11 @@ else
   echo "Use the appropriate nccl test run script for non H100 nodes"
 fi
 
-export NCCL_CROSS_NIC=0 \
-       NCCL_SOCKET_NTHREADS=16 \
+export NCCL_CROSS_NIC=2 \
        NCCL_DEBUG=WARN \
        NCCL_CUMEM_ENABLE=0 \
        NCCL_IB_SPLIT_DATA_ON_QPS=0 \
-       NCCL_IB_QPS_PER_CONNECTION=16 \
+       NCCL_IB_QPS_PER_CONNECTION=1 \
        NCCL_IB_GID_INDEX=3 \
        NCCL_IB_TC=41 \
        NCCL_IB_SL=0 \
@@ -52,7 +51,6 @@ export NCCL_CROSS_NIC=0 \
        NCCL_SOCKET_IFNAME=eth0 \
        NCCL_IGNORE_CPU_AFFINITY=1 \
        NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17" \
-       NCCL_TOPO_FILE=/nfs/cluster/H100-topology.xml \
        HCOLL_ENABLE_MCAST_ALL=0 \
        coll_hcoll_enable=0 \
        UCX_TLS=tcp \
@@ -64,7 +62,7 @@ export NCCL_CROSS_NIC=0 \
 env | grep "SLURMD_NODENAME="
 USER=`whoami`
 
-CONTAINER_IMAGE="/home/ubuntu/nvcr.io+nvidia+pytorch+24.01-py3.sqsh"
+CONTAINER_IMAGE="nvcr.io#nvidia/pytorch:24.12-py3"
 CONTAINER_MOUNTS="/opt/oci-hpc/nccl-test:/nccl,$LOCAL_MPI:$LOCAL_MPI,/nfs/cluster:/nfs/cluster"
 echo $LOCAL_MPI
 echo $MPIVARS_PATH
@@ -75,5 +73,6 @@ srun --mpi=pmi2 --gpus-per-node=$SBATCH_GPUS_PER_NODE \
      --container-mounts=$CONTAINER_MOUNTS \
      bash -c "
      source $MPIVARS_PATH &&
-     /nccl/build/all_reduce_perf -b 1G -e 16G -f 2 -g 1
+     /nccl/build/all_reduce_perf -b 8 -e 16G -f 2 -g 1
      "
+
