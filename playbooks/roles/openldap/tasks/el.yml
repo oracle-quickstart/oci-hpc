@@ -102,7 +102,7 @@
         extra_args: --upgrade
         executable: /usr/bin/pip3  
 
-    - name: Install ladap3 and click
+    - name: Install ldap3 and click
       pip:
         name: ['ldap3', 'click']
         executable: /usr/bin/pip3  
@@ -128,18 +128,33 @@
     state: started
     enabled: "yes"
 
-- name: Copy OpenLDAP schemas
+- name: Copy OpenLDAP schemas for OL7
   copy:
-    src: "{{ item }}"
-    dest: "/etc/openldap/schema/"
+    src: "{{ item.src }}"
+    dest: "/etc/openldap/schema/{{ item.dest }}"
     owner: "{{ openldap_default_user }}"
     group: "{{ openldap_default_group }}"
     mode: "0644"
   with_items:
-    - rfc2307bis.ldif
-    - autoinc.ldif
-    - local_schema.ldif
-    - ppolicy.ldif
+    - { src: "rfc2307bis.ldif", dest: "rfc2307bis.ldif" }
+    - { src: "autoinc.ldif", dest: "autoinc.ldif" }
+    - { src: "local_schema.ldif", dest: "local_schema.ldif" }
+    - { src: "el_ppolicy.ldif", dest: "ppolicy.ldif" }
+  when: ansible_distribution_major_version == "7"
+
+- name: Copy OpenLDAP schemas for OL8 and OL9
+  copy:
+    src: "{{ item.src }}"
+    dest: "/etc/openldap/schema/{{ item.dest }}"
+    owner: "{{ openldap_default_user }}"
+    group: "{{ openldap_default_group }}"
+    mode: "0644"
+  with_items:
+    - { src: "rfc2307bis.ldif", dest: "rfc2307bis.ldif" }
+    - { src: "autoinc.ldif", dest: "autoinc.ldif" }
+    - { src: "local_schema.ldif", dest: "local_schema.ldif" }
+    - { src: "el_ppolicy_ol8.ldif", dest: "ppolicy.ldif" }
+  when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Load OpenLDAP schemas
   command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}.ldif
@@ -227,7 +242,6 @@
   with_items:
     - config.ldif
     - local.ldif
-    - ppolicy.ldif
     - memberof.ldif
   notify: restart openldap
   when: ansible_distribution_major_version in ["8", "9"]
