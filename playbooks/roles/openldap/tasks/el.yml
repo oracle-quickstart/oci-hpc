@@ -184,10 +184,10 @@
 
   when: ansible_distribution_major_version in ["8", "9"]
 
-- name: Load OpenLDAP schemas and configs (OL7 | OL8 | OL9)
+- name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
   command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}.ldif
   args:
-    creates: "/etc/openldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif"
+    creates: "/etc/openldap/slapd.d/cn=config/cn=schema/cn={{ item }}.ldif"
   with_items:
     - rfc2307bis
     - autoinc
@@ -195,7 +195,7 @@
     - ppolicy
     - memberof
 
-- name: Load OpenLDAP global configuration (OL7 | OL8 | OL9)
+- name: Load OpenLDAP global configuration (OL7, OL8, OL9)
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/config.ldif
   args:
     creates: "/etc/openldap/slapd.d/cn=config.ldif"
@@ -213,7 +213,7 @@
   notify: restart openldap
   when: ansible_distribution_major_version == "7"
 
-- name: Load OpenLDAP local configuration - OL8 and OL9
+- name: Load OpenLDAP local configuration (OL8, OL9)
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}
   args:
     creates: "/etc/openldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif"
