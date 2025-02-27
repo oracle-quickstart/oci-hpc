@@ -64,7 +64,7 @@
     setype: slapd_db_t
   when: ansible_selinux.status == "enabled"
 
-- name: Adjust OpenLDAP TLS configuration
+- name: Adjust OpenLDAP server TLS configuration
   lineinfile:
     path: "{{ openldap_server_defaults_file }}"
     regexp: '^SLAPD_URLS='
@@ -188,12 +188,7 @@
   command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}.ldif
   args:
     creates: "/etc/openldap/slapd.d/cn=config/cn=schema/cn={{ item }}.ldif"
-  with_items:
-    - rfc2307bis
-    - autoinc
-    - local_schema
-    - ppolicy
-    - memberof
+  with_items: '{{ openldap_schemas }}'
 
 - name: Load OpenLDAP global configuration (OL7, OL8, OL9)
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/config.ldif
