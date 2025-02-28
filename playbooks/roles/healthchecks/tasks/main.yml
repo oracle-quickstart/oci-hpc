@@ -8,13 +8,13 @@
 
 - name: Copy files
   become: true
-  copy: 
+  copy:
     src: '{{ item }}'
     dest: '/opt/oci-hpc/healthchecks/{{ item }}'
     force: no
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
-  with_items: 
+  with_items:
     - check_gpu_setup.py
     - gpu_bw_test.py
     - rdma_link_flapping.py
@@ -35,33 +35,38 @@
 
 - name: Copy files
   become: true
-  copy: 
+  copy:
     src: '{{ item }}'
     dest: '/opt/oci-hpc/healthchecks/{{ item }}'
     force: no
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
     mode: 0755
-  with_items: 
+  with_items:
     - run_meshpinger.sh
   when: ('controller' in group_names)
 
-- name: Make sure meshpinger dependencies are installed. 
-  vars: 
-    package_name: 
+- name: Make sure meshpinger dependencies are installed.
+  vars:
+    package_name:
       - fping
       - jq
       - lshw
       - ethtool
     package_state: latest
-  include_role: 
+  include_role:
     name: safe_yum
   ignore_errors: true
-  
-- name: Install psutil and distro
-  pip:
-    name: ['psutil', 'distro']
-    executable: /usr/bin/pip3
+
+- name: Make sure healthcheck dependencies are installed.
+  vars:
+    package_name:
+      - python3-psutil
+      - python3-distro
+    package_state: latest
+  include_role:
+    name: safe_yum
+  ignore_errors: true
 
 - name: Install psutil and distro
   pip:
