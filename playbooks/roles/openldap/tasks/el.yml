@@ -165,7 +165,7 @@
   when: ansible_distribution_major_version == "7"
 
 - block:
-    - name: Copy OpenLDAP schemas for OL8
+    - name: Copy OpenLDAP schemas (OL8 or OL9)
       copy:
         src: "{{ item }}"
         dest: "/etc/openldap/schema/"
@@ -177,7 +177,7 @@
         - autoinc.ldif
         - local_schema.ldif
 
-    - name: Render OpenLDAP configuration templates for OL8
+    - name: Render OpenLDAP configuration templates (OL8 or OL9)
       template:
         src: "{{ item.src }}"
         dest: "/tmp/{{ item.dest }}"
@@ -188,7 +188,7 @@
         - { src: "config.ldif.j2", dest: "config.ldif" }
         - { src: "el_local_ol8.ldif.j2", dest: "local.ldif" }
       
-    - name: Copy other OpenLDAP schemas for OL8
+    - name: Copy other OpenLDAP schemas (OL8 or OL9)
       copy:
         src: "{{ item.src }}"
         dest: "/tmp/{{ item.dest }}"
@@ -196,36 +196,8 @@
         group: "{{ openldap_default_group }}"
         mode: "0644"
       with_items:
-        - { src: "el_ppolicy_ol8.ldif", dest: "ppolicy.ldif" }
         - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
-  when: ansible_distribution_major_version == "8"
-
-- block:
-    - name: Copy OpenLDAP schemas for OL9
-      copy:
-        src: "{{ item.src }}"
-        dest: "/etc/openldap/schema/{{ item.dest }}"
-        owner: "{{ openldap_default_user }}"
-        group: "{{ openldap_default_group }}"
-        mode: "0644"
-      with_items:
-        - { src: "rfc2307bis.ldif", dest: "rfc2307bis.ldif" }
-        - { src: "autoinc.ldif", dest: "autoinc.ldif" }
-        - { src: "local_schema.ldif", dest: "local_schema.ldif" }
-        - { src: "el_ppolicy_ol8.ldif", dest: "ppolicy.ldif" }
-
-    - name: Render OpenLDAP configuration templates for OL9
-      template:
-        src: "{{ item.src }}"
-        dest: "/tmp/{{ item.dest }}"
-        owner: "{{ openldap_default_user }}"
-        group: "{{ openldap_default_group }}"
-        mode: "0644"
-      with_items:
-        - { src: "config.ldif.j2", dest: "config.ldif" }
-        - { src: "el_local_ol8.ldif.j2", dest: "local.ldif" }
-        - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
-  when: ansible_distribution_major_version == "9"
+  when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
   command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}.ldif
