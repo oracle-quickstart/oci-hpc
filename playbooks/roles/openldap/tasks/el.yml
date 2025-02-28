@@ -131,56 +131,73 @@
 - block:
     - name: Copy OpenLDAP schemas for OL7
       copy:
-        src: "{{ item.src }}"
-        dest: "/etc/openldap/schema/{{ item.dest }}"
+        src: "{{ item }}"
+        dest: "/etc/openldap/schema/"
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
       with_items:
-        - { src: "rfc2307bis.ldif", dest: "rfc2307bis.ldif" }
-        - { src: "autoinc.ldif", dest: "autoinc.ldif" }
-        - { src: "local_schema.ldif", dest: "local_schema.ldif" }
-        - { src: "el_ppolicy.ldif", dest: "ppolicy.ldif" }
-        - { src: "el_memberof.ldif", dest: "memberof.ldif" }
+        - rfc2307bis.ldif
+        - autoinc.ldif
+        - local_schema.ldif
 
     - name: Render OpenLDAP configuration templates for OL7
       template:
         src: "{{ item.src }}"
-        dest: "/etc/openldap/schema/{{ item.dest }}"
+        dest: "/tmp/{{ item.dest }}"
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
         - { src: "el_local.ldif.j2", dest: "local.ldif" }
-
+    
+    - name: Copy other OpenLDAP schemas for OL7
+      copy:
+        src: "{{ item.src }}"
+        dest: "/tmp/{{ item.dest }}"
+        owner: "{{ openldap_default_user }}"
+        group: "{{ openldap_default_group }}"
+        mode: "0644"
+      with_items:
+        - { src: "el_ppolicy.ldif", dest: "ppolicy.ldif" }
+        - { src: "el_memberof.ldif", dest: "memberof.ldif" }
   when: ansible_distribution_major_version == "7"
 
 - block:
     - name: Copy OpenLDAP schemas for OL8
       copy:
-        src: "{{ item.src }}"
-        dest: "/etc/openldap/schema/{{ item.dest }}"
+        src: "{{ item }}"
+        dest: "/etc/openldap/schema/"
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
       with_items:
-        - { src: "rfc2307bis.ldif", dest: "rfc2307bis.ldif" }
-        - { src: "autoinc.ldif", dest: "autoinc.ldif" }
-        - { src: "local_schema.ldif", dest: "local_schema.ldif" }
-        - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
+        - rfc2307bis.ldif
+        - autoinc.ldif
+        - local_schema.ldif
 
-    - name: Render OpenLDAP configuration templates for OL8 and OL9
+    - name: Render OpenLDAP configuration templates for OL8
       template:
         src: "{{ item.src }}"
-        dest: "/etc/openldap/schema/{{ item.dest }}"
+        dest: "/tmp/{{ item.dest }}"
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
         - { src: "el_local_ol8.ldif.j2", dest: "local.ldif" }
-
+      
+    - name: Copy other OpenLDAP schemas for OL8
+      copy:
+        src: "{{ item.src }}"
+        dest: "/tmp/{{ item.dest }}"
+        owner: "{{ openldap_default_user }}"
+        group: "{{ openldap_default_group }}"
+        mode: "0644"
+      with_items:
+        - { src: "el_ppolicy_ol8.ldif", dest: "ppolicy.ldif" }
+        - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
   when: ansible_distribution_major_version == "8"
 
 - block:
@@ -196,19 +213,18 @@
         - { src: "autoinc.ldif", dest: "autoinc.ldif" }
         - { src: "local_schema.ldif", dest: "local_schema.ldif" }
         - { src: "el_ppolicy_ol8.ldif", dest: "ppolicy.ldif" }
-        - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
 
     - name: Render OpenLDAP configuration templates for OL9
       template:
         src: "{{ item.src }}"
-        dest: "/etc/openldap/schema/{{ item.dest }}"
+        dest: "/tmp/{{ item.dest }}"
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
         - { src: "el_local_ol8.ldif.j2", dest: "local.ldif" }
-
+        - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
   when: ansible_distribution_major_version == "9"
 
 - name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
@@ -217,32 +233,33 @@
     creates: "/etc/openldap/slapd.d/cn=config/cn=schema/cn={{ item }}.ldif"
   with_items: '{{ openldap_schemas }}'
 
-- name: Load ppolicy.ldif after other schemas - OL8
-  command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/ppolicy.ldif
-  args:
-    creates: "/etc/openldap/slapd.d/cn=config/cn=schema/cn=ppolicy.ldif"
-  when: ansible_distribution_major_version == '8'
-
 - name: Load OpenLDAP global configuration (OL7, OL8, OL9)
-  command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/config.ldif
+  command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
   args:
     creates: "/etc/openldap/slapd.d/cn=config.ldif"
   notify: restart openldap
 
-- name: Load OpenLDAP local configuration - OL7
-  command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}
+- name: Load OpenLDAP local configuration ol7
+  command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
   args:
-    creates: "/etc/openldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif"
+    creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif'
   with_items:
     - config.ldif
     - local.ldif
     - ppolicy.ldif
     - memberof.ldif
   notify: restart openldap
-  when: ansible_distribution_major_version == "7"
+  when: ansible_distribution_major_version == '7'
+
+- name: restart openldap
+  service:
+    name: slapd
+    state: restarted
+    enabled: yes
+  when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Load OpenLDAP local configuration (OL8, OL9)
-  command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}
+  command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
   args:
     creates: "/etc/openldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif"
   with_items:
@@ -250,13 +267,6 @@
     - local.ldif
     - memberof.ldif
   notify: restart openldap
-  when: ansible_distribution_major_version in ["8", "9"]
-
-- name: restart openldap
-  service:
-    name: slapd
-    state: restarted
-    enabled: yes
   when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Check local schemas
