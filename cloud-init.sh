@@ -15,18 +15,7 @@ if [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
         done
     }
     fix_apt
-    sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
-    sudo apt purge -y --auto-remove unattended-upgrades
-    sudo systemctl disable apt-daily-upgrade.timer
-    sudo systemctl mask apt-daily-upgrade.service
-    sudo systemctl disable apt-daily.timer
-    sudo systemctl mask apt-daily.service
-    
-    sleep 10s
 
-    sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle
-
-    fix_apt
     sleep 10s
     sudo apt -y --fix-broken install
 
@@ -53,6 +42,10 @@ echo "$controller:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=1
 systemctl daemon-reload
 
 while true; do
+    if mountpoint -q /config; then
+        echo "/config is already mounted. Exiting loop."
+        break
+    fi
     echo "Attempting to mount $controller:/config"
     # Run the mount command and check if it succeeds
     mount /config

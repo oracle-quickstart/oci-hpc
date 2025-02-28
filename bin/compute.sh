@@ -71,8 +71,10 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
   sudo apt purge -y --auto-remove unattended-upgrades
+  sudo systemctl stop apt-daily-upgrade.timer
   sudo systemctl disable apt-daily-upgrade.timer
   sudo systemctl mask apt-daily-upgrade.service
+  sudo systemctl stop apt-daily.timer
   sudo systemctl disable apt-daily.timer
   sudo systemctl mask apt-daily.service
 
@@ -86,22 +88,21 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   fix_apt
 
-  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
+  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
+    sudo apt-get -y install python python-netaddr python3 python3-pip
+  else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     sudo apt-get -y install python3 python3-netaddr python3-pip
     sudo ln -s /usr/bin/python3 /usr/bin/python
-  else
-    sudo apt-get -y install python python-netaddr python3 python3-pip
   fi
   output=$?
   if [ $output -ne 0 ]
   then
       fix_apt
-        if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
-          sudo apt-get -y install python3 python3-netaddr python3-pip
-
+        if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
+           sudo apt-get -y install python python-netaddr python3 python3-pip
         else
-          sudo apt-get -y install python python-netaddr python3 python3-pip
+           sudo apt-get -y install python3 python3-netaddr python3-pip
         fi
   fi
 fi 

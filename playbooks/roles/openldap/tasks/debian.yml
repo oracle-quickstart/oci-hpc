@@ -156,7 +156,7 @@
       args:
         creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
       with_items: '{{ openldap_schemas_22 }}'
-      when: ansible_distribution_version == '22.04'
+      when: ansible_distribution_version == '22.04' or ansible_distribution_version == '24.04'
 
     - name: Render OpenLDAP configuration - config
       template:
@@ -212,7 +212,7 @@
         - config.ldif
         - local.ldif
         - memberof.ldif
-      when: ansible_distribution_version == '22.04'
+      when: ansible_distribution_version == '22.04' or ansible_distribution_version == '24.04'
       notify: restart openldap
 
     - name: Check local schemas

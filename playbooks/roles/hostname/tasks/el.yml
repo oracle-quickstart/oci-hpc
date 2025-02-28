@@ -1,7 +1,7 @@
 ---
 - name: update hostname for HPC cluster
   vars:
-    - index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   hostname:
     name: "{{hostname_convention}}-{{index}}"
 - name: Check Hostname
@@ -11,7 +11,7 @@
 
 - name: update hostname for HPC cluster
   vars:
-    - index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   hostname:
     name: "{{hostname_convention}}-{{index}}"
   when:  hostname_output.stdout != ansible_fqdn.split('.')[0]

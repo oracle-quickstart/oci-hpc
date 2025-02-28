@@ -26,7 +26,13 @@ import pymysql
 import re
 import sys
 import json
-from datetime import datetime, timedelta
+version = sys.version_info
+
+if version >= (3, 12):
+    from datetime import datetime, timedelta, UTC
+else:
+    from datetime import datetime, timedelta
+
 from concurrent.futures import ProcessPoolExecutor
 
 import oci
@@ -152,7 +158,10 @@ def run_ansible():
 
 # Parse nodes and update records in DB
 def check_nodes_status():
-    time_threshold = current_time.utcnow() - unreachable_timeout
+    if version >= (3, 12):
+        time_threshold = current_time.now(UTC) - unreachable_timeout
+    else:
+        time_threshold = current_time.utcnow() - unreachable_timeout
     query = """
     SELECT * FROM nodes
     WHERE status NOT IN ('terminated', 'terminating');
@@ -221,7 +230,10 @@ def check_nodes_status():
     return unreachable_nodes,started_nodes
 
 def clean_old_terminated_nodes():
-    time_threshold = current_time.utcnow() - retaining_period
+    if version >= (3, 12):
+        time_threshold = current_time.now(UTC) - retaining_period
+    else:
+        time_threshold = current_time.utcnow() - retaining_period
     query = """
     SELECT * FROM nodes
     WHERE status IN ('terminated');

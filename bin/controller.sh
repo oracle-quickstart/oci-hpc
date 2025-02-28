@@ -111,26 +111,29 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   fix_apt
 
-  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
+  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
+    sudo apt-get -y install python python-netaddr python3 python3-pip
+  else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     sudo apt-get -y install python3 python3-netaddr python3-pip
     sudo ln -s /usr/bin/python3 /usr/bin/python
-  else
-    sudo apt-get -y install python python-netaddr python3 python3-pip
   fi
-  output=$?
-  if [ $output -ne 0 ]
-  then
-      fix_apt
-        if [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
-          sudo apt-get -y install python3 python3-netaddr python3-pip
 
-        else
-          sudo apt-get -y install python python-netaddr python3 python3-pip
-        fi
+  echo ${VERSION_ID}
+  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
+    fix_apt
+    sudo apt-get -y install python python-netaddr python3 python3-pip
+    sudo python3 -m pip install virtualenv
+  elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
+    fix_apt
+    sudo apt-get -y install python3 python3-netaddr python3-pip
+    sudo python3 -m pip install virtualenv
+  else
+    fix_apt
+    sudo apt-get -y install python3 python3-netaddr python3-pip
+    fix_apt
+    sudo apt-get -y install python3-virtualenv
   fi
-  fix_apt
-  sudo python3 -m pip install virtualenv
   virtualenv /config/venv 
   source /config/venv/bin/activate
   /config/venv/bin/python3 -m pip install ansible

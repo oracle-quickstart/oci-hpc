@@ -5,7 +5,7 @@
   when: ansible_distribution_major_version < "22"
 
 - include_vars: ubuntu-2204_vars.yml
-  when: ansible_distribution_major_version == "22"
+  when: ansible_distribution_major_version >= "22"
 
 - name: Create /etc/opt/oci-hpc/passwords/mysql
   become: true
@@ -112,7 +112,7 @@
       check_implicit_admin: yes
       login_unix_socket: /run/mysqld/mysqld.sock
       state: present
-    when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == "22"
+    when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version >= "22"
 
   - name: Set MariaDB's root password
     become: true

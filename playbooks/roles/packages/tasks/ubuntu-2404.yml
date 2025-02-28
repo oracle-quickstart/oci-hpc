@@ -21,15 +21,6 @@
     include_role: 
       name: safe_yum
     ignore_errors: true
-
-  - name: Upgrade Pip3
-    become: true
-    pip:
-      name: [pip]
-      state: latest
-      executable: /usr/bin/pip3  
-    ignore_errors: yes
-    when: ansible_distribution_major_version | int < 24
     
   - name: Upgrade Pip3
     become: true
