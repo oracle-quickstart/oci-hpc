@@ -37,7 +37,7 @@
 
 - name: Get current nodes in Switch hostlist
   vars:
-    - switch_list_condensed: "{{item.stdout.split('Nodes=')[1]}}"
+    switch_list_condensed: "{{item.stdout.split('Nodes=')[1]}}"
   command: "scontrol show hostname {{switch_list_condensed }}"
   register: switch_hostlist
   delegate_to: 127.0.0.1
