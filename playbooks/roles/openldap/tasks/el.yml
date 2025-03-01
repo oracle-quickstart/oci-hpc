@@ -176,8 +176,16 @@
         - rfc2307bis.ldif
         - autoinc.ldif
         - local_schema.ldif
-        - { src: "{{ 'el_ppolicy_ol8.ldif' if ansible_distribution_major_version == '9' }}", dest: "ppolicy.ldif" }
-        
+
+    - name: Copy `ppolicy.ldif` only for OL9
+      copy:
+        src: "el_ppolicy_ol8.ldif"
+        dest: "/etc/openldap/schema/ppolicy.ldif"
+        owner: "{{ openldap_default_user }}"
+        group: "{{ openldap_default_group }}"
+        mode: "0644"
+      when: ansible_distribution_major_version == "9"
+
     - name: Render OpenLDAP configuration templates (OL8 or OL9)
       template:
         src: "{{ item.src }}"
