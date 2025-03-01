@@ -186,6 +186,15 @@
         mode: "0644"
       when: ansible_distribution_major_version == "9"
 
+    - name: Copy other OpenLDAP schemas (OL8 or OL9)
+      copy:
+        src: "el_memberof_ol8.ldif"
+        dest: "/tmp/memberof.ldif"
+        owner: "{{ openldap_default_user }}"
+        group: "{{ openldap_default_group }}"
+        mode: "0644"
+      when: ansible_distribution_major_version in ["8", "9"]
+
     - name: Render OpenLDAP configuration templates (OL8 or OL9)
       template:
         src: "{{ item.src }}"
@@ -196,16 +205,6 @@
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
         - { src: "{{ 'el_local_ol9.ldif.j2' if ansible_distribution_major_version == '9' else 'el_local_ol8.ldif.j2' }}", dest: "local.ldif" }
-      
-    - name: Copy other OpenLDAP schemas (OL8 or OL9)
-      copy:
-        src: "{{ item.src }}"
-        dest: "/tmp/{{ item.dest }}"
-        owner: "{{ openldap_default_user }}"
-        group: "{{ openldap_default_group }}"
-        mode: "0644"
-      with_items:
-        - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
   when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
