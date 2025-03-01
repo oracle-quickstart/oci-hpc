@@ -186,7 +186,7 @@
         mode: "0644"
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
-        - { src: "el_local_ol8.ldif.j2", dest: "local.ldif" }
+        - { src: "{{ 'el_local_ol9.ldif.j2' if ansible_distribution_major_version == '9' else 'el_local_ol8.ldif.j2' }}", dest: "local.ldif" }
       
     - name: Copy other OpenLDAP schemas (OL8 or OL9)
       copy:

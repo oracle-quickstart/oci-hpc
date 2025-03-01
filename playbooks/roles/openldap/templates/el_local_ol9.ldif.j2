@@ -1,14 +1,14 @@
 # local database configuration
-#dn: cn=module{0},cn=config
-#changetype: modify
-#add: olcModuleLoad
-#olcModuleLoad: back_mdb
-
 dn: cn=module{0},cn=config
-changetype: add
-objectClass: olcModuleList
-cn: module{0}
+changetype: modify
+add: olcModuleLoad
 olcModuleLoad: back_mdb
+
+#dn: cn=module{0},cn=config
+#changetype: add
+#objectClass: olcModuleList
+#cn: module{0}
+#olcModuleLoad: back_mdb
 
 dn: olcDatabase={2}mdb,cn=config
 changetype: modify
