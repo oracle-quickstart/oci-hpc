@@ -197,6 +197,7 @@
         mode: "0644"
       with_items:
         - { src: "el_memberof_ol8.ldif", dest: "memberof.ldif" }
+        - { src: "{{ 'el_ppolicy_ol8.ldif' if ansible_distribution_major_version == '9' }}", dest: "ppolicy.ldif" }
   when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
@@ -251,7 +252,7 @@
   command: >
     ldapadd -x -H ldaps:// -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
                          -f /etc/openldap/schema/local_schema.ldif
-  ignore_errors: "yes"
+  ignore_errors: true
   when: ldapsearch.rc == 32
 
 - meta: flush_handlers
