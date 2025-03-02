@@ -186,7 +186,7 @@
         mode: "0644"
       when: ansible_distribution_major_version == "9"
 
-    - name: Copy other OpenLDAP schemas (OL8 or OL9)
+    - name: Copy `memberof.ldif` schemas (OL8 or OL9)
       copy:
         src: "el_memberof_ol8.ldif"
         dest: "/tmp/memberof.ldif"
