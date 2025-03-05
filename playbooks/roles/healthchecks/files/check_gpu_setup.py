@@ -250,7 +250,7 @@ def check_row_remap_errors():
 
 def check_rdma_link_status():
     status = True
-    
+
     link_issues = []
     devices = get_devices()
 
@@ -368,7 +368,7 @@ def check_gpu_count():
                                     'b1:00.0 3D controller: NVIDIA Corporation GA102GL [A10] (rev a1)',
                                     'ca:00.0 3D controller: NVIDIA Corporation GA102GL [A10] (rev a1)'
                                 ]
-    
+
     metadata=get_metadata()
     shape=metadata['shape']
     tmp_results = []
@@ -530,7 +530,7 @@ def check_wpa_auth(metadata):
     else:
         logger.error("Unsupported machine shape.")
         return ["Unsupported machine shape."]
-    
+
     authenticated_count = 0 
     wpa_auth_issues = []
     current_state = "None"  # Define initial state, can be updated based on actual logic
@@ -652,7 +652,7 @@ def check_bad_pages():
         logger.info("GPU Pending Bad Pages Check: Passed")
 
 def check_ip_addresses(metadata):
-    
+
     devices = get_devices()    
     devices_per_interface={}
     infiniband_dir="/sys/class/infiniband"
@@ -848,12 +848,14 @@ if __name__ == '__main__':
         except Exception as e:
             logger.warning(f"Failed to get WPA Authentication status: {e}")
             wpa_auth_results = None
-    
-    # Check WPA authentication if the option is set
+
+    # Check all IPS
     missing_ips = []
     try:
         metadata = get_metadata()
         missing_ips,ip_list = check_ip_addresses(metadata)
+        if len(missing_ips) == 0:
+            logger.info("All interfaces have an IP defined: Passed")
     except Exception as e:
         logger.warning(f"Failed to get all IPS: {e}")
         missing_ips = []
@@ -870,7 +872,7 @@ if __name__ == '__main__':
             logger.info("Fabric Manager Running: Passed")
     else:
         fabric_manager_health=True
-    
+
     # Check CPU Profile is performance
     try:
         cpu_profile_issues = get_current_cpu_profile()
@@ -1015,6 +1017,10 @@ if __name__ == '__main__':
         slurm_reason("GPU Bad page error")
         action = recommended_action(action, "Reboot")
 
+    if len(missing_ips) > 0:
+        logger.error("Missing IPs for these interfaces: "+missing_ips.join(','))
+        slurm_reason("Missing IPs")
+        action = recommended_action(action, "Reboot")
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
     if action == "Reboot":
         logger.error("Recommended Action is to Force Reboot from the console or API")
