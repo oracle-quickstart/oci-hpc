@@ -504,6 +504,10 @@ variable "cluster_monitoring" {
   default = false
   type = bool
   }
+variable "alerting" { 
+  default = false
+  type = bool
+  }
 variable "pyxis" { 
   default = false
   type = bool

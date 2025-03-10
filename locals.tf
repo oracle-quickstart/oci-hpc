@@ -89,4 +89,6 @@ locals {
   region_key = [ for d in flatten(data.oci_identity_regions.regions.regions): lower(d.key) if d.name == var.region][0]
   auth_token = var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token) 
   registry_id = var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id   
+
+  topic_id = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
 }

@@ -110,6 +110,7 @@ variableGroups:
   - title: "Cluster Monitoring"
     variables:
       - ${cluster_monitoring}
+      - ${alerting}
       - ${monitoring_node}
       - ${monitoring_ad}
       - ${monitoring_shape}
@@ -1207,6 +1208,13 @@ variables:
     default: false
     description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
 
+  alerting:
+    type: boolean
+    title: "Install HPC Cluster alerting Tools"
+    default: false
+    description: "Creates a Topic that you can subscribe to"
+    visible: ${cluster_monitoring}
+    
   pam:
     type: boolean
     title: "Enable PAM"

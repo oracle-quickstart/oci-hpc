@@ -47,6 +47,7 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
 }
 
 resource "oci_ons_notification_topic" "grafana_alerts" {
+  count          = var.alerting ? 1 : 0
   compartment_id = var.targetCompartment
   name           = "grafana-alerts-${random_pet.name.id}"
   description    = "Topic for Grafana Alerts"
@@ -341,7 +342,7 @@ resource "null_resource" "cluster" {
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
       queue_ocid                = local.queue_ocid,
-      ons_topic_ocid            = oci_ons_notification_topic.grafana_alerts.id
+      ons_topic_ocid            = local.topic_id
     })
 
     destination = "/config/playbooks/inventory"
@@ -513,7 +514,7 @@ resource "null_resource" "cluster" {
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
       healthchecks                        = var.healthchecks,
       queue_ocid                          = local.queue_ocid,
-      ons_topic_ocid                      = oci_ons_notification_topic.grafana_alerts.id
+      ons_topic_ocid                      = local.topic_id
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"
