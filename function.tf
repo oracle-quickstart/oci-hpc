@@ -1,6 +1,6 @@
 resource "local_file" "updateFuncVariables" {
   depends_on = [oci_queue_queue.queue]
-  content  = templatefile("func.py.tftpl", {queue_ocid = local.queue_ocid, cluster_name = local.cluster_name, private_subnet = var.private_subnet})
+  source  = "func.py.tftpl"
   filename = "${path.module}/function/func.py"  
 }
 
@@ -75,8 +75,13 @@ resource "oci_functions_function" "function" {
     memory_in_mbs = "128"
     timeout_in_seconds = "300" 
     config = { 
-      "REGION" : "${var.region}"
-    shape = "GENERIC_ARM"
+      "REGION" : var.region
+      "QUEUE_OCID" : local.queue_ocid
+      "CLUSTER_NAME" = local.cluster_name
+      "CONTROLLER_NAME" = oci_core_instance.controller.display_name
+      "PRIVATE_SUBNET" = var.private_subnet
+      "ZONE_NAME" = local.zone_name
+      shape = "GENERIC_ARM"
     }
 }
 
