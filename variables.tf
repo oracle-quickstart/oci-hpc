@@ -674,28 +674,3 @@ variable current_user_ocid {
   default = "" 
   type = string
   }
-
-variable use_existing_registry {  
-  default = false 
-  type = bool
-  }
-
-variable registry_id { 
-  default = "" 
-  type = string
-  }
-
-variable use_existing_auth_token {  
-  default = false 
-  type = bool
-  }
-
-variable auth_token { 
-  default = "" 
-  type = string
-  }
-
-variable "home_region" {
-  default = "us-ashburn-1"
-  type = string
-  }

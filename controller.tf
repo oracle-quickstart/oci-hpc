@@ -565,10 +565,6 @@ resource "null_resource" "cluster" {
   }
 }
 
-data "oci_objectstorage_namespace" "compartment_namespace" {
-  compartment_id = var.targetCompartment
-}
-
 locals {
   current_timestamp           = timestamp()
   current_timestamp_formatted = formatdate("YYYYMMDDhhmmss", local.current_timestamp)

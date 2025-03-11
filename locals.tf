@@ -83,12 +83,5 @@ locals {
   zone_name     = var.use_existing_vcn ? var.zone_name : "${local.cluster_name}.local"
   platform_type = local.shape == "BM.GPU4.8" ? "AMD_ROME_BM_GPU" : local.shape == "BM.GPU.B4.8" || local.shape == "BM.GPU.A100-v2.8" ? "AMD_MILAN_BM_GPU" : local.shape == "BM.Standard.E3.128" ? "AMD_ROME_BM" : local.shape == "BM.Standard.E4.128" || local.shape == "BM.DenseIO.E4.128" ? "AMD_MILAN_BM" : "GENERIC_BM"
 
-  // variables to create functions and events
-  ocir_namespace = lookup(data.oci_objectstorage_namespace.namespace, "namespace")
-  compartment_name = lookup(data.oci_identity_compartment.compartment, "name")
-  region_key = [ for d in flatten(data.oci_identity_regions.regions.regions): lower(d.key) if d.name == var.region][0]
-  auth_token = var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token) 
-  registry_id = var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id   
-
   topic_id = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
 }
