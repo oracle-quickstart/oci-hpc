@@ -110,7 +110,9 @@ Allow dynamic-group instance_principal to use volumes in compartment compartment
 ```
 or:
 
-`Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName`
+```
+Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName
+```
 
 
 ## Supported OS: 
