@@ -55,6 +55,10 @@ while true; do
         if [ $? -eq 0 ]; then
             echo "Mount succeeded!"
             break
+        else
+            echo "Mount failed. Retrying in 2 minutes..."
+            sleep 120  # Sleep for 2 minutes (120 seconds)
+        fi
     else
         echo "Mount failed. Retrying in 2 minutes..."
         sleep 120  # Sleep for 2 minutes (120 seconds)
