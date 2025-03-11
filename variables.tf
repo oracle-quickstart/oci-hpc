@@ -699,3 +699,18 @@ variable "home_region" {
   default = "us-ashburn-1"
   type = string
   }
+
+variable "use_OCI_generated_container" {
+  default = true 
+  type = bool
+  }
+  
+variable "OCI_generated_container_namespace" {
+  default = "hpc_limited_availability" 
+  type = string
+  }
+ 
+variable "OCI_generated_container_name" {
+  default = "tough-deer-registry" 
+  type = string
+  }

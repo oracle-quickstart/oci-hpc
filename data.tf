@@ -93,6 +93,7 @@ data "oci_identity_regions" "regions" {
 }
 
 data "oci_artifacts_container_repository" "container_repo" {
+    count = var.use_OCI_generated_container ? 0 : 1
     repository_id = local.registry_id
 }
 

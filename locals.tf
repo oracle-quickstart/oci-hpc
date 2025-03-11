@@ -87,8 +87,9 @@ locals {
   ocir_namespace = lookup(data.oci_objectstorage_namespace.namespace, "namespace")
   compartment_name = lookup(data.oci_identity_compartment.compartment, "name")
   region_key = [ for d in flatten(data.oci_identity_regions.regions.regions): lower(d.key) if d.name == var.region][0]
-  auth_token = var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token) 
-  registry_id = var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id   
+  auth_token = var.use_OCI_generated_container ? "" : var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token) 
+  registry_id = var.use_OCI_generated_container ? "" : var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id   
 
   topic_id = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
+  ocir_image = var.use_OCI_generated_container ? "${local.region_key}.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
 }

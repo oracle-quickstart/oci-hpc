@@ -27,6 +27,7 @@ variableGroups:
       - ${ldap}
   - title: "Function and events configuration"
     variables:
+      - ${use_OCI_generated_container}
       - ${use_existing_auth_token}
       - ${auth_token}  
       - ${home_region} 
@@ -220,7 +221,9 @@ variableGroups:
       - ${controller_boot_volume_backup_time_zone}
       - ${controller_boot_volume_backup_type}
       - ${nfs_list_of_mount_target_IPs}
-      
+      - ${OCI_generated_container_namespace}
+      - ${OCI_generated_container_name}
+
     visible: false
   - title: "Debug"
     variables: 
@@ -1908,12 +1911,21 @@ variables:
         - ${use_marketplace_image_monitoring}
         - ${monitoring_node}
 
+  use_OCI_generated_container:
+    type: boolean
+    title: "Point to an existing OCIR"
+    default : true
+    required: true
+
   use_existing_auth_token:
     type: boolean
     title: "Use existing auth token"
     default : "false"
     description: "Use existing auth token to authenticate to registry"
     required: true
+    visible:
+      not:
+        - ${use_OCI_generated_container}
   auth_token:
     title: "Auth token"
     type: password
@@ -1923,6 +1935,8 @@ variables:
     visible:
       and:
         - ${use_existing_auth_token}
+        - not:
+            - ${use_OCI_generated_container}
   home_region:
     type: oci:identity:region:name 
     title: "Home Region"
@@ -1930,14 +1944,20 @@ variables:
     required: true
     description: "Home region to generate Auth Token"
     visible:
-      not: 
-        - ${use_existing_auth_token}         
+      and:
+      - not: 
+        - ${use_existing_auth_token}        
+      - not: 
+        - ${use_OCI_generated_container}       
   use_existing_registry:
     type: boolean
     title: "Use existing registry"
     default : "false"
     description: "Use existing registry to push serverless function"
-    required: true    
+    required: true
+    visible:
+      not: 
+        - ${use_OCI_generated_container}   
   registry_id:
     type: string
     title: "OCID of existing registry"
@@ -1947,3 +1967,5 @@ variables:
     visible:
       and:
         - ${use_existing_registry}
+        - not: 
+          - ${use_OCI_generated_container}  
