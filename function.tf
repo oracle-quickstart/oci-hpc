@@ -1,4 +1,5 @@
 resource "local_file" "updateFuncVariables" {
+  count          = var.use_OCI_generated_container ? 0 : 1
   depends_on = [oci_queue_queue.queue]
   source  = "func.py.tftpl"
   filename = "${path.module}/function/func.py"  
