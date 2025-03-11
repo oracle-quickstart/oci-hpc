@@ -69,7 +69,6 @@ resource "null_resource" "function_Push2OCIR" {
 }
 
 resource "oci_functions_function" "function" {
-	depends_on = [null_resource.function_Push2OCIR]
     application_id = oci_functions_application.fn_application.id
     display_name = "write_node_function"
     image = local.ocir_image
