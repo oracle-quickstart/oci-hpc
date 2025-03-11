@@ -1,12 +1,4 @@
 ---
-- name: restart sshd
-  listen: restart login services
-  service:
-    name: sshd
-    state: restarted
-    enabled: yes
-  when: not ( ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int < 24 )
-
 - name: restart sssd
   listen: restart ns daemons
   service:
