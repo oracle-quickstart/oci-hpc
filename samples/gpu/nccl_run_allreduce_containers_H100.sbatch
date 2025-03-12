@@ -47,7 +47,6 @@ export NCCL_CROSS_NIC=2 \
        NCCL_IB_TC=41 \
        NCCL_IB_SL=0 \
        NCCL_IB_TIMEOUT=22 \
-       NCCL_NET_PLUGIN=none \
        NCCL_SOCKET_IFNAME=eth0 \
        NCCL_IGNORE_CPU_AFFINITY=1 \
        NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17" \
