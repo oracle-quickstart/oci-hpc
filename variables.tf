@@ -711,6 +711,6 @@ variable "OCI_generated_container_namespace" {
   }
  
 variable "OCI_generated_container_name" {
-  default = "tough-deer-registry" 
+  default = "oci-hpc-stack" 
   type = string
   }
