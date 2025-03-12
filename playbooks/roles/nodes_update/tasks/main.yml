@@ -79,7 +79,15 @@
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
     mode: 0775
-    
+
+- name: Generate nodes_status file
+  template: 
+    src: nodes_status.py
+    dest: /opt/oci-hpc/bin/nodes_status.py
+    owner: '{{ ansible_user }}'
+    group: '{{ ansible_user }}'
+    mode: 0775
+
 - name: Create systemd service unit file
   template:
     src: templates/systemd/node_updater.service
@@ -104,5 +112,5 @@
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias nodes="python3 /opt/oci-hpc/bin/get_nodes_from_db.py | jq -r '.[] | select(.role == \"compute\") | .hostname'"
+    line: alias nodes="python3 /opt/oci-hpc/bin/nodes_status.py"
     state: present
