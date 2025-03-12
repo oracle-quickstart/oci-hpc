@@ -109,6 +109,15 @@
     name: node_updater.timer
     state: started
 
+- name: Make sure clustershell is installed for node status script
+  vars:
+    package_name:
+      - clustershell
+    package_state: latest
+  include_role:
+    name: safe_yum
+  ignore_errors: true
+
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
