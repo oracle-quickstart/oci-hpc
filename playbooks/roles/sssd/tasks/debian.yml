@@ -81,6 +81,7 @@
     regexp: '^PasswordAuthentication'
     line: PasswordAuthentication no
   notify: 
+    - restart sshd
     - restart ns daemons
     - restart login services
 
