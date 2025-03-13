@@ -75,7 +75,8 @@ Allow dynamic-group fn_dg to manage all-resources in compartment compartmentName
 ### Policies for queues 
 In order to read messages from the OCI queue service, the controller and compute nodes need to be part of a dynamic group with the adequate policies (see [instance principals](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm)).
 
-Example with the dynamic group *instance_principal*
+Example with the dynamic group *instance_principal*. If the dynamic group is created in a different identity domain, you will have to use IdentityDomainName/DynamicGroupName in the policies. 
+
 ```
 All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
 ```
@@ -88,7 +89,7 @@ allow dynamic-group instance_principal to manage queues in compartment Compartme
 ```
 
 ### Policies for autoscaling or resizing:
-As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group including one or more instance in a compartment and all the functions of the compartment. Example with the dynamic group *instance_principal*
+As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group including one or more instance in a compartment and all the functions of the compartment. Example with the dynamic group *instance_principal*. If the dynamic group is created in a different identity domain, you will have to use IdentityDomainName/
 
 ```
 All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
