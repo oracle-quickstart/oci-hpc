@@ -82,7 +82,7 @@ All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
 
 With the following policies:
 ```
-Allow dynamic-group instance_principal to use queue-pull in compartment CompartmentName
+Allow dynamic-group instance_principal to use queue-push in compartment CompartmentName
 Allow dynamic-group instance_principal to use queue-pull in compartment CompartmentName
 allow dynamic-group instance_principal to manage queues in compartment CompartmentName
 ```
