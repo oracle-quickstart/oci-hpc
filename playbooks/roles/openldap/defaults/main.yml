@@ -3,7 +3,7 @@
 
 openldap_server_dir_path: /var/lib/ldap
 
-openldap_endpoints: ldaps:/// ldapi:///
+openldap_endpoints: ldap:/// ldaps:/// ldapi:///
 openldap_host: 'controller.cluster'
 
 ssl_cert_path: '/etc/ssl/certs'
