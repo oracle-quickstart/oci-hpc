@@ -12,6 +12,8 @@ SlurmUser=slurm
 Prolog={{slurm_conf_path}}/prolog.d/*
 SchedulerParameters=nohold_on_prolog_fail
 {% endif %}
+MessageTimeout=20
+UnkillableStepTimeout=128
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log
 StateSaveLocation={{ slurm_nfs_path }}/spool/slurm
