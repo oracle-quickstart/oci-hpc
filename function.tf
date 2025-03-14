@@ -80,7 +80,7 @@ resource "oci_functions_function" "function" {
       "REGION" : var.region
       "QUEUE_OCID" : local.queue_ocid
       "CLUSTER_NAME" = local.cluster_name
-      "CONTROLLER_NAME" = oci_core_instance.controller.display_name
+      "CONTROLLER_NAME" = "${local.cluster_name}-controller"
       "PRIVATE_SUBNET" = var.private_subnet
       "ZONE_NAME" = local.zone_name
       shape = "GENERIC_ARM"

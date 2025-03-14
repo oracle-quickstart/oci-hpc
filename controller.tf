@@ -61,7 +61,7 @@ resource "null_resource" "boot_volume_backup_policy" {
 }
 
 resource "oci_core_instance" "controller" {
-  depends_on          = [local.controller_subnet]
+  depends_on          = [local.controller_subnet,oci_functions_function.function]
   availability_domain = var.controller_ad
   compartment_id      = var.targetCompartment
   shape               = var.controller_shape
