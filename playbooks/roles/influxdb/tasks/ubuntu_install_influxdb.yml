@@ -50,4 +50,13 @@
     ansible_python_interpreter: /usr/bin/python3
   pip:
     name: influxdb
-    executable: pip3
+    executable: /config/venv/bin/pip3
+
+- name: install python3-influxdb
+  vars: 
+    package_name: 
+      - python3-influxdb
+    package_state: latest
+  include_role: 
+    name: safe_yum
+  ignore_errors: true

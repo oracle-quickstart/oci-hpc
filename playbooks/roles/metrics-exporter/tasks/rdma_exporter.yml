@@ -1,8 +1,17 @@
 ---
 - name: Install prometheus_client python package
+  vars: 
+    package_name: 
+      - python3-prometheus-client
+    package_state: present
+    package_cache: true
+  include_role: 
+    name: safe_yum
+
+- name: Install prometheus_client python package
   ansible.builtin.pip:
-    name: prometheus_client
-    executable: /usr/bin/pip3
+    name: prometheus_client 
+    executable: /config/venv/bin/pip3
   become: yes
 
 - name: Copy service file to scripts directory

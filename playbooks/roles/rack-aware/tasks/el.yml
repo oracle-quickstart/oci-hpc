@@ -12,6 +12,17 @@
     - parallel-ssh
   ignore_errors: yes
 
+- name: install pssh and parallel-ssh
+  become: true
+  pip:
+    name: ['pssh', 'parallel-ssh']
+    executable: /config/venv/bin/pip3
+    state: latest
+  with_items:
+    - pssh
+    - parallel-ssh
+  ignore_errors: yes
+
 - name: Make sure /opt/oci-hpc/bin/ exists
   become: true
   file:

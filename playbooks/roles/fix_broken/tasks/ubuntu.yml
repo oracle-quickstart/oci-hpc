@@ -10,6 +10,18 @@
 
 - name: Wait for any possibly running unattended upgrade to finish
   raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+  async: 60
+  poll: 5
+  register: yum_sleeper
+
+- name: Check on an async task
+  async_status:
+    jid: "{{ yum_sleeper.ansible_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 5
+  delay: 5
+  ignore_errors: yes
 
 - name: remove unattended-upgrades
   systemd: 

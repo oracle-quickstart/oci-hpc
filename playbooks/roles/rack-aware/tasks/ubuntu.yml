@@ -1,10 +1,19 @@
+- name: Install required packages
+  vars: 
+    package_name: 
+      - pssh
+    package_state: present
+    package_cache: true
+  include_role: 
+    name: safe_yum
+
 - name: install pssh and parallel-ssh
   become: true
   vars:
     ansible_python_interpreter: /usr/bin/python3
   pip:
     name: ['pssh', 'parallel-ssh']
-    executable: /usr/bin/pip3  
+    executable: /config/venv/bin/pip3
     state: latest
   ignore_errors: yes
 
