@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS clusterDB.nodes (
     FirstTimeReachable VARCHAR(64),
     cluster_name VARCHAR(64),
     compartment  VARCHAR(128),
+    tenancy  VARCHAR(128),
     compute_status ENUM('configuring', 'configured'),
     controller_name VARCHAR(64),
     fss_mount VARCHAR(64),
