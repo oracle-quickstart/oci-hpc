@@ -185,18 +185,18 @@ def query_db(controller_hostname):
         logger.info("Database connection closed.")
     return results
 
-def generateTag(tenancy):
-    try:
-        tag_id_list=[i.id for i in IdentityClient.list_tag_namespaces(tenancy,include_subcompartments=True,lifecycle_state="ACTIVE").data if i.name == "ComputeInstanceHostActions2"]
-        logger.info(str(tag_id_list))
-        if tag_id_list:
-            tag_id=tag_id_list[0]
-        else:
-            TagNSDetails=oci.identity.models.CreateTagNamespaceDetails(compartment_id=tenancy,description="Tag for unhealthy nodes",name="ComputeInstanceHostActions2")
-            tagNameSpace=IdentityClientCompositeOperations.create_tag_namespace_and_wait_for_state(TagNSDetails,wait_for_states=["ACTIVE"])
-            tag_id=tagNameSpace.id
-    except oci.exceptions.ServiceError as e:
-        logger.error(f"Error: {e}")
+#def generateTag(tenancy):
+#    try:
+#        tag_id_list=[i.id for i in IdentityClient.list_tag_namespaces(tenancy,include_subcompartments=True,lifecycle_state="ACTIVE").data if i.name == "ComputeInstanceHostActions2"]
+#        logger.info(str(tag_id_list))
+#        if tag_id_list:
+#            tag_id=tag_id_list[0]
+#        else:
+#            TagNSDetails=oci.identity.models.CreateTagNamespaceDetails(compartment_id=tenancy,description="Tag for unhealthy nodes",name="ComputeInstanceHostActions2")
+#            tagNameSpace=IdentityClientCompositeOperations.create_tag_namespace_and_wait_for_state(TagNSDetails,wait_for_states=["ACTIVE"])
+#            tag_id=tagNameSpace.id
+#    except oci.exceptions.ServiceError as e:
+#        logger.error(f"Error: {e}")
 
 
 results = query_db(controller_hostname)
