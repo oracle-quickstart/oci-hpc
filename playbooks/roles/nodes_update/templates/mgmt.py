@@ -22,10 +22,11 @@ parser.add_argument("--tag", action="store_true", help="Tagged nodes unhealthy")
 parser.add_argument("--terminate", action="store_true", help="Terminate nodes")
 parser.add_argument("--bvr", action="store_true", help="BVR flag with image OCID")
 parser.add_argument("--image", type=str, help="BVR image OCID")
+parser.add_argument("--details", action="store_true", help="Give details on the nodes")
 args = parser.parse_args()
 
 if args.nodes:
-    nodes_list = NodeSet("args.nodes")
+    nodes_list = NodeSet(args.nodes)
     logger.info(f"Processing nodes: {nodes_list}")
 else: 
     nodes_list= NodeSet()
@@ -56,7 +57,6 @@ elif args.bvr:
     if not nodes_list:
         logger.error("You need to provide a hostlist to use the BVR flag")
         exit(1)
-
 if args.tag:
     logger.info(f"Tag flag is set")
     if not nodes_list:
@@ -185,6 +185,20 @@ def query_db(controller_hostname):
         logger.info("Database connection closed.")
     return results
 
+def generateTag(tenancy):
+    try:
+        tag_id_list=[i.id for i in IdentityClient.list_tag_namespaces(tenancy,include_subcompartments=True,lifecycle_state="ACTIVE").data if i.name == "ComputeInstanceHostActions2"]
+        logger.info(str(tag_id_list))
+        if tag_id_list:
+            tag_id=tag_id_list[0]
+        else:
+            TagNSDetails=oci.identity.models.CreateTagNamespaceDetails(compartment_id=tenancy,description="Tag for unhealthy nodes",name="ComputeInstanceHostActions2")
+            tagNameSpace=IdentityClientCompositeOperations.create_tag_namespace_and_wait_for_state(TagNSDetails,wait_for_states=["ACTIVE"])
+            tag_id=tagNameSpace.id
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error: {e}")
+
+
 results = query_db(controller_hostname)
 # Initialize node lists
 configured_nodes = []
@@ -204,17 +218,19 @@ all_compute = [i for i in results if i["role"] == "compute"]
 if nodes_list:
     compute=[]
     for node in nodes_list:
-        if node in [i["hostname"] for i in all_compute] or node in [i["ip_address"] for i in all_compute] or node in [i["oci_name"] for i in all_compute]:
-            compute+=[i for i in all_compute if (i["hostname"] == node or i["ip_address"] == node or i["oci_name"] == node)]
+        if node in [i["hostname"] for i in results] or node in [i["ip_address"] for i in results] or node in [i["oci_name"] for i in results]:
+            compute+=[i for i in results if (i["hostname"] == node or i["ip_address"] == node or i["oci_name"] == node)]
         else:
             logger.error(f"Node: {node} is not present in the DB") 
 elif clusters_list:
     compute=[]
     for cluster in clusters_list:
-        compute+=[i for i in all_compute if i["cluster_name"] == cluster]
+        compute+=[i for i in results if i["cluster_name"] == cluster]
     if not compute:
         logger.error(f"Cluster: {cluster} has no matching nodes present in the DB")
     nodes_list=NodeSet(','.join([i["hostname"] for i in compute]))
+else:
+    compute=[i for i in results if i["role"] == "compute" or i["controller_status"] == "waiting_for_info"]
 
 for i in compute:
     if i["controller_status"] == "configured" and i["compute_status"] == "configured":
@@ -246,6 +262,10 @@ if failing_starting:
 if unreachable_nodes:
     logger.warning(f"Some nodes haven't responded in a while: {','.join([i['ip_address'] for i in unreachable_nodes])}")
 
+if args.details:
+    for i in compute:
+        logger.info(i)
+
 try:
     import oci
     signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
@@ -254,7 +274,9 @@ try:
     computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
     ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
     virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
-    dns_client = oci.dns.DnsClient(config={}, signer=signer)
+    DNSClient = oci.dns.DnsClient(config={}, signer=signer)
+    IdentityClient= oci.identity.IdentityClient(config={}, signer=signer)
+    IdentityClientCompositeOperations= oci.identity.IdentityClientCompositeOperations(IdentityClient)
 except ImportError:
     logger.error("oci API cannot be used. Exiting.")
     sys.exit(1)
@@ -313,16 +335,18 @@ if args.tag:
                 else:
                     logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
                     instance_ocid=get_ocid_from_ip(i["ip_address"], compartment_ocid )
-
+                instance = computeClient.get_instance(instance_id=instance_ocid).data
+                tags = instance.defined_tags
+                tags.update({'ComputeInstanceHostActions': { 'CustomerReportedHostStatus': 'unhealthy' }})
+                update_instance_details = oci.core.models.UpdateInstanceDetails(defined_tags=tags)
+                logger.info("Updating tags on instance: "+i+" with OCID:"+instance_ocid)
                 try:
-                    instance = computeClient.get_instance(instance_id=instance_ocid).data
-                    tags = instance.defined_tags
-                    tags.update({'ComputeInstanceHostActions': { 'CustomerReportedHostStatus': 'unhealthy' }})
-                    update_instance_details = oci.core.models.UpdateInstanceDetails(defined_tags=tags)
-                    logger.info("Updating tags on instance: "+instance_ocid)
-                    update_instance_response = ComputeClientCompositeOperations.update_image_and_wait_for_state(instance_ocid, update_instance_details,wait_for_states=["RUNNING"])
+                    update_instance_response = ComputeClientCompositeOperations.update_instance_and_wait_for_state(instance_ocid, update_instance_details,wait_for_states=["RUNNING"])
                 except oci.exceptions.ServiceError as e:
-                    logger.error(f"Error: {e}")
+                    logger.error("The tag does not exists or the controller doesn't have acces to the tag")
+                    logger.error("Make sure the Tag namespace ComputeInstanceHostActions exists with the defined tag: CustomerReportedHostStatus")
+
+
 
 if args.terminate:
     for i in nodes_list:
@@ -337,8 +361,10 @@ if args.terminate:
                 try:
                     ipa_ocid,ipa_type=get_ipa_ocid(instance, compartment_ocid)
                     if ipa_type == "StandAlone" or ipa_type == "CC":
+                        logger.info("Terminating node:"+i+"with details"+instance["hostname"]+","+instance["oci_name"]+","+instance["ip_address"])
                         ComputeClientCompositeOperations.terminate_instance_and_wait_for_state(instance_ocid,wait_for_states=["TERMINATING","TERMINATED"])
                     elif ipa_type == "IPA" or ipa_type == "CN":
+                        logger.info("Terminating node:"+i+"with details"+instance["hostname"]+","+instance["oci_name"]+","+instance["ip_address"])
                         instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_ocid,is_auto_terminate=True,is_decrement_size=True)
                         ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
                 except oci.exceptions.ServiceError as e:
