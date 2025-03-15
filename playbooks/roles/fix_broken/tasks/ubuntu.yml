@@ -9,8 +9,8 @@
   until: result.stdout | int == 0
 
 - name: Wait for any possibly running unattended upgrade to finish
-  raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
-  async: 60
+  shell: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+  async: 120
   poll: 5
   register: yum_sleeper
 
@@ -19,7 +19,7 @@
     jid: "{{ yum_sleeper.ansible_job_id }}"
   register: job_result
   until: job_result.finished
-  retries: 5
+  retries: 22
   delay: 5
   ignore_errors: yes
 
