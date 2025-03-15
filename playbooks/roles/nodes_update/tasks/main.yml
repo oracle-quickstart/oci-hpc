@@ -129,5 +129,5 @@
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias nodes="source /config/venv/bin/activate; python3 /opt/oci-hpc/bin/mgmt.py"
+    line: alias mgmt="source /config/venv/bin/activate; python3 /opt/oci-hpc/bin/mgmt.py"
     state: present
