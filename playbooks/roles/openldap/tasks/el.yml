@@ -207,11 +207,23 @@
         - { src: "{{ 'el_local_ol9.ldif.j2' if ansible_distribution_major_version == '9' else 'el_local_ol8.ldif.j2' }}", dest: "local.ldif" }
   when: ansible_distribution_major_version in ["8", "9"]
 
-- name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
-  command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item }}.ldif
-  args:
-    creates: "/etc/openldap/slapd.d/cn=config/cn=schema/cn={{ item }}.ldif"
+- name: Find matching files
+  ansible.builtin.find:
+    paths: "/etc/openldap/slapd.d/cn=config/cn=schema/cn=*{{ item }}.ldif"
+    patterns: "cn=*{{ item }}.ldif"
+    file_type: file
+  register: openldap_schemas_output
   with_items: '{{ openldap_schemas }}'
+#- name: Check if openldap_schemas exists
+#  stat:
+#    path: "/etc/openldap/slapd.d/cn=config/cn=schema/cn=*{{ item }}.ldif"
+#  register: openldap_schemas_output
+#  with_items: '{{ openldap_schemas }}'
+
+- name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
+  command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item.item }}.ldif
+  with_items: "{{ openldap_schemas_output.results }}"
+  when: item.files | length > 0
 
 - name: Load OpenLDAP global configuration (OL7, OL8, OL9)
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
