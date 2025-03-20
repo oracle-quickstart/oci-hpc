@@ -10,6 +10,15 @@ host to ensure the proper functioning of GPU-based instances. It supports both b
 access is restricted. The script logs the results of each check and provides recommended 
 actions based on the findings.
 
+Each health check have five blocks of codes written in five sections:
+
+1. Section 0: Common functions for all health checks.
+2. Section 1: Function of each health check.
+3. Section 2: Argparse for each health check.
+4. Section 3: Function call from main for each health check.
+5. Section 4: Summary of each health check to be printed.
+
+Note: Any new health check topic will require block of codes in Section 1 - 4.
 ===========================================================================================
 Health Checks Covered (in order):
 ===========================================================================================
