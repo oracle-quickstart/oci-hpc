@@ -97,6 +97,19 @@ def get_oca_version():
 
         # Return the version
         return version
+def check_oca_status():
+    try:
+        with open("/var/run/oci-hpc/oci-hpc-rdma-configure.json", 'r') as file:
+            data = json.load(file)
+
+        state = data.get("state", "UNKNOWN")
+        logger.info(f"oci-hpc-rdma-configure state is: {state}")
+        return state
+
+    except FileNotFoundError:
+        logger.error("oci-hpc-rdma-configure.json not found.")
+    except json.JSONDecodeError:
+        logger.error("Failed to parse oci-hpc-rdma-configure.json.")
 
 def check_rttcc_status():
     """Check RTTCC status for supported GPU shapes and return status log."""
@@ -747,6 +760,13 @@ if __name__ == '__main__':
         logger.warning(f"Failed to get Oracle Cloud Agent version with error: {e}")
         oca_version = "Unknown"
 
+    # Check for OCA status
+    try:
+        oca_issues = check_oca_status()
+    except Exception as e:
+        logger.warning(f"Failed to check OCA state with error: {e}")
+        oca_issues = []
+
     # Check for RTTCC Issues
     if shape != "BM.GPU.H200.8":
         try:
@@ -756,7 +776,6 @@ if __name__ == '__main__':
             rttcc_issues = []
     else:
         rttcc_issues = []
-
     # Check for ECC errors
     try:
         ecc_issues = check_ecc_errors()
@@ -911,6 +930,10 @@ if __name__ == '__main__':
             logger.error(f"RTTCC issues: {rttcc_issues}")
             slurm_reason("RTTCC Error")
 
+    if len(oca_issues) > 0:
+        logger.error(f"OCA is not ready: {oca_issues}")
+        slurm_reason("OCA Not completed")
+    
     if len(ecc_issues) > 0:
         ecc_error=False
         for issue in ecc_issues:
