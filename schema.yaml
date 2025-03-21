@@ -756,7 +756,7 @@ variables:
   hyperthreading:
     type: boolean
     title: "Hyperthreading enabled"
-    default: true
+    default: false
     description: "When unchecked SMT will be disabled" 
 
   boot_volume_size:
