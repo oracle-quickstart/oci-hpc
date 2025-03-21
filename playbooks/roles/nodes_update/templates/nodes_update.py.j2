@@ -42,7 +42,7 @@ unreachable_timeout=timedelta(hours=6)
 curl_timeout=3
 
 # Get the current date and time with milliseconds
-current_time = datetime.now()
+current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
 current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
 print(f"Started the nodes_update script at {current_time_str}")
@@ -329,7 +329,7 @@ if __name__ == "__main__":
 
 connection.close()
 
-finish_time = datetime.now()
+finish_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
 script_execution_time=finish_time-current_time
 script_execution_time_str=str(script_execution_time.seconds)
 
