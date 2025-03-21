@@ -54,16 +54,7 @@
     dest: "/opt/oci-hpc/bin/nodes_update.py"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: '0775'  
-
-- name: Copying the file to manually add a node to the queue
-  become: true
-  template:
-    src: add_nodes_to_queue.py.j2
-    dest: "/opt/oci-hpc/bin/add_nodes_to_queue.py"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: '0775'  
+    mode: '0775'    
 
 - name: Ensure db directory exists
   file:
@@ -71,22 +62,6 @@
     state: directory
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
-
-- name: Generate env file
-  template: 
-    src: get_nodes_from_db.py
-    dest: /opt/oci-hpc/bin/get_nodes_from_db.py
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
-    mode: 0775
-
-- name: Generate nodes_status file
-  template: 
-    src: mgmt.py
-    dest: /opt/oci-hpc/bin/mgmt.py
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
-    mode: 0775
 
 - name: Create systemd service unit file
   template:
@@ -108,26 +83,3 @@
   service:
     name: node_updater.timer
     state: started
-
-- name: Make sure clustershell is installed for node status script
-  vars:
-    package_name:
-      - clustershell
-    package_state: latest
-  include_role:
-    name: safe_yum
-  ignore_errors: true
-
-- name: install clustershell
-  become: true
-  pip:
-    name: ['clustershell']
-    executable: /config/venv/bin/pip3
-    state: latest
-  ignore_errors: yes
-
-- name: add alias for node status
-  lineinfile:
-    path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias mgmt="source /config/venv/bin/activate; python3 /opt/oci-hpc/bin/mgmt.py"
-    state: present

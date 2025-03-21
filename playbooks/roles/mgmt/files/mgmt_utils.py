@@ -1,88 +1,39 @@
 import pymysql
-from ClusterShell.NodeSet import NodeSet
-from ClusterShell.Task import task_self
 import sys
-import logging
-import argparse
-from datetime import datetime, timedelta, timezone
-import time
+from mgmt_shared_logging import logger
 import random
 import string
+import yaml
+import copy
+import re, os
+import time
 
-controller_hostname = "{{controller_hostname}}"
+try:
+    import oci
+    signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    computeClient = oci.core.ComputeClient(config={}, signer=signer)
+    ComputeClientCompositeOperations= oci.core.ComputeClientCompositeOperations(computeClient)
+    computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
+    ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
+    virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
+    DNSClient = oci.dns.DnsClient(config={}, signer=signer)
+    IdentityClient= oci.identity.IdentityClient(config={}, signer=signer)
+    IdentityClientCompositeOperations= oci.identity.IdentityClientCompositeOperations(IdentityClient)
+except ImportError:
+    logger.error("oci API cannot be used. Exiting.")
+    sys.exit(1)
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+def force_reboot(ocid):
+    computeClient.instance_action(instance_id=ocid,action="RESET")   
 
-# Argument parsing
-parser = argparse.ArgumentParser(description="Process node list and flags.")
-parser.add_argument("--nodes", type=str, help="Comma-separated list of nodes, Slurm notation is also accepted")
-parser.add_argument("--clusters", type=str, help="Comma-separated list of clusters. Includes all nodes in the cluster. Cannot be combined with --nodes")
-parser.add_argument("--recom", action="store_true", help="Run all recommendations flag")
-parser.add_argument("--reboot", action="store_true", help="Reboot flag")
-parser.add_argument("--tag", action="store_true", help="Tagged nodes unhealthy")
-parser.add_argument("--terminate", action="store_true", help="Terminate nodes")
-parser.add_argument("--bvr", action="store_true", help="BVR flag with image OCID")
-parser.add_argument("--image", type=str, help="BVR image OCID")
-parser.add_argument("--details", action="store_true", help="Give details on the nodes")
-parser.add_argument("--add", type=int, default=0, help="Add nodes to the cluster defined")
-args = parser.parse_args()
-
-if args.nodes:
-    nodes_list = NodeSet(args.nodes)
-    logger.info(f"Processing nodes: {nodes_list}")
-else: 
-    nodes_list= NodeSet()
-    logger.info(f"Processing all nodes")
-if args.clusters:
-    clusters_list_defined = args.clusters.split(',')
-    logger.info(f"Processing Clusters: {clusters_list_defined}")
-else: 
-    clusters_list_defined = []
-
-if args.recom:
-    logger.info("Recompute flag is set.")
-if args.reboot:
-    logger.info("Reboot flag is set.")
-    if not nodes_list:
-        logger.error("You need to provide a hostlist to use the reboot flag")
-        exit(1)
-if args.image:
-    if args.bvr:
-        if not nodes_list:
-            logger.error("You need to provide a hostlist to use the BVR flag")
-            exit(1)
-        logger.info(f"BVR flag is set with image OCID: {args.image}")
-    else:
-        logger.error("You need to provide the BVR flag along with the image")
-        exit(1)
-elif args.bvr:
-    if not nodes_list:
-        logger.error("You need to provide a hostlist to use the BVR flag")
-        exit(1)
-if args.tag:
-    logger.info(f"Tag flag is set")
-    if not nodes_list:
-        logger.error("You need to provide a hostlist to use the tag flag")
-        exit(1)
-if args.terminate:
-    logger.info(f"Terminate flag is set")
-    if not nodes_list:
-        logger.error("You need to provide a hostlist to use the terminate flag")
-        exit(1)
-
-version = sys.version_info
-if version >= (3, 12):
-    UTC = timezone.utc
-
-# DB Connection Details
-db_host = "localhost"
-db_user = "clusterUser"
-db_pw = "Cluster1234!"
-db_name = "clusterDB"
-
-unreachable_timeout = timedelta(minutes=30)
+def instance_bvr(instance_ocid,image_ocid):
+    update_instance_source_details = oci.core.models.UpdateInstanceSourceViaImageDetails()
+    update_instance_source_details.image_id = image_ocid
+    update_instance_source_details.is_preserve_boot_volume_enabled = True
+    update_instance_source_details.is_force_stop_enabled = True
+    update_instance_details = oci.core.models.UpdateInstanceDetails()
+    update_instance_details.source_details = update_instance_source_details
+    ComputeClientCompositeOperations.update_instance_and_wait_for_state(instance_ocid, update_instance_details,wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"])
 
 def get_ocid_from_ip(ip_address, compartment_ocid ):
     for instance in oci.pagination.list_call_get_all_results(computeClient.list_instances(compartment_id=compartment_ocid)).data:
@@ -96,6 +47,30 @@ def get_ocid_from_ip(ip_address, compartment_ocid ):
                 except:
                     continue
     return None
+def terminate_instance(nodename, instance, instance_ocid, compartment_ocid):
+    try:
+        ipa_ocid,ipa_type=get_ipa_ocid(instance, compartment_ocid)
+        if ipa_type == "StandAlone" or ipa_type == "CC":
+            logger.info("Terminating node: "+nodename+" with details "+instance["hostname"]+", "+instance["oci_name"]+", "+instance["ip_address"])
+            ComputeClientCompositeOperations.terminate_instance_and_wait_for_state(instance_ocid,wait_for_states=["TERMINATING","TERMINATED"])
+        elif ipa_type == "IPA" or ipa_type == "CN":
+            logger.info("Terminating node: "+nodename+" with details "+instance["hostname"]+", "+instance["oci_name"]+", "+instance["ip_address"])
+            instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_ocid,is_auto_terminate=True,is_decrement_size=True)
+            ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error: {e}")
+
+def tag_unhealthy(node,instance_ocid):
+    instance = computeClient.get_instance(instance_id=instance_ocid).data
+    tags = instance.defined_tags
+    tags.update({'ComputeInstanceHostActions': { 'CustomerReportedHostStatus': 'unhealthy' }})
+    update_instance_details = oci.core.models.UpdateInstanceDetails(defined_tags=tags)
+    logger.info("Updating tags on instance: "+node+" with OCID:"+instance_ocid)
+    try:
+        update_instance_response = ComputeClientCompositeOperations.update_instance_and_wait_for_state(instance_ocid, update_instance_details,wait_for_states=["RUNNING"])
+    except oci.exceptions.ServiceError as e:
+        logger.error("The tag does not exists or the controller doesn't have acces to the tag")
+        logger.error("Make sure the Tag namespace ComputeInstanceHostActions exists with the defined tag: CustomerReportedHostStatus")
 
 def get_ipa_ocid(instance, compartment_ocid):
     if instance["cluster_name"]:
@@ -164,6 +139,11 @@ def get_ipa_ocid(instance, compartment_ocid):
 
 def query_db(controller_hostname):
     try:
+        # DB Connection Details
+        db_host = "localhost"
+        db_user = "clusterUser"
+        db_pw = "Cluster1234!"
+        db_name = "clusterDB"
         connection = pymysql.connect(host=db_host, user=db_user, password=db_pw, database=db_name)
         logger.info("Database connection established successfully.")
     except pymysql.MySQLError as e:
@@ -336,6 +316,7 @@ def getLaunchInstanceDetails(instance,compartment_ocid,cn_ocid,clustername):
     return launch_instance_details
 
 def add_node_to_cluster(clustername,number_of_nodes,compartment_ocid):
+
     cn_summary,ip_summary,CN = get_summary(compartment_ocid,clustername)
 
     logger.info(cn_summary.id+" "+ip_summary.id+" "+CN)
@@ -354,240 +335,121 @@ def add_node_to_cluster(clustername,number_of_nodes,compartment_ocid):
                     launch_instance_details=getLaunchInstanceDetails(instance,compartment_ocid,cn_summary.id,clustername)
                     ComputeClientCompositeOperations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
         else:
-            logger.info("else")
+            current_size=ip_summary.size
             size = ip_summary.size + number_of_nodes
             update_size = oci.core.models.UpdateInstancePoolDetails(size=size)
             logger.info(f"Launching {number_of_nodes} in the Compute Cluster for a total size of {size}")
             ComputeManagementClientCompositeOperations.update_instance_pool_and_wait_for_state(ip_summary.id,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
-            logger.info(f"done")
         cn_summary,ip_summary,CN = get_summary(compartment_ocid,clustername)
-        if CN == "CC":
-            new_cn_instances = get_instances(compartment_ocid,cn_summary.id,CN)
-            newsize=len(new_cn_instances)
-        else:
-            new_cn_instances = get_instances(compartment_ocid,cn_summary.id,CN)
-            newsize=ip_summary.compartment_ocid
+        new_cn_instances = get_instances(compartment_ocid,cn_summary.id,CN)
+        newsize=len(new_cn_instances)
         if newsize == current_size:
             logger.error("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
             exit(1)
 
-#def generateTag(tenancy):
-#    try:
-#        tag_id_list=[i.id for i in IdentityClient.list_tag_namespaces(tenancy,include_subcompartments=True,lifecycle_state="ACTIVE").data if i.name == "ComputeInstanceHostActions2"]
-#        logger.info(str(tag_id_list))
-#        if tag_id_list:
-#            tag_id=tag_id_list[0]
-#        else:
-#            TagNSDetails=oci.identity.models.CreateTagNamespaceDetails(compartment_id=tenancy,description="Tag for unhealthy nodes",name="ComputeInstanceHostActions2")
-#            tagNameSpace=IdentityClientCompositeOperations.create_tag_namespace_and_wait_for_state(TagNSDetails,wait_for_states=["ACTIVE"])
-#            tag_id=tagNameSpace.id
-#    except oci.exceptions.ServiceError as e:
-#        logger.error(f"Error: {e}")
+def list_instance_configs(compartment_ocid):
+    return computeManagementClient.list_instance_configurations(compartment_ocid).data
 
+def list_instance_types():
+    queues_file="/opt/oci-hpc/conf/queues.conf"
+    instance_types=[]
+    with open(queues_file, 'r') as file:
+        data = yaml.safe_load(file)
+    for partition in data["queues"]:
+        for instance_type in partition["instance_types"]:
+            deep_copied_dict = copy.deepcopy(instance_type)
+            deep_copied_dict["partition"]=partition['name']
+            instance_types.append(deep_copied_dict)
+    return(instance_types)
 
-results = query_db(controller_hostname)
-# Initialize node lists
-configured_nodes = []
-waiting_for_compute = []
-terminating = []
-starting = []
-failing_starting = []
-unreachable_nodes = []
+def get_instance_type(instance_type_name):
+    instance_types = list_instance_types()
+    for instance_type in instance_types:
+        if instance_type['name']==instance_type_name:
+            return instance_type
+    return None
 
-current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
-timeTH = current_time - unreachable_timeout
+def generate_instance_config(instance_type):
+    return None
+def get_instance_config_details(instance_config_ocid):
+    return computeManagementClient.get_instance_configuration(instance_config_ocid).data
+def create_cluster(cluster_type,instance_config_ocid,count,compartment_ocid,clustername,availability_domain,subnet_id):
+    if cluster_type == "CN":
+        ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=subnet_id)
+        ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
+        instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails(display_name=clustername,instance_configuration_id=instance_config_ocid,size=count)
+        cn_details=oci.core.models.CreateClusterNetworkDetails(compartment_id=compartment_ocid,display_name=clustername,instance_pools=instance_pools_details,cluster_configuration=ip_placement_details)
+        cn = ComputeManagementClientCompositeOperations.create_cluster_network_and_wait_for_state(create_cluster_network_details=cn_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
+        return cn.data
+    elif cluster_type == "IP" or cluster_type == "IPA":
+        ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=subnet_id)
+        ip_placement_details=oci.core.models.oci.core.models.CreateInstancePoolPlacementConfigurationDetails(availability_domain=availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
+        instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails()
+        ip_details=oci.core.models.oci.core.models.CreateInstancePoolDetails(compartment_id=compartment_ocid,display_name=clustername,instance_pools=instance_pools_details,placement_configurations=ip_placement_details,instance_configuration_id=instance_config_ocid,size=count)
+        cn = ComputeManagementClientCompositeOperations.create_instance_pool_and_wait_for_state(create_instance_pool_details=ip_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
+        return cn.data
+def generate_inventory(instance_config_ocid,clustername,cluster_type):
+    details=computeManagementClient.get_instance_configuration(instance_config_ocid).data
+    original_inventory="/config/playbooks/inventory"
+    inventory_name=f"/config/playbooks/inventory_{clustername}"
+    try:
+        hostname_convention = details.instance_details.launch_details.freeform_tags["hostname_convention"]
+    except:
+        hostname_convention=""
+    modifications={"cluster_name":clustername, 
+                   "shape":details.instance_details.launch_details.shape,
+                   "cluster_network":"true" if cluster_type in ["CN","CC"] else "false",
+                   "hostname_convention": hostname_convention
+                   }
+    try:
+        with open(original_inventory, 'r') as file:
+            lines = file.readlines()
 
-controller = [i for i in results if i["role"] == "controller"]
-compartment_ocid=controller[0]["compartment"]
+        with open(inventory_name, 'w') as file:
+            for line in lines:
+                for key, new_value in modifications.items():
+                    if re.match(rf"^{key}=", line.strip()):  # Match exact key
+                        line = f"{key}={new_value}\n"
+                file.write(line)
 
-all_compute = [i for i in results if i["role"] == "compute"]
-if nodes_list:
-    compute=[]
-    for node in nodes_list:
-        if node in [i["hostname"] for i in results] or node in [i["ip_address"] for i in results] or node in [i["oci_name"] for i in results]:
-            compute+=[i for i in results if (i["hostname"] == node or i["ip_address"] == node or i["oci_name"] == node)]
-        else:
-            logger.error(f"Node: {node} is not present in the DB") 
-elif clusters_list_defined:
-    compute=[]
-    for cluster in clusters_list_defined:
-        compute+=[i for i in results if i["cluster_name"] == cluster]
-    if not compute:
-        logger.error(f"Cluster: {cluster} has no matching nodes present in the DB")
-    nodes_list=NodeSet(','.join([i["hostname"] for i in compute]))
-else:
-    compute=[i for i in results if i["role"] == "compute" or i["controller_status"] == "waiting_for_info"]
+        logger.info("Inventory file updated successfully!")
 
-for i in compute:
-    if i["controller_status"] == "configured" and i["compute_status"] == "configured":
-        configured_nodes.append(i)
-    elif i["controller_status"] == "configured" and i["compute_status"] == "configuring":
-        waiting_for_compute.append(i)
-    elif i["controller_status"] == "terminating":
-        terminating.append(i)
-    elif i["controller_status"] == "waiting_for_info":
-        startedTime = datetime.strptime(i["startedTime"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-        if startedTime < timeTH:
-            failing_starting.append(i)
-        starting.append(i)
-    if i["controller_status"] == "configured" and i["compute_status"] in ["configured", "configuring"]:
-        lastTimeReachable = datetime.strptime(i["lastTimeReachable"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-        if lastTimeReachable < timeTH:
-            unreachable_nodes.append(i)
-        
-clusters_list_found=list(set([i["cluster_name"] for i in compute ]))
+    except FileNotFoundError:
+        logger.error("The inventory file was not found.")
+    except Exception as e:
+        logger.error(f"{e}")
+    return inventory_name
 
-logger.info(f"Counts: Configured: {len(configured_nodes)}, Configuring: {len(waiting_for_compute)}, "
-            f"Starting: {len(starting)}, Terminating: {len(terminating)}")
-
-logger.info(f"Configured Nodes: {NodeSet(','.join([i['hostname'] for i in configured_nodes]))}")
-logger.info(f"Configuring Nodes: {NodeSet(','.join([i['hostname'] for i in waiting_for_compute]))}")
-logger.info(f"Terminating Nodes: {NodeSet(','.join([i['hostname'] for i in terminating]))}")
-logger.info(f"Starting Nodes: {','.join([i['ip_address'] for i in starting])}")
-
-logger.info("Clusters: +"+','.join(clusters_list_found))
-
-if failing_starting:
-    logger.warning(f"Some nodes are failing to start: {','.join([i['ip_address'] for i in failing_starting])}")
-if unreachable_nodes:
-    logger.warning(f"Some nodes haven't responded in a while: {','.join([i['ip_address'] for i in unreachable_nodes])}")
-
-if args.details:
-    for i in compute:
-        logger.info(i)
-
-try:
-    import oci
-    signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
-    computeClient = oci.core.ComputeClient(config={}, signer=signer)
-    ComputeClientCompositeOperations= oci.core.ComputeClientCompositeOperations(computeClient)
-    computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
-    ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
-    virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
-    DNSClient = oci.dns.DnsClient(config={}, signer=signer)
-    IdentityClient= oci.identity.IdentityClient(config={}, signer=signer)
-    IdentityClientCompositeOperations= oci.identity.IdentityClientCompositeOperations(IdentityClient)
-except ImportError:
-    logger.error("oci API cannot be used. Exiting.")
-    sys.exit(1)
-
-if failing_starting or unreachable_nodes:
-    if args.recom:
-        for instance in unreachable_nodes:
-            computeClient.instance_action(instance_id=instance["ocid"],action="RESET")
-            logger.info("Rebooting: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
-
-        if failing_starting:
-            logger.info(f"Restarting the configuration script on: {NodeSet(','.join([i['ip_address'] for i in failing_starting]))}")
-            task = task_self()
-            task.shell("/config/compute.sh", nodes=NodeSet(','.join([i['ip_address'] for i in failing_starting])))
-            task.run()
-            logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
+def remove_inventory(clustername):
+    inventory_name=f"/config/playbooks/inventory_{clustername}"
+    if os.path.exists(inventory_name):
+        os.remove(inventory_name)
+        logger.info(f"Inventory {inventory_name} deleted successfully.")
     else:
-        if failing_starting:
-            logger.warning("If you would like to reconfigure the starting nodes, rerun this script with --recomm")
-        if unreachable_nodes:
-            logger.warning("If you would like to reboot the unreachables nodes, rerun this script with --recomm")
+        logger.warning(f"Inventory {inventory_name} was not present.")
 
-if args.reboot:
-    for i in nodes_list:
-        for instance in compute:
-            if i == instance["hostname"] or i == instance["oci_name"] or i == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    computeClient.instance_action(instance_id=instance["ocid"],action="RESET")
-                    logger.info("Rebooting: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=get_ocid_from_ip(i["ip_address"], compartment_ocid )
-                    logger.info("Rebooting: "+instance["ip_address"]+" and OCID:"+instance_ocid)
-                    if instance["hostname"]:
-                        logger.info("Hostname: "+instance["hostname"]+" with oci name "+instance["oci_name"])
+def delete_cluster(clustername,compartment_ocid):
+    cn_summary,ip_summary,CN = get_summary(compartment_ocid,clustername)
+    if CN == "CN":
+        ComputeManagementClientCompositeOperations.terminate_cluster_network_and_wait_for_work_request(cn_summary.id,wait_for_states=["TERMINATED"])
+    elif CN == "IPA":
+        ComputeManagementClientCompositeOperations.terminate_instance_pool_and_wait_for_state(cn_summary.id,wait_for_states=["TERMINATED"])
+    elif CN == "CC" or "SA":
+        cn_instances = get_instances(compartment_ocid,cn_summary.id,CN)
+        for instance in cn_instances:
+            ComputeClientCompositeOperations.terminate_instance_and_wait_for_state(instance['ocid'],wait_for_states=["TERMINATING","TERMINATED"])
+        while instance_running:
+            instance_running=False
+            for instance in cn_instances:
+                if computeClient.get_instance(instance['ocid']).data.lifecycle_state != "TERMINATED":
+                    instance_running=True
+                    time.sleep(10)
+        if CN == "CC":
+            computeClient.delete_compute_cluster(cn_summary.id)
 
-if args.bvr:
-    if args.image:
-        image_ocid=args.image
-    else:
-        custom_images=list_custom_images(compartment_ocid)
-        for i, img in enumerate(custom_images):
-            print(f"{i+1}. {img.display_name} ({img.id})")
-        # Ask user to choose a custom image
-        choice = int(input("Enter the number of the custom image to use: ")) - 1
-        image_ocid = custom_images[choice].id
-        logger.info(image_ocid)
-    for i in nodes_list:
-        for instance in compute:
-            if i == instance["hostname"] or i == instance["oci_name"] or i == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    instance_ocid=instance["ocid"]
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=get_ocid_from_ip(i["ip_address"], compartment_ocid )
 
-                update_instance_source_details = oci.core.models.UpdateInstanceSourceViaImageDetails()
-                update_instance_source_details.image_id = image_ocid
-                update_instance_source_details.is_preserve_boot_volume_enabled = True
-                update_instance_source_details.is_force_stop_enabled = True
-                update_instance_details = oci.core.models.UpdateInstanceDetails()
-                update_instance_details.source_details = update_instance_source_details
-                logger.info(f"Replacing BV for instance: {instance["hostname"]}")
-                ComputeClientCompositeOperations.update_instance_and_wait_for_state(instance_ocid, update_instance_details,wait_for_states=["RUNNING"])
 
-if args.tag:
-    for i in nodes_list:
-        for instance in compute:
-            if i == instance["hostname"] or i == instance["oci_name"] or i == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    instance_ocid=instance["ocid"]
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=get_ocid_from_ip(i["ip_address"], compartment_ocid )
-                instance = computeClient.get_instance(instance_id=instance_ocid).data
-                tags = instance.defined_tags
-                tags.update({'ComputeInstanceHostActions': { 'CustomerReportedHostStatus': 'unhealthy' }})
-                update_instance_details = oci.core.models.UpdateInstanceDetails(defined_tags=tags)
-                logger.info("Updating tags on instance: "+i+" with OCID:"+instance_ocid)
-                try:
-                    update_instance_response = ComputeClientCompositeOperations.update_instance_and_wait_for_state(instance_ocid, update_instance_details,wait_for_states=["RUNNING"])
-                except oci.exceptions.ServiceError as e:
-                    logger.error("The tag does not exists or the controller doesn't have acces to the tag")
-                    logger.error("Make sure the Tag namespace ComputeInstanceHostActions exists with the defined tag: CustomerReportedHostStatus")
 
-if args.terminate:
-    for i in nodes_list:
-        for instance in compute:
-            if i == instance["hostname"] or i == instance["oci_name"] or i == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    instance_ocid=instance["ocid"]
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=get_ocid_from_ip(i["ip_address"], compartment_ocid )
-                
-                try:
-                    ipa_ocid,ipa_type=get_ipa_ocid(instance, compartment_ocid)
-                    if ipa_type == "StandAlone" or ipa_type == "CC":
-                        logger.info("Terminating node:"+i+"with details"+instance["hostname"]+","+instance["oci_name"]+","+instance["ip_address"])
-                        ComputeClientCompositeOperations.terminate_instance_and_wait_for_state(instance_ocid,wait_for_states=["TERMINATING","TERMINATED"])
-                    elif ipa_type == "IPA" or ipa_type == "CN":
-                        logger.info("Terminating node:"+i+"with details"+instance["hostname"]+","+instance["oci_name"]+","+instance["ip_address"])
-                        instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=instance_ocid,is_auto_terminate=True,is_decrement_size=True)
-                        ComputeManagementClientCompositeOperations.detach_instance_pool_instance_and_wait_for_work_request(ipa_ocid,instance_details)
-                except oci.exceptions.ServiceError as e:
-                    logger.error(f"Error: {e}")
-
-if args.add:
-    cluster_to_add = None
-    if len(clusters_list_defined)==0:
-        logger.info(f"No Cluster was defined to add")
-        if len(clusters_list_found) == 1:
-            cluster_to_add=clusters_list_found[0]
-            logger.info(f"Using the 1 clustername found: {clusters_list_found[0]}")
-        else:
-            logger.error(f"There were {len(clusters_list_found)} clusters found and none specified, not adding nodes")
-    elif len(clusters_list_defined)>1:
-        logger.error(f"Only Specify one cluster for resize")
-    elif len(clusters_list_defined)==1:
-        cluster_to_add=clusters_list_defined[0]
-    if not cluster_to_add is None:
-        logger.info(f"Adding a node to: {cluster_to_add}")
-        add_node_to_cluster(cluster_to_add,args.add,compartment_ocid)
-
+def guess_availabilitydomain(compartment_ocid):
+    ads=IdentityClient.list_availability_domains(compartment_ocid).data
+    return [i.name for i in ads]
