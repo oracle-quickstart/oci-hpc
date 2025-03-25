@@ -196,12 +196,10 @@ def get_summary(compartment_ocid,clustername):
     cn_summary=None
 
     #Looking for CNs
-    CN = "CN"
     cn_summaries = computeManagementClient.list_cluster_networks(compartment_ocid,display_name=clustername).data
     if len(cn_summaries) > 0:
         for cn_summary_tmp in cn_summaries:
             if cn_summary_tmp.lifecycle_state == "RUNNING":
-                cn_summary = cn_summary_tmp
                 running_clusters = running_clusters + 1
                 running_clusters_info.append([cn_summary_tmp,"CN"])
             elif cn_summary_tmp.lifecycle_state == "SCALING":
@@ -215,24 +213,20 @@ def get_summary(compartment_ocid,clustername):
         logger.error("The list_compute_clusters call returned an error, considering no Compute Clusters are present")
         cn_summaries = []
     if len(cn_summaries) > 0:
-        CN = "CC"
         for cn_summary_tmp in cn_summaries:
             if cn_summary_tmp.lifecycle_state == "ACTIVE" and cn_summary_tmp.display_name == clustername :
-                cn_summary = cn_summary_tmp
                 running_clusters = running_clusters + 1
                 running_clusters_info.append([cn_summary_tmp,"CC"])
 
     # Looking for IPAs   
     cn_summaries = computeManagementClient.list_instance_pools(compartment_ocid,display_name=clustername).data
     if len(cn_summaries) > 0:
-        CN = "IPA"
         for cn_summary_tmp in cn_summaries:
-            if cn_summary_tmp.id in [i[0].id for i in running_clusters_info if i[1] == "CN"]:
+            if cn_summary_tmp.id in [i[0].instance_pools[0].id for i in running_clusters_info if i[1] == "CN"]:
                 # Ignore matching IPAs for existing CNs
                 continue
             else:
                 if cn_summary_tmp.lifecycle_state == "RUNNING":
-                    cn_summary = cn_summary_tmp
                     running_clusters = running_clusters + 1
                     running_clusters_info.append([cn_summary_tmp,"IPA"])
                 elif cn_summary_tmp.lifecycle_state == "SCALING":
@@ -245,14 +239,17 @@ def get_summary(compartment_ocid,clustername):
         else:
             logger.error("The cluster was not found")
         return None,None,True
-    
-    if running_clusters > 1:
+    elif running_clusters == 1:
+        cn_summary = running_clusters_info[0][0]
+        CN=running_clusters_info[0][1]
+    elif running_clusters > 1:
         logger.info("There were multiple running clusters with this name")
         for i, cluster in enumerate(running_clusters_info):
             print(f"{i+1}. {cluster[0].id} of type {cluster[1]}")
         # Ask user to choose which cluster to scale
         choice = int(input("Enter the number of the cluster use: ")) - 1
         cn_summary = running_clusters_info[choice][0]
+        CN=running_clusters_info[choice][1]
 
     if CN == "CN":
         ip_summary=cn_summary.instance_pools[0]
@@ -312,7 +309,10 @@ def getLaunchInstanceDetails(instance,compartment_ocid,cn_ocid,clustername):
         launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,ocpus=shape_config.ocpus)
 
     new_display_name = "inst-"+''.join(random.choices(string.ascii_lowercase, k=5))+"-"+clustername
-    launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
+    if instance.shape.startswith("BM"):
+        launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
+    else:
+        launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
     return launch_instance_details
 
 def add_node_to_cluster(clustername,number_of_nodes,compartment_ocid):
