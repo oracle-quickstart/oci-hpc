@@ -319,8 +319,10 @@ def getLaunchInstanceDetails(instance,compartment_ocid,cn_ocid,clustername):
 def add_node_to_cluster(clustername,number_of_nodes,compartment_ocid):
 
     cn_summary,ip_summary,CN = get_summary(compartment_ocid,clustername)
-
-    logger.info(cn_summary.id+" "+ip_summary.id+" "+CN)
+    if CN == "CC":
+        logger.info(cn_summary.id+" "+CN)
+    else:
+        logger.info(cn_summary.id+" "+ip_summary.id+" "+CN)
     if cn_summary is None:
         exit(1)
     else:
