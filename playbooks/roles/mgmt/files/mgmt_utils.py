@@ -77,11 +77,12 @@ def get_ipa_ocid(instance, compartment_ocid):
         instance_pools = oci.pagination.list_call_get_all_results(computeManagementClient.list_cluster_networks,compartment_ocid,display_name=instance["cluster_name"]).data
         if len(instance_pools):
             for instance_pool in instance_pools:
-                 instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_instance_pool_instances,compartment_ocid,instance_pool.id).data
+                 ipa_ocid=instance_pool.instance_pools[0].id
+                 instance_summaries = oci.pagination.list_call_get_all_results(computeManagementClient.list_instance_pool_instances,compartment_ocid,ipa_ocid).data
                  for instance_summary in instance_summaries:
                     if instance["ocid"]:
                         if instance_summary.id == instance["ocid"]:
-                            return instance_pool.id,"CN"
+                            return ipa_ocid,"CN"
                     else:
                         if instance_summary.lifecycle_state == "TERMINATED":
                             continue
@@ -91,7 +92,7 @@ def get_ipa_ocid(instance, compartment_ocid):
                                     vnic_attachment = potential_vnic_attachment
                             vnic = virtualNetworkClient.get_vnic(vnic_attachment.vnic_id).data
                             if vnic.private_ip == instance["ip_address"]:
-                                return instance_pool.id,"CN"
+                                return ipa_ocid,"CN"
                         except:
                             continue
         instance_pools = oci.pagination.list_call_get_all_results(computeManagementClient.list_instance_pools,compartment_ocid,display_name=instance["cluster_name"]).data
