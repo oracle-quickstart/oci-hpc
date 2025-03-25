@@ -24,7 +24,7 @@ if [ ${shape} = "BM.GPU.H100.8" ] || \
 
   # Check if the file is older than 60 seconds (1 minute)
   if [ $TIME_DIFF -gt 60 ]; then
-    sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py --slurm > /tmp/latest_healthcheck.log 2>&1
+    sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py --slurm 2>&1
   fi
 
   # Check for healthcheck messages

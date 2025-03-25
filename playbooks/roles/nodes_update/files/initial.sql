@@ -24,5 +24,8 @@ CREATE TABLE IF NOT EXISTS clusterDB.nodes (
     serial VARCHAR(64),
     shape VARCHAR(64),
     terminatedTime VARCHAR(64),
-    update_count INT
+    update_count INT,
+    healthcheck_recomandation VARCHAR(64),
+    last_healthcheck_time VARCHAR(64),
+    healthcheck_logs VARCHAR(1024)
 );

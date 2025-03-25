@@ -3,7 +3,6 @@
 import subprocess
 import re
 import argparse
-from datetime import datetime
 from shared_logging import logger
 from gpu_bw_test import BandwidthTest
 from rdma_link_flapping import LinkFlappingTest
@@ -16,6 +15,13 @@ import json
 import socket
 import psutil
 import time
+import sys
+
+version = sys.version_info
+if version >= (3, 12):
+    from datetime import datetime, timedelta, UTC
+else:
+    from datetime import datetime, timedelta
 
 def get_metadata():
     """ Make a request to metadata endpoint """
@@ -622,26 +628,75 @@ def check_fabric_manager():
     return fabric_manager_health
 
 def get_current_cpu_profile():
-    # List all scaling governor files for CPUs
-    cpu_governor_files = glob.glob('/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor')
-    cpu_profile_issues = []
+    """Retrieve online CPUs and check if their profile is set to 'performance'."""
+    try:
+        # Get instance metadata
+        metadata = get_metadata()
+        shape = metadata.get('shape', '')
 
-    for cpu_file in cpu_governor_files:
-        try:
-            with open(cpu_file, 'r') as f:
-                result = f.read().strip()
-            if result != 'performance':
-                cpu_id = cpu_file.split('/')[-3]
-                logger.warning(f"CPU {cpu_id} Profile is {result}, expected 'performance'.")
-                cpu_profile_issues.append(f"CPU {cpu_id}: {result}")
-        except Exception as e:
-            logger.error(f"Failed to read {cpu_file}: {e}")
-            cpu_profile_issues.append(f"Error reading {cpu_file}")
+        # Skip VM shapes
+        if shape.startswith("VM."):
+            pass
+            return []
+
+        # Get online CPUs from lscpu
+        output = subprocess.check_output(["lscpu"], universal_newlines=True)
+        online_cpu_list = None
+
+        for line in output.splitlines():
+            if "On-line CPU(s) list:" in line:
+                online_cpu_list = line.split(":")[1].strip()
+                break
+
+        if not online_cpu_list:
+            logger.error("Could not determine online CPUs. Check `lscpu` output.")
+            return []
+
+        # Convert CPU range to a list of integers
+        online_cpus = []
+        for part in online_cpu_list.split(","):
+            if "-" in part:
+                start, end = map(int, part.split("-"))
+                online_cpus.extend(range(start, end + 1))
+            else:
+                online_cpus.append(int(part))
+
+    except Exception as e:
+        logger.error(f"Failed to get online CPUs: {e}")
+        return []
+
+    # Check CPU governor for only online CPUs
+    cpu_profile_issues = []
+    for cpu_id in online_cpus:
+        cpu_file = f"/sys/devices/system/cpu/cpu{cpu_id}/cpufreq/scaling_governor"
+        for attempt in range(3):  # Retry up to 3 times
+            try:
+                with open(cpu_file, 'r') as f:
+                    result = f.read().strip()
+
+                if result == "performance":
+                    continue
+                else:
+                    logger.warning(f"CPU {cpu_id}: Profile is '{result}', expected 'performance'.")
+                    cpu_profile_issues.append(f"CPU {cpu_id}: {result}")
+
+                break  # Exit retry loop on success
+
+            except Exception as e:
+                if "Device or resource busy" in str(e):
+                    if attempt < 2:
+                        time.sleep(0.5)  # Wait before retrying
+                    else:
+                        logger.warning(f"CPU {cpu_id}: Scaling governor file is busy. Skipping after 3 attempts.")
+                else:
+                    logger.error(f"Skipping CPU {cpu_id}: {e}")
+                    break  # Skip CPU if persistently busy
 
     if not cpu_profile_issues:
-        logger.info("CPU Profile Check: Passed")
+        logger.info("CPU Profile Check: Passed")  # All CPUs are set to 'performance'.
     else:
         logger.error("Some CPUs failed the profile check.")
+
     return cpu_profile_issues
 
 def check_bad_pages():
@@ -1057,3 +1112,28 @@ if __name__ == '__main__':
     if slurm_error_count > 0 and args.slurm:
         print("Healthcheck:: "+slurm_drain_reason[:-1])
         print("Healthcheck:: Recommended Action:"+action)
+
+    http_server_file="/opt/oci-hpc/http_server/files/info"
+    # Read the existing data from the file
+    try:
+        with open(http_server_file, 'r') as file:
+            data = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        print("Error: File not found or not in valid JSON format.")
+        exit(0)
+    current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
+    if action is None:
+        data["healthcheck_recomandation"] = "Healthy"
+    else:
+        data["healthcheck_recomandation"] = action
+    data["last_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    # Read the healthcheck.log file content
+    try:
+        with open("/tmp/latest_healthcheck.log", 'r') as log_file:
+            data["healthcheck_logs"] = log_file.read(1023)  # Store log content in JSON
+    except FileNotFoundError:
+        logger.warning("Log file not found, initializing empty logs.")
+        data["healthcheck_logs"] = ""
+    # Write updated data back to the file
+    with open(http_server_file, 'w') as file:
+        json.dump(data, file, indent=4)

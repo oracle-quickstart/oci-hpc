@@ -109,6 +109,8 @@ terminating = []
 starting = []
 failing_starting = []
 unreachable_nodes = []
+hc_reboot = []
+hc_terminate = []
 
 current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
 timeTH = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
@@ -150,6 +152,10 @@ for i in compute:
         lastTimeReachable = datetime.strptime(i["lastTimeReachable"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         if lastTimeReachable < timeTH:
             unreachable_nodes.append(i)
+    if i["healthcheck_recomandation"] == "Reboot":
+        hc_reboot.append(i)
+    elif i["healthcheck_recomandation"] == "Terminate":
+        hc_terminate.append(i)
         
 clusters_list_found=[i for i in list(set([i["cluster_name"] for i in compute ])) if not i is None]
 logger.info(f"Counts: Configured: {len(configured_nodes)}, Configuring: {len(waiting_for_compute)}, "
@@ -159,6 +165,8 @@ logger.info(f"Configured Nodes: {NodeSet(','.join([i['hostname'] for i in config
 logger.info(f"Configuring Nodes: {NodeSet(','.join([i['hostname'] for i in waiting_for_compute]))}")
 logger.info(f"Terminating Nodes: {NodeSet(','.join([i['hostname'] for i in terminating]))}")
 logger.info(f"Starting Nodes: {','.join([i['ip_address'] for i in starting])}")
+logger.info(f"Healthcheck Recommendations to Reboot: {','.join([i['hostname'] for i in hc_reboot])}")
+logger.info(f"Healthcheck Recommendations to Terminate: {','.join([i['hostname'] for i in hc_terminate])}")
 
 logger.info("Clusters: "+','.join(clusters_list_found))
 
@@ -169,11 +177,11 @@ if unreachable_nodes:
 
 if args.details:
     for i in compute:
-        print(json.dumps(i, indent=4))
+        print(json.dumps(i, indent=4).replace("\\n", "\n"))
 
-if failing_starting or unreachable_nodes:
+if failing_starting or unreachable_nodes or hc_reboot or hc_terminate:
     if args.recom:
-        for instance in unreachable_nodes:
+        for instance in list(set(unreachable_nodes + hc_reboot)):
             mgmt_utils.force_reboot(instance["ocid"])
             logger.info("Rebooting: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
 
@@ -183,11 +191,23 @@ if failing_starting or unreachable_nodes:
             task.shell("/config/compute.sh", nodes=NodeSet(','.join([i['ip_address'] for i in failing_starting])))
             task.run()
             logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
+        for instance in hc_terminate:
+            if len(instance["ocid"]):
+                instance_ocid=instance["ocid"]
+                node=instance["hostname"]
+            else:
+                logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
+                instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
+                node=instance["ip_address"]
+            mgmt_utils.terminate_instance(node,instance,instance_ocid,compartment_ocid)
+            logger.info("Terminating because of healthcheck: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
     else:
         if failing_starting:
             logger.warning("If you would like to reconfigure the starting nodes, rerun this script with --recomm")
         if unreachable_nodes:
             logger.warning("If you would like to reboot the unreachables nodes, rerun this script with --recomm")
+        if hc_reboot or hc_terminate:
+            logger.warning("If you would like to reboot or terminate based on healthcheck results, rerun this script with --recomm")
 
 if args.reboot:
     for node in nodes_list:
@@ -253,6 +273,7 @@ if args.terminate:
                 else:
                     logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
                     instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
+                print(instance_ocid)
                 mgmt_utils.terminate_instance(node,instance,instance_ocid,compartment_ocid)
 
 if args.add:
