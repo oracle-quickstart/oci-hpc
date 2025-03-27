@@ -1,0 +1,92 @@
+name: Update Stack Version Command
+
+on:
+  push:
+    branches:
+      - '**'
+  create:
+    tags:
+      - '**'
+  release:
+    types:
+      - published
+      - edited
+
+permissions:
+  contents: write
+
+jobs:
+  create-stackversion-command:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event.release.target_commitish || github.ref_name }}
+
+    - name: Set up Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Get Latest Release
+      run: |
+        LATEST_RELEASE=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo "No release found")
+        echo "LATEST_RELEASE=$LATEST_RELEASE" >> $GITHUB_ENV
+        echo "Latest Release: $LATEST_RELEASE"
+
+    - name: Get Latest Tag
+      run: |
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "No tag found")
+        echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+        echo "Latest Tag: $LATEST_TAG"
+
+    - name: Get Date of Last Commit
+      run: |
+        echo "LATEST_COMMIT_DATE=$(git log -1 --format=%cd --date=iso)" >> $GITHUB_ENV
+        echo "Last Commit Date: ${{ env.LATEST_COMMIT_DATE }}"
+
+    - name: Get Latest Commit Hash
+      run: |
+        echo "LATEST_COMMIT_HASH=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        echo "Latest Commit Hash: ${{ env.LATEST_COMMIT_HASH }}"
+
+    - name: Get Branch Name
+      run: |
+        BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+        if [ "$BRANCH_NAME" == "HEAD" ]; then
+          BRANCH_NAME=${{ github.event.release.target_commitish || github.ref_name }}
+        fi
+        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+        echo "Branch Name: $BRANCH_NAME"
+
+    - name: Ensure scripts folder exists & Remove old file if needed
+      run: |
+        mkdir -p scripts/
+        rm -f scripts/stackversion
+
+    - name: Create Stack Version Script
+      run: |
+        echo "#!/bin/bash" > scripts/stackversion
+        echo "echo Release: ${{ env.LATEST_RELEASE }}" >> scripts/stackversion
+        echo "echo Tag: ${{ env.LATEST_TAG }}" >> scripts/stackversion
+        echo "echo Latest Commit Hash: ${{ env.LATEST_COMMIT_HASH }}" >> scripts/stackversion
+        echo "echo Latest Commit Date: ${{ env.LATEST_COMMIT_DATE }}" >> scripts/stackversion
+        echo "echo Github Branch Version: ${{ env.BRANCH_NAME }}" >> scripts/stackversion
+        chmod +x scripts/stackversion
+        echo "Stackversion file created:"
+        cat scripts/stackversion
+        ls -lah scripts/
+
+    - name: Force Commit and Push the Script
+      run: |
+        git add scripts/stackversion
+        git status
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Updated stackversion script with latest version info"
+          git push origin HEAD:${{ env.BRANCH_NAME }}
+        fi
