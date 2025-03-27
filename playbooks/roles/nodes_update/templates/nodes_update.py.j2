@@ -29,9 +29,9 @@ import json
 version = sys.version_info
 
 if version >= (3, 12):
-    from datetime import datetime, timedelta, UTC
+    from datetime import datetime, timedelta, timezone , UTC
 else:
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
 from concurrent.futures import ProcessPoolExecutor
 
@@ -209,7 +209,7 @@ def check_nodes_status():
             if status != "starting":
                 hostname=doc["hostname"]
                 if "lastTimeReachable" in doc:
-                    last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
+                    last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                     if last_time_reachable < time_threshold:
                         query = """
                         UPDATE nodes
@@ -242,7 +242,7 @@ def clean_old_terminated_nodes():
 
     for doc in results:
         if "lastTimeReachable" in doc:
-            last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S")
+            last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
             if last_time_reachable < time_threshold:
                 query = """
                 DELETE FROM nodes
