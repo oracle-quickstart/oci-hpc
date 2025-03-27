@@ -1,0 +1,6 @@
+#!/bin/bash
+echo Release: v2.11.0
+echo Tag: v2.11.0
+echo Latest Commit Hash: 2add6036327c6d51ae428074473e02e1e5c434c7
+echo Latest Commit Date: 2025-03-27 14:54:40 -0500
+echo Github Branch Version: stackversion
