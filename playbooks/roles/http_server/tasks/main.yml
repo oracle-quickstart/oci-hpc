@@ -98,8 +98,14 @@
   when: "not 'rdmaTopologyData' in rdma_metadata"
 
 - name: Set http_role based on hostvars or default to "compute"
+  set_fact: 
+    http_role: "{{ hostvars[inventory_hostname]['role']}}"
+  when: hostvars[inventory_hostname]['role'] is defined
+
+- name: Set http_role based on hostvars or default to "compute"
   set_fact:
-    http_role: "{{ hostvars[inventory_hostname]['role'] | default('compute') }}"
+    http_role: "{{ http_server_role}}"
+  when: not hostvars[inventory_hostname]['role'] is defined
 
 - name: Build the host_info dictionary
   set_fact:

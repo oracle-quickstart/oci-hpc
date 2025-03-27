@@ -14,6 +14,7 @@
   vars:
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configuring"
+    http_server_role: "compute"
   gather_facts: true
   roles:
     - oci-cloud-agent
@@ -56,7 +57,7 @@
   tasks:
     - include_role:
         name: home_nfs
-      when: home_nfs|default(true)|bool
+      when: home_nfs|default(true)|bool or home_fss|bool
     - include_role:
         name: nfs-client
       vars:
@@ -116,7 +117,6 @@
   tasks:
     - include_role:
         name: rack-aware
-      when: rack_aware|default(false)|bool
     - include_role:
         name: spack
       when: spack|default(false)|bool
@@ -132,6 +132,7 @@
   vars:
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configured"
+    http_server_role: "compute"
   gather_facts: true
   roles: 
     - http_server
