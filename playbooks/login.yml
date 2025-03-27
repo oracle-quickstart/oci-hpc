@@ -1,4 +1,4 @@
-- hosts: login
+- hosts: localhost
   become: true
   gather_facts: true
   tasks:
@@ -6,11 +6,16 @@
         name: fix_broken
       when: ansible_os_family == 'Debian'
         
-- hosts: login
+- hosts: localhost
   become: true
+  vars:
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    http_server_status: "configuring"
+    http_server_role: "login"
   gather_facts: true
   roles: 
     - oci-cloud-agent
+    - http_server
     - privilege_group
     - oci-legacy
     - packages
@@ -20,9 +25,14 @@
     - limits
     - boot-volume
     - mpivars
+    - queue_read
+    - mgmt
 
-- hosts: login
+- hosts: localhost
   become: true
+  gather_facts: true
+  vars:
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   tasks: 
     - include_role: 
         name: localdisk
@@ -30,23 +40,7 @@
     - include_role: 
         name: healthchecks
 
-- hosts: login
-  become: true
-  tasks:
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
-        options: ""
-        lock: "none"
-      when: add_nfs|bool and home_fss|bool
-    - include_role: 
-        name: passwords
-
-
-- hosts: login
+- hosts: localhost
   become: true
   tasks:
     - include_role:
@@ -56,7 +50,7 @@
         name: nfs-client
       vars:
         local_path: "/home"
-        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
+        export_host: "{{ controller_hostname }}"
         export_path: "/home"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
@@ -70,39 +64,6 @@
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool
-
-
-- hosts: login
-  become: true
-  vars:
-    iscsi_ip: "{{ login_mount_ip }}"
-    local_path: "/mnt/block"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: login_block|default(false)|bool
-
-- hosts: login
-  become: true
-  tasks: 
-    - include_role: 
-        name: nfs-client
-      vars: 
-        local_path: "{{ cluster_nfs_path }}"
-        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        export_path: "/export/cluster"
-        lock: "all"
-      when: cluster_nfs|default(true)|bool
-    - include_role: 
-        name: nfs-client
-      vars: 
-        local_path: "{{ scratch_nfs_path }}"
-        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        lock: "none" 
-      when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
     - include_role:
         name: nfs-client
       vars:
@@ -113,44 +74,48 @@
         lock: "none"
       when: add_nfs|default(false)|bool
 
-
-- hosts: login
+- hosts: localhost
   become: true
-  tasks: 
-    - include_role: 
-        name: sssd
-      when: ldap|default(true)|bool
-
-- hosts: all
-  become: true
-  tasks: 
-    - include_role: 
-        name: fix_ldap
-      when: ldap|default(true)|bool
-
-- hosts: login
   vars:
-    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
-    resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+  tasks:
+    - include_role:
+        name: docker
+      when: enroot|default(true)|bool
+    - include_role:
+        name: nvidia-container
+      when: enroot|default(true)|bool
+    - include_role:
+        name: nvidia-enroot
+      when: enroot|default(true)|bool
+      
+- hosts: localhost
+  vars:
+    slurm_mode: 'login'
+    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    compute_node: false
   tasks: 
     - include_role: 
         name: rack-aware
-      when: rack_aware|default(false)|bool
     - include_role: 
         name: spack
       when: spack|default(false)|bool
     - include_role: 
+        name: metrics-exporter
+      when: cluster_monitoring|default(false)|bool
+    - include_role: 
         name: slurm
       when: slurm|default(false)|bool
 
-- hosts: login
+- hosts: localhost
   become: true
   vars:
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configured"
+    http_server_role: "login"
   gather_facts: true
   roles: 
     - http_server

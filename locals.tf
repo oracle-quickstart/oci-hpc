@@ -52,10 +52,7 @@ locals {
   is_monitoring_flex_shape = length(regexall(".*VM.*.*Flex$", var.monitoring_shape)) > 0 ? [local.monitoring_ocpus] : []
 
   is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [local.instance_pool_ocpus] : []
-
-  controller_mount_ip = var.controller_block ? element(concat(oci_core_volume_attachment.controller_volume_attachment.*.ipv4, [""]), 0) : "none"
-  login_mount_ip      = var.login_block ? element(concat(oci_core_volume_attachment.login_volume_attachment.*.ipv4, [""]), 0) : "none"
-
+  
   scratch_nfs_type = var.cluster_network ? var.scratch_nfs_type_cluster : var.scratch_nfs_type_pool
 
   iscsi_ip = var.cluster_network ? element(concat(oci_core_volume_attachment.cluster_network_volume_attachment.*.ipv4, [""]), 0) : element(concat(oci_core_volume_attachment.instance_pool_volume_attachment.*.ipv4, [""]), 0)

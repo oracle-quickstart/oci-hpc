@@ -2,8 +2,6 @@
 ${controller_name} ansible_host=${controller_ip} ansible_user=${controller_username} role=controller ansible_python_interpreter=/config/venv/bin/python3
 [slurm_backup]
 %{ if backup_name !="" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=controller%{ endif }
-[login]
-%{ if login_name !="" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
 [monitoring]
 %{ if monitoring_name !="" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring%{ endif }
 [compute_to_add]
@@ -32,12 +30,8 @@ cluster_network=${cluster_network}
 slurm=${slurm}
 slurm_version=${slurm_version}
 rack_aware=${rack_aware}
-spack=${spack} 
-controller_block=${controller_block} 
-login_block=${login_block}
+spack=${spack}
 scratch_nfs_type=${scratch_nfs_type}
-controller_mount_ip=${controller_mount_ip}
-login_mount_ip=${login_mount_ip}
 cluster_mount_ip=${cluster_mount_ip}
 autoscaling=${autoscaling}
 cluster_name=${cluster_name}

@@ -35,6 +35,7 @@ fi
 
 controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller_name`
 cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`
+login=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.login`
 
 mkdir /config
 
@@ -65,4 +66,8 @@ while true; do
     fi
 done
 
-su - $default_user /config/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
+if [ "$login" == "true" ]; then
+    su - $default_user /config/login.sh 2>&1 | tee -a /tmp/cloud-init.log
+else
+    su - $default_user /config/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
+fi

@@ -17,7 +17,7 @@
 
   - name: run login/monitoring server directives
     include_tasks: login.yml
-    when: (('login' in group_names) or ('monitoring' in group_names) )
+    when: ('monitoring' in group_names)
 
   - name: run backup server directives
     include_tasks: backup_server.yml
@@ -53,3 +53,13 @@
     include_tasks: "compute.yml"
     
   when: slurm_mode == 'compute'
+
+- block:
+
+  - name: Run common instructions
+    include_tasks: common.yml
+    
+  - name: run compute directives
+    include_tasks: "login.yml"
+    
+  when: slurm_mode == 'login'
