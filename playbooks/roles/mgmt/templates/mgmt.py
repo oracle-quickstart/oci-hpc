@@ -6,6 +6,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import mgmt_utils 
 import json
+import time
 controller_hostname = "{{controller_hostname}}"
 
 
@@ -118,9 +119,10 @@ timeTH = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
 controller = [i for i in results if i["role"] == "controller"]
 compartment_ocid=controller[0]["compartment"]
 
-all_compute = [i for i in results if i["role"] == "compute"]
+login = [i for i in results if i["role"] == "login"]
 if nodes_list:
     compute=[]
+    compute_with_terminated = [] # Cannot show terminated nodes with nodes list of cluster defined, only -a
     for node in nodes_list:
         if node in [i["hostname"] for i in results] or node in [i["ip_address"] for i in results] or node in [i["oci_name"] for i in results]:
             compute+=[i for i in results if (i["hostname"] == node or i["ip_address"] == node or i["oci_name"] == node)]
@@ -134,12 +136,13 @@ elif clusters_list_defined:
         logger.error(f"Cluster: {cluster} has no matching nodes present in the DB")
     nodes_list=NodeSet(','.join([i["hostname"] for i in compute]))
 else:
-    compute=[i for i in results if i["role"] == "compute" or i["controller_status"] == "waiting_for_info"]
+    compute_with_terminated=[i for i in results if i["role"] == "compute" or i["controller_status"] == "waiting_for_info"]
+    compute=[i for i in results if ( i["role"] == "compute" or i["controller_status"] == "waiting_for_info" ) and (i["status"] != "terminated")]
 
 for i in compute:
     if i["controller_status"] == "configured" and i["compute_status"] == "configured":
         configured_nodes.append(i)
-    elif i["controller_status"] == "configured" and i["compute_status"] == "configuring":
+    elif i["compute_status"] == "configuring":
         waiting_for_compute.append(i)
     elif i["controller_status"] == "terminating":
         terminating.append(i)
@@ -165,10 +168,11 @@ logger.info(f"Configured Nodes: {NodeSet(','.join([i['hostname'] for i in config
 logger.info(f"Configuring Nodes: {NodeSet(','.join([i['hostname'] for i in waiting_for_compute]))}")
 logger.info(f"Terminating Nodes: {NodeSet(','.join([i['hostname'] for i in terminating]))}")
 logger.info(f"Starting Nodes: {','.join([i['ip_address'] for i in starting])}")
-logger.info(f"Healthcheck Recommendations to Reboot: {','.join([i['hostname'] for i in hc_reboot])}")
-logger.info(f"Healthcheck Recommendations to Terminate: {','.join([i['hostname'] for i in hc_terminate])}")
+logger.info(f"Healthcheck Recommendations to Reboot: {NodeSet(','.join([i['hostname'] for i in hc_reboot]))}")
+logger.info(f"Healthcheck Recommendations to Terminate: {NodeSet(','.join([i['hostname'] for i in hc_terminate]))}")
 
 logger.info("Clusters: "+','.join(clusters_list_found))
+logger.info(f"Login Nodes: {NodeSet(','.join([i['hostname'] for i in login]))}")
 
 if failing_starting:
     logger.warning(f"Some nodes are failing to start: {','.join([i['ip_address'] for i in failing_starting])}")
@@ -176,15 +180,27 @@ if unreachable_nodes:
     logger.warning(f"Some nodes haven't responded in a while: {','.join([i['ip_address'] for i in unreachable_nodes])}")
 
 if args.details:
-    for i in compute:
-        print(json.dumps(i, indent=4).replace("\\n", "\n"))
+    if args.all:
+        for i in compute_with_terminated:
+            print(json.dumps(i, indent=4).replace("\\n", "\n"))
+    else:
+        for i in compute:
+            print(json.dumps(i, indent=4).replace("\\n", "\n"))
+
 
 if failing_starting or unreachable_nodes or hc_reboot or hc_terminate:
     if args.recom:
-        for instance in list(set(unreachable_nodes + hc_reboot)):
-            mgmt_utils.force_reboot(instance["ocid"])
-            logger.info("Rebooting: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
-
+        ocids=[]
+        for instance in unreachable_nodes + hc_reboot:
+            if len(instance["ocid"]):
+                instance_ocid=instance["ocid"]
+            else:
+                logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
+                instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
+            if not instance_ocid in ocids:
+                ocids.append(instance_ocid)
+                mgmt_utils.force_reboot(instance_ocid)
+                logger.info("Rebooting: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
         if failing_starting:
             logger.info(f"Restarting the configuration script on: {NodeSet(','.join([i['ip_address'] for i in failing_starting]))}")
             task = task_self()
@@ -199,8 +215,9 @@ if failing_starting or unreachable_nodes or hc_reboot or hc_terminate:
                 logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
                 instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
                 node=instance["ip_address"]
+            mgmt_utils.tag_unhealthy(node,instance_ocid)
             mgmt_utils.terminate_instance(node,instance,instance_ocid,compartment_ocid)
-            logger.info("Terminating because of healthcheck: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
+            logger.info("Tagging and Terminating because of healthcheck: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
     else:
         if failing_starting:
             logger.warning("If you would like to reconfigure the starting nodes, rerun this script with --recomm")
@@ -273,7 +290,6 @@ if args.terminate:
                 else:
                     logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
                     instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
-                print(instance_ocid)
                 mgmt_utils.terminate_instance(node,instance,instance_ocid,compartment_ocid)
 
 if args.add:
