@@ -1,7 +1,7 @@
 ---
 - name: Make sure the /home directory exist
   file:
-    path: "/opt/oci-hpc/mgmt"
+    path: "/config/mgmt"
     state: directory
     mode: '0755'
     owner: "{{ ansible_user }}"
@@ -11,7 +11,7 @@
   become: true
   template:
     src: "{{item}}"
-    dest: "/opt/oci-hpc/mgmt/{{item}}"
+    dest: "/config/mgmt/{{item}}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0775'  
@@ -23,7 +23,7 @@
 - name: copy mgmt utils files
   copy: 
     src: "{{item}}"
-    dest: "/opt/oci-hpc/mgmt/{{item}}"
+    dest: "/config/mgmt/{{item}}"
     owner: "{{ansible_user}}"
     group: "{{ansible_user}}"
     mode: '0755'
@@ -51,5 +51,5 @@
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias mgmt="source /config/venv/bin/activate; python3 /opt/oci-hpc/mgmt/mgmt.py"
+    line: alias mgmt="source /config/venv/bin/activate; python3 /config/mgmt/mgmt.py"
     state: present
