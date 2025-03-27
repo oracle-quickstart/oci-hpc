@@ -33,7 +33,7 @@
   delegate_to: 127.0.0.1
   run_once: true
   with_items: "{{racks_to_add}}"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Get current nodes in Switch hostlist
   vars:
