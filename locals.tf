@@ -55,10 +55,6 @@ locals {
   
   scratch_nfs_type = var.cluster_network ? var.scratch_nfs_type_cluster : var.scratch_nfs_type_pool
 
-  iscsi_ip = var.cluster_network ? element(concat(oci_core_volume_attachment.cluster_network_volume_attachment.*.ipv4, [""]), 0) : element(concat(oci_core_volume_attachment.instance_pool_volume_attachment.*.ipv4, [""]), 0)
-
-  mount_ip = local.scratch_nfs_type == "block" ? local.iscsi_ip : "none"
-
   queue_ocid = oci_queue_queue.queue.id
   // Cluster OCID
 

@@ -1,11 +1,3 @@
-- hosts: login, monitoring
-  become: true
-  gather_facts: true
-  tasks:
-    - include_role:
-        name: fix_broken
-      when: ansible_os_family == 'Debian'
-
 - hosts: controller, slurm_backup
   become: true
   tasks:
@@ -66,7 +58,7 @@
         name: fss-home
       when: add_nfs|bool and home_fss|bool
 
-- hosts: controller, slurm_backup, login, monitoring
+- hosts: controller, slurm_backup, monitoring
   become: true
   tasks:
     - include_role:
@@ -101,7 +93,7 @@
       when: not inst_prin|bool 
 
 
-- hosts: compute, login, monitoring
+- hosts: compute, monitoring
   become: true
   tasks:
     - include_role:
@@ -142,36 +134,12 @@
     export_path: "{{ cluster_nfs_path }}"
     export_name: "cluster"
     local_path:  "/export/cluster"
-    iscsi_ip: "{{ controller_mount_ip }}"
   tasks:
-    - include_role: 
-        name: iscsi
-      when: controller_block|default(false)|bool
     - include_role: 
         name: nfs-server
       when: cluster_nfs|default(true)|bool
     - include_role: 
         name: mysql
-
-- hosts: slurm_backup
-  become: true
-  vars:
-    iscsi_ip: "{{ controller_mount_ip }}"
-    local_path: "/mnt/nfs_backup"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: controller_block|default(false)|bool
-
-- hosts: login
-  become: true
-  vars:
-    iscsi_ip: "{{ login_mount_ip }}"
-    local_path: "/mnt/block"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: login_block|default(false)|bool
 
 - hosts: all
   become: true

@@ -32,7 +32,6 @@ slurm_version=${slurm_version}
 rack_aware=${rack_aware}
 spack=${spack}
 scratch_nfs_type=${scratch_nfs_type}
-cluster_mount_ip=${cluster_mount_ip}
 autoscaling=${autoscaling}
 cluster_name=${cluster_name}
 shape=${shape}

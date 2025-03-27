@@ -38,7 +38,6 @@ pyxis=${pyxis}
 enroot=${enroot}
 spack=${spack} 
 scratch_nfs_type=${scratch_nfs_type}
-cluster_mount_ip=${cluster_mount_ip}
 autoscaling=true
 force=no
 cluster_name=${cluster_name}

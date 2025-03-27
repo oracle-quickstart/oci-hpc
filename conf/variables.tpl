@@ -71,38 +71,19 @@ variable "marketplace_listing_id_GPU" {
     default = "ocid1.appcataloglisting.oc1..aaaaaaaab2hkpxsglxfbzitiiqv6djxzj5q5soxotwdem2dd2kbifgk4p55q"
 }
 
-
-variable "controller_block_volume_performance" { 
-/* 
-  Allowed values 
-  "0.  Lower performance"
-  "10. Balanced performance"
-  "20. High Performance"
-*/ 
-default = "${controller_block_volume_performance}" 
-}
-
 variable "scratch_nfs_type_cluster" { default = "${scratch_nfs_type_cluster}"} 
 variable "scratch_nfs_type_pool" { default = "${scratch_nfs_type_pool}" }
 variable "controller_name" {default = "${controller_name}"}
 variable "controller_ip" {default = "${controller_ip}"}
 variable "backup_name" {default = "${backup_name}"}
 variable "backup_ip" {default = "${backup_ip}"}
-variable "login_name" {default = "${login_name}"}
-variable "login_ip" {default = "${login_ip}"}
 variable "monitoring_name" {default = "${monitoring_name}"}
 variable "monitoring_ip" {default = "${monitoring_ip}"}
 variable "scripts_folder" {default = "/opt/oci-hpc/bin/"}
 variable "autoscaling_folder" {default = "/opt/oci-hpc/autoscaling/"}
-variable "cluster_block_volume_size" {default="${cluster_block_volume_size}"}
-variable "cluster_block_volume_performance" {default="${cluster_block_volume_performance}"}
 
 variable "ssh_cidr" {default="${ssh_cidr}"}
-variable "controller_block" {default = "${controller_block}"}
-variable "login_block" {default = "${login_block}"}
 
-variable "controller_mount_ip" {default = "${controller_mount_ip}"}
-variable "login_mount_ip" {default = "${login_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "home_fss" { default = ${home_fss} } 
 variable "latency_check" { default = ${latency_check} } 

@@ -73,16 +73,6 @@
 
 - hosts: monitoring
   become: true
-  vars:
-    iscsi_ip: "{{ login_mount_ip }}"
-    local_path: "/mnt/block"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: login_block|default(false)|bool
-
-- hosts: monitoring
-  become: true
   tasks: 
     - include_role: 
         name: nfs-client
@@ -140,6 +130,7 @@
       when: ldap|default(true)|bool
 
 - hosts: monitoring
+  vars:
     download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"

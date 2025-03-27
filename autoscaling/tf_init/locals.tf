@@ -28,13 +28,8 @@ locals {
 //  is_controller_flex_shape = length(regexall(".*VM.*.*Flex$", var.controller_shape)) > 0 ? [var.controller_ocpus]:[]
   is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [local.instance_pool_ocpus]:[]
   
-//  controller_mount_ip = var.controller_block ? element(concat(oci_core_volume_attachment.controller_volume_attachment.*.ipv4, [""]), 0) : "none"
 
   scratch_nfs_type = var.cluster_network ? var.scratch_nfs_type_cluster : var.scratch_nfs_type_pool 
-
-  iscsi_ip = var.cluster_network ? element(concat(oci_core_volume_attachment.cluster_network_volume_attachment.*.ipv4, [""]), 0) : element(concat(oci_core_volume_attachment.instance_pool_volume_attachment.*.ipv4, [""]), 0)
-
-  mount_ip = local.scratch_nfs_type == "block" ? local.iscsi_ip : "none" 
 
   timeout_per_batch= var.cluster_network ? var.use_multiple_ads ? 15 : 30 : var.use_multiple_ads ? 6 : 15
   timeout_ip = join("",[ (( var.node_count - ( var.node_count % 20 ) )/20 + 1 ) * local.timeout_per_batch,"m"])

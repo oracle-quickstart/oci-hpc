@@ -104,9 +104,6 @@ variableGroups:
       - ${custom_login_image}
       - ${unsupported_login_image}
       - ${login_username}
-      - ${login_block}
-      - ${login_block_volume_size}
-      - ${login_block_volume_performance}
 
   - title: "Cluster Monitoring"
     variables:
@@ -157,15 +154,10 @@ variableGroups:
       - ${home_fss}
       - ${use_cluster_nfs}
       - ${cluster_nfs_path}
-      - ${controller_block}
-      - ${controller_block_volume_size}
-      - ${controller_block_volume_performance}
       - ${use_scratch_nfs}
       - ${scratch_nfs_path}
       - ${scratch_nfs_type_cluster}
       - ${scratch_nfs_type_pool}
-      - ${cluster_block_volume_size}
-      - ${cluster_block_volume_performance}
       - ${localdisk}
       - ${log_vol}
       - ${redundancy}
@@ -496,38 +488,6 @@ variables:
     description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
     default: true
   
-  controller_block:
-    type: boolean
-    title: Additional block volume for shared space
-    visible:
-      and:
-        - ${use_advanced}
-    default: false
-  controller_block_volume_size:
-    required: true
-    type: integer
-    title: "Size of the additional volume in GB"
-    default: 1000
-    visible:
-      and:
-        - and:
-            - ${controller_block}
-            - ${use_advanced}
-  controller_block_volume_performance:
-    type: enum
-    title: "Block volume performance"
-    required: true
-    enum:
-      - "0.  Lower performance"
-      - "10. Balanced performance"
-      - "20. High Performance"
-      - "30. Ultra High Performance"
-    default: "10. Balanced performance"
-    visible:
-      and:
-        - and:
-            - ${controller_block}
-            - ${use_advanced}
   home_nfs:
     type: boolean
     title: "shared NFS /home from controller. To use FSS, make sure you created one or added NFS mount information"
@@ -960,62 +920,7 @@ variables:
             - ${use_scratch_nfs}
         - and: 
             - ${use_advanced}
-  cluster_block_volume_size:
-    required: true
-    type: integer
-    title: "Size of the additional volume in GB"
-    default: 1000
-    visible:
-      and:
-        - or:
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_cluster}
-                    - "block"
-                - and:
-                    - ${use_advanced}
-                    - ${cluster_network}
-                    - ${use_scratch_nfs}
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_pool}
-                    - "block"
-                - and:
-                    - not:
-                        - ${cluster_network}
-                    - and: 
-                        - ${use_scratch_nfs}
-                        - ${use_advanced}
-  cluster_block_volume_performance:
-    type: enum
-    title: "Block volume performance"
-    required: true
-    enum:
-      - "0.  Lower performance"
-      - "10. Balanced performance"
-      - "20. High Performance"
-    default: "10. Balanced performance"
-    visible:
-      and:
-        - or:
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_cluster}
-                    - "block"
-                - and:
-                    - ${cluster_network}
-                    - ${use_scratch_nfs}
-                    - ${use_advanced}
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_pool}
-                    - "block"
-                - and:
-                    - not:
-                        - ${cluster_network}
-                    - and: 
-                        - ${use_scratch_nfs}
-                        - ${use_advanced}
+
   scratch_nfs_path:
     title: "NFS scratch space mount point"
     description: "Path to NFS share"
@@ -1568,37 +1473,6 @@ variables:
     title: "Size of the boot volume in GB"
     default: 512
     visible:  ${login_node}
-
-  login_block:
-    type: boolean
-    title: Additional block volume for login node
-    default: false
-    visible:  ${login_node}
-
-  login_block_volume_size:
-    required: true
-    type: integer
-    title: "Size of the additional volume in GB"
-    default: 1000
-    visible:
-      and:
-        - and:
-            - ${login_block}
-            - ${login_node}
-  login_block_volume_performance:
-    type: enum
-    title: "Block volume performance"
-    required: true
-    enum:
-      - "0.  Lower performance"
-      - "10. Balanced performance"
-      - "20. High Performance"
-    default: "20. High Performance"
-    visible:
-      and:
-        - and:
-            - ${login_block}
-            - ${login_node}
 
   unsupported_login: 
     title: "Use unsupported image" 

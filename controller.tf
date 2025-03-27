@@ -1,23 +1,3 @@
-resource "oci_core_volume" "controller_volume" {
-  count               = var.controller_block ? 1 : 0
-  availability_domain = var.controller_ad
-  compartment_id      = var.targetCompartment
-  display_name        = "${local.cluster_name}-controller-volume"
-
-  size_in_gbs = var.controller_block_volume_size
-  vpus_per_gb = split(".", var.controller_block_volume_performance)[0]
-}
-
-resource "oci_core_volume_attachment" "controller_volume_attachment" {
-  count           = var.controller_block ? 1 : 0
-  attachment_type = "iscsi"
-  volume_id       = oci_core_volume.controller_volume[0].id
-  instance_id     = oci_core_instance.controller.id
-  display_name    = "${local.cluster_name}-controller-volume-attachment"
-  device          = "/dev/oracleoci/oraclevdb"
-  is_shareable    = true
-}
-
 resource "oci_core_volume_backup_policy" "controller_boot_volume_backup_policy" {
   count          = var.controller_boot_volume_backup ? 1 : 0
   compartment_id = var.targetCompartment
@@ -102,7 +82,7 @@ resource "oci_core_instance" "controller" {
 }
 
 resource "null_resource" "controller" {
-  depends_on = [oci_core_instance.controller, oci_core_volume_attachment.controller_volume_attachment]
+  depends_on = [oci_core_instance.controller]
   triggers = {
     controller = oci_core_instance.controller.id
   }
@@ -271,7 +251,7 @@ resource "null_resource" "controller" {
   }
 }
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller, oci_core_volume_attachment.controller_volume_attachment]
+  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller ]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
@@ -279,8 +259,6 @@ resource "null_resource" "cluster" {
       controller_ip             = oci_core_instance.controller.private_ip,
       backup_name               = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip                 = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
-      login_name                = var.login_node ? oci_core_instance.login[0].display_name : "",
-      login_ip                  = var.login_node ? oci_core_instance.login[0].private_ip : "",
       monitoring_name           = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
       monitoring_ip             = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
       public_subnet             = data.oci_core_subnet.public_subnet.cidr_block,
@@ -311,12 +289,7 @@ resource "null_resource" "cluster" {
       slurm_nfs_path            = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack                     = var.spack,
       ldap                      = var.ldap,
-      controller_block          = var.controller_block,
-      login_block               = var.login_block,
       scratch_nfs_type          = local.scratch_nfs_type,
-      controller_mount_ip       = local.controller_mount_ip,
-      login_mount_ip            = local.login_mount_ip,
-      cluster_mount_ip          = local.mount_ip,
       autoscaling               = var.autoscaling,
       cluster_name              = local.cluster_name,
       shape                     = local.shape,
@@ -442,8 +415,6 @@ resource "null_resource" "cluster" {
       controller_ip                       = oci_core_instance.controller.private_ip,
       backup_name                         = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip                           = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
-      login_name                          = var.login_node ? oci_core_instance.login[0].display_name : "",
-      login_ip                            = var.login_node ? oci_core_instance.login[0].private_ip : "",
       monitoring_name                     = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
       monitoring_ip                       = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
       public_subnet                       = data.oci_core_subnet.public_subnet.cidr_block,
@@ -460,23 +431,15 @@ resource "null_resource" "cluster" {
       slurm_nfs_path                      = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
       spack                               = var.spack,
       ldap                                = var.ldap,
-      controller_block                    = var.controller_block,
-      login_block                         = var.login_block,
       scratch_nfs_type                    = local.scratch_nfs_type,
-      controller_mount_ip                 = local.controller_mount_ip,
-      login_mount_ip                      = local.login_mount_ip,
-      cluster_mount_ip                    = local.mount_ip,
       scratch_nfs_type_cluster            = var.scratch_nfs_type_cluster,
       scratch_nfs_type_pool               = var.scratch_nfs_type_pool,
-      controller_block_volume_performance = var.controller_block_volume_performance,
       region                              = var.region,
       tenancy_ocid                        = var.tenancy_ocid,
       vcn_subnet                          = var.vcn_subnet,
       vcn_id                              = local.vcn_id,
       zone_name                           = local.zone_name,
       dns_entries                         = var.dns_entries,
-      cluster_block_volume_size           = var.cluster_block_volume_size,
-      cluster_block_volume_performance    = var.cluster_block_volume_performance,
       ssh_cidr                            = var.ssh_cidr,
       use_cluster_nfs                     = var.use_cluster_nfs,
       cluster_nfs_path                    = var.cluster_nfs_path,
@@ -542,8 +505,11 @@ resource "null_resource" "cluster" {
       "#!/bin/bash",
       "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
       "cp /opt/oci-hpc/bin/compute.sh /config/",
+      "cp /opt/oci-hpc/bin/login.sh /config/",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/compute.sh",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/login.sh",
       "sudo chmod 775 /config/compute.sh",
+      "sudo chmod 775 /config/login.sh",
       "sudo chmod 600 /config/key/cluster.key",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/key/cluster.key",
       "sudo cp -pr /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",

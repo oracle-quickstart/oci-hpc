@@ -354,63 +354,13 @@ variable "marketplace_listing_id_GPU" {
   default = "ocid1.appcataloglisting.oc1..aaaaaaaab2hkpxsglxfbzitiiqv6djxzj5q5soxotwdem2dd2kbifgk4p55q"
   type    = string
 }
-variable "controller_block_volume_performance" {
-  /* 
-  Allowed values 
-  "0.  Lower performance"
-  "10. Balanced performance"
-  "20. High Performance"
-*/
 
-  default = "10. Balanced performance"
-  type = string
-
-}
-
-variable "controller_block" {
-  default = false
-  type = bool
-}
-
-variable "controller_block_volume_size" {
-  default = 1000
-  type = number
-}
-
-variable "login_block_volume_performance" {
-  /* 
-  Allowed values 
-  "0.  Lower performance"
-  "10. Balanced performance"
-  "20. High Performance"
-*/
-
-  default = "10. Balanced performance"
-  type = string
-}
-variable "login_block" {
-  default = false
-  type = bool
-}
-
-variable "login_block_volume_size" {
-  default = 1000
-  type = number
-}
 variable "scratch_nfs_type_cluster" { 
   default = "nvme"
   type = string
   }
 variable "scratch_nfs_type_pool" { 
   default = "none"
-  type = string
-  }
-variable "cluster_block_volume_size" { 
-  default = "1000"
-  type = string
-  }
-variable "cluster_block_volume_performance" { 
-  default = "10. Balanced performance"
   type = string
   }
 

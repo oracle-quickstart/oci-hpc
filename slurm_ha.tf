@@ -1,13 +1,3 @@
-resource "oci_core_volume_attachment" "backup_volume_attachment" {
-  count           = var.controller_block && var.slurm_ha ? 1 : 0
-  attachment_type = "iscsi"
-  volume_id       = oci_core_volume.controller_volume[0].id
-  instance_id     = oci_core_instance.backup[0].id
-  display_name    = "${local.cluster_name}-backup-volume-attachment"
-  device          = "/dev/oracleoci/oraclevdb"
-  is_shareable    = true
-}
-
 resource "oci_core_instance" "backup" {
   count               = var.slurm_ha ? 1 : 0
   depends_on          = [oci_core_subnet.public-subnet]
@@ -223,12 +213,7 @@ resource "null_resource" "cluster_backup" {
       rack_aware                = var.rack_aware,
       spack                     = var.spack,
       ldap                      = var.ldap,
-      controller_block          = var.controller_block,
-      login_block               = var.login_block,
       scratch_nfs_type          = local.scratch_nfs_type,
-      controller_mount_ip       = local.controller_mount_ip,
-      login_mount_ip            = local.login_mount_ip,
-      cluster_mount_ip          = local.mount_ip,
       autoscaling               = var.autoscaling,
       cluster_name              = local.cluster_name,
       shape                     = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
@@ -355,8 +340,6 @@ provisioner "file" {
       controller_ip                       = oci_core_instance.controller.private_ip,
       backup_name                         = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip                           = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
-      login_name                          = var.login_node ? oci_core_instance.login[0].display_name : "",
-      login_ip                            = var.login_node ? oci_core_instance.login[0].private_ip : "",
       monitoring_name                     = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
       monitoring_ip                       = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
       public_subnet                       = data.oci_core_subnet.public_subnet.cidr_block,
@@ -373,23 +356,15 @@ provisioner "file" {
       rack_aware                          = var.rack_aware,
       spack                               = var.spack,
       ldap                                = var.ldap,
-      controller_block                    = var.controller_block,
-      login_block                         = var.login_block,
       scratch_nfs_type                    = local.scratch_nfs_type,
-      controller_mount_ip                 = local.controller_mount_ip,
-      login_mount_ip                      = local.login_mount_ip,
-      cluster_mount_ip                    = local.mount_ip,
       scratch_nfs_type_cluster            = var.scratch_nfs_type_cluster,
       scratch_nfs_type_pool               = var.scratch_nfs_type_pool,
-      controller_block_volume_performance = var.controller_block_volume_performance,
       region                              = var.region,
       tenancy_ocid                        = var.tenancy_ocid,
       vcn_subnet                          = var.vcn_subnet,
       vcn_id                              = local.vcn_id,
       zone_name                           = local.zone_name,
       dns_entries                         = var.dns_entries,
-      cluster_block_volume_size           = var.cluster_block_volume_size,
-      cluster_block_volume_performance    = var.cluster_block_volume_performance,
       ssh_cidr                            = var.ssh_cidr,
       use_cluster_nfs                     = var.use_cluster_nfs,
       cluster_nfs_path                    = var.cluster_nfs_path,
