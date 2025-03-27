@@ -119,7 +119,7 @@ def get_ipa_ocid(instance, compartment_ocid):
         instance_pools = computeClient.list_compute_clusters(compartment_ocid,display_name=instance["cluster_name"]).data.items
         if len(instance_pools):
             for instance_pool in instance_pools:
-                instance_summaries = computeClient.list_instances(compartment_ocid,compute_cluster_id=instance_pools.id).data
+                instance_summaries = computeClient.list_instances(compartment_ocid,compute_cluster_id=instance_pool.id).data
                 for instance_summary in instance_summaries:
                     if instance["ocid"]:
                         if instance_summary.id == instance["ocid"]:
