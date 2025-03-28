@@ -29,7 +29,7 @@ def force_reboot(ocid):
 def instance_bvr(instance_ocid,image_ocid):
     update_instance_source_details = oci.core.models.UpdateInstanceSourceViaImageDetails()
     update_instance_source_details.image_id = image_ocid
-    update_instance_source_details.is_preserve_boot_volume_enabled = True
+    update_instance_source_details.is_preserve_boot_volume_enabled = False
     update_instance_source_details.is_force_stop_enabled = True
     update_instance_details = oci.core.models.UpdateInstanceDetails()
     update_instance_details.source_details = update_instance_source_details
