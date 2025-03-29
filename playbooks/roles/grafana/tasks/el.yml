@@ -20,6 +20,50 @@
   include_role: 
     name: safe_yum
 
+- name: Install Python dependencies
+  become: true
+  pip:
+    name:
+      - Flask
+      - oci
+      - waitress
+
+- name: Copy webhook script to server
+  become: true
+  template:
+    src: templates/ons_webhook.py.j2
+    dest: /usr/local/bin/ons_webhook.py
+    mode: '0755'
+    remote_src: true
+
+- name: Copy message template to server
+  become: true
+  copy:
+    src: files/raw_message_template.txt
+    dest: /etc/raw_message_template.txt
+    mode: '0755'
+
+- name: Render systemd service for webhook
+  become: true
+  template:
+    src: ons-webhook.service.j2
+    dest: /etc/systemd/system/ons-webhook.service
+    force: yes
+    backup: yes
+    mode: '0644'
+    remote_src: true
+  vars:
+    prometheus_user: "prometheus"
+
+- name: Start and enable webhook service
+  become: true
+  systemd:
+    name: ons-webhook.service
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: ons_topic_ocid != ""
+
 - name: start grafana
   become: true
   service: 
@@ -51,5 +95,25 @@
     grafana_password: "{{ grafana_security.admin_password }}"
     ds_type: "prometheus"
     ds_url: "http://localhost:9090"
-  ignore_errors: yes
+  ignore_errors: true
+  register: output
 
+- name: Copy alert rules to grafana provisioning
+  become: true
+  copy:
+    src: files/alert-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    mode: '0777'
+
+- name: Replace all occurrences of a specific string in files
+  become: true
+  ansible.builtin.replace:
+    path: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    regexp: "DATASOURCE_UID"
+    replace: "{{ output.datasource.uid }}"
+
+- name: Restart grafana
+  become: true
+  ansible.builtin.service:
+    name: grafana-server
+    state: restarted

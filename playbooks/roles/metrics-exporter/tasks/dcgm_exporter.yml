@@ -32,20 +32,45 @@
     create: yes
     state: present
 
-- name: Clone DCGM Exporter repository
+- name: Get current DCGM version
   become: true
-  git:
-    repo: "{{ dcgm_repo }}"
-    dest: "/tmp/dcgm-exporter"
-    update: no
-  environment:
-    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+  shell:
+    cmd: dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'
+  register: dcgm_version
+
+- name: Find DCGM Exporter releases
+  become: true
+  shell:
+    cmd: curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"'
+  register: dcgm_exporter_releases
+
+- name: Select appropriate DCGM Exporter version
+  set_fact:
+    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version.stdout) | first | split(' ') | last }}"
+
+- name: Download DCGM Exporter tarball
+  become: true
+  get_url:
+    url: "{{ dcgm_exporter_url }}"
+    dest: "/tmp/dcgm-exporter.tar.gz"
+
+
+- name: Extract DCGM Exporter tarball
+  become: true
+  unarchive:
+    src: "/tmp/dcgm-exporter.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+
+- name: get directory
+  shell: "ls -d /tmp/NVIDIA-dcgm-exporter-*"
+  register: dcgm_directory
 
 - name: Build DCGM Exporter binary
   become: true
   command: make binary
   args:
-    chdir: /tmp/dcgm-exporter
+    chdir: "{{dcgm_directory.stdout}}"
   environment:
     PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
 
@@ -53,7 +78,7 @@
   become: true
   command: make install
   args:
-    chdir: /tmp/dcgm-exporter
+    chdir: "{{dcgm_directory.stdout}}"
   environment:
     PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
 

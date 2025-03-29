@@ -200,6 +200,7 @@ resource "null_resource" "cluster_backup" {
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
       zone_name                 = local.zone_name,
       dns_entries               = var.dns_entries,
+      vcn_compartment           = var.vcn_compartment,
       nfs                       = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       home_nfs                  = var.home_nfs,
       create_fss                = var.create_fss,
@@ -259,7 +260,8 @@ resource "null_resource" "cluster_backup" {
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
       change_hostname           = var.change_hostname,
-      hostname_convention       = var.hostname_convention
+      hostname_convention       = var.hostname_convention,
+      ons_topic_ocid            = local.topic_id
     })
 
     destination = "/opt/oci-hpc/playbooks/inventory"
@@ -373,6 +375,7 @@ resource "null_resource" "cluster_backup" {
       tenancy_ocid                        = var.tenancy_ocid,
       vcn_subnet                          = var.vcn_subnet,
       vcn_id                              = local.vcn_id,
+      vcn_compartment                     = var.vcn_compartment,
       zone_name                           = local.zone_name,
       dns_entries                         = var.dns_entries,
       cluster_block_volume_size           = var.cluster_block_volume_size,
@@ -416,7 +419,8 @@ resource "null_resource" "cluster_backup" {
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
       healthchecks                        = var.healthchecks,
       change_hostname                     = var.change_hostname,
-      hostname_convention                 = var.hostname_convention
+      hostname_convention                 = var.hostname_convention,
+      ons_topic_ocid                      = local.topic_id
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"

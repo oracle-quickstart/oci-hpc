@@ -1,2 +1,2 @@
  - include_tasks: el-7.yml
-   when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7' and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8')
+   when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7' and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape == 'BM.GPU.H200.8')

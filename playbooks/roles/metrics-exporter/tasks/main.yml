@@ -15,3 +15,5 @@
 
 - include_tasks: custom_metrics.yml
   when: ('compute' in group_names) and cluster_network|bool
+
+- include_tasks: critical_process_monitor.yml

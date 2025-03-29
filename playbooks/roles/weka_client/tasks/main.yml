@@ -64,7 +64,8 @@
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") or
-        (shape == "BM.GPU.H100.8") )
+        (shape == "BM.GPU.H100.8") or
+        (shape == "BM.GPU.H200.8") )
 - name: Copy files
   copy:
     src: files/
@@ -73,7 +74,8 @@
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") or
-        (shape == "BM.GPU.H100.8") )
+        (shape == "BM.GPU.H100.8") or
+        (shape == "BM.GPU.H200.8") )
 
 - name: Copy IP route rules
   copy:
@@ -83,7 +85,8 @@
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") or
-        (shape == "BM.GPU.H100.8") )
+        (shape == "BM.GPU.H100.8") or
+        (shape == "BM.GPU.H200.8") )
 
 
 - name: Get interface names
@@ -93,7 +96,8 @@
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") or
-        (shape == "BM.GPU.H100.8") )
+        (shape == "BM.GPU.H100.8") or
+        (shape == "BM.GPU.H200.8") )
 
 - name: Create list of interface names
   copy:
@@ -104,7 +108,8 @@
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") or
-        (shape == "BM.GPU.H100.8") )
+        (shape == "BM.GPU.H100.8") or
+        (shape == "BM.GPU.H200.8") )
 
 - name: Loop over NIC names and set up routing tables and rules
   shell: |
@@ -127,7 +132,8 @@
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") or
-        (shape == "BM.GPU.H100.8") )
+        (shape == "BM.GPU.H100.8") or
+        (shape == "BM.GPU.H200.8") )
 
 - name: Reset Network Interfaces
   shell: "for nic in $(cat /tmp/interface_names); do sudo ifdown $nic; sudo ifup $nic; done"
@@ -135,7 +141,8 @@
         (shape == "BM.GPU4.8") or
         (shape == "BM.GPU.B4.8") or
         (shape == "BM.GPU.A100-v2.8") or
-        (shape == "BM.GPU.H100.8") )
+        (shape == "BM.GPU.H100.8") or
+        (shape == "BM.GPU.H200.8") )
 
 #
 # SECONDARY VNIC SETUP
@@ -236,7 +243,7 @@
     fstype: wekafs
     opts: "{{ dpdk_opts }},net={{ ansible_default_ipv4.alias }}{{ item.opts }}"
     state: mounted
-    when: (shape == "BM.GPU4.8" or shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8" or shape == "BM.GPU.H100.8")
+    when: (shape == "BM.GPU4.8" or shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8" or shape == "BM.GPU.H100.8" or shape == "BM.GPU.H200.8")
           and dpdk_fs is defined
     loop: "{{ dpdk_fs }}"
 

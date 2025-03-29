@@ -27,7 +27,9 @@ Allow dynamic-group instance_principal to manage dns in compartment compartmentN
 ```
 or:
 
-`Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName`
+```
+Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName
+```
 
 
 ## Supported OS: 
@@ -67,21 +69,24 @@ The resize.sh is deployed on the controller node as part of the HPC cluster Stac
 usage: resize.sh [-h] [--compartment_ocid COMPARTMENT_OCID]
                  [--cluster_name CLUSTER_NAME] [--nodes NODES [NODES ...]]
                  [--no_reconfigure] [--user_logging] [--force] [--remove_unreachable]
-                 [{add,remove,list,reconfigure}] [number]
-
+                 [{add,remove,remove_unreachable,list,reconfigure}] [number] [--quiet]
 Script to resize the CN
 
 positional arguments:
   {add,remove,remove_unreachable,list,reconfigure}
-                        Mode type. add/remove node options, implicitly
-                        configures newly added nodes. Also implicitly
-                        reconfigure/restart services like Slurm to recognize
-                        new nodes. Similarly for remove option, terminates
-                        nodes and implicitly reconfigure/restart services like
-                        Slurm on rest of the cluster nodes to remove reference
-                        to deleted nodes.
-  number                Number of nodes to add or delete if a list of
-                        hostnames is not defined
+                              Mode type. add/remove node options, implicitly
+                              configures newly added nodes. Also implicitly
+                              reconfigure/restart services like Slurm to recognize
+                              new nodes. Similarly for remove option, terminates
+                              nodes and implicitly reconfigure/restart services like
+                              Slurm on rest of the cluster nodes to remove reference
+                              to deleted nodes. IMPORTANT: remove or remove_unreachable 
+                              means delete the node from the cluster which means terminate 
+                              the node. remove_unreachable should be used to remove specific 
+                              nodes which are no longer reachable via ssh. It gives you control 
+                              on which nodes will be terminated by passing the --nodes parameter.
+number                        Number of nodes to add or delete if a list of
+                              hostnames is not defined.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -102,9 +107,11 @@ optional arguments:
   --ansible_crucial     If present during reconfiguration, only crucial
                         ansible playbooks will be executed on the live nodes.
                         Non live nodes will be removed
-  --remove_unreachable  If present, nodes that are not sshable will be terminated 
-                        before running the action that was requested
-                        (Example Adding a node)
+  --remove_unreachable  If present, ALL nodes that are not sshable will be terminated 
+                        before running the action that was requested (Example Adding a node). 
+                        CAUTION: Use this only if you want to remove ALL nodes that 
+                        are unreachable. Instead, remove specific nodes that are 
+                        unreachable by using positional argument remove_unreachable. 
   --quiet               If present, the script will not prompt for a response when 
                         removing nodes and will not give a reminder to save data 
                         from nodes that are being removed

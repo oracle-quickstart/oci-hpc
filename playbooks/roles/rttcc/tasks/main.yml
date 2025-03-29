@@ -1,4 +1,4 @@
-- name: Enable dcqcn
+- name: Disable rttcc
   become: true
   shell: 'mlxreg -d {{item}} -y --set "cmd_type=2" --reg_name=PPCC --indexes="local_port=1,pnat=0,lp_msb=0,algo_slot=0,algo_param_index=0"'
   with_items: 
@@ -18,8 +18,22 @@
     - mlx5_15 
     - mlx5_16 
     - mlx5_17
-
+  when: shape == 'BM.GPU.H100.8' 
 - name: Disable rttcc
+  become: true
+  shell: 'mlxreg -d {{item}} -y --set "cmd_type=2" --reg_name=PPCC --indexes="local_port=1,pnat=0,lp_msb=0,algo_slot=0,algo_param_index=0"'
+  with_items: 
+    - mlx5_0 
+    - mlx5_3 
+    - mlx5_4 
+    - mlx5_5 
+    - mlx5_6 
+    - mlx5_9 
+    - mlx5_10 
+    - mlx5_11 
+  when: shape == 'BM.GPU.H200.8'
+   
+- name: Enable dcqcn
   become: true
   shell: 'mlxreg -d {{item}} -y --set "cmd_type=1" --reg_name=PPCC --indexes="local_port=1,pnat=0,lp_msb=0,algo_slot=15,algo_param_index=0"'
   with_items: 
@@ -39,3 +53,18 @@
     - mlx5_15 
     - mlx5_16 
     - mlx5_17
+  when: shape == 'BM.GPU.H100.8' 
+     
+- name: Enable dcqcn
+  become: true
+  shell: 'mlxreg -d {{item}} -y --set "cmd_type=1" --reg_name=PPCC --indexes="local_port=1,pnat=0,lp_msb=0,algo_slot=15,algo_param_index=0"'
+  with_items: 
+    - mlx5_0 
+    - mlx5_3 
+    - mlx5_4 
+    - mlx5_5 
+    - mlx5_6 
+    - mlx5_9 
+    - mlx5_10 
+    - mlx5_11 
+  when: shape == 'BM.GPU.H200.8' 

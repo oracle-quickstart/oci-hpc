@@ -33,6 +33,11 @@
   set_fact:
     instance_metadata: "{{ i_metadata['content'] }}"
 
+- name: make sure freeformTags in included
+  set_fact:
+    instance_metadata: "{{ instance_metadata | combine({'freeformTags': {'cluster_name':''}}) }}"
+  when: "not 'freeformTags' in instance_metadata"
+  
 - name: make sure cluster_name in included
   set_fact:
     cluster_name: "{{ instance_metadata['displayName'].split('-') | slice(2, 10) | join('-') }}"

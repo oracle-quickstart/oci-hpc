@@ -1,7 +1,7 @@
 resource "oci_core_vcn" "vcn" {
   count          = var.use_existing_vcn ? 0 : 1
   cidr_block     = var.vcn_subnet
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_VCN"
   dns_label      = "cluster"
 }
@@ -9,7 +9,8 @@ resource "oci_core_vcn" "vcn" {
 resource "oci_core_security_list" "internal-security-list" {
   count          = var.use_existing_vcn ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
+  display_name   = "${local.cluster_name}_private_sec_list"
 
   ingress_security_rules {
     protocol = "all"
@@ -41,7 +42,8 @@ resource "oci_core_security_list" "internal-security-list" {
 resource "oci_core_security_list" "public-security-list" {
   count          = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
+  display_name   = "${local.cluster_name}_public_sec_list"
 
   ingress_security_rules {
     protocol = "all"
@@ -63,6 +65,14 @@ resource "oci_core_security_list" "public-security-list" {
     tcp_options {
       max = "3000"
       min = "3000"
+    }
+  }
+  ingress_security_rules {
+    protocol = "6"
+    source   = var.ssh_cidr
+    tcp_options {
+      max = "5000"
+      min = "5000"
     }
   }
   ingress_security_rules {
@@ -91,14 +101,14 @@ resource "oci_core_security_list" "public-security-list" {
 resource "oci_core_internet_gateway" "ig1" {
   count          = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_internet-gateway"
 }
 
 resource "oci_core_nat_gateway" "ng1" {
   count          = var.use_existing_vcn ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_nat-gateway"
 }
 
@@ -106,7 +116,7 @@ resource "oci_core_nat_gateway" "ng1" {
 resource "oci_core_service_gateway" "sg1" {
   count          = var.use_existing_vcn ? 0 : 1
   vcn_id         = oci_core_vcn.vcn[0].id
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_service-gateway"
 
   services {
@@ -116,7 +126,7 @@ resource "oci_core_service_gateway" "sg1" {
 
 resource "oci_core_route_table" "public_route_table" {
   count          = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   vcn_id         = oci_core_vcn.vcn[0].id
   display_name   = "${local.cluster_name}_public_route_table"
 
@@ -130,7 +140,7 @@ resource "oci_core_route_table" "public_route_table" {
 resource "oci_core_route_table" "private_route_table" {
   count          = var.use_existing_vcn ? 0 : 1
   display_name   = "${local.cluster_name}_private_route_table"
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   vcn_id         = oci_core_vcn.vcn[0].id
 
   route_rules {
@@ -147,7 +157,7 @@ resource "oci_core_route_table" "private_route_table" {
 }
 resource "oci_core_dhcp_options" "cluster_dhcp_options" {
   count          = var.use_existing_vcn ? 0 : 1
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   options {
     type        = "DomainNameServer"
     server_type = "VcnLocalPlusInternet"
@@ -163,7 +173,7 @@ resource "oci_core_subnet" "public-subnet" {
   count = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
   # availability_domain = var.ad
   vcn_id            = oci_core_vcn.vcn[0].id
-  compartment_id    = var.targetCompartment
+  compartment_id    = var.vcn_compartment
   cidr_block        = trimspace(var.public_subnet)
   security_list_ids = [oci_core_security_list.public-security-list[0].id]
   dns_label         = "public"
@@ -176,7 +186,7 @@ resource "oci_core_subnet" "private-subnet" {
   count = var.use_existing_vcn ? 0 : var.private_deployment ? 2 : 1
   # availability_domain        = var.ad
   vcn_id                     = oci_core_vcn.vcn[0].id
-  compartment_id             = var.targetCompartment
+  compartment_id             = var.vcn_compartment
   cidr_block                 = trimspace(local.private_subnet_cidr[count.index])
   security_list_ids          = [oci_core_security_list.internal-security-list[0].id]
   dns_label                  = "private${count.index + 1}"
@@ -188,7 +198,7 @@ resource "oci_core_subnet" "private-subnet" {
 
 resource "oci_dns_zone" "dns_zone" {
   count          = var.use_existing_vcn ? 0 : 1
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   name           = "${local.cluster_name}.local" #oci_core_dhcp_options.cluster_dhcp_options[0].options.search_domain_names[0]
   zone_type      = "PRIMARY"
   scope          = "PRIVATE"

@@ -32,6 +32,7 @@
     - limits
     - boot-volume
     - mpivars
+    - oom-adjust
 
 - hosts: compute_to_add
   become: true
@@ -136,7 +137,7 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        export_path: "/home"
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool

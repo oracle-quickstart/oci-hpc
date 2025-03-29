@@ -1,0 +1,14 @@
+oom_services:
+   - nvidia-dcgm.service
+   - nvidia-fabricmanager.service
+   - nvidia-hibernate.service
+   - nvidia-persistenced.service
+   - nvidia-resume.service
+   - nvidia-suspend.service
+   - oci-hpc-nvidia-gpu-configure.service
+   - slurmd.service
+   - slurmctld.service
+   - slurmdbd.service
+   - munge.service
+   - sshd.service
+   - sssd.service

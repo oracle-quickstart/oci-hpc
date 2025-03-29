@@ -46,6 +46,13 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   subnet_id      = local.subnet_id
 }
 
+resource "oci_ons_notification_topic" "grafana_alerts" {
+  count          = var.alerting ? 1 : 0
+  compartment_id = var.targetCompartment
+  name           = "grafana-alerts-${random_pet.name.id}"
+  description    = "Topic for Grafana Alerts"
+}
+
 resource "null_resource" "boot_volume_backup_policy" {
   depends_on = [oci_core_instance.controller, oci_core_volume_backup_policy.controller_boot_volume_backup_policy, oci_core_volume_backup_policy_assignment.boot_volume_backup_policy]
   triggers = {
@@ -77,7 +84,7 @@ resource "oci_core_instance" "controller" {
   }
 
   metadata = {
-    ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
+    ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
     user_data           = base64encode(data.template_file.controller_config.rendered)
   }
   source_details {
@@ -221,7 +228,7 @@ resource "null_resource" "controller" {
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
     }
-  }
+  }  
 }
 resource "null_resource" "cluster" {
   depends_on = [null_resource.controller, null_resource.backup, oci_core_compute_cluster.compute_cluster, oci_core_cluster_network.cluster_network, oci_core_instance.controller, oci_core_volume_attachment.controller_volume_attachment]
@@ -246,6 +253,7 @@ resource "null_resource" "cluster" {
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
       zone_name                 = local.zone_name,
       dns_entries               = var.dns_entries,
+      vcn_compartment           = var.vcn_compartment,
       nfs                       = var.node_count > 0 && var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
       home_nfs                  = var.home_nfs,
       create_fss                = var.create_fss,
@@ -303,7 +311,8 @@ resource "null_resource" "cluster" {
       api_user_ocid             = var.api_user_ocid,
       healthchecks              = var.healthchecks,
       change_hostname           = var.change_hostname,
-      hostname_convention       = var.hostname_convention
+      hostname_convention       = var.hostname_convention,
+      ons_topic_ocid            = local.topic_id
     })
 
     destination = "/opt/oci-hpc/playbooks/inventory"
@@ -416,6 +425,7 @@ resource "null_resource" "cluster" {
       tenancy_ocid                        = var.tenancy_ocid,
       vcn_subnet                          = var.vcn_subnet,
       vcn_id                              = local.vcn_id,
+      vcn_compartment                     = var.vcn_compartment,
       zone_name                           = local.zone_name,
       dns_entries                         = var.dns_entries,
       cluster_block_volume_size           = var.cluster_block_volume_size,
@@ -457,7 +467,8 @@ resource "null_resource" "cluster" {
       access_ctrl                         = var.access_ctrl,
       numa_nodes_per_socket               = var.numa_nodes_per_socket,
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
-      healthchecks                        = var.healthchecks
+      healthchecks                        = var.healthchecks,
+      ons_topic_ocid                      = local.topic_id
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"
@@ -586,5 +597,3 @@ resource "oci_dns_rrset" "rrset-controller" {
   scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
-
-#oci dns record rrset update --zone-name-or-id ocid1.dns-zone.oc1.ca-toronto-1.aaaaaaaadwpfuij3w7jpg3sj6gzc5ete2yeknrmjgwzvs6qytgkqad2vhbmq --domain mint-ocelot-controller.mint-ocelot.local --rtype A --auth instance_principal --scope PRIVATE --view-id  ocid1.dnsview.oc1.ca-toronto-1.aaaaaaaamhhzrbwe4f3rx5i2hx2xlnubfjc37uvy3e7bjrbyaln5o7zjfvpa --items '[{ "rdata":"1.1.1.1","ttl":300,"domain":"mint-ocelot-controller.mint-ocelot.local","rtype":"A"}]' --force
