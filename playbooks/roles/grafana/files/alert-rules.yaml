@@ -1,0 +1,1198 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: ons-webhook
+    receivers:
+    - uid: ons
+      type: webhook
+      settings:
+        url: http://localhost:5000/grafana-webhook
+        httpMethod: POST
+groups:
+    - orgId: 1
+      name: Events that might cause cluster instability
+      folder: Critical
+      interval: 5m
+      rules:
+        - uid: cpu-20pct
+          title: Controller or Login nodes should not have cpu usage more than 90%
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: avg by (hostname) (irate(node_cpu_seconds_total{mode="idle", hostname=~".*controller|.*login"}[5m])) * 100
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 20
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: Controller and login nodes having low cpu availability could result in potential loss of access. Immediate investigation is recommended.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: disk-20pct
+          title: Controller or Login nodes should have disk free more than 20pct
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: avg by (hostname, mountpoint) ((node_filesystem_avail_bytes{mountpoint="/", hostname=~".*controller|.*login"} / node_filesystem_size_bytes{mountpoint="/", hostname=~".*controller|.*login"})*100)
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ mountpoint }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 20
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: Controller and login nodes low disk free space could result in potential loss of access. Immediate investigation is recommended.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: mem-20pct
+          title: Controller or Login nodes should have memory free more than 20pct
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: avg by (hostname) (100 * ((node_memory_MemAvailable_bytes{hostname=~".*controller|.*login"}[5m]) / (node_memory_MemTotal_bytes{hostname=~".*controller|.*login"}[5m])))
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 20
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: Controller and login nodes having low memory could result in potential loss of access. Immediate investigation is recommended.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: critical-service-down
+          title: One or more critical services failed/killed/not running.
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: ce4bi98xrsjcwb
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: service_up
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ service }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: A critical service may be down.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+    - orgId: 1
+      name: Errors requiring reboot and may be repair
+      folder: Critical
+      interval: 5m
+      rules:
+        - uid: xid-error
+          title: XID Error Check
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: xid_error_check
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: XID error check has failed. The XID error check value is 0, indicating a potential issue with the system’s transaction or GPU hardware error. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: ecc-error
+          title: GPU ECC Error Check
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: gpu_ecc_error_check
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU ECC error check has failed. The ECC error check value is 0, indicating a potential memory issue with the GPU. Immediate investigation is required, and a node reboot may be necessary if the issue persists.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: row-remap-error
+          title: GPU Row Remap Error Check
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: gpu_row_remap_error_check
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU row remap error check has failed. The row remap error check value is 1, indicating a potential issue with GPU memory that may require a reboot. Immediate investigation is recommended.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+    - orgId: 1
+      name: GPU throttling or shutdown due to different power and temperature violations
+      folder: Critical
+      interval: 5m
+      rules:
+        - uid: throttle-power
+          title: GPU throttle due to power violation
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: DCGM_FI_DEV_POWER_VIOLATION
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU throttling due to power violation. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: throttle-board
+          title: GPU throttle due to board limit violation
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: DCGM_FI_DEV_BOARD_LIMIT_VIOLATION
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU throttling due to board limit violation. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: throttle-thermal
+          title: GPU throttle due to thermal violation
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: DCGM_FI_DEV_THERMAL_VIOLATION
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU throttling due to thermal violation. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: throttle-util
+          title: GPU throttle due to low utilization violation
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: DCGM_FI_DEV_LOW_UTIL_VIOLATION
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU throttling due to low utilization violation. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: throttle-sync
+          title: GPU throttle due to sync boost violation
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: DCGM_FI_DEV_SYNC_BOOST_VIOLATION
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU throttling due to sync boost violation. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: throttle-reliability
+          title: GPU throttle due to reliability violation
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: DCGM_FI_DEV_RELIABILITY_VIOLATION
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU throttling due to reliability violation. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: gpu-temp-slowdown
+          title: GPU device temperature exceeded 98% of slowdown temparature
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: (DCGM_FI_DEV_GPU_TEMP / DCGM_FI_DEV_SLOWDOWN_TEMP)
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0.98
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU device temperature exceeded 98pct of SLOWdown temperature. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: gpu-temp-shutdown
+          title: GPU device temperature exceeded 98% of shutdown temparature
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: (DCGM_FI_DEV_GPU_TEMP / DCGM_FI_DEV_SHUTDOWN_TEMP)
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0.98
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU device temperature exceeded 98pct of SHUTdown temperature. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: gpu-mem-temp-slowdown
+          title: GPU memory temperature exceeded 98% of slowdown temparature
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: (DCGM_FI_DEV_MEMORY_TEMP / DCGM_FI_DEV_SLOWDOWN_TEMP)
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0.98
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU memory temperature exceeded 98pct of SLOWdown temperature. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: gpu-mem-temp-shutdown
+          title: GPU memory temperature exceeded 98% of shutdown temparature
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: (DCGM_FI_DEV_MEMORY_TEMP / DCGM_FI_DEV_SHUTDOWN_TEMP)
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0.98
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: GPU memory temperature exceeded 98pct of SHUTdown temperature. May require reboot.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+    - orgId: 1
+      name: Errors if occurring over longer periods that might require repair
+      folder: Critical
+      interval: 5m
+      rules:
+        - uid: rdma-device-status
+          title: RDMA Device Status
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: rdma_device_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA device status check has failed. The RDMA device status value is 0, indicating a potential issue with the RDMA hardware. Immediate investigation is required, and a node reboot may be necessary if the issue persists.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: rdma-link-flapping
+          title: RDMA Link Flapping
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: rdma_link_noflap
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA link flapping occurred indicating potential instability in the RDMA link. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: rttcc-status
+          title: RTTCC Status Check
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: rttcc_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RTTCC status check has failed. RTTCC should always be disabled, indicating potential issues with congestion control. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook

@@ -61,35 +61,104 @@
   run_once: true
   when: download_path != '/tmp'
 
-- name: Download slurm .deb
-  get_url:
-    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-    dest: "{{ download_path }}/slurm_rpms/"
-  when: ansible_os_family == 'Debian' and download_path == '/tmp'
-  
-- name: Download slurm .rpm
-  get_url:
-    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item }}"
-    dest: "{{ download_path }}/slurm_rpms"
-  with_items: "{{slurm_all_packages}}"
-  when: ansible_os_family == 'RedHat' and download_path == '/tmp'
+- name: Download Slurm DEB
+  block:
+    - name: Download in shared location
+      block: 
+      - name: Check if the deb file exists 
+        stat: 
+          path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+        register: slurm_dwld
+        delegate_to: 127.0.0.1
+        run_once: true
+      - name: First try downloading .deb
+        get_url:
+          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+          dest: "{{ download_path }}/slurm_rpms"
+        when: ( not slurm_dwld.stat.exists )
+        delegate_to: 127.0.0.1
+        run_once: true  
+      when: download_path != '/tmp'
 
-- name: Download slurm .deb
-  get_url:
-    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-    dest: "{{ download_path }}/slurm_rpms"
-  when: ansible_os_family == 'Debian' and download_path != '/tmp'
-  delegate_to: 127.0.0.1
-  run_once: true
+    - name: Download on each node
+      block:  
+      - name: Check if the deb file exists in /tmp
+        stat: 
+          path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+        register: slurm_dwld
+      - name: First try downloading .deb in /tmp
+        get_url:
+          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+          dest: "{{ download_path }}/slurm_rpms"
+        when: ( not slurm_dwld.stat.exists )
+      when: download_path == '/tmp'
+  rescue:
+    - name: Second try downloading .deb
+      get_url:
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+        dest: "{{ download_path }}/slurm_rpms"
+      when: download_path != '/tmp'
+      delegate_to: 127.0.0.1
+      run_once: true 
+    - name: Second try downloading .deb in /tmp
+      get_url:
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+        dest: "{{ download_path }}/slurm_rpms"
+      when: download_path == '/tmp'
+  when: ansible_os_family == 'Debian'
 
-- name: Download slurm .rpm
-  get_url:
-    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item }}"
-    dest: "{{ download_path }}/slurm_rpms"
-  with_items: "{{slurm_all_packages}}"
-  when: ansible_os_family == 'RedHat' and download_path != '/tmp'
-  delegate_to: 127.0.0.1
-  run_once: true  
+- name: Download Slurm RPMs
+  block:
+    - name: Download on each node
+      block: 
+      - name: Check if the RPMs exist in tmp
+        stat: 
+          path: "{{ download_path }}/slurm_rpms/{{item}}"
+        register: slurm_dwld_tmp
+        with_items: "{{slurm_all_packages}}"
+      - name: First try downloading RPMs in tmp
+        get_url:
+          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"        
+          dest: "{{ download_path }}/slurm_rpms"
+        when: ( not item.stat.exists )
+        with_items: "{{slurm_dwld_tmp.results}}"
+      when: download_path == '/tmp'
+
+    - name: Download in shared location
+      block:   
+      - name: Check if the RPMs exist
+        stat: 
+          path: "{{ download_path }}/slurm_rpms/{{item}}"
+        register: slurm_dwld
+        delegate_to: 127.0.0.1
+        run_once: true
+        with_items: "{{slurm_all_packages}}"
+      - name: First try downloading RPMs
+        get_url:
+          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"        
+          dest: "{{ download_path }}/slurm_rpms"
+        when: ( not item.stat.exists )
+        delegate_to: 127.0.0.1
+        run_once: true  
+        with_items: "{{slurm_dwld.results}}"
+      when: download_path != '/tmp'
+
+  rescue:
+    - name: Second try downloading RPMs
+      get_url:
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+        dest: "{{ download_path }}/slurm_rpms"
+      when: download_path != '/tmp'
+      delegate_to: 127.0.0.1
+      run_once: true
+      with_items: "{{slurm_all_packages}}"
+    - name: Second try downloading RPMs in tmp
+      get_url:
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+        dest: "{{ download_path }}/slurm_rpms"
+      when: download_path == '/tmp'
+      with_items: "{{slurm_all_packages}}"
+  when: ansible_os_family == 'RedHat'
 
 - name: Install .deb
   vars:
@@ -190,7 +259,7 @@
   include_tasks: common_pyxis.yml
   when: pyxis|bool
 
-- name: Include pyxis prolog files
+- name: Include pmix prolog files
   include_tasks: common_pmix.yml
   when: ansible_os_family == 'RedHat'
 

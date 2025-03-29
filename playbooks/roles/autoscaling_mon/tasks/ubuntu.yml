@@ -53,7 +53,7 @@
 - name: install grafana
   include_role: 
     name: grafana
-  when: not monitoring|default(false)|bool
+  when: not cluster_monitoring|default(false)|bool
 
 # - name: Import mysql-2022 key 
 #   become: true
@@ -70,9 +70,7 @@
 
 # - name: install mysql-shell and connector
 #   vars: 
-#     package_name: 
-#       - mysql-shell
-#       - mysql-connector-python
+#     package_name: mysql-shell
 #   include_role: 
 #     name: safe_yum
 
@@ -114,12 +112,12 @@
 
 - name: Create initial DB
   shell: "source /opt/oci-hpc/monitoring/env; mysql -u {{ admin_username }} -p{{ mysql_root_pwd }} < /opt/oci-hpc/monitoring/mysql_service_initial.sql"
-  ignore_errors: yes
+  ignore_errors: true
   when: autoscaling_mysql_service | bool
 
 - name: Create initial DB
   shell: "source /opt/oci-hpc/monitoring/env; mysql -u {{ admin_username }} -p{{ mysql_root_pwd }} < /opt/oci-hpc/monitoring/initial.sql"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Monitoring activated
   shell: "echo OK >> /opt/oci-hpc/monitoring/activated"
@@ -136,7 +134,7 @@
     database: "cluster_log"
     password: "Monitor1234!"
     user: "logger"
-  ignore_errors: yes
+  ignore_errors: true
 
 # - name: Import grafana dashboards through API
 #   uri:
@@ -211,4 +209,4 @@
   pip:
     name: [protobuf==3.19.4,mysql-connector-python==8.0.31]
     executable: pip3
-  ignore_errors: yes
+  ignore_errors: true

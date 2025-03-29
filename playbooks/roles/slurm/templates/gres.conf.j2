@@ -1,47 +1,68 @@
-{% set size = hostvars[inventory_hostname]['private_subnet'] | ipaddr('size')%}
-{% for partition in queues %}
-{% for instance in partition.instance_types %}
-{% if instance.shape == "BM.GPU2.2"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-13]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia1 Type=P100 Cores=[14-27]
-{% elif instance.shape == "VM.GPU2.1"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-11]
-{% elif instance.shape == "VM.GPU3.1"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=V100 Cores=[0-5]
-{% elif instance.shape == "VM.GPU3.2"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=V100 Cores=[0-11]
-{% elif instance.shape == "VM.GPU3.4"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-23]
-{% elif instance.shape == "BM.GPU3.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-25]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-7] Type=V100 Cores=[26-51] 
-{% elif instance.shape == "BM.GPU4.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[24-31]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[8-15]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[56-63]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[40-47]
-{% elif instance.shape == "BM.GPU.B4.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
-{% elif instance.shape == "BM.GPU.A100-v2.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
-{% elif instance.shape == "BM.GPU.H100.8"%}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-3] Type=H100 Cores=[48-55]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[4-7] Type=H100 Cores=[56-111]
-{% elif instance.shape == "BM.GPU.T1.2" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
-{% elif instance.shape == "BM.GPU.A10.4" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[2-3] Type=A10 Cores=[32-63]
-{% elif instance.shape == "VM.GPU.A10.2" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-29]
-{% elif instance.shape == "VM.GPU.A10.1" %}
-NodeName={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}] Name=gpu File=/dev/nvidia0 Type=A10 Cores=[0-14]
+{% if shape== "BM.GPU2.2"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-13]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia1 Type=P100 Cores=[14-27]
+{% elif shape == "VM.GPU2.1"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia0 Type=P100 Cores=[0-11]
+{% elif shape == "VM.GPU3.1"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia0 Type=V100 Cores=[0-5]
+{% elif shape == "VM.GPU3.2"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=V100 Cores=[0-11]
+{% elif shape == "VM.GPU3.4"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-23]
+{% elif shape == "BM.GPU3.8"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-25]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[4-7] Type=V100 Cores=[26-51] 
+{% elif shape == "BM.GPU4.8"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[24-31]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[8-15]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[56-63]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[40-47]
+{% elif shape == "BM.GPU.B4.8"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
+{% elif shape == "BM.GPU.A100-v2.8"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[48-63]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[16-31]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[4-5] Type=A100 Cores=[112-127]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[6-7] Type=A100 Cores=[80-95]
+{% elif shape == "BM.GPU.H100.8"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=H100 Cores=[0-55]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[4-7] Type=H100 Cores=[56-111]
+{% elif shape == "BM.GPU.H200.8"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=H200 Cores=[0-55]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[4-7] Type=H200 Cores=[56-111]
+{% elif shape == "BM.GPU.MI300X.8"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/dri/renderD[128,136,144,152,160,168,176,184] Type=MI300X
+{% elif shape == "BM.GPU.L40S.4" or shape == "BM.GPU.L40S-NC.4"%}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=L40S Cores=[0-55]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[2-3] Type=L40S Cores=[56-111]
+{% elif shape == "BM.GPU.T1.2" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
+{% elif shape == "BM.GPU.A10.4" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-31]
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[2-3] Type=A10 Cores=[32-63]
+{% elif shape == "VM.GPU.A10.2" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A10 Cores=[0-29]
+{% elif shape == "VM.GPU.A10.1" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia0 Type=A10 Cores=[0-14]
+{% elif shape == "VM.GPU.A100.40G.1" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia0 Type=A100 Cores=[0-6]
+{% elif shape == "VM.GPU.A100.40G.2" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[0-13]
+{% elif shape == "VM.GPU.A100.40G.4" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=A100 Cores=[0-27]
+{% elif shape == "VM.GPU.A100.B40G.1" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia0 Type=A100 Cores=[0-14]
+{% elif shape == "VM.GPU.A100.B40G.2" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[0-29]
+{% elif shape == "VM.GPU.A100.B40G.4" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=A100 Cores=[0-59]
+{% elif shape == "VM.GPU.A100.80G.1" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia0 Type=A100 Cores=[0-14]
+{% elif shape == "VM.GPU.A100.80G.2" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[0-29]
+{% elif shape == "VM.GPU.A100.80G.4" %}
+NodeName={{ansible_hostname}} Name=gpu File=/dev/nvidia[0-3] Type=A100 Cores=[0-59]
 {% endif %}
-{% endfor %}
-{% endfor %}

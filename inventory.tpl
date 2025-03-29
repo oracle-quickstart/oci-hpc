@@ -4,6 +4,8 @@ ${controller_name} ansible_host=${controller_ip} ansible_user=${controller_usern
 %{ if backup_name != "" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=controller%{ endif }
 [login]
 %{ if login_name != "" }${login_name} ansible_host=${login_ip} ansible_user=${compute_username} role=login%{ endif }
+[monitoring]
+%{ if monitoring_name != "" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring%{ endif }
 [compute_to_add]
 [compute_configured]
 %{ for host, ip in compute ~}
@@ -53,7 +55,7 @@ redundancy=${redundancy}
 log_vol=${log_vol}
 instance_pool_ocpus=${instance_pool_ocpus}
 queue=${queue}
-monitoring=${monitoring}
+cluster_monitoring=${cluster_monitoring}
 hyperthreading=${hyperthreading}
 ldap=${ldap}
 autoscaling_monitoring=${autoscaling_monitoring}
@@ -61,7 +63,7 @@ autoscaling_mysql_service=${autoscaling_mysql_service}
 monitoring_mysql_ip=${monitoring_mysql_ip}
 admin_password = ${admin_password}
 admin_username = ${admin_username}
-instance_type=permanent
+instance_type=${cluster_name}
 enroot=${enroot}
 pyxis=${pyxis}
 pam=${pam}
@@ -79,4 +81,9 @@ sacct_limits=${sacct_limits}
 use_compute_agent=${use_compute_agent}
 zone_name=${zone_name}
 dns_entries=${dns_entries}
+vcn_compartment=${vcn_compartment}
 healthchecks=${healthchecks}
+change_hostname=${change_hostname}
+hostname_convention=${hostname_convention}
+ons_topic_ocid=${ons_topic_ocid}
+

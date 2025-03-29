@@ -1,4 +1,4 @@
-- hosts: controller, compute, slurm_backup, login
+- hosts: controller, compute, slurm_backup, login, monitoring
   become: true
   gather_facts: true
   vars:
@@ -10,3 +10,10 @@
   tasks:
     - include_role:
         name: destroy_unreachable
+
+
+- hosts: controller
+  become: true
+  tasks:
+    - include_role:
+        name: prometheus

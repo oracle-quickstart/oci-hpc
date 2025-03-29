@@ -36,6 +36,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python-netaddr
+    sudo yum install -y https://archive.releases.hashicorp.com/RHEL/7.9/x86_64/stable/terraform-1.6.6-1.x86_64.rpm
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
@@ -43,10 +44,14 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo mkdir /etc/ansible
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
+    sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+    sudo sed -i 's/$releasever/'"${vid}"'/g' /etc/yum.repos.d/hashicorp.repo
+    sudo yum install -y terraform
   fi
-  sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
-  sudo sed -i 's/$releasever/'"${vid}"'/g' /etc/yum.repos.d/hashicorp.repo
-  sudo yum install -y terraform
+#  sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+#  sudo sed -i 's/$releasever/'"${vid}"'/g' /etc/yum.repos.d/hashicorp.repo
+#  wget https://archive.releases.hashicorp.com/RHEL/7.9/x86_64/stable/terraform-1.6.6-1.x86_64.rpm
+#  sudo yum install -y terraform
   sudo python3 -m pip install -U pip > /dev/null
   sudo python3 -m pip install netaddr --upgrade > /dev/null
   sudo python3 -m pip install setuptools_rust --upgrade > /dev/null

@@ -1,0 +1,9 @@
+[Unit]
+Description=NVIDIA DCGM Exporter
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/dcgm-exporter -f /etc/dcgm-counters.csv
+
+[Install]
+WantedBy=multi-user.target

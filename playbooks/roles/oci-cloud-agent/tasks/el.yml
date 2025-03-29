@@ -1,4 +1,9 @@
 --- 
+
+- name: call oracle cloud agent updater role
+  include_role: 
+    name: oci-cloud-agent-updater
+
 - name: Check if agent.yml exists
   stat:
     path: /etc/oracle-cloud-agent/agent.yml
@@ -30,6 +35,36 @@
     content: '{{ mydata | to_nice_yaml }}'
     dest: /etc/oracle-cloud-agent/agent.yml
   when: agent_file.stat.exists
+
+
+- name: Install yum-plugin-versionlock for OL8
+  yum:
+    name: python3-dnf-plugin-versionlock
+    state: latest
+    disable_gpg_check: yes
+  when:
+    - ansible_os_family == 'RedHat' and ansible_distribution_major_version == '8'
+- name: Hold latest OCA for OL
+  community.general.yum_versionlock:
+    name: oracle-cloud-agent
+    state: present
+  when:
+    - ansible_os_family == 'RedHat'
+    
+- name: Disable OCA updater
+  replace:
+    path: /etc/oracle-cloud-agent/updater.yml
+    regexp: 'upgrade_interval: 3600'
+    replace: 'upgrade_interval: -1'
+
+- name: Restart cloud agent updater
+  service: 
+    name: oracle-cloud-agent-updater
+    state: restarted
+  retries: 5
+  register: restart_cloud_agent_updater
+  until: restart_cloud_agent_updater is not failed
+  ignore_errors: True
 
 - name: Restart cloud agent
   service: 

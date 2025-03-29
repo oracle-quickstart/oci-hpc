@@ -1,0 +1,107 @@
+---
+- name: Install dependencies
+  become: true
+  package:
+    name: "{{ dependencies }}"
+    state: present
+
+- name: Download Go tarball
+  become: true
+  get_url:
+    url: "{{ go_url }}"
+    dest: "/tmp/{{ go_tarball }}"
+
+- name: Remove old Go installation
+  become: true
+  file:
+    path: "{{ go_install_dir }}/go"
+    state: absent
+
+- name: Extract Go tarball
+  become: true
+  unarchive:
+    src: "/tmp/{{ go_tarball }}"
+    dest: "{{ go_install_dir }}"
+    remote_src: true
+
+- name: Ensure Go binary path is in PATH
+  become: true
+  lineinfile:
+    path: /etc/profile.d/go.sh
+    line: "export PATH=$PATH:{{ go_path }}"
+    create: yes
+    state: present
+
+- name: Get current DCGM version
+  become: true
+  shell:
+    cmd: dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'
+  register: dcgm_version
+
+- name: Find DCGM Exporter releases
+  become: true
+  shell:
+    cmd: curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"'
+  register: dcgm_exporter_releases
+
+- name: Select appropriate DCGM Exporter version
+  set_fact:
+    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version.stdout) | first | split(' ') | last }}"
+
+- name: Download DCGM Exporter tarball
+  become: true
+  get_url:
+    url: "{{ dcgm_exporter_url }}"
+    dest: "/tmp/dcgm-exporter.tar.gz"
+
+
+- name: Extract DCGM Exporter tarball
+  become: true
+  unarchive:
+    src: "/tmp/dcgm-exporter.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+
+- name: get directory
+  shell: "ls -d /tmp/NVIDIA-dcgm-exporter-*"
+  register: dcgm_directory
+
+- name: Build DCGM Exporter binary
+  become: true
+  command: make binary
+  args:
+    chdir: "{{dcgm_directory.stdout}}"
+  environment:
+    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+
+- name: Install DCGM Exporter
+  become: true
+  command: make install
+  args:
+    chdir: "{{dcgm_directory.stdout}}"
+  environment:
+    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+
+- name: Create systemd service for DCGM-Exporter
+  become: true
+  template:
+    src: dcgm-exporter.service.j2
+    dest: "{{ dcgm_service_path }}"
+
+- name: Copy DCGM-Exporter counter configuration
+  become: true
+  copy:
+    src: files/dcgm-counters.csv
+    dest: "{{ dcgm_counter_config_path }}"
+
+- name: Reload systemd daemon
+  become: true
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start DCGM-Exporter service
+  become: true
+  systemd:
+    name: dcgm-exporter
+    enabled: yes
+    state: started

@@ -1,5 +1,4 @@
 ---
-
 - name: install sssd
   vars: 
     package_name: 
@@ -84,3 +83,15 @@
     - restart sshd
     - restart ns daemons
     - restart login services
+
+- name: Set enable-cache to no for passwd and group in nscd.conf
+  lineinfile:
+    path: /etc/nscd.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    backrefs: yes
+  loop:
+    - { regexp: '^(\s*enable-cache\s+passwd\s+)\S+', line: '\1no' }
+    - { regexp: '^(\s*enable-cache\s+group\s+)\S+',  line: '\1no' }
+  notify:
+      - restart nscd

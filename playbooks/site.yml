@@ -1,4 +1,3 @@
-
 - hosts: compute
   become: true
   vars: 
@@ -9,10 +8,10 @@
   tasks:
     - include_role:
         name: hostname
-      when: slurm  | default(false) | bool
+      when: change_hostname  | default(false) | bool
 
 # for ubuntu, on all compute nodes, run --fix-broken install
-- hosts: compute, login
+- hosts: compute, login, monitoring
   become: true
   tasks:
     - include_role:
@@ -44,6 +43,7 @@
     - etc-hosts
     - boot-volume
     - mpivars
+    - oom-adjust
 
 - hosts: all
   become: true
@@ -51,21 +51,15 @@
     - include_role: 
         name: localdisk
       when: localdisk | default(true) | bool
+    - include_role: 
+        name: healthchecks
 
 - hosts: compute
   become: true
   gather_facts: true
   tasks: 
     - include_role: 
-        name: oci-cn-auth
-      when: cluster_network|bool and not use_compute_agent|default(false)|bool
-    - include_role: 
-        name: rdma-interface
-      when: cluster_network|bool and not use_compute_agent|default(false)|bool
-    - include_role: 
         name: nvidia_peermem
-    - include_role: 
-        name: healthchecks
 
 - hosts: controller
   become: true
@@ -92,12 +86,12 @@
         export_path: "{{ remote_path }}"
         options: ""
         lock: "none"
-      when: add_nfs|bool and home_fss|bool 
+      when: add_nfs|bool and home_fss|bool and create_fss
     - include_role:
         name: fss-home
-      when: add_nfs|bool and home_fss|bool
+      when: add_nfs|bool and home_fss|bool and create_fss
 
-- hosts: controller, slurm_backup, login
+- hosts: controller, slurm_backup, login, monitoring
   become: true
   tasks:
     - include_role:
@@ -105,10 +99,10 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        export_path: "/home"
         options: ""
         lock: "none"
-      when: add_nfs|bool and home_fss|bool
+      when: home_fss|bool
     - include_role: 
         name: passwords
 
@@ -127,18 +121,12 @@
     - include_role: 
         name: cluster-cli
       when: ldap|default(true)|bool
-
-# configure if instance_principal is False
-- hosts: controller
-  become: true
-  tasks:
     - include_role:
         name: no_instance_principal
       when: not inst_prin|bool 
-      
 
 
-- hosts: compute, login
+- hosts: compute, login, monitoring
   become: true
   tasks:
     - include_role:
@@ -158,7 +146,7 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        export_path: "/home"
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool
@@ -267,26 +255,37 @@
         name: nccl-conf
       when: cluster_network|bool
 
-- hosts: all
+- hosts: all,!monitoring
   tasks: 
     - include_role: 
-        name: influxdb
-      when: monitoring|default(false)|bool
+        name: metrics-exporter
+      when: cluster_monitoring|default(false)|bool
+
+- hosts: monitoring
+  tasks: 
     - include_role: 
-        name: telegraf
-      when: monitoring|default(false)|bool
+        name: grafana
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) 
 
 - hosts: controller
   tasks: 
     - include_role: 
         name: grafana
-      when: monitoring|default(false)|bool
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) 
+
+- hosts: controller, monitoring
+  tasks: 
+    - include_role: 
+        name: prometheus
+      when: cluster_monitoring|default(false)|bool
+
+- hosts: controller
+  tasks: 
     - include_role: 
         name: autoscaling_mon
       when: autoscaling_monitoring|default(false)|bool
     - include_role: 
         name: cron
-
 
 - hosts: compute
   become: true

@@ -1,0 +1,59 @@
+---
+# tasks file for custom metrics
+- name: Create a folder under /opt/oci-hpc for storing custom metric scripts
+  become: true
+  vars:
+    ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
+  file:
+    path: "{{ ne_script_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}" 
+    group: "{{ ansible_user }}"    
+    mode: '0775'
+    recurse: yes
+
+- name: Copying custom metrics main script
+  become: true
+  vars:
+    ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
+  template:  
+    src: templates/custom_metrics.py.j2
+    dest: "{{ ne_script_dir }}/custom_metrics.py"
+    owner: "{{ ansible_user }}" 
+    group: "{{ ansible_user }}" 
+    mode: '0775'
+
+- name: Copying additional custom metric scripts
+  become: true
+  vars:
+    ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
+  copy:  
+    src: "files/{{ item }}"
+    dest: "{{ ne_script_dir }}"
+    owner: "{{ ansible_user }}" 
+    group: "{{ ansible_user }}" 
+    mode: '0775'
+  with_items:
+    - custom_metric_common.py
+    - shared_logging.py
+    - rdma_link_flapping.py
+    - xid_checker.py
+
+- name: Copying custom metric service file
+  become: true
+  vars:
+    ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
+  template:  
+    src: templates/customMetrics.service.j2
+    dest: /etc/systemd/system/customMetrics.service
+    owner: root  
+    group: root
+    mode: '0755'
+
+- name: Enable and Start Custom Metric Service
+  become: true
+  service:
+    name=customMetrics.service
+    state=started
+    enabled=yes
+

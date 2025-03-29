@@ -5,9 +5,25 @@
     cmd: "curl -sH \"Authorization: Bearer Oracle\" -L http://169.254.169.254/opc/v2/instance/ | jq '.shape'"
   register: shape_nccl
 
+- name: Get the hpc-x version
+  shell: 
+    cmd: ls /opt/hpcx-*/nccl_rdma_sharp_plugin/lib/libnccl-net.so
+  register: hpcx
+  failed_when: false
+
+- name: Set HPC-X path
+  set_fact:
+    hpcx_path: "{{ hpcx.stdout_lines[0] }}"
+  when: hpcx.stdout_lines | length > 0
+
+- name: Set HPC-X path to none
+  set_fact:
+    hpcx_path: "none"
+  when: hpcx.stdout_lines | length == 0
+
 - name: copy nccl.conf for H100
   become: true
-  copy: 
+  template: 
     src: h100
     dest: /etc/nccl.conf
     owner: root
@@ -15,9 +31,19 @@
     mode: '0644'
   when: shape_nccl.stdout == '"BM.GPU.H100.8"'
 
+- name: copy nccl.conf for H200
+  become: true
+  template: 
+    src: h200
+    dest: /etc/nccl.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: shape_nccl.stdout == '"BM.GPU.H200.8"'
+
 - name: copy nccl.conf for BM.GPU.B4.8 and A100-v2.8
   become: true
-  copy: 
+  template: 
     src: a100_b4.8
     dest: /etc/nccl.conf
     owner: root
@@ -27,7 +53,7 @@
 
 - name: copy nccl.conf for BM.GPU4.8
   become: true
-  copy: 
+  template: 
     src: bm.gpu4.8
     dest: /etc/nccl.conf
     owner: root

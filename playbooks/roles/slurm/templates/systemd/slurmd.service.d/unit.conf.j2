@@ -1,9 +1,51 @@
+
 [Unit]
 Requires=munge.service
 
 [Service]
 Restart=always
-{% if ansible_os_family == 'RedHat' %}
 ExecStart=
-ExecStart={{slurm_exec}}/sbin/slurmd --conf-server {{ hostvars[groups['controller'][0]]['ansible_fqdn'].split('.')[0] }}{% if (groups['slurm_backup']| length ) > 0 %},{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[0] }}{% endif %} -D $SLURMD_OPTIONS
-{% endif %} 
+{% if shape == "BM.GPU2.2"%}
+{% set gres = "Gres=gpu:P100:2" %}
+{% elif shape == "VM.GPU2.1" %}
+{% set gres = "Gres=gpu:P100:1" %}
+{% elif shape == "VM.GPU3.1" %} 
+{% set gres = "Gres=gpu:V100:1" %}
+{% elif shape == "VM.GPU3.2" %} 
+{% set gres = "Gres=gpu:V100:2" %}
+{% elif shape == "VM.GPU3.4" %} 
+{% set gres = "Gres=gpu:V100:4" %}
+{% elif shape == "BM.GPU3.8" %} 
+{% set gres = "Gres=gpu:V100:8" %}
+{% elif shape == "BM.GPU4.8" %} 
+{% set gres = "Gres=gpu:A100:8" %}
+{% elif shape == "BM.GPU.B4.8" %} 
+{% set gres = "Gres=gpu:A100:8" %}
+{% elif shape == "BM.GPU.A100-v2.8" %} 
+{% set gres = "Gres=gpu:A100:8" %}
+{% elif shape == "BM.GPU.H100.8" %} 
+{% set gres = "Gres=gpu:H100:8" %}
+{% elif shape == "BM.GPU.H200.8" %} 
+{% set gres = "Gres=gpu:H200:8" %}
+{% elif shape == "BM.GPU.T1.2" %} 
+{% set gres = "Gres=gpu:A10:2" %}
+{% elif shape == "BM.GPU.A10.4" %} 
+{% set gres = "Gres=gpu:A10:4" %}
+{% elif shape == "VM.GPU.A10.2" %} 
+{% set gres = "Gres=gpu:A10:2" %}
+{% elif shape == "VM.GPU.A10.1" %} 
+{% set gres = "Gres=gpu:A10:1" %}
+{% elif shape == "BM.GPU.MI300X.8" %} 
+{% set gres = "Gres=gpu:MI300X:8" %}
+{% elif shape == "BM.GPU.L40S.4" or shape == "BM.GPU.L40S-NC.4"%} 
+{% set gres = "Gres=gpu:L40S:4" %}
+{% elif shape == "VM.GPU.A100.40G.1" or shape == "VM.GPU.A100.B40G.1" or shape == "VM.GPU.A100.80G.1"%} 
+{% set gres = "Gres=gpu:A100:1" %}
+{% elif shape == "VM.GPU.A100.40G.2" or shape == "VM.GPU.A100.B40G.2" or shape == "VM.GPU.A100.80G.2"%} 
+{% set gres = "Gres=gpu:A100:2" %}
+{% elif shape == "VM.GPU.A100.40G.4" or shape == "VM.GPU.A100.B40G.4" or shape == "VM.GPU.A100.80G.4"%} 
+{% set gres = "Gres=gpu:A100:4" %}
+{% else %}
+{% set gres = "" %}
+{% endif %}
+ExecStart={{slurm_exec}}/sbin/slurmd --systemd -Z --conf "{{gres}} Feature={{instance_type}},CN__{{cluster_name}}" --conf-server {{ hostvars[groups['controller'][0]]['ansible_fqdn'].split('.')[0] }}{% if (groups['slurm_backup']| length ) > 0 %},{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[0] }}{% endif %} $SLURMD_OPTIONS

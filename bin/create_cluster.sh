@@ -51,6 +51,8 @@ hyperthreading=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.
 region=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.region " $queues_conf`
 private_subnet=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.private_subnet " $queues_conf`
 private_subnet_id=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.private_subnet_id " $queues_conf`
+change_hostname=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.change_hostname " $queues_conf`
+hostname_convention=`yq eval ".queues.[] | select(.name == \"$4\") | .instance_types.[] | select(.name == \"$3\") |.hostname_convention " $queues_conf`
 
 
 
@@ -67,7 +69,7 @@ do
 
   echo $1 $3 $4 >> currently_building
   echo $3 $4 > cluster_options
-  sed "s~##NODES##~$1~g;s~##NAME##~$2~g;s~##SHAPE##~$shape~g;s~##CN##~$cluster_network~g;s~##QUEUE##~${4}~g;s~##COMP##~${targetCompartment}~g;s~##AD##~${ADName}~g;s~##BOOT##~${boot_volume_size}~g;s~##USEMP##~${use_marketplace_image}~g;s~##IMAGE##~${image}~g;s~##OCPU##~${instance_pool_ocpus}~g;s~##MEM##~${instance_pool_memory}~g;s~##CUSTOM_MEM##~${instance_pool_custom_memory}~g;s~##MP_LIST##~${marketplace_listing}~g;s~##HT##~${hyperthreading}~g;s~##INST_TYPE##~$3~g;s~##TAGS##~$tags~g;s~##REGION##~${region}~g;s~##PRIVATE_SUBNET_ID##~${private_subnet_id}~g;s~##PRIVATE_SUBNET##~${private_subnet}~g;s~##CC##~$compute_cluster~g" $conf_folder/variables.tf > variables.tf
+  sed "s~##NODES##~$1~g;s~##NAME##~$2~g;s~##SHAPE##~$shape~g;s~##CN##~$cluster_network~g;s~##QUEUE##~${4}~g;s~##COMP##~${targetCompartment}~g;s~##AD##~${ADName}~g;s~##BOOT##~${boot_volume_size}~g;s~##USEMP##~${use_marketplace_image}~g;s~##IMAGE##~${image}~g;s~##OCPU##~${instance_pool_ocpus}~g;s~##MEM##~${instance_pool_memory}~g;s~##CUSTOM_MEM##~${instance_pool_custom_memory}~g;s~##MP_LIST##~${marketplace_listing}~g;s~##HT##~${hyperthreading}~g;s~##INST_TYPE##~$3~g;s~##TAGS##~$tags~g;s~##REGION##~${region}~g;s~##PRIVATE_SUBNET_ID##~${private_subnet_id}~g;s~##CH_HOST##~${change_hostname}~g;s~##HOST_CONV##~${hostname_convention}~g;s~##PRIVATE_SUBNET##~${private_subnet}~g;s~##CC##~$compute_cluster~g" $conf_folder/variables.tf > variables.tf
 
   echo "Started to build $2"
   start=`date -u +%s`
@@ -98,6 +100,7 @@ do
   if [ $status -eq 0 ]
   then
     echo "Successfully created $2 in $runtime seconds"
+    sleep 60 # Give the jobs some time to start
     rm currently_building
     if [ -f $monitoring_folder/activated ]
     then
@@ -159,6 +162,7 @@ do
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,nodes,created_on_m,class_name) VALUES ('$2_${date}','creation','$logs_folder/create_$2_${date}.log','$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages','$1','$end_timestamp','$4');" >> $logs_folder/create_$2_${date}.log 2>&1
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET state='deleting',creation_error='`tail $logs_folder/create_$2_${date}.log | grep Error`' WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
     fi
+    sleep 60 # Give the jobs some time to start
     rm currently_building
   fi
 done

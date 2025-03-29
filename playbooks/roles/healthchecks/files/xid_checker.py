@@ -11,11 +11,11 @@ class XidChecker:
     def __init__(self, dmesg_cmd="dmesg", time_interval=60):
         # if user is root
         if not os.geteuid() == 0:
-            logger.info("The XidChecker script did not run since it must be run as root")
-            sys.exit(1)
+            #logger.info("The XidChecker script did not run since it must be run as root")
+            #sys.exit(1)
+            raise PermissionError("Root privileges are required to run XidChecker")
         self.dmesg_cmd = dmesg_cmd
         self.results = {}
-
 
         # Check for the following GPU Xid errors in dmesg
         self.XID_EC = {
@@ -197,9 +197,11 @@ if __name__ == '__main__':
     parser.add_argument('--dmesg_cmd', default='dmesg', help='Dmesg file to check. Default is dmesg.')
     args = parser.parse_args()
 
-
     logger.debug(f"Using dmesg command: {args.dmesg_cmd}")
     
-    xc = XidChecker(dmesg_cmd=args.dmesg_cmd)
-    results = xc.check_gpu_xid()
-    logger.debug("Status: {}, Results: {}".format(results["status"], results["results"]))
+    try:
+        xc = XidChecker(dmesg_cmd=args.dmesg_cmd)
+        results = xc.check_gpu_xid()
+        logger.debug("Status: {}, Results: {}".format(results["status"], results["results"]))
+    except PermissionError:
+        pass

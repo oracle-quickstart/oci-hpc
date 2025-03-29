@@ -6,6 +6,13 @@
   ignore_unreachable: True
   delegate_to: 127.0.0.1
 
+- name: Remove to the gres.conf file on the controller.
+  become: true
+  blockinfile:
+    path: "{{ slurm_conf_path }}/gres.conf"
+    marker: "### {mark} {{ansible_hostname}}"
+  delegate_to: 127.0.0.1
+
 - name: Get nodes from Cluster Switch
   block:
     - name: Get nodes from topology.conf
@@ -26,36 +33,10 @@
       set_fact:
         cluster_list: []
 
-- name: Get nodes from Inactive Switch
-  block:
-    - name: Get nodes from Inactive Switch
-      vars:
-        - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
-      register: inactive_switch_condensed
-      run_once: true
-      delegate_to: 127.0.0.1
-    - name: Get inactive list
-      command: "scontrol show hostname {{inactive_switch_condensed.stdout.split('Nodes=')[1] }}"
-      register: inactive_switch
-      run_once: true
-      delegate_to: 127.0.0.1
-    - name: Create inactive list
-      set_fact:
-        inactive_list: "{{inactive_switch.stdout_lines}}"
-      run_once: true
-      delegate_to: 127.0.0.1
-  rescue:
-    - name: Create inactive cluster list
-      set_fact:
-        inactive_list: []
-      run_once: true
-      delegate_to: 127.0.0.1
-
 - name: Get hostnames
   set_fact:
     nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) }}"
+  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) | difference(groups['monitoring']) }}"
   run_once: true
   register: nodes_to_add_temp_results
 
@@ -91,27 +72,9 @@
   delegate_to: 127.0.0.1
   when: cluster_list | difference(nodes_to_add) | join(',') == ''
 
-- name: Get new inactive_nodes list
-  command: "scontrol show hostlistsorted {{inactive_list | union(nodes_to_add) | join(',')}}"
-  register: new_inactive_list
-  run_once: true
-  delegate_to: 127.0.0.1
-
-- name: Adding nodes to inactive
-  vars:
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  become: true
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{new_inactive_list.stdout}}"
-    state: present
-  run_once: true
-  delegate_to: 127.0.0.1
-
 - name: change Node Status
   become: true
-  command: "scontrol update nodename={{ ansible_hostname }} state=future reason=terminating"
+  command: "scontrol delete nodename={{ ansible_hostname }}"
   ignore_errors: true
   ignore_unreachable: True
   delegate_to: 127.0.0.1

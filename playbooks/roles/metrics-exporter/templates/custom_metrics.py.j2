@@ -1,0 +1,700 @@
+#!/usr/bin/env python3
+
+import subprocess
+import shutil
+import shlex
+import os
+import re
+import requests
+from shared_logging import logger
+import sys
+from custom_metric_common import *
+import platform
+import time
+from rdma_link_flapping import LinkFlappingTest
+
+def get_host_serial():
+    # Run the shell command
+    if not is_user_root():
+        result = subprocess.run(['sudo', 'dmidecode', '-s', 'system-serial-number'], stdout=subprocess.PIPE)
+    else:
+        result = subprocess.run(['dmidecode', '-s', 'system-serial-number'], stdout=subprocess.PIPE)
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+
+    # Return the serial number
+    return output.strip()
+
+def oca_version_metric(min_version):
+
+    metadata = get_metadata()
+    oci_name = metadata['displayName']
+    # Run the shell command
+    os_name = platform.system()
+
+    if os_name == 'Linux':
+        try:
+            distro = platform.linux_distribution()[0]
+        except:
+            import distro
+            distro = distro.name()
+
+        if 'Ubuntu' in distro:
+            if not is_user_root():
+                result = subprocess.run(['sudo', 'snap', 'info', 'oracle-cloud-agent'], stdout=subprocess.PIPE)
+            else:
+                result = subprocess.run(['snap', 'info', 'oracle-cloud-agent'], stdout=subprocess.PIPE)
+
+            # Decode the output from bytes to string
+            output = result.stdout.decode('utf-8')
+
+            # Define the regular expression pattern for the version
+            pattern = r'installed:\s+(\d+\.\d+\.\d+)'
+            match = re.search(pattern, output)
+            if match:
+                version = match.group(1)
+
+        elif 'Oracle' in distro:
+            result = subprocess.run(['rpm', '-qa'], stdout=subprocess.PIPE)
+
+            # Decode the output from bytes to string
+            output = result.stdout.decode('utf-8')
+
+            # Define the regular expression pattern for the version
+            pattern = r'oracle-cloud-agent-(\d+\.\d+\.\d+)'
+            match = re.search(pattern, output)
+            if match:
+                version = match.group(1)
+
+    # Textfile name for metrics
+    tf_name = 'oca_version.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Metric value
+    if version > min_version:
+        oca_ver_metric_value = "1"
+    else:
+        oca_ver_metric_value = "0"
+
+    # Write RDMA Interconnect Status metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP oca_version Version of OCA installed on host"
+        type_text = "# TYPE oca_version gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        metric_text = "oca_version{version=" + "\"" + version + "\"" + "," \
+                + "hostname=" + "\"" + oci_name + "\"" + "} " \
+                + str(oca_ver_metric_value) \
+                + "\n"
+        tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def rdma_link_metric(textfile_dir_path, node_exporter_user, node_exporter_group):
+    status = True
+    metadata=get_metadata()
+    oci_shape=metadata['shape']
+    devices = get_rdma_devices(oci_shape)
+    link_issues = []
+    interconnect_status = {}
+
+    for device in devices:
+        # Run the mlxlink command
+        if not is_user_root():
+            command = ['sudo', 'mlxlink', '-d', device, '-m', '-c', '-e']
+        else:
+            command = ['mlxlink', '-d', device, '-m', '-c', '-e']
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Decode the output from bytes to string
+        output = result.stdout.decode('utf-8')
+        stderr = result.stderr.decode('utf-8')
+
+        if stderr and stderr.find("-E-") != -1:
+            stderr = stderr.split("\n")
+            stderr_line = ", ".join(stderr)
+            logger.debug(f"{device}: {stderr_line}")
+            link_issues.append(f"{device}: {stderr[0]}")
+            status = "False"
+            continue
+
+        # Find the line containing "Recommendation"
+        color_pattern = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        link_state = re.search(r'\nState.*', output).group().split(":")[1].strip()
+        recommendation = re.search(r'Recommendation.*', output).group().split(":")[1].strip()
+        physical_BER = re.search(r'Raw Physical BER.*', output).group().split(":")[1].strip()
+
+        # Remove hidden characters from the output
+        link_state = re.sub(color_pattern, '', link_state)
+        recommendation = re.sub(color_pattern, '', recommendation)
+
+        # Update interconnect_status dictionary with interconnect name and status
+        if link_state != "Active":
+            status = False
+            interconnect_status.update({device : 0})
+        elif not "No issue was observed" in recommendation:
+            if "Bad signal integrity" in recommendation and float(physical_BER) > 1e-07:
+                interconnect_status.update({device : 0})
+                status = False
+        else:
+            interconnect_status.update({device : 1})
+
+    # Get RDMA and Network Devices
+    rdma_netdev_map = get_net_devices()
+
+    # Textfile name for metrics
+    tf_name = 'rdma_link_status.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write RDMA Interconnect Status metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP rdma_device_status Current status of all RDMA network interfaces"
+        type_text = "# TYPE rdma_device_status gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        for rdma_dev in interconnect_status.keys():
+            metric_text = "rdma_device_status{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
+                    + str(interconnect_status[rdma_dev]) \
+                    + "\n"
+            tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def rttcc_status_metric():
+
+    metadata=get_metadata()
+    oci_shape=metadata['shape']
+
+    devices = get_rdma_devices(oci_shape)
+    link_status = {}
+    status_dict = {"devices": {}}
+
+    for device in devices:
+        if not is_user_root():
+            command = ['sudo', 'mlxreg', '-d', device, '-y', '--get', '--reg_name=PPCC', '--indexes=local_port=1,pnat=0,lp_msb=0,algo_slot=0,algo_param_index=0']
+        else:
+            command = ['mlxreg', '-d', device, '-y', '--set', 'cmd_type=3', '--reg_name=PPCC', '--indexes=local_port=1,pnat=0,lp_msb=0,algo_slot=0,algo_param_index=0']
+
+        result = subprocess.run(command, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        output = result.stdout.decode('utf-8')
+
+        filtered_output = [line for line in output.split('\n') if line.startswith('value')]
+        for line in filtered_output:
+            if "0x00000001" in line:
+                status_dict["devices"][device] = "enabled"
+
+        status_dict["devices"][device] = "disabled"
+
+    for device in status_dict["devices"]:
+        if status_dict["devices"][device] == "enabled":
+            link_status.update({device: 1})
+        else:
+            link_status.update({device: 0})
+
+    # Get RDMA and Network Devices
+    rdma_netdev_map = get_net_devices()
+
+    # Textfile name for metrics
+    tf_name = 'rdma_rttcc_status.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write RDMA Interconnect Status metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP rttcc_status Status of RTTCC"
+        type_text = "# TYPE rttcc_status gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        for rdma_dev in link_status.keys():
+            if rdma_dev in rdma_netdev_map.keys():
+                metric_text = "rttcc_status{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                    + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
+                    + str(link_status[rdma_dev]) \
+                    + "\n"
+                tmp_tf.write('{}'.format(metric_text))
+            else:
+                print("rdma dev not found in rdma_netdev_map:" + rdma_dev)
+                print(rdma_netdev_map.keys())
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def check_bus_metric():
+
+    metadata=get_metadata()
+    oci_shape=metadata['shape']
+
+    # Check to see if any devices have fallen of the bus
+    command = ['lspci', '-v']
+    result = subprocess.run(command, stdout=subprocess.PIPE)
+    output = result.stdout.decode('utf-8')
+    lines = output.split('\n')
+    bus_issues = []
+
+    for line in lines:
+        if line.find('(rev ff)') != -1:
+            bus_issues.append(line)
+    if len(bus_issues) == 0:
+        logger.info(f"No devices have fallen off the bus")
+        checkbus_metric = len(bus_issues)
+    elif len(bus_issues) > 0:
+        logger.error("Devices have fallen off the bus")
+        checkbus_metric = len(bus_issues)
+    else:
+        logger.warning("Bus Check Test: Failed")
+        checkbus_metric = len(bus_issues)
+
+    # Textfile name for metrics
+    tf_name = 'check_bus.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write RDMA Interconnect Status metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP check_bus Check if devices have fallen off the bus "
+        type_text = "# TYPE check_bus gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        metric_text = "check_bus_issue_count " + str(checkbus_metric) \
+                + "\n"
+        tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def rdma_link_flap_check():
+
+    metadata=get_metadata()
+    oci_shape=metadata['shape']
+
+    # Check for RDMA link flapping
+    try:
+        lf_interval = "6"
+        lft = LinkFlappingTest(time_interval=lf_interval)
+        lft.get_rdma_link_failures()
+        lft_issues = lft.process_rdma_link_flapping()
+    except Exception as e:
+        logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+        lft_issues = {"failures": [], "link_down": []}
+
+    # Get RDMA and Network Devices
+    rdma_netdev_map = get_net_devices()
+
+    # Textfile name for metrics
+    tf_name = 'rdma_link_flap.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # List of unhealthy net devices
+    unhealthy_net_devices = []
+
+    if len(lft_issues["failures"]) > 0 or len(lft_issues["link_down"]) > 0:
+        if len(lft_issues["failures"]) > 0:
+            for issue in lft_issues["failures"]:
+                unhealthy_dev = issue.split(":")[0]
+                if unhealthy_dev not in unhealthy_net_devices:
+                    unhealthy_net_devices.append(unhealthy_dev)
+
+        if len(lft_issues["link_down"]) > 0:
+            for issue in lft_issues["link_down"]:
+                unhealthy_dev = issue.split(":")[0]
+                if unhealthy_dev not in unhealthy_net_devices:
+                    unhealthy_net_devices.append(unhealthy_dev)
+
+    # Write RDMA Link Flapping metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP rdma_link_flap Check if RDMA devices are flaping "
+        type_text = "# TYPE rdma_link_flap gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        for rdma_dev in rdma_netdev_map.keys():
+            lft_error = ""
+            if "rdma" in rdma_netdev_map[rdma_dev]:
+                if rdma_netdev_map[rdma_dev] in unhealthy_net_devices:
+                    lft_error = "0"
+                    metric_text = "rdma_link_noflap{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                            + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
+                            + str(lft_error) \
+                            + "\n"
+                    tmp_tf.write('{}'.format(metric_text))
+                else:
+                    lft_error = "1"
+                    metric_text = "rdma_link_noflap{rdma_device=" + "\"" + rdma_dev + "\"" + "," \
+                            + "net_device=" + "\"" + rdma_netdev_map[rdma_dev] + "\"" + "} " \
+                            + str(lft_error) \
+                            + "\n"
+                    tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def check_nvidia_gpu_count():
+
+    # get metadata
+    metadata = get_metadata()
+    oci_shape = metadata['shape']
+
+    # GPUs allocated available per shape
+    if oci_shape == "BM.GPU.H100.8":
+        alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.H200.8":
+         alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.B4.8":
+         alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.A100-v2.8":
+        alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU4.8":
+        alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.A10.4":
+        alloc_gpu_count = 4
+    elif oci_shape == "VM.GPU.A10.1":
+        alloc_gpu_count = 1
+    elif oci_shape == "VM.GPU.A10.2":
+        alloc_gpu_count = 2
+
+    # Command to list all available GPUs
+    command = ['nvidia-smi', '--list-gpus']
+    result = subprocess.run(command, stdout=subprocess.PIPE)
+    output = result.stdout.decode('utf-8')
+    output_to_lines = output.split('\n')
+    # remove empty lines and total entries
+    lines = [line for line in output_to_lines if line]
+    avail_gpu_count = len(lines)
+
+    # Check if available count is equal to allocated
+    gpu_metric = ""
+    if avail_gpu_count == alloc_gpu_count:
+        gpu_metric = 1
+    else:
+        gpu_metric = 0
+
+    # Textfile name for metrics
+    tf_name = 'gpu_count_metric.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write GPU count metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP gpu_count Count of GPUs"
+        type_text = "# TYPE gpu_count gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    tmp_tf.close()
+
+    with open(tmp_tf_path, "a") as tmp_tf:
+        tmp_tf.write('\n')
+        metric_text = "gpu_count{instance_shape=" + "\"" + oci_shape + "\"" + "} " \
+                + str(gpu_metric) \
+                + "\n"
+        tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def check_ecc_errors():
+    ecc_issues = []
+    try:
+        # Run the nvidia-smi -q command
+        result = subprocess.run(['nvidia-smi', '-q'], stdout=subprocess.PIPE)
+    except FileNotFoundError:
+        logger.warning("Skipping SRAM/DRAM ECC Test: nvidia-smi command not found")
+        return []
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+
+    # Find the lines containing "SRAM Correctable" and "DRAM Correctable"
+    sram_matches = re.findall(r'SRAM Uncorrectable\s+:\s+(\d+)', output)
+    if len(sram_matches)==0:
+        sram_matches = re.findall(r'SRAM Uncorrectable Parity\s+:\s+(\d+)', output)
+    dram_matches = re.findall(r'DRAM Uncorrectable\s+:\s+(\d+)', output)
+    gpu_matches = re.findall(r'\nGPU\s+(.*)\n', output)
+    vol_sram_line = sram_matches[0::2]
+    vol_dram_line = dram_matches[0::2]
+    agg_sram_line = sram_matches[1::2]
+    agg_dram_line = dram_matches[1::2]
+
+    for i, gpu in enumerate(gpu_matches):
+        logger.debug(f"GPU: {gpu}")
+        if vol_sram_line[i] != "0":
+            logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
+        if vol_dram_line[i] != "0":
+            logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
+        if agg_sram_line[i] != "0":
+            logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
+        if agg_dram_line[i] != "0":
+            logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
+            ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
+
+    # Textfile name for metrics
+    tf_name = 'gpu_ecc_error_check.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write ECC Error Check metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP gpu_ecc_error_check Pass or Fail based on row remap errors found in a GPU"
+        type_text = "# TYPE gpu_ecc_error_check gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+        # Check if there are ecc_issues
+        if len(ecc_issues) == 0:
+            metric_text = "gpu_ecc_error_check 1" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))  
+        else:
+            ecc_error=False
+            for issue in ecc_issues:
+                if "Skipped" in issue:
+                    logger.warning(f"{host_serial} - {issue}")
+                else:
+                    if "Aggregate" in issue:
+                        logger.warning(f"{host_serial} - ECC issues: {issue}")
+                    else:
+                        logger.error(f"{host_serial} - ECC issues: {issue}")
+                        ecc_error=True
+            if ecc_error:
+                metric_text = "gpu_ecc_error_check 0" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))            
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def check_row_remap_errors():
+    remap_issues = []
+    try:
+        # Run the nvidia-smi -q command
+        result = subprocess.run(['nvidia-smi', '--query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable', '--format=csv,noheader'], stdout=subprocess.PIPE)
+
+        if result.returncode != 0:
+            logger.debug(f"Check row remap command exited with error code: {result.returncode}")
+
+    except FileNotFoundError:
+        logger.warning("Skipping Row Remap Test: nvidia-smi command not found")
+        return []
+
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+    logger.debug("Output: {}".format(output))
+    for i, line in enumerate(output.split('\n')):
+        if line == "":
+            continue
+        tmp_data = line.split(",")
+        tmp_data = [x.strip() for x in tmp_data]
+        if tmp_data[0] != "0" and tmp_data[0] != "No":
+            logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
+            remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
+        if tmp_data[1] != "0" and tmp_data[1] != "No":
+            logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
+            #remap_issues.append(f"GPU: {i} Row Remap Failure: {tmp_data[1]}")
+        if tmp_data[2] != "0" and tmp_data[2] != "No":
+            logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
+            if int(tmp_data[2]) > 512:
+                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
+            else:
+                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable <512: {tmp_data[2]}")# Check if there are ecc_issues
+
+    # Textfile name for metrics
+    tf_name = 'gpu_row_remap_error_check.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write Row Remap Error Check metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP gpu_row_remap_error_check Pass or Fail based on row remap errors found in a GPU"
+        type_text = "# TYPE gpu_row_remap_error_check gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+    
+        remap_error=False
+        if len(remap_issues) > 0:        
+            for issue in remap_issues:
+                if "<512" in issue:
+                    logger.warning(f"{host_serial} - {issue}")
+                else:
+                    logger.error(f"{host_serial} - {issue}")
+                    remap_error=True
+            if remap_error:
+                metric_text = "gpu_row_remap_error_check 1" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))            
+            else:
+                metric_text = "gpu_row_remap_error_check 0" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))
+        else:
+            metric_text = "gpu_row_remap_error_check 0" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+def xid_check():    
+    result = subprocess.run(['sudo', 'python3', '/opt/oci-hpc/nodeexporter/scripts/xid_checker.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = result.stderr.decode('utf-8')
+
+    # Textfile name for metrics
+    tf_name = 'xid_error_check.prom'
+    tf_path = os.path.join(textfile_dir_path, tf_name)
+
+    # Get current process id and create a temporary textfile
+    process_pid = os.getpid()
+    tmp_tf_path = os.path.join('/tmp', tf_name) + "." + str(process_pid)
+
+    # Write Xid Error Check metric file
+    with open(tmp_tf_path, "w") as tmp_tf:
+        help_text = "# HELP xid_error_check Pass or Fail based on xid errors thrown by GPU on a PCI Device "
+        type_text = "# TYPE xid_error_check gauge"
+        tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
+        if output.find("Passed") > 0 or output.find("INFO") > 0:
+            metric_text = "xid_error_check 1" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))
+        else:
+            metric_text = "xid_error_check 0" + "\n"
+            print(metric_text)
+            tmp_tf.write('{}'.format(metric_text))
+    tmp_tf.close()
+
+    copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)
+
+    return True
+
+
+if __name__ == '__main__':
+
+    # User and group under which node expoerter service is being run
+    node_exporter_user = "{{ prometheus_user }}"
+    node_exporter_group = "{{ prometheus_user }}"
+
+    # Check if user exists
+    try:
+        pwd.getpwnam(node_exporter_user)
+    except KeyError:
+        logger.debug(f"User {node_exporter_user} does not exist")
+
+    # Check if group exists
+    try:
+        grp.getgrnam(node_exporter_group)
+    except KeyError:
+        logger.debug(f"Group {node_exporter_group} does not exist")
+
+    # Prometheus and textfile directory path and names
+    node_exporter_root_dir = "/var/lib/node_exporter"
+    textfile_dir_name = "textfile_collector"
+
+    # Textfile directory path for saving updated metric files
+    textfile_dir_path = os.path.join(node_exporter_root_dir, textfile_dir_name)
+
+    # Create textfile directory path if it doesn't exist
+    if not os.path.exists(textfile_dir_path):
+        create_textfile_dir(node_exporter_root_dir, textfile_dir_name, node_exporter_user, node_exporter_group)
+
+    # Get list of RDMA devices
+    metadata=get_metadata()
+    oci_shape=metadata['shape']
+    rdma_devices = get_rdma_devices(oci_shape)
+    host_serial = ""
+    try:
+        host_serial = get_host_serial()
+    except Exception as e:
+        logger.warning(f"Failed to get host serial number with error: {e}")
+        host_serial = "Unknown"
+
+    # Run the checks every 10 minutes
+    while True:
+        # Check if ibdev2netdev command exists and update status of RDMA interconnects
+        if not rdma_devices:
+            logger.debug(f'Shape does not support RDMA')
+        else:
+            # Check status of all RDMA links
+            rdma_link_metric(textfile_dir_path, node_exporter_user, node_exporter_group)
+            # Check and update status of RTTCC
+            rttcc_status_metric()
+            # Check flapping RDMA links
+            rdma_link_flap_check()
+
+        # Check and update information about version of OCA installed
+        min_required_oca_version = "1.39.0"
+        oca_version_metric(min_required_oca_version)
+
+        # Check if devices have fallen off the bus
+        check_bus_metric()
+
+        # Check if Xid check Passed
+        xid_check()
+
+        # Check if nvidia-smi command exists and run health checks
+        try:
+           subprocess.call(["nvidia-smi"])
+           check_nvidia_gpu_count()
+           check_ecc_errors()
+           check_row_remap_errors()
+
+        except FileNotFoundError:
+           logger.debug(f'Shape does not support nvidia-smi command')
+
+        time.sleep(600)

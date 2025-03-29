@@ -6,88 +6,63 @@
   ignore_unreachable: True
   delegate_to: 127.0.0.1
 
-- name: Get nodes from Inactive Switch
-  block:
-    - name: Get nodes from Inactive Switch
-      vars:
-        - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName=inactive-{{queue}}-{{keyword}}\""
-      register: inactive_switch_condensed
-      run_once: true
-      delegate_to: 127.0.0.1
-    - name: Get inactive list
-      command: "scontrol show hostname {{inactive_switch_condensed.stdout.split('Nodes=')[1] }}"
-      register: inactive_switch
-      run_once: true
-      delegate_to: 127.0.0.1
-    - name: Create inactive list
-      set_fact:
-        inactive_list: "{{inactive_switch.stdout_lines}}"
-  rescue:
-    - name: Create inactive cluster list
-      set_fact:
-        inactive_list: []
-      run_once: true
-
-# - name: Get nodes from Cluster Switch
-#   block:
-#     - name: Get nodes from topology.conf
-#       shell: "cat /etc/slurm/topology.conf | grep \"SwitchName={{cluster_name}}\" | grep Nodes | awk '{ print $2}' | cut -c 7- | tr '\n' ',' | sed 's/,$/\\n/'"
-#       register: cluster_switch
-#       run_once: true
-#       delegate_to: 127.0.0.1
-#     - name: Create existing cluster list
-#       set_fact:
-#         cluster_list: "{{cluster_switch.stdout.split(',')}}"
-#       run_once: true
-#   rescue:
-#     - name: Create existing cluster list
-#       set_fact:
-#         cluster_list: []
-#       run_once: true
+- name: Remove to the gres.conf file on the controller.
+  become: true
+  blockinfile:
+    path: "{{ slurm_conf_path }}/gres.conf"
+    marker: "### {mark} {{ansible_hostname}}"
+  delegate_to: 127.0.0.1
 
 - name: Get hostnames
   set_fact:
     nodes_to_remove_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login'])}}"
+  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) | difference(groups['monitoring'])}}"
   run_once: true
   register: nodes_to_remove_temp_results
 
 - name: Make a list
   set_fact: nodes_to_remove="{{nodes_to_remove_temp_results.results | map(attribute='ansible_facts.nodes_to_remove_temp') | list}}"
   run_once: true
-
-- name: Get new inactive_nodes list
-  command: "scontrol show hostlistsorted {{inactive_list | union(nodes_to_remove) | join(',')}}"
-  register: new_inactive_list
-  run_once: true
-  delegate_to: 127.0.0.1
-
-- name: Adding nodes to inactive
-  vars:
-    - keyword: "{% for partition in queues %}{% for instance in partition.instance_types %}{% if instance.name == instance_type %}{{instance.instance_keyword}}{% endif %}{% endfor %}{% endfor %}"
-  become: true
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{queue}}-{{keyword}}\\sNodes.*"
-    line: "SwitchName=inactive-{{queue}}-{{keyword}} Nodes={{new_inactive_list.stdout }}"
-    state: present
-  run_once: true
-  delegate_to: 127.0.0.1
   
 - name: Run the script to get the RackID
   shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host | jq .rackId'
 #  shell: echo $RANDOM | md5sum | head -c 20
   register: rackID_script
+  retries: 5
+  delay: 5
+  until: rackID_script is not failed
 
-- name: Get RackID
-  set_fact: 
+- name: H100 Block
+  block: 
+    - name: Run the script to get the RDMA Block ID
+      shell: 'curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/host/rdmaTopologyData/customerLocalBlock | grep ocid'
+    #  shell: echo $RANDOM | md5sum | head -c 20
+      register: blockID_script
+      retries: 3
+      delay: 1
+      ignore_errors: true
+      until: blockID_script is not failed
+
+    - name: Set BlockID fact
+      set_fact:
+        rackID: "{{ blockID_script.stdout.split('.')[4][-16:-1]}}"
+      when: blockID_script is not failed 
+
+    - name: Set RackID fact
+      set_fact:
+        rackID: "{{ rackID_script.stdout[1:-41]}}"
+      when: blockID_script is failed
+  when: shape == 'BM.GPU.H100.8' or  shape == 'BM.GPU.H200.8'
+
+- name: Set Rack ID fact on nodes other than H100
+  set_fact:
     rackID: "{{ rackID_script.stdout[1:-41]}}"
+  when: shape != 'BM.GPU.H100.8' and shape != 'BM.GPU.H200.8'
 
 - name: Get rackIDs
   set_fact:
     racks_to_remove_temp: "{{cluster_name}}:{{hostvars[item]['rackID']}}"
-  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login'])}}"
+  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup'])  | difference(groups['login']) | difference(groups['monitoring'])}}"
   run_once: true
   register: racks_to_remove_temp_results
 

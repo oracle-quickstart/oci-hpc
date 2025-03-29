@@ -1,48 +1,86 @@
 ---
-# - name: add grafana repository
-#   become: true
-#   apt_repository: 
-#     name: grafana
-#     description: grafana
-#     baseurl: https://packages.grafana.com/oss/deb stable main
-#     repo_gpgcheck: 1
-#     enabled: 1
-#     gpgcheck: 1
-#     gpgkey: https://packages.grafana.com/gpg.key
-#     sslverify: 1
-#     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
-
-- name: Add grafana key
+- name: Add Grafana GPG key
   become: true
   apt_key:
-    state: present
     url: https://packages.grafana.com/gpg.key
+    state: present
+    keyring: /etc/apt/trusted.gpg.d/grafana-archive-keyring.gpg
 
-- name: Download grafana 8.5.21 package
-  get_url:
-    url: https://dl.grafana.com/oss/release/grafana_8.5.21_amd64.deb
-    dest: /tmp/grafana_8.5.21_amd64.deb
-
-- name: Install grafana 8.5.21 package
+- name: Add Grafana repository
   become: true
-  ansible.builtin.apt:
-    deb: /tmp/grafana_8.5.21_amd64.deb
+  apt_repository:
+    repo: 'deb https://packages.grafana.com/oss/deb stable main'
+    state: present
+    filename: 'grafana'
+
+- name: Update apt cache
+  become: true
+  apt:
+    update_cache: yes
+
+- name: Install Grafana package
+  become: true
+  apt:
+    name: grafana
     state: present
 
-- name: start grafana
+- name: Install Python dependencies
+  pip:
+    name:
+      - Flask
+      - oci
+      - waitress
+    extra_args: --ignore-installed
   become: true
-  service: 
+
+- name: Copy webhook script to server
+  become: true
+  template:
+    src: templates/ons_webhook.py.j2
+    dest: /usr/local/bin/ons_webhook.py
+    mode: '0755'
+    remote_src: true
+
+- name: Copy message template to server
+  become: true
+  copy:
+    src: files/raw_message_template.txt
+    dest: /etc/raw_message_template.txt
+    mode: '0755'
+
+- name: Render systemd service for webhook
+  become: true
+  template:
+    src: ons-webhook.service.j2
+    dest: /etc/systemd/system/ons-webhook.service
+    force: yes
+    backup: yes
+    mode: '0644'
+    remote_src: true
+
+- name: Start and enable webhook service
+  become: true
+  systemd:
+    name: ons-webhook.service
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: ons_topic_ocid != ""
+
+- name: Start and enable Grafana service
+  become: true
+  service:
     name: grafana-server
     state: restarted
-    enabled: true
+    enabled: yes
 
-- name: Ensure grafana key directory exists
+- name: Ensure Grafana key directory exists
   file:
     path: "/etc/opt/oci-hpc/passwords/grafana"
     state: directory
   delegate_to: localhost
 
-- name: Check api key list
+- name: Check Grafana API key list
   uri:
     url: "{{ grafana_api_url }}/api/auth/keys"
     method: GET
@@ -56,44 +94,33 @@
   retries: 5
   delay: 5
 
-# adding ignore errors as yes because of an issue with grafana >=9.1 versions - https://github.com/grafana/grafana/issues/53995
-- name: Create influxdb datasource
+- name: Create Prometheus datasource in Grafana
   grafana_datasource:
-    name: "InfluxDB"
+    name: "Prometheus"
     grafana_url: "{{ grafana_api_url }}"
     grafana_user: "{{ grafana_security.admin_user }}"
     grafana_password: "{{ grafana_security.admin_password }}"
-    org_id: "1"
-    ds_type: "influxdb"
-    ds_url: "http://localhost:8086"
-    database: "telegraf"
-    time_interval: ">10s"
+    ds_type: "prometheus"
+    ds_url: "http://localhost:9090"
   ignore_errors: true
+  register: output
 
-- name: Import grafana dashboards through API
-  uri:
-    url: "{{ grafana_api_url }}/api/dashboards/db"
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    method: POST
-    body_format: json
-    body: >
-      {
-        "dashboard": {{ lookup("file", item) }},
-        "overwrite": true,
-        "message": "Updated by ansible"
-      }
-  no_log: false
-  with_fileglob:
-    - files/cluster.json
+- name: Copy alert rules to grafana provisioning
+  become: true
+  copy:
+    src: files/alert-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    mode: '0777'
 
-#- name: Import Grafana dashboard foo
-#  community.grafana.grafana_dashboard:
-#    grafana_url: "{{ grafana_api_url }}"
-#    grafana_user: "{{ grafana_security.admin_user }}"
-#    grafana_password: "{{ grafana_security.admin_password }}"
-#    state: present
-#    message: Updated by ansible
-#    overwrite: yes
-#    path: files/cluster.json
+- name: Replace all occurrences of a specific string in files
+  become: true
+  ansible.builtin.replace:
+    path: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    regexp: "DATASOURCE_UID"
+    replace: "{{ output.datasource.uid }}"
+
+- name: Restart grafana
+  become: true
+  ansible.builtin.service:
+    name: grafana-server
+    state: restarted
