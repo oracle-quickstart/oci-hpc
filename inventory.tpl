@@ -81,6 +81,9 @@ sacct_limits=${sacct_limits}
 use_compute_agent=${use_compute_agent}
 zone_name=${zone_name}
 dns_entries=${dns_entries}
+vcn_compartment=${vcn_compartment}
 healthchecks=${healthchecks}
 change_hostname=${change_hostname}
 hostname_convention=${hostname_convention}
+ons_topic_ocid=${ons_topic_ocid}
+

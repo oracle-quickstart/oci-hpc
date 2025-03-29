@@ -34,3 +34,4 @@
   register: restart_cloud_agent_updater
   until: restart_cloud_agent_updater is not failed
   when: updater_exist.stat.exists
+  ignore_errors: yes

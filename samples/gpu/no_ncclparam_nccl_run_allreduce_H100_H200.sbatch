@@ -31,7 +31,7 @@ if [[ "$mpivars_path" == "" ]]; then
 source $mpivars_path
 
 shape=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape`
-if [ $shape == \"BM.GPU.H100.8\" ]
+if [ $shape == \"BM.GPU.H100.8\" ] || [ $shape == \"BM.GPU.H200.8\" ]
 then
   var_UCX_NET_DEVICES=eth0
 else

@@ -1,0 +1,17 @@
+************************************
+Alert: {{ alert_name }}
+Status: {{ alert_status }}
+{{ alert_message }}
+Starts At: {{ starts_at }}
+Ends At: {{ ends_at }}
+-----------------------------------
+Labels:
+{% for key, value in labels.items() %}
+{{ key }}: {{ value }}
+{% endfor %}
+-----------------------------------
+Annotations:
+{% for key, value in annotations.items() %}
+{{ key }}: {{ value }}
+{% endfor %}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

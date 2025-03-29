@@ -69,9 +69,17 @@
     
 - name: Run command deactivate selinux for node_exporter, semanage  
   become: true
-  command: semanage fcontext -a -t bin_t "/usr/bin/node_exporter"
+  command: python3 /usr/sbin/semanage fcontext -a -t bin_t "/usr/bin/node_exporter"
   register: node_exporter
   failed_when: "node_exporter.rc != 0 and 'already defined' not in node_exporter.stderr"
+  when: ansible_distribution_major_version == '8'
+
+- name: Run command deactivate selinux for node_exporter, semanage  
+  become: true
+  command: python3 /usr/sbin/semanage fcontext -a -t bin_t "/usr/bin/node_exporter"
+  register: node_exporter
+  failed_when: "node_exporter.rc != 0 and 'already defined' not in node_exporter.stderr"
+  when: ansible_distribution_major_version != '8'
 
 - name: start node_exporter.service
   become: true

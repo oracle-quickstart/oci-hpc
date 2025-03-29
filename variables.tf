@@ -25,6 +25,11 @@ variable "use_multiple_ads" {
 variable "ssh_key" {
   type = string
 }
+variable "compute_node_ssh_key" {
+  type = string
+  default = "" 
+}
+
 variable "cluster_network" { 
   default = true 
   type = bool
@@ -340,10 +345,11 @@ variable "marketplace_listing" {
 variable "marketplace_version_id" {
   type = map(string)
   default = {
-    "HPC_OL8"       = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.09.18-0"
-    "GPU_OL8_NV560" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-560-CUDA-12.6-2024.09.18-0"
-    "GPU_OL8_NV550" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.09.18-0"
-    "GPU_OL8_NV535" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.09.18-0"
+    "HPC_OL8"       = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-2025.03.27-0"
+    "GPU_OL8_NV550" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
+    "GPU_OL8_NV560" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
+    "GPU_OL8_NV570" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
+    "GPU_OL8_AMD632" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-AMD-ROCM-632-2025.03.28-0"
   }
 }
 
@@ -481,7 +487,7 @@ variable "fss_ad" {
   type = string
   }
 variable "nfs_target_path" { 
-  default = "/app"
+  default = "/fss"
   type = string
   }
 variable "nfs_source_IP" { 
@@ -493,7 +499,7 @@ variable "nfs_list_of_mount_target_IPs" {
   type = string
   }
 variable "nfs_source_path" { 
-  default = "/app"
+  default = "/fss"
   type = string
   }
 variable "nfs_options" { 
@@ -505,6 +511,10 @@ variable "enroot" {
   type = bool
   }
 variable "cluster_monitoring" { 
+  default = false
+  type = bool
+  }
+variable "alerting" { 
   default = false
   type = bool
   }

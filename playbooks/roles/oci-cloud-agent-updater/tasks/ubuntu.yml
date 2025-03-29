@@ -25,6 +25,7 @@
   register: restart_cloud_agent_updater
   until: restart_cloud_agent_updater is not failed
   when: updater_exist.stat.exists
+  ignore_errors: yes
 
 # oracle-cloud-agent runs by default on ubuntu 
 # However it doesn't have osms (OS Management Service) which we had to disable on Oracle Linux

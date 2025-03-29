@@ -214,7 +214,12 @@ def getstatus_slurm():
 
                 nodes=int(new_line[3])
                 jobID=int(new_line[1])
-                cluster_to_build.append([nodes,instanceType,queue,jobID,user])
+                if isPermanent(config,queue,instanceType) is None :
+                    continue
+                elif isPermanent(config,queue,instanceType):
+                    continue
+                else:
+                    cluster_to_build.append([nodes,instanceType,queue,jobID,user])
 
     cluster_to_destroy=[]
     current_nodes={}

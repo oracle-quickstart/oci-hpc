@@ -100,6 +100,7 @@ do
   if [ $status -eq 0 ]
   then
     echo "Successfully created $2 in $runtime seconds"
+    sleep 60 # Give the jobs some time to start
     rm currently_building
     if [ -f $monitoring_folder/activated ]
     then
@@ -161,6 +162,7 @@ do
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; INSERT INTO cluster_log.errors_timeserie (cluster_id,state,error_log,error_type,nodes,created_on_m,class_name) VALUES ('$2_${date}','creation','$logs_folder/create_$2_${date}.log','$ERROR_MSG $inst_pool_work_request_error_messages $cn_work_request_error_messages','$1','$end_timestamp','$4');" >> $logs_folder/create_$2_${date}.log 2>&1
       mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET state='deleting',creation_error='`tail $logs_folder/create_$2_${date}.log | grep Error`' WHERE id='$2_${date}';" >> $logs_folder/create_$2_${date}.log 2>&1
     fi
+    sleep 60 # Give the jobs some time to start
     rm currently_building
   fi
 done

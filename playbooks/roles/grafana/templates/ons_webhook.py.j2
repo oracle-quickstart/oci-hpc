@@ -1,0 +1,91 @@
+from flask import Flask, request, jsonify, render_template_string
+import oci
+import json
+import logging
+import os
+
+app = Flask(__name__)
+
+topic_id = "{{ ons_topic_ocid }}"
+
+def generate_message(alert_name, alert_status, alert_message, starts_at, ends_at, labels, annotations):
+    message_content = render_template_string(
+        template,
+        alert_name=alert_name,
+        alert_status=alert_status,
+        alert_message=alert_message,
+        starts_at=starts_at,
+        ends_at=ends_at,
+        labels=labels,
+        annotations=annotations
+    )
+    return message_content
+
+# Route to handle incoming Grafana alerts
+@app.route('/grafana-webhook', methods=['POST'])
+def grafana_webhook():
+    try:
+        # Use Instance Principals for authentication
+        signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+        notification_client = oci.ons.NotificationDataPlaneClient({}, signer=signer)
+    except Exception as e:
+        logging.error(f"Error initializing OCI client: {e}")
+        return jsonify({'status': 'error', 'message': 'Config error'}), 500
+    
+    # Get the incoming alert data from the request
+    alert_data = request.get_json()
+    if not alert_data:
+        return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
+    
+    try:
+        # Process each alert
+        alerts = alert_data.get('alerts', [])
+        for alert in alerts:
+            status = alert.get('status')
+            labels = alert.get('labels', {})
+            annotations = alert.get('annotations', {})
+            starts_at = alert.get('startsAt')
+            ends_at = alert.get('endsAt')
+            name = labels.get('alertname', 'No Alert Name')
+            desc = annotations.get('description', 'No Description')
+
+            # Render the alert message using the template
+            alert_message = generate_message(
+                alert_name=name,
+                alert_status=status,
+                alert_message=desc,
+                starts_at=starts_at,
+                ends_at=ends_at,
+                labels=labels,
+                annotations=annotations
+            )
+
+            # Log alert message for tracking alerts in case we dont have access to alerts
+            logging.info(alert_message);
+
+            # Publish the formatted alert message to the OCI Notification Topic
+            message_details = oci.ons.models.MessageDetails(
+                title="GPU Cluster Alert",
+                body=alert_message
+            )
+            response = notification_client.publish_message(
+                topic_id=topic_id,  # Use the dynamically fetched topic_id
+                message_details=message_details
+            )
+
+            logging.info(f"Message published. Message ID: {response.data.message_id}")
+        
+        return jsonify({'status': 'success', 'message': 'Alert processed'}), 200
+
+    except Exception as e:
+        logging.error(f"Error processing alert: {e}")
+        return jsonify({'status': 'error', 'message': 'Error processing alert'}), 500
+
+# Start the Flask app and listen on port 5000
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    # Load and render the common template
+    with open('/etc/raw_message_template.txt') as f:
+        template = f.read()
+    from waitress import serve
+    serve(app, host='0.0.0.0', port=5000)

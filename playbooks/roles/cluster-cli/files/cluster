@@ -1,6 +1,6 @@
 #!/usr/bin/env /usr/bin/python3
 import ldap3
-from ldap3 import MODIFY_ADD
+from ldap3 import MODIFY_ADD, MODIFY_REPLACE
 import click
 import grp
 import pwd
@@ -128,7 +128,7 @@ def create(group, gid):
 @group.command()
 @click.argument('group')
 def delete(group):
-  """ delete user """
+  """ delete group """
   search_base = groups_dn
   server = ldap3.Server(host, use_ssl=True)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
@@ -157,13 +157,50 @@ def list():
 
 @user.command()
 @click.argument('user')
+@click.option('-p', '--password', default=None, help='Edit password')
+@click.option('-n', '--name', default=None, help='Edit name')
+@click.option('-i', '--uid', default=None, help='Select the userID')
+@click.option('-g', '--gid', default="9876", help='Add to this groupID')
+@click.option('-shell', '--shell', default="/bin/bash", help='Use as default shell, ex /bin/bash')
+def edit(user, password, uid, gid, name, shell):
+  """ edit user """
+  search_base = people_dn
+  dict_to_edit={}
+  if not uid is None: 
+    dict_to_edit['uidNumber']= [(MODIFY_REPLACE, [uid])]
+  if not gid is None: 
+    dict_to_edit['gidNumber']= [(MODIFY_REPLACE, [gid])]
+  if not password is None: 
+    dict_to_edit['userPassword']= [(MODIFY_REPLACE, [password])]
+  if not name is None: 
+    dict_to_edit['gecos']= [(MODIFY_REPLACE, [name])]
+    dict_to_edit['displayName']= [(MODIFY_REPLACE, [name])]
+  if not shell is None: 
+    dict_to_edit['loginShell']= [(MODIFY_REPLACE, [shell])]
+
+  server = ldap3.Server(host, use_ssl=True)
+  with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
+    conn.modify("cn={},{}".format(user,search_base), dict_to_edit)
+  if(conn.result['result'] != 0): 
+    print(conn.result)
+
+  if exists('gid', gid) is False:
+
+    click.echo('Creating group')
+    conn.add("cn={},{}".format(user, groups_dn), ['top', 'groupOfMembers', 'posixgroup'], { 'cn': [user], 'gidNumber': [gid] } )
+    if(conn.result['result'] != 0): 
+      print(conn.result)
+
+@user.command()
+@click.argument('user')
 @click.option('-p', '--password', prompt='Password', required=True, hide_input=True,
               confirmation_prompt=True)
 @click.option('-n', '--name', prompt='Full Name', required=True)
 @click.option('-i', '--uid', default=None, help='Select the userID')
 @click.option('-g', '--gid', default="9876", help='Add to this groupID')
+@click.option('-shell', '--shell', default="/bin/bash", help='Use as default shell, ex /bin/bash')
 @click.option('-nossh', '--nossh', is_flag=True, default=False, help='Flag to not generate a user-specific ssh-key pair for passwordless ssh.')
-def add(user, password, uid, gid, name, nossh): 
+def add(user, password, uid, gid, name, nossh, shell):
   """ add user """
   search_base = people_dn
   if uid is None: 
@@ -173,7 +210,7 @@ def add(user, password, uid, gid, name, nossh):
 
   server = ldap3.Server(host, use_ssl=True)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
-    conn.add("cn={},{}".format(user, search_base), ['inetOrgPerson', 'posixAccount', 'top', 'shadowAccount'], { 'sn': user, 'uid': user, 'uidNumber': uid, 'gidNumber': gid, 'userPassword': password, 'gecos': name, 'homeDirectory': '/home/{}'.format(user), 'displayName': name, 'loginShell': '/bin/bash' } )
+    conn.add("cn={},{}".format(user, search_base), ['inetOrgPerson', 'posixAccount', 'top', 'shadowAccount'], { 'sn': user, 'uid': user, 'uidNumber': uid, 'gidNumber': gid, 'userPassword': password, 'gecos': name, 'homeDirectory': '/home/{}'.format(user), 'displayName': name, 'loginShell': shell } )
   if(conn.result['result'] != 0): 
     print(conn.result)
 

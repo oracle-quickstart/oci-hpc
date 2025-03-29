@@ -64,6 +64,7 @@
   retries: 5
   register: restart_cloud_agent_updater
   until: restart_cloud_agent_updater is not failed
+  ignore_errors: True
 
 - name: Restart cloud agent
   service: 

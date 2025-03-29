@@ -4,8 +4,8 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-User={{ ansible_user }}
-Group={{ ansible_user }}
+User=root
+Group=root
 Type=simple
 ExecStart={{ ne_script_dir }}/custom_metrics.py
 

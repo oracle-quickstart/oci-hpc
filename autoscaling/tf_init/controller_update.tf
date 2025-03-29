@@ -33,6 +33,7 @@ resource "local_file" "inventory" {
     rdma_netmask = cidrnetmask(var.rdma_subnet),
     zone_name = var.zone_name,
     dns_entries = var.dns_entries,
+    vcn_compartment = var.vcn_compartment,
     nfs = var.use_scratch_nfs ? local.cluster_instances_names[0] : "",
     scratch_nfs = var.use_scratch_nfs,
     cluster_nfs = var.use_cluster_nfs,
@@ -82,7 +83,8 @@ resource "local_file" "inventory" {
     use_compute_agent=var.use_compute_agent,
     healthchecks=var.healthchecks,
     change_hostname=var.change_hostname,
-    hostname_convention=var.hostname_convention
+    hostname_convention=var.hostname_convention,
+    ons_topic_ocid=var.ons_topic_ocid
     })
   filename   = "${local.controller_path}/inventory"
 }

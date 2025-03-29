@@ -36,6 +36,13 @@ variableGroups:
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
       - ${controller_object_storage_par}
+      - ${use_marketplace_image_controller}
+      - ${marketplace_listing_controller}
+      - ${unsupported_controller}
+      - ${controller_image_compartment}
+      - ${custom_controller_image}
+      - ${unsupported_controller_image}
+      - ${controller_username}
   - title: "Compute node options"
     variables:
       - ${use_multiple_ads}
@@ -97,6 +104,7 @@ variableGroups:
   - title: "Cluster Monitoring"
     variables:
       - ${cluster_monitoring}
+      - ${alerting}
       - ${monitoring_node}
       - ${monitoring_ad}
       - ${monitoring_shape}
@@ -145,20 +153,12 @@ variableGroups:
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
-  - title: "Advanced controller options"
-    variables:
-      - ${use_marketplace_image_controller}
-      - ${marketplace_listing_controller}
-      - ${unsupported_controller}
-      - ${controller_image_compartment}
-      - ${custom_controller_image}
-      - ${unsupported_controller_image}
-      - ${controller_username}
   - title: "Advanced storage options"
     variables:
       - ${use_advanced}
       - ${home_nfs}
       - ${home_fss}
+      - ${compute_node_ssh_key}
       - ${use_cluster_nfs}
       - ${cluster_nfs_path}
       - ${controller_block}
@@ -303,7 +303,7 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
-    default: VM.Standard.E4.Flex
+    default: VM.Standard.E5.Flex
   controller_ocpus:
     title: "Cores"
     type: integer
@@ -441,9 +441,10 @@ variables:
     required: true
     enum:
       - "HPC_OL8"
+      - "GPU_OL8_NV570"
       - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL8_NV535"
+      - "GPU_OL8_AMD632"
     default: "HPC_OL8"
     visible: ${use_marketplace_image_controller}
 
@@ -553,6 +554,20 @@ variables:
         - ${add_nfs}
     default: false
 
+
+  compute_node_ssh_key:
+    type: oci:core:ssh:publickey
+    title: "Public SSH key of the compute nodes"
+    description: "Public SSH key of the compute nodes. If re-using an existing FSS/NFS as /home, the public key must match the default private in the ~/.ssh directory.  "
+    visible:
+      and:
+        - ${use_advanced}
+        - ${home_nfs}
+        - ${add_nfs}
+        - ${home_fss}
+        - not: 
+          - ${create_fss}
+
   use_cluster_nfs:
     type: boolean
     title: "shared NFS volume from controller"
@@ -613,6 +628,7 @@ variables:
       - "BM.GPU.B4.8"
       - "BM.GPU.A100-v2.8"
       - "BM.GPU.H100.8"
+      - "BM.GPU.H200.8"
       - "BM.GPU.MI300X.8"
       - "BM.GPU.L40S.4"
       - "BM.Optimized3.36"
@@ -628,7 +644,7 @@ variables:
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
     required: true
-    default: "VM.Standard.E4.Flex"
+    default: "VM.Standard.E5.Flex"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -786,10 +802,11 @@ variables:
     required: true
     enum:
       - "HPC_OL8"
+      - "GPU_OL8_NV570"
       - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL8_NV535"
-    default: "GPU_OL8_NV550"
+      - "GPU_OL8_AMD632"
+    default: "GPU_OL8_NV570"
     visible: ${use_marketplace_image}
 
   compute_image_compartment:
@@ -1045,7 +1062,7 @@ variables:
   vcn_compartment:
     title: "VCN compartment"
     type: oci:identity:compartment:id
-    visible: ${use_existing_vcn}
+    visible: true
     default: ${targetCompartment}
     required: true
   vcn_id:
@@ -1083,7 +1100,7 @@ variables:
     description: "Only available for a private zone" 
   zone_name:
     title: Private Zone Name
-    description: "The zone needs to be private for the stack to be able to add entries"
+    description: "The zone needs to be private and unprotected for the stack to be able to add entries"
     type: string
     visible: 
       and:
@@ -1165,7 +1182,7 @@ variables:
   pyxis:
     type: boolean
     title: "Install Nvidia Pyxis plugin for Slurm"
-    default: false
+    default: true
     description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm. (Warning: using Pyxis with autoscaling is causing an issue that prevents jobs from being scheduled on nodes to be spun up)"
     visible:
       and:
@@ -1198,7 +1215,7 @@ variables:
   enroot:
     type: boolean
     title: "Install Nvidia Enroot for containerized GPU workloads"
-    default: false
+    default: true
     description: "Install Enroot, Nvidia Container Toolkit, and docker."
     visible: ${slurm}
 
@@ -1207,6 +1224,13 @@ variables:
     title: "Install HPC Cluster Monitoring Tools"
     default: false
     description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
+
+  alerting:
+    type: boolean
+    title: "Install HPC Cluster alerting Tools"
+    default: false
+    description: "Creates a Topic that you can subscribe to"
+    visible: ${cluster_monitoring}
 
   pam:
     type: boolean
@@ -1225,7 +1249,7 @@ variables:
   healthchecks:
     type: boolean
     title: "Turn on Healthchecks for GPU nodes"
-    default: false
+    default: true
     description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state"
     visible: ${slurm}
 
@@ -1360,7 +1384,7 @@ variables:
   nfs_target_path:
     type: string
     title: "NFS Path"
-    default: "/app"
+    default: "/fss"
     description: "Value of the path on which you can mount the drive"
     visible: 
       and:
@@ -1380,7 +1404,7 @@ variables:
   nfs_source_path:
     type: string
     title: "NFS server Path"
-    default: "/app"
+    default: "/fss"
     description: "Value of the path on the NFS server"
     visible: ${add_nfs}
     required: true
@@ -1484,7 +1508,7 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
-    default: VM.Standard.E4.Flex
+    default: VM.Standard.E5.Flex
     visible: ${login_node}
 
   login_ocpus:
@@ -1709,9 +1733,10 @@ variables:
     required: true
     enum:
       - "HPC_OL8"
+      - "GPU_OL8_NV570"
       - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL8_NV535"
+      - "GPU_OL8_AMD632"
     default: "HPC_OL8"
     visible:
       and:
@@ -1745,7 +1770,7 @@ variables:
     dependsOn:
       compartmentId: ${targetCompartment}
     required: true
-    default: VM.Standard.E4.Flex
+    default: VM.Standard.E5.Flex
     visible: ${monitoring_node}
 
   monitoring_ocpus:
@@ -1939,9 +1964,10 @@ variables:
     required: true
     enum:
       - "HPC_OL8"
+      - "GPU_OL8_NV570"
       - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
-      - "GPU_OL8_NV535"
+      - "GPU_OL8_AMD632"
     default: "HPC_OL8"
     visible:
       and:

@@ -383,6 +383,8 @@ def check_nvidia_gpu_count():
     # GPUs allocated available per shape
     if oci_shape == "BM.GPU.H100.8":
         alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.H200.8":
+         alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.B4.8":
          alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.A100-v2.8":
@@ -537,13 +539,13 @@ def check_row_remap_errors():
             continue
         tmp_data = line.split(",")
         tmp_data = [x.strip() for x in tmp_data]
-        if tmp_data[0] != "0":
+        if tmp_data[0] != "0" and tmp_data[0] != "No":
             logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
             remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
-        if tmp_data[1] != "0":
+        if tmp_data[1] != "0" and tmp_data[1] != "No":
             logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
             #remap_issues.append(f"GPU: {i} Row Remap Failure: {tmp_data[1]}")
-        if tmp_data[2] != "0":
+        if tmp_data[2] != "0" and tmp_data[2] != "No":
             logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
             if int(tmp_data[2]) > 512:
                 remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
@@ -607,7 +609,7 @@ def xid_check():
         help_text = "# HELP xid_error_check Pass or Fail based on xid errors thrown by GPU on a PCI Device "
         type_text = "# TYPE xid_error_check gauge"
         tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
-        if output.find("Passed") > 0:
+        if output.find("Passed") > 0 or output.find("INFO") > 0:
             metric_text = "xid_error_check 1" + "\n"
             print(metric_text)
             tmp_tf.write('{}'.format(metric_text))

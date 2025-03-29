@@ -20,7 +20,7 @@ variable "use_scratch_nfs" { default = ${use_scratch_nfs} }
 variable "cluster_nfs_path" {default = "${cluster_nfs_path}"}
 variable "use_cluster_nfs" { default = ${use_cluster_nfs} }
 variable "image" { default = "##IMAGE##" }
-variable "vcn_compartment" { default = ""}
+variable "vcn_compartment" { default = "${vcn_compartment}"}
 variable "use_existing_vcn" {default = true}
 variable "vcn_subnet" {default = "${vcn_subnet}"}
 variable "vcn_id" {default = "${vcn_id}"}
@@ -53,10 +53,11 @@ variable "marketplace_listing" {
 variable "marketplace_version_id" { 
   type = map(string) 
   default = { 
-    "HPC_OL8"       = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-2024.09.18-0"
-    "GPU_OL8_NV560" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-560-CUDA-12.6-2024.09.18-0"
-    "GPU_OL8_NV550" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-550-CUDA-12.4-2024.09.18-0"
-    "GPU_OL8_NV535" = "OracleLinux-8-OCA-RHCK-OFED-23.10-2.1.3.1-GPU-535-CUDA-12.2-2024.09.18-0"
+    "HPC_OL8"       = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-2025.03.27-0"
+    "GPU_OL8_NV550" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
+    "GPU_OL8_NV560" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
+    "GPU_OL8_NV570" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
+    "GPU_OL8_AMD632" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-AMD-ROCM-632-2025.03.28-0"
   }
 }
 
@@ -162,4 +163,7 @@ variable "change_hostname" {
 }
 variable "hostname_convention" {
   default = "##HOST_CONV##"
+}
+variable "ons_topic_ocid" {
+  default = "${ons_topic_ocid}"
 }

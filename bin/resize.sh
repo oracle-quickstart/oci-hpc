@@ -23,7 +23,7 @@ fi
 
 if [ $# -eq 0 ] || [ $1 == "--help" ]
 then
-  /usr/bin/python3 $folder/resize.py --help
+  /usr/bin/python3 $folder/resize/resize.py --help
   exit
 fi
 
@@ -104,7 +104,7 @@ then
     mysql -u $ENV_MYSQL_USER -p$ENV_MYSQL_PASS -e "use $ENV_MYSQL_DATABASE_NAME; UPDATE cluster_log.clusters SET started_resize='$start_timestamp',state='resizing' WHERE id='$cluster_id'" >> $log 2>&1
   fi
 
-  /usr/bin/python3 $folder/resize.py ${@} | tee -a $log 2>&1 | grep STDOUT
+  /usr/bin/python3 $folder/resize/resize.py ${@} | tee -a $log 2>&1 | grep STDOUT
   status=${PIPESTATUS[0]}
   end=`date -u +%s`
   end_timestamp=`date -u +'%F %T'`
@@ -115,7 +115,7 @@ then
     echo "Successfully Resized cluster $cluster_name in $runtime seconds"
     if [ -f $monitoring_folder/activated ]
     then
-      nodes_list=`/usr/bin/python3 $folder/resize.py --cluster_name $cluster_name list | grep ocid1.instance`
+      nodes_list=`/usr/bin/python3 $folder/resize/resize.py --cluster_name $cluster_name list | grep ocid1.instance`
 
       length=`echo $nodes_list | wc -w`
       newSize=$((length/3))
@@ -170,5 +170,5 @@ then
     rm currently_resizing
   fi
 else
-  /usr/bin/python3 $folder/resize.py ${@}
+  /usr/bin/python3 $folder/resize/resize.py ${@}
 fi

@@ -55,13 +55,13 @@ data "oci_core_vcn" "vcn" {
 } 
 
 data "oci_dns_views" "dns_views" {
-  compartment_id = var.targetCompartment
+  compartment_id = var.vcn_compartment
   scope = "PRIVATE"
   display_name = data.oci_core_vcn.vcn.display_name
 }
 
 data "oci_dns_zones" "dns_zones" {
-    compartment_id = var.targetCompartment
+    compartment_id = var.vcn_compartment
     name = "${var.zone_name}"
     zone_type = "PRIMARY"
     scope = "PRIVATE"
