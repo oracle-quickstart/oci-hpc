@@ -6,6 +6,7 @@
 #
 # wait for cloud-init completion on the controller host
 #
+echo compute.sh
 if [ $# -eq 0 ] 
 then
   cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`

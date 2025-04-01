@@ -6,6 +6,8 @@
 #
 # wait for cloud-init completion on the controller host
 #
+
+echo login.sh
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
 source /etc/os-release
