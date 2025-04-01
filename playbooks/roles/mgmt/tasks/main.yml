@@ -51,5 +51,5 @@
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias mgmt="source /config/venv/bin/activate; python3 /config/mgmt/mgmt.py"
+    line: alias mgmt="/config/venv/bin/python3 /config/mgmt/mgmt.py"
     state: present
