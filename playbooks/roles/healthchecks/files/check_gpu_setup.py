@@ -35,7 +35,6 @@ Usage:
 import subprocess
 import re
 import argparse
-from datetime import datetime
 from shared_logging import logger
 from gpu_bw_test import BandwidthTest
 from rdma_link_flapping import LinkFlappingTest
@@ -45,6 +44,15 @@ import os
 import requests
 import json
 import time
+import sys
+import socket
+import psutil
+
+version = sys.version_info
+if version >= (3, 12):
+    from datetime import datetime, timedelta, UTC
+else:
+    from datetime import datetime, timedelta
 
 #Section 0: Common Functions for all Health Checks.
 ###################################################
@@ -856,6 +864,39 @@ def check_bad_pages():
     else:
         logger.info("GPU Pending Bad Pages Check: Passed")
 
+# 17.1 Check if all interfaces have an IP address
+def check_ip_addresses(metadata):
+    devices = get_devices()    
+    devices_per_interface={}
+    infiniband_dir="/sys/class/infiniband"
+    for device in devices:
+        device_path = os.path.join(infiniband_dir, device, "device", "net")
+        if os.path.exists(device_path):
+            for interface in os.listdir(device_path):
+                devices_per_interface[interface]=device
+                break
+
+    missing_ips=[]
+    interface_map = {}
+    for interface, addrs in psutil.net_if_addrs().items():
+        if not interface in devices_per_interface.keys():
+            continue
+        ip_address = None
+        # Get IPv4 address
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                ip_address = addr.address
+                break  # Only take the first IPv4 address
+        if devices_per_interface[interface] in devices and ip_address is None:
+            missing_ips.append(interface)
+        # Store details
+        interface_map[interface] = {
+            "device_name": devices_per_interface[interface],
+            "interface": interface,
+            "ip_address": ip_address
+        }
+    return missing_ips,interface_map
+
 #Section 2: Main function and args to run all checks (1.2 - 16.2)
 #################################################################
 
@@ -883,6 +924,7 @@ if __name__ == '__main__':
     parser.add_argument('--fabric-mgr', action='store_true', help='Run Fabric Manager check')
     parser.add_argument('--cpu-profile', action='store_true', help='Run CPU profile check')
     parser.add_argument('--bad-page', action='store_true', help='Run bad pages check')
+    parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have an IP address')
 
     args = parser.parse_args()
     metadata = get_metadata()
@@ -1055,6 +1097,17 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check pending bad pages: {e}")
             bad_page_issues = []
 
+    # 17.3 Check if AMD GPU has pending bad pages
+    if run_all or args.ip_address:   
+        try:
+            metadata = get_metadata()
+            missing_ips,ip_list = check_ip_addresses(metadata)
+            if len(missing_ips) == 0:
+                logger.info("All interfaces have an IP defined: Passed")
+        except Exception as e:
+            logger.warning(f"Failed to get all IPS: {e}")
+            missing_ips = []
+
 #Section 4: Summarize the results and recommend actions.
 ########################################################
     
@@ -1210,6 +1263,13 @@ if __name__ == '__main__':
             slurm_reason("GPU Bad page error")
             action = recommended_action(action, "Reboot")
 
+    # 17.4 Summarize pending bad pages check for AMD
+    if run_all or args.ip_address: 
+        if len(missing_ips) > 0:
+            logger.error("Missing IPs for these interfaces: "+missing_ips.join(','))
+            slurm_reason("Missing IPs")
+            action = recommended_action(action, "Reboot")
+
     # Print recommended action and slurm message
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
     if action == "Reboot":
@@ -1224,3 +1284,28 @@ if __name__ == '__main__':
     if slurm_error_count > 0 and args.slurm:
         print("Healthcheck:: " + slurm_drain_reason[:-1])
         print("Healthcheck:: Recommended Action:" + str(action))
+
+    http_server_file="/opt/oci-hpc/http_server/files/info"
+    # Read the existing data from the file
+    try:
+        with open(http_server_file, 'r') as file:
+            data = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        print("Error: File not found or not in valid JSON format.")
+        exit(0)
+    current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
+    if action is None:
+        data["healthcheck_recomandation"] = "Healthy"
+    else:
+        data["healthcheck_recomandation"] = action
+    data["last_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    # Read the healthcheck.log file content
+    try:
+        with open("/tmp/latest_healthcheck.log", 'r') as log_file:
+            data["healthcheck_logs"] = log_file.read(1023)  # Store log content in JSON
+    except FileNotFoundError:
+        logger.warning("Log file not found, initializing empty logs.")
+        data["healthcheck_logs"] = ""
+    # Write updated data back to the file
+    with open(http_server_file, 'w') as file:
+        json.dump(data, file, indent=4)
