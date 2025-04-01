@@ -165,6 +165,17 @@ resource "null_resource" "controller" {
   }
 
   provisioner "file" {
+    source      = "cloud-init.sh"
+    destination = "/config/"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
     source      = "logs"
     destination = "/opt/oci-hpc/"
     connection {
