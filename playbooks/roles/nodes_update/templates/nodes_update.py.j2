@@ -159,9 +159,9 @@ def run_ansible():
 # Parse nodes and update records in DB
 def check_nodes_status():
     if version >= (3, 12):
-        time_threshold = current_time.now(UTC) - unreachable_timeout
+        time_threshold = (current_time.now(UTC) - unreachable_timeout).replace(tzinfo=timezone.utc)
     else:
-        time_threshold = current_time.utcnow() - unreachable_timeout
+        time_threshold = (current_time.utcnow() - unreachable_timeout).replace(tzinfo=timezone.utc)
     query = """
     SELECT * FROM nodes
     WHERE status NOT IN ('terminated', 'terminating');
@@ -231,9 +231,9 @@ def check_nodes_status():
 
 def clean_old_terminated_nodes():
     if version >= (3, 12):
-        time_threshold = current_time.now(UTC) - retaining_period
+        time_threshold = (current_time.now(UTC) - retaining_period).replace(tzinfo=timezone.utc) 
     else:
-        time_threshold = current_time.utcnow() - retaining_period
+        time_threshold = (current_time.utcnow()- retaining_period).replace(tzinfo=timezone.utc) 
     query = """
     SELECT * FROM nodes
     WHERE status IN ('terminated');
