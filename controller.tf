@@ -155,7 +155,7 @@ resource "null_resource" "controller" {
 
   provisioner "file" {
     source      = "cloud-init.sh"
-    destination = "/opt/oci-hpc/autoscaling/tf_init/"
+    destination = "/opt/oci-hpc/autoscaling/tf_init/cloud-init.sh"
     connection {
       host        = local.host
       type        = "ssh"
@@ -166,7 +166,7 @@ resource "null_resource" "controller" {
 
   provisioner "file" {
     source      = "cloud-init.sh"
-    destination = "/config/"
+    destination = "/config/cloud-init.sh"
     connection {
       host        = local.host
       type        = "ssh"
