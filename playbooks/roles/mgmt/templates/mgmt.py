@@ -39,10 +39,10 @@ if args.context_help:
     if args.create_cluster:
         print("--create_cluster_instance_type INSTANCE_TYPE             Specify an instance type from /opt/oci-hpc/conf/queues.conf")
         print("--create_cluster_inst_config INSTANCE_CONFIG             Specify an instance configuration OCID")
-        print("--create_cluster_type CLUSTER_TYPE                       Specify a type of cluster: CN=Cluster Network, CC=Compute Cluster, IPA=Instance Pool, SA=Stand Alone Instances")
         print("--create_cluster_count COUNT                             Specify the initial number of nodes")
-        print("--create_cluster_ad AD                                   Specify the AD of the cluster if using INSTANCE_CONFIG OCID")
-        print("--create_cluster_subnet SUBNET                           Specify the subnet OCID if using INSTANCE_CONFIG OCID")
+        print("--create_cluster_type CLUSTER_TYPE                       With instance configuration: Specify a type of cluster: CN=Cluster Network, CC=Compute Cluster, IPA=Instance Pool, SA=Stand Alone Instances")
+        print("--create_cluster_ad AD                                   With instance configuration: Specify the AD of the cluster if using INSTANCE_CONFIG OCID")
+        print("--create_cluster_subnet SUBNET                           With instance configuration: Specify the subnet OCID if using INSTANCE_CONFIG OCID")
         exit(1)
     if args.bvr:
         print("--image IMAGE            Specify an image OCID to run Boot Volume Replacement")
@@ -289,7 +289,7 @@ if args.configure:
                 config_list.append(instance)
     logger.info(f"Restarting the configuration script on: {NodeSet(','.join(nodes_list))}")
     task = task_self()
-    task.shell("/config/compute.sh", nodes=NodeSet(','.join([i['ip_address'] for i in config_list])))
+    task.shell("sudo /config/cloud-init.sh", nodes=NodeSet(','.join([i['ip_address'] for i in config_list])))
     task.run()
     logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
