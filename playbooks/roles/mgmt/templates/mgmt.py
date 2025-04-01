@@ -20,6 +20,7 @@ parser.add_argument("-r","--reboot", action="store_true", help="Reboot flag")
 parser.add_argument("-tag","--tag", action="store_true", help="Tagged nodes unhealthy")
 parser.add_argument("-t","--terminate", action="store_true", help="Terminate nodes")
 parser.add_argument("-bvr","--bvr", action="store_true", help="Replace the Boot Volume")
+parser.add_argument("-conf","--configure", action="store_true", help="Rerun the cloud-init script")
 parser.add_argument("-i","--image", type=str, help=argparse.SUPPRESS)
 parser.add_argument("-d","--details", action="store_true", help="Give details on the nodes")
 parser.add_argument("-add","--add", type=int, default=0, help="Add nodes to the cluster defined")
@@ -50,13 +51,13 @@ if args.context_help:
 if args.nodes:
     nodes_list = NodeSet(args.nodes)
     logger.info(f"Processing nodes: {nodes_list}")
-else: 
+else:
     nodes_list= NodeSet()
     logger.info(f"Processing all nodes")
 if args.clusters:
     clusters_list_defined = args.clusters.split(',')
     logger.info(f"Processing Clusters: {clusters_list_defined}")
-else: 
+else:
     clusters_list_defined = []
 if nodes_list and clusters_list_defined:
     logger.error("You cannot provide a hostlist and a clusterlist")
@@ -127,7 +128,7 @@ if nodes_list:
         if node in [i["hostname"] for i in results] or node in [i["ip_address"] for i in results] or node in [i["oci_name"] for i in results]:
             compute+=[i for i in results if (i["hostname"] == node or i["ip_address"] == node or i["oci_name"] == node)]
         else:
-            logger.error(f"Node: {node} is not present in the DB") 
+            logger.error(f"Node: {node} is not present in the DB")
 elif clusters_list_defined:
     compute=[]
     for cluster in clusters_list_defined:
@@ -159,7 +160,7 @@ for i in compute:
         hc_reboot.append(i)
     elif i["healthcheck_recomandation"] == "Terminate":
         hc_terminate.append(i)
-        
+
 clusters_list_found=[i for i in list(set([i["cluster_name"] for i in compute ])) if not i is None]
 logger.info(f"Counts: Configured: {len(configured_nodes)}, Configuring: {len(waiting_for_compute)}, "
             f"Starting: {len(starting)}, Terminating: {len(terminating)}")
@@ -280,6 +281,17 @@ if args.tag:
                     logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
                     instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
                 mgmt_utils.tag_unhealthy(node,instance_ocid)
+if args.configure:
+    config_list=[]
+    for node in nodes_list:
+        for instance in compute:
+            if node == instance["hostname"] or node == instance["oci_name"] or node == instance["ip_address"]:
+                config_list.append(instance)
+    logger.info(f"Restarting the configuration script on: {NodeSet(','.join(nodes_list))}")
+    task = task_self()
+    task.shell("/config/compute.sh", nodes=NodeSet(','.join([i['ip_address'] for i in config_list])))
+    task.run()
+    logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
 if args.terminate:
     for node in nodes_list:
@@ -345,14 +357,15 @@ if args.create_cluster:
                 exit(1)
             else:
                 instance_type=instance_type_found
-        if instance_type["cluster_network"].lower() == "true":
-            if instance_type["compute_cluster"].lower() == "true":
+        if instance_type["cluster_network"]:
+            if instance_type["compute_cluster"]:
                 cluster_type="CC"
             else:
                 cluster_type="CN"
         else:
             cluster_type="IPA"
-        instance_config_ocid=mgmt_utils.generate_instance_config(instance_type)
+        instance_config=mgmt_utils.generate_instance_config(instance_type,controller_hostname,clustername)
+        instance_config_ocid=instance_config.id
         subnet_id=instance_type["private_subnet_id"]
     elif args.create_cluster_inst_config or not instance_config_ocid is None:
         if args.create_cluster_inst_config:
@@ -372,6 +385,9 @@ if args.create_cluster:
     if instance_config_ocid and count:
         logger.info(f"Creating cluster with {count} nodes and instance configuration {instance_config_ocid}")
         instance_config_details = mgmt_utils.get_instance_config_details(instance_config_ocid)
+        if instance_config_details is None:
+            logger.error(f"The instance configuration with OCID {instance_config_ocid} was not found")
+            exit()
         availabilitydomains = mgmt_utils.guess_availabilitydomain(compartment_ocid)
         if len(availabilitydomains)==1:
             availabilitydomain=availabilitydomains[0]
@@ -386,7 +402,7 @@ if args.create_cluster:
         if args.create_cluster_subnet:
             subnet_id=args.create_cluster_subnet
         #TO DO: Add Slurm check for Nodeset
-        mgmt_utils.generate_inventory(instance_config_details,clustername)
+        mgmt_utils.generate_inventory(instance_config_details,clustername,cluster_type)
         try:
             cluster = mgmt_utils.create_cluster(cluster_type,instance_config_ocid,count,compartment_ocid,clustername,availabilitydomain,subnet_id)
         except: 

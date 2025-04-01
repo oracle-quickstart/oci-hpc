@@ -7,6 +7,7 @@ import yaml
 import copy
 import re, os
 import time
+import base64
 
 try:
     import oci
@@ -24,7 +25,7 @@ except ImportError:
     sys.exit(1)
 
 def force_reboot(ocid):
-    computeClient.instance_action(instance_id=ocid,action="RESET")   
+    computeClient.instance_action(instance_id=ocid,action="RESET")
 
 def instance_bvr(instance_ocid,image_ocid):
     update_instance_source_details = oci.core.models.UpdateInstanceSourceViaImageDetails()
@@ -207,7 +208,7 @@ def get_summary(compartment_ocid,clustername):
                 scaling_clusters = scaling_clusters + 1
                 scaling_clusters_info.append([cn_summary_tmp,"CN"])
 
-    # Looking for CCs        
+    # Looking for CCs
     try:
         cn_summaries = computeClient.list_compute_clusters(compartment_ocid,display_name=clustername).data.items
     except:
@@ -219,7 +220,7 @@ def get_summary(compartment_ocid,clustername):
                 running_clusters = running_clusters + 1
                 running_clusters_info.append([cn_summary_tmp,"CC"])
 
-    # Looking for IPAs   
+    # Looking for IPAs
     cn_summaries = computeManagementClient.list_instance_pools(compartment_ocid,display_name=clustername).data
     if len(cn_summaries) > 0:
         for cn_summary_tmp in cn_summaries:
@@ -372,35 +373,170 @@ def get_instance_type(instance_type_name):
             return instance_type
     return None
 
-def generate_instance_config(instance_type):
-    return None
+def generate_instance_config(instance_type,controller_hostname,clustername):
+    subnet_id=instance_type['private_subnet_id']
+    image_id=instance_type['image']
+    bv_size=instance_type['boot_volume_size']
+    availability_domain=instance_type['ad']
+    targetCompartment=instance_type['targetCompartment']
+    shape=instance_type['shape']
+    availability_domain=instance_type['ad']
+    instance_config_name=instance_type['name']
+    cpus=instance_type['instance_pool_ocpus']
+    memory=instance_type['instance_pool_memory']
+    instance_config_name=instance_type['name']
+    hostname_convention=instance_type['hostname_convention']
+    RDMA=instance_type['cluster_network']
+    ### Not working yet
+    mkplace=instance_type['use_marketplace_image']
+    marketplace_listing=instance_type['marketplace_listing']
+
+    with open("/config/key/public", "r") as file:
+        public_key = file.read()
+    with open("/config/cloud-init.sh", "r") as file:
+        cloud_init = base64.b64encode(file.read().encode()).decode()
+
+    """
+    Creates a new instance configuration by fully replicating the source configuration.
+    If a new SSH key is provided, it replaces the SSH key in the launch metadata.
+    """
+    try:
+
+        if RDMA:
+            plugins_config_definition=[
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state="ENABLED",
+                    name="Compute HPC RDMA Authentication"
+                ),
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state="ENABLED",
+                    name="Compute HPC RDMA Auto-Configuration"
+                ),
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state="ENABLED",
+                    name="Compute RDMA GPU Monitoring"
+                ),
+            ]
+        else:
+            plugins_config_definition=[]
+
+        if shape.endswith("Flex"):
+            shape_config_definition=oci.core.models.InstanceConfigurationLaunchInstanceShapeConfigDetails(ocpus=cpus,memory_in_gbs=memory)
+        else:
+            shape_config_definition=oci.core.models.InstanceConfigurationLaunchInstanceShapeConfigDetails()
+
+        new_agent_config = oci.core.models.InstanceConfigurationLaunchInstanceAgentConfigDetails(
+            are_all_plugins_disabled=False,
+            is_monitoring_disabled=False,
+            plugins_config=plugins_config_definition
+        )
+
+
+        new_create_vnic = oci.core.models.InstanceConfigurationCreateVnicDetails(
+            assign_public_ip=False,
+            subnet_id=subnet_id
+            # Additional fields can be added here if needed
+        )
+
+        new_source_details = oci.core.models.InstanceConfigurationInstanceSourceViaImageDetails(
+            source_type="image",
+            image_id=image_id,
+            boot_volume_size_in_gbs=int(bv_size),
+            boot_volume_vpus_per_gb=int(30)
+        )
+
+        new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
+        new_tags={"cluster_name" : clustername, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
+
+        if shape.endswith("Flex"):
+            new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
+            availability_domain=availability_domain,
+            compartment_id=targetCompartment,
+            shape=shape,
+            shape_config=oci.core.models.InstanceConfigurationLaunchInstanceShapeConfigDetails(ocpus=cpus,memory_in_gbs=memory),
+            metadata=new_metadata,
+            freeform_tags=new_tags,
+            agent_config=new_agent_config,
+            create_vnic_details=new_create_vnic,
+            source_details=new_source_details
+            )
+        else:
+            new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
+            availability_domain=availability_domain,
+            compartment_id=targetCompartment,
+            shape=shape,
+            metadata=new_metadata,
+            freeform_tags=new_tags,
+            agent_config=new_agent_config,
+            create_vnic_details=new_create_vnic,
+            source_details=new_source_details
+            ) 
+
+
+        # Build new Instance Details
+        new_instance_details = oci.core.models.ComputeInstanceDetails(
+            instance_type="compute",
+            launch_details=new_launch_details
+        )
+
+        # Construct new Instance Configuration Details object
+        new_config_details = oci.core.models.CreateInstanceConfigurationDetails(
+            compartment_id=targetCompartment,
+            display_name= clustername,
+            instance_details=new_instance_details
+        )
+
+        create_response = computeManagementClient.create_instance_configuration(new_config_details).data
+        # Check that the instance config can be queried.
+        for i in range(10):
+            try:
+                get_response=computeManagementClient.get_instance_configuration(create_response.id).data
+            except:
+                time.sleep(3)
+                continue
+        return create_response
+
+    except oci.exceptions.ServiceError as e:
+        print(f"An error occurred: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return None
+
 def get_instance_config_details(instance_config_ocid):
-    return computeManagementClient.get_instance_configuration(instance_config_ocid).data
+    try:
+        instance_configuration=computeManagementClient.get_instance_configuration(instance_config_ocid).data
+        return instance_configuration
+    except:
+        return None
 def create_cluster(cluster_type,instance_config_ocid,count,compartment_ocid,clustername,availability_domain,subnet_id):
     if cluster_type == "CN":
         ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=subnet_id)
         ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
         instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails(display_name=clustername,instance_configuration_id=instance_config_ocid,size=count)
-        cn_details=oci.core.models.CreateClusterNetworkDetails(compartment_id=compartment_ocid,display_name=clustername,instance_pools=instance_pools_details,cluster_configuration=ip_placement_details)
+        cn_details=oci.core.models.CreateClusterNetworkDetails(compartment_id=compartment_ocid,display_name=clustername,instance_pools=[instance_pools_details],placement_configuration=ip_placement_details)
         cn = ComputeManagementClientCompositeOperations.create_cluster_network_and_wait_for_state(create_cluster_network_details=cn_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
         return cn.data
     elif cluster_type == "IP" or cluster_type == "IPA":
         ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=subnet_id)
-        ip_placement_details=oci.core.models.oci.core.models.CreateInstancePoolPlacementConfigurationDetails(availability_domain=availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
+        ip_placement_details=oci.core.models.CreateInstancePoolPlacementConfigurationDetails(availability_domain=availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
         instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails()
-        ip_details=oci.core.models.oci.core.models.CreateInstancePoolDetails(compartment_id=compartment_ocid,display_name=clustername,instance_pools=instance_pools_details,placement_configurations=ip_placement_details,instance_configuration_id=instance_config_ocid,size=count)
+        ip_details=oci.core.models.CreateInstancePoolDetails(compartment_id=compartment_ocid,display_name=clustername,placement_configurations=[ip_placement_details],instance_configuration_id=instance_config_ocid,size=count)
         cn = ComputeManagementClientCompositeOperations.create_instance_pool_and_wait_for_state(create_instance_pool_details=ip_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
         return cn.data
-def generate_inventory(instance_config_ocid,clustername,cluster_type):
-    details=computeManagementClient.get_instance_configuration(instance_config_ocid).data
+    elif cluster_type == "CC":
+        cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=compartment_ocid,availability_domain=availability_domain,display_name=clustername)
+        cn = computeClient.create_compute_cluster(create_compute_cluster_details=cc_details).data
+        return cn.data
+def generate_inventory(instance_config_details,clustername,cluster_type):
     original_inventory="/config/playbooks/inventory"
     inventory_name=f"/config/playbooks/inventory_{clustername}"
     try:
-        hostname_convention = details.instance_details.launch_details.freeform_tags["hostname_convention"]
+        hostname_convention = instance_config_details.instance_details.launch_details.freeform_tags["hostname_convention"]
     except:
         hostname_convention=""
-    modifications={"cluster_name":clustername, 
-                   "shape":details.instance_details.launch_details.shape,
+    modifications={"cluster_name":clustername,
+                   "shape":instance_config_details.instance_details.launch_details.shape,
                    "cluster_network":"true" if cluster_type in ["CN","CC"] else "false",
                    "hostname_convention": hostname_convention
                    }
@@ -434,9 +570,9 @@ def remove_inventory(clustername):
 def delete_cluster(clustername,compartment_ocid):
     cn_summary,ip_summary,CN = get_summary(compartment_ocid,clustername)
     if CN == "CN":
-        ComputeManagementClientCompositeOperations.terminate_cluster_network_and_wait_for_work_request(cn_summary.id,wait_for_states=["TERMINATED"])
+        computeManagementClient.terminate_cluster_network(cn_summary.id)
     elif CN == "IPA":
-        ComputeManagementClientCompositeOperations.terminate_instance_pool_and_wait_for_state(cn_summary.id,wait_for_states=["TERMINATED"])
+        computeManagementClient.terminate_instance_pool(cn_summary.id)
     elif CN == "CC" or "SA":
         cn_instances = get_instances(compartment_ocid,cn_summary.id,CN)
         for instance in cn_instances:
