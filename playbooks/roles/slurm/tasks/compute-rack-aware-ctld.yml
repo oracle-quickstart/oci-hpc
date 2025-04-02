@@ -9,14 +9,9 @@
   when: "'GPU' in new_compute_info[item].shape"
   with_items: "{{ new_compute_info }}"
 
-- name: debug
-  debug: 
-    var: item
-  with_items: "{{ new_compute_info }}"
-  
 - name: Build dictionary of unique switches names
   set_fact:
-    cluster_names: "{{ cluster_names | default([]) + [item.cluster_name] }}"
+    cluster_names: "{{ (cluster_names | default([]) + [new_compute_info[item].cluster_name] ) | list }}"
   with_items: "{{ new_compute_info }}"
 
 - name: Build dictionary of unique switches names
@@ -99,65 +94,36 @@
   notify: reconfigure slurm
 
 
-- name: Get racks in the Cluster
-  block:
-    - name: Get Racks from topology.conf
-      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}}:\" | awk '{print $1}' | sed 's/SwitchName=//' | tr '\n' ',' | sed 's/,$/\\n/'"
-      register: racks_left
-      run_once: true
-      delegate_to: 127.0.0.1
-      with_items: "{{cluster_names}}"
-    - name: debug
-      debug:
-        msg: "item.stdout"
-      with_items: "{{racks_left}}"
-    - name: Create list of racks
-      set_fact:
-        racks_left_list: "{{item.stdout.split(',') | list}}"
-      with_items: "{{racks_left}}"
-  rescue:
-    - name: Empty racks
-      set_fact:
-        racks_left_list: []
-      with_items: "{{racks_left}}"
+- name: Create empty list of racks
+  set_fact:
+    racks_left_list: "{{ racks_left_list | default({}) | combine({item: []}) }}"
+  with_items: "{{cluster_names}}"
 
-- name: debug
-  debug: 
-    msg: "{{racks_left_list}}"
-  with_items: "{{racks_left}}"
+- name: Get Racks from topology.conf
+  shell: "cat {{ slurm_conf_path }}/topology.conf | grep Nodes= | grep \"SwitchName={{item}}:\" | awk '{print $1}' | sed 's/SwitchName=//' | tr '\n' ',' | sed 's/,$/\\n/'"
+  register: racks_left
+  run_once: true
+  delegate_to: 127.0.0.1
+  ignore_errors: true
+  with_items: "{{cluster_names}}"
 
-- name: debug
-  debug: 
-    msg: "{{racks_left_list}}"
-
-- name: debug
-  debug: 
-    msg: "SwitchName={{item.item}} Switches={{ racks_left_list.item  | join(',') }}"
-  with_items: "{{racks_left}}"
+- name: Create list of racks
+  set_fact:
+    racks_left_list: "{{ racks_left_list | combine({item.item: item.stdout_lines}) }}"
+  with_items: "{{racks_left.results}}"
 
 - name: Update Rack switches for the cluster
   become: true
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName={{item.item}}\\sSwitches.*"
-    line: "SwitchName={{item.item}} Switches={{ racks_left_list.item | join(',') }}"
+    regexp: "SwitchName={{item}}\\sSwitches.*"
+    line: "SwitchName={{item}} Switches={{ racks_left_list[item] | join(',') }}"
     state: present
   run_once: true
   delegate_to: 127.0.0.1
   notify: reconfigure slurm
-  when: racks_left_list.item | length > 0
-  with_items: "{{racks_left}}"
-
-- name: Update Rack switches for the cluster
-  become: true
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName={{cluster_name}}\\sSwitches.*"
-    state: absent
-  run_once: true
-  delegate_to: 127.0.0.1
-  notify: reconfigure slurm
-  when: racks_left_list | length == 0
+  when: racks_left_list[item] | length > 0
+  with_items: "{{cluster_names}}"
 
 - name: run handlers
   meta: flush_handlers

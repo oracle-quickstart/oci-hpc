@@ -138,7 +138,7 @@
     line: "SwitchName={{upperswitchnames[item]}} Switches={{racks_on_switch_dict[item] | difference(switchname_to_remove) | join(',') }}"
     state: present
   with_items: "{{hostnames_list}}"
-  ignore_errors: yes
+  ignore_errors: true
   when: ( racks_on_switch_dict[item] | difference(switchname_to_remove) | length ) > 0 and ( upperswitchnames[item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
@@ -169,7 +169,7 @@
   when: ( ( nodes_on_switch[item.item] | difference(hostnames_list) | length ) > 0 ) and ( switchnames[item.item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: remove node from topology line
   become: true
@@ -179,7 +179,7 @@
     line: "SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
     state: present
   with_items: "{{hostnames_list}}"
-  ignore_errors: yes
+  ignore_errors: true
   when: ( ( nodes_on_switch[item] | difference(hostnames_list) | length ) > 0 ) and ( switchnames[item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
