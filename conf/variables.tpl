@@ -17,8 +17,6 @@ variable "boot_volume_size" {default = "##BOOT##"}
 variable "use_marketplace_image" {  default = "##USEMP##" }
 variable "scratch_nfs_path" { default = "${scratch_nfs_path}" } 
 variable "use_scratch_nfs" { default = ${use_scratch_nfs} }
-variable "cluster_nfs_path" {default = "${cluster_nfs_path}"}
-variable "use_cluster_nfs" { default = ${use_cluster_nfs} }
 variable "image" { default = "##IMAGE##" }
 variable "vcn_compartment" { default = ""}
 variable "use_existing_vcn" {default = true}
@@ -80,7 +78,6 @@ variable "backup_ip" {default = "${backup_ip}"}
 variable "monitoring_name" {default = "${monitoring_name}"}
 variable "monitoring_ip" {default = "${monitoring_ip}"}
 variable "scripts_folder" {default = "/opt/oci-hpc/bin/"}
-variable "autoscaling_folder" {default = "/opt/oci-hpc/autoscaling/"}
 
 variable "ssh_cidr" {default="${ssh_cidr}"}
 

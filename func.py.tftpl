@@ -58,7 +58,7 @@ def get_tag_controller(instance_ocid, controller_name):
         boolean: has the right controller tag or not 
         hostname_convention: hostname convention according to freeform tags, type=string or None
         hostname: instance hostname, type=string    or None if not matching
-        defined_hostname: New hostname to be set when autoscaling, type=string    or None if not matching
+        defined_hostname: New hostname to be set, type=string    or None if not matching
     """
     signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
     #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
@@ -122,7 +122,7 @@ def update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, co
         compartment_ocid: Compartment OCID from event payload (same as var.targetCompartment in terraform), type=string
         instance_launch: launching or terminating instance type=boolean
         hostname: current instance name from OCI web console, type=string
-        defined_hostname: New hostname to be set when autoscaling, type=string    or None if not matching
+        defined_hostname: New hostname to be set, type=string    or None if not matching
     output: 
         hostname: new display name in web console hostname_convention+"-"+str(index), type=string if updated or corresponds to hostname if not
         private_ip: private IP if instance is launch type=string, None otherwise

@@ -120,16 +120,6 @@ resource "null_resource" "controller" {
     }
   }
 
-  provisioner "file" {
-    source      = "autoscaling"
-    destination = "/opt/oci-hpc/"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 
   provisioner "file" {
     source      = "bin"
@@ -145,17 +135,6 @@ resource "null_resource" "controller" {
   provisioner "file" {
     source      = "conf"
     destination = "/opt/oci-hpc/"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    source      = "cloud-init.sh"
-    destination = "/opt/oci-hpc/autoscaling/tf_init/cloud-init.sh"
     connection {
       host        = local.host
       type        = "ssh"
@@ -282,8 +261,6 @@ resource "null_resource" "cluster" {
       create_fss                = var.create_fss,
       home_fss                  = var.home_fss,
       scratch_nfs               = var.use_scratch_nfs && var.node_count > 0,
-      cluster_nfs               = var.use_cluster_nfs,
-      cluster_nfs_path          = var.cluster_nfs_path,
       scratch_nfs_path          = var.scratch_nfs_path,
       add_nfs                   = var.add_nfs,
       nfs_target_path           = var.nfs_target_path,
@@ -297,7 +274,7 @@ resource "null_resource" "cluster" {
       slurm                     = var.slurm,
       slurm_version             = var.slurm_version,
       rack_aware                = var.rack_aware,
-      slurm_nfs_path            = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path
+      slurm_nfs_path            = var.create_fss ? var.nfs_source_path : "/config"
       spack                     = var.spack,
       ldap                      = var.ldap,
       scratch_nfs_type          = local.scratch_nfs_type,
@@ -317,11 +294,8 @@ resource "null_resource" "cluster" {
       latency_check             = var.latency_check,
       pam                       = var.pam,
       sacct_limits              = var.sacct_limits,
-      inst_prin                 = var.inst_prin,
       region                    = var.region,
       tenancy_ocid              = var.tenancy_ocid,
-      api_fingerprint           = var.api_fingerprint,
-      api_user_ocid             = var.api_user_ocid,
       healthchecks              = var.healthchecks,
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
@@ -330,23 +304,6 @@ resource "null_resource" "cluster" {
     })
 
     destination = "/config/playbooks/inventory"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
-    content = templatefile(var.inst_prin ? "${path.module}/autoscaling/provider_inst_prin.tpl" : "${path.module}/autoscaling/provider_user.tpl", {
-      api_user_ocid    = var.api_user_ocid,
-      api_fingerprint  = var.api_fingerprint,
-      private_key_path = "/opt/oci-hpc/autoscaling/credentials/key.pem",
-      tenancy_ocid     = var.tenancy_ocid
-    })
-
-    destination = "/opt/oci-hpc/autoscaling/tf_init/provider.tf"
     connection {
       host        = local.host
       type        = "ssh"
@@ -439,7 +396,7 @@ resource "null_resource" "cluster" {
       slurm                               = var.slurm,
       slurm_version                       = var.slurm_version,
       rack_aware                          = var.rack_aware,
-      slurm_nfs_path                      = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
+      slurm_nfs_path                      = var.create_fss ? var.nfs_source_path : "/config"
       spack                               = var.spack,
       ldap                                = var.ldap,
       scratch_nfs_type                    = local.scratch_nfs_type,
@@ -452,8 +409,6 @@ resource "null_resource" "cluster" {
       zone_name                           = local.zone_name,
       dns_entries                         = var.dns_entries,
       ssh_cidr                            = var.ssh_cidr,
-      use_cluster_nfs                     = var.use_cluster_nfs,
-      cluster_nfs_path                    = var.cluster_nfs_path,
       home_nfs                            = var.home_nfs,
       create_fss                          = var.create_fss,
       home_fss                            = var.home_fss,
@@ -500,17 +455,6 @@ resource "null_resource" "cluster" {
     }
   }
 
-  provisioner "file" {
-    content     = base64decode(var.api_user_key)
-    destination = "/opt/oci-hpc/autoscaling/credentials/key.pem"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
@@ -527,9 +471,7 @@ resource "null_resource" "cluster" {
       "sudo cp -pr /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
-      "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
-      "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /opt/oci-hpc/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",

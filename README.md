@@ -88,7 +88,7 @@ Allow dynamic-group instance_principal to use queue-pull in compartment Compartm
 allow dynamic-group instance_principal to manage queues in compartment CompartmentName
 ```
 
-### Policies for autoscaling or resizing:
+### Policies for resizing or adding clusters:
 As described when you specify your variables, if you select instance-principal as way of authenticating your node, make sure your generate a dynamic group including one or more instance in a compartment and all the functions of the compartment. Example with the dynamic group *instance_principal*. If the dynamic group is created in a different identity domain, you will have to use IdentityDomainName/
 
 ```

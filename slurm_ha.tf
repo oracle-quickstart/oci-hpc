@@ -74,17 +74,6 @@ resource "null_resource" "backup" {
   }
 
   provisioner "file" {
-    source      = "autoscaling"
-    destination = "/opt/oci-hpc/"
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "file" {
     source      = "bin"
     destination = "/opt/oci-hpc/"
     connection {
@@ -195,8 +184,6 @@ resource "null_resource" "cluster_backup" {
       create_fss                = var.create_fss,
       home_fss                  = var.home_fss,
       scratch_nfs               = var.use_scratch_nfs && var.node_count > 0,
-      cluster_nfs               = var.use_cluster_nfs,
-      cluster_nfs_path          = var.cluster_nfs_path,
       scratch_nfs_path          = var.scratch_nfs_path,
       add_nfs                   = var.add_nfs,
       nfs_target_path           = var.nfs_target_path,
@@ -209,7 +196,7 @@ resource "null_resource" "cluster_backup" {
       cluster_network           = var.cluster_network,
       slurm                     = var.slurm,
       slurm_version             = var.slurm_version,
-      slurm_nfs_path            = var.slurm_nfs ? var.nfs_source_path : var.cluster_nfs_path,
+      slurm_nfs_path            = var.create_fss ? var.nfs_source_path : "/config"
       rack_aware                = var.rack_aware,
       spack                     = var.spack,
       ldap                      = var.ldap,
@@ -230,11 +217,8 @@ resource "null_resource" "cluster_backup" {
       privilege_sudo            = var.privilege_sudo,
       privilege_group_name      = var.privilege_group_name,
       latency_check             = var.latency_check,
-      inst_prin                 = var.inst_prin,
       region                    = var.region,
       tenancy_ocid              = var.tenancy_ocid,
-      api_fingerprint           = var.api_fingerprint,
-      api_user_ocid             = var.api_user_ocid,
       healthchecks              = var.healthchecks,
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
@@ -252,22 +236,6 @@ resource "null_resource" "cluster_backup" {
     }
   }
 
-  provisioner "file" {
-    content = templatefile(var.inst_prin ? "${path.module}/autoscaling/provider_inst_prin.tpl" : "${path.module}/autoscaling/provider_user.tpl", {
-      api_user_ocid    = var.api_user_ocid,
-      api_fingerprint  = var.api_fingerprint,
-      private_key_path = "/opt/oci-hpc/autoscaling/credentials/key.pem",
-      tenancy_ocid     = var.tenancy_ocid
-    })
-
-    destination = "/opt/oci-hpc/autoscaling/tf_init/provider.tf"
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 
 provisioner "file" {
     content = templatefile("${path.module}/conf/queues.conf.example", {
@@ -352,7 +320,7 @@ provisioner "file" {
       use_scratch_nfs                     = var.use_scratch_nfs,
       slurm                               = var.slurm,
       slurm_version                       = var.slurm_version,
-      slurm_nfs_path                      = var.add_nfs ? var.nfs_source_path : var.cluster_nfs_path
+      slurm_nfs_path                      = var.create_fss ? var.nfs_source_path : "/config"
       rack_aware                          = var.rack_aware,
       spack                               = var.spack,
       ldap                                = var.ldap,
@@ -366,8 +334,6 @@ provisioner "file" {
       zone_name                           = local.zone_name,
       dns_entries                         = var.dns_entries,
       ssh_cidr                            = var.ssh_cidr,
-      use_cluster_nfs                     = var.use_cluster_nfs,
-      cluster_nfs_path                    = var.cluster_nfs_path,
       home_nfs                            = var.home_nfs,
       create_fss                          = var.create_fss,
       home_fss                            = var.home_fss,
@@ -416,33 +382,6 @@ provisioner "file" {
     }
   }
 
-
-  provisioner "file" {
-    content     = base64decode(var.api_user_key)
-    destination = "/opt/oci-hpc/autoscaling/credentials/key.initial"
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "#!/bin/bash",
-      "chmod 755 /opt/oci-hpc/autoscaling/crontab/*.sh",
-      "chmod 755 /opt/oci-hpc/autoscaling/credentials/key.sh",
-      "/opt/oci-hpc/autoscaling/credentials/key.sh /opt/oci-hpc/autoscaling/credentials/key.initial /opt/oci-hpc/autoscaling/credentials/key.pem > /opt/oci-hpc/autoscaling/credentials/key.log",
-      "chmod 600 /opt/oci-hpc/autoscaling/credentials/key.pem",
-    "echo ${var.configure} > /tmp/configure.conf"]
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 }
 
 
