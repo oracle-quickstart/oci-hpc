@@ -4,103 +4,13 @@
   include_role: 
     name: oci-cloud-agent-updater
 
-- name: Check if agent.yml exists
-  stat:
-    path: /etc/oracle-cloud-agent/agent.yml
-  register: agent_file
-
-- name: Read the agent configuration
-  slurp:
-    path: /etc/oracle-cloud-agent/agent.yml
-  register: r_myfile
-  when: agent_file.stat.exists
-
-- name: extract the data
-  set_fact:
-    mydata: "{{ r_myfile['content'] | b64decode | from_yaml }}"
-  when: agent_file.stat.exists
-
-- name: Create configuration for core - modify params
-  set_fact:
-    mydata: "{{ mydata | combine(newdata, recursive=True) }}"
-  vars: 
-    newdata:
-      plugins:
-        osms:
-          disabled: true
-  when: agent_file.stat.exists
-    
-- name: Write back to a file
-  copy:
-    content: '{{ mydata | to_nice_yaml }}'
-    dest: /etc/oracle-cloud-agent/agent.yml
-  when: agent_file.stat.exists
-
-
-- name: Install yum-plugin-versionlock for OL8
-  yum:
-    name: python3-dnf-plugin-versionlock
-    state: latest
-    disable_gpg_check: yes
-  when:
-    - ansible_os_family == 'RedHat' and ( ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' )
-- name: Hold latest OCA for OL
-  community.general.yum_versionlock:
-    name: oracle-cloud-agent
-    state: present
-  when:
-    - ansible_os_family == 'RedHat'
-    
-- name: Disable OCA updater
-  replace:
-    path: /etc/oracle-cloud-agent/updater.yml
-    regexp: 'upgrade_interval: 3600'
-    replace: 'upgrade_interval: -1'
-
-- name: Restart cloud agent updater
-  service: 
-    name: oracle-cloud-agent-updater
-    state: restarted
-  retries: 5
-  register: restart_cloud_agent_updater
-  until: restart_cloud_agent_updater is not failed
-
-- name: Restart cloud agent
-  service: 
-    name: oracle-cloud-agent
-    state: restarted
-  when: agent_file.stat.exists
-  retries: 5
-  register: restart_cloud_agent
-  until: restart_cloud_agent is not failed
-
 - name: Unregister agent
   command: osms unregister
-  when: agent_file.stat.exists
   retries: 5
   register: unregister_cloud_agent
   until: unregister_cloud_agent is not failed
 
-# Present in OL images prior to May/June 2020, later replaced with oracle cloud agent
-- name: Check if osms-agent service exist
-  shell: service osms-agent status
-  register: osms_agent_status
-  failed_when: not(osms_agent_status.rc == 3 or osms_agent_status.rc == 0 or osms_agent_status.rc == 4)
-  ignore_errors: True
-
-- name: disable osms-agent.service
-  service:
-    name: osms-agent
-    state: stopped
-    enabled: no
-  when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
-
-- name: Unregister agent
-  command: osms unregister
-  when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
-
 # incase it takes time to get all repo ready after osms unregister
-
 - name: Sleep 5 seconds
   pause: 
     seconds: 5
