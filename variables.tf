@@ -135,17 +135,9 @@ variable "unsupported_monitoring_image" {
   default = "" 
   type = string
   }
-variable "use_cluster_nfs" { 
-  default = true 
-  type = bool
-  }
 variable "use_scratch_nfs" { 
   default = false 
   type = bool
-  }
-variable "cluster_nfs_path" { 
-  default = "/nfs/cluster" 
-  type = string
   }
 variable "scratch_nfs_path" { 
   default = "/nfs/scratch" 
@@ -238,10 +230,6 @@ variable "monitoring_shape" {
 variable "monitoring_boot_volume_size" { 
   default = 50
   type = number
-  }
-variable "slurm_nfs" { 
-  default = false
-  type = bool
   }
 variable "rack_aware" { 
   default = false
@@ -361,23 +349,6 @@ variable "scratch_nfs_type_cluster" {
   }
 variable "scratch_nfs_type_pool" { 
   default = "none"
-  type = string
-  }
-
-variable "inst_prin" { 
-  default = true
-  type = bool
-  }
-variable "api_user_key" { 
-  default = ""
-  type = string
-  }
-variable "api_fingerprint" { 
-  default = ""
-  type = string
-  }
-variable "api_user_ocid" { 
-  default = ""
   type = string
   }
 variable "home_nfs" { 
@@ -520,14 +491,6 @@ variable "scratch_nfs_mount" {
   }
 variable "scratch_nfs_export" { 
  
-  default = ""
-  type = string
-  }
-variable "cluster_nfs_mount" { 
-  default = "" 
-  type = string
-  }
-variable "cluster_nfs_export" { 
   default = ""
   type = string
   }

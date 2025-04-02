@@ -129,13 +129,6 @@ variableGroups:
     variables:
       - ${autoscaling}
       - ${latency_check}
-  - title: "API authentication, needed for autoscaling"
-    variables:
-      - ${inst_prin}
-      - ${api_user_ocid}
-      - ${api_fingerprint}
-      - ${api_user_key}
-    visible: ${autoscaling}
   - title: "Additional file system"
     variables:
       - ${add_nfs}
@@ -152,8 +145,6 @@ variableGroups:
       - ${use_advanced}
       - ${home_nfs}
       - ${home_fss}
-      - ${use_cluster_nfs}
-      - ${cluster_nfs_path}
       - ${use_scratch_nfs}
       - ${scratch_nfs_path}
       - ${scratch_nfs_type_cluster}
@@ -182,7 +173,6 @@ variableGroups:
       - ${privilege_group_name} 
       - ${slurm}
       - ${slurm_version}
-      - ${slurm_nfs}
       - ${slurm_ha}
       - ${rack_aware}
       - ${queue}
@@ -198,8 +188,6 @@ variableGroups:
       - ${region}
       - ${current_user_ocid}
       - ${tenancy_ocid}
-      - ${cluster_nfs_mount}
-      - ${cluster_nfs_export}
       - ${scratch_nfs_export}
       - ${scratch_nfs_mount}
       - ${marketplace_listing_id}
@@ -506,24 +494,6 @@ variables:
         - ${home_nfs}
         - ${add_nfs}
     default: false
-
-  use_cluster_nfs:
-    type: boolean
-    title: "shared NFS volume from controller"
-    visible:
-      and:
-        - ${use_advanced}
-    default: true
-  cluster_nfs_path:
-    title: "Cluster share mount point"
-    description: "Path to NFS share"
-    default: "/nfs/cluster"
-    type: string
-    visible:
-      and:
-        - ${use_advanced}
-        - ${use_cluster_nfs}
-    reguired: true
 
   cluster_network:
     title: Use cluster network
@@ -1042,7 +1012,7 @@ variables:
     type: boolean
     title: "Install SLURM"
     default: true
-    description: "Needed for autoscaling" 
+    description: "Install Slurm Scheduler" 
   slurm_version:
     type: enum
     title: "SLURM version"
@@ -1053,15 +1023,6 @@ variables:
     default: "24.05.1-2" 
     visible: ${slurm}
     required: true
-  slurm_nfs:
-    type: boolean
-    title: "Share spool directory"
-    default: false
-    description: "Install Slurm spool directory on user NFS"
-    visible:
-      and:
-        - ${slurm}
-        - ${add_nfs}
 
   slurm_ha:
     type: boolean
@@ -1156,40 +1117,7 @@ variables:
     title: "RDMA Latency check"
     default: true
     description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shapes during autoscaling"
-    
-  inst_prin:
-    type: boolean
-    title: "Use Instance Principal instead of configuration file" 
-    description: "You will need to set a dynamic group and policy to allow the controller to authenticate. This will not be created automatically." 
-    default: true
 
-  api_user_key:
-    type: file
-    title: "API private key"
-    default: ""
-    visible:
-      not:
-        - ${inst_prin}
-    required: true
-
-  api_fingerprint:
-    type: string
-    title: "API fingerprint"
-    default: ""
-    visible:
-      not:
-        - ${inst_prin}
-    required: true
-
-  api_user_ocid:
-    type: string
-    title: "API User OCID"
-    default: ""
-    visible:
-      not:
-        - ${inst_prin}
-    required: true
-        
   configure: 
     type: boolean
     title: "Configure system"
