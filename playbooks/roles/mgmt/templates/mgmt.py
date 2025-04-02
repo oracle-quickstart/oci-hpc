@@ -46,6 +46,8 @@ if args.context_help:
         exit(1)
     if args.bvr:
         print("--image IMAGE            Specify an image OCID to run Boot Volume Replacement")
+    if args.add:
+        print("--clusters clustername            Specify a unique clustername")
     exit(1)
 #Check if arguments make sense
 if args.nodes:
@@ -97,6 +99,22 @@ if args.all:
         logger.error("You cannot provide a hostlist or a clusterlist with the --all flag")
         exit(1)
 
+if args.add:
+    if args.create_cluster or args.delete_cluster: 
+        logger.error("You cannot add and create/delete a cluster in the same command")
+        exit(1)
+
+if args.create_cluster:
+    if args.delete_cluster:
+        logger.error("You cannot create and delete a cluster in the same command")
+        exit(1)
+    if args.create_cluster_instance_type:
+        if args.create_cluster_inst_config:
+            logger.error("You cannot specify both instance_type and instance_config")
+            exit(1)
+        elif args.create_cluster_type or args.create_cluster_ad or args.create_cluster_subnet:
+            logger.warning("When specifying instance_type to create a cluster; AD, Subnet and Cluster Type are ignored")
+        
 version = sys.version_info
 if version >= (3, 12):
     UTC = timezone.utc
@@ -312,7 +330,11 @@ if args.add:
             cluster_to_add=clusters_list_found[0]
             logger.info(f"Using the 1 clustername found: {clusters_list_found[0]}")
         else:
-            logger.error(f"There were {len(clusters_list_found)} clusters found and none specified, not adding nodes")
+            logger.error(f"There were {len(clusters_list_found)} clusters found and none specified, specify one of the cluster")
+            for i, clustername in enumerate(clusters_list_found):
+                print(f"{i+1}. {clustername}")
+            choice_config = int(input("Enter the number of the cluster to use: ")) - 1
+            cluster_to_add=clusters_list_found[choice_config]
     elif len(clusters_list_defined)>1:
         logger.error(f"Only Specify one cluster for resize")
     elif len(clusters_list_defined)==1:
@@ -332,8 +354,8 @@ if args.create_cluster:
     instance_config_ocid=None
     instance_type=None
     if args.create_cluster_instance_type is None and args.create_cluster_inst_config is None:
-        # Ask user to choose an instance configuration
-        choice = input("How would you like to specify the cluster configuration: OCID or queues")
+        # Ask user to choose an instance configuration        
+        choice = input("How would you like to specify the cluster configuration: OCID or queues :")
         if choice.lower() == "ocid" or choice.lower() == "o" or choice.lower() == "config" or choice.lower() == "ic":
             instance_config_list = mgmt_utils.list_instance_configs(compartment_ocid)
             for i, ic in enumerate(instance_config_list):
@@ -345,10 +367,10 @@ if args.create_cluster:
         elif choice.lower() == "queues" or choice.lower() == "queues.conf" or choice.lower() == "q":
             instance_type_list = mgmt_utils.list_instance_types()
             for i, it in enumerate(instance_type_list):
-                print(f"{i+1}. {it.name} ({it.partition})")
-                choice_type = int(input("Enter the number of the instance type to use: ")) - 1
-                instance_type=instance_type_list[choice_type]
-                logger.info(f"This instance configuration was chosen {instance_type.name} with partition {instance_type.partition}")
+                print(f"{i+1}. {it['name']} ({it['partition']})")
+            choice_type = int(input("Enter the number of the instance type to use: ")) - 1
+            instance_type=instance_type_list[choice_type]
+            logger.info(f"This instance configuration was chosen {instance_type['name']} with partition {instance_type['partition']}")
     if args.create_cluster_instance_type or not instance_type is None:
         if instance_type is None:
             instance_type_found=mgmt_utils.get_instance_type(args.create_cluster_instance_type)
