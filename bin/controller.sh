@@ -96,8 +96,10 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
   sudo apt purge -y --auto-remove unattended-upgrades
+  sudo systemctl stop apt-daily-upgrade.timer
   sudo systemctl disable apt-daily-upgrade.timer
   sudo systemctl mask apt-daily-upgrade.service
+  sudo systemctl stop apt-daily.timer
   sudo systemctl disable apt-daily.timer
   sudo systemctl mask apt-daily.service
 
@@ -150,32 +152,6 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   # install oci module
   /config/venv/bin/pip install oci > /dev/null
-
-  wget -O- https://apt.releases.hashicorp.com/gpg | \
-  gpg --dearmor | \
-  sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-
-  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
-    https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
-    sudo tee /etc/apt/sources.list.d/hashicorp.list
-  
-  sudo apt update && sudo apt install terraform
-  output=$?
-  if [ $output -ne 0 ]
-  then
-      fix_apt  
-      echo "Terraform second try"
-      wget -O- https://apt.releases.hashicorp.com/gpg | \
-      gpg --dearmor | \
-      sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-
-      echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
-      https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
-      sudo tee /etc/apt/sources.list.d/hashicorp.list
-  
-      sudo apt update && sudo apt install terraform
-  fi
-  fix_apt
 fi 
 
 ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
