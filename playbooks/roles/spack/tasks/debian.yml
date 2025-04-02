@@ -6,7 +6,6 @@
     package_state: latest
   include_role: 
     name: safe_yum
-  when: cluster_nfs
 
 - name: Development Tools" 
   vars: 
@@ -15,7 +14,6 @@
     package_state: latest
   include_role: 
     name: safe_yum
-  when: cluster_nfs
 
 - name: Check if SPACK directory is present
   stat:
@@ -38,5 +36,4 @@
     group: root
     mode: '0755' 
   become: true
-  when: cluster_nfs
 

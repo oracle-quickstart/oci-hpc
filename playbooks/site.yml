@@ -88,9 +88,6 @@
     - include_role: 
         name: cluster-cli
       when: ldap|default(true)|bool
-    - include_role:
-        name: no_instance_principal
-      when: not inst_prin|bool 
 
 
 - hosts: compute, monitoring
@@ -127,17 +124,6 @@
   tasks:
     - include_role: 
         name: nfs-server
-
-- hosts: controller
-  become: true
-  vars: 
-    export_path: "{{ cluster_nfs_path }}"
-    export_name: "cluster"
-    local_path:  "/export/cluster"
-  tasks:
-    - include_role: 
-        name: nfs-server
-      when: cluster_nfs|default(true)|bool
     - include_role: 
         name: mysql
 
@@ -147,21 +133,12 @@
     - include_role: 
         name: nfs-client
       vars: 
-        local_path: "{{ cluster_nfs_path }}"
-        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        export_path: "/export/cluster"
-        lock: "all"
-      when: cluster_nfs|default(true)|bool
-    - include_role: 
-        name: nfs-client
-      vars: 
         local_path: "{{ scratch_nfs_path }}"
         export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
         export_path: "/mnt/localdisk/nfs"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
-      when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
+      when: scratch_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
@@ -205,11 +182,6 @@
     - include_role: 
         name: prometheus
       when: cluster_monitoring|default(false)|bool
-
-- hosts: controller
-  tasks: 
-    - include_role: 
-        name: cron
         
 - hosts: controller
   become: true
@@ -230,7 +202,6 @@
 
 - hosts: all
   vars:
-    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
     slurm_mode: 'controller'
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
