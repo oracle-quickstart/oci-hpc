@@ -225,7 +225,7 @@
       command: >
         ldapadd -x -H ldaps:// -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
                              -f /etc/ldap/schema/local_schema.ldif
-      ignore_errors: "yes"
+      ignore_errors: true
       when: ldapsearch.rc == 32
 
 - meta: flush_handlers

@@ -24,6 +24,7 @@
 - name: copy ubuntu/ dir
   command: "cp -rpT /home/ubuntu {{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/ubuntu"
   when: ubuntu_directory.changed
+  ignore_errors: true
 
 
 - name: Unmount {{tmp_home}} mount

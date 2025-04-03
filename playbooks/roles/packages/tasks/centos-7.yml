@@ -17,4 +17,4 @@
     name: [pip]
     state: latest
     executable: /usr/bin/pip3 
-  ignore_errors: yes
+  ignore_errors: true

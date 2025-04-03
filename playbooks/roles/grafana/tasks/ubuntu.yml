@@ -31,7 +31,7 @@
       - oci
       - waitress
     extra_args: --ignore-installed
-  become: yes
+  become: true
 
 - name: Copy webhook script to server
   become: true
@@ -65,6 +65,7 @@
     state: started
     enabled: yes
     daemon_reload: yes
+  when: ons_topic_ocid != ""
 
 - name: Start and enable Grafana service
   become: true
@@ -101,7 +102,7 @@
     grafana_password: "{{ grafana_security.admin_password }}"
     ds_type: "prometheus"
     ds_url: "http://localhost:9090"
-  ignore_errors: yes
+  ignore_errors: true
   register: output
 
 - name: Copy alert rules to grafana provisioning

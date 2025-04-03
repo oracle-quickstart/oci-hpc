@@ -12,14 +12,14 @@
   ansible.builtin.pip:
     name: prometheus_client 
     executable: /config/venv/bin/pip3
-  become: yes
+  become: true
 
 - name: Copy service file to scripts directory
   copy:
     src: rdma_counters_exporter.py
     dest: /usr/local/bin
     mode: 0755
-  become: yes
+  become: true
 
 - name: Render systemd service file
   become: true

@@ -144,7 +144,7 @@
     shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
     register: dbstatus
     ignore_errors: true
-    no_log: yes
+    no_log: true
 
   - block:    
       - name: fix user password
@@ -174,7 +174,7 @@
         shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
         register: dbstatus
         ignore_errors: true
-        no_log: yes
+        no_log: true
           
       - name: fix user password
         command: mysql --user root -p'{{ mysql_root_pwd }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
