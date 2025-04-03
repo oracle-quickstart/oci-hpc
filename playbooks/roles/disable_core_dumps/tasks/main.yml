@@ -1,0 +1,32 @@
+---
+- name: "Disable hard core dumps in /etc/security/limits.conf"
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^\*.*hard.*core'
+    line: '* hard core 0'
+    create: yes
+  become: yes
+
+- name: "Disable soft core dumps in /etc/security/limits.conf"
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^\*.*soft.*core'
+    line: '* soft core 0'
+    create: yes
+  become: yes
+
+- name: "Stop and disable apport service"
+  systemd:
+    name: apport.service
+    state: stopped
+    enabled: no
+  become: yes
+
+- name: "Disable apport reporting in /etc/default/apport"
+  lineinfile:
+    path: /etc/default/apport
+    regexp: '^enabled='
+    line: 'enabled=0'
+    create: yes
+  become: yes
+
