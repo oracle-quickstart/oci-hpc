@@ -12,7 +12,6 @@ mysql_packages:
 mysql_packages_ol8:
   - mysql-server
   - mysql
-  - mysql-connector-python
 
 mysql_packages_ol9:
   - mysql-server
