@@ -1,7 +1,0 @@
----
-- name: install influxdb
-  include_tasks: ubuntu_install_influxdb.yml
-
-- name: configure influxdb on controller
-  include_tasks: config_influxdb.yml
-  when: "'controller' in group_names"
