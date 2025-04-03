@@ -256,6 +256,7 @@ resource "null_resource" "cluster" {
       private_subnet            = data.oci_core_subnet.private_subnet.cidr_block,
       rdma_network              = cidrhost(var.rdma_subnet, 0),
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
+      vcn_compartment           = var.vcn_compartment,
       zone_name                 = local.zone_name,
       dns_entries               = var.dns_entries,
       home_nfs                  = var.home_nfs,
