@@ -102,8 +102,6 @@
         name: nvidia-enroot
       when: enroot|default(true)|bool
     - include_role:
-        name: tuned
-    - include_role:
         name: nccl-conf
       when: cluster_network|bool
 
