@@ -39,8 +39,13 @@ login=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/
 
 mkdir /config
 
-echo "$controller:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
-systemctl daemon-reload
+if ! grep -qF "$controller:/config /config nfs" /etc/fstab; then
+    echo "$controller:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
+    systemctl daemon-reload
+    echo "Entry added to /etc/fstab."
+else
+    echo "Entry already exists in /etc/fstab."
+fi
 
 while true; do
     if mountpoint -q /config; then
