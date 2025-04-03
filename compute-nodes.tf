@@ -56,7 +56,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
   }
 
   metadata = {
-    ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
+    ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
     user_data           = base64encode(file("cloud-init.sh"))
   }
   source_details {

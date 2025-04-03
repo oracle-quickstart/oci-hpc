@@ -64,7 +64,7 @@ resource "oci_core_instance" "controller" {
   }
 
   metadata = {
-    ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
+    ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
     user_data           = base64encode(data.template_file.controller_config.rendered)
   }
   source_details {
