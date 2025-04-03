@@ -1,0 +1,20 @@
+---
+- name: Download yq RPMs.
+  get_url:
+    url: "https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64.tar.gz"
+    dest: "/tmp"
+  retries: 10
+  delay: 10
+  register: result
+  until: result is not failed
+- name: untar yq
+  unarchive:
+    src: "/tmp/yq_linux_amd64.tar.gz"
+    dest: "/tmp"
+- name: move
+  become: true
+  copy:
+    src: "/tmp/yq_linux_amd64"
+    dest: "/usr/bin/yq"
+    mode: "0755"
+

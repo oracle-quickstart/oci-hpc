@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# run ib_write_bw between two nodes
-# If on bastion: ./ib_write_bw.sh <server> <client>
-# If on one compute node:  ./ib_write_bw.sh <server>
+# run ib_write_lat between two nodes
+# If on bastion: ./ib_write_lat.sh <server> <client>
+# If on one compute node:  ./ib_write_lat.sh <server>
 
 Server=$1
 Client=${2:-localhost}
@@ -22,17 +22,25 @@ elif [ "$shape" == "BM.Optimized3.36" ]; then
    HCA="mlx5_2"
 else
    echo "Shape $shape not supported"
-fi
-cmd_base="/usr/bin/ib_write_bw -a -F -q 2 --report_gbits"
-cmd_base="/usr/bin/ib_write_bw -b -F -q 2 -x 3 --report_gbits"
-cmd_base="/usr/bin/ib_write_bw -b -F -q 2 -x 3 --report_gbits"
+   fi
+
+cmd_base="/usr/bin/ib_write_lat -F -x 3 -s 8 -n 10000"
+
 for Dev in $HCA; do
-   echo -e "$Server $Client $Dev \c"
-   ssh $Server exec $cmd_base -d $Dev > /dev/null 2>&1 &
-   # make sure the server start listening before client make requests
-   sleep 1
-   BW=`ssh $Client $cmd_base -d $Dev $Server | grep "65536      10000" | awk '{print $3}'`
-   #BW=`ssh $Client $cmd_base -d $Dev $Server `
-   echo "$BW"
-   #wait
+    echo -e "$Server $Client $Dev \c"
+
+    # Start server in background, redirect output to /dev/null
+    ssh $Server exec $cmd_base -d "$Dev" > /dev/null 2>&1 &
+
+    # Wait briefly for server to start listening
+    sleep 1
+
+    # Run client, extract latency for 8-byte messages, 10000 iterations
+    LATENCY=$(ssh $Client $cmd_base -d "$Dev" "$Server" | grep "^ 8       10000" | awk '{print $6}')
+
+    # Output the latency
+    echo "$LATENCY"
+
+    # Optional: Wait for server process to finish (if needed)
+    # wait
 done

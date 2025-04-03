@@ -30,7 +30,7 @@ def write_ordered_rankfile(ordered_hosts=[],hostfile=None):
 
 def get_swicthname(host):
     try:
-        command = "scontrol show topology "+host
+        command = "scontrol show topology "+host+" | grep Level=0"
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         switchname=result.stdout.split(" ")[0].replace("SwitchName=","")
         return switchname
@@ -82,7 +82,7 @@ else:
     try:
         from pssh.clients import ParallelSSHClient
         client = ParallelSSHClient(hosts)
-        output = client.run_command('curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/host/')
+        output = client.run_command('curl http://169.254.169.254/opc/v1/host/')
         for host_out in output:
             j = json.loads(bytearray(''.join(list(host_out.stdout)).encode()))
             try:
@@ -101,7 +101,7 @@ else:
     except ImportError:
         try:
             for h in hosts:
-                out = subprocess.run(["ssh "+h+' "curl -s -H \\"Authorization: Bearer Oracle\\" -L http://169.254.169.254/opc/v2/host/"'],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
+                out = subprocess.run(["ssh "+h+" \"curl -s http://169.254.169.254/opc/v1/host/\""],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
                 x = out.stdout.splitlines()
                 json_str = ''.join(x)
                 json_data = json.loads(json_str)
@@ -123,18 +123,20 @@ ordered_hosts_friendly_name = []
 # sort racks by amount of hosts (descending)
 racks_sorted = sorted(r.items(), key=lambda x: len(x[1]), reverse=True)
 i = 0
+fhandler = open("node_switch_list","w")
 for k, v in racks_sorted:
   i += 1
   print(f'# rack {i}')
   rack_data_prefix = "SwitchName=rack"+str(i)+" Nodes="
   rack_nodes = []
   for h in v:
+    fhandler.write("Node "+h+" from switch number "+str(i)+"\n")
     print(h)
     ordered_hosts.append(h)
     ordered_hosts_friendly_name.append(friendly_name_to_system_hostname[h])
     rack_nodes.append(friendly_name_to_system_hostname[h])
   rack_data = rack_data_prefix + ','.join([str(node) for node in rack_nodes])
-
+fhandler.close()
 hostfile="ordered_hostfile"
 write_ordered_hostfile(ordered_hosts,hostfile)
 hostfile="ordered_hostfile_system_name"
@@ -143,4 +145,3 @@ hostfile="ordered_hostfile_system_name_srun"
 write_ordered_hostfile(ordered_hosts_friendly_name,hostfile,True)
 rankfile="rankfile_system_name"
 write_ordered_rankfile(ordered_hosts_friendly_name,rankfile)
-

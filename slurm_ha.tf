@@ -179,6 +179,7 @@ resource "null_resource" "cluster_backup" {
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
       zone_name                 = local.zone_name,
       dns_entries               = var.dns_entries,
+      vcn_compartment           = var.vcn_compartment,
       nfs                       = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       home_nfs                  = var.home_nfs,
       create_fss                = var.create_fss,

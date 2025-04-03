@@ -1,27 +1,4 @@
----
-- name: Check if yq exists
-  stat:
-    path: "/config/3rdparty/yq"
-  register: yq_present
-
-- name: Download yq RPMs.
-  get_url:
-    url: "https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64.tar.gz"
-    dest: "/tmp"
-  retries: 10
-  delay: 10
-  register: result
-  until: result is not failed
-  when: not yq_present.stat.exists
-- name: untar yq
-  unarchive:
-    src: "/tmp/yq_linux_amd64.tar.gz"
-    dest: "/config/3rdparty/"
-  when: not yq_present.stat.exists
-- name: move
-  become: true
-  copy:
-    src: "/config/3rdparty/yq_linux_amd64"
-    dest: "/usr/bin/yq"
-    mode: "0755"
-
+- include_tasks: el.yml
+  when: ansible_os_family == 'RedHat'
+- include_tasks: ubuntu.yml
+  when: ansible_os_family == 'Debian'
