@@ -36,6 +36,12 @@ fi
 controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller_name`
 cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`
 login=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.login`
+controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller`
+
+if [ "$controller" == "true" ]; then
+    echo "Do not run the cloud-init on the controller, this will create a circular dependency on the /config mount"
+    exit
+fi
 
 mkdir /config
 
