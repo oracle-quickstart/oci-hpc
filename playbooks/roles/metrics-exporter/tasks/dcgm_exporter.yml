@@ -72,11 +72,15 @@
     remote_src: true
   when: not dcgm_exporter.stat.exists | bool
 
+- name: get directory
+  shell: "ls -d /config/3rdparty/NVIDIA-dcgm-exporter-*"
+  register: dcgm_directory
+
 - name: Build DCGM Exporter binary
   become: true
   command: make binary
   args:
-    chdir: "/config/3rdparty/dcgm-exporter"
+    chdir: "{{dcgm_directory.stdout}}"
   environment:
     PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
   when: not dcgm_exporter.stat.exists | bool
@@ -85,7 +89,7 @@
   become: true
   command: make install
   args:
-    chdir: /config/3rdparty/dcgm-exporter
+    chdir: "{{dcgm_directory.stdout}}"
   environment:
     PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
 
