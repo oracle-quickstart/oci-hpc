@@ -108,6 +108,7 @@ Allow dynamic-group instance_principal to manage compute-management-family in co
 Allow dynamic-group instance_principal to manage instance-family in compartment compartmentName
 Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
 Allow dynamic-group instance_principal to use volumes in compartment compartmentName
+Allow dynamic-group instance_principal to manage dns in compartment compartmentName
 ```
 or:
 
@@ -122,8 +123,9 @@ The stack allows a various combination of OS. Here is a list of what has been te
 |   Controller  |    Compute   |
 |---------------|--------------|
 |      OL8      |      OL8     |
-|      OL8      |      OL7     |
+|      OL9      |      OL9     |
 | Ubuntu  22.04 | Ubuntu 22.04 |
+| Ubuntu  24.04 | Ubuntu 24.04 |
 
 When switching to Ubuntu, make sure the username is changed from `opc` to `ubuntu` in ORM for both the controller and compute nodes. 
 
