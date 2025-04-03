@@ -33,7 +33,7 @@ else
     default_user=opc
 fi
 
-controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller_name`
+controller_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller_name`
 cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`
 login=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.login`
 controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller`
@@ -45,8 +45,8 @@ fi
 
 mkdir /config
 
-if ! grep -qF "$controller:/config /config nfs" /etc/fstab; then
-    echo "$controller:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
+if ! grep -qF "$controller_name:/config /config nfs" /etc/fstab; then
+    echo "$controller_name:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
     systemctl daemon-reload
     echo "Entry added to /etc/fstab."
 else
@@ -58,7 +58,7 @@ while true; do
         echo "/config is already mounted. Exiting loop."
         break
     fi
-    echo "Attempting to mount $controller:/config"
+    echo "Attempting to mount $controller_name:/config"
     # Run the mount command and check if it succeeds
     mount /config
     
