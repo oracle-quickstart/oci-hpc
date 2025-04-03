@@ -219,6 +219,7 @@
   command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item.item }}.ldif
   with_items: "{{ openldap_schemas_output.results }}"
   when: item.files | length == 0
+  ignore_errors: true
 
 - name: Load OpenLDAP global configuration (OL7, OL8, OL9)
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
