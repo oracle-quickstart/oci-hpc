@@ -1,0 +1,29 @@
+---
+
+slurm_user: "slurm"
+slurm_group: "slurm"
+
+slurm_jwt_token_path: "/nfs/cluster/spool/slurm/jwt_hs256.token"
+
+slurm_conf_path: "/etc/slurm/slurm.conf"
+slurmdbd_conf_path: "/etc/slurm/slurmdbd.conf"
+
+slurm_conf_authalt_types_line: "AuthAltTypes=auth/jwt"
+slurm_conf_authalt_parameters_line: "AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}"
+
+slurmctld_service: "slurmctld.service"
+slurmdbd_service: "slurmdbd.service"
+slurmrestd_service: "slurmrestd.service"
+slurmrestd_path: "{{ '/usr/local/sbin/slurmrestd' if ansible_os_family == 'Debian' else '/usr/sbin/slurmrestd' }}"
+nvm_install_url: "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh"
+openapi_generator_cli_pkg: "@openapitools/openapi-generator-cli"
+openapi_generator_jar_version: "7.10.0"
+openapi_download_path: "/opt/oci-hpc/slurm_sdk"
+
+slurm_rest_api_spec_url: "http://{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}:6820/openapi/v3"
+slurm_rest_api_spec_filename: "slurm_api.json"
+
+sdk_output_dir: "/opt/oci-hpc/slurm_sdk"
+
+python_sdk_output_dir: "py-pydantic"
+

@@ -330,3 +330,9 @@
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool
+
+- hosts: controller
+  tasks:
+    - include_role:
+        name: slurm_rest_api
+      when: slurm|default(false)|bool
