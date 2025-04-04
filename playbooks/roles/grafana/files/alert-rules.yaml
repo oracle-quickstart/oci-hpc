@@ -1196,3 +1196,414 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+    - orgId: 1
+      name: RDMA Faults reported by OCI and may require repair
+      folder: Critical
+      interval: 5m
+      rules:
+        - uid: oci-rdma-link-speed-fault
+          title: RDMA Link Speed Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_link_speed_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA link speed fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: oci_rdma_pcie_address_fault
+          title: RDMA PCIE Address Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_address_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Address fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook            
+        - uid: oci_rdma_pcie_cable_flap_fault
+          title: RDMA PCIE Cable Flap Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_cable_flap_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Cable Flap fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook                        
+        - uid: oci_rdma_pcie_cable_flap_fault
+          title: RDMA PCIE Cable Flap Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_cable_flap_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Cable Flap fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: oci_rdma_pcie_cable_plug_fault
+          title: RDMA PCIE Cable Plug Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_cable_plug_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Cable Plug fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+        - uid: oci_rdma_pcie_cable_state_fault
+          title: RDMA PCIE Cable State Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_cable_state_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Cable State fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook                                                          
+        - uid: oci_rdma_pcie_ber_check_fault
+          title: RDMA PCIE BER Check Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_ber_check_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE BER Check fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook                                                          
