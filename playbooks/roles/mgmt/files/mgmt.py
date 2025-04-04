@@ -7,8 +7,6 @@ from datetime import datetime, timedelta, timezone
 import mgmt_utils 
 import json
 import time
-controller_hostname = "{{controller_hostname}}"
-
 
 # Argument parsing
 parser = argparse.ArgumentParser(description="Process node list and flags.")
@@ -121,7 +119,7 @@ if version >= (3, 12):
 
 unreachable_timeout = timedelta(minutes=30)
 
-results = mgmt_utils.query_db(controller_hostname)
+results = mgmt_utils.query_db()
 # Initialize node lists
 configured_nodes = []
 waiting_for_compute = []
@@ -136,9 +134,20 @@ current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
 timeTH = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
 
 controller = [i for i in results if i["role"] == "controller"]
+if len(controller) > 1:
+    logger.error(f"There are multiple controller in the DB, Using {controller[0]['hostname']}")
+ 
+controller_hostname=controller[0]['hostname']
 compartment_ocid=controller[0]["compartment"]
 
 login = [i for i in results if i["role"] == "login"]
+
+clusters = [i["cluster_name"] for i in results if i["role"] == "compute"]
+if args.create_cluster:
+    if args.create_cluster in clusters:
+        logger.error("You are trying to create a cluster with a name that already exists, this will add confusion. Please rename")
+        exit(1)
+
 if nodes_list:
     compute=[]
     compute_with_terminated = [] # Cannot show terminated nodes with nodes list of cluster defined, only -a
@@ -349,21 +358,32 @@ if args.create_cluster:
         count = args.create_cluster_count
     else:
         # Ask user to choose a custom image
-        choice = int(input("How many nodes need to be created in the cluster"))
+        choice = int(input("How many nodes need to be created in the cluster: "))
         count = choice
+    availabilitydomains = mgmt_utils.guess_availabilitydomain(compartment_ocid)
+    if len(availabilitydomains)==1:
+        availabilitydomain=availabilitydomains[0]
+    elif args.create_cluster_ad:
+        availabilitydomain=args.create_cluster_ad
+    else:
+        for i, ad in enumerate(availabilitydomains):
+            print(f"{i+1}. {ad} ")
+            choice_ad = int(input("Enter the AD index: ")) - 1
+            availabilitydomain=choice_ad
+            logger.info(f"This AD was chosen {availabilitydomain}")
     instance_config_ocid=None
     instance_type=None
     if args.create_cluster_instance_type is None and args.create_cluster_inst_config is None:
         # Ask user to choose an instance configuration        
-        choice = input("How would you like to specify the cluster configuration: OCID or queues :")
+        choice = input("How would you like to specify the cluster configuration: OCID or queues : ")
         if choice.lower() == "ocid" or choice.lower() == "o" or choice.lower() == "config" or choice.lower() == "ic":
             instance_config_list = mgmt_utils.list_instance_configs(compartment_ocid)
             for i, ic in enumerate(instance_config_list):
                 print(f"{i+1}. {ic.display_name} ({ic.id})")
-                choice_config = int(input("Enter the number of the instance configuration to use: ")) - 1
-                instance_config_ocid = instance_config_list[choice_config].id
-                instance_config_name = instance_config_list[choice_config].display_name
-                logger.info(f"This instance configuration was chosen {instance_config_name} with OCID {instance_config_ocid}")
+            choice_config = int(input("Enter the number of the instance configuration to use: ")) - 1
+            instance_config_ocid = instance_config_list[choice_config].id
+            instance_config_name = instance_config_list[choice_config].display_name
+            logger.info(f"This instance configuration was chosen {instance_config_name} with OCID {instance_config_ocid}")
         elif choice.lower() == "queues" or choice.lower() == "queues.conf" or choice.lower() == "q":
             instance_type_list = mgmt_utils.list_instance_types()
             for i, it in enumerate(instance_type_list):
@@ -382,13 +402,23 @@ if args.create_cluster:
         if instance_type["cluster_network"]:
             if instance_type["compute_cluster"]:
                 cluster_type="CC"
+                if args.create_cluster_subnet:
+                    subnet_id=args.create_cluster_subnet
+                else:
+                    subnet_id=None
+                try:
+                    cluster = mgmt_utils.create_cluster(cluster_type,instance_type,None,count,compartment_ocid,clustername,availabilitydomain,subnet_id,controller_hostname)
+                except Exception as e:
+                    logger.error(f"Could not create the cluster with error {e}")
+                    mgmt_utils.remove_inventory(clustername)
             else:
                 cluster_type="CN"
         else:
             cluster_type="IPA"
-        instance_config=mgmt_utils.generate_instance_config(instance_type,controller_hostname,clustername)
-        instance_config_ocid=instance_config.id
-        subnet_id=instance_type["private_subnet_id"]
+        if cluster_type != "CC":
+            instance_config=mgmt_utils.generate_instance_config(instance_type,controller_hostname,clustername)
+            instance_config_ocid=instance_config.id
+            subnet_id=instance_type["private_subnet_id"]
     elif args.create_cluster_inst_config or not instance_config_ocid is None:
         if args.create_cluster_inst_config:
             instance_config_ocid = args.create_cluster_inst_config
@@ -397,7 +427,7 @@ if args.create_cluster:
         else:
             while True:
                 # Ask user to choose a custom image
-                choice_cluster_type = int(input("What type of cluster would you like: CN=Cluster Network, CC=Compute Cluster, IPA=Instance Pool, SA=Stand Alone Instances"))
+                choice_cluster_type = input("What type of cluster would you like: CN=Cluster Network, CC=Compute Cluster, IPA=Instance Pool, SA=Stand Alone Instances: ")
                 if choice_cluster_type.lower() in ['cn','cc','ipa','ip','sa']:
                     cluster_type = choice_cluster_type.upper()
                     break
@@ -410,26 +440,16 @@ if args.create_cluster:
         if instance_config_details is None:
             logger.error(f"The instance configuration with OCID {instance_config_ocid} was not found")
             exit()
-        availabilitydomains = mgmt_utils.guess_availabilitydomain(compartment_ocid)
-        if len(availabilitydomains)==1:
-            availabilitydomain=availabilitydomains[0]
-        elif args.create_cluster_ad:
-            availabilitydomain=args.create_cluster_ad
-        else:
-            for i, ad in enumerate(availabilitydomains):
-                print(f"{i+1}. {ad} ")
-                choice_ad = int(input("Enter the AD index: ")) - 1
-                availabilitydomain=choice_ad
-                logger.info(f"This AD was chosen {availabilitydomain}")
         if args.create_cluster_subnet:
             subnet_id=args.create_cluster_subnet
-        #TO DO: Add Slurm check for Nodeset
+        else:
+            subnet_id=instance_config_details.instance_details.launch_details.create_vnic_details.subnet_id
         mgmt_utils.generate_inventory(instance_config_details,clustername,cluster_type)
         try:
-            cluster = mgmt_utils.create_cluster(cluster_type,instance_config_ocid,count,compartment_ocid,clustername,availabilitydomain,subnet_id)
-        except: 
+            cluster = mgmt_utils.create_cluster(cluster_type,None,instance_config_ocid,count,compartment_ocid,clustername,availabilitydomain,subnet_id,controller_hostname)
+        except Exception as e:
+            logger.error(f"Could not create the cluster with error {e}")
             mgmt_utils.remove_inventory(clustername)
-        #TO DO: Add Slurm check for Nodeset
     else:
         logger.error(f"There is no instance configuration available for this cluster")
 

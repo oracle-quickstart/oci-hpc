@@ -139,7 +139,7 @@ def get_ipa_ocid(instance, compartment_ocid):
                             continue
     return None,"StandAlone"
 
-def query_db(controller_hostname):
+def query_db():
     try:
         # DB Connection Details
         db_host = "localhost"
@@ -154,14 +154,12 @@ def query_db(controller_hostname):
 
     query = """
     SELECT *
-    FROM nodes
-    WHERE controller_name = %s;
+    FROM nodes;
     """
-    params = (controller_hostname,)
     results = None
     try:
         with connection.cursor(pymysql.cursors.DictCursor) as cursor:
-            cursor.execute(query, params)
+            cursor.execute(query)
             results = cursor.fetchall()
             logger.info("Query executed successfully. Retrieved %d records.", len(results))
     except pymysql.MySQLError as e:
@@ -293,7 +291,7 @@ def get_instances(compartment_ocid,cn_ocid,CN):
             cn_instances.append({'display_name':instance_summary.display_name,'ip':vnic.private_ip,'ocid':instance_summary.id,'created':instance_summary})
     return cn_instances
 
-def getLaunchInstanceDetails(instance,compartment_ocid,cn_ocid,clustername):
+def getLaunchInstanceDetailsFromInstance(instance,compartment_ocid,cn_ocid,clustername):
 
     agent_config=instance.agent_config
     agent_config.__class__ = oci.core.models.LaunchInstanceAgentConfigDetails
@@ -309,12 +307,180 @@ def getLaunchInstanceDetails(instance,compartment_ocid,cn_ocid,clustername):
         launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,nvmes=nvmes,ocpus=shape_config.ocpus)
     except:
         launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,ocpus=shape_config.ocpus)
-
     new_display_name = "inst-"+''.join(random.choices(string.ascii_lowercase, k=5))+"-"+clustername
     if instance.shape.startswith("BM"):
         launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
     else:
         launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cn_ocid,shape=instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=instance.source_details,metadata=instance.metadata,display_name=new_display_name,freeform_tags=instance.freeform_tags,create_vnic_details=create_vnic_details)
+    return launch_instance_details
+def getLaunchInstanceDetailsFromInstanceType(instance_type,subnet_id,clustername,controller_hostname,cn_id):
+
+    if subnet_id is None:
+        subnet_id=instance_type['private_subnet_id']
+    image_id=instance_type['image']
+    bv_size=instance_type['boot_volume_size']
+    availability_domain=instance_type['ad']
+    targetCompartment=instance_type['targetCompartment']
+    shape=instance_type['shape']
+    availability_domain=instance_type['ad']
+    cpus=instance_type['instance_pool_ocpus']
+    memory=instance_type['instance_pool_memory']
+    hostname_convention=instance_type['hostname_convention']
+    RDMA=instance_type['cluster_network']
+    ### Not working yet
+    mkplace=instance_type['use_marketplace_image']
+    marketplace_listing=instance_type['marketplace_listing']
+
+    with open("/config/key/public", "r") as file:
+        public_key = file.read()
+    with open("/config/cloud-init.sh", "r") as file:
+        cloud_init = base64.b64encode(file.read().encode()).decode()
+
+    """
+    Creates a new instance configuration by fully replicating the source configuration.
+    If a new SSH key is provided, it replaces the SSH key in the launch metadata.
+    """
+    try:
+
+        if RDMA:
+            plugins_config_definition=[
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state="ENABLED",
+                    name="Compute HPC RDMA Authentication"
+                ),
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state="ENABLED",
+                    name="Compute HPC RDMA Auto-Configuration"
+                ),
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state="ENABLED",
+                    name="Compute RDMA GPU Monitoring"
+                ),
+            ]
+        else:
+            plugins_config_definition=[]
+
+        new_agent_config = oci.core.models.LaunchInstanceAgentConfigDetails(
+            are_all_plugins_disabled=False,
+            is_monitoring_disabled=False,
+            plugins_config=plugins_config_definition
+        )
+
+
+        new_create_vnic = oci.core.models.CreateVnicDetails(
+            assign_public_ip=False,
+            subnet_id=subnet_id
+            # Additional fields can be added here if needed
+        )
+
+        new_source_details = oci.core.models.InstanceSourceViaImageDetails(
+            source_type="image",
+            image_id=image_id,
+            boot_volume_size_in_gbs=int(bv_size),
+            boot_volume_vpus_per_gb=int(30)
+        )
+
+        new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
+        new_tags={"cluster_name" : clustername, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
+
+        if shape.endswith("Flex"):
+            new_launch_details = oci.core.models.LaunchInstanceDetails(
+            availability_domain=availability_domain,
+            compartment_id=targetCompartment,
+            shape=shape,
+            shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=cpus,memory_in_gbs=memory),
+            metadata=new_metadata,
+            freeform_tags=new_tags,
+            agent_config=new_agent_config,
+            create_vnic_details=new_create_vnic,
+            source_details=new_source_details,
+            compute_cluster_id=cn_id
+            )
+        else:
+            new_launch_details = oci.core.models.LaunchInstanceDetails(
+            availability_domain=availability_domain,
+            compartment_id=targetCompartment,
+            shape=shape,
+            metadata=new_metadata,
+            freeform_tags=new_tags,
+            agent_config=new_agent_config,
+            create_vnic_details=new_create_vnic,
+            source_details=new_source_details,
+            compute_cluster_id=cn_id
+            ) 
+        return new_launch_details
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"An error occurred: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return None
+
+def getLaunchInstanceDetailsFromInstanceConfig(instance_config_ocid,compartment_ocid,cn_ocid,availability_domain,clustername,subnet_id,controller_hostname):
+
+    instance_config=get_instance_config_details(instance_config_ocid)
+    agent_config=instance_config.instance_details.launch_details.agent_config
+    agent_config.__class__ = oci.core.models.LaunchInstanceAgentConfigDetails
+    createVnicDetails=instance_config.instance_details.launch_details.create_vnic_details
+    createVnicDetails.__class__ = oci.core.models.CreateVnicDetails
+    createVnicDetails.subnet_id=subnet_id
+    shape=instance_config.instance_details.launch_details.shape
+    shape_config=instance_config.instance_details.launch_details.shape_config
+    if shape_config is None:
+        launchInstanceShapeConfigDetails=None
+    else:
+        try:
+            nvmes=shape_config.local_disks
+            launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,nvmes=nvmes,ocpus=shape_config.ocpus)
+        except:
+            launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,ocpus=shape_config.ocpus)
+    source_details=instance_config.instance_details.launch_details.source_details
+    source_details.__class__ = oci.core.models.InstanceSourceViaImageDetails
+    metadata=instance_config.instance_details.launch_details.metadata
+    new_tags=instance_config.instance_details.launch_details.freeform_tags
+    new_tags["cluster_name"] = clustername
+    if not 'controller_name' in new_tags.keys():
+        new_tags['controller_name'] = controller_hostname
+
+    defined_tags=instance_config.instance_details.launch_details.defined_tags
+
+    new_display_name = "inst-"+''.join(random.choices(string.ascii_lowercase, k=5))+"-"+clustername
+    if shape_config is None:
+        launch_instance_details=oci.core.models.LaunchInstanceDetails(
+        agent_config=agent_config,
+        availability_domain=availability_domain, 
+        compartment_id=compartment_ocid,
+        compute_cluster_id=cn_ocid,
+        shape=shape,
+        source_details=source_details,
+        metadata=metadata,
+        display_name=new_display_name,
+        freeform_tags=new_tags,
+        defined_tags=defined_tags,
+        create_vnic_details=createVnicDetails
+        )
+        
+    else:
+        try:
+            nvmes=shape_config.local_disks
+            launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,nvmes=nvmes,ocpus=shape_config.ocpus)
+        except:
+            launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,ocpus=shape_config.ocpus)
+
+        launch_instance_details=oci.core.models.LaunchInstanceDetails(
+            agent_config=agent_config,
+            availability_domain=availability_domain, 
+            compartment_id=compartment_ocid,
+            compute_cluster_id=cn_ocid,
+            shape=shape,
+            shape_config=launchInstanceShapeConfigDetails,
+            source_details=source_details,
+            metadata=metadata,
+            display_name=new_display_name,
+            freeform_tags=new_tags,
+            defined_tags=defined_tags,
+            create_vnic_details=createVnicDetails
+            )
     return launch_instance_details
 
 def add_node_to_cluster(clustername,number_of_nodes,compartment_ocid):
@@ -336,7 +502,7 @@ def add_node_to_cluster(clustername,number_of_nodes,compartment_ocid):
                 instance=computeClient.get_instance(cn_instances[0]['ocid']).data
                 logger.info(f"Launching {number_of_nodes} in the Compute Cluster")
                 for i in range(number_of_nodes):
-                    launch_instance_details=getLaunchInstanceDetails(instance,compartment_ocid,cn_summary.id,clustername)
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(instance,compartment_ocid,cn_summary.id,clustername)
                     ComputeClientCompositeOperations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
         else:
             current_size=ip_summary.size
@@ -381,10 +547,8 @@ def generate_instance_config(instance_type,controller_hostname,clustername):
     targetCompartment=instance_type['targetCompartment']
     shape=instance_type['shape']
     availability_domain=instance_type['ad']
-    instance_config_name=instance_type['name']
     cpus=instance_type['instance_pool_ocpus']
     memory=instance_type['instance_pool_memory']
-    instance_config_name=instance_type['name']
     hostname_convention=instance_type['hostname_convention']
     RDMA=instance_type['cluster_network']
     ### Not working yet
@@ -419,11 +583,6 @@ def generate_instance_config(instance_type,controller_hostname,clustername):
             ]
         else:
             plugins_config_definition=[]
-
-        if shape.endswith("Flex"):
-            shape_config_definition=oci.core.models.InstanceConfigurationLaunchInstanceShapeConfigDetails(ocpus=cpus,memory_in_gbs=memory)
-        else:
-            shape_config_definition=oci.core.models.InstanceConfigurationLaunchInstanceShapeConfigDetails()
 
         new_agent_config = oci.core.models.InstanceConfigurationLaunchInstanceAgentConfigDetails(
             are_all_plugins_disabled=False,
@@ -497,10 +656,10 @@ def generate_instance_config(instance_type,controller_hostname,clustername):
         return create_response
 
     except oci.exceptions.ServiceError as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
         return None
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}")
         return None
 
 def get_instance_config_details(instance_config_ocid):
@@ -509,7 +668,7 @@ def get_instance_config_details(instance_config_ocid):
         return instance_configuration
     except:
         return None
-def create_cluster(cluster_type,instance_config_ocid,count,compartment_ocid,clustername,availability_domain,subnet_id):
+def create_cluster(cluster_type,instance_type,instance_config_ocid,count,compartment_ocid,clustername,availability_domain,subnet_id,controller_hostname):
     if cluster_type == "CN":
         ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=subnet_id)
         ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
@@ -527,7 +686,14 @@ def create_cluster(cluster_type,instance_config_ocid,count,compartment_ocid,clus
     elif cluster_type == "CC":
         cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=compartment_ocid,availability_domain=availability_domain,display_name=clustername)
         cn = computeClient.create_compute_cluster(create_compute_cluster_details=cc_details).data
-        return cn.data
+        for i in range(count):
+            if instance_type is None:
+                launch_instance_details = getLaunchInstanceDetailsFromInstanceConfig(instance_config_ocid,compartment_ocid,cn.id,availability_domain,clustername,subnet_id,controller_hostname)
+            else:
+                launch_instance_details = getLaunchInstanceDetailsFromInstanceType(instance_type,subnet_id,clustername,controller_hostname,cn.id)
+            ComputeClientCompositeOperations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
+        return get_instances(compartment_ocid,cn.id,cluster_type)
+    
 def generate_inventory(instance_config_details,clustername,cluster_type):
     original_inventory="/config/playbooks/inventory"
     inventory_name=f"/config/playbooks/inventory_{clustername}"
@@ -577,18 +743,19 @@ def delete_cluster(clustername,compartment_ocid):
         cn_instances = get_instances(compartment_ocid,cn_summary.id,CN)
         for instance in cn_instances:
             ComputeClientCompositeOperations.terminate_instance_and_wait_for_state(instance['ocid'],wait_for_states=["TERMINATING","TERMINATED"])
+        instance_running=True
         while instance_running:
             instance_running=False
             for instance in cn_instances:
                 if computeClient.get_instance(instance['ocid']).data.lifecycle_state != "TERMINATED":
                     instance_running=True
-                    time.sleep(10)
+                    time.sleep(30)
         if CN == "CC":
             computeClient.delete_compute_cluster(cn_summary.id)
-
-
-
 
 def guess_availabilitydomain(compartment_ocid):
     ads=IdentityClient.list_availability_domains(compartment_ocid).data
     return [i.name for i in ads]
+
+def list_subnets(compartment_ocid):
+    return virtualNetworkClient.list_subnets(compartment_id=compartment_ocid).data

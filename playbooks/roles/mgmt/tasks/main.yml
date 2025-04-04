@@ -18,7 +18,6 @@
   with_items: 
     - get_nodes_from_db.py
     - add_nodes_to_queue.py
-    - mgmt.py
 
 - name: copy mgmt utils files
   copy: 
@@ -30,6 +29,7 @@
   with_items: 
     - mgmt_shared_logging.py
     - mgmt_utils.py
+    - mgmt.py
 
 - name: Make sure clustershell is installed for node status script
   vars:
