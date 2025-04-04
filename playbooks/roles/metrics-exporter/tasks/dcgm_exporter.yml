@@ -32,35 +32,53 @@
     create: yes
     state: present
 
-- name: Get current DCGM version
-  become: true
-  shell:
-    cmd: dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'
-  register: dcgm_version
+- name: Get dcgmi version
+  shell: "dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'"
+  register: dcgm_version_output
+  delegate_to: "{{ groups['compute'][0] }}"        
+  run_once: true  
+
+- name: Set dcgmi version globally
+  set_fact:
+    dcgm_version: "{{ dcgm_version_output.stdout }}"
+  delegate_to: localhost
+  run_once: true
 
 - name: Find DCGM Exporter releases
   become: true
   shell:
     cmd: curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"'
   register: dcgm_exporter_releases
+  delegate_to: localhost
+  run_once: true
 
 - name: Select appropriate DCGM Exporter version
   set_fact:
-    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version.stdout) | first | split(' ') | last }}"
+    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version) | first | split(' ') | last }}"
+  delegate_to: localhost
+  run_once: true
 
 - name: Download DCGM Exporter tarball
   become: true
   get_url:
     url: "{{ dcgm_exporter_url }}"
-    dest: "/tmp/dcgm-exporter.tar.gz"
+    dest: "/tmp/dcgm-exporter.tar.gz"        
+  delegate_to: localhost
+  run_once: true
 
+- name: Copy DCGM Exporter tarball to target
+  become: true
+  copy:
+    src: "/tmp/dcgm-exporter.tar.gz"
+    dest: "/tmp/dcgm-exporter.tar.gz"
+  delegate_to: localhost
+  run_once: true
 
 - name: Extract DCGM Exporter tarball
   become: true
   unarchive:
     src: "/tmp/dcgm-exporter.tar.gz"
     dest: "/tmp"
-    remote_src: true
 
 - name: get directory
   shell: "ls -d /tmp/NVIDIA-dcgm-exporter-*"

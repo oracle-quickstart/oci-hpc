@@ -1,0 +1,14 @@
+[Unit]
+Description=Slurm Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User={{ slurm_user }}
+Group={{ slurm_group }}
+Type=simple
+Environment="PYTHONPATH=/usr/local/lib/python3.10/dist-packages"
+ExecStart=/usr/bin/env python3 /usr/local/bin/slurm-exporter.py
+
+[Install]
+WantedBy=multi-user.target
