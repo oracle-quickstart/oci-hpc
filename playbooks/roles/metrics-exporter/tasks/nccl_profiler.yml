@@ -1,0 +1,81 @@
+---
+- name: Get nccl version
+  become: true
+  shell: 
+    cmd: find -L /usr/lib -name "libnccl.so*" -print | tail -1 | awk -F".so." '{print $2}'
+  register: nccl_version_output
+  delegate_to: "{{ groups['compute'][0] }}"        
+  run_once: true  
+
+- name: Set nccl version globally
+  set_fact:
+    nccl_version: "{{ nccl_version_output.stdout }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Find nccl releases
+  become: true
+  shell:
+    cmd: curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"'
+  register: nccl_releases
+  delegate_to: localhost
+  run_once: true
+
+- name: Select appropriate NCCL version
+  set_fact:
+    nccl_tarball_url: "{{ nccl_releases.stdout_lines | select('search', nccl_version) | first | split(' ') | last }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Download NCCL tarball
+  become: true
+  get_url:
+    url: "{{ nccl_tarball_url }}"
+    dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+  delegate_to: localhost
+  run_once: true
+
+- name: Copy nccl tarball to target
+  become: true
+  copy:
+    src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+    dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract NCCL tarball
+  become: true
+  unarchive:
+    src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+    dest: "/tmp"
+
+- name: Get NCCL directory
+  shell: "ls -d /tmp/NVIDIA-nccl-*"
+  register: nccl_directory
+
+- name: Build NCCL profiler plugin
+  become: true
+  command: make
+  args:
+    chdir: "{{ nccl_directory.stdout }}/ext-profiler/example"
+  environment:
+    PATH: "{{ ansible_env.PATH }}"
+
+- name: Copy NCCL profiler library
+  become: true
+  copy:
+    src: "{{ nccl_directory.stdout }}/ext-profiler/example/libnccl-profiler.so"
+    dest: "/usr/lib/x86_64-linux-gnu/libnccl-profiler.so"
+    mode: "0644"
+    remote_src: true
+  when: ansible_os_family == "Debian"
+
+- name: Copy NCCL profiler library
+  become: true
+  copy:
+    src: "{{ nccl_directory.stdout }}/ext-profiler/example/libnccl-profiler.so"
+    dest: "/usr/lib64/libnccl-profiler.so"
+    mode: "0644"
+    remote_src: true
+  when: ansible_distribution == "RedHat"
+  
