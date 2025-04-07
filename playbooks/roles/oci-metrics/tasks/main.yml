@@ -1,0 +1,60 @@
+---
+
+- name: Install prometheus_client python package
+  ansible.builtin.pip:
+    name: prometheus_client 
+    executable: /usr/bin/pip3  
+  become: yes
+  
+- name: Copy OCI FSS exporter file to scripts directory
+  copy:
+    src: oci-fss-metrics-exporter.py
+    dest: /usr/local/bin
+    mode: 0755
+  become: yes
+
+- name: Copy OCI RDMA Faults exporter file to scripts directory
+  copy:
+    src: oci-rdma-faults-exporter.py
+    dest: /usr/local/bin
+    mode: 0755
+  become: yes
+
+- name: Render OCI FSS Exporter systemd service file
+  become: true
+  template: 
+    src: oci-fss-exporter.service.j2
+    dest: /etc/systemd/system/oci-fss-exporter.service
+    force: yes
+    backup: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0744
+
+- name: Render OCI RDMA Faults Exporter systemd service file
+  become: true
+  template: 
+    src: oci-rdma-faults-exporter.service.j2
+    dest: /etc/systemd/system/oci-rdma-faults-exporter.service
+    force: yes
+    backup: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0744
+
+- name: Start OCI FSS Exporter
+  become: true
+  service:
+    name: oci-fss-exporter
+    daemon_reload: true
+    state: restarted
+    enabled: yes
+
+- name: Start OCI RDMA Faults Exporter
+  become: true
+  service:
+    name: oci-rdma-faults-exporter
+    daemon_reload: true
+    state: restarted
+    enabled: yes
+
