@@ -7,10 +7,31 @@ service_dest_dir: /etc/systemd/system
 prometheus_download_dir: /tmp/prometheus-2.53.1.linux-amd64
 prometheus_download_url: https://github.com/prometheus/prometheus/releases/download/v2.53.1/prometheus-2.53.1.linux-amd64.tar.gz
 # vars file for prometheus
+# 9100 - node exporter - exports cpu, memory, network, disk metrics for each node.
+# 9200 - OCI FSS metrics exporter - downloads metrics from OCI and pushes them to our prometheus instance.
+# 9300 - OCI RDMA faults exporter - downloads RDMA faults as reported by OCA agents from OCI and pushes them to our prometheus instance for alerts.
+# 9400 - DCGM metrics exporter for GPU nodes.
+# 9500 - NVLink metrics exporter for GPU nodes.
+# 9600 - ROCEv2/RDMA link metrics exporter for GPU nodes.
+# 9700 - Critical process monitor that alerts if a critical process is down on a node.
+# 9800 - Slurm job accounting metrics (NVML) - GPU compute, memory and CPU compute, memory utilization by Slurm job.
+# 9900 - Slurm Metrics from SlurmRestd.
+# exporter_ports for all nodes 
+# controller_ports for the controller node only.
 
-exporter_ports:
+compute_ports:
   - "9100"
   - "9400"
   - "9500"
   - "9600"
   - "9700"
+  - "9800"
+
+controller_ports:
+  - "9100"
+  - "9200"
+  - "9300"
+  - "9900"
+
+login_ports:
+  - "9100"
