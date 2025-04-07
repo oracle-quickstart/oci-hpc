@@ -41,16 +41,32 @@
     owner: "{{ user }}"
     group: "{{ user }}"
   loop:
-    - main.jsonnet
     - g.libsonnet
-    - variables.libsonnet
+    - cluster-variables.libsonnet
+    - cluster-dashboard.jsonnet
+    - slurm-variables.libsonnet
+    - slurm-dashboard.jsonnet
+    - oci-variables.libsonnet
+    - oci-dashboard.jsonnet
 
-- name: Build dashboard with Jsonnet
+- name: Build cluster dashboard with Jsonnet
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
     /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
-    /usr/local/bin/jsonnet -J vendor main.jsonnet -o cluster_prometheus_v2.json
+    /usr/local/bin/jsonnet -J vendor cluster-dashboard.jsonnet -o cluster-dashboard.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Build slurm dashboard with Jsonnet
+  ansible.builtin.shell: |
+    /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Build oci dashboard with Jsonnet
+  ansible.builtin.shell: |
+    /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
   args:
     chdir: "{{ dashboard_build_dir }}"
 
@@ -64,15 +80,22 @@
 
 - name: Save generated dashboard
   copy:
-    src: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-    dest: "/opt/oci-hpc/monitoring/cluster_prometheus_v2.json"
+    src: "{{ dashboard_build_dir }}/{{ item }}"
+    dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
+  loop:
+    - cluster-dashboard.json
+    - slurm-dashboard.json
+    - oci-dashboard.json
 
-- name: Import NodeExporter, DCGM, RDMA, NVLink Grafana dashboards
+- name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
     state: present
     commit_message: Updated by ansible
     overwrite: true
-    path: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-
+    path: "{{ dashboard_build_dir }}/{{ item }}"
+  loop:
+    - cluster-dashboard.json
+    - slurm-dashboard.json
+    - oci-dashboard.json
