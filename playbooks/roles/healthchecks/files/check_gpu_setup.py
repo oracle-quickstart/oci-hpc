@@ -126,27 +126,12 @@ def slurm_reason(message):
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in [None,"FabricManagerRestart","Reboot","LiveFix","Reboot&LiveFix","Terminate"]:
+    if action not in [None,"FabricManagerRestart","Reboot","Terminate"]:
         print("No action was found")
         return 0
     if action == "Reboot" or action == "FabricManagerRestart":
         if current == "Terminate":
             return current
-        elif current == "LiveFix":
-            return "Reboot&LiveFix"
-        elif current == "Reboot&LiveFix":
-            return "Reboot&LiveFix"
-        else:
-            return action
-    if action == "LiveFix":
-        if current == "Terminate":
-            return current
-        elif current == "Reboot":
-            return "Reboot&LiveFix"
-        elif current == "Reboot&LiveFix":
-            return "Reboot&LiveFix"
-        elif current == "FabricManagerRestart":
-            return "Reboot&LiveFix"
         else:
             return action
     if action is None: 
@@ -169,11 +154,13 @@ def check_oca_status(log_state=False):
         return state
 
     except FileNotFoundError:
-        logger.warning("oci-hpc-rdma-configure.json not found.")
-        return "NOT STARTED"
+        if log_state:
+            logger.error("oci-hpc-rdma-configure.json not found.")
+            return "Not Started"
     except json.JSONDecodeError:
-        logger.error("Failed to parse oci-hpc-rdma-configure.json.")
-
+        if log_state:
+            logger.error("Failed to parse oci-hpc-rdma-configure.json.")
+            return "Not Started"
 # 2.1 Check if the Oracle Cloud Agent is installed and up-to-date
 def get_oca_version():
     # Run the shell command
@@ -898,6 +885,39 @@ def check_ip_addresses(metadata):
         }
     return missing_ips,interface_map
 
+# 18.1 Check the reboot counts
+
+def get_reboots_count():
+    result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+    now = datetime.now()
+    one_day_ago = now - timedelta(hours=24)
+    two_hours_ago = now - timedelta(hours=2)
+
+    reboot_count_last_day = 0
+    last_reboot_within_2hour = 0
+    reboot_lines=[]
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) < 6 or parts[0] != "reboot":
+            continue  # Ignore invalid lines
+        reboot_lines.append(line)
+    for line in reboot_lines[:-1]:
+        parts = line.split()
+        # Extract timestamp (format: "Mon Jan  1 12:34")
+        date_str = " ".join(parts[4:8])  # Extract date/time part
+        reboot_time = datetime.strptime(date_str, "%a %b %d %H:%M")
+        reboot_time = reboot_time.replace(year=now.year)  # Assume current year
+        # Count reboots in the last 12 hours
+        if reboot_time >= one_day_ago:
+            reboot_count_last_day += 1
+
+        # Check if the last reboot was within the last hour
+        if reboot_time >= two_hours_ago:
+            last_reboot_within_2hour += 1
+
+    return reboot_count_last_day, last_reboot_within_2hour
 #Section 2: Main function and args to run all checks (1.2 - 16.2)
 #################################################################
 
@@ -967,7 +987,7 @@ if __name__ == '__main__':
             oca_state = check_oca_status(log_state=False)  # Retrieve OCA state only when needed
         except Exception as e:
             logger.warning(f"Failed to check OCA state with error: {e}")
-            oca_state = "COMPLETED"
+            oca_state = "NOT STARTED"
 
         if oca_state == "COMPLETED":
             try:
@@ -1208,9 +1228,7 @@ if __name__ == '__main__':
                 slurm_reason("RDMA Link Error")
                 if "signal not detected" in issue:
                     logger.info("No signal detected doesn't always come from a bad cable and require a termination for investigation")
-                    action = recommended_action(action, "Terminate")
-                else:
-                    action = recommended_action(action, "LiveFix")
+                action = recommended_action(action, "Terminate")
 
     # 11.4 Summarize RDMA link flapping check
     if run_all or args.rdmalink_flap:
@@ -1254,7 +1272,7 @@ if __name__ == '__main__':
             for issue in cpu_profile_issues:
                 logger.error(f" - {issue}")
             slurm_reason("CPU Profile error")
-            action = recommended_action(action, "Reboot&LiveFix")
+            action = recommended_action(action, "Terminate")
 
     # 16.4 Summarize pending bad pages check for AMD
     if run_all or args.bad_page:
@@ -1270,21 +1288,22 @@ if __name__ == '__main__':
             logger.error("Missing IPs for these interfaces: "+missing_ips.join(','))
             slurm_reason("Missing IPs")
             action = recommended_action(action, "Reboot")
-
     # Print recommended action and slurm message
-    logger.info(f"Finished GPU host setup check at: {datetime_str}")
     if action == "Reboot":
-        logger.error("Recommended Action is to Force Reboot from the console or API")
-    if action == "LiveFix":
-        logger.error("Recommended Action is to Create a SR to Get the node fixed live")
-    if action == "Reboot&LiveFix":
-        logger.error("Recommended Action is to Create a SR to Get the node fixed live as well as force reboot the node")
+        number_of_reboots,last_2hour_reboot = get_reboots_count()
+        if last_2hour_reboot > 0 or number_of_reboots > 5:
+            action = "Terminate"
+            logger.error(f"The node has already been rebooted {last_2hour_reboot} time(s) in the last 2 hours and {number_of_reboots} in the last day")
+        else:
+            logger.error("Recommended Action is to Force Reboot from the console or API")
     if action == "Terminate":
         logger.error("Recommended Action is to Terminate the node and Create a SR")
 
     if slurm_error_count > 0 and args.slurm:
         print("Healthcheck:: " + slurm_drain_reason[:-1])
         print("Healthcheck:: Recommended Action:" + str(action))
+
+    logger.info(f"Finished GPU host setup check at: {datetime_str}")
 
     http_server_file="/opt/oci-hpc/http_server/files/info"
     # Read the existing data from the file
