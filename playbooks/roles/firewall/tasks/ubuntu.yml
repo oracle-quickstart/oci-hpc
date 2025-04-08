@@ -5,6 +5,7 @@
     name: ufw
     state: stopped
     enabled: no
+  ignore_errors: true
 
 # it still need update to iptables rules to accept traffic or else mpi traffic fails 
 
