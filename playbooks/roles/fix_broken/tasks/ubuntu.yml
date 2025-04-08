@@ -16,7 +16,7 @@
     name: unattended-upgrades
     state: stopped
     enabled: no 
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Ensure apt process is completed
   become: true
@@ -34,7 +34,7 @@
     package_purge: true
   include_role: 
     name: safe_yum
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: stop and mask timers
   systemd: 
@@ -63,7 +63,7 @@
     - linux-oracle 
     - linux-headers-oracle 
     - linux-image-oracle
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Ensure apt process is completed
   become: true

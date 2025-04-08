@@ -6,7 +6,7 @@
     name: ['pssh', 'parallel-ssh']
     executable: pip3
     state: latest
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Make sure /opt/oci-hpc/bin/ exists
   become: true
@@ -37,5 +37,5 @@
         owner: "{{ ansible_user }}"
         group: "{{privilege_group_name}}"
         mode: '0755'
-      ignore_errors: yes
+      ignore_errors: true
   

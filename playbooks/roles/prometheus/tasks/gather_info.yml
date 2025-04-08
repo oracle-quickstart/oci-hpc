@@ -7,7 +7,7 @@
   shell: "cat /etc/fstab | grep {{nfs_source_path}}"
   register: nfs_output
   delegate_to: "{{ item }}"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Extract the IP address using regex
   set_fact:
@@ -50,7 +50,7 @@
 
 - name: gather RDMA metadata
   uri:
-    url: http://169.254.169.254/opc/v1/host/
+    url: http://169.254.169.254/opc/v2/host/
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
