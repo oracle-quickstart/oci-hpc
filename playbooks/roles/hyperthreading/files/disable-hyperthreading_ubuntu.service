@@ -1,6 +1,6 @@
 [Unit]
 Description=Start this service to disable Hyperthreading, stop it to enable Hyperthreading.
-After=syslog.target irqbalance.service
+After=syslog.target irqbalance.service tuned.service
 
 [Service]
 Type=oneshot

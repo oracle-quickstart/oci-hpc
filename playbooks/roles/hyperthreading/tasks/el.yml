@@ -29,7 +29,7 @@
   ansible.builtin.systemd:
     daemon_reload: yes
 
-- name: 
+- name: Start HT service
   ansible.builtin.systemd:
     name: disable-hyperthreading.service
     state: started
