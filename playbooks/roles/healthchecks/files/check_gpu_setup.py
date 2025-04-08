@@ -169,7 +169,8 @@ def check_oca_status(log_state=False):
         return state
 
     except FileNotFoundError:
-        logger.error("oci-hpc-rdma-configure.json not found.")
+        logger.warning("oci-hpc-rdma-configure.json not found.")
+        return "NOT STARTED"
     except json.JSONDecodeError:
         logger.error("Failed to parse oci-hpc-rdma-configure.json.")
 
