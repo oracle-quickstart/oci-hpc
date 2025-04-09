@@ -261,6 +261,12 @@
         name: metrics-exporter
       when: cluster_monitoring|default(false)|bool
 
+- hosts: controller
+  tasks:
+    - include_role:
+        name: oci-metrics
+      when: cluster_monitoring|default(false)|bool
+
 - hosts: monitoring
   tasks: 
     - include_role: 
@@ -336,3 +342,4 @@
     - include_role:
         name: slurm_rest_api
       when: slurm|default(false)|bool
+
