@@ -213,11 +213,10 @@ def check_nodes_status():
                     if last_time_reachable < time_threshold:
                         query = """
                         UPDATE nodes
-                        SET controller_status = %s,
-                            status = %s
+                        SET status = %s
                         WHERE id = %s;
                         """
-                        run_query(query,args=(controller_status, status, doc["id"]))
+                        run_query(query,args=("unreachable", doc["id"]))
                         unreachable_nodes.append(hostname)
                         print(f"Node {hostname} was not reachable for 6 hours")
                     else:
