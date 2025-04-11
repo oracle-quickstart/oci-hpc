@@ -9,8 +9,6 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
     launch_details {
       availability_domain = var.ad
       compartment_id      = var.targetCompartment
-      create_vnic_details {
-      }
       freeform_tags = {
         "cluster_name"   = local.cluster_name
         "parent_cluster" = local.cluster_name
