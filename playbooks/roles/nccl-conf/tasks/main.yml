@@ -41,6 +41,16 @@
     mode: '0644'
   when: shape_nccl.stdout == '"BM.GPU.H200.8"'
 
+- name: copy nccl.conf for B200
+  become: true
+  template: 
+    src: b200
+    dest: /etc/nccl.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: shape_nccl.stdout == '"BM.GPU.B200.8"'
+  
 - name: copy nccl.conf for BM.GPU.B4.8 and A100-v2.8
   become: true
   template: 

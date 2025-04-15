@@ -629,6 +629,7 @@ variables:
       - "BM.GPU.A100-v2.8"
       - "BM.GPU.H100.8"
       - "BM.GPU.H200.8"
+      - "BM.GPU.B200.8"
       - "BM.GPU.MI300X.8"
       - "BM.GPU.L40S.4"
       - "BM.Optimized3.36"

@@ -72,6 +72,7 @@ def get_devices():
     shape_devices = {
         "BM.GPU.H100.8": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.H200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
+        "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
         "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
@@ -508,7 +509,7 @@ def check_gpu_count():
                 else:
                     expected_gpus = 4
                 lspci_expected_results = lspci_expected_results_a10
-            elif shape in ["BM.GPU.A100-v2.8", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1", "BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B4.8", "BM.GPU4.8"]:
+            elif shape in ["BM.GPU.A100-v2.8", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1", "BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B4.8", "BM.GPU4.8"]:
                 find_number = "2330"
                 if shape in ["VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1"]:
                     expected_gpus = 1
@@ -698,7 +699,7 @@ def check_wpa_auth(metadata):
     if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"]:
         interface_range = range(16)
         required_authenticated = 16
-    elif shape in ["BM.GPU.H200.8", "BM.GPU.MI300X.8"]:
+    elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8"]:
         interface_range = range(8)
         required_authenticated = 8
     else:
@@ -1045,7 +1046,7 @@ if __name__ == '__main__':
 
     # 14.3 Check Fabric Manager status
     if run_all or args.fabric_mgr:
-        if shape == "BM.GPU.H100.8" or shape == "BM.GPU.H200.8":
+        if shape == "BM.GPU.H100.8" or shape == "BM.GPU.H200.8" or shape == "BM.GPU.B200.8":
             try:
                 fabric_manager_health = check_fabric_manager()
             except Exception as e:
