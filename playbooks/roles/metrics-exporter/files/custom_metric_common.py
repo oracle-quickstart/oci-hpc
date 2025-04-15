@@ -96,7 +96,7 @@ def get_rdma_devices(oci_shape):
         rdma_devices = ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"]
     elif oci_shape == "BM.Optimized3.36":
         rdma_devices = ["mlx5_2", "mlx5_3"]
-    elif oci_shape == "BM.GPU.H200.8":
+    elif oci_shape == "BM.GPU.H200.8" or oci_shape == "BM.GPU.B200.8":
         rdma_devices = ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"]
 
     return rdma_devices
