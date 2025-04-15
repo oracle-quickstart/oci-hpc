@@ -70,7 +70,8 @@ def grafana_webhook():
             )
             response = notification_client.publish_message(
                 topic_id=topic_id,  # Use the dynamically fetched topic_id
-                message_details=message_details
+                message_details=message_details,
+                retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
             )
 
             logging.info(f"Message published. Message ID: {response.data.message_id}")
