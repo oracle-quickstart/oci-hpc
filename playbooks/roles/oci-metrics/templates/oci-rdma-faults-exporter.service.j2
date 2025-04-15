@@ -8,6 +8,7 @@ User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple
 ExecStart=/usr/bin/env python3 /usr/local/bin/oci-rdma-faults-exporter.py
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target

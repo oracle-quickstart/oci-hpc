@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/dcgm-exporter -f /etc/dcgm-counters.csv
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
