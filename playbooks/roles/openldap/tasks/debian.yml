@@ -1,27 +1,6 @@
 ---
 # tasks file for openldap
 
-- name: Stop Apparmor service
-  service:
-    name: apparmor
-    state: stopped
-  failed_when: false
-
-- name: Remove Apparmor service
-  service:
-    name: apparmor
-    enabled: false
-  failed_when: false
-
-- name: Remove Apparmor package
-  vars: 
-    package_name: 
-      - apparmor
-    package_state: absent
-    package_purge: true
-  include_role: 
-    name: safe_yum
-
 - name: Create /etc/opt/oci-hpc/passwords/openldap
   become: true
   file:
