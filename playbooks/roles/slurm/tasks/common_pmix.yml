@@ -1,5 +1,4 @@
 --- 
-
 - name: install required packages
   vars: 
     package_name: 
@@ -10,7 +9,6 @@
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
-
 
 - name: Download Slurm RPMs
   block:
