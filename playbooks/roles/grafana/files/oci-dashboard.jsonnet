@@ -33,7 +33,7 @@ local oci_lustre_metrics = [
   { expr: 'oci_WriteThroughput', legend_format: '{{client_name}}', title: 'Write Throughput (Real-time)', unit: 'MiBs' },
   { expr: 'oci_DataReadOperations', legend_format: '{{file_system}}', title: 'Data Read Operations (Real-time)', unit: 'none' },
   { expr: 'oci_DataWriteOperations', legend_format: '{{file_system}}', title: 'Data Write Operations (Real-time)', unit: 'none' },
-  { expr: 'sum(oci_MetaDataOperations{operation_type=~".+"}[5m])', legend_format: '{{resource_name}}', title: 'Metadata Operations (5 min Rate)', unit: 'ops' },
+  { expr: 'sum by(resource_name) (oci_MetaDataOperations{client_name="all@all"})', legend_format: '{{resource_name}}', title: 'Metadata Operations', unit: 'ops' },
 ];
 
 g.dashboard.new('OCI File Storage Service Dashboard')
