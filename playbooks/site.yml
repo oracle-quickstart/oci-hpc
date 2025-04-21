@@ -44,7 +44,6 @@
     - boot-volume
     - mpivars
     - oom-adjust
-    - disable_core_dumps
 
 - hosts: all
   become: true

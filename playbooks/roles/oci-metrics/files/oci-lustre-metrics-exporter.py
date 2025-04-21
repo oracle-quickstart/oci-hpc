@@ -62,7 +62,8 @@ def push_metrics(monitoring, compartment_id, metric_names):
             )
             response = monitoring.summarize_metrics_data(
                 compartment_id=compartment_id,
-                summarize_metrics_data_details=request
+                summarize_metrics_data_details=request,
+                retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
             )
 
             for data in response.data:
