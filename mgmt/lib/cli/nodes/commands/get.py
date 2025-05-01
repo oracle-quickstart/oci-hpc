@@ -5,13 +5,27 @@ from lib.database import get_nodes_by_id, get_nodes_by_serial, get_nodes_by_name
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
-@click.group()
+class DefaultCommandGroup(click.Group):
+    def parse_args(self, ctx, args):
+        # Try to resolve the command name early
+        try:
+            # Try to get the command to validate it exists
+            cmd = self.get_command(ctx, args[0])
+        except IndexError:
+            cmd = None
+
+        if cmd is None:
+            # If the first argument is not a valid command, treat it as an argument to 'any'
+            args.insert(0, 'any')
+        return super().parse_args(ctx, args)
+
+@click.group(cls=DefaultCommandGroup)
 def get():
     """Get information about nodes."""
     pass
 
 @get.command()
-@click.option('--serials', required=True, help='Serial number of the node.')
+@click.argument('serials', required=True)
 @click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
 def serials(serials, full):
     """Get information about a node by serial number."""
@@ -25,7 +39,7 @@ def serials(serials, full):
 
 @get.command()     
 @click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-@click.option('--names', required=True, help='Name of the node.')
+@click.argument('names', required=True)
 def names(names, full):
     """Get information about a node by host name."""
     nodes = get_nodes_by_name(NodeSet(names))
@@ -38,7 +52,7 @@ def names(names, full):
 
 @get.command()
 @click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-@click.option('--ids', required=True, help='ID of the node.')
+@click.argument('ids', required=True)
 def ids(ids, full):
     """Get information about a node by ID."""
     nodes = get_nodes_by_id(NodeSet(ids))
@@ -51,7 +65,7 @@ def ids(ids, full):
 
 @get.command()
 @click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-@click.option('--ips', required=True, help='IP of the node.')
+@click.argument('ips', required=True)
 def ips(ips, full):
     """Get information about a node by IP."""
     nodes = get_nodes_by_ip(NodeSet(ips))
@@ -62,17 +76,21 @@ def ips(ips, full):
     else: 
         print_nodes_info(nodes, full=full)
 
-@get.command()
-@click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-@click.option('--any', required=True, help='any of the hostname, OCID, IP, serial, OCI_name of the node.')
-def any(any, full):
-    """Get information about a node by hostname OCID, IP, serial or OCI name."""
-    nodes = get_nodes_by_any(NodeSet(any))
-    
+@get.command(name='any')
+@click.argument('identifiers')
+@click.option('--full', is_flag=True, help='Get full information.', default=False)
+def any_cmd(identifiers, full):
+    """Default: Get info by serial, IP, OCID, or hostname."""
+    try:
+        nodes = get_nodes_by_any(NodeSet(identifiers))
+    except Exception as e:
+        logger.error(f"Invalid identifier format: {e}")
+        click.echo(f"Error: {e}")
+        return
+
     if not nodes:
         click.echo("Node not found.")
-        return
-    else: 
+    else:
         print_nodes_info(nodes, full=full)
 
         
