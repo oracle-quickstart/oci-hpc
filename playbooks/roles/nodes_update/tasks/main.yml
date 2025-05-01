@@ -47,14 +47,14 @@
   shell: "source /opt/oci-hpc/db/env; mysql -u root -p{{ mysql_root_pwd }} < /opt/oci-hpc/db/initial.sql"
   ignore_errors: yes
 
-- name: Copying the DB Scraper config
-  become: true
-  template:
-    src: nodes_update.py.j2
-    dest: "/opt/oci-hpc/bin/nodes_update.py"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: '0775'    
+# - name: Copying the DB Scraper config
+#   become: true
+#   template:
+#     src: nodes_update.py.j2
+#     dest: "/opt/oci-hpc/bin/nodes_update.py"
+#     owner: "{{ ansible_user }}"
+#     group: "{{ ansible_user }}"
+#     mode: '0775'    
 
 - name: Ensure db directory exists
   file:
@@ -65,14 +65,14 @@
 
 - name: Create systemd service unit file
   template:
-    src: templates/systemd/node_updater.service
-    dest: /etc/systemd/system/node_updater.service
+    src: templates/systemd/mgmt.service
+    dest: /etc/systemd/system/mgmt.service
     mode: '0644'
 
 - name: Create systemd service unit file
   template:
-    src: templates/systemd/node_updater.timer
-    dest: /etc/systemd/system/node_updater.timer
+    src: templates/systemd/mgmt.timer
+    dest: /etc/systemd/system/mgmt.timer
     mode: '0644'
 
 - name: Reload systemd daemon
@@ -81,5 +81,5 @@
 
 - name: Start and enable the service
   service:
-    name: node_updater.timer
+    name: mgmt.timer
     state: started

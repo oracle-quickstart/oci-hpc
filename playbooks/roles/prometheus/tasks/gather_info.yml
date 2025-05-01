@@ -62,7 +62,7 @@
   set_fact:
     rdma_metadata: "{{ h_metadata['content'] }}"
 
-- name: add empty networkblockID
+- name: add empty networkBlockID
   set_fact:
     rdma_metadata : "{{ rdma_metadata | combine({'networkBlockId': 'None'}) }}"
   when: "not 'networkBlockId' in rdma_metadata"

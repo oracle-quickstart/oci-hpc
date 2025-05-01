@@ -25,7 +25,7 @@ resource "oci_functions_application" "fn_application" {
 	compartment_id = var.targetCompartment
     display_name = "${local.cluster_name}-app"
     subnet_ids = [local.subnet_id ]
-    shape = "GENERIC_ARM"
+    shape = "GENERIC_X86"
 }
 
 resource "time_sleep" "wait_for_registry_to_be_ready" {
@@ -83,7 +83,7 @@ resource "oci_functions_function" "function" {
       "CONTROLLER_NAME" = "${local.cluster_name}-controller"
       "PRIVATE_SUBNET" = var.private_subnet
       "ZONE_NAME" = local.zone_name
-      shape = "GENERIC_ARM"
+      shape = "GENERIC_X86"
     }
 }
 

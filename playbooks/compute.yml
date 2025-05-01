@@ -103,8 +103,15 @@
       when: enroot|default(true)|bool
     - include_role:
         name: nccl-conf
-      when: cluster_network|bool
+      when: rdma_enabled|bool
 
+- hosts: localhost
+  become: true
+  gather_facts: true
+  tasks:
+    - include_role:
+        name: custom
+        
 - hosts: localhost
   vars:
     slurm_mode: 'compute'

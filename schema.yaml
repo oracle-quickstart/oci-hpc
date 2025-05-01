@@ -56,11 +56,10 @@ variableGroups:
       - ${ad}
       - ${secondary_ad}
       - ${third_ad}
-      - ${cluster_network}
-      - ${compute_cluster}
+      - ${rdma_enabled}
+      - ${stand_alone}
       - ${compute_cluster_exists}
       - ${compute_cluster_id}
-      - ${compute_cluster_start_index}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
       - ${instance_pool_ocpus}
@@ -148,8 +147,7 @@ variableGroups:
       - ${compute_node_ssh_key}
       - ${use_scratch_nfs}
       - ${scratch_nfs_path}
-      - ${scratch_nfs_type_cluster}
-      - ${scratch_nfs_type_pool}
+      - ${scratch_nfs_type}
       - ${localdisk}
       - ${log_vol}
       - ${redundancy}
@@ -510,38 +508,33 @@ variables:
         - ${home_fss}
         - not: 
           - ${create_fss}
-  cluster_network:
+  rdma_enabled:
     title: Use cluster network
     type: boolean
     description: Use ROCEv2 cluster network
     default: true
 
-  compute_cluster:
-    title: Use compute cluster rather than cluster network
+  stand_alone:
+    title: Use Stand-Alone instances
     type: boolean
-    description: Use compute cluster instead of cluster network
+    description: Do not use instance pools (or Cluster Network), but Stand-Alone instance or Compute Clusters
     default: false
-    visible: ${cluster_network}
 
   compute_cluster_exists:
     title: Use existing Compute Cluster
     type: boolean
     description: The compute cluster already exists
     default: false
-    visible: ${compute_cluster}
+    visible: 
+      and:
+        - ${stand_alone}
+        - ${rdma_enabled}
 
   compute_cluster_id: 
     title: Compute Cluster ID
     type: string
     description: Specify the compute cluster OCID
     default: ""
-    visible: ${compute_cluster_exists}
-
-  compute_cluster_start_index: 
-    title: Start Index
-    type: integer
-    description: Specify the start Index of the nodes in the compute cluster
-    default: 0
     visible: ${compute_cluster_exists}
 
   cluster_network_shape:
@@ -564,7 +557,7 @@ variables:
     required: true
     visible:
       and:
-        - ${cluster_network}
+        - ${rdma_enabled}
 
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
@@ -575,7 +568,7 @@ variables:
       compartmentId: ${targetCompartment}
     visible:
       not:
-        - ${cluster_network}
+        - ${rdma_enabled}
     description: "Shape of compute nodes used in permanent/initial cluster"
 
   instance_pool_ocpus:
@@ -588,7 +581,7 @@ variables:
     visible:
       and: 
         - not: 
-          - ${cluster_network}
+          - ${rdma_enabled}
         - or: 
           - eq:
             - ${instance_pool_shape}
@@ -637,7 +630,7 @@ variables:
     visible:
       and: 
         - not: 
-          - ${cluster_network}
+          - ${rdma_enabled}
         - or: 
           - eq:
             - ${instance_pool_shape}
@@ -689,7 +682,7 @@ variables:
         - and: 
             - ${instance_pool_custom_memory}
             - not: 
-              - ${cluster_network}
+              - ${rdma_enabled}
     required: true
 
   node_count:
@@ -879,7 +872,7 @@ variables:
         - ${use_advanced}
     default: false
 
-  scratch_nfs_type_cluster:
+  scratch_nfs_type:
     type: enum
     title: "Scratch storage configuration"
     enum:
@@ -889,25 +882,10 @@ variables:
     default: "nvme"
     visible:
       and:
-        - ${cluster_network}
+        - ${rdma_enabled}
         - ${use_advanced}
         - ${use_scratch_nfs}
     required: true
-  scratch_nfs_type_pool:
-    type: enum
-    title: "Scratch storage configuration"
-    enum:
-      - "none"
-      - "block"
-    default: "none"
-    required: true
-    visible:
-      and: 
-        - not:
-            - ${cluster_network}
-            - ${use_scratch_nfs}
-        - and: 
-            - ${use_advanced}
 
   scratch_nfs_path:
     title: "NFS scratch space mount point"

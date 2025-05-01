@@ -7,29 +7,10 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
 
-- name: Copying the file to manually add a node to the queue
-  become: true
-  template:
-    src: "{{item}}"
-    dest: "/config/mgmt/{{item}}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: '0775'  
-  with_items: 
-    - get_nodes_from_db.py
-    - add_nodes_to_queue.py
-
-- name: copy mgmt utils files
-  copy: 
-    src: "{{item}}"
-    dest: "/config/mgmt/{{item}}"
-    owner: "{{ansible_user}}"
-    group: "{{ansible_user}}"
-    mode: '0755'
-  with_items: 
-    - mgmt_shared_logging.py
-    - mgmt_utils.py
-    - mgmt.py
+# - name: Git checkout
+#   ansible.builtin.git:
+#     repo: 'https://github.com/oracle-quickstart/oci-cluster-management'
+#     dest: "/config/mgmt"
 
 - name: Make sure clustershell is installed for node status script
   vars:
@@ -43,7 +24,7 @@
 - name: install clustershell
   become: true
   pip:
-    name: ['clustershell']
+    name: ['clustershell', 'sqlalchemy', 'rich', 'click']
     executable: /config/venv/bin/pip3
     state: latest
   ignore_errors: yes
@@ -51,5 +32,5 @@
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias mgmt="/config/venv/bin/python3 /config/mgmt/mgmt.py"
+    line: alias mgmt="/config/venv/bin/python3 /config/mgmt/manage.py"
     state: present

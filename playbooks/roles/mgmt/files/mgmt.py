@@ -8,6 +8,9 @@ import mgmt_utils
 import json
 import time
 
+from node import Node
+from cluster import Cluster
+
 # Argument parsing
 parser = argparse.ArgumentParser(description="Process node list and flags.")
 parser.add_argument("-n","--nodes", type=str, help="Comma-separated list of nodes, Slurm notation is also accepted")
@@ -49,29 +52,29 @@ if args.context_help:
     exit(1)
 #Check if arguments make sense
 if args.nodes:
-    nodes_list = NodeSet(args.nodes)
-    logger.info(f"Processing nodes: {nodes_list}")
+    specified_node_names = NodeSet(args.nodes)
+    logger.info(f"Processing nodes: {specified_node_names}")
 else:
-    nodes_list= NodeSet()
+    specified_node_names= NodeSet()
     logger.info(f"Processing all nodes")
 if args.clusters:
-    clusters_list_defined = args.clusters.split(',')
-    logger.info(f"Processing Clusters: {clusters_list_defined}")
+    specified_cluster_names = args.clusters.split(',')
+    logger.info(f"Processing Clusters: {specified_cluster_names}")
 else:
-    clusters_list_defined = []
-if nodes_list and clusters_list_defined:
+    specified_cluster_names = []
+if specified_node_names and specified_cluster_names:
     logger.error("You cannot provide a hostlist and a clusterlist")
     exit(1)
 if args.recom:
     logger.info("Recompute flag is set.")
 if args.reboot:
     logger.info("Reboot flag is set.")
-    if not nodes_list and not clusters_list_defined and not args.all :
+    if not specified_node_names and not specified_cluster_names and not args.all :
         logger.error("You need to provide a hostlist, a clusterlist or --all to use the reboot flag")
         exit(1)
 if args.image:
     if args.bvr:
-        if not nodes_list and not clusters_list_defined and not args.all:
+        if not specified_node_names and not specified_cluster_names and not args.all:
             logger.error("You need to provide a hostlist, a clusterlist or --all to use the bvr flag")
             exit(1)
         logger.info(f"BVR flag is set with image OCID: {args.image}")
@@ -79,21 +82,21 @@ if args.image:
         logger.error("You need to provide the BVR flag along with the image")
         exit(1)
 elif args.bvr:
-    if not nodes_list and not clusters_list_defined and not args.all:
+    if not specified_node_names and not specified_cluster_names and not args.all:
         logger.error("You need to provide a hostlist, a clusterlist or --all to use the bvr flag")
         exit(1)
 if args.tag:
     logger.info(f"Tag flag is set")
-    if not nodes_list:
+    if not specified_node_names:
         logger.error("You need to provide a hostlist, a clusterlist or --all to use the tag flag")
         exit(1)
 if args.terminate:
     logger.info(f"Terminate flag is set")
-    if not nodes_list and not clusters_list_defined and not args.all:
+    if not specified_node_names and not specified_cluster_names and not args.all:
         logger.error("You need to provide a hostlist, a clusterlist or --all to use the terminate flag")
         exit(1)
 if args.all:
-    if nodes_list or clusters_list_defined:
+    if specified_node_names or specified_cluster_names:
         logger.error("You cannot provide a hostlist or a clusterlist with the --all flag")
         exit(1)
 
@@ -133,119 +136,141 @@ hc_terminate = []
 current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
 timeTH = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
 
-controller = [i for i in results if i["role"] == "controller"]
+try:
+    import oci
+    signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    computeClient = oci.core.ComputeClient(config={}, signer=signer)
+    ComputeClientCompositeOperations= oci.core.ComputeClientCompositeOperations(computeClient)
+    computeManagementClient = oci.core.ComputeManagementClient(config={}, signer=signer)
+    ComputeManagementClientCompositeOperations = oci.core.ComputeManagementClientCompositeOperations(computeManagementClient)
+    virtualNetworkClient = oci.core.VirtualNetworkClient(config={}, signer=signer)
+    DNSClient = oci.dns.DnsClient(config={}, signer=signer)
+    IdentityClient= oci.identity.IdentityClient(config={}, signer=signer)
+    IdentityClientCompositeOperations= oci.identity.IdentityClientCompositeOperations(IdentityClient)
+except ImportError:
+    logger.error("oci API cannot be used. Exiting.")
+    sys.exit(1)
+
+oci_clients={"computeClient":computeClient,
+             "ComputeClientCompositeOperations": ComputeClientCompositeOperations,
+             "computeManagementClient":computeManagementClient,
+             "ComputeManagementClientCompositeOperations":ComputeManagementClientCompositeOperations,
+             "virtualNetworkClient":virtualNetworkClient,
+             "DNSClient":DNSClient,
+             "IdentityClient":IdentityClient,
+             "IdentityClientCompositeOperations":IdentityClientCompositeOperations
+}
+nodes = [Node(entry,oci_clients) for entry in results]
+
+controller = [i for i in nodes if i.role == "controller"]
+
 if len(controller) > 1:
     logger.error(f"There are multiple controller in the DB, Using {controller[0]['hostname']}")
  
-controller_hostname=controller[0]['hostname']
-compartment_ocid=controller[0]["compartment"]
+controller_hostname=controller[0].hostname
+compartment_ocid=controller[0].compartment
 
-login = [i for i in results if i["role"] == "login"]
+login = [i for i in nodes if i.role == "login"]
 
-clusters = [i["cluster_name"] for i in results if i["role"] == "compute"]
+clusters=[]
+for node in nodes:
+    if node.role != "login" and node.role != "controller":
+        added=False
+        for cluster in clusters:
+            if node.cluster_name == cluster.cluster_name:
+                cluster.addNodeToList(node)
+                added=True
+        if not added:
+            clusters.append(Cluster(node.cluster_name,[node],oci_clients))
+
 if args.create_cluster:
-    if args.create_cluster in clusters:
+    if args.create_cluster in [cluster.cluster_name for cluster in clusters]:
         logger.error("You are trying to create a cluster with a name that already exists, this will add confusion. Please rename")
         exit(1)
 
-if nodes_list:
+if specified_node_names:
     compute=[]
     compute_with_terminated = [] # Cannot show terminated nodes with nodes list of cluster defined, only -a
-    for node in nodes_list:
-        if node in [i["hostname"] for i in results] or node in [i["ip_address"] for i in results] or node in [i["oci_name"] for i in results]:
-            compute+=[i for i in results if (i["hostname"] == node or i["ip_address"] == node or i["oci_name"] == node)]
+    for nodename in specified_node_names:
+        if nodename in [i.hostname for i in nodes] or nodename in [i.ip_address for i in nodes] or nodename in [i.oci_name for i in nodes]:
+            compute+=[i for i in nodes if (i.hostname == nodename or i.ip_address == nodename or i.oci_name == nodename)]
         else:
-            logger.error(f"Node: {node} is not present in the DB")
-elif clusters_list_defined:
+            logger.error(f"Node: {nodename} is not present in the DB")
+elif specified_cluster_names:
     compute=[]
-    for cluster in clusters_list_defined:
-        compute+=[i for i in results if i["cluster_name"] == cluster and i["role"] == "compute"]
-    if not compute:
-        logger.error(f"Cluster: {cluster} has no matching nodes present in the DB")
-    nodes_list=NodeSet(','.join([i["hostname"] for i in compute]))
+    for clustername in specified_cluster_names:
+        for cluster in clusters:
+            if cluster.cluster_name == clustername:
+                compute+=cluster.nodeList
+        if not compute:
+            logger.error(f"Cluster: {clustername} has no matching nodes present in the DB")
+    specified_node_names=NodeSet(','.join([node.hostname for node in compute]))
 else:
-    compute_with_terminated=[i for i in results if i["role"] == "compute" or i["controller_status"] == "waiting_for_info"]
-    compute=[i for i in results if ( i["role"] == "compute" or i["controller_status"] == "waiting_for_info" ) and (i["status"] != "terminated")]
+    compute_with_terminated=[node for node in nodes if node.role == "compute" or node.controller_status == "waiting_for_info"]
+    compute=[node for node in nodes if (node.role == "compute" or node.controller_status == "waiting_for_info") and (node.status != "terminated")]
 
-for i in compute:
-    if i["controller_status"] == "configured" and i["compute_status"] == "configured":
-        configured_nodes.append(i)
-    elif i["compute_status"] == "configuring":
-        waiting_for_compute.append(i)
-    elif i["controller_status"] == "terminating":
-        terminating.append(i)
-    elif i["controller_status"] == "waiting_for_info":
-        startedTime = datetime.strptime(i["startedTime"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+for node in compute:
+    if node.controller_status == "configured" and node.compute_status == "configured":
+        configured_nodes.append(node)
+    elif node.compute_status == "configuring":
+        waiting_for_compute.append(node)
+    elif node.controller_status == "terminating":
+        terminating.append(node)
+    elif node.controller_status == "waiting_for_info":
+        startedTime = datetime.strptime(node.startedTime, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         if startedTime < timeTH:
-            failing_starting.append(i)
-        starting.append(i)
-    if i["controller_status"] == "configured" and i["compute_status"] in ["configured", "configuring"]:
-        lastTimeReachable = datetime.strptime(i["lastTimeReachable"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            failing_starting.append(node)
+        starting.append(node)
+    if node.controller_status == "configured" and node.compute_status in ["configured", "configuring"]:
+        lastTimeReachable = datetime.strptime(node.lastTimeReachable, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         if lastTimeReachable < timeTH:
-            unreachable_nodes.append(i)
-    if i["healthcheck_recomandation"] == "Reboot":
-        hc_reboot.append(i)
-    elif i["healthcheck_recomandation"] == "Terminate":
-        hc_terminate.append(i)
+            unreachable_nodes.append(node)
+    if node.healthcheck_recomandation == "Reboot":
+        hc_reboot.append(node)
+    elif node.healthcheck_recomandation == "Terminate":
+        hc_terminate.append(node)
 
-clusters_list_found=[i for i in list(set([i["cluster_name"] for i in compute ])) if not i is None]
 logger.info(f"Counts: Configured: {len(configured_nodes)}, Configuring: {len(waiting_for_compute)}, "
             f"Starting: {len(starting)}, Terminating: {len(terminating)}")
 
-logger.info(f"Configured Nodes: {NodeSet(','.join([i['hostname'] for i in configured_nodes]))}")
-logger.info(f"Configuring Nodes: {NodeSet(','.join([i['hostname'] for i in waiting_for_compute]))}")
-logger.info(f"Terminating Nodes: {NodeSet(','.join([i['hostname'] for i in terminating]))}")
-logger.info(f"Starting Nodes: {','.join([i['ip_address'] for i in starting])}")
-logger.info(f"Healthcheck Recommendations to Reboot: {NodeSet(','.join([i['hostname'] for i in hc_reboot]))}")
-logger.info(f"Healthcheck Recommendations to Terminate: {NodeSet(','.join([i['hostname'] for i in hc_terminate]))}")
+logger.info(f"Configured Nodes: {NodeSet(','.join([node.hostname for node in configured_nodes]))}")
+logger.info(f"Configuring Nodes: {NodeSet(','.join([node.hostname for node in waiting_for_compute]))}")
+logger.info(f"Terminating Nodes: {NodeSet(','.join([node.hostname for node in terminating]))}")
+logger.info(f"Starting Nodes: {','.join([node.ip_address for node in starting])}")
+logger.info(f"Healthcheck Recommendations to Reboot: {NodeSet(','.join([node.hostname for node in hc_reboot]))}")
+logger.info(f"Healthcheck Recommendations to Terminate: {NodeSet(','.join([node.hostname for node in hc_terminate]))}")
 
-logger.info("Clusters: "+','.join(clusters_list_found))
-logger.info(f"Login Nodes: {NodeSet(','.join([i['hostname'] for i in login]))}")
+logger.info("Clusters: "+','.join([cluster.cluster_name for cluster in clusters]))
+logger.info(f"Login Nodes: {NodeSet(','.join([node.hostname for node in login]))}")
 
 if failing_starting:
-    logger.warning(f"Some nodes are failing to start: {','.join([i['ip_address'] for i in failing_starting])}")
+    logger.warning(f"Some nodes are failing to start: {','.join([node.ip_address for node in failing_starting])}")
 if unreachable_nodes:
-    logger.warning(f"Some nodes haven't responded in a while: {','.join([i['ip_address'] for i in unreachable_nodes])}")
+    logger.warning(f"Some nodes haven't responded in a while: {','.join([node.ip_address for node in unreachable_nodes])}")
 
 if args.details:
     if args.all:
-        for i in compute_with_terminated:
-            print(json.dumps(i, indent=4).replace("\\n", "\n"))
+        for node in compute_with_terminated:
+            node.print_dict()
     else:
-        for i in compute:
-            print(json.dumps(i, indent=4).replace("\\n", "\n"))
+        for node in compute:
+            node.print_dict()
 
 
 if failing_starting or unreachable_nodes or hc_reboot or hc_terminate:
     if args.recom:
         ocids=[]
-        for instance in unreachable_nodes + hc_reboot:
-            if len(instance["ocid"]):
-                instance_ocid=instance["ocid"]
-            else:
-                logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
-            if not instance_ocid in ocids:
-                ocids.append(instance_ocid)
-                mgmt_utils.force_reboot(instance_ocid)
-                logger.info("Rebooting: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
+        for node in unreachable_nodes + hc_reboot:
+            node.reboot()
         if failing_starting:
-            logger.info(f"Restarting the configuration script on: {NodeSet(','.join([i['ip_address'] for i in failing_starting]))}")
+            logger.info(f"Restarting the configuration script on: {NodeSet(','.join([node.ip_address for node in failing_starting]))}")
             task = task_self()
-            task.shell("/config/compute.sh", nodes=NodeSet(','.join([i['ip_address'] for i in failing_starting])))
+            task.shell("/config/compute.sh", nodes=NodeSet(','.join([node.ip_address for node in failing_starting])))
             task.run()
             logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
-        for instance in hc_terminate:
-            if len(instance["ocid"]):
-                instance_ocid=instance["ocid"]
-                node=instance["hostname"]
-            else:
-                logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
-                node=instance["ip_address"]
-            mgmt_utils.tag_unhealthy(node,instance_ocid)
-            mgmt_utils.terminate_instance(node,instance,instance_ocid,compartment_ocid)
-            logger.info("Tagging and Terminating because of healthcheck: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
+        for node in hc_terminate:
+            node.tag_unhealthy()
+            node.terminate()
     else:
         if failing_starting:
             logger.warning("If you would like to reconfigure the starting nodes, rerun this script with --recomm")
@@ -255,18 +280,8 @@ if failing_starting or unreachable_nodes or hc_reboot or hc_terminate:
             logger.warning("If you would like to reboot or terminate based on healthcheck results, rerun this script with --recomm")
 
 if args.reboot:
-    for node in nodes_list:
-        for instance in compute:
-            if node == instance["hostname"] or node == instance["oci_name"] or node == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    mgmt_utils.force_reboot(instance["ocid"])
-                    logger.info("Rebooting: "+instance["hostname"]+" with oci name "+instance["oci_name"]+" with IP "+instance["ip_address"]+" and OCID:"+instance["ocid"])
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
-                    logger.info("Rebooting: "+instance["ip_address"]+" and OCID:"+instance_ocid)
-                    if instance["hostname"]:
-                        logger.info("Hostname: "+instance["hostname"]+" with oci name "+instance["oci_name"])
+    for node in compute:
+        node.reboot()
 
 if args.bvr:
     if args.image:
@@ -282,95 +297,62 @@ if args.bvr:
         logger.info(f"This image was chosen {image_name} with OCID {image_ocid}")
     count = 0
     parallelism = 10
-    for node in nodes_list:
-        for instance in compute:
-            if node == instance["hostname"] or node == instance["oci_name"] or node == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    instance_ocid=instance["ocid"]
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
-                logger.info(f"Replacing BV for instance: "+instance["hostname"])
-                mgmt_utils.instance_bvr(instance_ocid,image_ocid)
-                count +=1
-                if count > parallelism:
-                    logger.info(f"Taking a break after {parallelism} instances")
-                    time.sleep(30)
-                    count = 0
+    for node in compute:        
+        logger.info(f"Replacing BV for instance: "+instance["hostname"])
+        node.bvr(image_ocid)
+        count +=1
+        if count > parallelism:
+            logger.info(f"Taking a break after {parallelism} instances")
+            time.sleep(30)
+            count = 0
 
 if args.tag:
-    for node in nodes_list:
-        for instance in compute:
-            if node == instance["hostname"] or node == instance["oci_name"] or node == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    instance_ocid=instance["ocid"]
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
-                mgmt_utils.tag_unhealthy(node,instance_ocid)
+    for node in compute:
+        node.tag_unhealthy()
+        
 if args.configure:
     config_list=[]
-    for node in nodes_list:
-        for instance in compute:
-            if node == instance["hostname"] or node == instance["oci_name"] or node == instance["ip_address"]:
-                config_list.append(instance)
-    logger.info(f"Restarting the configuration script on: {NodeSet(','.join(nodes_list))}")
+    for node_name in specified_node_names:
+        for node in compute:
+            if node_name == node.hostname or node_name == node.oci_name or node_name == node.ip_address:
+                config_list.append(node)
+    logger.info(f"Restarting the configuration script on: {NodeSet(','.join(specified_node_names))}")
     task = task_self()
-    task.shell("sudo /config/cloud-init.sh", nodes=NodeSet(','.join([i['ip_address'] for i in config_list])))
+    task.shell("sudo /config/cloud-init.sh", nodes=NodeSet(','.join([node.ip_address for i in config_list])))
     task.run()
     logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
 if args.terminate:
-    for node in nodes_list:
-        for instance in compute:
-            if node == instance["hostname"] or node == instance["oci_name"] or node == instance["ip_address"]:
-                if len(instance["ocid"]):
-                    instance_ocid=instance["ocid"]
-                else:
-                    logger.info("Trying to get the OCID from the ip: "+instance["ip_address"])
-                    instance_ocid=mgmt_utils.get_ocid_from_ip(node["ip_address"], compartment_ocid )
-                mgmt_utils.terminate_instance(node,instance,instance_ocid,compartment_ocid)
+    for node in compute:
+        node.terminate()
 
 if args.add:
     cluster_to_add = None
-    if len(clusters_list_defined)==0:
+    if len(specified_cluster_names)==0:
         logger.info(f"No Cluster was defined to add")
-        if len(clusters_list_found) == 1:
-            cluster_to_add=clusters_list_found[0]
-            logger.info(f"Using the 1 clustername found: {clusters_list_found[0]}")
+        if len(clusters) == 1:
+            cluster_to_add=clusters[0]
+            logger.info(f"Using the 1 clustername found: {cluster_to_add.cluster_name}")
         else:
-            logger.error(f"There were {len(clusters_list_found)} clusters found and none specified, specify one of the cluster")
-            for i, clustername in enumerate(clusters_list_found):
-                print(f"{i+1}. {clustername}")
+            logger.error(f"There were {len(clusters)} clusters found and none specified, specify one of the cluster")
+            for i, cluster in enumerate(clusters):
+                print(f"{i+1}. {cluster.cluster_name}")
             choice_config = int(input("Enter the number of the cluster to use: ")) - 1
-            cluster_to_add=clusters_list_found[choice_config]
-    elif len(clusters_list_defined)>1:
+            cluster_to_add=clusters[choice_config]
+    elif len(specified_cluster_names)>1:
         logger.error(f"Only Specify one cluster for resize")
-    elif len(clusters_list_defined)==1:
-        cluster_to_add=clusters_list_defined[0]
+    elif len(specified_cluster_names)==1:
+        for cluster in clusters:
+            if cluster.cluster_name == specified_cluster_names[0]:
+                cluster_to_add=cluster
     if not cluster_to_add is None:
-        logger.info(f"Adding a node to: {cluster_to_add}")
-        mgmt_utils.add_node_to_cluster(cluster_to_add,args.add,compartment_ocid)
+        logger.info(f"Adding a node to: {cluster_to_add.cluster_name}")
+        cluster_to_add.add(args.add)
 
 if args.create_cluster:
     clustername = args.create_cluster
-    if args.create_cluster_count:
-        count = args.create_cluster_count
-    else:
-        # Ask user to choose a custom image
-        choice = int(input("How many nodes need to be created in the cluster: "))
-        count = choice
-    availabilitydomains = mgmt_utils.guess_availabilitydomain(compartment_ocid)
-    if len(availabilitydomains)==1:
-        availabilitydomain=availabilitydomains[0]
-    elif args.create_cluster_ad:
-        availabilitydomain=args.create_cluster_ad
-    else:
-        for i, ad in enumerate(availabilitydomains):
-            print(f"{i+1}. {ad} ")
-            choice_ad = int(input("Enter the AD index: ")) - 1
-            availabilitydomain=choice_ad
-            logger.info(f"This AD was chosen {availabilitydomain}")
+
+    # Get how the cluster details will be given:
     instance_config_ocid=None
     instance_type=None
     if args.create_cluster_instance_type is None and args.create_cluster_inst_config is None:
@@ -391,6 +373,31 @@ if args.create_cluster:
             choice_type = int(input("Enter the number of the instance type to use: ")) - 1
             instance_type=instance_type_list[choice_type]
             logger.info(f"This instance configuration was chosen {instance_type['name']} with partition {instance_type['partition']}")
+
+    # Get the Number of nodes for the cluster
+    if args.create_cluster_count:
+        count = args.create_cluster_count
+    else:
+        # Ask user to choose a custom image
+        choice = int(input("How many nodes need to be created in the cluster: "))
+        count = choice
+
+    #Get the AD
+    availabilitydomains = mgmt_utils.guess_availabilitydomain(compartment_ocid)
+    if len(availabilitydomains)==1:
+        availabilitydomain=availabilitydomains[0]
+    elif args.create_cluster_ad:
+        availabilitydomain=args.create_cluster_ad
+    elif args.create_cluster_instance_type is None:
+        for i, ad in enumerate(availabilitydomains):
+            print(f"{i+1}. {ad} ")
+            choice_ad = int(input("Enter the AD index: ")) - 1
+            availabilitydomain=choice_ad
+            logger.info(f"This AD was chosen {availabilitydomain}")
+    else:
+        availabilitydomain=None
+
+    # In case instance type was selected (Using queues.conf as a reference)
     if args.create_cluster_instance_type or not instance_type is None:
         if instance_type is None:
             instance_type_found=mgmt_utils.get_instance_type(args.create_cluster_instance_type)
@@ -399,29 +406,33 @@ if args.create_cluster:
                 exit(1)
             else:
                 instance_type=instance_type_found
-        if instance_type["cluster_network"]:
-            if instance_type["compute_cluster"]:
+        availabilitydomains=instance_type["ad"]
+        subnet_id=instance_type["private_subnet_id"]
+        targetCompartment=instance_type["targetCompartment"]
+
+        if instance_type["stand_alone"]:
+            if instance_type["rdma_enabled"]:
                 cluster_type="CC"
-                if args.create_cluster_subnet:
-                    subnet_id=args.create_cluster_subnet
-                else:
-                    subnet_id=None
-                try:
-                    cluster = mgmt_utils.create_cluster(cluster_type,instance_type,None,count,compartment_ocid,clustername,availabilitydomain,subnet_id,controller_hostname)
-                except Exception as e:
-                    logger.error(f"Could not create the cluster with error {e}")
-                    mgmt_utils.remove_inventory(clustername)
             else:
-                cluster_type="CN"
+                cluster_type="SA"
         else:
-            cluster_type="IPA"
-        if cluster_type != "CC":
-            instance_config=mgmt_utils.generate_instance_config(instance_type,controller_hostname,clustername)
-            instance_config_ocid=instance_config.id
-            subnet_id=instance_type["private_subnet_id"]
+            if instance_type["rdma_enabled"]:
+                cluster_type="CN"
+            else:
+                cluster_type="IPA"
+
+    # In case instance OCID was selected
     elif args.create_cluster_inst_config or not instance_config_ocid is None:
+        targetCompartment=compartment_ocid
+
         if args.create_cluster_inst_config:
             instance_config_ocid = args.create_cluster_inst_config
+        
+        if args.create_cluster_subnet:
+            subnet_id=args.create_cluster_subnet
+        else:
+            subnet_id=None
+
         if args.create_cluster_type:
             cluster_type=args.create_cluster_type
         else:
@@ -434,27 +445,12 @@ if args.create_cluster:
                 else:
                     logger.info(f"Invalid choice {choice_cluster_type}")
     
-    if instance_config_ocid and count:
-        logger.info(f"Creating cluster with {count} nodes and instance configuration {instance_config_ocid}")
-        instance_config_details = mgmt_utils.get_instance_config_details(instance_config_ocid)
-        if instance_config_details is None:
-            logger.error(f"The instance configuration with OCID {instance_config_ocid} was not found")
-            exit()
-        if args.create_cluster_subnet:
-            subnet_id=args.create_cluster_subnet
-        else:
-            subnet_id=instance_config_details.instance_details.launch_details.create_vnic_details.subnet_id
-        mgmt_utils.generate_inventory(instance_config_details,clustername,cluster_type)
-        try:
-            cluster = mgmt_utils.create_cluster(cluster_type,None,instance_config_ocid,count,compartment_ocid,clustername,availabilitydomain,subnet_id,controller_hostname)
-        except Exception as e:
-            logger.error(f"Could not create the cluster with error {e}")
-            mgmt_utils.remove_inventory(clustername)
-    else:
-        logger.error(f"There is no instance configuration available for this cluster")
+
+    cluster=Cluster(clustername,[],oci_clients)
+    cluster.create(cluster_type,instance_type,instance_config_ocid,count,compartment_ocid,availabilitydomain,subnet_id,controller_hostname)
 
 if args.delete_cluster:
     clustername = args.delete_cluster
-    logger.info(f"Deleting cluster named {clustername}")
-    mgmt_utils.delete_cluster(clustername,compartment_ocid)
-    mgmt_utils.remove_inventory(clustername)
+    for cluster in clusters:
+        if cluster.cluster_name == clustername:
+            cluster.delete()

@@ -2,7 +2,7 @@
 - name: Check oracle cloud agent version
   shell: "snap info oracle-cloud-agent | grep installed | awk '{print $2}'"
   register: version
-  when : cluster_network | bool
+  when : rdma_enabled | bool
 
 - name: Download Snap package
   vars:
@@ -16,7 +16,7 @@
     - (minor_version | int <= 1) | bool
     - (major_version | int <= 37) | bool
     - (sub_version | int < 2) | bool
-    - cluster_network | bool
+    - rdma_enabled | bool
 
       ## The ansible snap module is not upgrading properly if the package already exists.
       #  - name: Install OCA snap v1.37
@@ -30,7 +30,7 @@
       #      name: "/tmp/oracle-cloud-agent_1.37.0-2_amd64.snap"
       #    when :
       #      - (minor_version | int <= 1) | bool and (minor_version | int < 37) | bool
-      #      - cluster_network | bool
+      #      - rdma_enabled | bool
 
 - name: Snap update
   vars:
@@ -44,4 +44,4 @@
     - (minor_version | int <= 1) | bool
     - (major_version | int <= 37) | bool
     - (sub_version | int < 2) | bool
-    - cluster_network | bool
+    - rdma_enabled | bool

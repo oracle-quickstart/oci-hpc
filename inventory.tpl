@@ -24,7 +24,7 @@ create_fss=${create_fss}
 home_fss=${home_fss} 
 slurm_nfs_path=${slurm_nfs_path}
 scratch_nfs_path=${scratch_nfs_path}
-cluster_network=${cluster_network}
+rdma_enabled=${rdma_enabled}
 slurm=${slurm}
 slurm_version=${slurm_version}
 rack_aware=${rack_aware}
@@ -67,7 +67,7 @@ hostname_convention=${hostname_convention}
 controller_hostname=${controller_name}
 monitoring_hostname=%{ if monitoring_name !="" }${monitoring_name}%{ else }%{ if cluster_monitoring}${controller_name}%{ endif }%{ endif }
 slurm_backup_hostname=%{ if backup_name !="" }${backup_name}%{ endif }
-http_server_port=8080
+http_server_port=9876
 db_name=network_scan
 collection_name=http_servers
 queue_ocid=${queue_ocid}

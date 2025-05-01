@@ -87,11 +87,6 @@
   set_fact:
     rdma_metadata: "{{ h_metadata['content'] }}"
 
-- name: add empty networkblockID
-  set_fact:
-    rdma_metadata : "{{ rdma_metadata | combine({'networkBlockId': 'None'}) }}"
-  when: "not 'networkBlockId' in rdma_metadata"
-
 - name: add empty rdmaTopologyData
   set_fact:
     rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None'}}) }}"
@@ -109,7 +104,7 @@
 
 - name: Build the host_info dictionary
   set_fact:
-    host_info: "{{ {'host': ansible_hostname, 'role': http_role,'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'controller_name': instance_metadata['freeformTags']['controller_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['hostname'], 'availabilityDomain': instance_metadata['availabilityDomain'],'tenancyId': instance_metadata['tenantId'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'railId': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] } }}"
+    host_info: "{{ {'host': ansible_hostname, 'role': http_role,'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'controller_name': instance_metadata['freeformTags']['controller_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['hostname'], 'availabilityDomain': instance_metadata['availabilityDomain'],'tenancyId': instance_metadata['tenantId'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'railId': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'networkBlockId': rdma_metadata['rdmaTopologyData']['customerNetworkBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] } }}"
 
 - name: Copying the info to the HTTP directory
   become: true

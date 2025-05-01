@@ -1,0 +1,3 @@
+- name: Test role
+  debug:
+    msg: "This is a custom role running on every new node"

@@ -115,6 +115,11 @@ or:
 ```
 Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName
 ```
+### Policies for Host API:
+The capacity topology usually gets created by default in the root compartment. To be able to access it, you need to add the folowing policy: 
+```
+Allow dynamic-group instance_principal to manage compute-bare-metal-hosts in tenancy
+```
 
 
 ## Supported OS: 
@@ -146,7 +151,7 @@ When a node is deleted:
   * Remove DNS entry 
 
 ### Node configuration
-Each compute node will run an Ansible script locally. The nodes will be tagged with the name of the controller they belong to. That node will mount a nfs `/config` folder to get the Ansible Playbooks and the keys. The ansible playbook will run all the tasks that can be run on the host where one task creates a small HTTP server that boradcasts information on port 8080. Here is an example of the information:
+Each compute node will run an Ansible script locally. The nodes will be tagged with the name of the controller they belong to. That node will mount a nfs `/config` folder to get the Ansible Playbooks and the keys. The ansible playbook will run all the tasks that can be run on the host where one task creates a small HTTP server that boradcasts information on port 9876. Here is an example of the information:
 ```
 ip_address: '172.16.0.66',
 AD: 'xXXX:CA-TORONTO-1-AD-1',

@@ -240,6 +240,16 @@ resource "null_resource" "controller" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
+  provisioner "file" {
+    source      = "mgmt"
+    destination = "/config/"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
 }
 resource "null_resource" "cluster" {
   depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller ]
@@ -272,14 +282,14 @@ resource "null_resource" "cluster" {
       localdisk                 = var.localdisk,
       log_vol                   = var.log_vol,
       redundancy                = var.redundancy,
-      cluster_network           = var.cluster_network,
+      rdma_enabled              = var.rdma_enabled,
       slurm                     = var.slurm,
       slurm_version             = var.slurm_version,
       rack_aware                = var.rack_aware,
       slurm_nfs_path            = var.create_fss ? var.nfs_source_path : "/config"
       spack                     = var.spack,
       ldap                      = var.ldap,
-      scratch_nfs_type          = local.scratch_nfs_type,
+      scratch_nfs_type          = var.scratch_nfs_type,
       autoscaling               = var.autoscaling,
       cluster_name              = local.cluster_name,
       shape                     = local.shape,
@@ -316,13 +326,13 @@ resource "null_resource" "cluster" {
 
   provisioner "file" {
     content = templatefile("${path.module}/conf/queues.conf.example", {
-      cluster_network             = var.cluster_network,
-      compute_cluster             = var.compute_cluster,
+      rdma_enabled                = var.rdma_enabled,
+      stand_alone                 = var.stand_alone,
       marketplace_listing         = var.marketplace_listing,
       image                       = local.image_ocid,
       use_marketplace_image       = var.use_marketplace_image,
       boot_volume_size            = var.boot_volume_size,
-      shape                       = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      shape                       = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
       region                      = var.region,
       ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
       private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
@@ -348,13 +358,13 @@ resource "null_resource" "cluster" {
   }
   provisioner "file" {
     content = templatefile("${path.module}/conf/queues.conf", {
-      cluster_network             = var.cluster_network,
-      compute_cluster             = var.compute_cluster,
+      rdma_enabled                = var.rdma_enabled,
+      stand_alone                 = var.stand_alone,
       marketplace_listing         = var.marketplace_listing,
       image                       = local.image_ocid,
       use_marketplace_image       = var.use_marketplace_image,
       boot_volume_size            = var.boot_volume_size,
-      shape                       = var.cluster_network ? var.cluster_network_shape : var.instance_pool_shape,
+      shape                       = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
       region                      = var.region,
       ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
       private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,

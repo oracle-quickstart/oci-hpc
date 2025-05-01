@@ -1,6 +1,6 @@
 ---
 - name: get All nodes with this controller
-  shell: "source /config/venv/bin/activate; /config/venv/bin/python3 /config/mgmt/get_nodes_from_db.py"
+  shell: "/config/venv/bin/python3 /config/mgmt/manage.py nodes list json"
   register: get_cluster_nodes_results
 
 - name: Convert the Python script output to a list of dictionaries
@@ -15,7 +15,7 @@
   set_fact:
     new_compute_info: "{{ new_compute_info  | default({}) | combine({item.ip_address: item}) }}"
   loop: "{{ query_results }}"
-  when: item.role == "compute" and item.controller_status == "configuring"
+  when: item.role == "compute" and ( item.controller_status == "configuring" or item.controller_status == "reconfiguring" )
 
 - name: Create an empty dir of all new compute nodes
   set_fact:
@@ -25,8 +25,7 @@
   set_fact:
     new_hosts_info: "{{ new_hosts_info  | default({}) | combine({item.ip_address: item}) }}"
   loop: "{{ query_results }}"
-  when: item.role != "compute" and item.controller_status == "configuring"
-
+  when: item.role != "compute" and ( item.controller_status == "configuring" or item.controller_status == "reconfiguring" )
 - name: Create an empty dir of all new compute nodes
   set_fact:
     remove_compute_info: {}

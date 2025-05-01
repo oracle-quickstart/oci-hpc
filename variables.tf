@@ -30,11 +30,11 @@ variable "compute_node_ssh_key" {
   default = "" 
 }
 
-variable "cluster_network" { 
+variable "rdma_enabled" { 
   default = true 
   type = bool
   }
-variable "compute_cluster" { 
+variable "stand_alone" { 
   default = false 
   type = bool
   }
@@ -45,10 +45,6 @@ variable "compute_cluster_exists" {
 variable "compute_cluster_id" { 
   default = "" 
   type = string
-  }
-variable "compute_cluster_start_index" { 
-  default = 0 
-  type = number
   }
 variable "use_custom_name" { 
   default = false 
@@ -349,12 +345,8 @@ variable "marketplace_listing_id_GPU" {
   type    = string
 }
 
-variable "scratch_nfs_type_cluster" { 
+variable "scratch_nfs_type" { 
   default = "nvme"
-  type = string
-  }
-variable "scratch_nfs_type_pool" { 
-  default = "none"
   type = string
   }
 variable "home_nfs" { 
@@ -511,7 +503,7 @@ variable "localdisk" {
   type = bool
   }
 variable "log_vol" { 
-  default = false
+  default = true
   type = bool
   }
 variable "redundancy" { 

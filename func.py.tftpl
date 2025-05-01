@@ -75,10 +75,14 @@ def get_tag_controller(instance_ocid, controller_name):
             defined_hostname = get_instance_response.data.freeform_tags["defined_hostname"]
         else: 
             defined_hostname = None
+        if "cluster_name" in get_instance_response.data.freeform_tags and get_instance_response.data.freeform_tags["cluster_name"].title().strip() != "None":
+            cluster_name = get_instance_response.data.freeform_tags["cluster_name"]
+        else: 
+            cluster_name = None
         hostname = get_instance_response.data.display_name
-        return True, hostname_convention, hostname, defined_hostname
+        return True, hostname_convention, hostname, defined_hostname, cluster_name
     else:
-        return False, None, None, None
+        return False, None, None, None, None
 
 
 def get_private_ip(instance_ocid,compartment_ocid):
@@ -199,7 +203,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
         put_messages_response.data: response from teh API call. Returns the message
     """
     # check if instance has matching controller_name tag
-    is_instance, hostname_convention, hostname, defined_hostname = get_tag_controller(instance_ocid, controller_name)
+    is_instance, hostname_convention, hostname, defined_hostname, cluster_name = get_tag_controller(instance_ocid, controller_name)
 
     if not is_instance:
         return
@@ -217,11 +221,11 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
                 except Exception as ex:
                     logging.getLogger().error(str(ex))
                     raise  
-            content_dict = {"ip_address": private_ip,"status": "starting"}
+            content_dict = {"ip_address": private_ip,"cluster_name": cluster_name,"status": "starting","ocid":instance_ocid,"hostname":new_hostname,"compartment":compartment_ocid}
         else:
             instance_launch = False
             update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname)
-            content_dict = {"hostname": hostname,"status": "terminating"}    
+            content_dict = {"hostname": hostname,"cluster_name": cluster_name,"status": "terminating","ocid":instance_ocid,"compartment":compartment_ocid}    
         content = json.dumps(content_dict, indent = 4) 
         cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
         endpoint = cp_client.get_queue(queue_ocid).data.messages_endpoint

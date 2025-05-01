@@ -112,16 +112,20 @@ def scan_queue():
                 content=eval(message.content)
                 if content['status'] == "starting":
                     ip_address=content['ip_address']
+                    compartment=content['compartment']
+                    ocid=content['ocid']
+                    hostname=content['hostname']
+                    cluster_name=content['cluster_name']
                     if ip_address not in new_ips_to_add:
                         query = """
-                        INSERT INTO nodes (ip_address, startedTime, status, controller_status, update_count, controller_name)
-                        VALUES (%s, %s, 'starting', 'waiting_for_info', 0, %s)
+                        INSERT INTO nodes (ip_address, compartment, ocid, hostname, startedTime, status, controller_status, update_count, controller_name, cluster_name)
+                        VALUES (%s, %s, %s, %s, %s, 'starting', 'waiting_for_info', 0, %s, %s)
                         ON DUPLICATE KEY UPDATE
                             startedTime = VALUES(startedTime),
                             status = 'starting',
                             controller_status = 'waiting_for_info';
                         """
-                        run_query(query,args=(ip_address, current_time_str, controller_name))
+                        run_query(query,args=(ip_address, compartment, ocid, hostname, current_time_str, controller_name, cluster_name))
                         new_ips_to_add.append(ip_address)
                         queue_client.delete_message(queue_ocid, message.receipt)
                         print("Message deleted for Starting IP:", ip_address)
@@ -153,6 +157,7 @@ def run_ansible():
         return result.stdout,failure_count
     except Exception as e:
         print(f"Error running ansible: {e}")
+        print(result.stdout)
         sys.exit(1)
 
 
@@ -241,8 +246,11 @@ def clean_old_terminated_nodes():
 
     for doc in results:
         if "lastTimeReachable" in doc:
-            last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-            if last_time_reachable < time_threshold:
+            if doc["lastTimeReachable"] is None:
+                last_time_reachable=time_threshold
+            else:
+                last_time_reachable = datetime.strptime(doc["lastTimeReachable"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            if last_time_reachable <= time_threshold:
                 query = """
                 DELETE FROM nodes
                 WHERE id = %s;
@@ -288,7 +296,7 @@ def find_nodes_configuring(started_nodes,terminated_nodes):
     terminating_nodes=[]
     query = """
     SELECT * FROM nodes
-    WHERE controller_status IN ('terminating', 'configuring');
+    WHERE controller_status IN ('terminating', 'configuring', 'reconfiguring');
     """
     results = run_query(query,results_wanted=True)
     for doc in results:
