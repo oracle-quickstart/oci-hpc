@@ -53,6 +53,9 @@ def print_config_list(configurations, title):
     table.add_column("Hyperthreading", justify="left")
          
     for configuration in configurations:
+        hostname_convention=None
+        if configuration.change_hostname:
+            hostname_convention=configuration.hostname_convention
         image_display_field=configuration.image
         if configuration.use_marketplace_image:
              image_display_field=configuration.marketplace_listing
@@ -63,7 +66,7 @@ def print_config_list(configurations, title):
         table.add_row(str(configuration.name), 
                       str(configuration.partition), 
                       str(configuration.shape), 
-                      str(configuration.hostname_convention), 
+                      str(hostname_convention), 
                       str(configuration.permanent), 
                       str(configuration.rdma_enabled), 
                       str(configuration.stand_alone), 
