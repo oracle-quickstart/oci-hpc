@@ -132,7 +132,7 @@ def recommended_action(current, action):
     if action == "Terminate":
         return action
 
-# 18.1 Check the reboot counts
+# Check the reboot counts
 
 def get_reboots_count():
     result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
@@ -300,18 +300,25 @@ def check_ecc_errors():
 
             for i, gpu in enumerate(gpu_matches):
                 logger.debug(f"GPU: {gpu}")
-                if vol_sram_line[i] != "0":
-                    logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
-                    ecc_issues.append(f"{gpu_matches[i]} - Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
-                if vol_dram_line[i] != "0":
-                    logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
-                    ecc_issues.append(f"{gpu_matches[i]} - Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
-                if agg_sram_line[i] != "0":
-                    logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
-                    ecc_issues.append(f"{gpu_matches[i]} - Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
-                if agg_dram_line[i] != "0":
-                    logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
-                    ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
+
+                # Check and handle N/A or missing values
+                vol_sram = vol_sram_line[i] if i < len(vol_sram_line) else "N/A"
+                vol_dram = vol_dram_line[i] if i < len(vol_dram_line) else "N/A"
+                agg_sram = agg_sram_line[i] if i < len(agg_sram_line) else "N/A"
+                agg_dram = agg_dram_line[i] if i < len(agg_dram_line) else "N/A"
+
+                if vol_sram != "0" and vol_sram != "N/A":
+                    logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram}")
+                    ecc_issues.append(f"{gpu} - Volatile SRAM Uncorrectable: {vol_sram}")
+                if vol_dram != "0" and vol_dram != "N/A":
+                    logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram}")
+                    ecc_issues.append(f"{gpu} - Volatile DRAM Uncorrectable: {vol_dram}")
+                if agg_sram != "0" and agg_sram != "N/A":
+                    logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram}")
+                    ecc_issues.append(f"{gpu} - Aggregate SRAM Uncorrectable: {agg_sram}")
+                if agg_dram != "0" and agg_dram != "N/A":
+                    logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram}")
+                    ecc_issues.append(f"{gpu} - Aggregate DRAM Uncorrectable: {agg_dram}")
 
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
@@ -379,22 +386,24 @@ def check_row_remap_errors():
             continue
         tmp_data = line.split(",")
         tmp_data = [x.strip() for x in tmp_data]
-        if tmp_data[0] != "0" and tmp_data[0] != "No":
+        if tmp_data[0] not in ["0", "No", "[N/A]"]:
             logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
             remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
             recommended_action = "Reboot"
-        if tmp_data[1] != "0" and tmp_data[1] != "No":
+        #if tmp_data[1] != "0" and tmp_data[1] != "No":
+        if tmp_data[1] not in ["0", "No", "[N/A]"]:
             logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
             recommended_action = "Terminate"
-        if tmp_data[2] != "0" and tmp_data[2] != "No":
-            logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
-            if int(tmp_data[2]) > 512:
-                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
-                recommended_action = "Terminate"
-            else:
-                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable <512: {tmp_data[2]}")
-                recommended_action = "Reboot"
-
+        if tmp_data[2] not in ["0", "No", "[N/A]"]:  # Add [N/A] to the list of handled values
+            try:
+                if int(tmp_data[2]) > 512:
+                    remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
+                    recommended_action = "Terminate"
+                else:
+                    remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable <512: {tmp_data[2]}")
+                    recommended_action = "Reboot"
+            except ValueError:
+                logger.warning(f"Invalid value for uncorrectable remapped rows: {tmp_data[2]}")
     if len(remap_issues) == 0:
         logger.info("GPU Row Remap Test: Passed")
     else:
@@ -461,7 +470,7 @@ def check_gpu_count():
             logger.error("GPU Count Test: Failed - No devices found using nvidia-smi")
             return ["No GPUs detected"]
 
-        lines = output.split('\n')
+        lines = [line for line in output.split('\n') if "GPU" in line and line.strip().startswith("GPU")]
         # Remove empty lines
         lines = [line for line in lines if line]
         if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"]:
