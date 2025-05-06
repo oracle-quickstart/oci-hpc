@@ -142,6 +142,19 @@ variableGroups:
       and:
         - ${autoscaling_monitoring}
         - ${autoscaling}
+
+  - title: "Include Lustre Filesystem"
+    variables:
+      - ${add_lfs}
+      - ${create_lfs}
+      - ${lfs_compartment}
+      - ${lfs_capacity_in_gbs}
+      - ${lfs_perf_tier}
+      - ${lfs_target_path}
+      - ${lfs_source_IP}
+      - ${lfs_source_path}
+      - ${lfs_options}
+
   - title: "Additional file system"
     variables:
       - ${add_nfs}
@@ -1974,3 +1987,113 @@ variables:
       and:
         - ${use_marketplace_image_monitoring}
         - ${monitoring_node}
+
+  add_lfs:
+    type: boolean
+    title: "Include Existing Lustre Filesystem"
+    default: false
+    description: "The Lustre filesystem being included should pre-exist and be in the same subnet as the GPU/HPC compute nodes."
+    visible: true
+
+  create_lfs:
+    type: boolean
+    title: "Create Lustre Filesystem"
+    default: false
+    description: "For Lustre, leave options field as-is unless you require specific options"
+    visible:
+      and:
+        - ${add_lfs}
+
+  lfs_compartment:
+    title: "Lustre File System Compartment"
+    description: "Compartment for provisioning Lustre File System"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    required: true
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+
+  lfs_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${lfs_compartment}
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+    default: ${ad}
+    description: " Availability Domain (Should be the same as CPU/GPU compute instances for best performance)"
+    title: "LFS Availability Domain"
+    required: true
+
+  lfs_capacity_in_gbs:
+    type: integer
+    required: true
+    minimum: 31200
+    title: "Size of Lustre Filesystem share in GBs (Should be in multiples of 10400)"
+    default: 31200
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+
+  lfs_perf_tier:
+    type: enum
+    required: true
+    title: "Lustre Performance Tier"
+    enum:
+      - "MBPS_PER_TB_125"
+      - "MBPS_PER_TB_250"
+      - "MBPS_PER_TB_500"
+      - "MBPS_PER_TB_1000"
+    default: "MBPS_PER_TB_125"
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+
+  lfs_target_path:
+    type: string
+    title: "LFS Path"
+    description: "Local path on which Lustre filesystem will be mounted"
+    required: true
+    default: "/lfs"
+    visible:
+      and:
+        - ${add_lfs}
+
+  lfs_source_IP:
+    type: string
+    title: "Lustre Server IP"
+    description: "IP address of the Lustre server"
+    required: true
+    default: "0.0.0.0"
+    visible:
+      and:
+        - ${add_lfs}
+        - not:
+            - ${create_lfs}
+
+  lfs_source_path:
+    type: string
+    title: "Lustre Server Path"
+    default: "lustrefs"
+    minLength: 1
+    maxLength: 8
+    description: "Lustre filesystem share path on the Lustre server"
+    visible:
+      and:
+        - ${add_lfs}
+    required: true
+
+  lfs_options:
+    type: string
+    title: "Options"
+    default: "defaults,_netdev"
+    description: "Recommended mount options for LFS. Do not modify unless you require custom options"
+    visible:
+      and:
+        - ${add_lfs}
+

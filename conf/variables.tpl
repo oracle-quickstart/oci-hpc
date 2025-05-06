@@ -167,3 +167,23 @@ variable "hostname_convention" {
 variable "ons_topic_ocid" {
   default = "${ons_topic_ocid}"
 }
+variable "add_lfs" {
+  default = "${add_lfs}"
+  type = bool
+}
+variable "lfs_target_path" {
+  default = "${lfs_target_path}"
+  type = string
+}
+variable "lfs_source_IP" {
+  default = "${lfs_source_IP}"
+  type = string
+}
+variable "lfs_source_path" {
+  default = "${lfs_source_path}"
+  type = string
+}
+variable "lfs_options" {
+  default = "${lfs_options}"
+  type = string
+}
