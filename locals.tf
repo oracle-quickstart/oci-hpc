@@ -83,4 +83,7 @@ locals {
   platform_type = local.shape == "BM.GPU4.8" ? "AMD_ROME_BM_GPU" : local.shape == "BM.GPU.B4.8" || local.shape == "BM.GPU.A100-v2.8" ? "AMD_MILAN_BM_GPU" : local.shape == "BM.Standard.E3.128" ? "AMD_ROME_BM" : local.shape == "BM.Standard.E4.128" || local.shape == "BM.DenseIO.E4.128" ? "AMD_MILAN_BM" : "GENERIC_BM"
 
   topic_id = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
+
+  // Lustre IP.
+  luster_IP = var.create_lfs ? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
 }

@@ -1,5 +1,5 @@
 [Unit]
-Description=Critical Systemd Service monitor 
+Description=Metrics for detecting PCIe faults
 Wants=network-online.target
 After=network-online.target
 
@@ -7,7 +7,7 @@ After=network-online.target
 User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple
-ExecStart=/usr/bin/env python3 /usr/local/bin/critical_process_monitor.py
+ExecStart=/usr/bin/env python3 /usr/local/bin/pcie_faults_exporter.py
 
 [Install]
 WantedBy=multi-user.target

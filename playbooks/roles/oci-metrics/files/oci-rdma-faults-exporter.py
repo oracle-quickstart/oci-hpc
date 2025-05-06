@@ -60,7 +60,8 @@ def fetch_and_push_metric_data(monitoring: oci.monitoring.MonitoringClient, comp
         )
         response = monitoring.summarize_metrics_data(
             compartment_id=compartment_id,
-            summarize_metrics_data_details=metric_details
+            summarize_metrics_data_details=metric_details,
+            retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
         )
         for metric_data in response.data:
             metric_name = mixed_case_to_underline(metric_data.name)
@@ -76,7 +77,6 @@ def fetch_and_push_metric_data(monitoring: oci.monitoring.MonitoringClient, comp
                 device_name=metric_data.dimensions['deviceName'],
                 oci_name=metric_data.dimensions['resourceDisplayName'],
                 hostname=get_gpu_name(metric_data.dimensions['resourceDisplayName'])).set(metric_data.aggregated_datapoints[0].value)                 
-            time.sleep(0.5)
 
 if __name__ == "__main__":
     compartment_id = get_compartment_id()

@@ -316,10 +316,21 @@
         name: slurm_rest_api
     - include_role:
         name: oci-metrics
-      when: cluster_monitoring|default(false)|bool
+      when: slurm|default(false)|bool
 
-- hosts: all,!monitoring
-  tasks: 
-    - include_role: 
-        name: metrics-exporter
-      when: cluster_monitoring|default(false)|bool
+- hosts: compute, controller, login, slurm_backup
+  become: true
+  tasks:
+    - include_role:
+        name: lustre-client
+        apply:
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+      vars:
+        download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+        local_path: "{{ lfs_target_path }}"
+        export_host: "{{ lfs_source_IP }}"
+        options: "{{ lfs_options }}"
+        export_path: "{{ lfs_source_path }}"
+        lock: "none"
+      when: add_lfs|default(false)|bool

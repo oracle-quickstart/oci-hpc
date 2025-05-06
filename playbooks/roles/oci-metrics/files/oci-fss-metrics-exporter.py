@@ -46,29 +46,46 @@ def initialize_metrics(
         oci_data['metrics'] = [metric.name for metric in paginated_response]
         logger.info(f"Found {len(oci_data['metrics'])} filesystem metrics")
         print(oci_data['metrics'])
+
+        unique_mount_target_ids = set()
+        unique_file_system_ids = set()
+
         # Process mount targets     
         for resp in paginated_response:
+            if resp.dimensions.get("resourceType") == "filesystem":
+                unique_mount_target_ids.add(resp.dimensions["mountTargetId"])
+                unique_file_system_ids.add(resp.dimensions["resourceId"])
+            elif resp.dimensions.get("resourceType") == "mountTarget":
+                unique_mount_target_ids.add(resp.dimensions["resourceId"])
+
+        for mount_target_id in unique_mount_target_ids:
             try:
-                if resp.dimensions.get("resourceType") == "filesystem":
-                    mount_target_id = resp.dimensions["mountTargetId"]
-                    file_system_id = resp.dimensions["resourceId"]
-                elif resp.dimensions.get("resourceType") == "mountTarget":
-                    mount_target_id = resp.dimensions["resourceId"]
-                    
                 if mount_target_id not in oci_data['mount_targets']:
-                    mount_target = file_storage_client.get_mount_target(mount_target_id=mount_target_id).data
+                    mount_target = file_storage_client.get_mount_target(
+                        mount_target_id=mount_target_id,
+                        retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
+                    ).data
                     oci_data['mount_targets'][mount_target_id] = {
                         "name": mount_target.display_name,
                         "ad": "-".join(mount_target.availability_domain.split("-")[1:]).lower()
                     }
+            except Exception as e:
+                logger.error(f"Failed to process mount target {mount_target_id}: {str(e)}")
+                continue
+
+        for file_system_id in unique_file_system_ids:
+            try:
                 if file_system_id not in oci_data['filesystems']:
-                    file_system = file_storage_client.get_file_system(file_system_id=file_system_id).data
+                    file_system = file_storage_client.get_file_system(
+                        file_system_id=file_system_id,
+                        retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
+                    ).data
                     oci_data['filesystems'][file_system_id] = {
                         "name": file_system.display_name,
                         "ad": "-".join(file_system.availability_domain.split("-")[1:]).lower()
                     }
             except Exception as e:
-                logger.error(f"Failed to process mount target {mount_target_id}: {str(e)}")
+                logger.error(f"Failed to process file system {file_system_id}: {str(e)}")
                 continue
 
         logger.info(f"Processed {len(oci_data['mount_targets'])} mount target metadata lookup")
@@ -89,15 +106,16 @@ def fetch_and_push_metric_data(monitoring: oci.monitoring.MonitoringClient,
         try:
             metric_details = oci.monitoring.models.SummarizeMetricsDataDetails(
                 namespace="oci_filestorage",
-                query=f"{metric_name}[5m].avg()",
+                query=f"{metric_name}[1m].avg()",
                 start_time=start_time,
                 end_time=end_time,
-                resolution="5m"
+                resolution="1m"
             )
 
             response = monitoring.summarize_metrics_data(
                 compartment_id=compartment_id,
-                summarize_metrics_data_details=metric_details
+                summarize_metrics_data_details=metric_details,
+                retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
             )
             for metric_data in response.data:      
                 if metric_name not in prometheus_metrics:
@@ -133,8 +151,6 @@ def fetch_and_push_metric_data(monitoring: oci.monitoring.MonitoringClient,
                         file_system="none",
                         size=size
                     ).set(metric_data.aggregated_datapoints[0].value) 
-                # To work around OCI metrics api complaining about too many requests
-                time.sleep(0.5)
         except Exception as e:
             logger.error(f"Failed to fetch metric {metric_name}: {str(e)}")
             continue

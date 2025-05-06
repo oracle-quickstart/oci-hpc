@@ -1,0 +1,8 @@
+---
+# defaults file for lustre-client
+
+lnet_protocol: '@tcp'
+
+lfs_client_rpms:
+  - 'lustre-client-dkms-2.15.5_oci1-1.el8.noarch.rpm'
+  - 'lustre-client-2.15.5_oci1-1.el8.x86_64.rpm'
