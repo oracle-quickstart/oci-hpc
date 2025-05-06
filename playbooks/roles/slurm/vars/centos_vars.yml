@@ -56,7 +56,6 @@ slurm_login_packages:
   - "{{ download_path }}/slurm_rpms/slurm-centos-libpmi-{{slurm_version}}.el7.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/slurm-centos-sackd-{{slurm_version}}.el7.x86_64.rpm"
 
-
 pmix_download_packages:
   - "pmix-centos-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "pmix-centos-devel-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
@@ -64,3 +63,5 @@ pmix_download_packages:
 pmix_packages:
   - "{{ download_path }}/slurm_rpms/pmix-centos-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/pmix-centos-devel-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
+
+slurm_jwt_key_path: "/nfs/cluster/spool/slurm/jwt_hs256.key"

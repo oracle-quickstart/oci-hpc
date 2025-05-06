@@ -1,16 +1,15 @@
 ---
-
 - name: Install prometheus_client python package
   ansible.builtin.pip:
     name: prometheus_client 
     executable: /usr/bin/pip3  
-  become: yes
+  become: true
 
 - name: Install ujson python package
   ansible.builtin.pip:
     name: ujson 
     executable: /usr/bin/pip3  
-  become: yes
+  become: true
 
 - name: Render slurm-exporter python script
   become: true
@@ -20,7 +19,6 @@
     owner: "{{ slurm_user }}"
     group: "{{ slurm_group }}"
     mode: 0744
-  
 
 - name: Render slurm-exporter systemd service file
   become: true

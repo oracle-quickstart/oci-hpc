@@ -158,4 +158,4 @@
   command: "scontrol reconfigure"
   delegate_to: 127.0.0.1
   run_once: true
-  ignore_errors: yes
+  ignore_errors: true

@@ -1,5 +1,4 @@
 ---
-
 - name: Install NVM
   uri:
     url: "{{ nvm_install_url }}"
@@ -155,4 +154,3 @@
     ansible_stat.stat.exists == True
   vars:
     ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
-

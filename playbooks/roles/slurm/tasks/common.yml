@@ -6,6 +6,7 @@
     gid: "{{ munge_gid }}"
     state: present
     system: yes
+
 - name: create munge user
   become: true
   user:
@@ -16,6 +17,7 @@
     shell: /sbin/nologin
     home: /var/lib/munge
     state: present
+
 - name: create slurm group
   become: true
   group:
@@ -23,6 +25,7 @@
     gid: "{{ slurm_gid }}"
     state: present
     system: yes
+
 - name: create slurm user
   become: true
   user:
@@ -79,7 +82,6 @@
         delegate_to: 127.0.0.1
         run_once: true  
       when: download_path != '/tmp'
-
     - name: Download on each node
       block:  
       - name: Check if the deb file exists in /tmp
@@ -123,7 +125,6 @@
         when: ( not item.stat.exists )
         with_items: "{{slurm_dwld_tmp.results}}"
       when: download_path == '/tmp'
-
     - name: Download in shared location
       block:   
       - name: Check if the RPMs exist

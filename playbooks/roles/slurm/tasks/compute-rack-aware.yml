@@ -1,5 +1,4 @@
 ---
-
 - name: install SLURM compute packages
   vars:
     package_name: '{{ slurm_compute_packages }}'
@@ -150,11 +149,11 @@
   delegate_to: 127.0.0.1
   run_once: true
   with_items: "{{racks_to_add}}"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Get current nodes in Switch hostlist
   vars:
-    - switch_list_condensed: "{{item.stdout.split('Nodes=')[1]}}"
+    switch_list_condensed: "{{item.stdout.split('Nodes=')[1]}}"
   command: "scontrol show hostname {{switch_list_condensed }}"
   register: switch_hostlist
   delegate_to: 127.0.0.1

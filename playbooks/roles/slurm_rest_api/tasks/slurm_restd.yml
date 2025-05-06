@@ -61,5 +61,3 @@
     daemon_reload: true
     state: restarted
     enabled: yes
-
- 
