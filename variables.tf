@@ -703,3 +703,43 @@ variable "hostname_convention" {
   default = "GPU"
   type = string
 }
+variable "add_lfs" {
+  default = false
+  type = bool
+}
+variable "create_lfs" {
+  default = false
+  type =  bool
+}
+variable "lfs_compartment" {
+  default = ""
+  type =  string
+}
+variable "lfs_ad" {
+  default = ""
+  type =  string
+}
+variable "lfs_capacity_in_gbs" {
+  default = 31200
+  type =  number
+}
+variable "lfs_perf_tier" {
+  default = "MBPS_PER_TB_125"
+  type = string
+}
+variable "lfs_target_path" {
+  default = "/mnt/lfs"
+  type = string
+}
+variable "lfs_source_IP" {
+  default = "0.0.0.0"
+  type = string
+}
+variable "lfs_source_path" {
+  default = "lustrefs"
+  type = string
+}
+variable "lfs_options" {
+  default = "defaults,_netdev"
+  type = string
+}

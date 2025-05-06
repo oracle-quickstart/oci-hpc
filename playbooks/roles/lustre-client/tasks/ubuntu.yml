@@ -1,0 +1,63 @@
+---
+#- name: Download Lustre client installation script for Ubuntu
+#  get_url:
+#    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/h_p88COOGQtqu3NXk-cKndTddqyCKbraaKS0-jBIiyNIREeFWYyEduQFXjjJsoX1/n/fsssolutions/b/rclone-1/o/ubuntu-lustre-installinstall-ubuntu.sh"
+#    dest: "/tmp/ubuntu-lustre-installinstall-ubuntu.sh"
+#    mode: '0755'
+#  retries: 10
+#  delay: 10
+#  register: result
+#  until: result is not failed
+
+- name: Copy Lustre client installation script for Ubuntu
+  copy:
+    src: files/install_lustre_ubuntu.sh
+    dest: /tmp/install_ubuntu.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install Lustre client drivers using the downloaded script
+  shell: /tmp/install_ubuntu.sh >> ubuntu-lustre-install.logs
+  args:
+    chdir: /tmp/
+    creates: ubuntu-lustre-install.logs
+  async: 600
+  poll: 10
+
+- name: create Lustre mount directory
+  become: true
+  file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: ubuntu
+    group: "{{ privilege_group_name }}"
+    mode: 0777
+
+- name: Update /etc/fstab for mounting Lustre filesystem with user defined options
+  lineinfile:
+    dest: /etc/fstab
+    line:
+      "{{ export_host }}{{ lnet_protocol }}:/{{ export_path }} {{ local_path }} lustre {{ options }} 0 0"
+  when: options!=""
+
+- name: Update /etc/fstab for  mounting Lustre filesystem with default options
+  lineinfile:
+    dest: /etc/fstab
+    line:
+      "{{ export_host }}{{ lnet_protocol }}:/{{ export_path }} {{ local_path }} lustre defaults,_netdev 0 0"
+  when: options==""
+
+- name: Mount Lustre as per the details updated above in /etc/fstab
+  command: "mount {{ local_path }}"
+  register: cmd_result
+  failed_when: "cmd_result.rc != 0 and ('is already mounted' not in cmd_result.stderr)"
+  changed_when: "cmd_result.rc == 0"
+
+- name: Ensure user and group ownership of the mounted share directory is set correctly
+  become: true
+  file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: ubuntu
+    group: "{{ privilege_group_name }}"
