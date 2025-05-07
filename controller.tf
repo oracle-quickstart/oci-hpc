@@ -401,6 +401,7 @@ resource "null_resource" "cluster" {
       "sudo chmod 775 /config/login.sh",
       "sudo chmod 600 /config/key/cluster.key",
       "sudo chmod 775 /config/cloud-init.sh",
+      "sudo chmod 777 /config/playbooks",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/key/cluster.key",
       "sudo cp -pr /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
