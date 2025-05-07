@@ -1115,7 +1115,7 @@ variables:
     description: "Only available for a private zone" 
   zone_name:
     title: Private Zone Name
-    description: "The zone needs to be private and unprotected for the stack to be able to add entries"
+    description: "DANGER ZONE: The zone needs to be private and unprotected for the stack to be able to add entries. If you do not have one created or are unsure, uncheck USE DNS"
     type: string
     visible: 
       and:
