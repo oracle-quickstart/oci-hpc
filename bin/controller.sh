@@ -112,7 +112,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo apt -y --fix-broken install
 
   fix_apt
-  echo Before
+  sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     sudo apt-get -y install python python-netaddr python3 python3-pip
   else
