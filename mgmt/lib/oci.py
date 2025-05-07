@@ -56,7 +56,7 @@ def run_terminate(node):
     try:
         if cluster_type == "SA" or cluster_type == "CC":
             logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
-            compute_management_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING","TERMINATED"])
+            compute_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING","TERMINATED"])
         elif cluster_type == "IPA" or cluster_type == "CN":
             logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
             instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=node.ocid,is_auto_terminate=True,is_decrement_size=True)
@@ -102,11 +102,14 @@ def run_add(nodes,count, names):
         for i in range(count):
             if cluster_type == "CC":
                 if names:
-                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name,name=names[i])
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name,hostname=names[i])
                 else:
                     launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name)
             else:
-                launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment,first_node.cluster_name)
+                if names:
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment,first_node.cluster_name,hostname=names[i])
+                else:
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment,first_node.cluster_name)
             compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
     else:
         if names:
