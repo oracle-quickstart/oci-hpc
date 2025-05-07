@@ -137,7 +137,17 @@
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: home_nfs|bool and (not home_fss|bool)
- 
+
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "/home"
+        options: ""
+        lock: "none"
+      when: home_nfs|bool and home_fss|bool
+
 - hosts: controller
   become: true
   vars: 
@@ -239,6 +249,18 @@
     - include_role: 
         name: nccl-conf
       when: cluster_network|bool
+
+- hosts: all,!monitoring
+  tasks: 
+    - include_role: 
+        name: metrics-exporter
+      when: cluster_monitoring|default(false)|bool
+
+- hosts: controller
+  tasks:
+    - include_role:
+        name: oci-metrics
+      when: cluster_monitoring|default(false)|bool
 
 - hosts: monitoring
   tasks: 
