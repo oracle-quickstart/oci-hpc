@@ -45,7 +45,7 @@
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
-  
+
 - name: Render systemd units for slurm and slurmdbd
   become: true
   template:
@@ -137,6 +137,19 @@
     force: no
     owner: slurm
     group: slurm
+  
+- name: copy resume and suspend script 
+  become: true
+  copy: 
+    src: "{{item}}"
+    dest: /etc/slurm/
+    owner: slurm
+    group: slurm
+    mode: '0700'
+  with_items:
+    - resume.sh
+    - suspend.sh
+  
 
 - name: Generate slurmdbd.conf
   become: true
