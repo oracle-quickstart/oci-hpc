@@ -143,9 +143,9 @@ while true; do
     echo "Attempting to configure the node"
     ansible-playbook -i /config/playbooks/inventory_$cluster_name /config/playbooks/compute.yml 2>&1 | tee -a $log
     if [ $? -eq 0 ]; then
-        echo "Ansible succeeded!"
+        echo "Ansible succeeded!" | tee -a $log
         break
     else
-        echo "Ansible failed. Retrying..."
+        echo "Ansible failed. Retrying..." | tee -a $log
     fi
 done 
