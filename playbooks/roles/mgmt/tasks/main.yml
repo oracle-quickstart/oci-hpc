@@ -16,6 +16,7 @@
   vars:
     package_name:
       - clustershell
+      - python3-ansible-runner
     package_state: latest
   include_role:
     name: safe_yum
@@ -24,7 +25,7 @@
 - name: install clustershell
   become: true
   pip:
-    name: ['clustershell', 'sqlalchemy', 'rich', 'click']
+    name: ['clustershell', 'sqlalchemy', 'rich', 'click', 'ansible_runner']
     executable: /config/venv/bin/pip3
     state: latest
   ignore_errors: yes
@@ -34,3 +35,6 @@
     path: '/home/{{ ansible_user }}/.bashrc'
     line: alias mgmt="/config/venv/bin/python3 /config/mgmt/manage.py"
     state: present
+
+- name: import the queues.conf into the DB
+  shell: "/config/venv/bin/python3 /config/mgmt/manage.py configurations create from-file --file /opt/oci-hpc/conf/queues.conf"
