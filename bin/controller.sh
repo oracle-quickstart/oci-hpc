@@ -112,12 +112,20 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo apt -y --fix-broken install
 
   fix_apt
-
+  echo Before
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     sudo apt-get -y install python python-netaddr python3 python3-pip
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
-    sudo apt-get -y install python3 python3-netaddr python3-pip
+    apt_success=1
+    while [ $apt_success == "0" ]
+      do
+        echo "wait until apt update is done"
+        sleep 10s
+        sudo apt-get -y install python3 python3-netaddr python3-pip
+        apt_success=$?
+        echo $apt_success
+      done
     sudo ln -s /usr/bin/python3 /usr/bin/python
   fi
 
