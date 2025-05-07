@@ -12,8 +12,6 @@
           rdma_enabled: ${rdma_enabled}
           stand_alone: ${stand_alone}
           max_number_nodes: 1000
-          max_cluster_size: 50
-          max_cluster_count: 1000
           region: ${region}
           ad: ${ad}
           private_subnet: ${private_subnet}
@@ -36,8 +34,6 @@
           rdma_enabled: ${rdma_enabled}
           stand_alone: ${stand_alone}
           max_number_nodes: 1000
-          max_cluster_size: 50
-          max_cluster_count: 1000
           region: ${region}
           ad: ${ad}
           private_subnet: ${private_subnet}
@@ -63,8 +59,6 @@
           rdma_enabled: ${rdma_enabled}
           stand_alone: true
           max_number_nodes: 1000
-          max_cluster_size: 50
-          max_cluster_count: 1000
           region: ${region}
           ad: ${ad}
           private_subnet: ${private_subnet}
@@ -87,8 +81,6 @@
           rdma_enabled: ${rdma_enabled}
           stand_alone: true
           max_number_nodes: 1000
-          max_cluster_size: 50
-          max_cluster_count: 1000
           region: ${region}
           ad: ${ad}
           private_subnet: ${private_subnet}
