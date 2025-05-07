@@ -1,5 +1,5 @@
 #!/bin/bash
-exec > /var/log/slurm/resume.log 2>&1
+exec >> /var/log/slurm/resume.log 2>&1
 # Expand the hostlist from the first argument
 hosts=$(scontrol show hostnames "$1")
 
@@ -24,7 +24,7 @@ for cluster in "${!cluster_hosts[@]}"; do
     instance_type=${cluster_types[$cluster]}
     echo $instance_type
     count=$(echo "$host_list" | tr ',' '\n' | wc -l)
-    echo $count
+    echo $host_list $instance_type $count
     if /config/venv/bin/python3 /config/mgmt/manage.py clusters list --json | jq -e ".[] | select(. == \"$cluster\")" > /dev/null; then
         echo "Adding nodes to existing cluster: $cluster"
         /config/venv/bin/python3 /config/mgmt/manage.py clusters add --cluster "$cluster" --count "$count" --names "$host_list"

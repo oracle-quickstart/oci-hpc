@@ -1,5 +1,5 @@
 #!/bin/bash
-exec > /var/log/slurm/suspend.log 2>&1
+exec >> /var/log/slurm/suspend.log 2>&1
 # Expand the hostlist from the first argument
 hosts=$(scontrol show hostnames "$1")
 
