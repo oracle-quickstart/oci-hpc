@@ -66,7 +66,7 @@ variable "controller_shape" {
   type = string
   }
 variable "controller_object_storage_par" { 
-  default = true 
+  default = false 
   type = bool
   }
 

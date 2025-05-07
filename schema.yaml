@@ -35,7 +35,6 @@ variableGroups:
       - ${controller_memory}
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
-      - ${controller_object_storage_par}
       - ${use_marketplace_image_controller}
       - ${marketplace_listing_controller}
       - ${unsupported_controller}
@@ -238,6 +237,7 @@ variableGroups:
       - ${use_compute_agent}
       - ${nfs_list_of_mount_target_IPs}
       - ${lfs_ad}
+      - ${controller_object_storage_par}
       
     visible: false
   - title: "Debug"
@@ -429,7 +429,7 @@ variables:
     title: Create Object Storage PAR
     description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
     type: boolean
-    default: true
+    default: false
 
   unsupported_controller: 
     title: "Use unsupported image" 
