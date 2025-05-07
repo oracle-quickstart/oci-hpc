@@ -625,3 +625,13 @@ variable "OCI_generated_container_name" {
   default = "oci-hpc-stack" 
   type = string
   }
+
+variable "ondemand_partition" {
+  default = false
+  type = bool
+  }
+
+variable "ondemand_partition_count" { 
+  default = 100
+  type = number
+  }

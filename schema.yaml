@@ -85,7 +85,8 @@ variableGroups:
       - ${percentage_of_cores_enabled}
       - ${change_hostname}
       - ${hostname_convention}
-
+      - ${ondemand_partition}
+      - ${ondemand_partition_count}
   - title: "Additional Login Node"
     variables:
       - ${login_node}
@@ -684,6 +685,21 @@ variables:
             - not: 
               - ${rdma_enabled}
     required: true
+
+  ondemand_partition:
+    type: boolean
+    title: "On-Demand Partition"
+    default: false
+    description: "Add another partition for nodes on-demand" 
+    
+  ondemand_partition_count:
+    required: true
+    type: integer
+    minimum: 0
+    title: "Maximum number of nodes in the on-demand partition"
+    default: 100
+    description: "Number of Compute Instances (Permanent Cluster when autoscaling)"
+    visible: ${ondemand_partition}
 
   node_count:
     required: true

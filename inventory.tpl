@@ -72,3 +72,5 @@ db_name=network_scan
 collection_name=http_servers
 queue_ocid=${queue_ocid}
 ons_topic_ocid=${ons_topic_ocid}
+ondemand_partition=${ondemand_partition}
+ondemand_partition_count=${ondemand_partition_count}

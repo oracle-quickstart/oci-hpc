@@ -312,7 +312,9 @@ resource "null_resource" "cluster" {
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
       queue_ocid                = local.queue_ocid,
-      ons_topic_ocid            = local.topic_id
+      ons_topic_ocid            = local.topic_id,
+      ondemand_partition        = var.ondemand_partition,
+      ondemand_partition_count  = var.ondemand_partition_count
     })
 
     destination = "/config/playbooks/inventory"
@@ -345,7 +347,9 @@ resource "null_resource" "cluster" {
       hyperthreading              = var.hyperthreading,
       cluster_name                = local.cluster_name,
       change_hostname             = var.change_hostname,
-      hostname_convention         = var.hostname_convention
+      hostname_convention         = var.hostname_convention,
+      ondemand_partition          = var.ondemand_partition,
+      ondemand_partition_count    = var.ondemand_partition_count
     })
 
     destination = "/opt/oci-hpc/conf/queues.conf.example"
@@ -377,7 +381,9 @@ resource "null_resource" "cluster" {
       hyperthreading              = var.hyperthreading,
       cluster_name                = local.cluster_name,
       change_hostname             = var.change_hostname,
-      hostname_convention         = var.hostname_convention
+      hostname_convention         = var.hostname_convention,
+      ondemand_partition          = var.ondemand_partition,
+      ondemand_partition_count    = var.ondemand_partition_count
     })
 
     destination = "/opt/oci-hpc/conf/queues.conf"

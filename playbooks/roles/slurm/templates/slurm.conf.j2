@@ -62,7 +62,6 @@ ResumeProgram=/etc/slurm/resume.sh
 SuspendProgram=/etc/slurm/suspend.sh
 ResumeRate=0
 SuspendRate=0
-SuspendTime=300
 
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
@@ -165,37 +164,28 @@ NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | strin
 {% endfor %}
 
 
-{% set ondemand_queue = false %}
-{% for partition in queues %}
-{% if partition.default  %}
-{% set nodesList = [] %}
-{% for instance in partition.instance_types %}
-{% if instance.permanent  %}
-{{ nodesList.append(instance.name) }}
-{% else %}
-{% set ondemand_queue = true %}
-{{ nodesList.append(instance.hostname_convention+'-[1-'+(instance.max_number_nodes | string )+']') }}
-{% endif %}
+{%- for partition in queues %}
+{%- set ns = namespace(nodesList=[], has_ondemand=0) %}
+{%- for instance in partition.instance_types %}
+    {%- if instance.permanent %}
+        {{- ns.nodesList.append(instance.name) -}}
+    {%- else %}
+        {{- ns.nodesList.append(instance.hostname_convention ~ '-[1-' ~ instance.max_number_nodes ~ ']') -}}
+        {%- set ns.has_ondemand = 1 -%}
+    {%- endif %}
 {%- endfor %}
-{% if ondemand_queue  %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=YES ResumeTimeout=1200 SuspendTimeout=120
-{% else %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=YES
-{% endif %}
-{% else %}
-{% set nodesList = [] %}
-{% for instance in partition.instance_types %}
-{% if instance.permanent  %}
-{{ nodesList.append(instance.name)}}
-{% else %}
-{{ nodesList.append(instance.hostname_convention+'-[1-'+(instance.max_number_nodes | string )+']') }}
-{% set ondemand_queue = true %}
-{% endif %}
+{%- if partition.default %}
+    {%- if ns.has_ondemand == 1 %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
+    {%- else %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES
+    {%- endif %}
+{%- else %}
+    {%- if ns.has_ondemand == 1 %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
+    {%- else %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO
+    {%- endif %}
+{%- endif %}
+{{ "\n" -}}
 {%- endfor %}
-{% if ondemand_queue  %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO ResumeTimeout=1200 SuspendTimeout=120
-{% else %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO
-{% endif %}
-{% endif %}
-{% endfor %}

@@ -225,7 +225,9 @@ resource "null_resource" "cluster_backup" {
       hostname_convention       = var.hostname_convention,
       change_hostname           = var.change_hostname,
       queue_ocid                = local.queue_ocid,
-      ons_topic_ocid            = local.topic_id
+      ons_topic_ocid            = local.topic_id,
+      ondemand_partition        = var.ondemand_partition,
+      ondemand_partition_count  = var.ondemand_partition_count
     })
 
     destination = "/opt/oci-hpc/playbooks/inventory"
@@ -259,7 +261,9 @@ provisioner "file" {
       hyperthreading              = var.hyperthreading,
       cluster_name                = local.cluster_name,
       change_hostname             = var.change_hostname,
-      hostname_convention         = var.hostname_convention
+      hostname_convention         = var.hostname_convention,
+      ondemand_partition        = var.ondemand_partition,
+      ondemand_partition_count  = var.ondemand_partition_count
     })
 
     destination = "/opt/oci-hpc/conf/queues.conf.example"
@@ -291,7 +295,9 @@ provisioner "file" {
       hyperthreading              = var.hyperthreading,
       cluster_name                = local.cluster_name,
       change_hostname             = var.change_hostname,
-      hostname_convention         = var.hostname_convention
+      hostname_convention         = var.hostname_convention,
+      ondemand_partition        = var.ondemand_partition,
+      ondemand_partition_count  = var.ondemand_partition_count
     })
 
     destination = "/opt/oci-hpc/conf/queues.conf"
