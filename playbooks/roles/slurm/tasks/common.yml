@@ -52,19 +52,23 @@
   delegate_to: 127.0.0.1
   run_once: true
 
+- name: Get DEB architecture # noqa no-changed-when
+  ansible.builtin.command: dpkg --print-architecture
+  register: deb_architecture
+
 - name: Download Slurm DEB
   block:
     - name: Download in shared location
       block: 
       - name: Check if the deb file exists 
         stat: 
-          path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+          path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
         register: slurm_dwld
         delegate_to: 127.0.0.1
         run_once: true
       - name: First try downloading .deb
         get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
           dest: "{{ slurm_nfs_path }}/slurm_rpms"
         when: ( not slurm_dwld.stat.exists )
         delegate_to: 127.0.0.1
@@ -72,7 +76,7 @@
   rescue:
     - name: Second try downloading .deb
       get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
         dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
       run_once: true 
@@ -111,7 +115,7 @@
 - name: Install .deb
   vars:
     deb_name:
-      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
     package_state: present
   include_role:
     name: safe_yum

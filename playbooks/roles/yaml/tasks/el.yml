@@ -1,7 +1,12 @@
 ---
+
+- name: Get DEB architecture # noqa no-changed-when
+  ansible.builtin.command: dpkg --print-architecture
+  register: deb_architecture
+
 - name: Download yq RPMs.
   get_url:
-    url: "https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64.tar.gz"
+    url: "https://github.com/mikefarah/yq/releases/download/v4.45.2/yq_linux_{{deb_architecture.stdout}}.tar.gz"
     dest: "/tmp"
   retries: 10
   delay: 10
@@ -9,12 +14,11 @@
   until: result is not failed
 - name: untar yq
   unarchive:
-    src: "/tmp/yq_linux_amd64.tar.gz"
+    src: "/tmp/yq_linux_{{deb_architecture.stdout}}.tar.gz"
     dest: "/tmp"
 - name: move
   become: true
   copy:
-    src: "/tmp/yq_linux_amd64"
+    src: "/tmp/yq_linux_{{deb_architecture.stdout}}"
     dest: "/usr/bin/yq"
     mode: "0755"
-

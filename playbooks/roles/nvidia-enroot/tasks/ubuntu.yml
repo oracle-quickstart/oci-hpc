@@ -1,9 +1,13 @@
 ---
 - block:
 
+  - name: Get DEB architecture # noqa no-changed-when
+    ansible.builtin.command: dpkg --print-architecture
+    register: deb_architecture
+
   - name: Set DPKG architecture
     set_fact:
-      dpkg_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+      dpkg_arch: "{{ deb_architecture.stdout }}"
 
   - name: Ensure /config/3rdparty exists
     file:
