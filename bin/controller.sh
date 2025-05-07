@@ -118,7 +118,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
-    while [ $apt_success == "0" ]
+    while [ $apt_success -ge 1 ]
       do
         echo "wait until apt update is done"
         sleep 10s
