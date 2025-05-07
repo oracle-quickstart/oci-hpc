@@ -16,12 +16,15 @@ class DefaultCommandGroup(click.Group):
 
         if cmd is None:
             # If the first argument is not a valid command, treat it as an argument to 'any'
+            if args:
+                if args[0] =="--help":
+                    return super().parse_args(ctx, args)
             args.insert(0, 'any')
         return super().parse_args(ctx, args)
 
 @click.group(cls=DefaultCommandGroup)
 def get():
-    """Get information about nodes."""
+    """Get information about nodes. Any is the default"""
     pass
 
 @get.command()

@@ -4,15 +4,31 @@ from lib.database import get_all_nodes, get_nodes_by_cluster, get_all_terminated
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
-@click.group(name='list')
+class DefaultCommandGroup(click.Group):
+    def parse_args(self, ctx, args):
+        # Try to resolve the command name early
+        try:
+            # Try to get the command to validate it exists
+            cmd = self.get_command(ctx, args[0])
+        except IndexError:
+            cmd = None
+        if cmd is None:
+            # If the first argument is not a valid command, treat it as an argument to 'any'
+            if args:
+                if args[0] =="--help":
+                    return super().parse_args(ctx, args)
+            args.insert(0, 'all')
+        return super().parse_args(ctx, args)
+    
+@click.group(cls=DefaultCommandGroup)
 def list():
-    """List commands for nodes."""
+    """List commands for nodes. All is the default"""
     pass
 
-@list.command()       
+@list.command(name='all')       
 @click.option('--one_line', is_flag=True, show_default=True, default=False, help='Share the hostnames list in one line') 
 @click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-def all(one_line,full):
+def all_cmd(one_line,full):
     """List all nodes."""
     nodes = get_all_nodes()
     if not nodes:

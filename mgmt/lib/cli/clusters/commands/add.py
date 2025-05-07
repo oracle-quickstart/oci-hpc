@@ -16,8 +16,16 @@ def add():
 @add.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add')
 @click.option('--cluster', required=False, help='Specify the name of the cluster')
-def add(count, cluster):
+@click.option('--names', required=False, help='comma separated list of host names')
+def add(count, cluster, names):
     """Replace the image of nodes by serial number."""
+    if names:
+        name_list=names.split(',')
+        if count != len(name_list):
+            click.echo("The names does not match the count, exiting")
+            exit(1)
+    else:
+        name_list=[]
     if cluster is None:
         clusters = get_clusters()
         if len(clusters) == 1:
@@ -32,4 +40,4 @@ def add(count, cluster):
         logger.error("Node not found.")
         return
     else: 
-        run_add(nodes, int(count))
+        run_add(nodes, int(count), name_list)

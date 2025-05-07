@@ -84,9 +84,9 @@ def run_tag(node):
         logger.error("The tag does not exists or the controller doesn't have acces to the tag")
         logger.error("Make sure the Tag namespace ComputeInstanceHostActions exists with the defined tag: CustomerReportedHostStatus")
 
-def run_add(nodes,count):
+def run_add(nodes,count, names):
     if not nodes:
-        logger.error("The resize script cannot work for a compute cluster if the size is there is no node in the cluster")
+        logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster")
         exit(1)
     first_node=nodes[0]
     for node in nodes:
@@ -101,11 +101,16 @@ def run_add(nodes,count):
         logger.info(f"Launching {count} in the Cluster")
         for i in range(count):
             if cluster_type == "CC":
-                launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name)
+                if names:
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name,name=names[i])
+                else:
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name)
             else:
                 launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment,first_node.cluster_name)
             compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
     else:
+        if names:
+            logger.info(f"Host names are ignored for Instance Pools and Cluster Networks")
         update_size = oci.core.models.UpdateInstancePoolDetails(size=target_size)
         logger.info(f"Launching {count} in the Cluster for a total size of {target_size}")
         compute_management_client_composite_operations.update_instance_pool_and_wait_for_state(instance_pool_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
@@ -115,7 +120,7 @@ def run_add(nodes,count):
         logger.error("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
         exit(1)
 
-def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment_ocid,cluster_name):
+def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment_ocid,cluster_name,hostname=None):
 
     agent_config=first_instance.agent_config
     agent_config.__class__ = oci.core.models.LaunchInstanceAgentConfigDetails
@@ -133,11 +138,18 @@ def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment
         launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,nvmes=nvmes,ocpus=shape_config.ocpus)
     except:
         launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,ocpus=shape_config.ocpus)
-    new_display_name = "inst-"+''.join(random.choices(string.ascii_lowercase, k=5))+"-"+cluster_name
-    if first_instance.shape.startswith("BM"):
-        launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=first_instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cluster_ocid,shape=first_instance.shape,source_details=first_instance.source_details,metadata=first_instance.metadata,display_name=new_display_name,freeform_tags=first_instance.freeform_tags,create_vnic_details=create_vnic_details)
+    
+    freeform_tags=first_instance.freeform_tags
+    if hostname is None:
+        new_display_name = "inst-"+''.join(random.choices(string.ascii_lowercase, k=5))+"-"+cluster_name
     else:
-        launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=first_instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cluster_ocid,shape=first_instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=first_instance.source_details,metadata=first_instance.metadata,display_name=new_display_name,freeform_tags=first_instance.freeform_tags,create_vnic_details=create_vnic_details)
+        new_display_name=hostname
+        if "hostname_convention" in freeform_tags.keys():
+            freeform_tags.pop("hostname_convention")
+    if first_instance.shape.startswith("BM"):
+        launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=first_instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cluster_ocid,shape=first_instance.shape,source_details=first_instance.source_details,metadata=first_instance.metadata,display_name=new_display_name,freeform_tags=freeform_tags,create_vnic_details=create_vnic_details)
+    else:
+        launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=first_instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cluster_ocid,shape=first_instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=first_instance.source_details,metadata=first_instance.metadata,display_name=new_display_name,freeform_tags=freeform_tags,create_vnic_details=create_vnic_details)
     return launch_instance_details
     
 def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
@@ -301,7 +313,7 @@ def get_host_api_dict(compartment,tenancy):
     return compartment_host_api + tenancy_host_api
      
 
-def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_ocid, cluster_name):
+def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_ocid, cluster_name, hostname=None):
 
     subnet_id=config.private_subnet_id
     image_id=config.image
@@ -365,9 +377,14 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
             boot_volume_size_in_gbs=int(bv_size),
             boot_volume_vpus_per_gb=int(30)
         )
-
         new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
-        new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
+
+        if hostname is None:
+            new_display_name = "inst-"+''.join(random.choices(string.ascii_lowercase, k=5))+"-"+cluster_name
+            new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
+        else:
+            new_display_name=hostname
+            new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname}
 
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.LaunchInstanceDetails(
@@ -380,7 +397,8 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
             agent_config=new_agent_config,
             create_vnic_details=new_create_vnic,
             source_details=new_source_details,
-            compute_cluster_id=cn_ocid
+            compute_cluster_id=cn_ocid,
+            display_name=new_display_name
             )
         else:
             new_launch_details = oci.core.models.LaunchInstanceDetails(
@@ -392,7 +410,8 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
             agent_config=new_agent_config,
             create_vnic_details=new_create_vnic,
             source_details=new_source_details,
-            compute_cluster_id=cn_ocid
+            compute_cluster_id=cn_ocid,
+            display_name=new_display_name
             ) 
         return new_launch_details
     except oci.exceptions.ServiceError as e:
@@ -607,8 +626,7 @@ def get_instance_type(node):
     logger.warning(f"Node was not found, maybe it is missing tags?")
     return "SA",None,None
 
-def create_cluster(config, count, cluster_name, controller_hostname):
-    print(config, count, cluster_name, controller_hostname)
+def create_cluster(config, count, cluster_name, controller_hostname, names):
     generate_inventory(config,cluster_name)
     if not config.stand_alone:
         instance_config_data=generate_instance_config(config, controller_hostname, cluster_name)
@@ -635,7 +653,7 @@ def create_cluster(config, count, cluster_name, controller_hostname):
         else:
             cn_id=None
         for i in range(count):
-            launch_instance_details = getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_id, cluster_name)
+            launch_instance_details = getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_id, cluster_name, hostname=names[i])
             compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
 
 def delete_cluster(cluster_name,nodes_list):
