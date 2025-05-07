@@ -190,10 +190,73 @@
     force: no
     owner: slurm
     group: slurm
-  delegate_to: 127.0.0.1
   register: initial_topology
   run_once: true
   notify: reconfigure slurm
 
 - name: run handlers
   meta: flush_handlers
+
+- name: debug
+  debug:
+    var: item
+  with_items: "{{queues}}"
+
+- name: create empty directory
+  set_fact:
+    nodesname_dict: "{{ nodesname_dict | default({}) }}"
+
+- name: Generate a list of types to check
+  vars:
+    temp_list: "{% for instancetype in item.instance_types %}{% if not instancetype.permanent %}{{instancetype.hostname_convention}}-[1-{{instancetype.max_number_nodes}}],{% endif %}{% endfor %}"
+  set_fact:
+    nodesname_dict: "{{ nodesname_dict | combine({ item.name: temp_list[:-1] }, recursive=True) }}"
+  with_items: "{{queues}}"
+
+- name: Check if shapes need to be added
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName=inactive-{{item.name}}\\sNodes.*"
+    state: absent
+  check_mode: yes
+  with_items: "{{queues}}"
+  run_once: true
+  register: shape_added
+  when: not initial_topology.changed and nodesname_dict[item.name] | length > 0
+
+- name: Add new shapes to existing topology.conf
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName=inactive-{{item.item.name}}\\sNodes.*"
+    line: "SwitchName=inactive-{{item.item.name}} Nodes={{nodesname_dict[item.item.name]}}"
+    state: present
+  with_items: "{{shape_added.results}}"
+  run_once: true
+  when: not initial_topology.changed and nodesname_dict[item.item.name] | length > 0 and not ( item.changed | bool)
+
+- name: Check if shapes need to be added
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{item.name}}\\sSwitches.*"
+    state: absent
+  check_mode: yes
+  with_items: "{{queues}}"
+  run_once: true
+  register: switch_added
+  when: not initial_topology.changed and nodesname_dict[item.name] | length > 0
+  notify: reconfigure slurm
+
+- name: Add new shapes to existing topology.conf, Upper Switch
+  become: true
+  lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{item.item.name}}\\sSwitches.*"
+    line: "SwitchName={{item.item.name}} Switches=inactive-{{item.item.name}}"
+    state: present
+  with_items: "{{switch_added.results}}"
+  run_once: true
+  when: not initial_topology.changed and nodesname_dict[item.item.name] | length > 0 and not ( item.changed | bool)
+  notify: reconfigure slurm
