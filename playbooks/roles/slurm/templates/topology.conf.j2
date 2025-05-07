@@ -1,1 +1,20 @@
 ### Topology File
+{% for partition in queues %}
+{% for instance in partition.instance_types %}
+{% set size = instance.private_subnet | ipaddr('size')%}
+SwitchName=inactive-{{partition.name}}-{{instance.instance_keyword}} Nodes={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}]
+{% endfor %}
+{% endfor %}
+
+{%- for partition in queues %}
+{%- set ns = namespace(nodesList=[], has_ondemand=0) %}
+{%- for instance in partition.instance_types %}
+    {%- if not instance.permanent %}
+        {{- ns.nodesList.append(instance.hostname_convention ~ '-[1-' ~ instance.max_number_nodes ~ ']') -}}
+    {%- endif %}
+{%- endfor %}
+{%- if ns.nodesList != [] %}
+SwitchName=inactive-{{ partition.name }} Nodes={{ ns.nodesList | join(',') }}
+SwitchName={{ partition.name }} Switches=inactive-{{ partition.name }}
+{{ "\n" -}}
+{%- endfor %}
