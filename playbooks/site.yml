@@ -336,8 +336,6 @@
   tasks:
     - include_role:
         name: slurm_rest_api
-    - include_role:
-        name: oci-metrics
       when: slurm|default(false)|bool
 
 - hosts: compute, controller, login, slurm_backup
