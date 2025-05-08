@@ -93,5 +93,6 @@ CREATE TABLE IF NOT EXISTS clusterDB.configurations (
     instance_pool_custom_memory BOOLEAN,
     instance_pool_memory INT,
     marketplace_listing VARCHAR(64),
-    hyperthreading BOOLEAN
+    hyperthreading BOOLEAN,
+    preemptible BOOLEAN
 );

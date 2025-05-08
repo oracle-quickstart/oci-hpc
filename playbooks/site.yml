@@ -187,8 +187,6 @@
   become: true
   tasks: 
     - include_role: 
-        name: nodes_update
-    - include_role: 
         name: mgmt
     - include_role: 
         name: queue_write
