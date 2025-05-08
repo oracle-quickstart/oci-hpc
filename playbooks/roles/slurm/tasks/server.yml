@@ -197,11 +197,6 @@
 - name: run handlers
   meta: flush_handlers
 
-- name: debug
-  debug:
-    var: item
-  with_items: "{{queues}}"
-
 - name: create empty directory
   set_fact:
     nodesname_dict: "{{ nodesname_dict | default({}) }}"
@@ -217,7 +212,7 @@
   become: true
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{item.name}}\\sNodes.*"
+    regexp: "SwitchName={{item.name}}:inactive\\sNodes.*"
     state: absent
   check_mode: yes
   with_items: "{{queues}}"
@@ -229,8 +224,8 @@
   become: true
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName=inactive-{{item.item.name}}\\sNodes.*"
-    line: "SwitchName=inactive-{{item.item.name}} Nodes={{nodesname_dict[item.item.name]}}"
+    regexp: "SwitchName={{item.item.name}}:inactive\\sNodes.*"
+    line: "SwitchName={{item.item.name}}:inactive Nodes={{nodesname_dict[item.item.name]}}"
     state: present
   with_items: "{{shape_added.results}}"
   run_once: true
@@ -254,7 +249,7 @@
   lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{item.item.name}}\\sSwitches.*"
-    line: "SwitchName={{item.item.name}} Switches=inactive-{{item.item.name}}"
+    line: "SwitchName={{item.item.name}} Switches={{item.item.name}}:inactive"
     state: present
   with_items: "{{switch_added.results}}"
   run_once: true
