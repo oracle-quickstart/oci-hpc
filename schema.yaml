@@ -85,6 +85,7 @@ variableGroups:
       - ${percentage_of_cores_enabled}
       - ${change_hostname}
       - ${hostname_convention}
+      - ${preemptible}
       - ${ondemand_partition}
       - ${ondemand_partition_count}
   - title: "Additional Login Node"
@@ -872,6 +873,17 @@ variables:
     description: "Will add -INDEX at the end with the index of the IP in the subnet"
     default: "GPU"
     visible: ${change_hostname}
+
+  preemptible: 
+    title: "Use preemptible instances" 
+    description: "Not available for instance pools, Cluster Network or Compute Cluster . "
+    type: boolean
+    default: false
+    visible: 
+      and:
+        - ${stand_alone} 
+        - not:
+          - ${rdma_enabled}
       
   use_advanced:
     type: boolean

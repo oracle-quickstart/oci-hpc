@@ -114,6 +114,7 @@ class Configurations(Base):
     instance_pool_memory  = Column(Integer, nullable=True)
     marketplace_listing = Column(String(64), nullable=True)
     hyperthreading = Column(Boolean, default=True, nullable=False)
+    preemptible = Column(Boolean, default=False, nullable=False)
 
 logger = logging.getLogger(__name__)
 
@@ -670,7 +671,8 @@ def db_import_configuration(filename):
                     instance_pool_custom_memory=instance.get("instance_pool_custom_memory", False),
                     instance_pool_memory=instance.get("instance_pool_memory"),
                     marketplace_listing=instance.get("marketplace_listing"),
-                    hyperthreading=instance.get("hyperthreading", True)
+                    hyperthreading=instance.get("hyperthreading", True),
+                    preemptible=instance.get("preemptible", False)
                 )
 
                 # Check if config already exists

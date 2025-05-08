@@ -29,6 +29,7 @@ def print_config_info(configurations):
         table.add_row("Instance Select Custom Memory", configuration.instance_pool_custom_memory)
         table.add_row("Instance Memory", configuration.instance_pool_memory)
         table.add_row("Hyperthreading", configuration.hyperthreading)
+        table.add_row("Preemptible", configuration.preemptible)
     console = Console()
     console.print(table)
 
@@ -51,6 +52,7 @@ def print_config_list(configurations, title):
     table.add_column("OCPU", justify="left")
     table.add_column("Memory", justify="left")
     table.add_column("Hyperthreading", justify="left")
+    table.add_column("Preemptible", justify="left")
          
     for configuration in configurations:
         hostname_convention=None
@@ -79,7 +81,8 @@ def print_config_list(configurations, title):
                       str(configuration.boot_volume_size), 
                       str(configuration.instance_pool_ocpus), 
                       str(memory_display_field), 
-                      str(configuration.hyperthreading)
+                      str(configuration.hyperthreading), 
+                      str(configuration.preemptible)
                       )
 
     console = Console()
@@ -115,6 +118,7 @@ def print_config_list_yaml(configurations,output_file):
             "instance_pool_custom_memory": config.instance_pool_custom_memory,
             "marketplace_listing": config.marketplace_listing,
             "hyperthreading": config.hyperthreading,
+            "preemptible": config.preemptible
         }
         queues[config.partition].append(instance_type)
 

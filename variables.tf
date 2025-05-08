@@ -635,3 +635,8 @@ variable "ondemand_partition_count" {
   default = 100
   type = number
   }
+
+variable "preemptible" {
+  default = false
+  type = bool
+  }

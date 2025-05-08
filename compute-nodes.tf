@@ -130,7 +130,17 @@ resource "oci_core_instance" "compute_instances" {
       }
     }
   }
- 
+
+  dynamic "preemptible_instance_config" {
+    for_each = var.preemptible ? [1] : []
+    content {
+      preemption_action {
+        type = "TERMINATE"
+        preserve_boot_volume = false
+      }
+    }
+  }
+
   display_name = "inst-${random_string.cc_name[count.index].result}-${local.cluster_name}"
 
   freeform_tags = {

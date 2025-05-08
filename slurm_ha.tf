@@ -262,8 +262,9 @@ provisioner "file" {
       cluster_name                = local.cluster_name,
       change_hostname             = var.change_hostname,
       hostname_convention         = var.hostname_convention,
-      ondemand_partition        = var.ondemand_partition,
-      ondemand_partition_count  = var.ondemand_partition_count
+      ondemand_partition          = var.ondemand_partition,
+      ondemand_partition_count    = var.ondemand_partition_count,
+      preemptible                 = var.preemptible
     })
 
     destination = "/opt/oci-hpc/conf/queues.conf.example"
@@ -296,8 +297,9 @@ provisioner "file" {
       cluster_name                = local.cluster_name,
       change_hostname             = var.change_hostname,
       hostname_convention         = var.hostname_convention,
-      ondemand_partition        = var.ondemand_partition,
-      ondemand_partition_count  = var.ondemand_partition_count
+      ondemand_partition          = var.ondemand_partition,
+      ondemand_partition_count    = var.ondemand_partition_count,
+      preemptible                 = var.preemptible
     })
 
     destination = "/opt/oci-hpc/conf/queues.conf"
