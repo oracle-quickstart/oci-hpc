@@ -20,9 +20,7 @@ done
 for cluster in "${!cluster_hosts[@]}"; do
     # Clean trailing comma
     host_list=${cluster_hosts[$cluster]%,}
-    echo $host_list
     instance_type=${cluster_types[$cluster]}
-    echo $instance_type
     count=$(echo "$host_list" | tr ',' '\n' | wc -l)
     echo $host_list $instance_type $count
     if /config/venv/bin/python3 /config/mgmt/manage.py clusters list --json | jq -e ".[] | select(. == \"$cluster\")" > /dev/null; then
