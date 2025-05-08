@@ -176,6 +176,12 @@
       with_items: "{{remove_compute_info}}"
       ignore_errors: true
 
+    - name: Build empty list of on-demand nodes
+      set_fact:
+        ondemand_node_dict: "{{ ondemand_node_dict  | default({}) }}"
+      with_items: "{{ ondemand_nodes.results }}"
+      when: ( item.stdout | length ) == 0
+
     - name: Build list of on-demand nodes
       set_fact:
         ondemand_node_dict: "{{ ondemand_node_dict  | default({}) | combine({item.item: remove_compute_info[item.item]}) }}"
