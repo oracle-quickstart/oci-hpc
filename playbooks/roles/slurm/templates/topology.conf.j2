@@ -1,12 +1,6 @@
 ### Topology File
-{% for partition in queues %}
-{% for instance in partition.instance_types %}
-{% set size = instance.private_subnet | ipaddr('size')%}
-SwitchName=inactive-{{partition.name}}-{{instance.instance_keyword}} Nodes={{partition.name}}-{{instance.instance_keyword}}-node-[1-{{size}}]
-{% endfor %}
-{% endfor %}
 
-{%- for partition in queues %}
+{% for partition in queues %}
 {%- set ns = namespace(nodesList=[], has_ondemand=0) %}
 {%- for instance in partition.instance_types %}
     {%- if not instance.permanent %}
@@ -14,7 +8,8 @@ SwitchName=inactive-{{partition.name}}-{{instance.instance_keyword}} Nodes={{par
     {%- endif %}
 {%- endfor %}
 {%- if ns.nodesList != [] %}
-SwitchName=inactive-{{ partition.name }} Nodes={{ ns.nodesList | join(',') }}
-SwitchName={{ partition.name }} Switches=inactive-{{ partition.name }}
+SwitchName={{ partition.name }}:inactive Nodes={{ ns.nodesList | join(',') }}
+SwitchName={{ partition.name }} Switches={{ partition.name }}:inactive
 {{ "\n" -}}
+{% endif %}
 {%- endfor %}
