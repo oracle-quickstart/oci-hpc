@@ -11,6 +11,7 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
       compartment_id      = var.targetCompartment
       create_vnic_details {
         subnet_id      = local.subnet_id
+        assign_public_ip = false
       }
       freeform_tags = {
         "cluster_name"   = local.cluster_name
