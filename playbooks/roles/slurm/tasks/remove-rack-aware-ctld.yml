@@ -101,6 +101,7 @@
     register: racks_on_switch
     run_once: true
     with_items: "{{hostnames_list}}"
+    ignore_errors: true
 
   - name: getRacks
     set_fact:
