@@ -34,8 +34,8 @@ NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/nvidia[4-7] Type
 NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/nvidia[0-3] Type=H200 Cores=[0-55]
 NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/nvidia[4-7] Type=H200 Cores=[56-111]
 {% elif shape == "BM.GPU.B200.8"%}
-NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/nvidia[0-3] Type=B200 Cores=[0-55]
-NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/nvidia[4-7] Type=B200 Cores=[56-111]
+NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/nvidia[0-3] Type=B200 Cores=[0-63]
+NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/nvidia[4-7] Type=B200 Cores=[64-127]
 {% elif shape == "BM.GPU.MI300X.8"%}
 NodeName={{new_compute_info[item].hostname}} Name=gpu File=/dev/dri/renderD[128,136,144,152,160,168,176,184] Type=MI300X
 {% elif shape == "BM.GPU.L40S.4"%}
