@@ -54,7 +54,13 @@
 
 - name: Get DEB architecture # noqa no-changed-when
   ansible.builtin.command: dpkg --print-architecture
-  register: deb_architecture
+  register: deb_architecture_out
+  when: ansible_os_family == 'Debian'
+
+- name: Map system architecture to suffix
+  set_fact:
+    deb_architecture: "{{ deb_architecture_out.stdout }}"
+  when: ansible_os_family == 'Debian'
 
 - name: Download Slurm DEB
   block:
@@ -62,13 +68,13 @@
       block: 
       - name: Check if the deb file exists 
         stat: 
-          path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
+          path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture}}.deb"
         register: slurm_dwld
         delegate_to: 127.0.0.1
         run_once: true
       - name: First try downloading .deb
         get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
+          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture}}.deb"
           dest: "{{ slurm_nfs_path }}/slurm_rpms"
         when: ( not slurm_dwld.stat.exists )
         delegate_to: 127.0.0.1
@@ -76,7 +82,7 @@
   rescue:
     - name: Second try downloading .deb
       get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture}}.deb"
         dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
       run_once: true 
@@ -115,7 +121,7 @@
 - name: Install .deb
   vars:
     deb_name:
-      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture.stdout}}.deb"
+      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_{{deb_architecture}}.deb"
     package_state: present
   include_role:
     name: safe_yum
