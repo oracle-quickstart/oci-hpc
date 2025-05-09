@@ -53,7 +53,7 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
   elif [ $vid == 9 ] ; then
-    sudo dnf install python3 python3-pip
+    sudo dnf install -y python3 python3-pip
     sudo python3 -m pip install --upgrade pip
     sudo python3 -m pip install virtualenv
     virtualenv /config/venv
