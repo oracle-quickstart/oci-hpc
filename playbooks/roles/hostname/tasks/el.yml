@@ -7,7 +7,6 @@
       Authorization: 'Bearer Oracle'
     return_content: yes
   register: i_metadata
-  delegate_to: "{{ item }}"
 
 - name: set fact
   set_fact:
