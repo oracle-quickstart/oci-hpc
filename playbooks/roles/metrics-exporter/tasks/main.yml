@@ -5,15 +5,15 @@
   when: ansible_distribution == 'Ubuntu'
 
 - include_tasks: dcgm_exporter.yml
-  when: ('compute' in group_names) and 'GPU' in shape
+  when: compute_node|bool and 'GPU' in shape
 
 - include_tasks: rdma_exporter.yml
-  when: ('compute' in group_names) and rdma_enabled|bool
+  when: compute_node|bool  and rdma_enabled|bool
 
 - include_tasks: nvlink_exporter.yml
-  when: ('compute' in group_names) and 'GPU' in shape
+  when: compute_node|bool  and 'GPU' in shape
 
 - include_tasks: custom_metrics.yml
-  when: ('compute' in group_names) and rdma_enabled|bool
+  when: compute_node|bool  and rdma_enabled|bool
 
 - include_tasks: critical_process_monitor.yml
