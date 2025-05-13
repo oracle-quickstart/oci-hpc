@@ -1,5 +1,14 @@
 ---
 
+- name: Map system architecture to suffix
+  set_fact:
+    arch_suffix: "{{ arch_map[ansible_architecture] }}"
+  vars:
+    arch_map:
+      x86_64: amd64
+      aarch64: arm64
+  when: ansible_os_family == 'RedHat'
+
 - name: Create user for prometheus
   become: true
   user:
@@ -19,20 +28,20 @@
 
 - name: Check if file already exists
   stat:
-    path: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz 
+    path: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz 
   register: node_exporter_file
 
 - name: Download node_exporter {{ node_exporter }}
   become: true
   get_url:
-    url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz
-    dest: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz 
+    url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz
+    dest: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz 
   when: not node_exporter_file.stat.exists | bool
 
-- name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
+- name: Extract node_exporter {{ node_exporter }}.linux-{{arch_suffix}}.tar.gz into /var/lib/prometheus/node_exporter/
   become: true
   unarchive:
-    src: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz 
+    src: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz 
     dest: /var/lib/prometheus/node_exporter/
     extra_opts: [--strip-components=1]
     remote_src: true

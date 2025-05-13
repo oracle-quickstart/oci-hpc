@@ -92,7 +92,7 @@
   vars:
     package_name:
       - clustershell
-      - python3-ansible-runner
+      #- python3-ansible-runner
     package_state: latest
   include_role:
     name: safe_yum

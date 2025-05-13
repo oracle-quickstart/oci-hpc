@@ -4,8 +4,8 @@ prometheus_user: prometheus
 prometheus_dest_dir: /etc/prometheus
 prometheus_data_dir: /var/lib/prometheus
 service_dest_dir: /etc/systemd/system
-prometheus_download_dir: /tmp/prometheus-2.53.1.linux-amd64
-prometheus_download_url: https://github.com/prometheus/prometheus/releases/download/v2.53.1/prometheus-2.53.1.linux-amd64.tar.gz
+prometheus_download_dir: /tmp/prometheus-3.3.1.linux-{{arch_suffix}}
+prometheus_download_url: https://github.com/prometheus/prometheus/releases/download/v3.3.1/prometheus-3.3.1.linux-{{arch_suffix}}.tar.gz
 # vars file for prometheus
 
 exporter_ports:

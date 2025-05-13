@@ -1,4 +1,15 @@
 ---
+
+- name: Get DEB architecture # noqa no-changed-when
+  ansible.builtin.command: dpkg --print-architecture
+  register: deb_architecture
+  when: ansible_os_family == 'Debian'
+
+- name: Set DPKG architecture
+  set_fact:
+    arch_suffix: "{{ deb_architecture.stdout }}"
+  when: ansible_os_family == 'Debian'
+
 - name: Create prometheus group on compute
   become: true
   group:
@@ -24,20 +35,20 @@
   
 - name: Check if file already exists
   stat:
-    path: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    path: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz"
   register: node_exporter_file
 
 - name: Download node_exporter {{ node_exporter }}
   become: true
   get_url:
-    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
-    dest: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz"
+    dest: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz"
   when: not node_exporter_file.stat.exists | bool
 
-- name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
+- name: Extract node_exporter {{ node_exporter }}.linux-{{arch_suffix}}.tar.gz into /var/lib/prometheus/node_exporter/
   become: true
   unarchive:
-    src: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+    src: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{arch_suffix}}.tar.gz"
     dest: "/var/lib/prometheus/node_exporter/"
     extra_opts: ["--strip-components=1"]
     remote_src: true

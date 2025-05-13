@@ -10,7 +10,7 @@
 
 - name: Download yq RPMs.
   get_url:
-    url: "https://github.com/mikefarah/yq/releases/download/v4.45.2/yq_linux_{{deb_architecture}}.tar.gz"
+    url: "https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_{{deb_architecture}}.tar.gz"
     dest: "/tmp"
   retries: 10
   delay: 10
