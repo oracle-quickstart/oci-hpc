@@ -9,6 +9,13 @@
       aarch64: arm64
   when: ansible_os_family == 'RedHat'
 
+- name: Create prometheus group on compute
+  become: true
+  group:
+    name: prometheus
+    state: present
+    system: yes
+
 - name: Create user for prometheus
   become: true
   user:
@@ -17,6 +24,7 @@
     createhome: no   
     shell: /usr/sbin/nologin
     append: yes
+    group: prometheus
 
 - name: Create /var/lib/prometheus/node_exporter directory
   become: true
