@@ -56,14 +56,14 @@
   git:
     repo: https://github.com/NVIDIA/pyxis.git
     dest: /config/3rdparty/pyxis
-  ignore_errors: yes
+  ignore_errors: true
   when: not pyxis_present.stat.exists
 
 - name: compile 
   command: bash -c "sudo make install"
   args:
     chdir: /config/3rdparty/pyxis
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: create plugstack.conf
   become: true
