@@ -43,11 +43,79 @@
   shell:
     cmd: "hostname"
   register: hostname_output
-  when: change_hostname_tag
   
+- name: Sleep for 10 seconds
+  ansible.builtin.pause:
+    seconds: 10
+  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+
+- name: Sleep for 10 seconds
+  ansible.builtin.pause:
+    seconds: 10
+  when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
+
 - name: update hostname for HPC cluster
   vars:
     index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   hostname:
     name: "{{hostname_convention}}-{{index}}"
   when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+
+- name: update hostname for HPC cluster
+  hostname:
+    name: "{{instance_metadata['displayName']}}"
+  when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
+
+- name: Check Hostname
+  shell:
+    cmd: "hostname"
+  register: hostname_output
+  
+- name: Sleep for 10 seconds
+  ansible.builtin.pause:
+    seconds: 30
+  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+
+- name: Sleep for 10 seconds
+  ansible.builtin.pause:
+    seconds: 30
+  when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
+
+- name: update hostname for HPC cluster
+  vars:
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+  hostname:
+    name: "{{hostname_convention}}-{{index}}"
+  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+
+- name: update hostname for HPC cluster
+  hostname:
+    name: "{{instance_metadata['displayName']}}"
+  when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
+
+- name: Check Hostname
+  shell:
+    cmd: "hostname"
+  register: hostname_output
+  
+- name: Sleep for 10 seconds
+  ansible.builtin.pause:
+    seconds: 60
+  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+
+- name: Sleep for 10 seconds
+  ansible.builtin.pause:
+    seconds: 60
+  when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
+
+- name: update hostname for HPC cluster
+  vars:
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+  hostname:
+    name: "{{hostname_convention}}-{{index}}"
+  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+
+- name: update hostname for HPC cluster
+  hostname:
+    name: "{{instance_metadata['displayName']}}"
+  when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
