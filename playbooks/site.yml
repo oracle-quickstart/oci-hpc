@@ -1,13 +1,19 @@
-- hosts: controller, slurm_backup
+- hosts: controller
   become: true
+  vars: 
+    export_path: "/config"
+    export_name: "config"
+    local_path:  "/config"
   tasks:
     - include_role: 
-        name: yaml
-        
-- hosts: all
+        name: privilege_group
+    - include_role: 
+        name: nfs-server       
+- hosts: controller, slurm_backup
   become: true
   gather_facts: true
   roles: 
+    - yaml
     - oci-cloud-agent
     - privilege_group
     - oci-legacy
@@ -19,7 +25,7 @@
     - boot-volume
     - mpivars
 
-- hosts: all
+- hosts: controller, slurm_backup
   become: true
   tasks: 
     - include_role: 
@@ -58,7 +64,7 @@
         name: fss-home
       when: add_nfs|bool and home_fss|bool
 
-- hosts: controller, slurm_backup, monitoring
+- hosts: controller, slurm_backup
   become: true
   tasks:
     - include_role:
@@ -88,57 +94,16 @@
     - include_role: 
         name: cluster-cli
       when: ldap|default(true)|bool
-
-
-- hosts: compute, monitoring
-  become: true
-  tasks:
-    - include_role:
-        name: home_nfs
-      when: home_nfs|default(true)|bool or home_fss|bool
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "/home"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        lock: "all"
-      when: home_nfs|bool and (not home_fss|bool)
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
-        options: ""
-        lock: "none"
-      when: home_nfs|bool and home_fss|bool
  
 - hosts: controller
   become: true
-  vars: 
-    export_path: "/config"
-    export_name: "config"
-    local_path:  "/config"
   tasks:
-    - include_role: 
-        name: nfs-server
     - include_role: 
         name: mysql
 
-- hosts: all
+- hosts: controller, slurm_backup
   become: true
   tasks: 
-    - include_role: 
-        name: nfs-client
-      vars: 
-        local_path: "{{ scratch_nfs_path }}"
-        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        lock: "none" 
-      when: scratch_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
@@ -149,38 +114,19 @@
         lock: "none"
       when: add_nfs|default(false)|bool
 
-
-- hosts: all
+- hosts: controller, slurm_backup
   become: true
   tasks: 
     - include_role: 
         name: sssd
       when: ldap|default(true)|bool
 
-- hosts: all,!monitoring
+- hosts: controller, slurm_backup
   vars: 
     compute_node: false
   tasks: 
     - include_role: 
         name: metrics-exporter
-      when: cluster_monitoring|default(false)|bool
-
-- hosts: monitoring
-  tasks: 
-    - include_role: 
-        name: grafana
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) 
-
-- hosts: controller
-  tasks: 
-    - include_role: 
-        name: grafana
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) 
-
-- hosts: controller, monitoring
-  tasks: 
-    - include_role: 
-        name: prometheus
       when: cluster_monitoring|default(false)|bool
         
 - hosts: controller
@@ -191,14 +137,14 @@
     - include_role: 
         name: queue_write
 
-- hosts: all
+- hosts: controller, slurm_backup
   become: true
   tasks: 
     - include_role: 
         name: fix_ldap
       when: ldap|default(true)|bool
 
-- hosts: all
+- hosts: controller, slurm_backup
   vars:
     slurm_mode: 'controller'
     resize: false
@@ -215,7 +161,27 @@
         name: slurm
       when: slurm|default(false)|bool
 
-- hosts: all
+- hosts: monitoring
+  tasks:     
+    - include_role: 
+        name: wait_for_cloud_init
+    - include_role: 
+        name: grafana
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) 
+
+- hosts: controller
+  tasks: 
+    - include_role: 
+        name: grafana
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) 
+
+- hosts: controller, monitoring
+  tasks: 
+    - include_role: 
+        name: prometheus
+      when: cluster_monitoring|default(false)|bool
+
+- hosts: controller, slurm_backup
   become: true
   vars:
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
