@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import ldap3
-from ldap3 import MODIFY_ADD
+from ldap3 import MODIFY_ADD, MODIFY_REPLACE
 import click
 import grp
 import pwd
