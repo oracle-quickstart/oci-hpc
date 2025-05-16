@@ -36,6 +36,7 @@ fi
 controller_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller_name`
 cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`
 login=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.login`
+monitoring=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.monitoring`
 controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller`
 
 if [ "$controller" == "true" ]; then
@@ -79,6 +80,8 @@ done
 
 if [ "$login" == "true" ]; then
     su - $default_user /config/login.sh 2>&1 | tee -a /tmp/cloud-init.log
+elif [ "$monitoring" == "true" ]; then
+    su - $default_user /config/monitoring.sh 2>&1 | tee -a /tmp/cloud-init.log
 else
     su - $default_user /config/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
 fi

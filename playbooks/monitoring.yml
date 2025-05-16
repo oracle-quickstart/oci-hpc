@@ -1,4 +1,4 @@
-- hosts: monitoring
+- hosts: localhost
   become: true
   gather_facts: true
   tasks:
@@ -6,11 +6,16 @@
         name: fix_broken
       when: ansible_os_family == 'Debian'
         
-- hosts: monitoring
+- hosts: localhost
   become: true
+  vars:
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    http_server_status: "configuring"
+    http_server_role: "monitoring"
   gather_facts: true
   roles: 
     - oci-cloud-agent
+    - http_server
     - privilege_group
     - oci-legacy
     - packages
@@ -20,9 +25,14 @@
     - limits
     - boot-volume
     - mpivars
+    - queue_read
+    - mgmt
 
-- hosts: monitoring
+- hosts: localhost
   become: true
+  gather_facts: true
+  vars:
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   tasks: 
     - include_role: 
         name: localdisk
@@ -30,23 +40,7 @@
     - include_role: 
         name: healthchecks
 
-- hosts: monitoring
-  become: true
-  tasks:
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
-        options: ""
-        lock: "none"
-      when: add_nfs|bool and home_fss|bool
-    - include_role: 
-        name: passwords
-
-
-- hosts: monitoring
+- hosts: localhost
   become: true
   tasks:
     - include_role:
@@ -56,7 +50,7 @@
         name: nfs-client
       vars:
         local_path: "/home"
-        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
+        export_host: "{{ controller_hostname }}"
         export_path: "/home"
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
@@ -70,19 +64,6 @@
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool
-
-- hosts: monitoring
-  become: true
-  tasks: 
-    - include_role: 
-        name: nfs-client
-      vars: 
-        local_path: "{{ scratch_nfs_path }}"
-        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        lock: "none" 
-      when: scratch_nfs|default(true)|bool
     - include_role:
         name: nfs-client
       vars:
@@ -93,43 +74,31 @@
         lock: "none"
       when: add_nfs|default(false)|bool
 
-
-- hosts: monitoring
+- hosts: localhost
   become: true
-  tasks: 
-    - include_role: 
-        name: sssd
-      when: ldap|default(true)|bool
-
-- hosts: monitoring
-  tasks: 
-    - include_role: 
-        name: grafana
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) 
-
-- hosts: monitoring
-  tasks: 
-    - include_role: 
-        name: prometheus
-      when: cluster_monitoring|default(false)|bool
-
-- hosts: all
-  become: true
-  tasks: 
-    - include_role: 
-        name: fix_ldap
-      when: ldap|default(true)|bool
-
-- hosts: monitoring
   vars:
-    resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+  tasks:
+    - include_role:
+        name: docker
+      when: enroot|default(true)|bool
+    - include_role:
+        name: nvidia-container
+      when: enroot|default(true)|bool
+    - include_role:
+        name: nvidia-enroot
+      when: enroot|default(true)|bool
+      
+- hosts: localhost
+  vars:
+    slurm_mode: 'login'
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    compute_node: false
   tasks: 
     - include_role: 
         name: rack-aware
-      when: rack_aware|default(false)|bool
     - include_role: 
         name: spack
       when: spack|default(false)|bool
@@ -137,11 +106,12 @@
         name: slurm
       when: slurm|default(false)|bool
 
-- hosts: monitoring
+- hosts: localhost
   become: true
   vars:
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configured"
+    http_server_role: "monitoring"
   gather_facts: true
   roles: 
     - http_server
