@@ -56,7 +56,7 @@ fi
 # to disable host key checking.
 #
 
-source /config/venv/bin/activate
+source /opt/oci-hpc/venv/bin/activate
 
 if [[ $execution -eq 1 ]] ; then
   ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1

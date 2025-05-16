@@ -43,10 +43,37 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   if [ $vid == 7 ]; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
+    sudo yum install --enablerepo=$repo -y ansible python-netaddr
+    sudo python3 -m pip install virtualenv
+    virtualenv /opt/oci-hpc/venv --always-copy
+    source /opt/oci-hpc/venv/bin/activate
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
+    sudo python3.8 -m pip install --upgrade pip
+    sudo python3.8 -m pip install virtualenv
+    virtualenv /opt/oci-hpc/venv --always-copy
+    source /opt/oci-hpc/venv/bin/activate
+    /opt/oci-hpc/venv/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
+    sudo mkdir /etc/ansible
+    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
+    sudo ln -s /usr/local/bin/ansible /bin/ansible
+  elif [ $vid == 9 ] ; then
+    sudo dnf install -y python3 python3-pip
+    sudo python3 -m pip install --upgrade pip
+    sudo python3 -m pip install virtualenv
+    virtualenv /opt/oci-hpc/venv
+    source /opt/oci-hpc/venv/bin/activate
+    /opt/oci-hpc/venv/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
+    sudo mkdir /etc/ansible
+    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
+    sudo ln -s /usr/local/bin/ansible /bin/ansible
   fi
+  /opt/oci-hpc/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null
+  /opt/oci-hpc/venv/bin/python3 -m pip install setuptools_rust --upgrade > /dev/null
+  /opt/oci-hpc/venv/bin/python3 -m pip install requests --upgrade > /dev/null
+  /opt/oci-hpc/venv/bin/python3 -m pip install urllib3 --upgrade > /dev/null
+  /opt/oci-hpc/venv/bin/python3 -m pip install oci-cli --upgrade > /dev/null
 
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
@@ -93,7 +120,15 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     sudo apt-get -y install python python-netaddr python3 python3-pip
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
-    sudo apt-get -y install python3 python3-netaddr python3-pip
+    apt_success=1
+    while [ $apt_success -ge 1 ]
+      do
+        echo "wait until apt update is done"
+        sleep 10s
+        sudo apt-get -y install python3 python3-netaddr python3-pip
+        apt_success=$?
+        echo $apt_success
+      done
     sudo ln -s /usr/bin/python3 /usr/bin/python
   fi
   output=$?
@@ -108,10 +143,41 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fi
 fi 
 
-#ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
-#ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
-#ansible-galaxy collection install ansible.posix --force > /dev/null
-#ansible-galaxy collection install community.crypto --force > /dev/null
+if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
+  fix_apt
+  sudo apt-get -y install python python-netaddr python3 python3-pip
+  sudo python3 -m pip install virtualenv
+elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
+  fix_apt
+  sudo apt-get -y install python3 python3-netaddr python3-pip
+  sudo python3 -m pip install virtualenv
+else
+  fix_apt
+  sudo apt-get -y install python3 python3-netaddr python3-pip
+  fix_apt
+  sudo apt-get -y install python3-virtualenv
+fi
+virtualenv /opt/oci-hpc/venv 
+source /opt/oci-hpc/venv/bin/activate
+/opt/oci-hpc/venv/bin/python3 -m pip install ansible
+/opt/oci-hpc/venv/bin/python3 -m pip install -U pip > /dev/null
+/opt/oci-hpc/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null
+/opt/oci-hpc/venv/bin/python3 -m pip install requests --upgrade > /dev/null
+/opt/oci-hpc/venv/bin/python3 -m pip install urllib3 --upgrade > /dev/null
+/opt/oci-hpc/venv/bin/pip install pip --upgrade > /dev/null
+/opt/oci-hpc/venv/bin/pip install pyopenssl --upgrade > /dev/null
+
+# install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
+cd /tmp
+bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults > /dev/null
+
+# install oci module
+/opt/oci-hpc/venv/bin/pip install oci > /dev/null 
+
+ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
+ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
+ansible-galaxy collection install ansible.posix --force > /dev/null
+ansible-galaxy collection install community.crypto --force > /dev/null
 
 threads=$(nproc)
 forks=$(($threads * 8))
@@ -125,7 +191,6 @@ if [ ! -d /etc/ansible ] ; then
   fi
 fi
 
-source /config/venv/bin/activate
 ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
 sudo sed -i "s/^\(#\|;\)forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
