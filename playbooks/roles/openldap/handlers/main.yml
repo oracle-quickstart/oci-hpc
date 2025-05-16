@@ -5,5 +5,5 @@
   service:
     name: slapd
     state: restarted
-    enabled: yes
+    enabled: true
   when: primary|default(True)

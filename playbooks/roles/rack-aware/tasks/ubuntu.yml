@@ -13,7 +13,7 @@
     ansible_python_interpreter: /usr/bin/python3
   pip:
     name: ['pssh', 'parallel-ssh']
-    executable: /config/venv/bin/pip3
+    executable: /opt/oci-hpc/venv/bin/pip3
     state: latest
   ignore_errors: true
 
@@ -22,7 +22,7 @@
   file:
     path: /opt/oci-hpc/bin/
     state: directory
-    recurse: yes
+    recurse: true
     mode: '0755'
     owner: "{{ ansible_user }}"
     group: "{{ privilege_group_name }}"

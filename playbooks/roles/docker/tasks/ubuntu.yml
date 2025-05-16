@@ -45,14 +45,14 @@
       state: present
       regexp: '^docker:x:(.*)$'
       line: 'docker:x:999:{{ansible_user}}'
-      backrefs: yes
+      backrefs: true
 
   - name: restart docker
     become: true
     service:
       name: docker.socket
       state: restarted
-      enabled: yes
+      enabled: true
 
 # start is not needed - it starts dokcer as part of install
   - name: Enable service Docker
@@ -63,7 +63,7 @@
   - name: Enable service containerd
     ansible.builtin.service:
       name: containerd
-      enabled: yes
+      enabled: true
 
 #  - name: Install Docker Module for Python
 #    pip:
@@ -73,4 +73,4 @@
 #    user:
 #      name: ubuntu
 #      groups: docker
-#      append: yes
+#      append: true

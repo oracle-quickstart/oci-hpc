@@ -6,7 +6,7 @@
     owner: '{{ ansible_user }}'
     group: '{{ ansible_user }}'
     mode: '0755'
-    recurse: yes
+    recurse: true
   with_items:
     - "{{http_server_directory}}/files"
     - "{{http_server_directory}}/bin"
@@ -34,7 +34,7 @@
 - name: Gather FSS IP
   shell: "cat /etc/fstab | grep {{nfs_source_path}}"
   register: nfs_output
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Extract the IP address using regex
   set_fact:
@@ -52,7 +52,7 @@
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
-    return_content: yes
+    return_content: true
   register: i_metadata
 
 - name: set fact
@@ -80,7 +80,7 @@
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
-    return_content: yes
+    return_content: true
   register: h_metadata
 
 - name: set fact
@@ -118,10 +118,10 @@
 
 - name: Reload systemd daemon
   systemd:
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Start and enable the service
   service:
     name: python-http-server
     state: started
-    enabled: yes
+    enabled: true

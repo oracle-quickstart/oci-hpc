@@ -3,7 +3,7 @@
   yum:
     name: python3-dnf-plugin-versionlock
     state: latest
-    disable_gpg_check: yes
+    disable_gpg_check: true
   when:
     - ansible_os_family == 'RedHat' and ( ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' )
 

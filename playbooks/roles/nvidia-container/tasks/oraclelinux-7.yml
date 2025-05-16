@@ -17,7 +17,7 @@
       mode: '0644'
       owner: root
       group: root
-      force: yes
+      force: true
 
   - name: clean
     command: yum clean expire-cache

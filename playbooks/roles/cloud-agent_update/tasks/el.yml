@@ -12,7 +12,7 @@
   yum:
     name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/H1npAGRle5v4izHQkTysF_tfdsgO43iawRc4IC2xL5LwO6T36m8o34T8_kc_KaBS/n/imagegen/b/agent_test/o/1.38.0/3/oracle-cloud-agent-1.38.0-10815.el8.{{ansible_architecture}}.rpm"
     state: present
-    disable_gpg_check: yes
+    disable_gpg_check: true
   when:
     - ansible_os_family == 'RedHat'
     - ansible_distribution_major_version == '8'
@@ -29,7 +29,7 @@
   yum:
     name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/v7U4X2bmcA_iY6UoRiGALU-A8xIrcsMZWjnfgk8zi4BDX5pfU1BV0XbHR9Iy6OJk/n/imagegen/b/agent_test/o/1.38.0/3/oracle-cloud-agent-1.38.0-10815.el7.{{ansible_architecture}}.rpm"
     state: present
-    disable_gpg_check: yes
+    disable_gpg_check: true
   when:
     - ansible_os_family == 'RedHat'
     - ansible_distribution_major_version == '7'

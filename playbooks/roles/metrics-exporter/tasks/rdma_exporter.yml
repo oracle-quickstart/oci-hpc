@@ -13,7 +13,7 @@
   become: true
   ansible.builtin.pip:
     name: prometheus_client 
-    executable: /config/venv/bin/pip3
+    executable: /opt/oci-hpc/venv/bin/pip3
 
 - name: Install prometheus_client python package
   become: true
@@ -34,8 +34,8 @@
   template: 
     src: rdma-exporter.service.j2
     dest: /etc/systemd/system/rdma-exporter.service
-    force: yes
-    backup: yes
+    force: true
+    backup: true
     owner: prometheus
     group: prometheus
     mode: 0755
@@ -45,4 +45,4 @@
   service:
     name: rdma-exporter
     state: restarted
-    enabled: yes
+    enabled: true

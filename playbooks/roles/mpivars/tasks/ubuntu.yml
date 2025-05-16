@@ -18,7 +18,7 @@
   template: 
     src: mpivars.j2 
     dest: /usr/mpi/gcc/{{ openmpi.stdout_lines[0] }}/bin/mpivars.sh
-    force: yes
+    force: true
     owner: root
     group: root
   when: openmpi.stdout_lines | length > 0 and not mpivars.stat.exists

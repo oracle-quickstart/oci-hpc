@@ -19,12 +19,12 @@
     name: [pip]
     state: latest
     executable: /usr/bin/pip3  
-  ignore_errors: yes
+  ignore_errors: true
   
 - name: Upgrade Pip3
   become: true
   pip:
     name: [pip]
     state: latest
-    executable: /config/venv/bin/pip3
-  ignore_errors: yes
+    executable: /opt/oci-hpc/venv/bin/pip3
+  ignore_errors: true

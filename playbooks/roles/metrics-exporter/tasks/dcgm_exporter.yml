@@ -29,7 +29,7 @@
   lineinfile:
     path: /etc/profile.d/go.sh
     line: "export PATH=$PATH:{{ go_path }}"
-    create: yes
+    create: true
     state: present
 
 - name: Check if file already exists
@@ -51,6 +51,10 @@
     cmd: curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"'
   register: dcgm_exporter_releases
   when: not dcgm_exporter.stat.exists | bool
+
+#- name: Extract major.minor version from DCGM version
+#  set_fact:
+#    dcgm_major_minor: "{{ dcgm_version.stdout | regex_replace('^(\\d+\\.\\d+)\\.\\d+$', '\\1') }}"
 
 - name: Select appropriate DCGM Exporter version
   set_fact:
@@ -108,11 +112,11 @@
 - name: Reload systemd daemon
   become: true
   systemd:
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Enable and start DCGM-Exporter service
   become: true
   systemd:
     name: dcgm-exporter
-    enabled: yes
+    enabled: true
     state: started

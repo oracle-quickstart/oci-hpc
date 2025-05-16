@@ -9,7 +9,7 @@
       private: no
     - name: password
       prompt: What is the password?
-      private: yes
+      private: true
     - name: publickey
       prompt: What is the user's public key (id_ed25519.pub)?
       private: no

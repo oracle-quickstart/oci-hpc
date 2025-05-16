@@ -13,7 +13,7 @@
   template:
     src: 'systemd/{{ item }}.service.j2'
     dest: '/lib/systemd/system/{{ item }}.service'
-    backup: "yes"
+    backup: true
   with_items:
     - slurmctld
 
@@ -31,7 +31,7 @@
   template:
     src: 'systemd/{{ item }}.service.d/unit.conf.j2'
     dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
-    backup: "yes"
+    backup: true
   with_items:
     - munge
 
@@ -40,7 +40,7 @@
   template:
     src: 'systemd/slurmctld_backup.service.d/unit.conf.j2'
     dest: '/etc/systemd/system/slurmctld.service.d/unit.conf'
-    backup: "yes"
+    backup: true
 
 - name: Create munge dir
   become: true
@@ -97,14 +97,14 @@
   copy:
     dest: '{{ slurm_conf_path }}/slurm.conf'
     src: '{{ slurm_conf_path }}/slurm.conf'
-    force: yes
+    force: true
 
 - name: move topology.conf on backup servers
   become: true
   copy:
     dest: '{{ slurm_conf_path }}/topology.conf'
     src: '{{ slurm_conf_path }}/topology.conf'
-    force: yes
+    force: true
   register: topology_copied
   until: topology_copied is not failed
   retries: 10
@@ -115,7 +115,7 @@
   copy:
     dest: '{{ slurm_conf_path }}/gres.conf'
     src: '{{ slurm_conf_path }}/gres.conf'
-    force: yes
+    force: true
   register: gres_copied
   until: gres_copied is not failed
   retries: 10

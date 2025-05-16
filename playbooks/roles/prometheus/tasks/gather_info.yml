@@ -25,7 +25,7 @@
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
-    return_content: yes
+    return_content: true
   register: i_metadata
   delegate_to: "{{ item }}"
 
@@ -54,7 +54,7 @@
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
-    return_content: yes
+    return_content: true
   register: h_metadata
   delegate_to: "{{ item }}"
 

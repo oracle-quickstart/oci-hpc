@@ -15,7 +15,7 @@
     owner: "{{ ansible_user }}"
     mode: 0770
     group: "{{ ansible_user }}"
-    recurse: yes
+    recurse: true
 
 - name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords 
   set_fact:
@@ -55,7 +55,7 @@
   template:
     src: 'debian_mariadb_etc_my.cnf.j2'
     dest: '/etc/my.cnf'
-    backup: yes
+    backup: true
   notify: restart mariadb
 
 - name: create configuration directory
@@ -78,13 +78,13 @@
   pip:
     name: pymysql
     state: present
-    executable: /config/venv/bin/pip3
+    executable: /opt/oci-hpc/venv/bin/pip3
 
 - name: Enable MariaDB service
   become: true
   service:
     name: mariadb
-    enabled: yes
+    enabled: true
 
 - block:
 
@@ -108,8 +108,8 @@
     mysql_user:
       name: 'root'
       password: '{{ mysql_root_pwd }}'
-      host_all: yes
-      check_implicit_admin: yes
+      host_all: true
+      check_implicit_admin: true
       login_unix_socket: /run/mysqld/mysqld.sock
       state: present
     when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version >= "22"
@@ -119,8 +119,8 @@
     mysql_user:
       name: 'root'
       password: '{{ mysql_root_pwd }}'
-      host_all: yes
-      check_implicit_admin: yes
+      host_all: true
+      check_implicit_admin: true
       state: present
     when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version < "22"
 
@@ -138,7 +138,7 @@
     mysql_user:
       config_file: '/root/.my.cnf'
       name: ''
-      host_all: yes
+      host_all: true
       state: absent
   
   - name: Remove test db

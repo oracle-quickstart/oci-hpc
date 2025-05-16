@@ -5,7 +5,7 @@
     name: munge
     gid: "{{ munge_gid }}"
     state: present
-    system: yes
+    system: true
 - name: create munge user
   become: true
   user:
@@ -22,7 +22,7 @@
     name: slurm
     gid: "{{ slurm_gid }}"
     state: present
-    system: yes
+    system: true
 - name: create slurm user
   become: true
   user:
@@ -141,7 +141,7 @@
   template:
     src: 'systemd/slurm_env.j2'
     dest: '/etc/default/slurm'
-    backup: "yes"
+    backup: true
   when: ansible_os_family == 'Debian'
 
 - name: Create {{ slurm_spool_path }}

@@ -27,13 +27,13 @@
 
 - name: Force systemd to reread configs
   ansible.builtin.systemd:
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Start HT service
   ansible.builtin.systemd:
     name: disable-hyperthreading.service
     state: started
-    enabled: yes
+    enabled: true
   when: not hyperthreading|default(true)|bool
 
       #- name: disable Hyperthreading

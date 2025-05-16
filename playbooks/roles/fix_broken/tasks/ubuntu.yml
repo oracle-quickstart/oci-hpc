@@ -53,7 +53,7 @@
     name: "{{item}}"
     state: stopped
     enabled: no 
-    masked: yes
+    masked: true
   with_items: 
     - apt-daily-upgrade.timer
     - apt-daily.timer

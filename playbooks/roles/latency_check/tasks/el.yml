@@ -3,7 +3,7 @@
   template:
     src: latency_check.sh.j2
     dest: '/tmp/latency_check.sh'
-    backup: yes
+    backup: true
     owner: opc
     group: opc
     mode: 0775

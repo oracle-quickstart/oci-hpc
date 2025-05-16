@@ -45,7 +45,7 @@
 
 - name: Create initial DB
   shell: "source /opt/oci-hpc/db/env; mysql -u root -p{{ mysql_root_pwd }} < /opt/oci-hpc/db/initial.sql"
-  ignore_errors: yes  
+  ignore_errors: true  
 
 - name: Ensure db directory exists
   file:
@@ -68,7 +68,7 @@
 
 - name: Reload systemd daemon
   systemd:
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Start and enable the service
   service:
@@ -102,15 +102,15 @@
   become: true
   pip:
     name: ['clustershell', 'sqlalchemy', 'rich', 'click', 'ansible_runner']
-    executable: /config/venv/bin/pip3
+    executable: /opt/oci-hpc/venv/bin/pip3
     state: latest
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias mgmt="/config/venv/bin/python3 /config/mgmt/manage.py"
+    line: alias mgmt="/opt/oci-hpc/venv/bin/python3 /config/mgmt/manage.py"
     state: present
 
 - name: import the queues.conf into the DB
-  shell: "/config/venv/bin/python3 /config/mgmt/manage.py configurations create from-file --file /opt/oci-hpc/conf/queues.conf"
+  shell: "/opt/oci-hpc/venv/bin/python3 /config/mgmt/manage.py configurations create from-file --file /opt/oci-hpc/conf/queues.conf"

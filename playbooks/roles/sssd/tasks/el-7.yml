@@ -29,7 +29,7 @@
 - name: Enable sssd service
   systemd:
     name: sssd
-    enabled: "yes"
+    enabled: true
 
 - name: Start sssd service
   systemd:

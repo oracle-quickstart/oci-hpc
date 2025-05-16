@@ -7,7 +7,7 @@
     state: present  # Ensure the user is present
     createhome: no  # Create the user's home directory  
     shell: /usr/sbin/nologin
-    append: yes
+    append: true
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
@@ -19,7 +19,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"    
     mode: '0775'
-    recurse: yes
+    recurse: true
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
@@ -32,7 +32,7 @@
     owner: "{{ prometheus_user }}" 
     group: "{{ prometheus_user }}"     
     mode: '0775'
-    recurse: yes
+    recurse: true
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
@@ -99,14 +99,14 @@
   register: nodes_in_etc_hosts
   delegate_to: 127.0.0.1
   run_once: true
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Get controller and login nodes
   shell: "cat /etc/hosts | grep \"controller\\|login\" | grep -v \"ANSIBLE MANAGED BLOCK\" | awk '{print $3}'"
   register: c_l_nodes_in_etc_hosts
   delegate_to: 127.0.0.1
   run_once: true
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: set fact
   set_fact:
@@ -134,7 +134,7 @@
   service: 
     name: prometheus 
     state: restarted
-    daemon_reload: yes
-    enabled: yes 
+    daemon_reload: true
+    enabled: true 
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"

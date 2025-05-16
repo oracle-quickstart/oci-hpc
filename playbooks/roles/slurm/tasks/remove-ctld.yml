@@ -66,7 +66,7 @@
     regexp: "SwitchName={{switchnames[item]}}\\sNodes=.*"
     state: absent
   with_items: "{{hostnames_list}}"
-  ignore_unreachable: yes
+  ignore_unreachable: true
   when: ( ( nodes_on_switch[item] | length ) < 2 ) and ( switchnames[item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
@@ -75,7 +75,7 @@
   shell: "scontrol show hostlistsorted {{nodes_on_switch[item] | difference(hostnames_list) | join(',')}}"
   register: switch_condensed
   with_items: "{{hostnames_list}}"
-  ignore_unreachable: yes
+  ignore_unreachable: true
   when: ( ( nodes_on_switch[item] | difference(hostnames_list) | length ) > 1 ) and ( switchnames[item] | length ) > 1
   run_once: true
   delegate_to: 127.0.0.1
@@ -86,7 +86,7 @@
   with_items: "{{switch_condensed.results}}"
   run_once: true
   delegate_to: 127.0.0.1
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: remove line from topology
   lineinfile:
@@ -95,7 +95,7 @@
     line: "SwitchName={{switchnames[item]}} Nodes={{nodes_on_switch_condensed[item]}}"
     state: present
   with_items: "{{hostnames_list}}"
-  ignore_errors: yes
+  ignore_errors: true
   when: ( ( nodes_on_switch_condensed[item] | length ) > 1 )
   run_once: true
   delegate_to: 127.0.0.1
@@ -114,7 +114,7 @@
   copy:
     dest: '{{ slurm_conf_path }}/topology.conf'
     src: '{{ slurm_conf_path }}/topology.conf'
-    force: yes
+    force: true
   register: topology_copied
   until: topology_copied is not failed
   retries: 10

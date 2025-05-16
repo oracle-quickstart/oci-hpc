@@ -30,7 +30,7 @@
     owner: ubuntu
     mode: 0770
     group: ubuntu
-    recurse: yes
+    recurse: true
 
 - name: Generate openldap root password
   set_fact:
@@ -77,7 +77,7 @@
 - name: Enable OpenLDAP service
   systemd:
     name: slapd
-    enabled: "yes"
+    enabled: true
 
 - name: Get /etc/ldap/slapd.d status
   stat:
@@ -109,7 +109,7 @@
       systemd:
         name: slapd
         state: started
-        enabled: "yes"
+        enabled: true
 
     - name: Copy OpenLDAP schemas
       copy:
@@ -128,7 +128,7 @@
         name: /usr/share/slapd/slapd.init.ldif
         regexp: 'file:///etc/ldap/schema/rfc2307bis.ldif'
         state: absent
-      check_mode: yes
+      check_mode: true
       changed_when: false
       register: dpkgcheck
 

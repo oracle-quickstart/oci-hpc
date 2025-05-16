@@ -20,7 +20,7 @@
   service: 
     name: prometheus 
     state: restarted
-    daemon_reload: yes
-    enabled: yes 
+    daemon_reload: true
+    enabled: true 
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   when:  ( cluster_monitoring | bool ) and (( remove_compute_info | length > 0 ) or ( new_compute_info | length > 0 ) or ( new_hosts_info | length > 0 ))

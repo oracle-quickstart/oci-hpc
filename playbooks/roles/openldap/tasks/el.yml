@@ -8,7 +8,7 @@
     owner: opc
     mode: 0770
     group: opc
-    recurse: yes
+    recurse: true
 
 - name: Install dependencies (OL7, OL8, OL9)
   vars:
@@ -59,7 +59,7 @@
   changed_when: false
 
 - name: Create Python virtual environment with system site packages
-  command: python3 -m venv /config/venv --system-site-packages
+  command: python3 -m venv /opt/oci-hpc/venv --system-site-packages
   
 - name: Selinux fcontext on files
   sefcontext:
@@ -81,7 +81,7 @@
 - name: Enable OpenLDAP service
   systemd:
     name: slapd
-    enabled: "yes"
+    enabled: true
 
 - name: Get /etc/openldap/slapd.d status
   stat:
@@ -129,7 +129,7 @@
   systemd:
     name: slapd
     state: started
-    enabled: "yes"
+    enabled: true
 
 - block:
     - name: Copy OpenLDAP schemas for OL7
@@ -246,7 +246,7 @@
   service:
     name: slapd
     state: restarted
-    enabled: yes
+    enabled: true
   when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Load OpenLDAP local configuration (OL8, OL9)

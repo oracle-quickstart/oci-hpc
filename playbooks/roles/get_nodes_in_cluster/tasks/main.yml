@@ -1,6 +1,6 @@
 ---
 - name: get All nodes with this controller
-  shell: "/config/venv/bin/python3 /config/mgmt/manage.py nodes list json"
+  shell: "/opt/oci-hpc/venv/bin/python3 /config/mgmt/manage.py nodes list json"
   register: get_cluster_nodes_results
 
 - name: Convert the Python script output to a list of dictionaries

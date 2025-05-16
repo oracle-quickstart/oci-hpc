@@ -16,7 +16,7 @@
 - name: Update apt cache
   become: true
   apt:
-    update_cache: yes
+    update_cache: true
 
 - name: Install Grafana package
   become: true
@@ -36,15 +36,14 @@
 - name: Copy webhook script to server
   become: true
   template:
-    src: templates/ons_webhook.py.j2
+    src: ons_webhook.py.j2
     dest: /usr/local/bin/ons_webhook.py
     mode: '0755'
-    remote_src: true
 
 - name: Copy message template to server
   become: true
   copy:
-    src: files/raw_message_template.txt
+    src: raw_message_template.txt
     dest: /etc/raw_message_template.txt
     mode: '0755'
 
@@ -53,18 +52,17 @@
   template:
     src: ons-webhook.service.j2
     dest: /etc/systemd/system/ons-webhook.service
-    force: yes
-    backup: yes
+    force: true
+    backup: true
     mode: '0644'
-    remote_src: true
 
 - name: Start and enable webhook service
   become: true
   systemd:
     name: ons-webhook.service
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
   when: ons_topic_ocid != ""
 
 - name: Start and enable Grafana service
@@ -72,7 +70,7 @@
   service:
     name: grafana-server
     state: restarted
-    enabled: yes
+    enabled: true
 
 - name: Ensure Grafana key directory exists
   file:

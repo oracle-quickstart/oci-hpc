@@ -9,7 +9,7 @@
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
-    return_content: yes
+    return_content: true
   register: i_metadata
 
 - name: set fact
@@ -43,7 +43,7 @@
   service: 
     name: oci-rdma-configure
     state: started
-    enabled: yes
+    enabled: true
   when: new_image.stat.exists
 
 
@@ -76,7 +76,7 @@
     name: net.ipv4.conf.{{ item['device'] }}.rp_filter
     value: '2'
     sysctl_file: /etc/sysctl.d/80-network.conf
-    reload: yes
+    reload: true
   when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape == 'BM.GPU.H200.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
@@ -87,7 +87,7 @@
     name: net.ipv4.conf.{{ item['device'] }}.arp_ignore
     value: '2'
     sysctl_file: /etc/sysctl.d/80-network.conf
-    reload: yes
+    reload: true
   when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape == 'BM.GPU.H200.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
@@ -99,7 +99,7 @@
     name: net.ipv4.conf.{{ item['device'] }}.arp_announce
     value: '1'
     sysctl_file: /etc/sysctl.d/80-network.conf
-    reload: yes
+    reload: true
   when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape == 'BM.GPU.H200.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:

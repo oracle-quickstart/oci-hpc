@@ -15,7 +15,7 @@
   group:
     name: prometheus
     state: present
-    system: yes
+    system: true
 
 - name: Create prometheus user on compute
   become: true
@@ -58,7 +58,7 @@
   file:
     path: /var/lib/prometheus/node_exporter
     state: directory
-    recurse: yes
+    recurse: true
     owner: prometheus
     group: prometheus 
 

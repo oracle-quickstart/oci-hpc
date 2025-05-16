@@ -316,7 +316,7 @@
   systemd:
     name: pre-shutdown-weka
     enabled: true
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Change the /etc/os-release to install Weka
   become: true

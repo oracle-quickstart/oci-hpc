@@ -20,4 +20,4 @@
   user:
     name: opc
     groups: "{{privilege_group_name}}"
-    append: yes
+    append: true

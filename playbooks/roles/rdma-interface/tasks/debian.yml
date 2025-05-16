@@ -15,7 +15,7 @@
     method: GET
     headers:
       Authorization: 'Bearer Oracle'
-    return_content: yes
+    return_content: true
   register: i_metadata
 
 - name: Change CIDR range for RDMA
@@ -39,7 +39,7 @@
   service: 
     name: oci-rdma-configure
     state: started
-    enabled: yes
+    enabled: true
   when: new_image.stat.exists
 
 - name: set fact

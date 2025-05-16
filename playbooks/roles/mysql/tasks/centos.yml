@@ -11,7 +11,7 @@
     owner: opc
     mode: 0770
     group: opc
-    recurse: yes
+    recurse: true
 
 
 - name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords 
@@ -58,7 +58,7 @@
   template:
     src: 'mariadb_etc_my.cnf.j2'
     dest: '/etc/my.cnf'
-    backup: yes
+    backup: true
   notify: restart mariadb
 
 - name: create configuration directory
@@ -80,7 +80,7 @@
   become: true
   service:
     name: mariadb
-    enabled: yes
+    enabled: true
 
 - block:
 
@@ -97,8 +97,8 @@
     mysql_user: 
       name: root
       password: '{{ mysql_root_pwd }}'
-      host_all: yes
-      check_implicit_admin: yes
+      host_all: true
+      check_implicit_admin: true
       state: present
   
   - name: Render /root/.my.cnf
@@ -115,7 +115,7 @@
     mysql_user:
       config_file: '/root/.my.cnf'
       name: ''
-      host_all: yes
+      host_all: true
       state: absent
   
   - name: Remove test db

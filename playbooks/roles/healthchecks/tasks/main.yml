@@ -71,4 +71,4 @@
 - name: Install psutil and distro
   pip:
     name: ['psutil', 'distro']
-    executable: /config/venv/bin/pip3
+    executable: /opt/oci-hpc/venv/bin/pip3

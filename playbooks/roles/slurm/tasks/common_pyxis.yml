@@ -25,8 +25,8 @@
     owner: root
     group: root
     mode: 0755
-    force: yes
-    backup: yes  
+    force: true
+    backup: true  
 
 - name: install required packages
   vars: 

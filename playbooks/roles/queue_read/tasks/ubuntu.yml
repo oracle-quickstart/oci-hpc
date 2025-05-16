@@ -37,7 +37,7 @@
 
 - name: Reload systemd daemon
   systemd:
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Start and enable the service
   service:

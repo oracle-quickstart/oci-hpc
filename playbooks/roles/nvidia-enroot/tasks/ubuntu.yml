@@ -47,7 +47,7 @@
       name: kernel.unprivileged_userns_clone
       value: '1'
       sysctl_file: /etc/sysctl.d/81-enroot.conf
-      reload: yes
+      reload: true
 
   - name: Check if enroot check DEBs are already downloaded
     stat:
@@ -90,7 +90,7 @@
       state: present
       regexp: '^#ENROOT_RUNTIME_PATH.*'
       line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path_checked}}/enroot_runtime/user-$(id -u)'
-      backup: yes
+      backup: true
 
   - name: update ENROOT_DATA_PATH
     lineinfile: 
@@ -98,7 +98,7 @@
       state: present
       regexp: '^#ENROOT_DATA_PATH.*'
       line: 'ENROOT_DATA_PATH        {{enroot_top_path_checked}}/enroot_data/user-$(id -u)'
-      backup: yes
+      backup: true
 
   - name: update ENROOT_CACHE_PATH
     lineinfile:
@@ -106,7 +106,7 @@
       state: present
       regexp: '^#ENROOT_CACHE_PATH.*'
       line: 'ENROOT_CACHE_PATH        {{enroot_top_path_checked}}/enroot_cache'
-      backup: yes
+      backup: true
 
   - name: update ENROOT_TEMP_PATH
     lineinfile:
@@ -114,7 +114,7 @@
       state: present
       regexp: '^#ENROOT_TEMP_PATH.*'
       line: 'ENROOT_TEMP_PATH        {{enroot_top_path_checked}}/enroot_tmp'
-      backup: yes
+      backup: true
 
   - name: update ENROOT_SQUASH_OPTIONS
     lineinfile: 
@@ -122,7 +122,7 @@
       state: present
       regexp: '^#ENROOT_SQUASH_OPTIONS.*'
       line: 'ENROOT_SQUASH_OPTIONS        -b 262144'
-      backup: yes
+      backup: true
 
   - name: update ENROOT_ROOTFS_WRITABLE
     lineinfile: 
@@ -130,7 +130,7 @@
       state: present
       regexp: '^#ENROOT_ROOTFS_WRITABLE.*'
       line: 'ENROOT_ROOTFS_WRITABLE        yes'
-      backup: yes
+      backup: true
 
 
   - name: set permissions on {{enroot_top_path_checked}}

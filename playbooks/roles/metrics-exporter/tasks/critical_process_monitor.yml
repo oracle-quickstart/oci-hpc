@@ -13,7 +13,7 @@
   become: true
   ansible.builtin.pip:
     name: prometheus_client 
-    executable: /config/venv/bin/pip3
+    executable: /opt/oci-hpc/venv/bin/pip3
 
 - name: Install prometheus_client python package
   become: true

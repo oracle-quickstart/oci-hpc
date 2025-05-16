@@ -7,4 +7,4 @@
     owner: "{{ ansible_user }}"
     mode: 0770
     group: "{{ ansible_user }}"
-    recurse: yes
+    recurse: true

@@ -13,7 +13,7 @@
   template:
     src: 'systemd/{{ item }}.service.j2'
     dest: '/lib/systemd/system/{{ item }}.service'
-    backup: "yes"
+    backup: true
   with_items:
     - slurmd
   when: ansible_os_family == 'Debian'
@@ -32,7 +32,7 @@
   template:
     src: 'systemd/{{ item }}.service.d/unit.conf.j2'
     dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
-    backup: "yes"
+    backup: true
   with_items:
     - munge
     - slurmd

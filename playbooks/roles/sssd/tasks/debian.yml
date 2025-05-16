@@ -53,7 +53,7 @@
 - name: Fix common-password
   replace:
     path: /etc/pam.d/common-password
-    backup: yes
+    backup: true
     regexp: '^.*use_authtok.*$'
     replace: 'password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass'
 
@@ -68,7 +68,7 @@
 - name: Enable sssd service
   systemd:
     name: sssd
-    enabled: "yes"
+    enabled: true
 
 - name: Start sssd service
   systemd:
@@ -90,7 +90,7 @@
     path: /etc/nscd.conf
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
-    backrefs: yes
+    backrefs: true
   loop:
     - { regexp: '^(\s*enable-cache\s+passwd\s+)\S+', line: '\1no' }
     - { regexp: '^(\s*enable-cache\s+group\s+)\S+',  line: '\1no' }
