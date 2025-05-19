@@ -1,7 +1,8 @@
 from rich.table import Table
 from rich.console import Console
-import yaml
+import yaml, json
 from collections import defaultdict
+import sys
 
 def print_config_info(configurations):
     for configuration in configurations:
@@ -88,7 +89,7 @@ def print_config_list(configurations, title):
     console = Console()
     console.print(table)
 
-def print_config_list_yaml(configurations,output_file):
+def print_config_list_yaml_json(configurations,output_file=None,type="yaml"):
     queues = defaultdict(list)
 
     for config in configurations:
@@ -134,5 +135,15 @@ def print_config_list_yaml(configurations,output_file):
 
     final_yaml = {"queues": yaml_queues}
 
-    with open(output_file, "w") as f:
-        yaml.dump(final_yaml, f, sort_keys=False, default_flow_style=False)
+    if type == "yaml":
+        if output_file is None:
+            yaml.dump(final_yaml, sys.stdout, sort_keys=False, default_flow_style=False)
+        else:
+            with open(output_file, "w") as f:
+                yaml.dump(final_yaml, f, sort_keys=False, default_flow_style=False)
+    else:
+        if output_file is None:
+            print(json.dumps(final_yaml, indent=4))
+        else:
+            with open(output_file, "w") as f:
+                f.write(json.dumps(final_yaml, indent=4))

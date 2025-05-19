@@ -1,6 +1,6 @@
 
 import click
-from lib.oci import run_boot_volume_swap
+from lib.oci import run_boot_volume_swap, list_custom_images
 from lib.database import get_nodes_by_any
 from ClusterShell.NodeSet import NodeSet
 
@@ -15,11 +15,15 @@ from ClusterShell.NodeSet import NodeSet
 def boot_volume_swap(nodes,image):
     """Boot Volume Swap nodes"""
     nodes = get_nodes_by_any(NodeSet(nodes))
-    
+        # In case no image is specified, propose a list of image and ask for the value
+    if image is None:
+        image_ocid = list_custom_images(nodes[0].compartment)
+    else:
+        image_ocid=image
     if not nodes:
         click.echo("Node not found.")
         return
     else: 
         for node in nodes:
-            run_boot_volume_swap(node,image=image)
+            run_boot_volume_swap(node,image=image_ocid)
     pass

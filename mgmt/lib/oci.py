@@ -32,17 +32,25 @@ try:
 except ImportError:
     sys.exit(1)
 
-def run_boot_volume_swap(node,image=None):
-    # In case no image is specified, propose a list of image and ask for the value
-    if image is None:
-        custom_images=list_custom_images(node.compartment)
-        for i, img in enumerate(custom_images):
-            print(f"{i+1}. {img.display_name} ({img.id})")
-        # Ask user to choose a custom image
-        choice = int(input("Enter the number of the custom image to use: ")) - 1
-        image_ocid = custom_images[choice].id
-    else:
-        image_ocid=image
+def list_custom_images(compartment_ocid):
+    try:
+        response = oci.pagination.list_call_get_all_results(compute_client.list_images,compartment_id=compartment_ocid)
+        custom_images=[]
+        if response.data:
+            for image in response.data:
+                custom_images.append(image)
+        else:
+            logger.info(f"No custom images found in compartment {compartment_ocid}.")
+    except oci.exceptions.ServiceError as e:
+         logger.error(f"Error retrieving custom images: {compartment_ocid}")
+    for i, img in enumerate(custom_images):
+        print(f"{i+1}. {img.display_name} ({img.id})")
+    # Ask user to choose a custom image
+    choice = int(input("Enter the number of the custom image to use: ")) - 1
+    image_ocid = custom_images[choice].id
+    return image_ocid
+
+def run_boot_volume_swap(node,image_ocid):
     update_instance_source_details = oci.core.models.UpdateInstanceSourceViaImageDetails()
     update_instance_source_details.image_id = image_ocid
     update_instance_source_details.is_preserve_boot_volume_enabled = False
@@ -225,22 +233,6 @@ def get_instance_type(node):
             return cluster_type,cluster_ocid,ipa_ocid
     logger.warning(f"Node was not found, maybe it is missing tags?")
     return "SA",None
-        
-def list_custom_images(compartment_ocid):
-    try:
-        response = oci.pagination.list_call_get_all_results(compute_client.list_images,compartment_id=compartment_ocid)
- 
-        if response.data:
-            custom_images = []
-            for image in response.data:
-                custom_images.append(image)
-            return custom_images
-        else:
-            logger.info(f"No custom images found in compartment {compartment_ocid}.")
-            return []
-    except oci.exceptions.ServiceError as e:
-         logger.error(f"Error retrieving custom images: {compartment_ocid}")
-         return [] 
 
 def oci_scan_queue(controller_name):
 
