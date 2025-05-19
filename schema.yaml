@@ -1216,7 +1216,7 @@ variables:
   redundancy:
     type: boolean
     title: "Redundancy"
-    default: true
+    default: false
     description: "Use RAID for redundancy"
     visible: 
       and: 
