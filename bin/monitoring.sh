@@ -11,7 +11,14 @@ echo monitoring.sh
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
 source /etc/os-release
-
+if [ ! -d /opt/oci-hpc ] ; then
+  sudo mkdir /opt/oci-hpc 
+  if [ $ID == "ubuntu" ] ; then
+    sudo chown ubuntu:ubuntu /opt/oci-hpc 
+  else
+    sudo chown opc:opc /opt/oci-hpc 
+  fi
+fi
 vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
   if [ $vid == 7 ] ; then
@@ -108,7 +115,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   sudo apt -y --fix-broken install
 
   fix_apt
-
+  sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     sudo apt-get -y install python python-netaddr python3 python3-pip
   else
@@ -124,17 +131,6 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       done
     sudo ln -s /usr/bin/python3 /usr/bin/python
   fi
-  output=$?
-  if [ $output -ne 0 ]
-  then
-      fix_apt
-        if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-           sudo apt-get -y install python python-netaddr python3 python3-pip
-        else
-           sudo apt-get -y install python3 python3-netaddr python3-pip
-        fi
-  fi
-fi 
 
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
