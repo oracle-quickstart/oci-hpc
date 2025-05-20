@@ -191,8 +191,18 @@
 
     - name: Build dictionary of unique switches names
       set_fact:
+        cluster_names: "[]"
+      run_once: true
+
+    - name: Build dictionary of unique switches names
+      set_fact:
         cluster_names: "{{ (cluster_names | default([]) + [ondemand_node_dict[item].cluster_name] ) | list }}"
       with_items: "{{ ondemand_node_dict }}"
+
+    - name: Build dictionary of unique switches names
+      set_fact:
+        unique_switches_with_hostnames: "{}"
+      run_once: true
 
     - name: Build dictionary of unique switches names
       set_fact:
@@ -209,8 +219,14 @@
       register: racks_to_add_temp_results
 
     - name: Make a list of racks to add
+      set_fact: racks_to_add="[]"
+      run_once: true
+      when: unique_switches_with_hostnames == "{}"
+
+    - name: Make a list of racks to add
       set_fact: racks_to_add="{{unique_switches_with_hostnames.keys()}}"
       run_once: true
+      when: unique_switches_with_hostnames != "{}"
 
     - name: Get current nodes in Switch
       shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"{{item}}\" | grep Nodes="
