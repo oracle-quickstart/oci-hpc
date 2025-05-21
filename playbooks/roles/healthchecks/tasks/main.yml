@@ -24,13 +24,13 @@
 - name: Download oci-mesh-pinger
   get_url:
     url: "{{mp_download_link_x86}}"
-    dest: "/tmp/"
+    dest: "/tmp/{{mp_filename}}"
   when: ('controller' in group_names) and ansible_architecture == "x86_64"
 
 - name: Download oci-mesh-pinger
   get_url:
     url: "{{mp_download_link_arm}}"
-    dest: "/tmp/"
+    dest: "/tmp/{{mp_filename}}"
   when: ('controller' in group_names) and ansible_architecture == "aarch64"
 
 - name: untar meshpinger
