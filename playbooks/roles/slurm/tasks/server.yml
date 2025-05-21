@@ -1,4 +1,16 @@
 ---
+- name: get All configurations in the DB
+  shell: "/opt/oci-hpc/venv/bin/python3 /config/mgmt/manage.py configurations list --json"
+  register: get_configurations_results
+
+- name: Convert the Python script output to a list of dictionaries
+  set_fact:
+    json_list: "{{ get_configurations_results.stdout | from_json }}"
+
+- name: Convert the Python script output to a list of dictionaries
+  set_fact:
+    queues: "{{json_list.queues}}"
+
 - name: Generate password for DB user and save it to /etc/trinity/passwords
   set_fact:
     tmp_pwd: '{{ lookup("password",

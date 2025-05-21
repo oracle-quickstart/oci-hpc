@@ -149,8 +149,6 @@
     slurm_mode: 'controller'
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
   tasks: 
     - include_role: 
         name: rack-aware

@@ -3,8 +3,6 @@
   vars:
     slurm_mode: 'controller'
     enroot_top_path: "{{ nvme_path }}/enroot/"
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
   tasks:
     - include_role:
         name: slurm
