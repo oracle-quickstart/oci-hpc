@@ -45,7 +45,7 @@ def run_configure(nodes):
 
 def run_ansible(controller_name):
     try:
-        command = ". /config/venv/bin/activate; ansible-playbook /config/playbooks/manage_nodes.yml"
+        command = ". /opt/oci-hpc/venv/bin/activate; ansible-playbook /config/playbooks/manage_nodes.yml"
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         last_line=[s for s in result.stdout.split('\n') if s.startswith(controller_name)][-1]
         failure_count=int([s for s in last_line.split(' ') if s.startswith('failed')][-1].split('=')[1])+int([s for s in last_line.split(' ') if s.startswith('unreachable')][-1].split('=')[1])
