@@ -74,10 +74,10 @@ def run_terminate(node):
 
 def run_reboot(node,soft):
     if soft:
-        logger.info("Soft Rebooting: "+node.hostname+" with oci name "+node.oci_name+" with IP "+node.ip_address+" and OCID:"+node.ocid)
+        logger.info("Soft Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
         compute_client.instance_action(instance_id=node.ocid,action="SOFTRESET")
     else:
-        logger.info("Force Rebooting: "+node.hostname+" with oci name "+node.oci_name+" with IP "+node.ip_address+" and OCID:"+node.ocid)
+        logger.info("Force Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
         compute_client.instance_action(instance_id=node.ocid,action="RESET")
 
 def run_tag(node):
