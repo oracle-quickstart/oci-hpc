@@ -106,7 +106,7 @@
 - name: Copy DCGM-Exporter counter configuration
   become: true
   copy:
-    src: files/dcgm-counters.csv
+    src: dcgm-counters.csv
     dest: "{{ dcgm_counter_config_path }}"
 
 - name: Reload systemd daemon
