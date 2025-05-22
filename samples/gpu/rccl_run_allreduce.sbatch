@@ -7,7 +7,7 @@
 export PMI_DEBUG=1
 
 
-cd /nfs/cluster
+cd
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 

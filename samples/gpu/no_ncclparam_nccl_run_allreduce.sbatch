@@ -20,7 +20,7 @@ if [ ! -f ${EXEC_CMD} ]; then
     exit 1
 fi
 
-cd /nfs/cluster
+cd 
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 

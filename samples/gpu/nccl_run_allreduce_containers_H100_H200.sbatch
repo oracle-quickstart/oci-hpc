@@ -64,7 +64,7 @@ else
   export EXEC_CMD="${NCCL_TEST_CONTAINER_PATH}/${EXEC}"
 fi
 
-cd /nfs/cluster/
+cd
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 
