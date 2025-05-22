@@ -25,5 +25,5 @@ def boot_volume_swap(nodes,image):
         return
     else: 
         for node in nodes:
-            run_boot_volume_swap(node,image=image_ocid)
+            run_boot_volume_swap(node,image_ocid)
     pass
