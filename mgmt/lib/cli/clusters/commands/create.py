@@ -14,7 +14,9 @@ import socket
 @click.option('--cluster', required=True, help='Specify the name of the cluster')
 @click.option('--instancetype', required=True, help='Specify the instance type of the cluster')
 @click.option('--names', required=False, help='comma separated list of host names')
-def create(count,cluster,instancetype,names):
+@click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes in for BM.GPU.GB200.4 nodes')
+@click.option('--memorycluster', required=False, help='Name used for the memory cluster fabric, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid')
+def create(count,cluster,instancetype,names,fabric,memorycluster):
     """Create a new cluster."""
     if names:
         name_list=names.split(',')
@@ -29,6 +31,13 @@ def create(count,cluster,instancetype,names):
         controller_hostname=socket.gethostname()
     else:
         controller_hostname=controller.hostname
-    create_cluster(config,int(count),cluster,controller_hostname, name_list)
+    if fabric is None:
+        gpu_memory_cluster_name = None
+    else :
+        if memorycluster is None:
+            gpu_memory_cluster_name = cluster+"_"+fabric[-5:]
+        else:
+            gpu_memory_cluster_name=memorycluster
+    create_cluster(config,int(count),cluster,controller_hostname, name_list, gpu_memory_fabric=fabric, gpu_memory_cluster_name=gpu_memory_cluster_name)
     
 

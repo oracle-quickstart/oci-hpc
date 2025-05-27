@@ -7,6 +7,7 @@ def clusters():
     pass
 
 clusters.add_command(add.add)
+clusters.add_command(add.add_memory_fabric)
 clusters.add_command(list.list)
 clusters.add_command(create.create)
 clusters.add_command(delete.delete)

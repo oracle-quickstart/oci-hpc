@@ -32,15 +32,17 @@ class Nodes(Base):
     compute_status = Column(Enum('configuring', 'configured'), nullable=True)
     controller_name = Column(String(128), nullable=True)
     fss_mount = Column(String(128), nullable=True)
+    gpuMemoryFabric = Column(String(128), nullable=True)
     hostname = Column(String(128), unique=True, nullable=True)
     hpc_island = Column(String(128), nullable=True)
+    image_id = Column(String(128), nullable=True)
     lastTimeReachable = Column(String(128), nullable=True)
     oci_name = Column(String(128), nullable=True)
     ocid = Column(String(128), unique=True, nullable=True)
     rackID = Column(String(128), nullable=True)
     railId = Column(String(128), nullable=True)
     networkBlockId = Column(String(128), nullable=True)
-    memoryFabricId = Column(String(128), nullable=True)
+    memory_cluster_name = Column(String(128), nullable=True)
     role = Column(String(128), nullable=True)
     serial = Column(String(128), nullable=True)
     shape = Column(String(128), nullable=True)
@@ -69,15 +71,17 @@ class TerminatedNodes(Base):
     compute_status = Column(Enum('configuring', 'configured'), nullable=True)
     controller_name = Column(String(128), nullable=True)
     fss_mount = Column(String(128), nullable=True)
+    gpuMemoryFabric = Column(String(128), nullable=True)
     hostname = Column(String(128), nullable=True)
     hpc_island = Column(String(128), nullable=True)
+    image_id = Column(String(128), nullable=True)
     lastTimeReachable = Column(String(128), nullable=True)
     oci_name = Column(String(128), nullable=True)
     ocid = Column(String(128), unique=True, nullable=True)
     rackID = Column(String(128), nullable=True)
     railId = Column(String(128), nullable=True)
     networkBlockId = Column(String(128), nullable=True)
-    memoryFabricId = Column(String(128), nullable=True)
+    memory_cluster_name = Column(String(128), nullable=True)
     role = Column(String(128), nullable=True)
     serial = Column(String(128), nullable=True)
     shape = Column(String(128), nullable=True)
@@ -370,6 +374,20 @@ def get_nodes_by_cluster(cluster_name):
     session = query_db()
     try:
         nodes = session.query(Nodes).filter(Nodes.cluster_name == cluster_name).filter(
+            or_(
+                ~Nodes.role.in_(["controller","login"]),
+                Nodes.role == None
+            )
+        ).all()
+        return nodes
+    finally:
+        session.close()
+        
+def get_nodes_by_memory_cluster(cluster_name):
+    """Get all nodes belonging to a specific cluster"""
+    session = query_db()
+    try:
+        nodes = session.query(Nodes).filter(Nodes.memory_cluster_name == cluster_name).filter(
             or_(
                 ~Nodes.role.in_(["controller","login"]),
                 Nodes.role == None

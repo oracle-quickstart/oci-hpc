@@ -11,6 +11,7 @@ from lib.cli.configurations import configurations
 from lib.cli.services import services
 from lib.cli.recommendations import recommendations
 from lib.cli.configurations import configurations
+from lib.cli.fabrics import fabrics
 
 
 @click.group()
@@ -25,4 +26,5 @@ if __name__ == "__main__":
     cli.add_command(services.services)
     cli.add_command(recommendations.recommendations)
     cli.add_command(configurations.configurations)
+    cli.add_command(fabrics.fabrics)
     cli()
