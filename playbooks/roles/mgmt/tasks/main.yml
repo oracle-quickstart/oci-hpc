@@ -102,15 +102,15 @@
   become: true
   pip:
     name: ['clustershell', 'sqlalchemy', 'rich', 'click', 'ansible_runner']
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
     state: latest
   ignore_errors: true
 
 - name: add alias for node status
   lineinfile:
     path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias mgmt="/opt/oci-hpc/venv/bin/python3 /config/mgmt/manage.py"
+    line: alias mgmt="/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/python3 /config/mgmt/manage.py"
     state: present
 
 - name: import the queues.conf into the DB
-  shell: "/opt/oci-hpc/venv/bin/python3 /config/mgmt/manage.py configurations create from-file --file /opt/oci-hpc/conf/queues.conf"
+  shell: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/python3 /config/mgmt/manage.py configurations create from-file --file /opt/oci-hpc/conf/queues.conf"

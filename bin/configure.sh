@@ -27,7 +27,13 @@ then
 username=$USER
 fi
 
+
+source /etc/os-release
+VENV_OS_ARCH="${ID^}_${VERSION_ID}_$(uname -m)"
+source /config/venv/${VENV_OS_ARCH}/bin/activate
+
 if [ -f /config/playbooks/inventory ] ; then 
+  sed -i "s|##VENV_OS_ARCH##|$VENV_OS_ARCH|g" /config/playbooks/inventory
   sudo cp /config/playbooks/inventory /etc/ansible/hosts
   sudo chown $username:$username /etc/ansible/hosts
   clustername=`cat /etc/ansible/hosts | grep cluster_name= | tail -n 1| awk -F "=" '{print $2}'`
@@ -55,8 +61,6 @@ fi
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking.
 #
-
-source /opt/oci-hpc/venv/bin/activate
 
 if [[ $execution -eq 1 ]] ; then
   ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1

@@ -78,7 +78,7 @@
   pip:
     name: pymysql
     state: present
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
 
 - name: Enable MariaDB service
   become: true

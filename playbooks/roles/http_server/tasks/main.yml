@@ -74,6 +74,16 @@
     cluster_name: "{{instance_metadata['freeformTags']['cluster_name']}}"
   when: "'cluster_name' in instance_metadata['freeformTags']"
 
+- name: make sure cluster_name in included
+  set_fact:
+    memory_cluster_name: "None"
+  when: "not 'memory_cluster_name' in instance_metadata['freeformTags']"
+
+- name: make sure cluster_name in included
+  set_fact:
+    memory_cluster_name: "{{instance_metadata['freeformTags']['memory_cluster_name']}}"
+  when: "'memory_cluster_name' in instance_metadata['freeformTags']"
+
 - name: gather RDMA metadata
   uri:
     url: http://169.254.169.254/opc/v2/host/
@@ -89,8 +99,13 @@
 
 - name: add empty rdmaTopologyData
   set_fact:
-    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None'}}) }}"
+    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None','customerGpuMemoryFabric': 'None'}}) }}"
   when: "not 'rdmaTopologyData' in rdma_metadata"
+
+- name: add empty customerGpuMemoryFabric
+  set_fact:
+    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}) }}"
+  when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
 
 - name: Set http_role based on hostvars or default to "compute"
   set_fact: 
@@ -104,7 +119,7 @@
 
 - name: Build the host_info dictionary
   set_fact:
-    host_info: "{{ {'host': ansible_hostname, 'role': http_role,'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'controller_name': instance_metadata['freeformTags']['controller_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['hostname'], 'availabilityDomain': instance_metadata['availabilityDomain'],'tenancyId': instance_metadata['tenantId'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'railId': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'networkBlockId': rdma_metadata['rdmaTopologyData']['customerNetworkBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] } }}"
+    host_info: "{{ {'host': ansible_hostname, 'role': http_role,'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'memory_cluster_name': memory_cluster_name, 'controller_name': instance_metadata['freeformTags']['controller_name'], 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['hostname'], 'availabilityDomain': instance_metadata['availabilityDomain'],'tenancyId': instance_metadata['tenantId'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'railId': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'networkBlockId': rdma_metadata['rdmaTopologyData']['customerNetworkBlock'],'gpuMemoryFabric': rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'],'image_id': instance_metadata['image'] } }}"
 
 - name: Copying the info to the HTTP directory
   become: true

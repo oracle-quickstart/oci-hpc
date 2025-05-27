@@ -34,7 +34,7 @@
 
 - name: Check if file already exists
   stat:
-    path: /config/3rdparty/dcgm-exporter
+    path: /config/3rdparty/dcgm-exporter/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}
   register: dcgm_exporter
 
 - name: Get current DCGM version

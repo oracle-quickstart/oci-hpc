@@ -6,8 +6,15 @@
 #
 # wait for cloud-init completion on the controller host
 #
-
 echo login.sh
+if [ $# -eq 0 ] 
+then
+  cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`
+else
+  cluster_name=$1
+fi
+
+echo "ClusterName:" $cluster_name
 ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
 source /etc/os-release
@@ -37,24 +44,37 @@ if [ $ID == "ol" ] ; then
   sudo osms unregister 
 fi 
 
-# Install ansible and other required packages
+VENV_PATH=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+# Check if venv is available
+if [ -f "${VENV_PATH}/bin/activate" ]; then
+    INSTALL_VENV=False
+else
+    INSTALL_VENV=True
+fi
 
+# Install ansible and other required packages
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
   if [ $vid == 7 ]; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python-netaddr
     sudo python3 -m pip install virtualenv
-    virtualenv /opt/oci-hpc/venv --always-copy
-    source /opt/oci-hpc/venv/bin/activate
+    if [ "$INSTALL_VENV" = True ]; then
+      sudo mkdir $VENV_PATH
+      virtualenv $VENV_PATH --always-copy
+    fi
+    source $VENV_PATH/bin/activate
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
     sudo python3.8 -m pip install --upgrade pip
     sudo python3.8 -m pip install virtualenv
-    virtualenv /opt/oci-hpc/venv --always-copy
-    source /opt/oci-hpc/venv/bin/activate
-    /opt/oci-hpc/venv/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
+    if [ "$INSTALL_VENV" = True ]; then
+      sudo mkdir $VENV_PATH
+      virtualenv $VENV_PATH --always-copy
+      $VENV_PATH/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
+    fi
+    source $VENV_PATH/bin/activate
     sudo mkdir /etc/ansible
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
@@ -62,19 +82,23 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo dnf install -y python3 python3-pip
     sudo python3 -m pip install --upgrade pip
     sudo python3 -m pip install virtualenv
-    virtualenv /opt/oci-hpc/venv
-    source /opt/oci-hpc/venv/bin/activate
-    /opt/oci-hpc/venv/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
+    if [ "$INSTALL_VENV" = True ]; then
+      sudo mkdir $VENV_PATH
+      virtualenv $VENV_PATH --always-copy
+      $VENV_PATH/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
+    fi
+    source $VENV_PATH/bin/activate
     sudo mkdir /etc/ansible
     sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
     sudo ln -s /usr/local/bin/ansible /bin/ansible
   fi
-  /opt/oci-hpc/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/python3 -m pip install setuptools_rust --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/python3 -m pip install requests --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/python3 -m pip install oci-cli --upgrade > /dev/null
-
+  if [ "$INSTALL_VENV" = True ]; then
+    $VENV_PATH/bin/python3 -m pip install netaddr --upgrade > /dev/null
+    $VENV_PATH/bin/python3 -m pip install setuptools_rust --upgrade > /dev/null
+    $VENV_PATH/bin/python3 -m pip install requests --upgrade > /dev/null
+    $VENV_PATH/bin/python3 -m pip install urllib3 --upgrade > /dev/null
+    $VENV_PATH/bin/python3 -m pip install oci-cli --upgrade > /dev/null
+  fi
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held
@@ -92,7 +116,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   }
   fix_apt
 
-  if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] ; then 
+  if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] && [ "$INSTALL_VENV" = True ]; then 
     echo deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main | sudo tee -a /etc/apt/sources.list
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
@@ -146,29 +170,33 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     fix_apt
     sudo apt-get -y install python3-virtualenv
   fi
-  virtualenv /opt/oci-hpc/venv 
-  source /opt/oci-hpc/venv/bin/activate
-  /opt/oci-hpc/venv/bin/python3 -m pip install ansible
-  /opt/oci-hpc/venv/bin/python3 -m pip install -U pip > /dev/null
-  /opt/oci-hpc/venv/bin/python3 -m pip install netaddr --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/python3 -m pip install requests --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/pip install pip --upgrade > /dev/null
-  /opt/oci-hpc/venv/bin/pip install pyopenssl --upgrade > /dev/null
 
-  # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
-  cd /tmp
-  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults > /dev/null
+  if [ "$INSTALL_VENV" = True ]; then
+    virtualenv $VENV_PATH
+    source $VENV_PATH/bin/activate
+    $VENV_PATH/bin/python3 -m pip install ansible
+    $VENV_PATH/bin/python3 -m pip install -U pip > /dev/null
+    $VENV_PATH/bin/python3 -m pip install netaddr --upgrade > /dev/null
+    $VENV_PATH/bin/python3 -m pip install requests --upgrade > /dev/null
+    $VENV_PATH/bin/python3 -m pip install urllib3 --upgrade > /dev/null
+    $VENV_PATH/bin/pip install pip --upgrade > /dev/null
+    $VENV_PATH/bin/pip install pyopenssl --upgrade > /dev/null
 
-  # install oci module
-  /opt/oci-hpc/venv/bin/pip install oci > /dev/null
+    # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
+    cd /tmp
+    bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults > /dev/null
+
+    # install oci module
+    $VENV_PATH/bin/pip install oci > /dev/null
+    fi
 fi 
 
-ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
-ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
-ansible-galaxy collection install ansible.posix --force > /dev/null
-ansible-galaxy collection install community.crypto --force > /dev/null
-
+if [ "$INSTALL_VENV" = True ]; then
+  ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
+  ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
+  ansible-galaxy collection install ansible.posix --force > /dev/null
+  ansible-galaxy collection install community.crypto --force > /dev/null
+fi
 threads=$(nproc)
 forks=$(($threads * 8))
 

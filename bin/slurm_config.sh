@@ -11,7 +11,10 @@ conf_folder=$folder/../conf/
 playbooks_path=/config/playbooks/
 
 source /etc/os-release
-source /opt/oci-hpc/venv/bin/activate
+
+
+VENV_PATH=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+source $VENV_PATH/bin/activate
 
 if [[ ${@: -1} == "--INITIAL" || ${@: -1} == "--initial" || ${@: -1} == "-INITIAL" || ${@: -1} == "-initial" ]]
 then

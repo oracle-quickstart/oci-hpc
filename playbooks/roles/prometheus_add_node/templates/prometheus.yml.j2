@@ -18,6 +18,8 @@ scrape_configs:
           AD: {{ all_hosts_info[host]['AD'] }}
           compartment: {{ all_hosts_info[host]['compartment'] }}
           rackID: {{ all_hosts_info[host]['rackID'] }}
+          gpuMemoryFabric: {{ info.gpuMemoryFabric }}
+          memory_cluster_name: {{ info.memory_cluster_name }}
           networkBlockId: {{ all_hosts_info[host]['networkBlockId'] }}
           railId: {{ all_hosts_info[host]['railId'] }}
           hpc_island: {{ all_hosts_info[host]['hpc_island'] }}

@@ -1,6 +1,6 @@
 ---
 - name: get All configurations in the DB
-  shell: "/opt/oci-hpc/venv/bin/python3 /config/mgmt/manage.py configurations list --json"
+  shell: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/python3 /config/mgmt/manage.py configurations list --json"
   register: get_configurations_results
 
 - name: Convert the Python script output to a list of dictionaries

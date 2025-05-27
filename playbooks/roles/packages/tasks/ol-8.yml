@@ -31,7 +31,7 @@
   pip:
     name: [pip]
     state: latest
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
   ignore_errors: true
 
 - name: install oci-cli latest version
@@ -39,7 +39,7 @@
   pip:
     name: [oci-cli]
     state: latest
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
   ignore_errors: true
   when: ('controller' in group_names)
 

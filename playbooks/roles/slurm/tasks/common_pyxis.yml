@@ -49,20 +49,20 @@
 
 - name: Check if pyxis directory is present
   stat:
-    path: "/config/3rdparty/pyxis/{{ansible_distribution}}_{{ansible_distribution_major_version}}"
+    path: "/config/3rdparty/pyxis/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}"
   register: pyxis_present
 
 - name: clone pyxis repo
   git:
     repo: https://github.com/NVIDIA/pyxis.git
-    dest: "/config/3rdparty/pyxis/{{ansible_distribution}}_{{ansible_distribution_major_version}}"
+    dest: "/config/3rdparty/pyxis/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}"
   ignore_errors: true
   when: not pyxis_present.stat.exists
 
 - name: compile 
   command: bash -c "sudo make install"
   args:
-    chdir: "/config/3rdparty/pyxis/{{ansible_distribution}}_{{ansible_distribution_major_version}}"
+    chdir: "/config/3rdparty/pyxis/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}"
   ignore_errors: true
 
 - name: create plugstack.conf

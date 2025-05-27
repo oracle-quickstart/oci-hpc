@@ -16,7 +16,7 @@
   become: true
   pip:
     name: ['pssh', 'parallel-ssh']
-    executable: /opt/oci-hpc/venv/bin/pip3
+    executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
     state: latest
   with_items:
     - pssh
