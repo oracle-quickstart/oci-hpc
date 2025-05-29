@@ -1,0 +1,71 @@
+groups:
+
+- name: node_health
+  rules:
+
+  - record: node_rttcc_ok
+    expr: min by(hostname) (rttcc_status == bool 0)
+
+  - record: node_oca_ver_ok
+    expr: oca_version * on(hostname) oca_version
+
+  - record: node_rdma_device_status_ok
+    expr: min by(hostname) (rdma_device_status)
+
+  - record: node_check_bus_issue_count_ok
+    expr: (check_bus_issue_count == bool 0) * on (hostname) (check_bus_issue_count == bool 0)
+
+  - record: node_rdma_link_flapping_ok
+    expr: min by(hostname) (rdma_link_noflap)
+
+  - record: node_ecc_error_check_ok
+    expr: (gpu_ecc_error_check) * on (hostname) (gpu_ecc_error_check)
+
+  - record: node_gpu_row_remap_error_check
+    expr: (gpu_row_remap_error_check== bool 0) * on (hostname) (gpu_row_remap_error_check== bool 0)
+
+  - record: node_xid_error_check
+    expr: (xid_error_check) * on (hostname) (xid_error_check)
+
+  # combine them: this will be 1 only if *all* success‑flags are 1
+  - record: node_health_status
+    expr: |
+      (
+        node_rttcc_ok
+        or on(hostname) up
+      )
+      *
+      (
+        node_oca_ver_ok
+        or on(hostname) up
+      )
+      *
+      (
+        node_rdma_device_status_ok
+        or on(hostname) up
+      )
+      *
+      (
+        node_check_bus_issue_count_ok
+        or on(hostname) up
+      )
+      *
+      (
+        node_rdma_link_flapping_ok
+        or on(hostname) up
+      )
+      *
+      (
+        node_ecc_error_check_ok
+        or on(hostname) up
+      )
+      *
+      (
+        node_gpu_row_remap_error_check
+        or on(hostname) up
+      )
+      *
+      (
+        node_xid_error_check
+        or on(hostname) up
+      )

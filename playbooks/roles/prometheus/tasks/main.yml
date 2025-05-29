@@ -129,6 +129,17 @@
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   
+- name: Copying the rules recording file
+  become: true
+  template:
+    src: files/recording_rules.yml
+    dest: "{{ prometheus_dest_dir }}/recording_rules.yml"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: '0775'
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+
 - name: restart prometheus
   become: true
   service: 
