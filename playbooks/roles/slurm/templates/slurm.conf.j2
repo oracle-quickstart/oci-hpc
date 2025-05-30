@@ -8,10 +8,9 @@ SlurmdPidFile=/var/run/slurmd.pid
 SlurmdPort=6818
 SlurmdSpoolDir=/var/spool/slurmd
 SlurmUser=slurm
-{% if pyxis|bool or healthchecks|bool%}
 Prolog={{slurm_conf_path}}/prolog.d/*
+Epilog={{slurm_conf_path}}/epilog.d/*
 SchedulerParameters=nohold_on_prolog_fail
-{% endif %}
 MessageTimeout=20
 UnkillableStepTimeout=128
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
