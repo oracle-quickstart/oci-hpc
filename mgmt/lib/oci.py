@@ -60,7 +60,7 @@ def run_boot_volume_swap(node,image_ocid):
     compute_client_composite_operations.update_instance_and_wait_for_state(node.ocid, update_instance_details,wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"])
           
 def run_terminate(node):
-    cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
+    cluster_type,cluster_ocid,instance_pool_ocid,memory_cluster_id = get_instance_type(node)
     try:
         if cluster_type == "SA" or cluster_type == "CC":
             logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
@@ -98,8 +98,8 @@ def run_add(nodes, count, names):
         exit(1)
     first_node=nodes[0]
 
-    cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
-    current_size=get_instance_count(cluster_type,cluster_ocid,first_node.compartment,first_node.cluster_name)
+    cluster_type,cluster_ocid,instance_pool_ocid,memory_cluster_id = get_instance_type(first_node)
+    current_size=get_instance_count(cluster_type,cluster_ocid,first_node.compartment_id,first_node.cluster_name)
     target_size = current_size + count
     if cluster_type == "CC" or cluster_type == "SA":
         first_instance=compute_client.get_instance(first_node.ocid).data
@@ -107,14 +107,14 @@ def run_add(nodes, count, names):
         for i in range(count):
             if cluster_type == "CC":
                 if names:
-                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name,hostname=names[i])
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment_id,first_node.cluster_name,hostname=names[i])
                 else:
-                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment,first_node.cluster_name)
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,first_node.compartment_id,first_node.cluster_name)
             else:
                 if names:
-                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment,first_node.cluster_name,hostname=names[i])
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment_id,first_node.cluster_name,hostname=names[i])
                 else:
-                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment,first_node.cluster_name)
+                    launch_instance_details=getLaunchInstanceDetailsFromInstance(first_instance,None,first_node.compartment_id,first_node.cluster_name)
             compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
     elif cluster_type == "MC":
         update_compute_gpu_memory_cluster_details = oci.core.models.UpdateComputeGpuMemoryClusterDetails(size=target_size)
@@ -125,7 +125,7 @@ def run_add(nodes, count, names):
         update_size = oci.core.models.UpdateInstancePoolDetails(size=target_size)
         logger.info(f"Launching {count} in the Cluster for a total size of {target_size}")
         compute_management_client_composite_operations.update_instance_pool_and_wait_for_state(instance_pool_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
-    newsize=get_instance_count(cluster_type,cluster_ocid,first_node.compartment,first_node.cluster_name)
+    newsize=get_instance_count(cluster_type,cluster_ocid,first_node.compartment_id,first_node.cluster_name)
     logger.info(f"Total number of nodes in the cluster is now {newsize} with a requested size of {target_size}")
     if newsize == current_size:
         logger.error("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
@@ -136,14 +136,14 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name):
         logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster")
         exit(1)
     first_node=nodes[0]
-    cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
+    cluster_type,cluster_ocid,instance_pool_ocid,memory_cluster_id = get_instance_type(first_node)
     cn_id=compute_client.get_compute_gpu_memory_cluster(cluster_ocid).data.compute_cluster_id
     instance_config_id=compute_client.list_compute_gpu_memory_cluster_instances(cluster_ocid).data[0].instance_configuration_id
     if fabric_id is None:
         logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
         exit(1)
 
-    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.AD, compartment_id=first_node.compartment, compute_cluster_id=cn_id, instance_configuration_id=instance_config_id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
+    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cn_id, instance_configuration_id=instance_config_id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
     compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
 
 
@@ -208,64 +208,52 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
         return(len(instance_summaries))
     
 def get_instance_type(node):
-    if node.shape == "BM.GPU.GB200.4":
-        memory_clusters=compute_client.list_compute_gpu_memory_clusters(node.compartment,display_name=node.cluster_name)
-        if len(memory_clusters):
-            for memory_cluster in memory_clusters:
-                mc_id=memory_cluster.id
-                instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id)
-                for instance_summary in instance_summaries:
-                    if instance_summary.id == node.ocid:
-                        cluster_type="MC"
-                        cluster_ocid=mc_id
-                        ipa_ocid=mc_id
-                        return cluster_type,cluster_ocid,ipa_ocid
-    else:
-        instance_pools = oci.pagination.list_call_get_all_results(compute_management_client.list_cluster_networks,node.compartment,display_name=node.cluster_name).data
-        if len(instance_pools):
-            for instance_pool in instance_pools:
-                ipa_ocid=instance_pool.instance_pools[0].id
-                instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,node.compartment,ipa_ocid).data
-                for instance_summary in instance_summaries:
-                    if instance_summary.id == node.ocid:
-                        cluster_type="CN"
-                        cluster_ocid=instance_pool.id
-                        ipa_ocid=ipa_ocid
-                        return cluster_type,cluster_ocid,ipa_ocid
 
-        instance_pools = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pools,node.compartment,display_name=node.cluster_name).data
-        if len(instance_pools):
-            for instance_pool in instance_pools:
-                instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,node.compartment,instance_pool.id).data
-                for instance_summary in instance_summaries:
-                    if instance_summary.id == node.ocid:
-                        cluster_type="IPA"
-                        cluster_ocid=instance_pool.id
-                        ipa_ocid=instance_pool.id
-                        return cluster_type,cluster_ocid,ipa_ocid
-        try:
-            instance_pools = compute_client.list_compute_clusters(node.compartment,display_name=node.cluster_name).data.items
-        except:
-            logger.warning(f"Compute clusters are not enabled in this region")
-            instance_pools = []
-        if len(instance_pools):
-            for instance_pool in instance_pools:
-                instance_summaries = compute_client.list_instances(node.compartment,compute_cluster_id=instance_pool.id).data
-                for instance_summary in instance_summaries:
-                    if instance_summary.id == node.ocid:
-                        cluster_type="CC"
-                        cluster_ocid=instance_pool.id
-                        ipa_ocid=instance_pool.id
-                        return cluster_type,cluster_ocid,ipa_ocid
-        instance_summaries = oci.pagination.list_call_get_all_results(compute_client.list_instances,compartment_id=node.compartment).data
-        for instance_summary in instance_summaries:
-            if instance_summary.id == node.ocid:
-                cluster_type="SA"
-                cluster_ocid=None
-                ipa_ocid=None
-                return cluster_type,cluster_ocid,ipa_ocid
+    instance_pools = oci.pagination.list_call_get_all_results(compute_management_client.list_cluster_networks,node.compartment_id,display_name=node.cluster_name).data
+    if len(instance_pools):
+        for instance_pool in instance_pools:
+            ipa_ocid=instance_pool.instance_pools[0].id
+            instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,node.compartment_id,ipa_ocid).data
+            for instance_summary in instance_summaries:
+                if instance_summary.id == node.ocid:
+                    cluster_type="CN"
+                    cluster_ocid=instance_pool.id
+                    ipa_ocid=ipa_ocid
+                    return cluster_type,cluster_ocid,ipa_ocid
+
+    instance_pools = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pools,node.compartment_id,display_name=node.cluster_name).data
+    if len(instance_pools):
+        for instance_pool in instance_pools:
+            instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,node.compartment_id,instance_pool.id).data
+            for instance_summary in instance_summaries:
+                if instance_summary.id == node.ocid:
+                    cluster_type="IPA"
+                    cluster_ocid=instance_pool.id
+                    ipa_ocid=instance_pool.id
+                    return cluster_type,cluster_ocid,ipa_ocid
+    try:
+        instance_pools = compute_client.list_compute_clusters(node.compartment_id,display_name=node.cluster_name).data.items
+    except:
+        logger.warning(f"Compute clusters are not enabled in this region")
+        instance_pools = []
+    if len(instance_pools):
+        for instance_pool in instance_pools:
+            instance_summaries = compute_client.list_instances(node.compartment_id,compute_cluster_id=instance_pool.id).data
+            for instance_summary in instance_summaries:
+                if instance_summary.id == node.ocid:
+                    cluster_type="CC"
+                    cluster_ocid=instance_pool.id
+                    ipa_ocid=instance_pool.id
+                    return cluster_type,cluster_ocid,ipa_ocid,None
+    instance_summaries = oci.pagination.list_call_get_all_results(compute_client.list_instances,compartment_id=node.compartment_id).data
+    for instance_summary in instance_summaries:
+        if instance_summary.id == node.ocid:
+            cluster_type="SA"
+            cluster_ocid=None
+            ipa_ocid=None
+            return cluster_type,cluster_ocid,ipa_ocid,None
     logger.warning(f"Node was not found, maybe it is missing tags?")
-    return "SA",None,None
+    return "SA",None,None,None
 
 def oci_scan_queue(controller_name):
 
@@ -288,13 +276,13 @@ def oci_scan_queue(controller_name):
                 content=eval(message.content)
                 if content['status'] == "starting":
                     content['controller_status']="configuring"
-                    content['startedTime']=current_time_str
+                    content['started_time']=current_time_str
                     nodes_to_add.append(content)
                     db_create_node(content["ocid"], **content)
                     queue_client.delete_message(queue_ocid, message.receipt)
                 elif content['status'] == "terminating":
                     node = get_nodes_by_id(NodeSet(content["ocid"]))[0]
-                    db_update_node(node,controller_status="terminating",terminatedTime=current_time_str)
+                    db_update_node(node,controller_status="terminating",terminated_time=current_time_str)
                     queue_client.delete_message(queue_ocid, message.receipt)
             except Exception as e:
                 print(f"Error evaluating message {message.content}: {e}")
@@ -341,13 +329,13 @@ def get_host_api_dict(compartment,tenancy):
     return compartment_host_api + tenancy_host_api
      
 
-def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_ocid, cluster_name, hostname=None):
+def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_ocid, cluster_name, hostname=None, memory_cluster_name=None):
 
     subnet_id=config.private_subnet_id
-    image_id=config.image
+    image_id=config.image_id
     bv_size=config.boot_volume_size
     availability_domain=config.ad
-    targetCompartment=config.targetCompartment
+    target_compartment_id=config.target_compartment_id
     shape=config.shape
     cpus=config.instance_pool_ocpus
     memory=config.instance_pool_memory
@@ -413,11 +401,13 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
         else:
             new_display_name=hostname
             new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname}
+        if shape == "BM.GPU.GB200.4":
+            new_tags["memory_cluster_name"]=memory_cluster_name
 
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.LaunchInstanceDetails(
             availability_domain=availability_domain,
-            compartment_id=targetCompartment,
+            compartment_id=target_compartment_id,
             shape=shape,
             shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=cpus,memory_in_gbs=memory),
             metadata=new_metadata,
@@ -431,7 +421,7 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
         else:
             new_launch_details = oci.core.models.LaunchInstanceDetails(
             availability_domain=availability_domain,
-            compartment_id=targetCompartment,
+            compartment_id=target_compartment_id,
             shape=shape,
             metadata=new_metadata,
             freeform_tags=new_tags,
@@ -449,12 +439,12 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
         logger.error(f"Unexpected error: {e}")
         return None
 
-def generate_instance_config(config, controller_hostname, cluster_name):
+def generate_instance_config(config, controller_hostname, cluster_name, memory_cluster_name=None):
     subnet_id=config.private_subnet_id
-    image_id=config.image
+    image_id=config.image_id
     bv_size=config.boot_volume_size
     availability_domain=config.ad
-    targetCompartment=config.targetCompartment
+    target_compartment_id=config.target_compartment_id
     shape=config.shape
     cpus=config.instance_pool_ocpus
     memory=config.instance_pool_memory
@@ -515,11 +505,12 @@ def generate_instance_config(config, controller_hostname, cluster_name):
 
         new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
         new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
-
+        if shape == "BM.GPU.GB200.4":
+            new_tags["memory_cluster_name"]=memory_cluster_name
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
             availability_domain=availability_domain,
-            compartment_id=targetCompartment,
+            compartment_id=target_compartment_id,
             shape=shape,
             shape_config=oci.core.models.InstanceConfigurationLaunchInstanceShapeConfigDetails(ocpus=cpus,memory_in_gbs=memory),
             metadata=new_metadata,
@@ -531,7 +522,7 @@ def generate_instance_config(config, controller_hostname, cluster_name):
         else:
             new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
             availability_domain=availability_domain,
-            compartment_id=targetCompartment,
+            compartment_id=target_compartment_id,
             shape=shape,
             metadata=new_metadata,
             freeform_tags=new_tags,
@@ -549,7 +540,7 @@ def generate_instance_config(config, controller_hostname, cluster_name):
 
         # Construct new Instance Configuration Details object
         new_config_details = oci.core.models.CreateInstanceConfigurationDetails(
-            compartment_id=targetCompartment,
+            compartment_id=target_compartment_id,
             display_name= cluster_name,
             instance_details=new_instance_details
         )
@@ -607,57 +598,10 @@ def remove_inventory(cluster_name):
     else:
         logger.warning(f"Inventory {inventory_name} was not present.")
 
-def get_instance_type(node):
-    instance_pools = oci.pagination.list_call_get_all_results(compute_management_client.list_cluster_networks,node.compartment,display_name=node.cluster_name).data
-    if len(instance_pools):
-        for instance_pool in instance_pools:
-            ipa_ocid=instance_pool.instance_pools[0].id
-            instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,node.compartment,ipa_ocid).data
-            for instance_summary in instance_summaries:
-                if instance_summary.id == node.ocid:
-                    cluster_type="CN"
-                    cluster_ocid=instance_pool.id
-                    ipa_ocid=ipa_ocid
-                    return cluster_type,cluster_ocid,ipa_ocid
-
-    instance_pools = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pools,node.compartment,display_name=node.cluster_name).data
-    if len(instance_pools):
-        for instance_pool in instance_pools:
-            instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,node.compartment,instance_pool.id).data
-            for instance_summary in instance_summaries:
-                if instance_summary.id == node.ocid:
-                    cluster_type="IPA"
-                    cluster_ocid=instance_pool.id
-                    ipa_ocid=instance_pool.id
-                    return cluster_type,cluster_ocid,ipa_ocid
-    try:
-        instance_pools = compute_client.list_compute_clusters(node.compartment,display_name=node.cluster_name).data.items
-    except:
-        logger.warning(f"Compute clusters are not enabled in this region")
-        instance_pools = []
-    if len(instance_pools):
-        for instance_pool in instance_pools:
-            instance_summaries = compute_client.list_instances(node.compartment,compute_cluster_id=instance_pool.id).data
-            for instance_summary in instance_summaries:
-                if instance_summary.id == node.ocid:
-                    cluster_type="CC"
-                    cluster_ocid=instance_pool.id
-                    ipa_ocid=instance_pool.id
-                    return cluster_type,cluster_ocid,ipa_ocid
-    instance_summaries = oci.pagination.list_call_get_all_results(compute_client.list_instances,compartment_id=node.compartment).data
-    for instance_summary in instance_summaries:
-        if instance_summary.id == node.ocid:
-            cluster_type="SA"
-            cluster_ocid=None
-            ipa_ocid=None
-            return cluster_type,cluster_ocid,ipa_ocid
-    logger.warning(f"Node was not found, maybe it is missing tags?")
-    return "SA",None,None
-
 def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None):
     generate_inventory(config,cluster_name)
     if not config.stand_alone or config.shape == "BM.GPU.GB200.4":
-        instance_config_data=generate_instance_config(config, controller_hostname, cluster_name)
+        instance_config_data=generate_instance_config(config, controller_hostname, cluster_name, memory_cluster_name = gpu_memory_cluster_name)
         instance_config_ocid=instance_config_data.id
         
         if config.rdma_enabled:
@@ -665,27 +609,27 @@ def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_
                 if gpu_memory_fabric is None:
                     logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
                     exit(1)
-                cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.targetCompartment,availability_domain=config.ad,display_name=cluster_name)
+                cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.ad,display_name=cluster_name)
                 cn = compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
                 cn_id=cn.id
-                compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=config.ad,compartment_id=config.targetCompartment, compute_cluster_id=cn_id,instance_configuration_id=instance_config_ocid,size=count,gpu_memory_fabric_id=gpu_memory_fabric,display_name=gpu_memory_cluster_name)
+                compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=config.ad,compartment_id=config.target_compartment_id, compute_cluster_id=cn_id,instance_configuration_id=instance_config_ocid,size=count,gpu_memory_fabric_id=gpu_memory_fabric,display_name=gpu_memory_cluster_name)
                 compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
             else:
                 ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=config.private_subnet_id)
                 ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=config.ad,primary_vnic_subnets=ip_placement_subnet_details)
                 instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails(display_name=cluster_name,instance_configuration_id=instance_config_ocid,size=count)
-                cn_details=oci.core.models.CreateClusterNetworkDetails(compartment_id=config.targetCompartment,display_name=cluster_name,instance_pools=[instance_pools_details],placement_configuration=ip_placement_details)
+                cn_details=oci.core.models.CreateClusterNetworkDetails(compartment_id=config.target_compartment_id,display_name=cluster_name,instance_pools=[instance_pools_details],placement_configuration=ip_placement_details)
                 cn = compute_management_client_composite_operations.create_cluster_network_and_wait_for_state(create_cluster_network_details=cn_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
         else:
             ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=config.private_subnet_id)
             ip_placement_details=oci.core.models.CreateInstancePoolPlacementConfigurationDetails(availability_domain=config.ad,primary_vnic_subnets=ip_placement_subnet_details)
             instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails()
-            ip_details=oci.core.models.CreateInstancePoolDetails(compartment_id=config.targetCompartment,display_name=cluster_name,placement_configurations=[ip_placement_details],instance_configuration_id=instance_config_ocid,size=count)
+            ip_details=oci.core.models.CreateInstancePoolDetails(compartment_id=config.target_compartment_id,display_name=cluster_name,placement_configurations=[ip_placement_details],instance_configuration_id=instance_config_ocid,size=count)
             cn = compute_management_client_composite_operations.create_instance_pool_and_wait_for_state(create_instance_pool_details=ip_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
         
     else:
         if config.rdma_enabled:
-            cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.targetCompartment,availability_domain=config.ad,display_name=cluster_name)
+            cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.ad,display_name=cluster_name)
             cn = compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
             cn_id=cn.id
         else:
@@ -695,7 +639,7 @@ def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_
             compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
 
 def delete_cluster(cluster_name,nodes_list):
-    cluster_type,cluster_ocid,ipa_ocid = get_instance_type(nodes_list[0])
+    cluster_type,cluster_ocid,ipa_ocid,memory_cluster_id = get_instance_type(nodes_list[0])
     if cluster_type == "CN":
         compute_management_client.terminate_cluster_network(cluster_ocid)
     elif cluster_type == "IPA":
@@ -713,5 +657,35 @@ def delete_cluster(cluster_name,nodes_list):
         if cluster_type == "CC":
             compute_client.delete_compute_cluster(cluster_ocid)
     elif cluster_type == "MC":
-        compute_client.delete_compute_gpu_memory_cluster(cluster_ocid)
+        logger.error("A BM.GPU.GB200.4 instance should not be calling this function")
+    remove_inventory(cluster_name)
+
+def get_memory_fabrics(tenancy):
+    for fabric in compute_client.list_compute_gpu_memory_fabrics(compartment_id=tenancy).data:
+        print(compute_client.get_compute_gpu_memory_fabric(fabric.id).data)
+
+
+def delete_memory_cluster(memory_cluster_name,nodelist):
+    #Find the associated Compute Cluster
+    compute_clusters = compute_client.list_compute_clusters(nodelist[0].compartment_id,display_name=nodelist[0].cluster_name).data.items
+    for compute_cluster in compute_clusters:
+        instance_summaries = compute_client.list_instances(nodelist[0].compartment_id,compute_cluster_id=compute_cluster.id).data
+        for instance_summary in instance_summaries:
+            if instance_summary.id == nodelist[0].ocid:
+                cluster_ocid=compute_cluster.id
+    memory_clusters=compute_client.list_compute_gpu_memory_clusters(nodelist[0].compartment_id,display_name=memory_cluster_name)
+    if len(memory_clusters):
+        for memory_cluster in memory_clusters:
+            mc_id=memory_cluster.id
+            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id)
+            for instance_summary in instance_summaries:
+                if instance_summary.id == nodelist[0].ocid:
+                    compute_client.delete_compute_gpu_memory_cluster(mc_id)
+                    return cluster_ocid
+    else:
+        logger.error(f"The memory cluster with name {memory_cluster_name} cannot be found")
+
+def delete_compute_cluster(cluster_ocid):
+    cluster_name=compute_client.get_compute_cluster(cluster_ocid).data.display_name
+    compute_client.delete_compute_cluster(cluster_ocid)
     remove_inventory(cluster_name)

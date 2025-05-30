@@ -15,13 +15,13 @@ scrape_configs:
           cluster_name: {{ all_hosts_info[host]['cluster_name'] }}
           ocid: {{ all_hosts_info[host]['ocid'] }}
           oci_name: {{ all_hosts_info[host]['oci_name'] }}
-          AD: {{ all_hosts_info[host]['AD'] }}
-          compartment: {{ all_hosts_info[host]['compartment'] }}
-          rackID: {{ all_hosts_info[host]['rackID'] }}
-          gpuMemoryFabric: {{ info.gpuMemoryFabric }}
-          memory_cluster_name: {{ info.memory_cluster_name }}
-          networkBlockId: {{ all_hosts_info[host]['networkBlockId'] }}
-          railId: {{ all_hosts_info[host]['railId'] }}
+          availability_domain: {{ all_hosts_info[host]['availability_domain'] }}
+          compartment_id: {{ all_hosts_info[host]['compartment_id'] }}
+          rack_id: {{ all_hosts_info[host]['rack_id'] }}
+          gpu_memory_fabric: {{ all_hosts_info[host]['gpu_memory_fabric'] }}
+          memory_cluster_name: {{ all_hosts_info[host]['memory_cluster_name'] }}
+          network_block_id: {{ all_hosts_info[host]['network_block_id'] }}
+          rail_id: {{ all_hosts_info[host]['rail_id'] }}
           hpc_island: {{ all_hosts_info[host]['hpc_island'] }}
           fss_mount: {{ all_hosts_info[host]['fss_mount'] }}
 {% endfor %}

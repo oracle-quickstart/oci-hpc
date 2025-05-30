@@ -27,7 +27,7 @@ def recom():
 @click.option('--unreachable_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=30)
 @click.option('--unconfigured_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=60)
 def list(unreachable, unconfigured, healthcheck,unreachable_timeout,unconfigured_timeout):
-    """List all the nodes with recomandations."""
+    """List all the nodes with recommendations."""
     unreachable_nodes=[]
     unconfigured_nodes=[]
     nodes_to_reboot=[]
@@ -81,7 +81,7 @@ def list(unreachable, unconfigured, healthcheck,unreachable_timeout,unconfigured
 @click.option('--unreachable_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=30)
 @click.option('--unconfigured_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=60)
 def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfigured_timeout):
-    """Run all the recomandations."""
+    """Run all the recommendations."""
     unreachable_nodes=[]
     unconfigured_nodes=[]
     nodes_to_reboot=[]

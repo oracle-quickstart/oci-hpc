@@ -23,9 +23,9 @@ local var = g.dashboard.variable;
     + var.query.withRefresh(1),
 
   rack_id:
-    var.query.new('rackID')
+    var.query.new('rack_id')
     + var.query.withDatasourceFromVariable(self.prometheus)
-    + var.query.queryTypes.withLabelValues('rackID', 'up')
+    + var.query.queryTypes.withLabelValues('rack_id', 'up')
     + var.query.selectionOptions.withMulti()
     + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),
@@ -39,9 +39,9 @@ local var = g.dashboard.variable;
     + var.query.withRefresh(1),
 
   availability_domain:
-    var.query.new('AD')
+    var.query.new('availability_domain')
     + var.query.withDatasourceFromVariable(self.prometheus)
-    + var.query.queryTypes.withLabelValues('AD', 'up')
+    + var.query.queryTypes.withLabelValues('availability_domain', 'up')
     + var.query.selectionOptions.withMulti()
     + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),

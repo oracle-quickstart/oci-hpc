@@ -10,10 +10,10 @@ from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory
 
 @click.command()
 @click.option('--cluster', required=False, help='Specify the name of the cluster')
-@click.option('--memorycluster', required=False, help='Specify the name of the Memory cluster (Compute cluster does not need to be specified)')
-def delete(cluster,memorycluster):
+@click.option('--memory_cluster', required=False, help='Specify the name of the Memory cluster (Compute cluster does not need to be specified)')
+def delete(cluster,memory_cluster):
     """Delete a cluster with name."""
-    if memorycluster is None:
+    if memory_cluster is None:
         if cluster is None: 
             clusters=get_clusters()
             if len(clusters)==1:
@@ -26,8 +26,18 @@ def delete(cluster,memorycluster):
             cluster_name=cluster
             
         node_list = get_nodes_by_cluster(cluster_name)
-        delete_cluster(cluster_name,node_list)
+        if len(node_list[0].memory_cluster_name)>1:
+            memory_clusters = list({i.memory_cluster_name for i in node_list})
+            for memory_cluster in memory_clusters:        
+                memory_cluster_node_list = get_nodes_by_memory_cluster(memory_cluster)
+                cc_id=delete_memory_cluster(memory_cluster_name,memory_cluster_node_list)
+            delete_compute_cluster(cc_id)
+            
+        else:
+            memory_clusters = []
+            delete_cluster(cluster_name,node_list)
+
 
     else:
-        node_list = get_nodes_by_memory_cluster(memorycluster)
-        delete_cluster(memorycluster,node_list)
+        memory_cluster_node_list = get_nodes_by_memory_cluster(memory_cluster)
+        delete_memory_cluster(memory_cluster,memory_cluster_node_list)

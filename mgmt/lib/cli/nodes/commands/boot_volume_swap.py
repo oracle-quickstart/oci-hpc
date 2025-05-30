@@ -17,7 +17,7 @@ def boot_volume_swap(nodes,image):
     nodes = get_nodes_by_any(NodeSet(nodes))
         # In case no image is specified, propose a list of image and ask for the value
     if image is None:
-        image_ocid = list_custom_images(nodes[0].compartment)
+        image_ocid = list_custom_images(nodes[0].compartment_id)
     else:
         image_ocid=image
     if not nodes:

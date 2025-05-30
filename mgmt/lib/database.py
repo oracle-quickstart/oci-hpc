@@ -22,33 +22,33 @@ class Nodes(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     ip_address = Column(String(128), unique=True, nullable=True)
     controller_status = Column(Enum('configuring', 'reconfiguring', 'terminating', 'waiting_for_info', 'configured', 'terminated'), nullable=True)
-    startedTime = Column(String(128), nullable=True)
+    started_time = Column(String(128), nullable=True)
     status = Column(Enum('starting', 'terminating', 'terminated', 'running', 'unreachable'), nullable=True)
-    AD = Column(String(128), nullable=True)
-    FirstTimeReachable = Column(String(128), nullable=True)
+    availability_domain = Column(String(128), nullable=True)
+    first_time_reachable = Column(String(128), nullable=True)
     cluster_name = Column(String(128), nullable=True)
-    compartment = Column(String(128), nullable=True)
-    tenancy = Column(String(128), nullable=True)
+    compartment_id = Column(String(128), nullable=True)
+    tenancy_id = Column(String(128), nullable=True)
     compute_status = Column(Enum('configuring', 'configured'), nullable=True)
     controller_name = Column(String(128), nullable=True)
     fss_mount = Column(String(128), nullable=True)
-    gpuMemoryFabric = Column(String(128), nullable=True)
+    gpu_memory_fabric = Column(String(128), nullable=True)
     hostname = Column(String(128), unique=True, nullable=True)
     hpc_island = Column(String(128), nullable=True)
     image_id = Column(String(128), nullable=True)
-    lastTimeReachable = Column(String(128), nullable=True)
+    last_time_reachable = Column(String(128), nullable=True)
     oci_name = Column(String(128), nullable=True)
     ocid = Column(String(128), unique=True, nullable=True)
-    rackID = Column(String(128), nullable=True)
-    railId = Column(String(128), nullable=True)
-    networkBlockId = Column(String(128), nullable=True)
+    rack_id = Column(String(128), nullable=True)
+    rail_id = Column(String(128), nullable=True)
+    network_block_id = Column(String(128), nullable=True)
     memory_cluster_name = Column(String(128), nullable=True)
     role = Column(String(128), nullable=True)
     serial = Column(String(128), nullable=True)
     shape = Column(String(128), nullable=True)
-    terminatedTime = Column(String(128), nullable=True)
+    terminated_time = Column(String(128), nullable=True)
     update_count = Column(Integer, nullable=True)
-    healthcheck_recomandation = Column(String(128), nullable=True)
+    healthcheck_recommendation = Column(String(128), nullable=True)
     last_healthcheck_time = Column(String(128), nullable=True)
     healthcheck_logs = Column(String(1024), nullable=True)
     oci_health = Column(String(128), nullable=True)
@@ -61,33 +61,33 @@ class TerminatedNodes(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     ip_address = Column(String(128), nullable=True)
     controller_status = Column(Enum('configuring', 'reconfiguring', 'terminating', 'waiting_for_info', 'configured', 'terminated'), nullable=True)
-    startedTime = Column(String(128), nullable=True)
+    started_time = Column(String(128), nullable=True)
     status = Column(Enum('starting', 'terminating', 'terminated', 'running', 'unreachable'), nullable=True)
-    AD = Column(String(128), nullable=True)
-    FirstTimeReachable = Column(String(128), nullable=True)
+    availability_domain = Column(String(128), nullable=True)
+    first_time_reachable = Column(String(128), nullable=True)
     cluster_name = Column(String(128), nullable=True)
-    compartment = Column(String(128), nullable=True)
-    tenancy = Column(String(128), nullable=True)
+    compartment_id = Column(String(128), nullable=True)
+    tenancy_id = Column(String(128), nullable=True)
     compute_status = Column(Enum('configuring', 'configured'), nullable=True)
     controller_name = Column(String(128), nullable=True)
     fss_mount = Column(String(128), nullable=True)
-    gpuMemoryFabric = Column(String(128), nullable=True)
+    gpu_memory_fabric = Column(String(128), nullable=True)
     hostname = Column(String(128), nullable=True)
     hpc_island = Column(String(128), nullable=True)
     image_id = Column(String(128), nullable=True)
-    lastTimeReachable = Column(String(128), nullable=True)
+    last_time_reachable = Column(String(128), nullable=True)
     oci_name = Column(String(128), nullable=True)
     ocid = Column(String(128), unique=True, nullable=True)
-    rackID = Column(String(128), nullable=True)
-    railId = Column(String(128), nullable=True)
-    networkBlockId = Column(String(128), nullable=True)
+    rack_id = Column(String(128), nullable=True)
+    rail_id = Column(String(128), nullable=True)
+    network_block_id = Column(String(128), nullable=True)
     memory_cluster_name = Column(String(128), nullable=True)
     role = Column(String(128), nullable=True)
     serial = Column(String(128), nullable=True)
     shape = Column(String(128), nullable=True)
-    terminatedTime = Column(String(128), nullable=True)
+    terminated_time = Column(String(128), nullable=True)
     update_count = Column(Integer, nullable=True)
-    healthcheck_recomandation = Column(String(128), nullable=True)
+    healthcheck_recommendation = Column(String(128), nullable=True)
     last_healthcheck_time = Column(String(128), nullable=True)
     healthcheck_logs = Column(String(1024), nullable=True)
     oci_health = Column(String(128), nullable=True)
@@ -104,18 +104,18 @@ class Configurations(Base):
     hostname_convention = Column(String(64), nullable=True)
     permanent = Column(Boolean, default=True, nullable=False)
     rdma_enabled = Column(Boolean, default=True, nullable=False)
-    stand_alone = Column(Boolean, default=True, nullable=False)
-    region = Column(String(64), nullable=False)
-    ad = Column(String(64), nullable=False)
-    private_subnet_cidr = Column(String(64), nullable=False)
-    private_subnet_id = Column(String(128), nullable=False)
-    image = Column(String(128), nullable=True)
-    targetCompartment = Column(String(128), nullable=False)
-    boot_volume_size  = Column(Integer, nullable=False)
-    use_marketplace_image = Column(Boolean, default=True, nullable=False)
-    instance_pool_ocpus  = Column(Integer, nullable=True)
-    instance_pool_custom_memory = Column(Boolean, default=True, nullable=False)
-    instance_pool_memory  = Column(Integer, nullable=True)
+    stand_alone = Column(Boolean, default=False, nullable=False)
+    region = Column(String(64), nullable=True)
+    availability_domain = Column(String(64), nullable=True)
+    private_subnet_cidr = Column(String(64), nullable=True)
+    private_subnet_id = Column(String(128), nullable=True)
+    image_id = Column(String(128), nullable=True)
+    target_compartment_id = Column(String(128), nullable=True)
+    boot_volume_size = Column(Integer, nullable=True)
+    use_marketplace_image = Column(Boolean, default=False, nullable=False)
+    instance_pool_ocpus = Column(Integer, nullable=True)
+    instance_pool_custom_memory = Column(Boolean, default=False, nullable=False)
+    instance_pool_memory = Column(Integer, nullable=True)
     marketplace_listing = Column(String(64), nullable=True)
     hyperthreading = Column(Boolean, default=True, nullable=False)
     preemptible = Column(Boolean, default=False, nullable=False)
@@ -221,7 +221,7 @@ def get_all_nodes_failing_to_start(unreachable_timeout,node_any_list):
     session = query_db()
     nodes_failing_to_start=[]
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
-    timeTH = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
+    time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
     try:
         if node_any_list:
             nodes_waiting_for_info = session.query(Nodes).filter(            
@@ -239,8 +239,8 @@ def get_all_nodes_failing_to_start(unreachable_timeout,node_any_list):
         else:
             nodes_waiting_for_info = session.query(Nodes).filter(Nodes.controller_status.in_(['waiting_for_info'])).all()            
         for node in nodes_waiting_for_info:
-            startedTime = datetime.strptime(node.startedTime, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-            if startedTime < timeTH:
+            started_time = datetime.strptime(node.started_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            if started_time < time_th:
                 nodes_failing_to_start.append(node)
         return nodes_failing_to_start
     finally:
@@ -251,7 +251,7 @@ def get_all_nodes_unreachable(unreachable_timeout,node_any_list):
     session = query_db()
     unreachable_nodes=[]
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
-    timeTH = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
+    time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
     try:
         if node_any_list:
             configured_nodes = session.query(Nodes).filter(
@@ -277,8 +277,8 @@ def get_all_nodes_unreachable(unreachable_timeout,node_any_list):
                 )
             ).all()
         for node in configured_nodes:
-            lastTimeReachable = datetime.strptime(node.lastTimeReachable, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-            if lastTimeReachable < timeTH:
+            last_time_reachable = datetime.strptime(node.last_time_reachable, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            if last_time_reachable < time_th:
                 unreachable_nodes.append(node)
         return unreachable_nodes
     finally:
@@ -291,7 +291,7 @@ def get_all_nodes_with_hc_status(hc_status,node_any_list):
         if node_any_list:
             nodes = session.query(Nodes).filter(
                 and_(
-                    Nodes.healthcheck_recomandation == hc_status,
+                    Nodes.healthcheck_recommendation == hc_status,
                     or_(
                         Nodes.ip_address.in_(node_any_list),
                         Nodes.ocid.in_(node_any_list),
@@ -302,7 +302,7 @@ def get_all_nodes_with_hc_status(hc_status,node_any_list):
                 )
             ).all()
         else:
-            nodes = session.query(Nodes).filter(Nodes.healthcheck_recomandation == hc_status).all()
+            nodes = session.query(Nodes).filter(Nodes.healthcheck_recommendation == hc_status).all()
         return nodes
     finally:
         session.close()
@@ -428,7 +428,7 @@ def get_nodes_by_network_block(network_block):
     """Get all nodes with a specific network block"""
     session = query_db()
     try:
-        nodes = session.query(Nodes).filter(Nodes.networkBlockId == network_block).all()
+        nodes = session.query(Nodes).filter(Nodes.network_block_id == network_block).all()
         return nodes
     finally:
         session.close()
@@ -437,7 +437,7 @@ def get_nodes_by_rail(rail_id):
     """Get all nodes with a specific rail ID"""
     session = query_db()
     try:
-        nodes = session.query(Nodes).filter(Nodes.railId == rail_id).all()
+        nodes = session.query(Nodes).filter(Nodes.rail_id == rail_id).all()
         return nodes
     finally:
         session.close()
@@ -446,7 +446,7 @@ def list_rails():
     """List all unique rail IDs"""
     session = query_db()
     try:
-        rails = session.query(Nodes.railId).distinct().all()
+        rails = session.query(Nodes.rail_id).distinct().all()
         return [rail[0] for rail in rails]
     finally:
         session.close()
@@ -455,7 +455,7 @@ def list_blocks_by_cluster(cluster_name):
     """List all unique network blocks for a specific cluster"""
     session = query_db()
     try:
-        blocks = session.query(Nodes.networkBlockId).filter(Nodes.cluster_name == cluster_name).distinct().all()
+        blocks = session.query(Nodes.network_block_id).filter(Nodes.cluster_name == cluster_name).distinct().all()
         return [block[0] for block in blocks]
     finally:
         session.close()
@@ -464,7 +464,7 @@ def list_rails_by_cluster(cluster_name):
     """List all unique rail IDs for a specific cluster"""
     session = query_db()
     try:
-        rails = session.query(Nodes.railId).filter(Nodes.cluster_name == cluster_name).distinct().all()
+        rails = session.query(Nodes.rail_id).filter(Nodes.cluster_name == cluster_name).distinct().all()
         return [rail[0] for rail in rails]
     finally:
         session.close()
@@ -682,7 +682,7 @@ def db_import_configuration(filename):
                     private_subnet_cidr=instance.get("private_subnet"),
                     private_subnet_id=instance.get("private_subnet_id"),
                     image=instance.get("image"),
-                    targetCompartment=instance.get("targetCompartment"),
+                    target_compartment_id=instance.get("target_compartment_id"),
                     boot_volume_size=instance.get("boot_volume_size", 50),
                     use_marketplace_image=instance.get("use_marketplace_image", True),
                     instance_pool_ocpus=instance.get("instance_pool_ocpus"),

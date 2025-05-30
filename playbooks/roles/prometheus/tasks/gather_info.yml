@@ -48,6 +48,16 @@
     cluster_name_gathered: "{{instance_metadata['freeformTags']['cluster_name']}}"
   when: "'cluster_name' in instance_metadata['freeformTags']"
 
+- name: make sure cluster_name in included
+  set_fact:
+    memory_cluster_name: "None"
+  when: "not 'memory_cluster_name' in instance_metadata['freeformTags']"
+
+- name: make sure cluster_name in included
+  set_fact:
+    memory_cluster_name: "{{instance_metadata['freeformTags']['memory_cluster_name']}}"
+  when: "'memory_cluster_name' in instance_metadata['freeformTags']"
+
 - name: gather RDMA metadata
   uri:
     url: http://169.254.169.254/opc/v2/host/
@@ -69,9 +79,14 @@
 
 - name: add empty rdmaTopologyData
   set_fact:
-    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None'}}) }}"
+    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None','customerGpuMemoryFabric': 'None'}}) }}"
   when: "not 'rdmaTopologyData' in rdma_metadata"
+
+- name: add empty customerGpuMemoryFabric
+  set_fact:
+    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}) }}"
+  when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
 
 - name: Build the host_info dictionary
   set_fact:
-    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': cluster_name_gathered, 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'railId': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] }})   }}"
+    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': cluster_name_gathered, 'memory_cluster_name': memory_cluster_name, 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availability_domain': instance_metadata['availabilityDomain'],'compartment_id': instance_metadata['compartmentId'],'rack_id': rdma_metadata['rackId'],'network_block_id': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'], 'gpu_memory_fabric': rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'] }})   }}"

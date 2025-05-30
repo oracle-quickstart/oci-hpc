@@ -17,7 +17,7 @@
           private_subnet: ${private_subnet}
           private_subnet_id: ${private_subnet_id}
           image: ${image}
-          targetCompartment: ${targetCompartment}
+          target_compartment_id: ${targetCompartment}
           boot_volume_size: ${boot_volume_size}
           use_marketplace_image: ${use_marketplace_image}
           instance_pool_ocpus: ${instance_pool_ocpus}
@@ -40,7 +40,7 @@
           private_subnet: ${private_subnet}
           private_subnet_id: ${private_subnet_id}
           image: ${image}
-          targetCompartment: ${targetCompartment}
+          target_compartment_id: ${targetCompartment}
           boot_volume_size: ${boot_volume_size}
           use_marketplace_image: ${use_marketplace_image}
           instance_pool_ocpus: ${instance_pool_ocpus}
@@ -66,7 +66,7 @@
           private_subnet: ${private_subnet}
           private_subnet_id: ${private_subnet_id}
           image: ${image}
-          targetCompartment: ${targetCompartment}
+          target_compartment_id: ${targetCompartment}
           boot_volume_size: ${boot_volume_size}
           use_marketplace_image: ${use_marketplace_image}
           instance_pool_ocpus: ${instance_pool_ocpus}
@@ -89,7 +89,7 @@
           private_subnet: ${private_subnet}
           private_subnet_id: ${private_subnet_id}
           image: ${image}
-          targetCompartment: ${targetCompartment}
+          target_compartment_id: ${targetCompartment}
           boot_volume_size: ${boot_volume_size}
           use_marketplace_image: ${use_marketplace_image}
           instance_pool_ocpus: ${instance_pool_ocpus}

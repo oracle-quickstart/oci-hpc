@@ -3,19 +3,19 @@ from rich.console import Console
 
 def print_node_list(nodes, title):
     table = Table(title=title)
-    table.add_column("Hostname", justify="left")
+    table.add_column("hostname", justify="left")
     table.add_column("Status", justify="left")
-    table.add_column("Controller Status", justify="left")
-    table.add_column("Compute Status", justify="left")
-    table.add_column("Last Time Reachable", justify="left")
-    table.add_column("Node Start Time", justify="left")
-    table.add_column("Healthcheck Recommendation", justify="left")
-    table.add_column("Cluster", justify="left")
-    table.add_column("IP", justify="left")
-    table.add_column("Shape", justify="left")
+    table.add_column("compute_status", justify="left")
+    table.add_column("healthcheck_recommendation", justify="left")
+    table.add_column("cluster_name", justify="left")
+    table.add_column("memory_cluster_name", justify="left")
+    table.add_column("ocid", justify="left")
+    table.add_column("serial", justify="left")
+    table.add_column("ip_address", justify="left")
+    table.add_column("shape", justify="left")
 
     for node in nodes:
-        table.add_row(node.hostname, node.status, node.controller_status, node.compute_status, node.lastTimeReachable, node.startedTime, node.healthcheck_recomandation, node.cluster_name, node.ip_address, node.shape)
+        table.add_row(node.hostname, node.status, node.compute_status, node.healthcheck_recommendation, node.cluster_name,node.memory_cluster_name, str(node.ocid), node.serial, node.ip_address, node.shape)
 
     console = Console()
     console.print(table)

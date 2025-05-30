@@ -41,8 +41,13 @@ def get_swicthname(host):
 gpus=8
 parser = argparse.ArgumentParser(description='Script to order hostnames for optimal performance based on rack Id')
 parser.add_argument('--input_file', help='Path of the input file which has host names. One hostname on each line in the file')
+parser.add_argument('--gpus', help='Number of GPUs per node')
 args = parser.parse_args()
 
+if args.gpus is None:
+    gpus=8
+else:
+    gpus=int(args.gpus)
 if args.input_file is None:
     input_file=''
     #/etc/opt/oci-hpc/hostfile.tcp'

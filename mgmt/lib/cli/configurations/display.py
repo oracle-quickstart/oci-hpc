@@ -9,57 +9,57 @@ def print_config_info(configurations):
         table = Table(show_header=False, show_lines=True)
         table.add_column(justify="left")
         table.add_column(justify="left")
-        table.add_row("Name", configuration.name)
-        table.add_row("Partition", configuration.partition)
-        table.add_row("Shape", configuration.shape)
-        table.add_row("Change Hostname", configuration.change_hostname)
-        table.add_row("Hostname Convention", configuration.hostname_convention)
-        table.add_row("Permanent", configuration.permanent)
-        table.add_row("RDMA-Enabled", configuration.rdma_enabled)
-        table.add_row("Stand-Alone", configuration.stand_alone)
-        table.add_row("Region", configuration.region)
-        table.add_row("Availability Domain", configuration.ad)
-        table.add_row("Subnet CIDR", configuration.private_subnet_cidr)
-        table.add_row("Subnet OCID", configuration.private_subnet_id)
-        table.add_row("Compartment", configuration.targetCompartment)
-        table.add_row("Use Marketplace Image", configuration.use_marketplace_image)
-        table.add_row("Marketplace Listing", configuration.marketplace_listing)
-        table.add_row("Image", configuration.image)
-        table.add_row("Boot Volume Size", configuration.boot_volume_size)
-        table.add_row("Instances OCPU", configuration.instance_pool_ocpus)
-        table.add_row("Instance Select Custom Memory", configuration.instance_pool_custom_memory)
-        table.add_row("Instance Memory", configuration.instance_pool_memory)
-        table.add_row("Hyperthreading", configuration.hyperthreading)
-        table.add_row("Preemptible", configuration.preemptible)
+        table.add_row("name", configuration.name)
+        table.add_row("partition", configuration.partition)
+        table.add_row("shape", configuration.shape)
+        table.add_row("change_hostname", configuration.change_hostname)
+        table.add_row("hostname_convention", configuration.hostname_convention)
+        table.add_row("permanent", configuration.permanent)
+        table.add_row("rdma_enabled", configuration.rdma_enabled)
+        table.add_row("stand_alone", configuration.stand_alone)
+        table.add_row("region", configuration.region)
+        table.add_row("availability_domain", configuration.availability_domain)
+        table.add_row("private_subnet_cidr", configuration.private_subnet_cidr)
+        table.add_row("private_subnet_id", configuration.private_subnet_id)
+        table.add_row("target_compartment_id", configuration.target_compartment_id)
+        table.add_row("use_marketplace_image", configuration.use_marketplace_image)
+        table.add_row("marketplace_listing", configuration.marketplace_listing)
+        table.add_row("image_id", configuration.image_id)
+        table.add_row("boot_volume_size", configuration.boot_volume_size)
+        table.add_row("instance_pool_ocpus", configuration.instance_pool_ocpus)
+        table.add_row("instance_pool_custom_memory", configuration.instance_pool_custom_memory)
+        table.add_row("instance_pool_memory", configuration.instance_pool_memory)
+        table.add_row("hyperthreading", configuration.hyperthreading)
+        table.add_row("preemptible", configuration.preemptible)
     console = Console()
     console.print(table)
 
 def print_config_list(configurations, title):
     table = Table(title=title)
-    table.add_column("Name", justify="left")
-    table.add_column("Partition", justify="left")
-    table.add_column("Shape", justify="left")
-    table.add_column("Hostname Convention", justify="left")
-    table.add_column("Permanent", justify="left")
-    table.add_column("RDMA-Enabled", justify="left")
-    table.add_column("Stand-Alone", justify="left")
-    table.add_column("Region", justify="left")
-    table.add_column("Availability Domain", justify="left")
-    table.add_column("Subnet CIDR", justify="left")
-    table.add_column("Subnet OCID", justify="left")
-    table.add_column("Compartment", justify="left")
-    table.add_column("Image", justify="left")
-    table.add_column("BV Size", justify="left")
-    table.add_column("OCPU", justify="left")
-    table.add_column("Memory", justify="left")
-    table.add_column("Hyperthreading", justify="left")
-    table.add_column("Preemptible", justify="left")
+    table.add_column("name", justify="left")
+    table.add_column("partition", justify="left")
+    table.add_column("shape", justify="left")
+    table.add_column("hostname_convention", justify="left")
+    table.add_column("permanent", justify="left")
+    table.add_column("rdma_enabled", justify="left")
+    table.add_column("stand_alone", justify="left")
+    table.add_column("region", justify="left")
+    table.add_column("availability_domain", justify="left")
+    table.add_column("private_subnet_cidr", justify="left")
+    table.add_column("private_subnet_id", justify="left")
+    table.add_column("target_compartment_id", justify="left")
+    table.add_column("image_id", justify="left")
+    table.add_column("boot_volume_size", justify="left")
+    table.add_column("instance_pool_ocpus", justify="left")
+    table.add_column("instance_pool_memory", justify="left")
+    table.add_column("hyperthreading", justify="left")
+    table.add_column("preemptible", justify="left")
          
     for configuration in configurations:
         hostname_convention=None
         if configuration.change_hostname:
             hostname_convention=configuration.hostname_convention
-        image_display_field=configuration.image
+        image_display_field=configuration.image_id
         if configuration.use_marketplace_image:
              image_display_field=configuration.marketplace_listing
         memory_display_field="Default"
@@ -74,10 +74,10 @@ def print_config_list(configurations, title):
                       str(configuration.rdma_enabled), 
                       str(configuration.stand_alone), 
                       str(configuration.region), 
-                      str(configuration.ad), 
+                      str(configuration.availability_domain), 
                       str(configuration.private_subnet_cidr), 
                       str(configuration.private_subnet_id), 
-                      str(configuration.targetCompartment), 
+                      str(configuration.target_compartment_id), 
                       str(image_display_field), 
                       str(configuration.boot_volume_size), 
                       str(configuration.instance_pool_ocpus), 
@@ -109,8 +109,8 @@ def print_config_list_yaml_json(configurations,output_file=None,type="yaml"):
             "ad": config.ad,
             "private_subnet": config.private_subnet_cidr,
             "private_subnet_id": config.private_subnet_id,
-            "image": config.image,
-            "targetCompartment": config.targetCompartment,
+            "image_id": config.image_id,
+            "target_compartment_id": config.target_compartment_id,
             "boot_volume_size": config.boot_volume_size,
             "use_marketplace_image": config.use_marketplace_image,
             "use_compute_agent": True,

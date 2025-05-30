@@ -15,7 +15,6 @@ def update_metadata_logic(http_port=9876, nodes=None):
     else:
         node_list = get_all_nodes()
     update_dict = update_nodes_based_on_url(node_list, http_port)
-    print(update_dict)
     for node in node_list:
         db_update_node(node, **update_dict[node.ocid])
 

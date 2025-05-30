@@ -1316,9 +1316,9 @@ if __name__ == '__main__':
         exit(0)
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
     if action is None:
-        data["healthcheck_recomandation"] = "Healthy"
+        data["healthcheck_recommendation"] = "Healthy"
     else:
-        data["healthcheck_recomandation"] = action
+        data["healthcheck_recommendation"] = action
     data["last_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     # Read the healthcheck.log file content
     try:

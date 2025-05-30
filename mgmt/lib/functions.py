@@ -45,8 +45,8 @@ def run_configure(nodes):
 
 def run_ansible(controller_name):
     try:
-        command = ". /opt/oci-hpc/venv/bin/activate; ansible-playbook /config/playbooks/manage_nodes.yml"
-        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        command = ". /etc/os-release;. /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/activate; ansible-playbook /config/playbooks/manage_nodes.yml"
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, executable="/bin/bash")
         last_line=[s for s in result.stdout.split('\n') if s.startswith(controller_name)][-1]
         failure_count=int([s for s in last_line.split(' ') if s.startswith('failed')][-1].split('=')[1])+int([s for s in last_line.split(' ') if s.startswith('unreachable')][-1].split('=')[1])
         if failure_count:
@@ -83,13 +83,13 @@ def update_nodes_based_on_url(nodes,HTTP_SERVER_PORT):
         if content:
             try:
                 json_data = json.loads(content)
-                json_data["lastTimeReachable"]=current_time_str
+                json_data["last_time_reachable"]=current_time_str
                 json_data["ip_address"]=node.ip_address
                 if node.status=="starting":
                     json_data["controller_status"]="configuring"
                     json_data["status"]="running"
-                if node.FirstTimeReachable is None:
-                    json_data.update({"FirstTimeReachable":current_time_str})
+                if node.first_time_reachable is None:
+                    json_data.update({"first_time_reachable":current_time_str})
                 logger.info(f"Stored content for {url}")
                 update_dict[node.ocid]=json_data
 
@@ -98,10 +98,10 @@ def update_nodes_based_on_url(nodes,HTTP_SERVER_PORT):
 
         else:
             if node.status != "starting":
-                if node.lastTimeReachable is None:
+                if node.last_time_reachable is None:
                     logger.info(f"Node {node.hostname} was not reachable")
                 else:
-                    last_time_reachable = datetime.strptime(node.lastTimeReachable, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                    last_time_reachable = datetime.strptime(node.last_time_reachable, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                     if last_time_reachable < time_threshold:
                         update_dict[node.ocid]={"status":"unreachable"}
                         logger.warning(f"Node {node.hostname} was not reachable for 6 hours")
@@ -116,7 +116,7 @@ def scan_host_api_logic():
     controller = get_controller_node()
     if controller is None:
         return {}
-    host_api_list = get_host_api_dict(controller.compartment,controller.tenancy)
+    host_api_list = get_host_api_dict(controller.compartment_id,controller.tenancy_id)
     if not len(host_api_list):
         return {}
     node_list = get_all_nodes()
