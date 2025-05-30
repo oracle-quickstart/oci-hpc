@@ -106,7 +106,7 @@ def print_config_list_yaml_json(configurations,output_file=None,type="yaml"):
             "max_cluster_size": 50,
             "max_cluster_count": 1000,
             "region": config.region,
-            "ad": config.ad,
+            "availability_domain": config.availability_domain,
             "private_subnet": config.private_subnet_cidr,
             "private_subnet_id": config.private_subnet_id,
             "image_id": config.image_id,
