@@ -20,10 +20,11 @@ resource "oci_core_instance" "backup" {
   freeform_tags = {
     "cluster_name"   = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
+    "controller" = "true"
   }
 
   metadata = {
-    ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
+    ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
     user_data           = base64encode(data.template_file.controller_config.rendered)
   }
   source_details {
@@ -158,9 +159,6 @@ resource "null_resource" "backup" {
 resource "null_resource" "cluster_backup" {
   count      = var.slurm_ha ? 1 : 0
   depends_on = [null_resource.backup, oci_core_instance.backup]
-  triggers = {
-    cluster_instances = join(", ", local.cluster_instances_names)
-  }
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
@@ -168,19 +166,15 @@ resource "null_resource" "cluster_backup" {
       controller_ip             = oci_core_instance.controller.private_ip,
       backup_name               = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
       backup_ip                 = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
-      login_name                = var.login_node ? oci_core_instance.login[0].display_name : "",
-      login_ip                  = var.login_node ? oci_core_instance.login[0].private_ip : "",
       monitoring_name           = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
       monitoring_ip             = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
-      compute                   = var.node_count > 0 ? zipmap(local.cluster_instances_names, local.cluster_instances_ips) : zipmap([], [])
       public_subnet             = data.oci_core_subnet.public_subnet.cidr_block,
       private_subnet            = data.oci_core_subnet.private_subnet.cidr_block,
       rdma_network              = cidrhost(var.rdma_subnet, 0),
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
+      vcn_compartment           = var.vcn_compartment,
       zone_name                 = local.zone_name,
       dns_entries               = var.dns_entries,
-      vcn_compartment           = var.vcn_compartment,
-      nfs                       = var.node_count > 0 ? local.cluster_instances_names[0] : "",
       home_nfs                  = var.home_nfs,
       create_fss                = var.create_fss,
       home_fss                  = var.home_fss,
@@ -197,14 +191,14 @@ resource "null_resource" "cluster_backup" {
       rdma_enabled              = var.rdma_enabled,
       slurm                     = var.slurm,
       slurm_version             = var.slurm_version,
-      slurm_nfs_path            = var.create_fss ? var.nfs_source_path : "/config"
       rack_aware                = var.rack_aware,
+      slurm_nfs_path            = var.create_fss ? var.nfs_source_path : "/config"
       spack                     = var.spack,
       ldap                      = var.ldap,
       scratch_nfs_type          = var.scratch_nfs_type,
       autoscaling               = var.autoscaling,
       cluster_name              = local.cluster_name,
-      shape                     = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
+      shape                     = local.shape,
       instance_pool_ocpus       = local.instance_pool_ocpus,
       queue                     = var.queue,
       cluster_monitoring        = var.cluster_monitoring,
@@ -213,22 +207,22 @@ resource "null_resource" "cluster_backup" {
       compute_username          = var.compute_username,
       enroot                    = var.enroot,
       pyxis                     = var.pyxis,
-      pam                       = var.pam,
-      sacct_limits              = var.sacct_limits,
       privilege_sudo            = var.privilege_sudo,
       privilege_group_name      = var.privilege_group_name,
       latency_check             = var.latency_check,
+      pam                       = var.pam,
+      sacct_limits              = var.sacct_limits,
       region                    = var.region,
       tenancy_ocid              = var.tenancy_ocid,
       healthchecks              = var.healthchecks,
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
-      change_hostname           = var.change_hostname,
       queue_ocid                = local.queue_ocid,
       ons_topic_ocid            = local.topic_id,
       ondemand_partition        = var.ondemand_partition,
       ondemand_partition_count  = var.ondemand_partition_count
     })
+
 
     destination = "/opt/oci-hpc/playbooks/inventory"
     connection {

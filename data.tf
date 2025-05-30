@@ -13,10 +13,16 @@ data "oci_core_services" "services" {
     regex  = true
   }
 }
+
 data "oci_core_cluster_network_instances" "cluster_network_instances" {
-  count              = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 ? 1 : 0
+  count              = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && var.cluster_network_shape != "BM.GPU.GB200.4" ? 1 : 0
   cluster_network_id = oci_core_cluster_network.cluster_network[0].id
   compartment_id     = var.targetCompartment
+}
+
+data "oci_core_compute_gpu_memory_cluster_instances" "memory_cluster_network_instances" {
+  count = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4"? 1 : 0
+  compute_gpu_memory_cluster_id = oci_core_compute_gpu_memory_cluster.compute_gpu_memory_cluster[0].id
 }
 
 data "oci_core_instance_pool_instances" "instance_pool_instances" {
@@ -26,10 +32,14 @@ data "oci_core_instance_pool_instances" "instance_pool_instances" {
 }
 
 data "oci_core_instance" "cluster_network_instances" {
-  count       = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 ? var.node_count : 0
+  count       = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && var.cluster_network_shape != "BM.GPU.GB200.4" ? var.node_count : 0
   instance_id = data.oci_core_cluster_network_instances.cluster_network_instances[0].instances[count.index]["id"]
 }
 
+data "oci_core_instance" "memory_cluster_network_instances" {
+  count = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4"? 1 : 0
+  instance_id = data.oci_core_compute_gpu_memory_cluster_instances.memory_cluster_network_instances[0].compute_gpu_memory_cluster_instance_collection[count.index]["id"]
+}
 
 data "oci_core_instance" "instance_pool_instances" {
   count       = var.rdma_enabled || var.stand_alone || var.node_count == 0 ? 0 : var.node_count
@@ -108,4 +118,9 @@ data "oci_objectstorage_namespace" "namespace" {
 
 data "oci_identity_compartment" "compartment" {
     id = var.targetCompartment
+}
+
+data "oci_core_compute_gpu_memory_fabrics" "test_compute_gpu_memory_fabrics" {
+    #Required
+    compartment_id = var.tenancy_ocid
 }

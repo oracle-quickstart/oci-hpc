@@ -46,6 +46,10 @@ variable "compute_cluster_id" {
   default = "" 
   type = string
   }
+variable "memory_fabric_id" { 
+  default = "" 
+  type = string
+  }
 variable "use_custom_name" { 
   default = false 
   type = bool

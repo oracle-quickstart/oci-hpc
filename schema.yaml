@@ -56,12 +56,13 @@ variableGroups:
       - ${ad}
       - ${secondary_ad}
       - ${third_ad}
+      - ${cluster_network_shape}
+      - ${instance_pool_shape}
       - ${rdma_enabled}
       - ${stand_alone}
       - ${compute_cluster_exists}
       - ${compute_cluster_id}
-      - ${cluster_network_shape}
-      - ${instance_pool_shape}
+      - ${memory_fabric_id}
       - ${instance_pool_ocpus}
       - ${instance_pool_ocpus_denseIO_flex}
       - ${instance_pool_custom_memory}
@@ -515,12 +516,22 @@ variables:
     type: boolean
     description: Use ROCEv2 cluster network
     default: true
+    visible: 
+      not:
+        - eq:
+          - ${cluster_network_shape}
+          - "BM.GPU.GB200.4"
 
   stand_alone:
     title: Use Stand-Alone instances
     type: boolean
     description: Do not use instance pools (or Cluster Network), but Stand-Alone instance or Compute Clusters
     default: false
+    visible: 
+      not:
+        - eq:
+          - ${cluster_network_shape}
+          - "BM.GPU.GB200.4"
 
   compute_cluster_exists:
     title: Use existing Compute Cluster
@@ -539,6 +550,17 @@ variables:
     default: ""
     visible: ${compute_cluster_exists}
 
+
+  memory_fabric_id: 
+    title: Memory Fabric ID
+    type: string
+    description: Specify the memory Fabric OCID. Only one memory cluster can be spun up for the initial spin up. Use the CLI to create additionnal Memory Cluster
+    default: ""
+    visible: 
+      eq:
+        - ${cluster_network_shape}
+        - "BM.GPU.GB200.4"
+
   cluster_network_shape:
     type: enum
     enum:
@@ -549,6 +571,7 @@ variables:
       - "BM.GPU.H100.8"
       - "BM.GPU.H200.8"
       - "BM.GPU.B200.8"
+      - "BM.GPU.GB200.4"
       - "BM.GPU.MI300X.8"
       - "BM.GPU.L40S.4"
       - "BM.Optimized3.36"
