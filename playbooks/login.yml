@@ -26,7 +26,6 @@
     - boot-volume
     - mpivars
     - queue_read
-    - mgmt
 
 - hosts: localhost
   become: true
