@@ -334,7 +334,7 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
     subnet_id=config.private_subnet_id
     image_id=config.image_id
     bv_size=config.boot_volume_size
-    availability_domain=config.ad
+    availability_domain=config.availability_domain
     target_compartment_id=config.target_compartment_id
     shape=config.shape
     cpus=config.instance_pool_ocpus
@@ -443,7 +443,7 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
     subnet_id=config.private_subnet_id
     image_id=config.image_id
     bv_size=config.boot_volume_size
-    availability_domain=config.ad
+    availability_domain=config.availability_domain
     target_compartment_id=config.target_compartment_id
     shape=config.shape
     cpus=config.instance_pool_ocpus
@@ -609,27 +609,27 @@ def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_
                 if gpu_memory_fabric is None:
                     logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
                     exit(1)
-                cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.ad,display_name=cluster_name)
+                cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.availability_domain,display_name=cluster_name)
                 cn = compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
                 cn_id=cn.id
-                compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=config.ad,compartment_id=config.target_compartment_id, compute_cluster_id=cn_id,instance_configuration_id=instance_config_ocid,size=count,gpu_memory_fabric_id=gpu_memory_fabric,display_name=gpu_memory_cluster_name)
+                compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=config.availability_domain,compartment_id=config.target_compartment_id, compute_cluster_id=cn_id,instance_configuration_id=instance_config_ocid,size=count,gpu_memory_fabric_id=gpu_memory_fabric,display_name=gpu_memory_cluster_name)
                 compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
             else:
                 ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=config.private_subnet_id)
-                ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=config.ad,primary_vnic_subnets=ip_placement_subnet_details)
+                ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=config.availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
                 instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails(display_name=cluster_name,instance_configuration_id=instance_config_ocid,size=count)
                 cn_details=oci.core.models.CreateClusterNetworkDetails(compartment_id=config.target_compartment_id,display_name=cluster_name,instance_pools=[instance_pools_details],placement_configuration=ip_placement_details)
                 cn = compute_management_client_composite_operations.create_cluster_network_and_wait_for_state(create_cluster_network_details=cn_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
         else:
             ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=config.private_subnet_id)
-            ip_placement_details=oci.core.models.CreateInstancePoolPlacementConfigurationDetails(availability_domain=config.ad,primary_vnic_subnets=ip_placement_subnet_details)
+            ip_placement_details=oci.core.models.CreateInstancePoolPlacementConfigurationDetails(availability_domain=config.availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
             instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails()
             ip_details=oci.core.models.CreateInstancePoolDetails(compartment_id=config.target_compartment_id,display_name=cluster_name,placement_configurations=[ip_placement_details],instance_configuration_id=instance_config_ocid,size=count)
             cn = compute_management_client_composite_operations.create_instance_pool_and_wait_for_state(create_instance_pool_details=ip_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
         
     else:
         if config.rdma_enabled:
-            cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.ad,display_name=cluster_name)
+            cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.availability_domain,display_name=cluster_name)
             cn = compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
             cn_id=cn.id
         else:
