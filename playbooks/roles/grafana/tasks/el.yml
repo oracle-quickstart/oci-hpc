@@ -105,6 +105,13 @@
     dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
     mode: '0777'
 
+- name: Copy delete rules to grafana provisioning
+  become: true
+  copy:
+    src: files/delete-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/delete-rules.yaml
+    mode: '0777'
+
 - name: Replace all occurrences of a specific string in files
   become: true
   ansible.builtin.replace:
