@@ -1,6 +1,6 @@
 import click
 from lib.cli.nodes.display import print_node_list, print_node_list_json, print_nodes_info
-from lib.database import get_all_nodes, get_nodes_by_cluster, get_all_terminated_nodes, get_all_compute_nodes, get_all_management_nodes
+from lib.database import get_all_nodes, get_nodes_by_cluster, get_all_terminated_nodes, get_all_compute_nodes, get_all_management_nodes, get_nodes_by_memory_cluster
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
@@ -99,12 +99,19 @@ def terminated(one_line,full):
 
 
 @list.command()
-@click.option('--cluster', required=True, help='Name of the cluster.')
+@click.option('--cluster', required=False, help='Name of the cluster.')
+@click.option('--memory_cluster', required=False, help='Name of the cluster.')
 @click.option('--one_line', is_flag=True, show_default=True, default=False, help='Share a hostname list in one line')
 @click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-def cluster(cluster,one_line,full):
+def cluster(cluster,memory_cluster,one_line,full):
     """Get information about nodes in a cluster."""
-    nodes = get_nodes_by_cluster(cluster)  
+    if cluster is None and memory_cluster is None:
+        click.echo("Please provide a cluster name or a memory cluster name.")
+        return
+    if cluster:
+        nodes = get_nodes_by_cluster(cluster)  
+    else:
+        nodes = get_nodes_by_memory_cluster(memory_cluster)
     if not nodes:
         click.echo("No nodes found.")
         return

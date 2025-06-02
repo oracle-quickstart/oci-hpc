@@ -68,4 +68,4 @@ def add_memory_fabric(count, cluster, fabric ,memorycluster):
         logger.error("No node found, create a new cluster instead")
         return
     else: 
-        run_add_memory_fabric(nodes, int(count), fabric,memorycluster)
+        run_add_memory_fabric(nodes, int(count), fabric ,memorycluster)

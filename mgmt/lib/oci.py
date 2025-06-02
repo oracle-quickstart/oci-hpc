@@ -60,7 +60,7 @@ def run_boot_volume_swap(node,image_ocid):
     compute_client_composite_operations.update_instance_and_wait_for_state(node.ocid, update_instance_details,wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"])
           
 def run_terminate(node):
-    cluster_type,cluster_ocid,instance_pool_ocid,memory_cluster_id = get_instance_type(node)
+    cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
     try:
         if cluster_type == "SA" or cluster_type == "CC":
             logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
@@ -97,9 +97,23 @@ def run_add(nodes, count, names):
         logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster")
         exit(1)
     first_node=nodes[0]
-
-    cluster_type,cluster_ocid,instance_pool_ocid,memory_cluster_id = get_instance_type(first_node)
-    current_size=get_instance_count(cluster_type,cluster_ocid,first_node.compartment_id,first_node.cluster_name)
+    if first_node.shape == "BM.GPU.GB200.4":
+        memory_clusters=compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
+        for memory_cluster in memory_clusters:
+            mc_id=memory_cluster.id
+            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
+            for instance_summary in instance_summaries:
+                if instance_summary.id == first_node.ocid:
+                    memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
+                    cc_id=memory_cluster_data.compute_cluster_id
+                    instance_config_id=memory_cluster_data.instance_configuration_id
+                    cluster_type="MC"
+                    cluster_ocid=mc_id
+                    cluster_name=memory_cluster_data.display_name
+    else:
+        cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
+        cluster_name=first_node.cluster_name
+    current_size=get_instance_count(cluster_type,cluster_ocid,first_node.compartment_id,cluster_name)
     target_size = current_size + count
     if cluster_type == "CC" or cluster_type == "SA":
         first_instance=compute_client.get_instance(first_node.ocid).data
@@ -126,24 +140,33 @@ def run_add(nodes, count, names):
         logger.info(f"Launching {count} in the Cluster for a total size of {target_size}")
         compute_management_client_composite_operations.update_instance_pool_and_wait_for_state(instance_pool_ocid,update_size,['RUNNING'],waiter_kwargs={'max_wait_seconds':3600})
     newsize=get_instance_count(cluster_type,cluster_ocid,first_node.compartment_id,first_node.cluster_name)
-    logger.info(f"Total number of nodes in the cluster is now {newsize} with a requested size of {target_size}")
-    if newsize == current_size:
-        logger.error("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
-        exit(1)
+    if cluster_type != "MC":
+        logger.info(f"Total number of nodes in the cluster is now {newsize} with a requested size of {target_size}")
+        if newsize == current_size:
+            logger.error("No node was added, please check the work requests of the Cluster Network and Instance Pool to see why")
+            exit(1)
+            
 
 def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name):
     if not nodes:
         logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster")
         exit(1)
     first_node=nodes[0]
-    cluster_type,cluster_ocid,instance_pool_ocid,memory_cluster_id = get_instance_type(first_node)
-    cn_id=compute_client.get_compute_gpu_memory_cluster(cluster_ocid).data.compute_cluster_id
-    instance_config_id=compute_client.list_compute_gpu_memory_cluster_instances(cluster_ocid).data[0].instance_configuration_id
     if fabric_id is None:
         logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
         exit(1)
+    memory_clusters=compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
+    if len(memory_clusters):
+        for memory_cluster in memory_clusters:
+            mc_id=memory_cluster.id
+            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
+            for instance_summary in instance_summaries:
+                memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
+                cc_id=memory_cluster_data.compute_cluster_id
+                instance_config_id=memory_cluster_data.instance_configuration_id
 
-    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cn_id, instance_configuration_id=instance_config_id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
+
+    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cc_id, instance_configuration_id=instance_config_id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
     compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
 
 
@@ -204,7 +227,7 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
         instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,compartment_ocid,cluster_ocid,sort_by="TIMECREATED").data
         return(len(instance_summaries))
     elif cluster_type == "MC":
-        instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(cluster_ocid).data
+        instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(cluster_ocid).data.items
         return(len(instance_summaries))
     
 def get_instance_type(node):
@@ -639,7 +662,7 @@ def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_
             compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
 
 def delete_cluster(cluster_name,nodes_list):
-    cluster_type,cluster_ocid,ipa_ocid,memory_cluster_id = get_instance_type(nodes_list[0])
+    cluster_type,cluster_ocid,ipa_ocid = get_instance_type(nodes_list[0])
     if cluster_type == "CN":
         compute_management_client.terminate_cluster_network(cluster_ocid)
     elif cluster_type == "IPA":
@@ -660,9 +683,28 @@ def delete_cluster(cluster_name,nodes_list):
         logger.error("A BM.GPU.GB200.4 instance should not be calling this function")
     remove_inventory(cluster_name)
 
-def get_memory_fabrics(tenancy):
-    for fabric in compute_client.list_compute_gpu_memory_fabrics(compartment_id=tenancy).data:
-        print(compute_client.get_compute_gpu_memory_fabric(fabric.id).data)
+def get_memory_fabrics(tenancy_id,compartment_id):
+    fabric_list=[]
+    memory_clusters=compute_client.list_compute_gpu_memory_clusters(compartment_id=compartment_id).data.items
+    memory_fabric_usage={}
+    for memory_cluster in memory_clusters:
+        memory_clusters_info=compute_client.get_compute_gpu_memory_cluster(memory_cluster.id).data
+        if memory_clusters_info.gpu_memory_fabric_id in memory_fabric_usage.keys():
+            memory_fabric_usage[memory_clusters_info.gpu_memory_fabric_id][0]+=memory_clusters_info.size
+        else:
+            memory_fabric_usage[memory_clusters_info.gpu_memory_fabric_id]=[memory_clusters_info.size,memory_clusters_info.display_name,memory_cluster.id]
+        
+    for fabric in compute_client.list_compute_gpu_memory_fabrics(compartment_id=tenancy_id).data.items:
+        if fabric.id in memory_fabric_usage.keys():
+            size=memory_fabric_usage[fabric.id][0]
+            cluster_name=memory_fabric_usage[fabric.id][1]
+            cluster_id=memory_fabric_usage[fabric.id][2]
+        else:
+            size=0
+            cluster_name=None
+            cluster_id=None
+        fabric_list.append([compute_client.get_compute_gpu_memory_fabric(fabric.id).data,size,cluster_name,cluster_id])
+    return fabric_list
 
 
 def delete_memory_cluster(memory_cluster_name,nodelist):
