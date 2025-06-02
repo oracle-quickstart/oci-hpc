@@ -228,7 +228,14 @@
     state: directory
     owner: root
     group: root
-  when: healthchecks|bool
+
+- name: Ensure epilog directory exists
+  become: true
+  file:
+    path: "{{ slurm_conf_path }}/epilog.d"
+    state: directory
+    owner: root
+    group: root
 
 - name: copy healthchecks
   become: true
@@ -239,3 +246,21 @@
     group: root
     mode: '0755'
   when: healthchecks|bool
+
+- name: copy imex prolog and epilog
+  become: true
+  copy: 
+    src: imex_prolog.sh
+    dest: "{{ slurm_conf_path }}/prolog.d/imex_prolog.sh"
+    owner: root
+    group: root
+    mode: '0755'
+  
+- name: copy imex prolog and epilog
+  become: true
+  copy: 
+    src: imex_epilog.sh
+    dest: "{{ slurm_conf_path }}/epilog.d/imex_epilog.sh"
+    owner: root
+    group: root
+    mode: '0755'
