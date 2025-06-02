@@ -609,7 +609,7 @@ def generate_inventory(config,cluster_name):
         logger.info("Inventory file updated successfully!")
 
     except FileNotFoundError:
-        logger.error("The inventory file was not found.")
+        logger.error(f"The inventory file {original_inventory} was not found.")
     except Exception as e:
         logger.error(f"{e}")   
 
