@@ -4,7 +4,7 @@ from rich.console import Console
 def print_node_list(nodes, title):
     table = Table(title=title)
     table.add_column("hostname", justify="left")
-    table.add_column("Status", justify="left")
+    table.add_column("status", justify="left")
     table.add_column("compute_status", justify="left")
     table.add_column("healthcheck_recommendation", justify="left")
     table.add_column("cluster_name", justify="left")

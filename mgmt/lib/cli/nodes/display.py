@@ -11,7 +11,7 @@ def print_nodes_info(nodes, full=False):
         table.add_column(justify="left")
         if not full:
             table.add_row("Hostname", node.hostname)
-            table.add_row("Status", node.status)
+            table.add_row("status", node.status)
             table.add_row("Cluster", node.cluster_name)
             table.add_row("ID", str(node.ocid))
             table.add_row("Serial", node.serial)
@@ -59,7 +59,7 @@ def print_node_list_json(nodes):
 def print_node_list(nodes, title):
     table = Table(title=title)
     table.add_column("hostname", justify="left")
-    table.add_column("Status", justify="left")
+    table.add_column("status", justify="left")
     table.add_column("compute_status", justify="left")
     table.add_column("healthcheck_recommendation", justify="left")
     table.add_column("cluster_name", justify="left")
