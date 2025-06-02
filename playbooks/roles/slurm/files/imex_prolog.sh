@@ -43,6 +43,18 @@ if [ ${shape} = "BM.GPU.GB200.4" ]; then
     #set timeouts for start
     sed -i "s/IMEX_CONN_WAIT_TIMEOUT.*/IMEX_CONN_WAIT_TIMEOUT=${IMEX_CONN_WAIT_TIMEOUT}/" /etc/nvidia-imex/config.cfg
     timeout $NVIDIA_IMEX_START_TIMEOUT systemctl start nvidia-imex
-    sleep 3
+
+    echo "Waiting for NVIDIA domain status to be UP..."
+
+    while true; do
+        status=$(sudo nvidia-imex-ctl -N | grep Domain | awk '{print $3}')
+	echo $status
+        if [[ "$status" == "UP" ]]; then
+            echo "Domain is UP!"
+            break
+        fi
+	echo sleeping
+        sleep 2
+    done
     } > "/var/log/slurm/imex_prolog_${SLURM_JOB_ID}.log" 2>&1
 fi
