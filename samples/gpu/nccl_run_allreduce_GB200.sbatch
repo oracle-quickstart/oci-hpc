@@ -61,44 +61,16 @@ if [[ "$hpcx_path" == "" ]]; then
     hpcx_path=none
 fi
 
-export NCCL_DEBUG=WARN
-
-
-shape=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape`
-if [ $shape == \"BM.GPU.B4.8\" ] || [ $shape == \"BM.GPU.A100-v2.8\" ]
-then
-  var_UCX_NET_DEVICES=mlx5_0:1
-  var_NCCL_IB_HCA="=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12"
-elif [ $shape == \"BM.GPU4.8\" ]
-then
-  var_UCX_NET_DEVICES=mlx5_4:1
-  var_NCCL_IB_HCA="=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17"
-elif [ $shape == \"BM.GPU.H100.8\" ]
-then
-  var_UCX_NET_DEVICES=eth0
-  var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17"
-elif [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ]
-then
-  var_UCX_NET_DEVICES=eth0
-  var_NCCL_IB_HCA="=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11"
-elif [ $shape == \"BM.GPU.GB200.4\" ]
-then
-  var_UCX_NET_DEVICES=eth0
-  var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_3,mlx5_4"
-else
-  echo "Use the appropriate nccl test run script for non A100/H100/H200/B200 nodes"
-fi
-
 echo "Running ${EXEC_CMD} test on ${SLURM_NNODES} nodes"
 mpirun --bind-to none \
        --mca coll ^hcoll \
        -x NCCL_DEBUG=WARN \
        -x NCCL_MNNVL_ENABLE=1 \
        -x NCCL_CUMEM_ENABLE=1 \
-       -x NCCL_NET_PLUGIN=sys \
+       -x NCCL_NET_PLUGIN=${hpcx_path} \
        -x UCX_NET_DEVICES=mlx5_0:1,mlx5_1:1,mlx5_3:1,mlx5_4:1 \
        -x NCCL_IB_HCA==mlx5_0,mlx5_1,mlx5_3,mlx5_4 \
        -x NCCL_NVLS_ENABLE=1 \
-       -x NCCL_IB_DISABLE=1 \
+       -x NCCL_NET_GDR_C2C=1 \
        -x NCCL_SOCKET_IFNAME=eth0 \
 	     --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --rankfile $ORDEREDRANKMACHINEFILE ${EXEC_CMD} -b 1G -e 16G -f 2 -g 1 -n 50
