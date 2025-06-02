@@ -9,6 +9,7 @@ if [ ${shape} = "BM.GPU.H100.8" ] || \
    [ ${shape} = "BM.GPU4.8" ] || \
    [ ${shape} = "BM.GPU.B4.8" ] || \
    [ ${shape} = "BM.GPU.H200.8" ] || \
+   [ ${shape} = "BM.GPU.GB200.4" ] || \
    [ ${shape} = "BM.GPU.B200.8" ]; then
 
   FILE="/tmp/latest_healthcheck.log"
