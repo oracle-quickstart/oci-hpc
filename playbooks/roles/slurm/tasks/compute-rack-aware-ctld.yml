@@ -176,12 +176,12 @@
       set_fact:
         unique_switches_with_hostnames: "{{ unique_switches_with_hostnames | default({}) | combine({pair_key: (unique_switches_with_hostnames[pair_key] | default([])) + [new_compute_info[item].hostname]}) }}"
       vars:
-        pair_key: "{{ new_compute_info[item].cluster_name }}:{{ new_compute_info[item].railId[-40:] if new_compute_info[item].railId != 'None' else new_compute_info[item].rackID[-40:] }}"
+        pair_key: "{{ new_compute_info[item].cluster_name }}:{{ new_compute_info[item].rail_id[-40:] if new_compute_info[item].rail_id != 'None' else new_compute_info[item].rack_id[-40:] }}"
       with_items: "{{ new_compute_info }}"
 
-    - name: Get rackIDs for all compute nodes
+    - name: Get rack_ids for all compute nodes
       set_fact:
-        racks_to_add_temp: "{{ new_compute_info[item].cluster_name }}:{{ new_compute_info[item].railId[-40:] if new_compute_info[item].railId != 'None' else new_compute_info[item].rackID[-40:] }}"
+        racks_to_add_temp: "{{ new_compute_info[item].cluster_name }}:{{ new_compute_info[item].rail_id[-40:] if new_compute_info[item].rail_id != 'None' else new_compute_info[item].rack_id[-40:] }}"
       with_items: "{{ new_compute_info }}"
       run_once: true
       register: racks_to_add_temp_results
