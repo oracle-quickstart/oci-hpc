@@ -155,6 +155,7 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name):
     if fabric_id is None:
         logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
         exit(1)
+    (instance_config_ocid, memory_cluster_name)
     memory_clusters=compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
     if len(memory_clusters):
         for memory_cluster in memory_clusters:
@@ -165,11 +166,9 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name):
                 cc_id=memory_cluster_data.compute_cluster_id
                 instance_config_id=memory_cluster_data.instance_configuration_id
 
-
-    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cc_id, instance_configuration_id=instance_config_id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
+    new_instance_config_data=create_instance_configuration_from_another(instance_config_id, memory_cluster_name).data
+    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cc_id, instance_configuration_id=new_instance_config_data.id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
     compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
-
-
 
 def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment_ocid,cluster_name,hostname=None):
 
@@ -351,7 +350,6 @@ def get_host_api_dict(compartment,tenancy):
         tenancy_host_api=[]
     return compartment_host_api + tenancy_host_api
      
-
 def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_ocid, cluster_name, hostname=None, memory_cluster_name=None):
 
     subnet_id=config.private_subnet_id
@@ -461,6 +459,103 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         return None
+
+def create_instance_configuration_from_another(instance_config_ocid, memory_cluster_name):
+    """
+    Creates a new instance configuration by fully replicating the source configuration with a new memory_cluster
+    """
+
+    src_config = get_instance_configuration(instance_config_ocid)
+    launch = src_config.instance_details.launch_details
+
+    # Update metadata with new SSH key; create a copy if it exists.
+    new_metadata = dict(launch.metadata) if launch.metadata else {}
+
+    # Build Agent Config if present
+    new_agent_config = None
+    if launch.agent_config:
+        new_agent_config = oci.core.models.InstanceConfigurationLaunchInstanceAgentConfigDetails(
+            are_all_plugins_disabled=launch.agent_config.are_all_plugins_disabled,
+            is_management_disabled=launch.agent_config.is_management_disabled,
+            is_monitoring_disabled=launch.agent_config.is_monitoring_disabled,
+            plugins_config=[
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state=plugin.desired_state,
+                    name=plugin.name
+                ) for plugin in (launch.agent_config.plugins_config or [])
+            ]
+        )
+
+    # Build Create VNIC Details if present
+    new_create_vnic = None
+    if launch.create_vnic_details:
+        new_create_vnic = oci.core.models.InstanceConfigurationCreateVnicDetails(
+            assign_public_ip=launch.create_vnic_details.assign_public_ip,
+            assign_private_dns_record=launch.create_vnic_details.assign_private_dns_record,
+            subnet_id=launch.create_vnic_details.subnet_id
+            # Additional fields can be added here if needed
+        )
+
+    # Build Source Details
+    src_details = launch.source_details
+    bv_size=getattr(src_details, 'boot_volume_size_in_gbs', None)
+    image_id=src_details.image_id
+
+    new_source_details = oci.core.models.InstanceConfigurationInstanceSourceViaImageDetails(
+        source_type=src_details.source_type,
+        image_id=image_id,
+        boot_volume_size_in_gbs=bv_size,
+        boot_volume_vpus_per_gb=getattr(src_details, 'boot_volume_vpus_per_gb', None)
+    )
+
+    new_tags=launch.freeform_tags
+    new_tags["memory_cluster_name"] = memory_cluster_name
+    # Build new Launch Details copying as many fields as possible
+    new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
+        availability_domain=launch.availability_domain,
+        compartment_id=launch.compartment_id,
+        display_name=launch.display_name,
+        shape=launch.shape,
+        shape_config=launch.shape_config,
+        platform_config=launch.platform_config,
+        metadata=new_metadata,
+        extended_metadata=launch.extended_metadata,
+        ipxe_script=launch.ipxe_script,
+        freeform_tags=new_tags,
+        defined_tags=launch.defined_tags,
+        agent_config=new_agent_config,
+        create_vnic_details=new_create_vnic,
+        source_details=new_source_details,
+        security_attributes=launch.security_attributes,
+        launch_options=launch.launch_options,
+        fault_domain=launch.fault_domain,
+        dedicated_vm_host_id=launch.dedicated_vm_host_id,
+        launch_mode=launch.launch_mode,
+        instance_options=launch.instance_options,
+        availability_config=launch.availability_config,
+        preemptible_instance_config=launch.preemptible_instance_config,
+        licensing_configs=launch.licensing_configs
+    )
+
+    # Build new Instance Details
+    new_instance_details = oci.core.models.ComputeInstanceDetails(
+        instance_type=src_config.instance_details.instance_type,
+        launch_details=new_launch_details,
+        block_volumes=src_config.instance_details.block_volumes,
+        secondary_vnics=src_config.instance_details.secondary_vnics
+    )
+
+    # Construct new Instance Configuration Details object
+    new_config_details = oci.core.models.CreateInstanceConfigurationDetails(
+        compartment_id=src_config.compartment_id,
+        display_name=src_config.display_name + "-copy",
+        instance_details=new_instance_details,
+        defined_tags=src_config.defined_tags,
+        freeform_tags=src_config.freeform_tags
+    )
+
+    response = compute_management_client.create_instance_configuration(new_config_details)
+    return response.data
 
 def generate_instance_config(config, controller_hostname, cluster_name, memory_cluster_name=None):
     subnet_id=config.private_subnet_id
@@ -689,11 +784,13 @@ def get_memory_fabrics(tenancy_id,compartment_id):
     memory_fabric_usage={}
     for memory_cluster in memory_clusters:
         memory_clusters_info=compute_client.get_compute_gpu_memory_cluster(memory_cluster.id).data
+        if memory_clusters_info.lifecycle_state != "ACTIVE":
+            continue
         if memory_clusters_info.gpu_memory_fabric_id in memory_fabric_usage.keys():
             memory_fabric_usage[memory_clusters_info.gpu_memory_fabric_id][0]+=memory_clusters_info.size
         else:
             memory_fabric_usage[memory_clusters_info.gpu_memory_fabric_id]=[memory_clusters_info.size,memory_clusters_info.display_name,memory_cluster.id]
-        
+
     for fabric in compute_client.list_compute_gpu_memory_fabrics(compartment_id=tenancy_id).data.items:
         if fabric.id in memory_fabric_usage.keys():
             size=memory_fabric_usage[fabric.id][0]
@@ -706,7 +803,6 @@ def get_memory_fabrics(tenancy_id,compartment_id):
         fabric_list.append([compute_client.get_compute_gpu_memory_fabric(fabric.id).data,size,cluster_name,cluster_id])
     return fabric_list
 
-
 def delete_memory_cluster(memory_cluster_name,nodelist):
     #Find the associated Compute Cluster
     compute_clusters = compute_client.list_compute_clusters(nodelist[0].compartment_id,display_name=nodelist[0].cluster_name).data.items
@@ -715,11 +811,11 @@ def delete_memory_cluster(memory_cluster_name,nodelist):
         for instance_summary in instance_summaries:
             if instance_summary.id == nodelist[0].ocid:
                 cluster_ocid=compute_cluster.id
-    memory_clusters=compute_client.list_compute_gpu_memory_clusters(nodelist[0].compartment_id,display_name=memory_cluster_name)
+    memory_clusters=compute_client.list_compute_gpu_memory_clusters(nodelist[0].compartment_id,display_name=memory_cluster_name).data.items
     if len(memory_clusters):
         for memory_cluster in memory_clusters:
             mc_id=memory_cluster.id
-            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id)
+            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
             for instance_summary in instance_summaries:
                 if instance_summary.id == nodelist[0].ocid:
                     compute_client.delete_compute_gpu_memory_cluster(mc_id)
