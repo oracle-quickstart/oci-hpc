@@ -104,7 +104,7 @@
 
 - name: add empty customerGpuMemoryFabric
   set_fact:
-    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}) }}"
+    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}, recursive=True) }}"
   when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
 
 - name: Set http_role based on hostvars or default to "compute"
