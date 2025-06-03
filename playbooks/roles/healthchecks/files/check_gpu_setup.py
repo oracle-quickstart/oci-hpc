@@ -1248,11 +1248,17 @@ if __name__ == '__main__':
     # 11.4 Summarize RDMA link flapping check
     if run_all or args.rdmalink_flap:
         if len(lft_issues["failures"]) > 0 or len(lft_issues["link_down"]) > 0:
-           if len(lft_issues["failures"]) > 0:
+           if len(lft_issues["failures"]) == 1:
+              issue = lft_issues["failures"][0]
+              logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
+           elif len(lft_issues["failures"]) > 1:
               for issue in lft_issues["failures"]:
                   logger.error(f"{host_serial} - RDMA link flapping issues: {issue}")
                   slurm_reason("RDMA Link Flapping Error")
-           if len(lft_issues["link_down"]) > 0:
+           if len(lft_issues["link_down"]) == 1:
+              issue = lft_issues["link_down"][0]
+              logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
+           elif len(lft_issues["link_down"]) > 1:
               for issue in lft_issues["link_down"]:
                   logger.error(f"{host_serial} - RDMA link down issues: {issue}")
                   slurm_reason("RDMA Link Down Error")
