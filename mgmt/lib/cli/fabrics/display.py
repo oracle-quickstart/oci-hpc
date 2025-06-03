@@ -19,20 +19,20 @@ def print_fabrics(fabric_list, full=False):
 
     else:
         table = Table(title="Fabrics")
-        attributes = ["display_name","lifecycle_state","fabric_health","id","healthy_host_count"]
-        for attr in attributes:
-            if attr == "id":
+        attributes1 = ["id","lifecycle_state","fabric_health"]
+        attributes2 = ["Cluster","Running","Available"]
+        attributes3 = ["healthy_host_count"]
+        for attr in attributes1+attributes2+attributes3:
+            if attr == "id" or attr == "Cluster":
                 table.add_column(attr, justify="left", no_wrap=True)
             else:
                 table.add_column(attr, justify="left")
-        table.add_column("Cluster", justify="left")
-        table.add_column("Running", justify="left")
-        table.add_column("Available", justify="left")
         for fabric in fabric_list:
-            row = [str(getattr(fabric[0], attr)) for attr in attributes]
+            row = [str(getattr(fabric[0], attr)) for attr in attributes1]
             row.append(str(fabric[2]))
             row.append(str(fabric[1]))
             row.append(str(int(getattr(fabric[0], attr))-fabric[1]))
+            row.append(str(getattr(fabric[0], attributes3[0])))
             table.add_row(*row)
         console = Console()
         console.print(table)
