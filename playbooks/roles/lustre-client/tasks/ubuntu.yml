@@ -17,6 +17,12 @@
     group: root
     mode: '0755'
 
+- name: Check if Lustre filesystem is already mounted
+  command: "mountpoint -q {{ local_path }}"
+  failed_when: false
+  changed_when: false
+  register: mount_status
+
 - name: Install Lustre client drivers using the downloaded script
   shell: /tmp/install_ubuntu.sh >> ubuntu-lustre-install.logs
   args:
@@ -24,8 +30,15 @@
     creates: ubuntu-lustre-install.logs
   async: 600
   poll: 10
+  when: mount_status.rc != 0
 
-- name: create Lustre mount directory
+- name: Create and update Lustre configuration file
+  copy:
+    content: "options lnet networks={{ (lnet_protocol | split('@'))[1] }}({{ ansible_default_ipv4.interface }})\n"
+    dest: /etc/modprobe.d/lustre.conf
+    force: no
+
+- name: Create Lustre mount directory
   become: true
   file:
     path: "{{ local_path }}"
