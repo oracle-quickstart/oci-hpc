@@ -11,7 +11,7 @@ from ClusterShell.NodeSet import NodeSet
 
 @click.command()
 @click.option('--nodes', required=True, help='Comma separated list of nodes (IP Addresses, hostnames, OCID\'s, serials or oci names)')
-@click.option('--soft', required=True, default=True, help='Soft Reboot the node, default is Force Reboot')
+@click.option('--soft', required=True, default=False, help='Soft Reboot the node, default is Force Reboot')
 
 def reboot(nodes,soft):
     """Reboot nodes"""
