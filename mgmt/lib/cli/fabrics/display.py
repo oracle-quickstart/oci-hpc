@@ -14,25 +14,27 @@ def print_fabrics(fabric_list, full=False):
             table.add_row("size", str(fabric[1]))
             table.add_row("cluster_name", str(fabric[2]))
             table.add_row("cluster_id", str(fabric[3]))
+            for i in fabric[4].keys():
+                table.add_row(i, str(fabric[4][i]))
             console = Console()
             console.print(table)
 
     else:
         table = Table(title="Fabrics")
         attributes1 = ["id","lifecycle_state","fabric_health"]
-        attributes2 = ["Cluster","Running","Available"]
-        attributes3 = ["healthy_host_count"]
-        for attr in attributes1+attributes2+attributes3:
+        attributes2 = ["Cluster"]
+        for attr in attributes1+attributes2:
             if attr == "id" or attr == "Cluster":
                 table.add_column(attr, justify="left", no_wrap=True)
             else:
                 table.add_column(attr, justify="left")
+        for i in fabric_list[0][4].keys():
+            table.add_column(i, justify="left")
         for fabric in fabric_list:
             row = [str(getattr(fabric[0], attr)) for attr in attributes1]
             row.append(str(fabric[2]))
-            row.append(str(fabric[1]))
-            row.append(str(int(getattr(fabric[0], attr))-fabric[1]))
-            row.append(str(getattr(fabric[0], attributes3[0])))
+            for i in fabric[4].keys():
+                row.append(str(fabric[4][i]))
             table.add_row(*row)
         console = Console()
         console.print(table)
