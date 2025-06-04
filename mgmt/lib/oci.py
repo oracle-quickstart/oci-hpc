@@ -155,7 +155,6 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name):
     if fabric_id is None:
         logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
         exit(1)
-    (instance_config_ocid, memory_cluster_name)
     memory_clusters=compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
     if len(memory_clusters):
         for memory_cluster in memory_clusters:
@@ -166,7 +165,7 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name):
                 cc_id=memory_cluster_data.compute_cluster_id
                 instance_config_id=memory_cluster_data.instance_configuration_id
 
-    new_instance_config_data=create_instance_configuration_from_another(instance_config_id, memory_cluster_name).data
+    new_instance_config_data=create_instance_configuration_from_another(instance_config_id, gpu_memory_cluster_name)
     compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cc_id, instance_configuration_id=new_instance_config_data.id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
     compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
 
@@ -465,7 +464,7 @@ def create_instance_configuration_from_another(instance_config_ocid, memory_clus
     Creates a new instance configuration by fully replicating the source configuration with a new memory_cluster
     """
 
-    src_config = get_instance_configuration(instance_config_ocid)
+    src_config = compute_management_client.get_instance_configuration(instance_config_ocid).data
     launch = src_config.instance_details.launch_details
 
     # Update metadata with new SSH key; create a copy if it exists.
@@ -782,6 +781,7 @@ def get_memory_fabrics(tenancy_id,compartment_id):
     fabric_list=[]
     memory_clusters=compute_client.list_compute_gpu_memory_clusters(compartment_id=compartment_id).data.items
     memory_fabric_usage={}
+
     for memory_cluster in memory_clusters:
         memory_clusters_info=compute_client.get_compute_gpu_memory_cluster(memory_cluster.id).data
         if memory_clusters_info.lifecycle_state != "ACTIVE":
@@ -791,6 +791,11 @@ def get_memory_fabrics(tenancy_id,compartment_id):
         else:
             memory_fabric_usage[memory_clusters_info.gpu_memory_fabric_id]=[memory_clusters_info.size,memory_clusters_info.display_name,memory_cluster.id]
 
+    host_api_list=get_host_api_dict(compartment_id,tenancy_id)
+    lifecycle_states=[]
+    for host_api in host_api_list:
+        if host_api.lifecycle_state not in lifecycle_states:
+            lifecycle_states.append(host_api.lifecycle_state)
     for fabric in compute_client.list_compute_gpu_memory_fabrics(compartment_id=tenancy_id).data.items:
         if fabric.id in memory_fabric_usage.keys():
             size=memory_fabric_usage[fabric.id][0]
@@ -800,7 +805,16 @@ def get_memory_fabrics(tenancy_id,compartment_id):
             size=0
             cluster_name=None
             cluster_id=None
-        fabric_list.append([compute_client.get_compute_gpu_memory_fabric(fabric.id).data,size,cluster_name,cluster_id])
+        host_type_count={key: 0 for key in lifecycle_states}
+        try:
+            for host_api in host_api_list:
+                if host_api.gpu_memory_fabric_id == fabric.id:
+                    host_type_count[host_api.lifecycle_state]+=1
+        except:
+            logger.warning("Host API is not available")
+        fabric_list.append([compute_client.get_compute_gpu_memory_fabric(fabric.id).data,size,cluster_name,cluster_id,host_type_count])
+
+
     return fabric_list
 
 def delete_memory_cluster(memory_cluster_name,nodelist):
