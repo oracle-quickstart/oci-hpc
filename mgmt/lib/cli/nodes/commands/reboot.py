@@ -1,7 +1,7 @@
 
 import click
 from lib.oci import run_reboot
-from lib.database import get_nodes_by_any
+from lib.database import get_nodes_by_any, db_update_node
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
@@ -23,4 +23,5 @@ def reboot(nodes,soft):
     else: 
         for node in nodes:
             run_reboot(node,soft)
+            db_update_node(node,compute_status="starting")
     pass

@@ -1,7 +1,7 @@
 
 import click
 from lib.oci import run_tag, run_terminate
-from lib.database import get_nodes_by_any
+from lib.database import get_nodes_by_any, db_update_node
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
@@ -22,4 +22,6 @@ def tag_and_terminate(nodes):
         for node in nodes:
             run_tag(node)
             run_terminate(node)
+            db_update_node(node,compute_status="terminating")
+
     pass

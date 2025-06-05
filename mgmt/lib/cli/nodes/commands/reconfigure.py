@@ -31,3 +31,5 @@ def compute(nodes):
         return
     else: 
         run_configure(nodes)
+        for node in nodes:
+            db_update_node(node,compute_status="starting")

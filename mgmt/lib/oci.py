@@ -58,6 +58,7 @@ def run_boot_volume_swap(node,image_ocid):
     update_instance_details = oci.core.models.UpdateInstanceDetails()
     update_instance_details.source_details = update_instance_source_details
     compute_client_composite_operations.update_instance_and_wait_for_state(node.ocid, update_instance_details,wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"])
+    time.sleep(1)
           
 def run_terminate(node):
     cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
@@ -265,7 +266,7 @@ def get_instance_type(node):
                     cluster_type="CC"
                     cluster_ocid=instance_pool.id
                     ipa_ocid=instance_pool.id
-                    return cluster_type,cluster_ocid,ipa_ocid,None
+                    return cluster_type,cluster_ocid,ipa_ocid
     instance_summaries = oci.pagination.list_call_get_all_results(compute_client.list_instances,compartment_id=node.compartment_id).data
     for instance_summary in instance_summaries:
         if instance_summary.id == node.ocid:
@@ -274,7 +275,7 @@ def get_instance_type(node):
             ipa_ocid=None
             return cluster_type,cluster_ocid,ipa_ocid,None
     logger.warning(f"Node was not found, maybe it is missing tags?")
-    return "SA",None,None,None
+    return "SA",None,None
 
 def oci_scan_queue(controller_name):
 

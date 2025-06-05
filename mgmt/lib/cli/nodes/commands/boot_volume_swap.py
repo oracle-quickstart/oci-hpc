@@ -1,7 +1,7 @@
 
 import click
 from lib.oci import run_boot_volume_swap, list_custom_images
-from lib.database import get_nodes_by_any
+from lib.database import get_nodes_by_any, db_update_node
 from ClusterShell.NodeSet import NodeSet
 
 
@@ -25,5 +25,8 @@ def boot_volume_swap(nodes,image):
         return
     else: 
         for node in nodes:
+            db_update_node(node,compute_status="starting")
             run_boot_volume_swap(node,image_ocid)
+
+
     pass

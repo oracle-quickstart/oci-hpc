@@ -1,6 +1,6 @@
 import click
 from lib.oci import run_terminate
-from lib.database import get_nodes_by_any
+from lib.database import get_nodes_by_any, db_update_node
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
@@ -20,4 +20,5 @@ def terminate(nodes):
     else: 
         for node in nodes:
             run_terminate(node)
+            db_update_node(node,compute_status="terminating")
     pass
