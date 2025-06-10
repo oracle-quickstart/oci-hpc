@@ -1,11 +1,12 @@
+---
 - hosts: localhost
   become: true
   gather_facts: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: hostname
       when: change_hostname  | default(false) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: fix_broken
       when: ansible_os_family == 'Debian'
 
@@ -36,29 +37,29 @@
   vars:
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: localdisk
       when: localdisk | default(true) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: nvidia_peermem
-    - include_role:
+    - ansible.builtin.include_role:
         name: healthchecks
 
 - hosts: localhost
   become: true
   gather_facts: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: hyperthreading
       when: not hyperthreading|default(true)|bool
 
 - hosts: localhost
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: home_nfs
       when: home_nfs|default(true)|bool or home_fss|bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "/home"
@@ -67,16 +68,16 @@
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: home_nfs|bool and (not home_fss|bool)
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        export_path: "{% if create_fss | bool %}/home{% else %}{{ nfs_source_path }}/home{% endif %}"
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "{{ nfs_target_path }}"
@@ -92,16 +93,16 @@
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: docker
       when: enroot|default(true)|bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: nvidia-container
       when: enroot|default(true)|bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: nvidia-enroot
       when: enroot|default(true)|bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: nccl-conf
       when: rdma_enabled|bool
 
@@ -109,25 +110,25 @@
   become: true
   gather_facts: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: custom
-        
+
 - hosts: localhost
   vars:
-    slurm_mode: 'compute'
+    slurm_mode: "compute"
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     compute_node: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: rack-aware
-    - include_role:
+    - ansible.builtin.include_role:
         name: spack
       when: spack|default(false)|bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: metrics-exporter
       when: cluster_monitoring|default(false)|bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: slurm
       when: slurm|default(false)|bool
 
@@ -138,5 +139,5 @@
     http_server_status: "configured"
     http_server_role: "compute"
   gather_facts: true
-  roles: 
+  roles:
     - http_server

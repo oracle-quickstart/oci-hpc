@@ -1,6 +1,7 @@
-slurm_conf_path: '/etc/slurm'
-slurm_log_path: '/var/log/slurm'
-slurm_exec: '/usr'
+---
+slurm_conf_path: "/etc/slurm"
+slurm_log_path: "/var/log/slurm"
+slurm_exec: "/usr"
 slurm_conf_file: slurm.conf.j2
 slurmdbd_conf_file: slurmdbd.conf.j2
 
@@ -55,7 +56,6 @@ slurm_login_packages:
   - "{{ slurm_nfs_path }}/slurm_rpms/slurm-centos-pam_slurm-{{slurm_version}}.el7.{{ansible_architecture}}.rpm"
   - "{{ slurm_nfs_path }}/slurm_rpms/slurm-centos-libpmi-{{slurm_version}}.el7.{{ansible_architecture}}.rpm"
   - "{{ slurm_nfs_path }}/slurm_rpms/slurm-centos-sackd-{{slurm_version}}.el7.{{ansible_architecture}}.rpm"
-
 
 pmix_download_packages:
   - "pmix-centos-3.2.4-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"

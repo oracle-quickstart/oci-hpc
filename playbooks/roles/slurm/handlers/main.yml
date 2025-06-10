@@ -1,8 +1,8 @@
-
-- name: restart slurm server
+---
+- name: Restart slurm server
   become: true
-  service:
-    name: '{{ item }}'
+  ansible.builtin.service:
+    name: "{{ item }}"
     state: restarted
     enabled: true
   with_items:
@@ -13,29 +13,29 @@
   retries: 5
   delay: 5
 
-- name: restart slurm
+- name: Restart slurm
   become: true
-  service: 
-    name: '{{ item }}'
+  ansible.builtin.service:
+    name: "{{ item }}"
     state: restarted
     enabled: true
-  with_items: 
+  with_items:
     - slurmd
   register: result
   until: result is not failed
   retries: 5
   delay: 5
 
-- name: restart munge
+- name: Restart munge
   become: true
-  service:
+  ansible.builtin.service:
     name: munge
     state: restarted
     enabled: true
 
-- name: reconfigure slurm
+- name: Reconfigure slurm
   become: true
-  command: "scontrol reconfigure"
+  ansible.builtin.command: "scontrol reconfigure"
   delegate_to: 127.0.0.1
   register: result
   until: result is not failed

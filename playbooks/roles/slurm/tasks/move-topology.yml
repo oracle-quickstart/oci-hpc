@@ -1,10 +1,9 @@
 ---
-
-- name: move topology.conf on backup servers
+- name: Move topology.conf on backup servers
   become: true
-  copy:
-    dest: '{{ slurm_conf_path }}/topology.conf'
-    src: '{{ slurm_conf_path }}/topology.conf'
+  ansible.builtin.copy:
+    dest: "{{ slurm_conf_path }}/topology.conf"
+    src: "{{ slurm_conf_path }}/topology.conf"
     force: true
   register: topology_copied
   until: topology_copied is not failed

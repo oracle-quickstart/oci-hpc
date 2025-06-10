@@ -1,3 +1,4 @@
+---
 - name: Test role
-  debug:
+  ansible.builtin.debug:
     msg: "This is a custom role running on every new node"

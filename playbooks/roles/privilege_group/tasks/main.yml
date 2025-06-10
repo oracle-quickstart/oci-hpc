@@ -1,5 +1,2 @@
-- include_tasks: common.yml
-
-#- include_tasks: el.yml
-#  when: ansible_os_family == 'RedHat'
-
+---
+- ansible.builtin.include_tasks: common.yml

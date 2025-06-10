@@ -1,17 +1,17 @@
 ---
-- name: install SLURM login packages
-  vars: 
-    package_name: '{{ slurm_login_packages }}'
+- name: Install SLURM login packages
+  vars:
+    package_name: "{{ slurm_login_packages }}"
     package_repo: "{{ slurm_repos }}"
-    disable_gpg_check_var: True
-  include_role: 
+    disable_gpg_check_var: true
+  ansible.builtin.include_role:
     name: safe_yum
 
 - name: Render systemd units for sackd
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.j2'
-    dest: '/lib/systemd/system/{{ item }}.service'
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.j2"
+    dest: "/lib/systemd/system/{{ item }}.service"
     backup: true
   with_items:
     - sackd
@@ -19,8 +19,8 @@
 
 - name: Create systemd unit dirs for sackd and munge
   become: true
-  file:
-    name: '/etc/systemd/system/{{ item }}.service.d'
+  ansible.builtin.file:
+    name: "/etc/systemd/system/{{ item }}.service.d"
     state: directory
   with_items:
     - munge
@@ -28,9 +28,9 @@
 
 - name: Render systemd units for sackd and munge
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
-    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.d/unit.conf.j2"
+    dest: "/etc/systemd/system/{{ item }}.service.d/unit.conf"
     backup: true
   with_items:
     - munge
@@ -38,33 +38,33 @@
 
 - name: Create munge dir
   become: true
-  file:
-    name: '{{ munge_conf_path }}'
+  ansible.builtin.file:
+    name: "{{ munge_conf_path }}"
     state: directory
     owner: munge
     group: munge
-    mode: 0700
+    mode: "0700"
 
 - name: Copy munge key
   become: true
-  copy:
+  ansible.builtin.copy:
     src: /config/key/munge.key
     dest: /etc/munge/munge.key
     owner: munge
     group: munge
-    mode: '0400'
+    mode: "0400"
   notify: restart munge
 
-- name: restart munge
+- name: Restart munge
   become: true
-  service:
+  ansible.builtin.service:
     name: munge
     state: restarted
     enabled: true
 
-- name: start sackd
+- name: Start sackd
   become: true
-  service:
+  ansible.builtin.service:
     name: sackd
     state: restarted
     enabled: true

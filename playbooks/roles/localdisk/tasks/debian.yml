@@ -6,7 +6,7 @@
     state: present
     label: gpt
   when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
-- name: create a filesystem
+- name: Create a filesystem
   filesystem:
     dev: /dev/nvme0n1p1
     fstype: ext4

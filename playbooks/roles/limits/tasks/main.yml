@@ -1,10 +1,9 @@
---- 
-
-- include_tasks: common.yml
+---
+- ansible.builtin.include_tasks: common.yml
   when: ansible_os_family == 'RedHat'
 
-- include_tasks: common.yml
+- ansible.builtin.include_tasks: common.yml
   when: ansible_distribution == 'Ubuntu'
 
-- include_tasks: common.yml
+- ansible.builtin.include_tasks: common.yml
   when: ansible_distribution == 'Debian'

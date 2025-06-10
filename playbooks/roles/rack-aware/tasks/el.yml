@@ -1,22 +1,22 @@
+---
 - name: Install and upgrade pip
-  shell: "python3 -m ensurepip & sudo python3 -m pip install --upgrade pip"
-
-- name: install pssh and parallel-ssh
+  ansible.builtin.shell: "python3 -m ensurepip & sudo python3 -m pip install --upgrade pip"
+- name: Install pssh and parallel-ssh
   become: true
-  pip:
-    name: ['pssh', 'parallel-ssh']
-    executable: /usr/bin/pip3  
+  ansible.builtin.pip:
+    name: ["pssh", "parallel-ssh"]
+    executable: /usr/bin/pip3
     state: latest
   with_items:
     - pssh
     - parallel-ssh
   ignore_errors: true
 
-- name: install pssh and parallel-ssh
+- name: Install pssh and parallel-ssh
   become: true
-  pip:
-    name: ['pssh', 'parallel-ssh']
-    executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
+  ansible.builtin.pip:
+    name: ["pssh", "parallel-ssh"]
+    executable: "/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/bin/pip3"
     state: latest
   with_items:
     - pssh
@@ -25,32 +25,31 @@
 
 - name: Make sure /opt/oci-hpc/bin/ exists
   become: true
-  file:
+  ansible.builtin.file:
     path: /opt/oci-hpc/bin/
     state: directory
     recurse: true
-    mode: '0755'
+    mode: "0755"
     owner: "{{ ansible_user }}"
     group: "{{ privilege_group_name }}"
 
 - name: Copy node_ordering_by_rack.py
   block:
-    - name: copy node_ordering_by_rack.py
+    - name: Copy node_ordering_by_rack.py
       become: true
-      copy:
+      ansible.builtin.copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/
         owner: "{{ ansible_user }}"
-        group: "{{privilege_group_name}}"
-        mode: '0755'
+        group: "{{ privilege_group_name }}"
+        mode: "0755"
   rescue:
-    - name: copy node_ordering_by_rack.py
+    - name: Copy node_ordering_by_rack.py
       become: true
-      copy:
+      ansible.builtin.copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/
         owner: "{{ ansible_user }}"
-        group: "{{privilege_group_name}}"
-        mode: '0755'
+        group: "{{ privilege_group_name }}"
+        mode: "0755"
       ignore_errors: true
-  

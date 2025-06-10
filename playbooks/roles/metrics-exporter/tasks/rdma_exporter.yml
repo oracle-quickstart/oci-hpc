@@ -1,48 +1,48 @@
 ---
 - name: Install prometheus_client python package
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - python3-prometheus-client
     package_state: present
     package_cache: true
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
   when: ansible_distribution == 'Ubuntu'
 
 - name: Install prometheus_client python package
   become: true
   ansible.builtin.pip:
-    name: prometheus_client 
-    executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
+    name: prometheus_client
+    executable: "/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/bin/pip3"
 
 - name: Install prometheus_client python package
   become: true
   ansible.builtin.pip:
-    name: prometheus_client 
-    executable:  /usr/bin/pip3
+    name: prometheus_client
+    executable: /usr/bin/pip3
   ignore_errors: true
-  
+
 - name: Copy service file to scripts directory
-  copy:
+  ansible.builtin.copy:
     src: rdma_counters_exporter.py
     dest: /usr/local/bin
-    mode: 0755
+    mode: "0755"
   become: true
 
 - name: Render systemd service file
   become: true
-  template: 
+  ansible.builtin.template:
     src: rdma-exporter.service.j2
     dest: /etc/systemd/system/rdma-exporter.service
     force: true
     backup: true
     owner: prometheus
     group: prometheus
-    mode: 0755
+    mode: "0755"
 
 - name: Restart rdma exporter
   become: true
-  service:
+  ansible.builtin.service:
     name: rdma-exporter
     state: restarted
     enabled: true
