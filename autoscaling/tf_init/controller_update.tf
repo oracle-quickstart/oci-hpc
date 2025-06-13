@@ -49,7 +49,7 @@ resource "local_file" "inventory" {
     nfs_options = var.nfs_options,
     add_lfs = var.add_lfs,
     lfs_target_path = var.lfs_target_path,
-    lfs_source_IP = local.luster_IP,
+    lfs_source_IP = var.lfs_source_IP,
     lfs_source_path = var.lfs_source_path,
     lfs_options = var.lfs_options,
     localdisk = var.localdisk,
