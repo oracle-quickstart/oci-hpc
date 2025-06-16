@@ -1,0 +1,3 @@
+deleteRules:
+  - orgId: 1
+    uid: throttle-util
