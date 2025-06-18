@@ -1,17 +1,1 @@
-************************************
-Alert: {{ alert_name }}
-Status: {{ alert_status }}
-{{ alert_message }}
-Starts At: {{ starts_at }}
-Ends At: {{ ends_at }}
------------------------------------
-Labels:
-{% for key, value in labels.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
------------------------------------
-Annotations:
-{% for key, value in annotations.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Alert: {{ alert_name }} | Status: {{ alert_status }} | Starts: {{ starts_at }}  | Cluster: {{ cluster_name }} | Host: {{ hostname }} | OCI name: {{ oci_name }} | Serial: {{ serial_number }} | RDMA: {{ rdma_device }} | GPU: {{ gpu }}
