@@ -27,45 +27,40 @@ groups:
   - record: node_xid_error_check
     expr: (xid_error_check) * on (hostname) (xid_error_check)
 
+  - record: node_up_check
+    expr: (up{instance=~".*:9100$"}) * on (hostname) (up{instance=~".*:9100$"})
+
   # combine them: this will be 1 only if *all* success‑flags are 1
   - record: node_health_status
     expr: |
       (
-        node_rttcc_ok
-        or on(hostname) up
+        node_rttcc_ok or node_up_check
       )
       *
       (
-        node_oca_ver_ok
-        or on(hostname) up
+        node_oca_ver_ok or node_up_check
       )
       *
       (
-        node_rdma_device_status_ok
-        or on(hostname) up
+        node_rdma_device_status_ok or node_up_check
       )
       *
       (
-        node_check_bus_issue_count_ok
-        or on(hostname) up
+        node_check_bus_issue_count_ok or node_up_check
       )
       *
       (
-        node_rdma_link_flapping_ok
-        or on(hostname) up
+        node_rdma_link_flapping_ok or node_up_check
       )
       *
       (
-        node_ecc_error_check_ok
-        or on(hostname) up
+        node_ecc_error_check_ok or node_up_check
       )
       *
       (
-        node_gpu_row_remap_error_check
-        or on(hostname) up
+        node_gpu_row_remap_error_check or node_up_check
       )
       *
       (
-        node_xid_error_check
-        or on(hostname) up
+        node_xid_error_check or node_up_check
       )
