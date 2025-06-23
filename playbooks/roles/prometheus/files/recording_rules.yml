@@ -4,31 +4,31 @@ groups:
   rules:
 
   - record: node_rttcc_ok
-    expr: min by(hostname) (rttcc_status == bool 0)
+    expr: min by(hostname, cluster_name) (rttcc_status == bool 0)
 
   - record: node_oca_ver_ok
-    expr: oca_version * on(hostname) oca_version
+    expr: oca_version * on(hostname, cluster_name) oca_version
 
   - record: node_rdma_device_status_ok
-    expr: min by(hostname) (rdma_device_status)
+    expr: min by(hostname, cluster_name) (rdma_device_status)
 
   - record: node_check_bus_issue_count_ok
-    expr: (check_bus_issue_count == bool 0) * on (hostname) (check_bus_issue_count == bool 0)
+    expr: (check_bus_issue_count == bool 0) * on (hostname, cluster_name) (check_bus_issue_count == bool 0)
 
   - record: node_rdma_link_flapping_ok
-    expr: min by(hostname) (rdma_link_noflap)
+    expr: min by(hostname, cluster_name) (rdma_link_noflap)
 
   - record: node_ecc_error_check_ok
-    expr: (gpu_ecc_error_check) * on (hostname) (gpu_ecc_error_check)
+    expr: (gpu_ecc_error_check) * on (hostname, cluster_name) (gpu_ecc_error_check)
 
   - record: node_gpu_row_remap_error_check
-    expr: (gpu_row_remap_error_check== bool 0) * on (hostname) (gpu_row_remap_error_check== bool 0)
+    expr: (gpu_row_remap_error_check== bool 0) * on (hostname, cluster_name) (gpu_row_remap_error_check== bool 0)
 
   - record: node_xid_error_check
-    expr: (xid_error_check) * on (hostname) (xid_error_check)
+    expr: (xid_error_check) * on (hostname, cluster_name) (xid_error_check)
 
   - record: node_up_check
-    expr: (up{instance=~".*:9100$"}) * on (hostname) (up{instance=~".*:9100$"})
+    expr: (up{instance=~".*:9100$"}) * on (hostname, cluster_name) (up{instance=~".*:9100$"})
 
   # combine them: this will be 1 only if *all* success‑flags are 1
   - record: node_health_status
