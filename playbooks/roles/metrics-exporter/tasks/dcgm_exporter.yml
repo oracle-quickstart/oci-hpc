@@ -75,8 +75,8 @@
     remote_src: true
   when: not dcgm_exporter.stat.exists | bool
 
-- name: Get directory
-  ansible.builtin.shell: "ls -d /config/3rdparty/NVIDIA-dcgm-exporter-*"
+- name: get directory
+  ansible.builtin.shell: "ls -ltd /config/3rdparty/NVIDIA-dcgm-exporter-* | head -n 1 | awk '{print $9}'"
   register: dcgm_directory
 
 - name: Build DCGM Exporter binary
