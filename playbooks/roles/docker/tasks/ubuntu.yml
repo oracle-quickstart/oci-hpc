@@ -1,69 +1,67 @@
 
 ---
 - block:
+    # added register, until, retries, delay so that if the apt lock is held by other process, it can finish and then retry to install packages. 
+    - name: Update apt and install pre-req packages for docker
+      vars:
+        package_name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        package_state: latest
+      ansible.builtin.include_role:
+        name: safe_yum
+      ignore_errors: true
 
-  # added register, until, retries, delay so that if the apt lock is held by other process, it can finish and then retry to install packages. 
-  - name: Update apt and install pre-req packages for docker
-    vars: 
-      package_name: 
-        - ca-certificates
-        - curl
-        - gnupg
-        - lsb-release
-      package_state: latest
-    include_role: 
-      name: safe_yum
-    ignore_errors: true
+    - name: Add Docker GPG apt Key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
 
+    - name: Add Docker Repository
+      ansible.builtin.apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
 
-  - name: Add Docker GPG apt Key
-    apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
-      state: present
+    - name: Update apt and install pre-req packages for docker
+      vars:
+        package_name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        package_state: latest
+      ansible.builtin.include_role:
+        name: safe_yum
+      ignore_errors: true
 
-  - name: Add Docker Repository
-    apt_repository:
-      repo: deb https://download.docker.com/linux/ubuntu focal stable
-      state: present
+    - name: Force docker gid 999
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/group
+        state: present
+        regexp: "^docker:x:(.*)$"
+        line: "docker:x:999:{{ ansible_user }}"
+        backrefs: true
 
-  - name: Update apt and install pre-req packages for docker
-    vars: 
-      package_name: 
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
-        - docker-compose-plugin
-      package_state: latest
-    include_role: 
-      name: safe_yum
-    ignore_errors: true
+    - name: Restart docker
+      become: true
+      ansible.builtin.service:
+        name: docker.socket
+        state: restarted
+        enabled: true
 
-  - name: force docker gid 999
-    become: true
-    lineinfile:
-      path: /etc/group
-      state: present
-      regexp: '^docker:x:(.*)$'
-      line: 'docker:x:999:{{ansible_user}}'
-      backrefs: true
+    # start is not needed - it starts dokcer as part of install
+    - name: Enable service Docker
+      ansible.builtin.service:
+        name: "docker"
+        enabled: true
 
-  - name: restart docker
-    become: true
-    service:
-      name: docker.socket
-      state: restarted
-      enabled: true
-
-# start is not needed - it starts dokcer as part of install
-  - name: Enable service Docker
-    ansible.builtin.service:
-      name: "docker"
-      enabled: true
-
-  - name: Enable service containerd
-    ansible.builtin.service:
-      name: containerd
-      enabled: true
+    - name: Enable service containerd
+      ansible.builtin.service:
+        name: containerd
+        enabled: true
 
 #  - name: Install Docker Module for Python
 #    pip:

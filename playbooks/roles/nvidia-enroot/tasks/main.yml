@@ -1,15 +1,15 @@
---- 
-- include_vars: el7.yml
+---
+- ansible.builtin.include_vars: el7.yml
   when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7'
 
-- include_vars: el8.yml
+- ansible.builtin.include_vars: el8.yml
   when: ansible_os_family == 'RedHat' and ( ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' )
 
-- include_vars: ubuntu.yml
+- ansible.builtin.include_vars: ubuntu.yml
   when: ansible_distribution == 'Ubuntu'
 
-- include_tasks: oraclelinux.yml
+- ansible.builtin.include_tasks: oraclelinux.yml
   when: ansible_os_family == 'RedHat'
 
-- include_tasks: ubuntu.yml
+- ansible.builtin.include_tasks: ubuntu.yml
   when: ansible_os_family == 'Debian'

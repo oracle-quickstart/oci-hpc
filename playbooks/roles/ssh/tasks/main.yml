@@ -1,1 +1,2 @@
-- include_tasks: common.yml
+---
+- ansible.builtin.include_tasks: common.yml

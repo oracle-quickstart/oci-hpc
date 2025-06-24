@@ -1,11 +1,10 @@
 ---
-
 - name: Add to the gres.conf file on the controller.
   become: true
-  blockinfile:
+  ansible.builtin.blockinfile:
     block: "{{ lookup('template', 'gres.conf.j2') }}"
     path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {mark} {{new_compute_info[item].hostname}}"
+    marker: "### {mark} {{ new_compute_info[item].hostname }}"
   when: "'GPU' in new_compute_info[item].shape"
   with_items: "{{ new_compute_info }}"
 
@@ -14,8 +13,9 @@
 #   run_once: true
 
 - name: Populate nodes_to_add with cluster_name as key and list of hostnames as value
-  set_fact:
-    nodes_to_add: "{{ nodes_to_add | default({}) | combine({ new_compute_info[item].cluster_name: (nodes_to_add[new_compute_info[item].cluster_name] | default([])) + [new_compute_info[item].hostname] }) }}"
+  ansible.builtin.set_fact:
+    nodes_to_add: "{{ nodes_to_add | default({}) | combine({new_compute_info[item].cluster_name: (nodes_to_add[new_compute_info[item].cluster_name] | default([]))
+      + [new_compute_info[item].hostname]}) }}"
   with_items: "{{ new_compute_info }}"
 
 #- name: create a list of clusters
@@ -23,15 +23,15 @@
 #    clusters: "{{ new_compute_info | dict2items | map(attribute='value.cluster_name') | list }}"
 
 - name: Transform input_dict to group by cluster_name
-  set_fact:
+  ansible.builtin.set_fact:
     clusters: {}
 
 - name: Transform input_dict to group by cluster_name
-  set_fact:
+  ansible.builtin.set_fact:
     clusters: >-
       {{
         clusters | combine({
-          item.value.cluster_name: 
+          item.value.cluster_name:
           (clusters[item.value.cluster_name] | default([])) + [item.value.hostname]
         })
       }}
@@ -40,31 +40,31 @@
 - name: Get nodes from Cluster Switch
   block:
     - name: Get nodes from topology.conf
-      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}}\""
+      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}}\""
       register: cluster_switch
       with_items: "{{clusters}}"
 
     - name: Get cluster_hostlist
-      command: "scontrol show hostname {{item.stdout.split('Nodes=')[1]}}"
+      ansible.builtin.command: "scontrol show hostname {{item.stdout.split('Nodes=')[1]}}"
       register: cluster_hostlist
       with_items: "{{cluster_switch.results}}"
 
     - name: Create new cluster_hostlist
-      command: "scontrol show hostlistsorted {{item.stdout_lines | union(clusters[item.item.item]) | join(',') }}"
+      ansible.builtin.command: "scontrol show hostlistsorted {{item.stdout_lines | union(clusters[item.item.item]) | join(',') }}"
       register: cluster_hostlist_condensed_results
       with_items: "{{cluster_hostlist.results}}"
 
     - name: Create new cluster_hostlist
-      command: "scontrol show hostlistsorted {{item.stdout_lines | union(clusters[item.item.item]) | join(',') }}"
+      ansible.builtin.command: "scontrol show hostlistsorted {{item.stdout_lines | union(clusters[item.item.item]) | join(',') }}"
       register: cluster_hostlist_condensed_results
       with_items: "{{cluster_hostlist.results}}"
 
-    - name: add nodes to Switch
+    - name: Add nodes to Switch
       become: true
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{item.item.item.item}}\\sNodes.*"
-        line: "SwitchName={{item.item.item.item}} Nodes={{ item.stdout }}"
+        regexp: "SwitchName={{ item.item.item.item }}\\sNodes.*"
+        line: "SwitchName={{ item.item.item.item }} Nodes={{ item.stdout }}"
         state: present
       with_items: "{{cluster_hostlist_condensed_results.results}}"
       run_once: true
@@ -73,27 +73,26 @@
 
   rescue:
     - name: Create existing cluster list
-      command: "scontrol show hostlistsorted {{ clusters[item] | join(',') }}"
+      ansible.builtin.command: "scontrol show hostlistsorted {{ clusters[item] | join(',') }}"
       register: cluster_hostlist_condensed_results
-      with_items: "{{clusters}}"
-    - name: add nodes to Switch
+      with_items: "{{ clusters }}"
+    - name: Add nodes to Switch
       become: true
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{item.item}}\\sNodes.*"
-        line: "SwitchName={{item.item}} Nodes={{ item.stdout }}"
+        regexp: "SwitchName={{ item.item }}\\sNodes.*"
+        line: "SwitchName={{ item.item }} Nodes={{ item.stdout }}"
         state: present
-      with_items: "{{cluster_hostlist_condensed_results.results}}"
+      with_items: "{{ cluster_hostlist_condensed_results.results }}"
       run_once: true
       delegate_to: 127.0.0.1
       notify: reconfigure slurm
 
-- name: run handlers
-  meta: flush_handlers
-
-- name: reconfigure slurm
+- name: Run handlers
+  ansible.builtin.meta: flush_handlers
+- name: Reconfigure slurm
   become: true
-  command: "scontrol reconfigure"
+  ansible.builtin.command: "scontrol reconfigure"
   register: result
   until: result is not failed
   retries: 5

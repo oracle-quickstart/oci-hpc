@@ -1,26 +1,25 @@
----   
-
-- name: install SLURM server packages RedHat
-  vars: 
-    package_name: '{{ slurm_server_packages }}'
-    disable_gpg_check_var: True
-  include_role: 
+---
+- name: Install SLURM server packages RedHat
+  vars:
+    package_name: "{{ slurm_server_packages }}"
+    disable_gpg_check_var: true
+  ansible.builtin.include_role:
     name: safe_yum
   when: ansible_os_family == 'RedHat'
-  
+
 - name: Render systemd units for slurmd and slurmdbd
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.j2'
-    dest: '/lib/systemd/system/{{ item }}.service'
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.j2"
+    dest: "/lib/systemd/system/{{ item }}.service"
     backup: true
   with_items:
     - slurmctld
 
 - name: Create systemd unit dirs
   become: true
-  file:
-    name: '/etc/systemd/system/{{ item }}.service.d'
+  ansible.builtin.file:
+    name: "/etc/systemd/system/{{ item }}.service.d"
     state: directory
   with_items:
     - munge
@@ -28,102 +27,101 @@
 
 - name: Render systemd units for munge
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
-    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.d/unit.conf.j2"
+    dest: "/etc/systemd/system/{{ item }}.service.d/unit.conf"
     backup: true
   with_items:
     - munge
 
 - name: Render systemd units for slurmctld on backup controller
   become: true
-  template:
-    src: 'systemd/slurmctld_backup.service.d/unit.conf.j2'
-    dest: '/etc/systemd/system/slurmctld.service.d/unit.conf'
+  ansible.builtin.template:
+    src: "systemd/slurmctld_backup.service.d/unit.conf.j2"
+    dest: "/etc/systemd/system/slurmctld.service.d/unit.conf"
     backup: true
 
 - name: Create munge dir
   become: true
-  file:
-    name: '{{ munge_conf_path }}'
+  ansible.builtin.file:
+    name: "{{ munge_conf_path }}"
     state: directory
     owner: munge
     group: munge
-    mode: 0700
+    mode: "0700"
 
-- name: copy munge.key to tmp
+- name: Copy munge.key to tmp
   become: true
-  shell:
+  ansible.builtin.command:
     cmd: cp {{ munge_conf_path }}/munge.key /tmp/munge.key
   delegate_to: 127.0.0.1
   run_once: true
 
-- name: set permissions
+- name: Set permissions
   become: true
-  shell:
+  ansible.builtin.command:
     cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
   delegate_to: 127.0.0.1
   run_once: true
 
 - name: Copy munge key
   become: true
-  copy:
+  ansible.builtin.copy:
     src: /tmp/munge.key
     dest: /etc/munge/munge.key
     owner: munge
     group: munge
-    mode: '0400'
+    mode: "0400"
   notify: restart munge
 
-- name: restart munge
+- name: Restart munge
   become: true
-  service:
+  ansible.builtin.service:
     name: munge
     state: restarted
     enabled: true
 
-
 - name: Copy cgroup file
   become: true
-  copy:
-    src: '{{ cgroup_conf_file }}'
-    dest: '{{ slurm_conf_path }}/cgroup.conf'
-    force: no
+  ansible.builtin.copy:
+    src: "{{ cgroup_conf_file }}"
+    dest: "{{ slurm_conf_path }}/cgroup.conf"
+    force: false
     owner: slurm
     group: slurm
 
-- name: move slurm.conf on backup servers
+- name: Move slurm.conf on backup servers
   become: true
-  copy:
-    dest: '{{ slurm_conf_path }}/slurm.conf'
-    src: '{{ slurm_conf_path }}/slurm.conf'
+  ansible.builtin.copy:
+    dest: "{{ slurm_conf_path }}/slurm.conf"
+    src: "{{ slurm_conf_path }}/slurm.conf"
     force: true
 
-- name: move topology.conf on backup servers
+- name: Move topology.conf on backup servers
   become: true
-  copy:
-    dest: '{{ slurm_conf_path }}/topology.conf'
-    src: '{{ slurm_conf_path }}/topology.conf'
+  ansible.builtin.copy:
+    dest: "{{ slurm_conf_path }}/topology.conf"
+    src: "{{ slurm_conf_path }}/topology.conf"
     force: true
   register: topology_copied
   until: topology_copied is not failed
   retries: 10
   delay: 5
 
-- name: move gres.conf on backup servers
+- name: Move gres.conf on backup servers
   become: true
-  copy:
-    dest: '{{ slurm_conf_path }}/gres.conf'
-    src: '{{ slurm_conf_path }}/gres.conf'
+  ansible.builtin.copy:
+    dest: "{{ slurm_conf_path }}/gres.conf"
+    src: "{{ slurm_conf_path }}/gres.conf"
     force: true
   register: gres_copied
   until: gres_copied is not failed
   retries: 10
   delay: 5
 
-- name: start slurmctld
+- name: Start slurmctld
   become: true
-  service:
+  ansible.builtin.service:
     name: slurmctld
     state: restarted
     enabled: true
