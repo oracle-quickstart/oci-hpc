@@ -57,7 +57,11 @@ def run_boot_volume_swap(node,image_ocid):
     update_instance_source_details.is_force_stop_enabled = True
     update_instance_details = oci.core.models.UpdateInstanceDetails()
     update_instance_details.source_details = update_instance_source_details
-    compute_client_composite_operations.update_instance_and_wait_for_state(node.ocid, update_instance_details,wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"])
+
+    try:
+        compute_client_composite_operations.update_instance_and_wait_for_state(node.ocid, update_instance_details,wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"])
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error: {e}")
     time.sleep(1)
           
 def run_terminate(node):
@@ -74,12 +78,15 @@ def run_terminate(node):
         logger.error(f"Error: {e}")
 
 def run_reboot(node,soft):
-    if soft:
-        logger.info("Soft Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
-        compute_client.instance_action(instance_id=node.ocid,action="SOFTRESET")
-    else:
-        logger.info("Force Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
-        compute_client.instance_action(instance_id=node.ocid,action="RESET")
+    try:
+        if soft:
+            logger.info("Soft Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
+            compute_client.instance_action(instance_id=node.ocid,action="SOFTRESET")
+        else:
+            logger.info("Force Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
+            compute_client.instance_action(instance_id=node.ocid,action="RESET")
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error: {e}")
 
 def run_tag(node):
     instance = compute_client.get_instance(instance_id=node.ocid).data
@@ -148,26 +155,31 @@ def run_add(nodes, count, names):
             exit(1)
             
 
-def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name):
+def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name, instancetype=None):
     if not nodes:
-        logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster")
+        logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster and no instance type has been specified")
         exit(1)
-    first_node=nodes[0]
     if fabric_id is None:
         logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
         exit(1)
+    first_node=nodes[0]
+    if not instancetype is None:
+        instance_config_data=generate_instance_config(instancetype, first_node.controller_name, first_node.cluster_name, memory_cluster_name = gpu_memory_cluster_name)
+        instance_config_ocid=instance_config_data.id
+    else:
+        instance_config_ocid=None
+
     memory_clusters=compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
     if len(memory_clusters):
         for memory_cluster in memory_clusters:
             mc_id=memory_cluster.id
-            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
-            for instance_summary in instance_summaries:
-                memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
-                cc_id=memory_cluster_data.compute_cluster_id
-                instance_config_id=memory_cluster_data.instance_configuration_id
-
-    new_instance_config_data=create_instance_configuration_from_another(instance_config_id, gpu_memory_cluster_name)
-    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cc_id, instance_configuration_id=new_instance_config_data.id, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
+            memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
+            cc_id=memory_cluster_data.compute_cluster_id
+            if instance_config_ocid is None:
+                old_instance_config_ocid=memory_cluster_data.instance_configuration_id
+                new_instance_config_data=create_instance_configuration_from_another(old_instance_config_ocid, gpu_memory_cluster_name)
+                instance_config_ocid=new_instance_config_data.id
+    compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cc_id, instance_configuration_id=instance_config_ocid, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
     compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
 
 def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment_ocid,cluster_name,hostname=None):
@@ -273,7 +285,7 @@ def get_instance_type(node):
             cluster_type="SA"
             cluster_ocid=None
             ipa_ocid=None
-            return cluster_type,cluster_ocid,ipa_ocid,None
+            return cluster_type,cluster_ocid,ipa_ocid
     logger.warning(f"Node was not found, maybe it is missing tags?")
     return "SA",None,None
 
@@ -818,23 +830,24 @@ def get_memory_fabrics(tenancy_id,compartment_id):
 
     return fabric_list
 
-def delete_memory_cluster(memory_cluster_name,nodelist):
-    #Find the associated Compute Cluster
-    compute_clusters = compute_client.list_compute_clusters(nodelist[0].compartment_id,display_name=nodelist[0].cluster_name).data.items
-    for compute_cluster in compute_clusters:
-        instance_summaries = compute_client.list_instances(nodelist[0].compartment_id,compute_cluster_id=compute_cluster.id).data
-        for instance_summary in instance_summaries:
-            if instance_summary.id == nodelist[0].ocid:
-                cluster_ocid=compute_cluster.id
-    memory_clusters=compute_client.list_compute_gpu_memory_clusters(nodelist[0].compartment_id,display_name=memory_cluster_name).data.items
+def delete_memory_cluster(memory_cluster_name,nodelist, compartment_id):
+    memory_clusters=compute_client.list_compute_gpu_memory_clusters(compartment_id,display_name=memory_cluster_name).data.items
     if len(memory_clusters):
         for memory_cluster in memory_clusters:
             mc_id=memory_cluster.id
+            cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
+            cluster_ocid=cluster_data.compute_cluster_id
             instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
-            for instance_summary in instance_summaries:
-                if instance_summary.id == nodelist[0].ocid:
-                    compute_client.delete_compute_gpu_memory_cluster(mc_id)
-                    return cluster_ocid
+            if len(nodelist) == 0 and len(instance_summaries) == 0:
+                compute_client.delete_compute_gpu_memory_cluster(mc_id)
+                return cluster_ocid
+            elif len(instance_summaries):
+                for instance_summary in instance_summaries:
+                    if instance_summary.id == nodelist[0].ocid:
+                        compute_client.delete_compute_gpu_memory_cluster(mc_id)
+                        return cluster_ocid
+            else:
+                continue
     else:
         logger.error(f"The memory cluster with name {memory_cluster_name} cannot be found")
 

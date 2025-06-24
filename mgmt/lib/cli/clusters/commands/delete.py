@@ -2,7 +2,7 @@
 import click
 from lib.logger import logger
 from lib.oci import delete_cluster,delete_memory_cluster,delete_compute_cluster
-from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster
+from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster, get_controller_node
 
 ### 
 ### Add a node to the cluster
@@ -40,4 +40,9 @@ def delete(cluster,memory_cluster):
 
     else:
         memory_cluster_node_list = get_nodes_by_memory_cluster(memory_cluster)
-        delete_memory_cluster(memory_cluster,memory_cluster_node_list)
+        if not memory_cluster_node_list:
+            controller = get_controller_node()
+            compartment_id=controller.compartment_id
+        else:
+            compartment_id=memory_cluster_node_list[0].compartment_id
+        delete_memory_cluster(memory_cluster,memory_cluster_node_list,compartment_id)

@@ -2,7 +2,7 @@
 import click
 from lib.logger import logger
 from lib.oci import run_add, run_add_memory_fabric
-from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster
+from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster, get_config_by_name
 
 ### 
 ### Add a node to the cluster
@@ -52,7 +52,9 @@ def add_node(count, cluster, names, memorycluster):
 @click.option('--cluster', required=False, help='Specify the name of the compute cluster')
 @click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes in')
 @click.option('--memorycluster', required=False, help='Name of the memory cluster to add the nodes in, cluster name is not required if memory cluster is specified')
-def add_memory_fabric(count, cluster, fabric ,memorycluster):
+@click.option('--instancetype', required=True, help='Specify the instance type of the cluster')
+
+def add_memory_fabric(count, cluster, fabric ,memorycluster,instancetype):
     """Replace the image of nodes by serial number."""
     if cluster is None:
         clusters = get_clusters()
@@ -64,8 +66,15 @@ def add_memory_fabric(count, cluster, fabric ,memorycluster):
             click.echo("Please specify the cluster in your command.")
             click.echo(f"Clusters Available: {cluster_string}")
     nodes = get_nodes_by_cluster(cluster)
+    if not instancetype is None:
+        config = get_config_by_name(instancetype)
+        if config is None:
+            logger.error(f"Instance type {instancetype} not found, exiting")
+            return
+    else:
+        config=None
     if not nodes:
         logger.error("No node found, create a new cluster instead")
         return
     else: 
-        run_add_memory_fabric(nodes, int(count), fabric ,memorycluster)
+        run_add_memory_fabric(nodes, int(count), fabric ,memorycluster, instancetype=config)

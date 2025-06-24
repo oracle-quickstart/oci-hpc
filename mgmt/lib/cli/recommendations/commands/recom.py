@@ -26,7 +26,7 @@ def recom():
 @click.option('--unconfigured', is_flag=True, help='Only show the nodes failing to start.', default=False)
 @click.option('--unreachable_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=30)
 @click.option('--unconfigured_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=60)
-def list(unreachable, unconfigured, healthcheck,unreachable_timeout,unconfigured_timeout):
+def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigured_timeout):
     """List all the nodes with recommendations."""
     unreachable_nodes=[]
     unconfigured_nodes=[]
@@ -34,33 +34,27 @@ def list(unreachable, unconfigured, healthcheck,unreachable_timeout,unconfigured
     nodes_to_terminate=[]
     if unreachable or not (unreachable or unconfigured or healthcheck):
         unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unconfigured_timeout),[])
-    elif unconfigured or not (unreachable or unconfigured or healthcheck):
+    if unconfigured or not (unreachable or unconfigured or healthcheck):
         unconfigured_nodes= get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),[])
-    elif healthcheck or not (unreachable or unconfigured or healthcheck):
+    if healthcheck or not (unreachable or unconfigured or healthcheck):
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",[])
         nodes_to_terminate = get_all_nodes_with_hc_status("Terminate",[])
-
     # Print tables 
     if unreachable_nodes+nodes_to_reboot:
         print_node_list(unreachable_nodes+nodes_to_reboot, "Nodes to Reboot")
+        click.echo(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot])))
     else:
         logger.info("All the nodes are Reachable and There are no Unhealthy nodes requiring reboot\n")
     if nodes_to_terminate:
         print_node_list(nodes_to_terminate, "Nodes to Terminate")
+        click.echo(NodeSet(','.join([node.hostname for node in nodes_to_terminate])))
     else:
         logger.info("There are no Unhealthy nodes requiring Termination\n")
     if unconfigured_nodes:
         print_node_list(unconfigured_nodes, "Nodes to Reconfigure")
+        click.echo(NodeSet(','.join([node.hostname for node in unconfigured_nodes])))
     else:
         logger.info("There are no nodes in need of reconfiguration\n")
-
-    # Print One liner
-    if unreachable_nodes+nodes_to_reboot:
-        click.echo(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot])))
-    if nodes_to_terminate:
-        click.echo(NodeSet(','.join([node.hostname for node in nodes_to_terminate])))
-    if unconfigured_nodes:
-        click.echo(NodeSet(','.join([node.hostname for node in unconfigured_nodes])))
 
     # Print Information about what to run
     if unreachable_nodes or nodes_to_reboot or nodes_to_terminate or unconfigured_nodes:
@@ -90,29 +84,29 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
         nodes=[]
     if unreachable or not (unreachable or unconfigured or healthcheck):
         unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unconfigured_timeout),nodes)
-    elif unconfigured or not (unreachable or unconfigured or healthcheck):
+    if unconfigured or not (unreachable or unconfigured or healthcheck):
         unconfigured_nodes=get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),nodes)
-    elif healthcheck or not (unreachable or unconfigured or healthcheck):
+    if healthcheck or not (unreachable or unconfigured or healthcheck):
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",nodes)
         nodes_to_terminate = get_all_nodes_with_hc_status("Terminate",nodes)
     
     # Reboot unreachable nodes as well as nodes flagged for reboot by Healthcheck. 
     if unreachable_nodes+nodes_to_reboot:
-        click.echo("Rebooting: "+NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot])))
+        click.echo("Rebooting: "+str(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot]))))
         for node in unreachable_nodes+nodes_to_reboot:
             run_reboot(node,False)
 
     # Try to tag and terminate nodes.
     if nodes_to_terminate:
         print_node_list(nodes_to_terminate, "Nodes to Terminate")
-        click.echo("Tagging and Terminating: "+NodeSet(','.join([node.hostname for node in nodes_to_terminate])))
+        click.echo("Tagging and Terminating: "+str(NodeSet(','.join([node.hostname for node in nodes_to_terminate]))))
         for node in nodes_to_terminate:
             run_tag(node)
             run_terminate(node)
 
     # Relaunch configuration step.
     if unconfigured_nodes:
-        click.echo("Reconfiguring: "+NodeSet(','.join([node.hostname for node in unconfigured_nodes])))
+        click.echo("Reconfiguring: "+str(NodeSet(','.join([node.hostname for node in unconfigured_nodes]))))
         run_configure(unconfigured_nodes)
         
     available_nodes=scan_host_api_logic()

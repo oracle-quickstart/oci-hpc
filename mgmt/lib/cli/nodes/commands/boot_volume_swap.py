@@ -25,8 +25,10 @@ def boot_volume_swap(nodes,image):
         return
     else: 
         for node in nodes:
-            db_update_node(node,compute_status="starting")
-            run_boot_volume_swap(node,image_ocid)
-
+            try:
+                run_boot_volume_swap(node,image_ocid)
+                db_update_node(node,compute_status="starting")
+            except Exception as e:
+                click.echo(f"Error running boot volume swap for node {node.hostname}: {e}")
 
     pass
