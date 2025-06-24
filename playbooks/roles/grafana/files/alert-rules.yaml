@@ -2042,3 +2042,298 @@ groups:
           notification_settings:
             receiver: ons-webhook
             repeat_interval: 24h
+        - uid: pcie-correctable-error-increase
+          title: Increasing PCIe AER Correctable Errors from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_correctable_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe AER correctable error counts have been increasing over the last 5 minutes. This may indicate hardware issues with PCIe devices. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-fatal-error-increase
+          title: Increasing PCIe AER Fatal Errors from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_fatal_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe AER fatal error counts have been increasing over the last 5 minutes. This indicates critical hardware issues with PCIe devices that may require immediate system intervention. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-nonfatal-error-increase
+          title: Increasing PCIe AER Non-Fatal Errors from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_nonfatal_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe AER non-fatal error counts have been increasing over the last 5 minutes. This may indicate hardware issues with PCIe devices that could affect performance. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-bus-linkwidth-fault
+          title: PCIe Bus Link Width Fault from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: pcie_bus_linkwidth_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe bus link width fault detected. This indicates a mismatch between expected and actual link width, potentially causing performance degradation. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-bus-inaccessible-fault
+          title: PCIe Bus Inaccessible Fault from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: pcie_bus_inaccessible_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe bus is inaccessible. This indicates that the PCIe device cannot be accessed, potentially causing device or network loss. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
