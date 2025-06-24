@@ -499,7 +499,6 @@ def db_update_node(node, **kwargs):
                 logger.warning(f"Unknown attribute '{key}' ignored.")
 
         session.commit()
-        logger.info(f"Node with OCID {node.ocid} updated")
         return True
     except Exception as e:
         session.rollback()
