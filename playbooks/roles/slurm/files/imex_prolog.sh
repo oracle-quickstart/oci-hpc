@@ -45,16 +45,71 @@ if [ ${shape} = "BM.GPU.GB200.4" ]; then
     timeout $NVIDIA_IMEX_START_TIMEOUT systemctl start nvidia-imex
 
     echo "Waiting for NVIDIA domain status to be UP..."
-
+    count=0
     while true; do
         status=$(sudo nvidia-imex-ctl -N | grep Domain | awk '{print $3}')
-	echo $status
+        echo $status
         if [[ "$status" == "UP" ]]; then
             echo "Domain is UP!"
             break
         fi
-	echo sleeping
+        if [[ $count -gt 20 ]]; then
+           echo "Max count is exhausted"
+           break
+        fi
+        echo sleeping
         sleep 2
+        count=$((count+1))
     done
+    sudo nvidia-imex-ctl -N
+
+    LOCAL_IP=$(hostname -I | awk '{print $1}')
+    IMEX_OUTPUT=$(nvidia-imex-ctl -N)
+
+    NODE_INFO=$(echo "$IMEX_OUTPUT" | awk -v ip="$LOCAL_IP" '$4 == ip {print $2, $4, $6}')
+    NODE_INDEX=$(echo "$NODE_INFO" | awk '{gsub("#", "", $1); print $1}')
+    NODE_STATUS=$(echo "$NODE_INFO" | awk '{print $3}')
+
+    echo "Node Index: $NODE_INDEX"
+    echo "Node Status: $NODE_STATUS"
+
+    if [ "$NODE_STATUS" = "READY" ]; then
+        echo "Local node is READY."
+    else
+        echo "Local node is NOT ready."
+        exit 1
+    fi
+
+    MATRIX=$(echo "$IMEX_OUTPUT" | awk '/^ Nodes From\\To/{flag=1; next} /^Domain State:/{flag=0} flag')
+    TOTAL_NODES=$(echo "$MATRIX" | wc -l | awk '{print $1}')
+    MISSING_LIMIT=3
+    UNHEALTHY_FILE=$(mktemp)
+
+    echo ""
+    echo "Node Connectivity Summary:"
+    LOCAL_LINE=$(echo "$MATRIX" | awk -v idx="$NODE_INDEX" '$1 == idx')
+    echo $LOCAL_LINE
+    if [ -n "$LOCAL_LINE" ]; then
+      CONNECTIONS=$(echo "$LOCAL_LINE" | grep -o 'C' | wc -l)
+      MISSING=$(( TOTAL_NODES - CONNECTIONS ))
+      echo "Node $NODE_INDEX: $CONNECTIONS connections, $MISSING missing"
+
+      if [ "$MISSING" -gt "$MISSING_LIMIT" ]; then
+        echo "1" > "$UNHEALTHY_FILE"
+      fi
+    else
+      echo "❌ Could not find local node ($NODE_INDEX) in matrix"
+      echo "1" > "$UNHEALTHY_FILE"
+    fi
+
+    echo ""
+    if [ -s "$UNHEALTHY_FILE" ]; then
+        echo "❌ Rack Health: NOT HEALTHY (more than $MISSING_LIMIT missing connections)"
+        exit 1
+    else
+        echo "✅ Rack Health: HEALTHY"
+    fi
+
+    rm -f "$UNHEALTHY_FILE"
     } > "/var/log/slurm/imex_prolog_${SLURM_JOB_ID}.log" 2>&1
 fi
