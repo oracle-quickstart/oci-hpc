@@ -9,7 +9,7 @@
 
 - name: Wait for any possibly running unattended upgrade to finish
   ansible.builtin.command: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
-  async: 120
+  async: 240
   poll: 5
   register: yum_sleeper
 
