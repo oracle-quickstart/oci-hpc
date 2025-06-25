@@ -1,0 +1,29 @@
+#!/bin/bash
+# Pre-commit hook to lint ansible YAML files
+
+# Find all staged yaml/yml files
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^playbooks/.*\.ya?ml$')
+
+if [ -z "$FILES" ]; then
+  exit 0
+fi
+
+PASS=0
+
+for file in $FILES; do
+  # Only run ansible-lint on files that look like playbooks or roles
+  if grep -q -E 'hosts:|tasks:|roles:' "$file"; then
+    echo "Linting $file ..."
+    ansible-lint "$file"
+    if [ $? -ne 0 ]; then
+      PASS=1
+    fi
+  fi
+done
+
+if [ $PASS -ne 0 ]; then
+  echo "Ansible-lint failed. Please fix the issues above."
+  exit 1
+fi
+
+exit 0
