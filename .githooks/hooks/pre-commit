@@ -22,7 +22,7 @@ for file in $FILES; do
 done
 
 if [ $PASS -ne 0 ]; then
-  echo "Ansible-lint failed. Please fix the issues above."
+  echo "Ansible-lint failed. Please fix the issues above.  Run `ansible-lint --fix` to automatically fix issues."
   exit 1
 fi
 
