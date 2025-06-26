@@ -53,7 +53,7 @@
     owner: munge
     group: munge
     mode: "0400"
-  notify: restart munge
+  notify: Restart munge
 
 - name: Restart munge
   become: true
