@@ -1,0 +1,6 @@
+# .pre-commit-config.yaml
+
+- repo: https://github.com/ansible/ansible-lint.git
+  rev: v24.6.1
+  hooks:
+    - id: ansible-lint
