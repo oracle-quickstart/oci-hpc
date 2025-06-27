@@ -46,10 +46,10 @@ slurm_job_mem_util_bytes = Gauge(
     ["cluster_name", "hostname", "slurm_job_pid", "slurm_job_id"]
 )
 
-nccl_profiler_group_latency_nanoseconds = Gauge(
-    "nccl_profiler_group_latency_nanoseconds", 
-    "NCCL Profiler latency measurement for each group event in nano seconds", 
-    ["cluster_name", "hostname", "nccl_event_id", "slurm_job_pid", "slurm_job_id"]
+available_gpu_count = Gauge(
+    "available_gpu_count", 
+    "Available GPU count", 
+    ["cluster_name", "hostname"]
 )
 
 def get_cluster_name():
@@ -82,45 +82,6 @@ def get_slurm_job_id_from_scontrol(pid):
     except subprocess.CalledProcessError as e:
         logger.error(f"Error running scontrol pidinfo: {e}")
         return "none"
-
-
-def export_nccl_profiler_trace(cluster_name, hostname):
-    existing_files = glob.glob('/tmp/nccl-profiler-output-*')
-    for filepath in existing_files:
-        if not filepath.endswith(".processed"):            
-            logger.info(f"Processing file: {filepath}")
-            group_begins = {}
-            try:
-                with open(filepath, 'r') as f:
-                    events = json.load(f)
-            except Exception as e:
-                logger.error(f"Error reading file {filepath}: {e}")
-            for event in events:
-                if event.get("name") == "Group":
-                    event_id = event.get("id")
-                    pid = event.get("pid")
-                    job_id = get_slurm_job_id_from_scontrol(pid)
-                    phase = event.get("ph")
-                    ts = event.get("ts")
-                    key = (event_id, pid)                
-                    if phase == "b":
-                        group_begins[key] = ts
-                    elif phase == "e":
-                        if key in group_begins:
-                            start_ts = group_begins.pop(key)
-                            latency_micro = ts - start_ts  # latency in microseconds
-                            latency_ns = latency_micro * 1000  # convert to nanoseconds
-                            nccl_profiler_group_latency_nanoseconds.labels(cluster_name=cluster_name, hostname=hostname, nccl_event_id=str(event_id), slurm_job_pid=str(pid), slurm_job_id=str(job_id)).set(latency_ns)
-                            logger.info(f"Computed latency for Group {event_id} with pid {pid}: {latency_ns:.6f} nanoseconds")
-                        else:
-                            logger.info(f"Warning: End event for Group {event_id} (pid {pid}) without a matching begin event.")
-            new_filepath = filepath + ".processed"
-            try:
-                os.rename(filepath, new_filepath)
-                logger.info(f"Renamed file {filepath} to {new_filepath}")
-            except Exception as e:
-                logger.error(f"Error renaming file {filepath} to {new_filepath}: {e}")
-
 
 def export_process_cpu_and_memory(pid, hostname, job_id):
     cpu_total = 0
@@ -168,9 +129,9 @@ def export_gpu_utilization(handle, pid, hostname, gpu_idx, job_id):
         logger.error(f"Failed to get accounting stats for PID {pid} on GPU {gpu_idx}: {e}")
 
 def export_metrics():    
-    export_nccl_profiler_trace(cluster_name, hostname)
     try:
         device_count = pynvml.nvmlDeviceGetCount()
+        available_gpu_count.labels(cluster_name=cluster_name, hostname=hostname).set(device_count)
     except pynvml.NVMLError as e:
         logger.error(f"Failed to get device count: {e}")
         return
