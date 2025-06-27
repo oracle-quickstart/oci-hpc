@@ -69,7 +69,7 @@
       with_items: "{{cluster_hostlist_condensed_results.results}}"
       run_once: true
       delegate_to: 127.0.0.1
-      notify: reconfigure slurm
+      notify: Reconfigure slurm
 
   rescue:
     - name: Create existing cluster list
@@ -86,7 +86,7 @@
       with_items: "{{ cluster_hostlist_condensed_results.results }}"
       run_once: true
       delegate_to: 127.0.0.1
-      notify: reconfigure slurm
+      notify: Reconfigure slurm
 
 - name: Run handlers
   ansible.builtin.meta: flush_handlers

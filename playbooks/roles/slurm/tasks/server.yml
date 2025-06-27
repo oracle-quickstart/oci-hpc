@@ -111,7 +111,7 @@
         owner: munge
         group: munge
         mode: "0400"
-      notify: restart munge
+      notify: Restart munge
 
     - name: Copy munge.key
       become: true
@@ -187,7 +187,7 @@
     backup: true
     owner: slurm
     group: slurm
-  notify: restart slurm server
+  notify: Restart slurm server
 
 - name: Generate topology.conf
   become: true
@@ -200,7 +200,7 @@
     group: slurm
   register: initial_topology
   run_once: true
-  notify: reconfigure slurm
+  notify: Reconfigure slurm
 
 - name: Run handlers
   ansible.builtin.meta: flush_handlers
@@ -250,7 +250,7 @@
   run_once: true
   register: switch_added
   when: not initial_topology.changed and nodesname_dict[item.name] | length > 0
-  notify: reconfigure slurm
+  notify: Reconfigure slurm
 
 - name: Add new shapes to existing topology.conf, Upper Switch
   become: true
@@ -262,4 +262,4 @@
   with_items: "{{switch_added.results}}"
   run_once: true
   when: not initial_topology.changed and nodesname_dict[item.item.name] | length > 0 and not ( item.changed | bool)
-  notify: reconfigure slurm
+  notify: Reconfigure slurm

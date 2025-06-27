@@ -15,7 +15,7 @@
     owner: 'root'
     group: 'root'
     mode: '0600'
-  notify: restart sssd
+  notify: Restart sssd
   when: not pam | bool
 
 - name: Add configuration file to /etc/sssd/sssd.conf
@@ -25,7 +25,7 @@
     owner: 'root'
     group: 'root'
     mode: '0600'
-  notify: restart sssd
+  notify: Restart sssd
   when: pam | bool
 
 - name: Copy CA certificate

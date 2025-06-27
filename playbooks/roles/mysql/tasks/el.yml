@@ -105,7 +105,7 @@
     src: 'mysqld_etc_my.cnf.j2'
     dest: '/etc/my.cnf'
     backup: true
-  notify: restart mysqld
+  notify: Restart mysqld
 
 - name: create configuration directory
   become: true

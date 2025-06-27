@@ -229,7 +229,7 @@
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
   args:
     creates: "/etc/openldap/slapd.d/cn=config.ldif"
-  notify: restart openldap
+  notify: Restart openldap
 
 - name: Load OpenLDAP local configuration ol7
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
@@ -240,10 +240,10 @@
     - local.ldif
     - ppolicy.ldif
     - memberof.ldif
-  notify: restart openldap
+  notify: Restart openldap
   when: ansible_distribution_major_version == '7'
 
-- name: restart openldap
+- name: Restart openldap
   service:
     name: slapd
     state: restarted
@@ -258,7 +258,7 @@
     - config.ldif
     - local.ldif
     - memberof.ldif
-  notify: restart openldap
+  notify: Restart openldap
   when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Check local schemas

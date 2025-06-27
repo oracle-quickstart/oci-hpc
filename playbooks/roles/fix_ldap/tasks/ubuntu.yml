@@ -1,5 +1,5 @@
 ---
-- name: restart nscd
+- name: Restart nscd
   become: true
   systemd:
     name: nscd
@@ -7,7 +7,7 @@
     daemon_reload: true
     enabled: true
 
-- name: restart sssd
+- name: Restart sssd
   become: true
   service:
     name: sssd
