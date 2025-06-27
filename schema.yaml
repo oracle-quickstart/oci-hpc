@@ -1238,13 +1238,13 @@ variables:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: false
-    description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
+    description: "Install Grafana, Node Exporter, and Prometheus for system monitoring (Note: Node Exporter uses ports 9100–9900, Prometheus uses port 9090, and Grafana uses port 3000)."
 
   alerting:
     type: boolean
     title: "Install HPC Cluster alerting Tools"
     default: false
-    description: "Creates a Topic that you can subscribe to"
+    description: "Creates a topic that you can subscribe to (Note: the alert webhook uses port 5000)."
     visible: ${cluster_monitoring}
 
   pam:
