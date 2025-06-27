@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 rdma_pcie_mapping = {}
 nvme_pcie_mapping = {}
+gpu_pcie_mapping = {}
 
 pcie_aer_correctable_error_count = Gauge('pcie_aer_correctable_error_count', 'PCI AER correctable error count',
                          ['hostname', 'device', 'device_type', 'pcie'])
@@ -58,6 +59,39 @@ def get_pci_addresses(subsystem):
         devices[device.sys_name] = {'pcie_addr': pci_address, 'pcie_path': pcie_path, 'path_len': path_len}
     return devices
 
+def get_gpu_pci_addresses():
+    import subprocess
+    devices = {}
+    try:
+        out = subprocess.check_output([
+            "nvidia-smi",
+            "--query-gpu=pci.bus_id",
+            "--format=csv,noheader,nounits"
+        ], stderr=subprocess.DEVNULL).decode().strip()
+        
+        bus_ids = [line.strip() for line in out.splitlines() if line.strip()]
+        
+        for gpu_index, bus_id in enumerate(bus_ids):
+            normalized_bus_id = bus_id.lower()
+            if normalized_bus_id.startswith('0000:'):
+                normalized_bus_id = normalized_bus_id[5:]
+            else:
+                normalized_bus_id = normalized_bus_id[4:]
+            
+            device_sys_path = f"/sys/bus/pci/devices/{normalized_bus_id}"
+            gpu_device_name = f"nvidia{gpu_index}"
+            devices[gpu_device_name] = {
+                'pcie_addr': normalized_bus_id, 
+                'pcie_path': device_sys_path, 
+                'path_len': len(device_sys_path.split('/'))
+            }
+    except subprocess.CalledProcessError:
+        logger.info("nvidia-smi failed or no NVIDIA GPUs found")
+    except Exception as e:
+        logger.info(f"Error getting GPU PCI addresses: {e}")
+    
+    return devices
+
 def collect_pcie_metrics(hostname, device_mapping, device_type):
     for device in device_mapping.keys():
         pcimap = device_mapping[device]
@@ -76,6 +110,11 @@ def collect_pcie_metrics(hostname, device_mapping, device_type):
               pcie_bus_linkwidth_status.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(0)
            else:
               pcie_bus_linkwidth_status.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(1)
+        elif device_type == "GPU":
+           if current_link_width and current_link_speed:
+              pcie_bus_linkwidth_status.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(0)
+           else:
+              pcie_bus_linkwidth_status.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(1)
         
         pcie_aer_correctable_error_count.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(correctable_error_count)
         pcie_aer_fatal_error_count.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(fatal_error_count)
@@ -85,9 +124,11 @@ if __name__ == "__main__":
     hostname = os.uname().nodename
     rdma_pcie_mapping = get_pci_addresses("infiniband")
     nvme_pcie_mapping = get_pci_addresses("nvme")
+    gpu_pcie_mapping = get_gpu_pci_addresses()
     start_http_server(9700)
     while True:
         collect_pcie_metrics(hostname, nvme_pcie_mapping, "NVME")
         collect_pcie_metrics(hostname, rdma_pcie_mapping, "RDMA")
+        collect_pcie_metrics(hostname, gpu_pcie_mapping, "GPU")
         time.sleep(60)
 
