@@ -13,11 +13,13 @@ def generate_message(alert_name, alert_status, alert_message, starts_at, ends_at
         template,
         alert_name=alert_name,
         alert_status=alert_status,
-        alert_message=alert_message,
         starts_at=starts_at,
-        ends_at=ends_at,
-        labels=labels,
-        annotations=annotations
+        cluster_name=labels.cluster_name,
+        hostname=labels.hostname,
+        oci_name=labels.oci_name,
+        serial_number=labels.serial,
+        rdma_device=labels.rdma_device,
+        gpu=labels.gpu
     )
     return message_content
 
