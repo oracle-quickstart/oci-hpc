@@ -396,7 +396,7 @@ resource "null_resource" "cluster_backup" {
       nfs_source_IP                       = local.nfs_source_IP,
       nfs_source_path                     = var.nfs_source_path,
       nfs_options                         = var.nfs_options,
-      add_lfs                             = var.add_nfs,
+      add_lfs                             = var.add_lfs,
       lfs_target_path                     = var.lfs_target_path,
       lfs_source_IP                       = var.lfs_source_IP,
       lfs_source_path                     = var.lfs_source_path,
