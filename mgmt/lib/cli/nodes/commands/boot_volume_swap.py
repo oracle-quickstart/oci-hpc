@@ -1,7 +1,7 @@
 
 import click
 from lib.oci import run_boot_volume_swap, list_custom_images
-from lib.database import get_nodes_by_any, db_update_node
+from lib.database import get_nodes_by_any, db_update_node, get_controller_node
 from ClusterShell.NodeSet import NodeSet
 
 
@@ -17,7 +17,13 @@ def boot_volume_swap(nodes,image):
     nodes = get_nodes_by_any(NodeSet(nodes))
         # In case no image is specified, propose a list of image and ask for the value
     if image is None:
-        image_ocid = list_custom_images(nodes[0].compartment_id)
+
+        if len(nodes):
+            compartment_id=nodes[0].compartment_id
+        else:
+            controller = get_controller_node()
+            compartment_id=controller.compartment_id
+        image_ocid = list_custom_images(compartment_id)
     else:
         image_ocid=image
     if not nodes:
