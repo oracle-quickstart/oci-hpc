@@ -1,0 +1,6 @@
+- hosts: monitoring
+  gather_facts: true
+  tasks: 
+    - include_role: 
+        name: grafana
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) 

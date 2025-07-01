@@ -36,7 +36,7 @@ local oci_lustre_metrics = [
   { expr: 'sum by(resource_name) (oci_MetaDataOperations{client_name="all@all"})', legend_format: '{{resource_name}}', title: 'Metadata Operations', unit: 'ops' },
 ];
 
-g.dashboard.new('OCI File Storage Service Dashboard')
+g.dashboard.new('OCI Services Dashboard')
 + g.dashboard.withTimezone('browser')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([

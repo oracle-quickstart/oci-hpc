@@ -1,3 +1,7 @@
 deleteRules:
   - orgId: 1
     uid: throttle-util
+  - orgId: 1
+    uid: disk-20pct
+  - orgId: 1
+    uid: mem-20pct

@@ -42,20 +42,71 @@
     group: "{{ user }}"
   loop:
     - g.libsonnet
-    - cluster-variables.libsonnet
-    - cluster-dashboard.jsonnet
+    - gauge-panel.libsonnet
+    - gauge-panel-util.libsonnet
+    - stat-health-panel.libsonnet
+    - stat-panel-single.libsonnet
+    - stat-panel.libsonnet
+    - statetimeline-panel.libsonnet
+    - timeseries-panel.libsonnet
+    - command-center-variables.libsonnet
+    - command-center.jsonnet
+    - cluster-level-variables.libsonnet
+    - cluster-level.jsonnet
+    - multi-node-variables.libsonnet
+    - multi-node.jsonnet
+    - gpu-metrics-single-variables.libsonnet
+    - gpu-metrics-single.jsonnet
+    - host-metrics-single-variables.libsonnet
+    - host-metrics-single.jsonnet
+    - gpu-health.jsonnet
     - slurm-variables.libsonnet
     - slurm-dashboard.jsonnet
     - oci-variables.libsonnet
     - oci-dashboard.jsonnet
 
-- name: Build cluster dashboard with Jsonnet
+- name: Build command center dashboard with Jsonnet
   become: true  
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
     /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
-    /usr/local/bin/jsonnet -J vendor cluster-dashboard.jsonnet -o cluster-dashboard.json
+    /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Build cluster level dashboard with Jsonnet
+  become: true  
+  ansible.builtin.shell: |
+    /usr/local/bin/jsonnet -J vendor cluster-level.jsonnet -o cluster-level.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Build multi-node dashboard with Jsonnet
+  become: true  
+  ansible.builtin.shell: |
+    /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Build gpu metrics single dashboard with Jsonnet
+  become: true  
+  ansible.builtin.shell: |
+    /usr/local/bin/jsonnet -J vendor gpu-metrics-single.jsonnet -o gpu-metrics-single.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Build host metrics single dashboard with Jsonnet
+  become: true  
+  ansible.builtin.shell: |
+    /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
+  args:
+    chdir: "{{ dashboard_build_dir }}"
+
+- name: Build gpu health dashboard with Jsonnet
+  become: true  
+  ansible.builtin.shell: |
+    /usr/local/bin/jsonnet -J vendor gpu-health.jsonnet -o gpu-health.json
   args:
     chdir: "{{ dashboard_build_dir }}"
 
@@ -87,7 +138,12 @@
     dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
   loop:
-    - cluster-dashboard.json
+    - command-center.json
+    - cluster-level.json
+    - multi-node.json
+    - gpu-metrics-single.json
+    - host-metrics-single.json
+    - gpu-health.json
     - slurm-dashboard.json
     - oci-dashboard.json
 
@@ -99,6 +155,11 @@
     overwrite: true
     path: "{{ dashboard_build_dir }}/{{ item }}"
   loop:
-    - cluster-dashboard.json
+    - command-center.json
+    - cluster-level.json
+    - multi-node.json
+    - gpu-metrics-single.json
+    - host-metrics-single.json
+    - gpu-health.json
     - slurm-dashboard.json
     - oci-dashboard.json

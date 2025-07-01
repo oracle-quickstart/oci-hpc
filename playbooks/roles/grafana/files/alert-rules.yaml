@@ -24,8 +24,8 @@ groups:
       folder: Warning
       interval: 5m
       rules:
-        - uid: cpu-20pct
-          title: Controller or Login nodes should not have cpu usage more than 80%
+        - uid: cpu-10pct
+          title: Low CPU Free on Controller/Login Node
           condition: B
           data:
             - refId: A
@@ -52,7 +52,7 @@ groups:
                 conditions:
                     - evaluator:
                         params:
-                            - 20
+                            - 10
                             - 0
                         type: lt
                       operator:
@@ -79,127 +79,7 @@ groups:
           execErrState: OK
           for: 15m
           annotations:
-            summary: Controller and login nodes having low cpu availability could result in potential loss of access. Immediate investigation is recommended.
-          isPaused: false
-          notification_settings:
-            receiver: ons-webhook
-            repeat_interval: 24h
-        - uid: disk-20pct
-          title: Controller or Login nodes should have disk free more than 20pct
-          condition: B
-          data:
-            - refId: A
-              relativeTimeRange:
-                from: 600
-                to: 0
-              datasourceUid: DATASOURCE_UID
-              model:
-                datasource:
-                    type: prometheus
-                    uid: DATASOURCE_UID
-                editorMode: code
-                expr: avg by (hostname, mountpoint) ((node_filesystem_avail_bytes{mountpoint="/", hostname=~".*controller|.*login"} / node_filesystem_size_bytes{mountpoint="/", hostname=~".*controller|.*login"})*100)
-                hide: false
-                instant: true
-                intervalMs: 60000
-                legendFormat: "{{ hostname }} {{ mountpoint }}"
-                maxDataPoints: 43200
-                range: false
-                refId: A
-            - refId: B
-              datasourceUid: __expr__
-              model:
-                conditions:
-                    - evaluator:
-                        params:
-                            - 20
-                            - 0
-                        type: lt
-                      operator:
-                        type: and
-                      query:
-                        params: []
-                      reducer:
-                        params: []
-                        type: avg
-                      type: query
-                datasource:
-                    name: Expression
-                    type: __expr__
-                    uid: __expr__
-                expression: A
-                hide: false
-                intervalMs: 60000
-                maxDataPoints: 43200
-                refId: B
-                type: threshold
-          dashboardUid: ""
-          panelId: 0
-          noDataState: NoData
-          execErrState: OK
-          for: 15m
-          annotations:
-            summary: Controller and login nodes low disk free space could result in potential loss of access. Immediate investigation is recommended.
-          isPaused: false
-          notification_settings:
-            receiver: ons-webhook
-            repeat_interval: 24h
-        - uid: mem-20pct
-          title: Controller or Login nodes should have memory free more than 20pct
-          condition: B
-          data:
-            - refId: A
-              relativeTimeRange:
-                from: 600
-                to: 0
-              datasourceUid: DATASOURCE_UID
-              model:
-                datasource:
-                    type: prometheus
-                    uid: DATASOURCE_UID
-                editorMode: code
-                expr: avg by (hostname) (100 * ((node_memory_MemAvailable_bytes{hostname=~".*controller|.*login"}[5m]) / (node_memory_MemTotal_bytes{hostname=~".*controller|.*login"}[5m])))
-                hide: false
-                instant: true
-                intervalMs: 60000
-                legendFormat: "{{ hostname }}"
-                maxDataPoints: 43200
-                range: false
-                refId: A
-            - refId: B
-              datasourceUid: __expr__
-              model:
-                conditions:
-                    - evaluator:
-                        params:
-                            - 20
-                            - 0
-                        type: lt
-                      operator:
-                        type: and
-                      query:
-                        params: []
-                      reducer:
-                        params: []
-                        type: avg
-                      type: query
-                datasource:
-                    name: Expression
-                    type: __expr__
-                    uid: __expr__
-                expression: A
-                hide: false
-                intervalMs: 60000
-                maxDataPoints: 43200
-                refId: B
-                type: threshold
-          dashboardUid: ""
-          panelId: 0
-          noDataState: NoData
-          execErrState: OK
-          for: 15m
-          annotations:
-            summary: Controller and login nodes having low memory could result in potential loss of access. Immediate investigation is recommended.
+            summary: Controller and login nodes having low cpu free could result in potential loss of access. 
           isPaused: false
           notification_settings:
             receiver: ons-webhook
@@ -386,6 +266,126 @@ groups:
       folder: Critical
       interval: 5m
       rules:
+        - uid: disk-50g
+          title: Nodes should have atleast 50GB disk free in boot volume
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: node_filesystem_avail_bytes{mountpoint="/",device=~"/dev/sd.*"}
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ mountpoint }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 50000000000
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: Nodes low disk free space could result in potential loss of access. Immediate investigation is recommended.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: mem-50g
+          title: Nodes should have atleast 50GB memory free
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: node_memory_MemAvailable_bytes
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 50000000000
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: Nodes having low memory could result in potential loss of access. Immediate investigation is recommended.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
         - uid: xid-error
           title: XID Error Check
           condition: B
@@ -933,7 +933,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_POWER_VIOLATION
+                expr: increase(DCGM_FI_DEV_POWER_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -992,7 +992,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_BOARD_LIMIT_VIOLATION
+                expr: increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -1051,7 +1051,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_THERMAL_VIOLATION
+                expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -1110,7 +1110,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_LOW_UTIL_VIOLATION
+                expr: increase(DCGM_FI_DEV_LOW_UTIL_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -1169,7 +1169,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_SYNC_BOOST_VIOLATION
+                expr: increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -1228,7 +1228,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_RELIABILITY_VIOLATION
+                expr: increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
