@@ -1,3 +1,4 @@
+---
 - name: reload_nfs
   service:
     name: nfs-server
@@ -9,4 +10,3 @@
     name: nfs-kernel-server
     state: reloaded
     enabled: true
-

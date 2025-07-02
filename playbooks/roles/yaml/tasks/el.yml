@@ -1,5 +1,4 @@
 ---
-
 - name: Map system architecture to suffix
   set_fact:
     deb_architecture: "{{ arch_map[ansible_architecture] }}"

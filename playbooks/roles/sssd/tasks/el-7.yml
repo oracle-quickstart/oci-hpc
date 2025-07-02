@@ -1,19 +1,19 @@
 ---
 - name: Install sssd packages
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - sssd
       - authconfig
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Add configuration file to /etc/sssd/sssd.conf
   template:
-    src: 'sssd.conf.j2'
-    dest: '/etc/sssd/sssd.conf'
-    owner: 'root'
-    group: 'root'
-    mode: '0600'
+    src: "sssd.conf.j2"
+    dest: "/etc/sssd/sssd.conf"
+    owner: "root"
+    group: "root"
+    mode: "0600"
   notify: Restart sssd
 
 - name: Copy CA certificate
@@ -23,8 +23,8 @@
 
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
-    path: '/etc/openldap/ldap.conf'
-    line: 'TLS_CACERT   /etc/openldap/certs/cluster-ca.crt'
+    path: "/etc/openldap/ldap.conf"
+    line: "TLS_CACERT   /etc/openldap/certs/cluster-ca.crt"
 
 - name: Enable sssd service
   systemd:
@@ -37,9 +37,9 @@
     state: started
 
 - name: Update sshd configuration
-  lineinfile: 
+  lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^PasswordAuthentication'
+    regexp: "^PasswordAuthentication"
     line: PasswordAuthentication no
   notify: Restart sshd
 

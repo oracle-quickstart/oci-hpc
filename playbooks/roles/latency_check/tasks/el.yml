@@ -2,11 +2,11 @@
 - name: copy script
   template:
     src: latency_check.sh.j2
-    dest: '/tmp/latency_check.sh'
+    dest: "/tmp/latency_check.sh"
     backup: true
     owner: opc
     group: opc
-    mode: 0775
+    mode: "0775"
   run_once: true
 
 - name: Run Latency test

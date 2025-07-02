@@ -1,3 +1,4 @@
+---
 - name: Gather serial number
   command: "sudo dmidecode -s system-serial-number"
   register: serial_output
@@ -24,7 +25,7 @@
     url: http://169.254.169.254/opc/v2/instance/
     method: GET
     headers:
-      Authorization: 'Bearer Oracle'
+      Authorization: "Bearer Oracle"
     return_content: true
   register: i_metadata
   delegate_to: "{{ item }}"
@@ -37,7 +38,7 @@
   set_fact:
     instance_metadata: "{{ instance_metadata | combine({'freeformTags': {'cluster_name':''}}) }}"
   when: "not 'freeformTags' in instance_metadata"
-  
+
 - name: make sure cluster_name in included
   set_fact:
     cluster_name_gathered: "{{ instance_metadata['displayName'].split('-') | slice(2, 10) | join('-') }}"
@@ -63,7 +64,7 @@
     url: http://169.254.169.254/opc/v2/host/
     method: GET
     headers:
-      Authorization: 'Bearer Oracle'
+      Authorization: "Bearer Oracle"
     return_content: true
   register: h_metadata
   delegate_to: "{{ item }}"
@@ -74,19 +75,24 @@
 
 - name: add empty networkBlockID
   set_fact:
-    rdma_metadata : "{{ rdma_metadata | combine({'networkBlockId': 'None'}) }}"
+    rdma_metadata: "{{ rdma_metadata | combine({'networkBlockId': 'None'}) }}"
   when: "not 'networkBlockId' in rdma_metadata"
 
 - name: add empty rdmaTopologyData
   set_fact:
-    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None','customerGpuMemoryFabric': 'None'}}) }}"
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None','customerLocalBlock': 'None','customerNetworkBlock': 'None','customerGpuMemoryFabric':
+      'None'}}) }}"
   when: "not 'rdmaTopologyData' in rdma_metadata"
 
 - name: add empty customerGpuMemoryFabric
   set_fact:
-    rdma_metadata : "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}) }}"
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}) }}"
   when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
 
 - name: Build the host_info dictionary
   set_fact:
-    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': cluster_name_gathered, 'memory_cluster_name': memory_cluster_name, 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availability_domain': instance_metadata['availabilityDomain'],'compartment_id': instance_metadata['compartmentId'],'rack_id': rdma_metadata['rackId'],'network_block_id': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'], 'gpu_memory_fabric': rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'] }})   }}"
+    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': cluster_name_gathered, 'memory_cluster_name':
+      memory_cluster_name, 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availability_domain':
+      instance_metadata['availabilityDomain'],'compartment_id': instance_metadata['compartmentId'],'rack_id': rdma_metadata['rackId'],'network_block_id': rdma_metadata['networkBlockId'],'rail_id':
+      rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'], 'gpu_memory_fabric':
+      rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'] }})   }}"

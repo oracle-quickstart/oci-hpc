@@ -1,30 +1,29 @@
 ---
-
 - name: install sssd
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - sssd
     package_state: present
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Add configuration file to /etc/sssd/sssd.conf
   template:
-    src: 'sssd.conf.j2'
-    dest: '/etc/sssd/sssd.conf'
-    owner: 'root'
-    group: 'root'
-    mode: '0600'
+    src: "sssd.conf.j2"
+    dest: "/etc/sssd/sssd.conf"
+    owner: "root"
+    group: "root"
+    mode: "0600"
   notify: Restart sssd
   when: not pam | bool
 
 - name: Add configuration file to /etc/sssd/sssd.conf
   template:
-    src: 'sssd_ubuntu.conf.j2'
-    dest: '/etc/sssd/sssd.conf'
-    owner: 'root'
-    group: 'root'
-    mode: '0600'
+    src: "sssd_ubuntu.conf.j2"
+    dest: "/etc/sssd/sssd.conf"
+    owner: "root"
+    group: "root"
+    mode: "0600"
   notify: Restart sssd
   when: pam | bool
 
@@ -35,34 +34,34 @@
 
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
-    path: '/etc/ldap/ldap.conf'
-    line: 'TLS_CACERT   /etc/ssl/certs/cluster-ca.crt'
+    path: "/etc/ldap/ldap.conf"
+    line: "TLS_CACERT   /etc/ssl/certs/cluster-ca.crt"
 
 - name: Fix common-auth
   lineinfile:
     dest: /etc/pam.d/common-auth
     state: present
-    line: 'account required    pam_access.so'
+    line: "account required    pam_access.so"
 
 - name: Fix common-session
   lineinfile:
     dest: /etc/pam.d/common-session
     state: present
-    line: 'session required    pam_mkhomedir.so skel=/etc/skel umask=0022'
+    line: "session required    pam_mkhomedir.so skel=/etc/skel umask=0022"
 
 - name: Fix common-password
   replace:
     path: /etc/pam.d/common-password
     backup: true
-    regexp: '^.*use_authtok.*$'
-    replace: 'password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass'
+    regexp: "^.*use_authtok.*$"
+    replace: "password [success=1 user_unknown=ignore default=die] pam_ldap.so try_first_pass"
 
 - name: Install the openldap and required Packages for Ubuntu
-  vars: 
+  vars:
     package_name: "{{ openldap_packages }}"
     package_state: present
     package_cache: true
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Enable sssd service
@@ -76,11 +75,11 @@
     state: started
 
 - name: Update sshd configuration
-  lineinfile: 
+  lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^PasswordAuthentication'
+    regexp: "^PasswordAuthentication"
     line: PasswordAuthentication no
-  notify: 
+  notify:
     - restart sshd
     - restart ns daemons
     - restart login services
@@ -92,7 +91,7 @@
     line: "{{ item.line }}"
     backrefs: true
   loop:
-    - { regexp: '^(\s*enable-cache\s+passwd\s+)\S+', line: '\1no' }
-    - { regexp: '^(\s*enable-cache\s+group\s+)\S+',  line: '\1no' }
+    - { regexp: "^(\\s*enable-cache\\s+passwd\\s+)\\S+", line: "\\1no" }
+    - { regexp: "^(\\s*enable-cache\\s+group\\s+)\\S+", line: "\\1no" }
   notify:
-      - restart nscd
+    - restart nscd

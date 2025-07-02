@@ -1,3 +1,4 @@
+---
 user: "{{ ol_user if ansible_os_family == 'RedHat' else ubuntu_user }}"
 ol_user: "opc"
 ubuntu_user: "ubuntu"
@@ -9,6 +10,6 @@ grafana_api_url: "http://localhost:3000"
 grafana_security:
   admin_user: admin
   admin_password: admin
-grafana_api_keys: 
+grafana_api_keys:
   - name: "admin"
     role: "Admin"

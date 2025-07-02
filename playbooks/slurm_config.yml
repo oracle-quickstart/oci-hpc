@@ -1,7 +1,8 @@
+---
 - hosts: controller,slurm_backup,compute, monitoring
   gather_facts: true
   vars:
-    slurm_mode: 'controller'
+    slurm_mode: "controller"
     enroot_top_path: "{{ nvme_path }}/enroot/"
   tasks:
     - include_role:

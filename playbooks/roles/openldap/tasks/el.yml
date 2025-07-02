@@ -6,7 +6,7 @@
     path: /etc/opt/oci-hpc/passwords/openldap
     state: directory
     owner: opc
-    mode: 0770
+    mode: "0770"
     group: opc
     recurse: true
 
@@ -44,14 +44,12 @@
   ansible.builtin.copy:
     content: ""
     dest: /etc/sysconfig/slapd
-    mode: 0644
+    mode: "0644"
   when: ansible_distribution_major_version in ["8", "9"]
 
 - name: Generate and Get OpenLDAP root password
   set_fact:
-    openldap_root_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc/passwords/openldap/root.txt
-                           chars=ascii_letters,digits,hexdigits') }}"
+    openldap_root_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/openldap/root.txt chars=ascii_letters,digits,hexdigits') }}"
 
 - name: Hash OpenLDAP root password
   command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}
@@ -61,7 +59,7 @@
 - name: Create Python virtual environment with system site packages
   command: "python3 -m venv /config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}} --system-site-packages"
   when: ansible_distribution_major_version != "8"
-  
+
 - name: Selinux fcontext on files
   sefcontext:
     target: "{{ openldap_server_conf_path }}(/.*)?"
@@ -71,13 +69,13 @@
 - name: Adjust OpenLDAP server TLS configuration
   lineinfile:
     path: "{{ openldap_server_defaults_file }}"
-    regexp: '^SLAPD_URLS='
+    regexp: "^SLAPD_URLS="
     line: 'SLAPD_URLS="{{ openldap_endpoints }}"'
 
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
-    path: '/etc/openldap/ldap.conf'
-    line: 'TLS_CACERT /etc/openldap/certs/cluster-ca.crt'
+    path: "/etc/openldap/ldap.conf"
+    line: "TLS_CACERT /etc/openldap/certs/cluster-ca.crt"
 
 - name: Enable OpenLDAP service
   systemd:
@@ -86,30 +84,30 @@
 
 - name: Get /etc/openldap/slapd.d status
   stat:
-    path: '/etc/openldap/slapd.d'
+    path: "/etc/openldap/slapd.d"
   register: default_openldap_path
 
 - name: Add cluster CA certificate to /etc/openldap/certs
   copy:
-    src: '{{ openldap_tls_cacrt }}'
-    dest: '/etc/openldap/certs/'
+    src: "{{ openldap_tls_cacrt }}"
+    dest: "/etc/openldap/certs/"
 
 - name: Ensure OpenLDAP has access to the ssl certificates
   user:
-    name: '{{ openldap_default_user }}'
-    groups: '{{ ssl_cert_group }}'
+    name: "{{ openldap_default_user }}"
+    groups: "{{ ssl_cert_group }}"
 
 - block:
     - name: Install and upgrade pip
       pip:
         name: pip
         extra_args: --upgrade
-        executable: /usr/bin/pip3  
+        executable: /usr/bin/pip3
 
     - name: Install ldap3 and click
       pip:
-        name: ['ldap3', 'click']
-        executable: /usr/bin/pip3  
+        name: ["ldap3", "click"]
+        executable: /usr/bin/pip3
 
     - name: update /etc/openldap/ldap.conf
       lineinfile:
@@ -155,7 +153,7 @@
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
         - { src: "el_local.ldif.j2", dest: "local.ldif" }
-    
+
     - name: Copy other OpenLDAP schemas for OL7
       copy:
         src: "{{ item.src }}"
@@ -217,7 +215,7 @@
     patterns: "cn=*{{ item }}.ldif"
     file_type: file
   register: openldap_schemas_output
-  with_items: '{{ openldap_schemas }}'
+  with_items: "{{ openldap_schemas }}"
 
 - name: Load OpenLDAP schemas and configs (OL7, OL8, OL9)
   command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item.item }}.ldif
@@ -234,7 +232,7 @@
 - name: Load OpenLDAP local configuration ol7
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
   args:
-    creates: '/etc/openldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif'
+    creates: "/etc/openldap/slapd.d/cn=config/olcDatabase={?}hdb/olcOverlay={0}memberof.ldif"
   with_items:
     - config.ldif
     - local.ldif

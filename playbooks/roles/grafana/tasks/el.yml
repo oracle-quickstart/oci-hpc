@@ -1,7 +1,7 @@
 ---
 - name: add grafana repository
   become: true
-  yum_repository: 
+  yum_repository:
     name: grafana
     description: grafana
     baseurl: https://packages.grafana.com/oss/rpm
@@ -13,11 +13,11 @@
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
 - name: install grafana
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - grafana
     package_state: present
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Install Python dependencies
@@ -33,14 +33,14 @@
   template:
     src: ons_webhook.py.j2
     dest: /usr/local/bin/ons_webhook.py
-    mode: '0755'
+    mode: "0755"
 
 - name: Copy message template to server
   become: true
   copy:
     src: raw_message_template.txt
     dest: /etc/raw_message_template.txt
-    mode: '0755'
+    mode: "0755"
 
 - name: Render systemd service for webhook
   become: true
@@ -49,7 +49,7 @@
     dest: /etc/systemd/system/ons-webhook.service
     force: true
     backup: true
-    mode: '0644'
+    mode: "0644"
   vars:
     prometheus_user: "prometheus"
 
@@ -64,7 +64,7 @@
 
 - name: start grafana
   become: true
-  service: 
+  service:
     name: grafana-server
     state: restarted
     enabled: true
@@ -101,7 +101,7 @@
   copy:
     src: files/alert-rules.yaml
     dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
-    mode: '0777'
+    mode: "0777"
 
 - name: Replace all occurrences of a specific string in files
   become: true
