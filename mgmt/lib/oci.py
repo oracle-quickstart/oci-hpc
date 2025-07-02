@@ -226,10 +226,11 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
                 continue
             elif len(instance.freeform_tags) == 0:
                 continue
+            elif "controller" in instance.freeform_tags.keys():
+                continue
             elif "cluster_name" in instance.freeform_tags.keys():
-                if instance.freeform_tags["cluster_name"]!=cluster_name:
-                    continue
-            matching_instances.append(instance)
+                if instance.freeform_tags["cluster_name"]==cluster_name:
+                    matching_instances.append(instance)
         return(len(matching_instances))
     elif cluster_type == "CN":
         instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_cluster_network_instances,compartment_ocid,cluster_ocid,sort_by="TIMECREATED").data
