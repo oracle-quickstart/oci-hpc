@@ -1,0 +1,45 @@
+name: Ansible Lint
+
+on:
+  push:
+    branches:
+      - master  # default branch
+      - 3.0.0   # default dev branch 
+  pull_request:
+    branches:
+      - master  # default branch
+      - 3.0.0   # default dev branch 
+
+jobs:
+  ansible_lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+
+      - name: Install ansible-lint
+        run: |
+          pip install ansible ansible-lint
+
+      - name: Run ansible-lint on the playbooks directory
+        run: |
+          ansible-lint --profile min ./playbooks
+
+      - name: Custom annotation if ansible-lint fails
+        if: failure()
+        run: echo "::error ::❌ ansible-lint failed. Please fix the errors before merging. Run 'ansible-lint --profile min --fix ./playbooks' to automatically fix errors."
+
+      - name: Post custom error comment on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ❌ **ansible-lint failed**  
+            Please fix all linting issues before merging as per our contribution guidelines. Run 'ansible-lint --profile min --fix ./playbooks' to automatically fix errors.
