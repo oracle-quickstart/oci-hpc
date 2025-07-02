@@ -14,7 +14,7 @@
     owner: 'root'
     group: 'root'
     mode: '0600'
-  notify: restart sssd
+  notify: Restart sssd
 
 - name: Copy CA certificate
   copy:
@@ -41,7 +41,7 @@
     path: /etc/ssh/sshd_config
     regexp: '^PasswordAuthentication'
     line: PasswordAuthentication no
-  notify: restart sshd
+  notify: Restart sshd
 
 - name: Setting up the system to use sssd for authentication
   command: authconfig --enablemkhomedir --enablesssd --enablesssdauth --update

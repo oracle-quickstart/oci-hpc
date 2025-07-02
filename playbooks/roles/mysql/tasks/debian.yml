@@ -56,7 +56,7 @@
     src: 'debian_mariadb_etc_my.cnf.j2'
     dest: '/etc/my.cnf'
     backup: true
-  notify: restart mariadb
+  notify: Restart mariadb
 
 - name: create configuration directory
   become: true

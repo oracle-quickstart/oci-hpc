@@ -186,7 +186,7 @@
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
       args:
         creates: '/etc/ldap/slapd.d/cn=config.ldif'
-      notify: restart openldap
+      notify: Restart openldap
 
     - name: Load OpenLDAP local configuration 20.04
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
@@ -200,7 +200,7 @@
         - ppolicy.ldif
         - memberof.ldif
       when: ansible_distribution_version == '20.04'
-      notify: restart openldap
+      notify: Restart openldap
 
     - name: Load OpenLDAP local configuration 22.04
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
@@ -213,7 +213,7 @@
         - local.ldif
         - memberof.ldif
       when: ansible_distribution_version == '22.04' or ansible_distribution_version == '24.04'
-      notify: restart openldap
+      notify: Restart openldap
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'

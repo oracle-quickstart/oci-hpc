@@ -1,5 +1,5 @@
 ---
-- name: restart nscd
+- name: Restart nscd
   become: true
   systemd:
     name: nscd
@@ -9,7 +9,7 @@
   delegate_to: item
   with_items: "{{all_hosts_info.keys() }}"
 
-- name: restart sssd
+- name: Restart sssd
   become: true
   service:
     name: sssd
