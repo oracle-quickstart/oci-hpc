@@ -80,7 +80,6 @@
     regexp: "^PasswordAuthentication"
     line: PasswordAuthentication no
   notify:
-    - restart sshd
     - restart ns daemons
     - restart login services
 
@@ -94,4 +93,4 @@
     - { regexp: "^(\\s*enable-cache\\s+passwd\\s+)\\S+", line: "\\1no" }
     - { regexp: "^(\\s*enable-cache\\s+group\\s+)\\S+", line: "\\1no" }
   notify:
-    - restart nscd
+    - Restart nscd
