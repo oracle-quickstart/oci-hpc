@@ -80,8 +80,8 @@
     regexp: "^PasswordAuthentication"
     line: PasswordAuthentication no
   notify:
-    - restart ns daemons
-    - restart login services
+    - Restart ns daemons
+    - Restart login services
 
 - name: Set enable-cache to no for passwd and group in nscd.conf
   lineinfile:
