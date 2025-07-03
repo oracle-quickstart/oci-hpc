@@ -40,6 +40,8 @@ resource "local_file" "inventory" {
     home_nfs = var.home_nfs,
     create_fss = var.create_fss,
     home_fss = var.home_fss,
+    mount_target_count = var.mount_target_count,
+    nfs_mount_target_IPs = var.nfs_mount_target_IPs,
     add_nfs = var.add_nfs,
     slurm_nfs_path = var.slurm_nfs_path,
     rack_aware = var.rack_aware,

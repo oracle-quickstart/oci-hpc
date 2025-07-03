@@ -94,6 +94,12 @@
 - hosts: controller, slurm_backup, login, monitoring
   become: true
   tasks:
+    - include_role: 
+        name: passwords
+
+- hosts: controller, slurm_backup, login, compute, monitoring
+  become: true
+  tasks:
     - include_role:
         name: nfs-client
       vars:
@@ -102,9 +108,37 @@
         export_path: "/home"
         options: ""
         lock: "none"
-      when: home_fss|bool
-    - include_role: 
-        name: passwords
+      when: add_nfs|bool and home_fss|bool and mount_target_count == 1
+
+- hosts: controller, slurm_backup, login, compute, monitoring
+  become: true
+  tasks: 
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "{{ nfs_target_path }}"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{{ nfs_source_path }} "
+        options: "{{ nfs_options }}"
+        lock: "none"
+      when: add_nfs|default(false)|bool and mount_target_count == 1
+
+- hosts: controller, slurm_backup, login, compute, monitoring
+  become: true
+  tasks: 
+    - include_role:
+        name: multiple-mount-target
+      vars:
+        cmd_mmt: "mmt.py --current {} --new {{ [groups['controller'], groups['login'], groups['slurm_backup'], groups['monitoring'], groups['compute']] | flatten | unique }} --mount_targets {{ nfs_mount_target_IPs }} --nfs_path {{nfs_source_path}}"
+        home_fss_var: "{% if home_fss|bool and home_nfs|bool %}true{% else%}false{% endif %}"
+        local_path_home: "/home"
+        export_path_home: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        options_home: ""
+        local_path: "{{ nfs_target_path }}"
+        export_path: "{{ nfs_source_path }} "
+        options: "{{ nfs_options }}"
+        lock: "none"
+      when: add_nfs|default(false)|bool and mount_target_count > 1
 
 - hosts: controller
   become: true
@@ -222,15 +256,6 @@
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "none" 
       when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "{{ nfs_target_path }}"
-        export_host: "{{ nfs_source_IP }}"
-        export_path: "{{ nfs_source_path }} "
-        options: "{{ nfs_options }}"
-        lock: "none"
-      when: add_nfs|default(false)|bool
 
 - hosts: all
   become: true

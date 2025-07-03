@@ -32,3 +32,11 @@
     executable: pip3
   ignore_errors: yes
   when: ('controller' in group_names)
+
+- name: Install the 'paramiko' package
+  become: true
+  pip: 
+    name: paramiko
+    state: latest
+    executable: pip3
+  ignore_errors: yes
