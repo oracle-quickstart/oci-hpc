@@ -1,11 +1,10 @@
+---
 - hosts: controller
   vars:
-    slurm_mode: 'compute-ctld'
+    slurm_mode: "compute-ctld"
   roles:
     - get_nodes_in_cluster
     - prometheus_add_node
     - slurm
-
-
 
     #- fix_ldap_add_node

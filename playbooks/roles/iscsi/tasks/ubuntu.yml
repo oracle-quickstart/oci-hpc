@@ -3,7 +3,7 @@
   community.general.open_iscsi:
     show_nodes: true
     discover: true
-    portal: '{{ iscsi_ip }}'
+    portal: "{{ iscsi_ip }}"
   register: nodes
 
 - name: Connect to the named target, after updating the local persistent database (cache)
@@ -11,7 +11,7 @@
     login: yetrues
     target: '{{ nodes["nodes"][0] }}'
   register: target
-      
+
 - name: create local storage directory
   file:
     path: "{{ local_path }}"

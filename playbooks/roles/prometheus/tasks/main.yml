@@ -3,9 +3,9 @@
 - name: Create user for prometheus
   become: true
   user:
-    name: "{{ prometheus_user }}"  # Username
-    state: present  # Ensure the user is present
-    createhome: no  # Create the user's home directory  
+    name: "{{ prometheus_user }}" # Username
+    state: present # Ensure the user is present
+    createhome: false # Create the user's home directory
     shell: /usr/sbin/nologin
     append: true
   run_once: true
@@ -16,22 +16,21 @@
   file:
     path: "{{ prometheus_dest_dir }}"
     state: directory
-    owner: "{{ prometheus_user }}" 
-    group: "{{ prometheus_user }}"    
-    mode: '0775'
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "0775"
     recurse: true
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
-
 
 - name: Create data folder
   become: true
   file:
     path: "{{ prometheus_data_dir }}"
     state: directory
-    owner: "{{ prometheus_user }}" 
-    group: "{{ prometheus_user }}"     
-    mode: '0775'
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "0775"
     recurse: true
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
@@ -41,8 +40,8 @@
   unarchive:
     src: "{{ prometheus_download_url }}"
     dest: /tmp
-    owner: "{{ prometheus_user }}" 
-    group: "{{ prometheus_user }}" 
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
     remote_src: true
     creates: "{{ prometheus_download_dir }}"
   run_once: true
@@ -53,28 +52,28 @@
   copy:
     src: "{{ prometheus_download_dir }}/"
     dest: /usr/local/bin/
-    owner: "{{ prometheus_user }}" 
-    group: "{{ prometheus_user }}"    
-    mode: '0775'
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "0775"
     remote_src: true
   with_items:
-   - prometheus
-   - promtool 
+    - prometheus
+    - promtool
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
-     
+
 - name: Copying the console binary
   become: true
   copy:
     src: "{{ prometheus_download_dir }}/"
     dest: "{{ prometheus_dest_dir }}"
-    owner: "{{ prometheus_user }}" 
-    group: "{{ prometheus_user }}"    
-    mode: '0775'
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "0775"
     remote_src: true
   with_items:
-   - consoles
-   - console_libraries 
+    - consoles
+    - console_libraries
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
@@ -90,7 +89,7 @@
   become: true
   template:
     src: templates/prometheus.service.j2
-    dest: "{{ service_dest_dir }}/prometheus.service"   
+    dest: "{{ service_dest_dir }}/prometheus.service"
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
@@ -125,16 +124,16 @@
     dest: "{{ prometheus_dest_dir }}/prometheus.yml"
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
-    mode: '0775'
+    mode: "0775"
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
-  
+
 - name: restart prometheus
   become: true
-  service: 
-    name: prometheus 
+  service:
+    name: prometheus
     state: restarted
     daemon_reload: true
-    enabled: true 
+    enabled: true
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"

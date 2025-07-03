@@ -1,11 +1,10 @@
 ---
-
 - name: Install git
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - git
     package_state: present
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Get DEB architecture # noqa no-changed-when
@@ -33,13 +32,13 @@
     arch_map:
       x86_64: x86_64
       aarch64: arm64
-      
+
 - name: Download jb
   become: true
   get_url:
     url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
     dest: /usr/local/bin/jb
-    mode: '0755'
+    mode: "0755"
 
 - name: Download jsonnet
   become: true
@@ -52,7 +51,7 @@
   unarchive:
     src: /tmp/{{jsonnet_file}}
     dest: /usr/local/bin
-    mode: '0755'
+    mode: "0755"
     remote_src: true
 
 - name: Delete existing build directory
@@ -64,7 +63,7 @@
   ansible.builtin.file:
     path: "{{ dashboard_build_dir }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: "{{ user }}"
     group: "{{ user }}"
 
@@ -93,8 +92,8 @@
   file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: Save generated dashboard
   copy:
@@ -109,5 +108,3 @@
     commit_message: Updated by ansible
     overwrite: true
     path: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-
-

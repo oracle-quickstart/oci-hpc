@@ -2,7 +2,7 @@
 - name: Check oracle cloud agent version
   shell: "snap info oracle-cloud-agent | grep installed | awk '{print $2}'"
   register: version
-  when : rdma_enabled | bool
+  when: rdma_enabled | bool
 
 - name: Download Snap package
   vars:
@@ -12,7 +12,7 @@
   get_url:
     url: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/KVgO3DVFyTiLdCJLZUNYZlYCF5mcnaTjemmMUmyOB1Ln7Vkii-llp7QoQDiRF66T/n/imagegen/b/agent_test/o/1.37.0/4/oracle-cloud-agent_1.37.2-9_amd64.snap"
     dest: "/tmp/oracle-cloud-agent_1.37.2-9_amd64.snap"
-  when :
+  when:
     - (minor_version | int <= 1) | bool
     - (major_version | int <= 37) | bool
     - (sub_version | int < 2) | bool
@@ -40,7 +40,7 @@
 
   become: true
   shell: "snap install --classic --dangerous /tmp/oracle-cloud-agent_1.37.2-9_amd64.snap"
-  when :
+  when:
     - (minor_version | int <= 1) | bool
     - (major_version | int <= 37) | bool
     - (sub_version | int < 2) | bool

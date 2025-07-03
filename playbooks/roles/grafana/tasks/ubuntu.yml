@@ -9,9 +9,9 @@
 - name: Add Grafana repository
   become: true
   apt_repository:
-    repo: 'deb https://packages.grafana.com/oss/deb stable main'
+    repo: "deb https://packages.grafana.com/oss/deb stable main"
     state: present
-    filename: 'grafana'
+    filename: "grafana"
 
 - name: Update apt cache
   become: true
@@ -38,14 +38,14 @@
   template:
     src: ons_webhook.py.j2
     dest: /usr/local/bin/ons_webhook.py
-    mode: '0755'
+    mode: "0755"
 
 - name: Copy message template to server
   become: true
   copy:
     src: raw_message_template.txt
     dest: /etc/raw_message_template.txt
-    mode: '0755'
+    mode: "0755"
 
 - name: Render systemd service for webhook
   become: true
@@ -54,7 +54,7 @@
     dest: /etc/systemd/system/ons-webhook.service
     force: true
     backup: true
-    mode: '0644'
+    mode: "0644"
 
 - name: Start and enable webhook service
   become: true
@@ -108,7 +108,7 @@
   copy:
     src: files/alert-rules.yaml
     dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
-    mode: '0777'
+    mode: "0777"
 
 - name: Replace all occurrences of a specific string in files
   become: true

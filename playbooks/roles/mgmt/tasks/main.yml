@@ -1,31 +1,28 @@
 ---
-
 - name: Ensure db directory exists
   file:
     path: "/opt/oci-hpc/db"
     state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: Generate env file
-  template: 
+  template:
     src: env.j2
     dest: /opt/oci-hpc/db/env
 
 - name: Copy files
   become: true
-  copy: 
+  copy:
     src: "initial.sql"
-    dest: '/opt/oci-hpc/db/initial.sql'
-    force: no
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    dest: "/opt/oci-hpc/db/initial.sql"
+    force: false
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
-    mysql_root_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
-                           chars=ascii_letters,digits') }}"
+    mysql_root_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/mysql/root.txt chars=ascii_letters,digits') }}"
 
 - name: Create database 'clusterDB'
   mysql_db:
@@ -45,26 +42,26 @@
 
 - name: Create initial DB
   shell: "source /opt/oci-hpc/db/env; mysql -u root -p{{ mysql_root_pwd }} < /opt/oci-hpc/db/initial.sql"
-  ignore_errors: true  
+  ignore_errors: true
 
 - name: Ensure db directory exists
   file:
     path: "/opt/oci-hpc/db"
     state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: Create systemd service unit file
   template:
     src: templates/systemd/mgmt.service
     dest: /etc/systemd/system/mgmt.service
-    mode: '0644'
+    mode: "0644"
 
 - name: Create systemd service unit file
   template:
     src: templates/systemd/mgmt.timer
     dest: /etc/systemd/system/mgmt.timer
-    mode: '0644'
+    mode: "0644"
 
 - name: Reload systemd daemon
   systemd:
@@ -79,7 +76,7 @@
   file:
     path: "/config/mgmt"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
 
@@ -101,16 +98,17 @@
 - name: install clustershell
   become: true
   pip:
-    name: ['clustershell', 'sqlalchemy', 'rich', 'click', 'ansible_runner']
+    name: ["clustershell", "sqlalchemy", "rich", "click", "ansible_runner"]
     executable: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/pip3"
     state: latest
   ignore_errors: true
 
 - name: add alias for node status
   lineinfile:
-    path: '/home/{{ ansible_user }}/.bashrc'
+    path: "/home/{{ ansible_user }}/.bashrc"
     line: alias mgmt="/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/python3 /config/mgmt/manage.py"
     state: present
 
 - name: import the queues.conf into the DB
-  shell: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/python3 /config/mgmt/manage.py configurations create from-file --file /opt/oci-hpc/conf/queues.conf"
+  shell: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/python3 /config/mgmt/manage.py configurations create
+    from-file --file /opt/oci-hpc/conf/queues.conf"

@@ -4,8 +4,10 @@ https://ansible.readthedocs.io/projects/lint/
 
 Install with `pip3 install ansible-lint`
 
-Run with `ansible-lint ../playbooks/`
+Run with `ansible-lint --profile min ../playbooks/`
 
-Autofix with `ansible-lint --fix ../playbooks/`
+Autofix with `ansible-lint --profile min --fix ../playbooks/`
 
-We are currently using the [`production` profile](https://ansible.readthedocs.io/projects/lint/profiles/#production) which ensures that content meets requirements for inclusion in [Ansible Automation Platform (AAP)](https://www.redhat.com/en/technologies/management/ansible) as validated or certified content.
+We are currently using the [`min` profile](https://ansible.readthedocs.io/projects/lint/profiles/#min) which ensures that ensures that Ansible can load content.  We will gradually increase the strictness of rules as time allows for development.
+
+Note that the linter with `--fix` may need to be run a few times in order to suss out all the issues.

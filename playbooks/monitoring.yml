@@ -1,3 +1,4 @@
+---
 - hosts: localhost
   become: true
   gather_facts: true
@@ -5,7 +6,7 @@
     - include_role:
         name: fix_broken
       when: ansible_os_family == 'Debian'
-        
+
 - hosts: localhost
   become: true
   vars:
@@ -13,13 +14,13 @@
     http_server_status: "configuring"
     http_server_role: "monitoring"
   gather_facts: true
-  roles: 
+  roles:
     - oci-cloud-agent
     - http_server
     - privilege_group
     - oci-legacy
     - packages
-    - firewall 
+    - firewall
     - oci-hostname
     - ssh
     - limits
@@ -32,11 +33,11 @@
   gather_facts: true
   vars:
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
-  tasks: 
-    - include_role: 
+  tasks:
+    - include_role:
         name: localdisk
       when: localdisk | default(true) | bool
-    - include_role: 
+    - include_role:
         name: healthchecks
 
 - hosts: localhost
@@ -88,20 +89,20 @@
     - include_role:
         name: nvidia-enroot
       when: enroot|default(true)|bool
-      
+
 - hosts: localhost
   vars:
-    slurm_mode: 'login'
+    slurm_mode: "login"
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     compute_node: false
-  tasks: 
-    - include_role: 
+  tasks:
+    - include_role:
         name: rack-aware
-    - include_role: 
+    - include_role:
         name: spack
       when: spack|default(false)|bool
-    - include_role: 
+    - include_role:
         name: slurm
       when: slurm|default(false)|bool
 
@@ -112,5 +113,5 @@
     http_server_status: "configured"
     http_server_role: "monitoring"
   gather_facts: true
-  roles: 
+  roles:
     - http_server

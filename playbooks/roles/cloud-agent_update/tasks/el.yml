@@ -1,4 +1,4 @@
---- 
+---
 - name: Check oracle cloud agent version
   shell: "yum info oracle-cloud-agent | grep Version | awk '{print $3}'"
   register: version

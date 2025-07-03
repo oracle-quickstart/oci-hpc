@@ -3,8 +3,8 @@
   file:
     path: "/opt/oci-hpc/bin"
     state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: Copying the queue write script
   become: true
@@ -13,4 +13,4 @@
     dest: "/opt/oci-hpc/bin/run_command.py"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: '0775'
+    mode: "0775"

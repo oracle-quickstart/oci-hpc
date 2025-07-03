@@ -1,3 +1,4 @@
+---
 - name: Check if /config is mounted
   ansible.builtin.shell: mountpoint -q /config
   register: config_mount_check
