@@ -61,21 +61,72 @@
   environment:
     PATH: "{{ ansible_env.PATH }}"
 
-- name: Copy NCCL profiler library
+- name: Extract PLUGIN_SO filename from Makefile
+  shell: |
+    awk -F':= ' '/^PLUGIN_SO[[:space:]]*:=/ {print $2}' {{ nccl_directory.stdout }}/ext-profiler/example/Makefile
+  register: plugin_so_filename
+  changed_when: false
+
+- name: Copy NCCL profiler library (Debian)
   become: true
   copy:
-    src: "{{ nccl_directory.stdout }}/ext-profiler/example/libnccl-profiler.so"
-    dest: "/usr/lib/x86_64-linux-gnu/libnccl-profiler.so"
+    src: "{{ nccl_directory.stdout }}/ext-profiler/example/{{ plugin_so_filename.stdout }}"
+    dest: "/usr/lib/x86_64-linux-gnu/{{ plugin_so_filename.stdout }}"
     mode: "0644"
     remote_src: true
   when: ansible_os_family == "Debian"
 
-- name: Copy NCCL profiler library
+- name: Copy NCCL profiler library (RedHat)
   become: true
   copy:
-    src: "{{ nccl_directory.stdout }}/ext-profiler/example/libnccl-profiler.so"
-    dest: "/usr/lib64/libnccl-profiler.so"
+    src: "{{ nccl_directory.stdout }}/ext-profiler/example/{{ plugin_so_filename.stdout }}"
+    dest: "/usr/lib64/{{ plugin_so_filename.stdout }}"
     mode: "0644"
     remote_src: true
   when: ansible_distribution == "RedHat"
-  
+
+- name: Install nccl-profiler-exporter python dependencies
+  pip:
+    name:
+      - watchdog
+      - opentelemetry-sdk
+      - opentelemetry-exporter-otlp
+    executable: pip3
+    extra_args: --break-system-packages
+
+- name: Install NCCL trace exporter script
+  become: true
+  copy:
+    src: nccl_profiler_exporter.py
+    dest: "{{ nccl_exporter_script }}"
+    mode: '0755'
+
+- name: Set Tempo host (try monitoring, fallback to controller)
+  set_fact:
+    tempo_host: >-
+      {{ (groups['all'] | select('search', 'monitoring') | list | first)
+          or (groups['all'] | select('search', 'controller') | list | first) }}
+  run_once: true
+
+- name: Set Tempo endpoint variable
+  set_fact:
+    tempo_endpoint: "{{ hostvars[tempo_host]['ansible_host'] | default(tempo_host) }}:4317"
+  when: tempo_host is defined
+  run_once: true
+
+- name: Create systemd service for nccl-profiler-exporter
+  become: true
+  template:
+    src: nccl-profiler-exporter.service.j2
+    dest: "{{ exporter_service_file }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0744
+    
+- name: Ensure nccl-profiler-exporter service is enabled and running
+  become: true
+  systemd:
+    name: nccl-profiler-exporter.service
+    enabled: yes
+    state: started
+    daemon_reload: yes
