@@ -1,12 +1,10 @@
 - name: Gather serial number
   command: "sudo dmidecode -s system-serial-number"
   register: serial_output
-  delegate_to: "{{ item }}"
 
 - name: Gather FSS IP
-  shell: "cat /etc/fstab | grep {{nfs_source_path}}"
+  shell: "getent hosts $(awk '{{nfs_source_path}}/ {split($1,a,\":\"); print a[1]}' /etc/fstab) | awk '{print $1}' | sort -u"
   register: nfs_output
-  delegate_to: "{{ item }}"
   ignore_errors: true
 
 - name: Extract the IP address using regex
@@ -27,7 +25,6 @@
       Authorization: 'Bearer Oracle'
     return_content: yes
   register: i_metadata
-  delegate_to: "{{ item }}"
 
 - name: set fact
   set_fact:
@@ -56,7 +53,6 @@
       Authorization: 'Bearer Oracle'
     return_content: yes
   register: h_metadata
-  delegate_to: "{{ item }}"
 
 - name: set fact
   set_fact:
@@ -89,4 +85,29 @@
 
 - name: Build the host_info dictionary
   set_fact:
-    host_info: "{{ host_info | default({}) | combine({item: {'serial_number': serial_output.stdout, 'cluster_name': cluster_name_gathered, 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] }})   }}"
+    host_info: "{{ host_info | default({}) | combine({'serial_number': serial_output.stdout, 'cluster_name': cluster_name_gathered, 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] })   }}"
+
+- name: Set exporter_ports based on host group membership
+  ansible.builtin.set_fact:
+    exporter_ports: "{{ controller_ports }}"
+  when: "(inventory_hostname in groups['controller'] or inventory_hostname in groups['slurm_backup'])"
+
+- name: Set exporter_ports for login nodes
+  ansible.builtin.set_fact:
+    exporter_ports: "{{ login_ports }}"
+  when: "inventory_hostname in groups['login']"
+
+- name: Set exporter_ports for compute nodes
+  ansible.builtin.set_fact:
+    exporter_ports: "{{ compute_ports }}"
+  when: "inventory_hostname in groups['compute']"
+
+- name: Create Prometheus target JSON
+  become: true
+  template:
+    src: templates/prometheus_target.json.j2
+    dest: "{{ prometheus_targets_dir }}/{{ ansible_hostname }}.json"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: '0775'
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"

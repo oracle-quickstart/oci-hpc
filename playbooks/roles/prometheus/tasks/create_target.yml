@@ -1,0 +1,26 @@
+- name: Look for existing target files
+  find:
+    paths: "{{ prometheus_targets_dir }}"
+    patterns: "*.json"
+    file_type: file
+  register: found_prometheus_targets
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+
+- name: Create list of existing targets
+  set_fact:
+    existing_prometheus_targets: "{{ found_prometheus_targets.files | map(attribute='path') | map('basename') | list | map('regex_replace', '\\.json$', '') }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Existing targets
+  debug:
+    var: existing_prometheus_targets
+
+- name: display the ansible_hostname
+  debug:
+    var: ansible_hostname
+  
+- name: Gather node data
+  include_tasks: gather_info.yml
+  when: (ansible_hostname not in existing_prometheus_targets) and (inventory_hostname not in groups['monitoring'])

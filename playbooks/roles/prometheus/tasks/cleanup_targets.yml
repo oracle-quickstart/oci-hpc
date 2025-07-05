@@ -1,0 +1,39 @@
+- name: Get current nodes in /etc/hosts
+  shell: "awk '/# BEGIN ANSIBLE MANAGED BLOCK/,/# END ANSIBLE MANAGED BLOCK/ { if ($0 ~ /^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/) print }' /etc/hosts"
+  register: entries_in_etc_hosts
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Extract nodes hostname
+  ansible.builtin.set_fact:
+          d_controller_nodes_in_etchosts: "{{ entries_in_etc_hosts.stdout | regex_findall('^(?:(?:25[0-5]|(?:2[0-4]|1\\d|[1-9]|)\\d)\\.?){4}.+?\\s([a-zA-Z0-9-]+)\\s+(?:controller|backup)\\s*$', multiline=true) }}"
+          d_login_nodes_in_etchosts: "{{ entries_in_etc_hosts.stdout | regex_findall('^(?:(?:25[0-5]|(?:2[0-4]|1\\d|[1-9]|)\\d)\\.?){4}.+?\\s([a-zA-Z0-9-]+)\\s+(?:login)\\s*$', multiline=true) }}"
+          d_compute_nodes_in_etchosts: "{{ entries_in_etc_hosts.stdout | regex_findall('^(?!.*(?:controller|login|backup|monitoring)\\s*$)(?:(?:25[0-5]|(?:2[0-4]|1\\d|[1-9]|)\\d)\\.?){4}\\s+([A-Za-z0-9-]+)\\s+(?:[A-Za-z0-9.-]+)\\s+(?:[A-Za-z0-9-]+)\\s+.+?(?:[a-zA-Z0-9-]+)\\s*$', multiline=true) }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Look for existing target files
+  find:
+    paths: "{{ prometheus_targets_dir }}"
+    patterns: "*.json"
+    file_type: file
+  register: d_found_prometheus_targets
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+
+- name: Create list of existing targets
+  set_fact:
+    d_existing_prometheus_targets: "{{ d_found_prometheus_targets.files | map(attribute='path') | map('basename') | list | map('regex_replace', '\\.json$', '') }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Remove prometheus target files
+  become: true
+  vars:
+    prometheus_targets_dir: "/etc/prometheus/targets"
+  file:
+    path: "/{{ prometheus_targets_dir }}/{{ item }}.json" 
+    state: absent
+  loop: "{{ d_existing_prometheus_targets | difference(d_controller_nodes_in_etchosts + d_login_nodes_in_etchosts + d_compute_nodes_in_etchosts) }}"
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+

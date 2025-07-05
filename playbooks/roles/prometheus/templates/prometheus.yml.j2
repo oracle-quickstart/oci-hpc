@@ -4,56 +4,10 @@ global:
     monitor: 'prometheus'
 
 rule_files:
-  - recording_rules.yml
+- recording_rules.yml
 
 scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-{% for host, info in host_info.items() %}
-{% if "login" in host %}
-      - targets: [{% for port in login_ports  %}{{ host }}:{{port}}{{ "," if not loop.last }}{%- endfor %}]
-        labels:
-          serial: {{ info.serial_number }}
-          hostname: {{ host }}
-          cluster_name: {{ info.cluster_name }}
-          ocid: {{ info.ocid }}
-          oci_name: {{ info.oci_name }}
-          AD: {{ info.availabilityDomain }}
-          compartment: {{ info.compartmentId }}
-          rackID: {{ info.rackID }}
-          networkBlockId: {{ info.networkBlockId }}
-          rail_id: {{ info.rail_id }}
-          hpc_island: {{ info.hpc_island }}
-          fss_mount: {{ info.fss_ip }}
-{% elif "controller" in host %}          
-      - targets: [{% for port in controller_ports %}{{ host }}:{{ port }}{{ "," if not loop.last }}{% endfor %}]
-        labels:
-          serial: "{{ info.serial_number }}"
-          hostname: "{{ host }}"
-          cluster_name: "{{ info.cluster_name }}"
-          ocid: "{{ info.ocid }}"
-          oci_name: "{{ info.oci_name }}"
-          AD: "{{ info.availabilityDomain }}"
-          compartment: "{{ info.compartmentId }}"
-          rackID: "{{ info.rackID }}"
-          networkBlockId: "{{ info.networkBlockId }}"
-          rail_id: "{{ info.rail_id }}"
-          hpc_island: "{{ info.hpc_island }}"
-          fss_mount: "{{ info.fss_ip }}"
-{% else %}
-      - targets: [{% for port in compute_ports %}{{ host }}:{{ port }}{{ "," if not loop.last }}{% endfor %}]
-        labels:
-          serial: "{{ info.serial_number }}"
-          hostname: "{{ host }}"
-          cluster_name: "{{ info.cluster_name }}"
-          ocid: "{{ info.ocid }}"
-          oci_name: "{{ info.oci_name }}"
-          AD: "{{ info.availabilityDomain }}"
-          compartment: "{{ info.compartmentId }}"
-          rackID: "{{ info.rackID }}"
-          networkBlockId: "{{ info.networkBlockId }}"
-          rail_id: "{{ info.rail_id }}"
-          hpc_island: "{{ info.hpc_island }}"
-          fss_mount: "{{ info.fss_ip }}"
-{% endif %}
-{% endfor %}
+- job_name: prometheus
+  file_sd_configs:
+  - files:
+    - '/etc/prometheus/targets/*.json'
