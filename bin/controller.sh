@@ -171,7 +171,7 @@ fi
 ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
 ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
 ansible-galaxy collection install ansible.posix --force > /dev/null
-ansible-galaxy collection install community.crypto --force > /dev/null
+ansible-galaxy collection install community.crypto:=2.26.3 --force > /dev/null
 
 threads=$(nproc)
 forks=$(($threads * 8))

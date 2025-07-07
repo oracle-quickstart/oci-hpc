@@ -2,6 +2,7 @@
 # vars file for prometheus
 prometheus_user: prometheus
 prometheus_dest_dir: /etc/prometheus
+prometheus_targets_dir: /etc/prometheus/targets
 prometheus_data_dir: /var/lib/prometheus
 service_dest_dir: /etc/systemd/system
 prometheus_download_dir: /tmp/prometheus-2.53.1.linux-amd64

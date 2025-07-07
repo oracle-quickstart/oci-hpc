@@ -1,0 +1,18 @@
+[
+  {
+    "labels": {
+{% for key, value in host_info.items() if value is not none %}
+      "{{ key }}": "{{ value }}"{% if not loop.last %},
+{% endif %}
+{% endfor %}
+
+    },
+    "targets": [
+{% for port in exporter_ports %}
+      "{{ ansible_hostname }}:{{ port }}"{% if not loop.last %},
+{% endif %}
+{% endfor %}
+
+    ]
+  }
+]
