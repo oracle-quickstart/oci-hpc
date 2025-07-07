@@ -20,7 +20,7 @@ g.dashboard.new('Multi-Node Metrics')
     // Host Metrics Time Series
     timeseriesPanel(
       'CPU Utilization by Node',
-      'ceil(avg by (hostname) (rate(node_cpu_seconds_total{hostname=~"$hostname", mode!~"idle"}[5m])) * 100)',
+      'ceil(avg by (hostname) (rate(node_cpu_seconds_total{hostname=~"$hostname", oci_name=~"$oci_name", mode!~"idle"}[5m])) * 100)',
       '{{ hostname }}',
       'percent',
       {w:12, h:8, x:0, y:0}

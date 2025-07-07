@@ -18,11 +18,16 @@
   apt:
     update_cache: yes
 
-- name: Install Grafana package
+- name: Install Grafana and Tempo
   become: true
+  vars:
+    package_name:
+      - grafana
+      - tempo
+    package_state: present
   apt:
-    name: grafana
-    state: present
+    name: "{{ package_name }}"
+    state: "{{ package_state }}"
 
 - name: Install Python dependencies
   pip:
@@ -104,6 +109,18 @@
     ds_url: "http://localhost:9090"
   ignore_errors: true
   register: output
+
+- name: Create Tempo datasource in Grafana
+  grafana_datasource:
+    name: "Tempo"
+    grafana_url: "{{ grafana_api_url }}"
+    grafana_user: "{{ grafana_security.admin_user }}"
+    grafana_password: "{{ grafana_security.admin_password }}"
+    ds_type: "tempo"
+    ds_url: "http://localhost:3200"
+    access: "proxy"
+    is_default: false
+  register: tempo_output
 
 - name: Copy alert rules to grafana provisioning
   become: true
