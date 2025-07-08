@@ -30,19 +30,16 @@ vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
   if [ $vid == 7 ] ; then
     repo="ol7_developer_EPEL"
+    sudo osms unregister 
   elif [ $vid == 8 ] ; then
     repo="ol8_developer_EPEL"
+    sudo osms unregister 
   elif [ $vid == 9 ] ; then
     repo="ol9_developer_EPEL"
   fi
 elif [ $ID == "centos" ] ; then
   repo="epel"
 fi
-
-# to ensure existing enabled repos are available. 
-if [ $ID == "ol" ] ; then 
-  sudo osms unregister 
-fi 
 
 VENV_PATH=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
 # Check if venv is available
