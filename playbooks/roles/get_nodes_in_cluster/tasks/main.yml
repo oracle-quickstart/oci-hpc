@@ -1,6 +1,7 @@
 ---
+
 - name: get All nodes with this controller
-  shell: "/config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}}/bin/python3 /config/mgmt/manage.py nodes list json"
+  shell: "{{venv_path}}/bin/python3 /config/mgmt/manage.py nodes list json"
   register: get_cluster_nodes_results
 
 - name: Convert the Python script output to a list of dictionaries

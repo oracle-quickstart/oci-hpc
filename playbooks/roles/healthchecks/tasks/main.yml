@@ -78,4 +78,4 @@
 - name: Install psutil and distro
   ansible.builtin.pip:
     name: ["psutil", "distro"]
-    executable: "/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/bin/pip3"
+    executable: "{{ venv_path }}/bin/pip3"

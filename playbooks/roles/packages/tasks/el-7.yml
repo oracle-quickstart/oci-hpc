@@ -26,7 +26,7 @@
   ansible.builtin.pip:
     name: [pip]
     state: latest
-    executable: "/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/bin/pip3"
+    executable: "{{venv_path}}/bin/pip3"
   ignore_errors: true
 
 - name: Install oci-cli latest version
@@ -34,6 +34,6 @@
   ansible.builtin.pip:
     name: [oci-cli]
     state: latest
-    executable: "/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/bin/pip3"
+    executable: "{{venv_path}}/bin/pip3"
   ignore_errors: true
   when: ('controller' in group_names)

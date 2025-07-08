@@ -16,7 +16,7 @@
   become: true
   ansible.builtin.pip:
     name: ["pssh", "parallel-ssh"]
-    executable: "/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/bin/pip3"
+    executable: "{{venv_path}}/bin/pip3"
     state: latest
   with_items:
     - pssh

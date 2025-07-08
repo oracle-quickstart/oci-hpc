@@ -14,7 +14,7 @@
     ansible_python_interpreter: /usr/bin/python3
   ansible.builtin.pip:
     name: ["pssh", "parallel-ssh"]
-    executable: "/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/bin/pip3"
+    executable: "{{venv_path}}/bin/pip3"
     state: latest
   ignore_errors: true
 

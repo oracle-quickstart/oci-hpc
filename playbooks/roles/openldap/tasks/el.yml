@@ -57,7 +57,7 @@
   changed_when: false
 
 - name: Create Python virtual environment with system site packages
-  command: "python3 -m venv /config/venv/{{ansible_distribution}}_{{ansible_distribution_version}}_{{ansible_architecture}} --system-site-packages"
+  command: "python3 -m venv {{venv_path}} --system-site-packages"
   when: ansible_distribution_major_version != "8"
 
 - name: Selinux fcontext on files
