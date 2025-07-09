@@ -299,7 +299,9 @@
         name: grafana
       when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) 
 
-- hosts: controller, monitoring
+- hosts: all
+  vars:
+    initial: true
   tasks: 
     - include_role: 
         name: prometheus

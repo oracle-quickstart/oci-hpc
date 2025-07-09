@@ -1,0 +1,13 @@
+[Unit]
+Description=NCCL Profiler Trace Exporter
+After=network.target
+
+[Service]
+User={{ ansible_user }}
+Group={{ ansible_user }}
+Type=simple
+ExecStart=/usr/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint 
+
+
+[Install]
+WantedBy=multi-user.target

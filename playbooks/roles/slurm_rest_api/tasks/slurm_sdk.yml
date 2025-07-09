@@ -78,7 +78,7 @@
 - name: Find the openapi-generator jar
   find:
     paths: "{{ ansible_env.HOME }}/.nvm"
-    patterns: "*.jar"
+    patterns: "{{ openapi_generator_jar_version }}.jar"
     file_type: file
     recurse: yes
   register: openapi_jar_find
@@ -106,32 +106,41 @@
   args:
     chdir: "{{ sdk_output_dir }}"
 
-- name: Build python wheel
-  shell: |
-    python setup.py bdist_wheel
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "Debian"
-
-- name: Install the python wheel
+- name: Install wheel package (Debian)
   become: true
   shell: |
-    pip install openapi_client
-    pip install --force-reinstall --upgrade dist/*.whl
+    /usr/bin/python3.8 -m pip install wheel
+  when: ansible_os_family == "Debian"
+
+- name: Build slurm sdk python wheel
+  shell: |
+    /usr/bin/python3.8 setup.py bdist_wheel
+  args:
+    chdir: "{{ sdk_output_dir }}"
+    executable: /bin/bash
+  when: ansible_os_family == "Debian"
+
+- name: Install slurm sdk the python wheel
+  become: true
+  shell: |
+    /usr/bin/python3.8 -m pip install --upgrade pip
+    /usr/bin/python3.8 -m pip install pydantic>=2
+    /usr/bin/python3.8 -m pip install openapi_client
+    /usr/bin/python3.8 -m pip install --force-reinstall --upgrade dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
   when: ansible_os_family == "Debian"
 
 - name: Build python wheel
+  become: true
   shell: |
     /usr/bin/pip3.8 install wheel
     /usr/bin/python3.8 setup.py bdist_wheel
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  when: ansible_distribution == "RedHat"
+  when: ansible_os_family == "RedHat"
 
 - name: Install the python wheel
   become: true
@@ -143,11 +152,12 @@
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  when: ansible_distribution == "RedHat"
+  when: ansible_os_family == "RedHat"
 
 - name: Install test requirements
   pip:
     requirements: "{{ sdk_output_dir }}/test-requirements.txt"
+    executable: /usr/bin/pip3.8
     state: present
   when: >
     ansible_stat.stat.exists is defined and

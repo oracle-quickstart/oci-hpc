@@ -64,63 +64,25 @@
     - slurm-dashboard.jsonnet
     - oci-variables.libsonnet
     - oci-dashboard.jsonnet
+    - table-panel.libsonnet
+    - nccl-traces.jsonnet    
 
-- name: Build command center dashboard with Jsonnet
+- name: Build dashboards with Jsonnet
   become: true  
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
     /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
     /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
-  args:
-    chdir: "{{ dashboard_build_dir }}"
-
-- name: Build cluster level dashboard with Jsonnet
-  become: true  
-  ansible.builtin.shell: |
     /usr/local/bin/jsonnet -J vendor cluster-level.jsonnet -o cluster-level.json
-  args:
-    chdir: "{{ dashboard_build_dir }}"
-
-- name: Build multi-node dashboard with Jsonnet
-  become: true  
-  ansible.builtin.shell: |
     /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
-  args:
-    chdir: "{{ dashboard_build_dir }}"
-
-- name: Build gpu metrics single dashboard with Jsonnet
-  become: true  
-  ansible.builtin.shell: |
     /usr/local/bin/jsonnet -J vendor gpu-metrics-single.jsonnet -o gpu-metrics-single.json
-  args:
-    chdir: "{{ dashboard_build_dir }}"
-
-- name: Build host metrics single dashboard with Jsonnet
-  become: true  
-  ansible.builtin.shell: |
     /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
-  args:
-    chdir: "{{ dashboard_build_dir }}"
-
-- name: Build gpu health dashboard with Jsonnet
-  become: true  
-  ansible.builtin.shell: |
     /usr/local/bin/jsonnet -J vendor gpu-health.jsonnet -o gpu-health.json
-  args:
-    chdir: "{{ dashboard_build_dir }}"
-
-- name: Build slurm dashboard with Jsonnet
-  become: true
-  ansible.builtin.shell: |
     /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
-  args:
-    chdir: "{{ dashboard_build_dir }}"
-
-- name: Build oci dashboard with Jsonnet
-  become: true
-  ansible.builtin.shell: |
     /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
+    /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
+  environment:
   args:
     chdir: "{{ dashboard_build_dir }}"
 
@@ -146,10 +108,13 @@
     - gpu-health.json
     - slurm-dashboard.json
     - oci-dashboard.json
+    - nccl-traces.json
 
 - name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
+    grafana_user: "{{ grafana_security.admin_user }}"
+    grafana_password: "{{ grafana_security.admin_password }}"    
     state: present
     commit_message: Updated by ansible
     overwrite: true
@@ -163,3 +128,4 @@
     - gpu-health.json
     - slurm-dashboard.json
     - oci-dashboard.json
+    - nccl-traces.json

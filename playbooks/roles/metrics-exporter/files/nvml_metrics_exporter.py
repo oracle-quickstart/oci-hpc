@@ -11,11 +11,14 @@ import re
 import platform
 import json
 import glob
+import shutil
 from prometheus_client import start_http_server, Gauge
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 cluster_name = "none"
+
+SCONTROL_PATH = shutil.which("scontrol")
 
 def signal_handler(signum, frame):
     logger.info("Shutting down NVML...")
@@ -56,9 +59,20 @@ def get_cluster_name():
     cluster_name = "none"
     try:
         gpu_host = platform.node()
-        scontrol_output = subprocess.check_output(["scontrol", "show", f"node={gpu_host}", "-o", "--json"], universal_newlines=True)
+        if not SCONTROL_PATH:
+            logger.error("scontrol not found in PATH")
+            return cluster_name        
+        scontrol_output = subprocess.check_output([SCONTROL_PATH, "show", f"node={gpu_host}", "-o", "--json"], universal_newlines=True)
         slurm_node_features = json.loads(scontrol_output)
-        cluster_name = slurm_node_features['nodes'][0]['features'][1].split("__")[1]
+        features = slurm_node_features['nodes'][0].get('features')
+        if isinstance(features, list) and len(features) > 1:
+            cluster_name = features[1].split("__")[1]
+        elif isinstance(features, list) and len(features)==1:
+            cluster_name = features[0]
+        elif isinstance(features, str):
+            cluster_name = features
+        else:
+            logger.warning(f"Unexpected format for features: {features}")     
     except subprocess.CalledProcessError as e:
         logger.error(f"An error occurred: {e}")
     return cluster_name.strip()
@@ -66,8 +80,11 @@ def get_cluster_name():
 
 def get_slurm_job_id_from_scontrol(pid):
     try:
+        if not SCONTROL_PATH:
+            logger.error("scontrol not found in PATH")
+            return "none"        
         result = subprocess.run(
-            ["scontrol", "pidinfo", str(pid)],
+            [SCONTROL_PATH, "pidinfo", str(pid)],
             capture_output=True,
             text=True,
             check=True

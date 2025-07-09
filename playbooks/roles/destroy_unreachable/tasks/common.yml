@@ -91,3 +91,13 @@
     state: absent
   with_items: "{{all_unreachable_nodes}}"
   ignore_unreachable: yes
+
+- name: remove prometheus target files
+  become: true
+  vars:
+    prometheus_targets_dir: "/etc/prometheus/targets"
+  file:
+    path: "/{{ prometheus_targets_dir }}/{{ item }}.json" 
+    state: absent
+  loop: "{{ all_unreachable_nodes }}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"

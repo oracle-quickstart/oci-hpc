@@ -94,7 +94,7 @@ if __name__ == "__main__":
     compartment_id = get_compartment_id()
     metrics = list_lustre_metrics(monitoring, compartment_id)
     logger.info(f"Discovered Lustre Metrics: {metrics}")
-    start_http_server(9200)
+    start_http_server(9250)
     while True:
          push_metrics(monitoring, compartment_id, metrics)
          time.sleep(60)

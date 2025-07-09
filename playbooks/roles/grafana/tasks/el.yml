@@ -12,10 +12,11 @@
     sslverify: 1
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
-- name: install grafana
+- name: install grafana and tempo
   vars: 
     package_name: 
       - grafana
+      - tempo
     package_state: present
   include_role: 
     name: safe_yum

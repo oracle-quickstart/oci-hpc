@@ -1,2 +1,5 @@
 node_exporter: 1.8.2
 cpu_ports: 9100
+
+nccl_exporter_script: "/usr/local/bin/nccl_profiler_exporter.py"
+exporter_service_file: "/etc/systemd/system/nccl-profiler-exporter.service"

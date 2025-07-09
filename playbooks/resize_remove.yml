@@ -17,6 +17,9 @@
   vars_files:
     - "/opt/oci-hpc/conf/queues.conf"
   tasks:
+    - include_role:
+        name: prometheus
+      when: cluster_monitoring|default(false)|bool
     - include_role: 
         name: slurm
       when: slurm|default(false)|bool

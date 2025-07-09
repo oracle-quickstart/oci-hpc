@@ -2,6 +2,7 @@
 # vars file for prometheus
 prometheus_user: prometheus
 prometheus_dest_dir: /etc/prometheus
+prometheus_targets_dir: /etc/prometheus/targets
 prometheus_data_dir: /var/lib/prometheus
 service_dest_dir: /etc/systemd/system
 prometheus_download_dir: /tmp/prometheus-2.53.1.linux-amd64
@@ -9,6 +10,7 @@ prometheus_download_url: https://github.com/prometheus/prometheus/releases/downl
 # vars file for prometheus
 # 9100 - node exporter - exports cpu, memory, network, disk metrics for each node.
 # 9200 - OCI FSS metrics exporter - downloads metrics from OCI and pushes them to our prometheus instance.
+# 9250 - OCI Lustre metrics exporter - downloads metrics from OCI and pushes them to our prometheus instance.
 # 9300 - OCI RDMA faults exporter - downloads RDMA faults as reported by OCA agents from OCI and pushes them to our prometheus instance for alerts.
 # 9400 - DCGM metrics exporter for GPU nodes.
 # 9500 - NVLink metrics exporter for GPU nodes.
@@ -30,6 +32,7 @@ compute_ports:
 controller_ports:
   - "9100"
   - "9200"
+  - "9250"
   - "9300"
   - "9900"
 
