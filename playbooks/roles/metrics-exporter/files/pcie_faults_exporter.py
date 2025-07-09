@@ -115,7 +115,10 @@ def collect_pcie_metrics(hostname, device_mapping, device_type):
               pcie_bus_linkwidth_status.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(0)
            else:
               pcie_bus_linkwidth_status.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(1)
-        
+
+        correctable_error_count = correctable_error_count or 0
+        fatal_error_count = fatal_error_count or 0
+        nonfatal_error_count = nonfatal_error_count or 0        
         pcie_aer_correctable_error_count.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(correctable_error_count)
         pcie_aer_fatal_error_count.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(fatal_error_count)
         pcie_aer_nonfatal_error_count.labels(hostname=hostname, device=device, device_type=device_type, pcie=pcimap['pcie_addr']).set(nonfatal_error_count)
