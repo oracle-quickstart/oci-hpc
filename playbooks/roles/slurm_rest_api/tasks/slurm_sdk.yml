@@ -109,12 +109,12 @@
 - name: Install wheel package (Debian)
   become: true
   shell: |
-    /usr/bin/python3.8 -m pip install wheel
+    /usr/bin/python3.10 -m pip install wheel
   when: ansible_os_family == "Debian"
 
 - name: Build slurm sdk python wheel
   shell: |
-    /usr/bin/python3.8 setup.py bdist_wheel
+    /usr/bin/python3.10 setup.py bdist_wheel
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
@@ -123,10 +123,10 @@
 - name: Install slurm sdk the python wheel
   become: true
   shell: |
-    /usr/bin/python3.8 -m pip install --upgrade pip
-    /usr/bin/python3.8 -m pip install pydantic>=2
-    /usr/bin/python3.8 -m pip install openapi_client
-    /usr/bin/python3.8 -m pip install --force-reinstall --upgrade dist/*.whl
+    /usr/bin/python3.10 -m pip install --upgrade pip
+    /usr/bin/python3.10 -m pip install pydantic>=2
+    /usr/bin/python3.10 -m pip install openapi_client
+    /usr/bin/python3.10 -m pip install --force-reinstall --upgrade dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
@@ -154,6 +154,18 @@
     executable: /bin/bash
   when: ansible_os_family == "RedHat"
 
+- name: Install test requirements (ubuntu)
+  pip:
+    requirements: "{{ sdk_output_dir }}/test-requirements.txt"
+    executable: /usr/bin/pip3.10
+    state: present
+  when: >
+    ansible_stat.stat.exists is defined and
+    ansible_stat.stat.exists == True and
+    ansible_os_family == "Debian"
+  vars:
+    ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
+
 - name: Install test requirements
   pip:
     requirements: "{{ sdk_output_dir }}/test-requirements.txt"
@@ -161,6 +173,7 @@
     state: present
   when: >
     ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True
+    ansible_stat.stat.exists == True and
+    ansible_os_family == "RedHat"
   vars:
     ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"

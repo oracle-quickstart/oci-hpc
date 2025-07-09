@@ -2,14 +2,30 @@
 - name: Install prometheus_client python package
   ansible.builtin.pip:
     name: prometheus_client 
-    executable: /usr/bin/pip3.8  
+    executable: /usr/bin/pip3.10 
   become: true
+  when: ansible_os_family == "Debian"
 
 - name: Install ujson python package
   ansible.builtin.pip:
     name: ujson 
-    executable: /usr/bin/pip3.8  
+    executable: /usr/bin/pip3.10 
   become: true
+  when: ansible_os_family == "Debian"
+
+- name: Install prometheus_client python package
+  ansible.builtin.pip:
+    name: prometheus_client
+    executable: /usr/bin/pip3.8
+  become: true
+  when: ansible_os_family == "RedHat"
+
+- name: Install ujson python package
+  ansible.builtin.pip:
+    name: ujson
+    executable: /usr/bin/pip3.8
+  become: true
+  when: ansible_os_family == "RedHat"
 
 - name: Render slurm-exporter python script
   become: true

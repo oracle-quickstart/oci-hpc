@@ -43,7 +43,7 @@ g.dashboard.new('Host Metrics')
     ),
     guagePanel(
       'Boot Vol Avail',
-      'ceil((node_filesystem_avail_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"/",device=~"/dev/sd.*"} / node_filesystem_size_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"/",device=~"/dev/sda1"})*100)',
+      'ceil((node_filesystem_avail_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"/"} / node_filesystem_size_bytes{hostname=~"$hostname",oci_name=~"$oci_name",mountpoint=~"/"})*100)',
       {w:4, h:4, x:8, y:0},
       [
         g.panel.gauge.thresholdStep.withColor('red') + g.panel.gauge.thresholdStep.withValue(0),
