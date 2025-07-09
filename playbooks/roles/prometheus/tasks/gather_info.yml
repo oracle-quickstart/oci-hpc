@@ -85,7 +85,7 @@
 
 - name: Build the host_info dictionary
   set_fact:
-    host_info: "{{ host_info | default({}) | combine({'serial_number': serial_output.stdout, 'cluster_name': cluster_name_gathered, 'shape': instance_metadata['shape'] , 'ocid': instance_metadata['id'] , 'oci_name': instance_metadata['displayName'], 'availabilityDomain': instance_metadata['availabilityDomain'],'compartmentId': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'],'fss_ip': ip_address,'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'] })   }}"
+    host_info: "{{ host_info | default({}) | combine({'serial': serial_output.stdout, 'hostname': ansible_hostname, 'cluster_name': cluster_name_gathered, 'ocid': instance_metadata['id'], 'oci_name': instance_metadata['displayName'], 'AD': instance_metadata['availabilityDomain'],'compartment': instance_metadata['compartmentId'],'rackID': rdma_metadata['rackId'],'networkBlockId': rdma_metadata['networkBlockId'],'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'], 'fss_mount': ip_address, 'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'], 'shape': instance_metadata['shape'] })   }}"
 
 - name: Set exporter_ports based on host group membership
   ansible.builtin.set_fact:
