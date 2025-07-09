@@ -2,13 +2,13 @@
 - name: Install prometheus_client python package
   ansible.builtin.pip:
     name: prometheus_client 
-    executable: /usr/bin/pip3  
+    executable: /usr/bin/pip3.8  
   become: true
 
 - name: Install ujson python package
   ansible.builtin.pip:
     name: ujson 
-    executable: /usr/bin/pip3  
+    executable: /usr/bin/pip3.8  
   become: true
 
 - name: Render slurm-exporter python script

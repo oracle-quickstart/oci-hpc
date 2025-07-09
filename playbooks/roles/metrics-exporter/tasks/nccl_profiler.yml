@@ -86,13 +86,13 @@
   when: ansible_distribution == "RedHat"
 
 - name: Install nccl-profiler-exporter python dependencies
+  become: true
   pip:
     name:
       - watchdog
       - opentelemetry-sdk
       - opentelemetry-exporter-otlp
     executable: pip3
-    extra_args: --break-system-packages
 
 - name: Install NCCL trace exporter script
   become: true
@@ -101,11 +101,22 @@
     dest: "{{ nccl_exporter_script }}"
     mode: '0755'
 
-- name: Set Tempo host (try monitoring, fallback to controller)
+- name: Find monitoring hosts
+  set_fact:
+    monitoring_hosts: "{{ groups['all'] | select('search', 'monitoring') | list }}"
+  run_once: true
+
+- name: Find controller hosts
+  set_fact:
+    controller_hosts: "{{ groups['all'] | select('search', 'controller') | list }}"
+  run_once: true
+
+- name: Set Tempo host
   set_fact:
     tempo_host: >-
-      {{ (groups['all'] | select('search', 'monitoring') | list | first)
-          or (groups['all'] | select('search', 'controller') | list | first) }}
+      {{ monitoring_hosts[0] if monitoring_hosts | length > 0
+         else controller_hosts[0] if controller_hosts | length > 0
+         else groups['all'][0] }}
   run_once: true
 
 - name: Set Tempo endpoint variable

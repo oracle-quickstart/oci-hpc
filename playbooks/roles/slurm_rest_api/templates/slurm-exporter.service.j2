@@ -7,8 +7,8 @@ After=network-online.target
 User={{ slurm_user }}
 Group={{ slurm_group }}
 Type=simple
-Environment="PYTHONPATH=/usr/local/lib/python3.10/dist-packages"
-ExecStart=/usr/bin/env python3 /usr/local/bin/slurm-exporter.py
+Environment="PYTHONPATH=/usr/local/lib/python3.8/site-packages:/usr/local/lib64/python3.8/site-packages"
+ExecStart=/usr/bin/python3.8 /usr/local/bin/slurm-exporter.py
 
 [Install]
 WantedBy=multi-user.target
