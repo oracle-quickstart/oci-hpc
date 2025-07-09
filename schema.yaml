@@ -158,7 +158,6 @@ variableGroups:
     variables:
       - ${add_nfs}
       - ${create_fss}
-      - ${mount_target_count}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
@@ -238,6 +237,7 @@ variableGroups:
       - ${nfs_mount_target_IPs}
       - ${lfs_ad}
       - ${controller_object_storage_par}
+      - ${mount_target_count}
       
     visible: false
   - title: "Debug"
@@ -1333,6 +1333,12 @@ variables:
     description: "For FSS, leave options filed empty."
     visible: ${add_nfs}
   
+  # We are disabling multiple mount target. By default, it will be 1. We are keeping the code in case we need to use it for a use case. 
+  # It made sense awhile ago to use multiple mounts, but now that we have 80Gbps mount for FSS, and knowing that with multiple MT, we loose 
+  # metadata caching and Lustre being available for more extreme case, we will do single MT all the time. In addition, it's impossible 
+  # to predict how many nodes on a particular MT will be idle, and how many will be using the MT. For using multiple mount target, you need
+  # to remove the below line i.e. visible: false and install paramiko (https://www.paramiko.org/installing.html) on the controller. 
+  visible: false
   mount_target_count:
     title: "Number of FSS mount targets"
     description: "Number of FSS Mount Target to use with File System"

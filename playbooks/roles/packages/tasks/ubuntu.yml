@@ -23,11 +23,3 @@
       state: latest
       executable: pip3
     ignore_errors: yes
-  
-  - name: Install the 'paramiko' package
-    become: true
-    pip: 
-      name: paramiko
-      state: latest
-      executable: pip3
-    ignore_errors: yes
