@@ -30,6 +30,7 @@ create_fss = ${create_fss}
 home_fss = ${home_fss} 
 mount_target_count = ${mount_target_count}
 nfs_mount_target_IPs = ${nfs_mount_target_IPs}
+manual_multiple_mount_target = ${manual_multiple_mount_target}
 cluster_nfs = ${cluster_nfs}
 cluster_nfs_path = ${cluster_nfs_path}
 slurm_nfs_path = ${slurm_nfs_path}

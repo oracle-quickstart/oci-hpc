@@ -478,6 +478,10 @@ variable "mount_target_count" {
   default = 1
   type = number
   }
+variable "manual_multiple_mount_target" { 
+  default = false
+  type = bool
+  }
 variable "fss_compartment" { 
   default = ""
   type = string

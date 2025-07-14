@@ -108,6 +108,7 @@ variable "home_nfs" { default = ${home_nfs} }
 variable "home_fss" { default = ${home_fss} } 
 variable "mount_target_count" { default = ${mount_target_count} }
 variable "nfs_mount_target_IPs" { default = "${nfs_mount_target_IPs}" }
+variable "manual_multiple_mount_target" { default = ${manual_multiple_mount_target} }
 variable "latency_check" { default = ${latency_check} } 
 variable "create_fss" { default = ${create_fss} } 
 variable "configure" { default = true }
