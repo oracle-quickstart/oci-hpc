@@ -64,4 +64,4 @@ pmix_packages:
   - "{{ download_path }}/slurm_rpms/pmix-centos-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
   - "{{ download_path }}/slurm_rpms/pmix-centos-devel-3.2.4-1.el{{ansible_distribution_major_version}}.x86_64.rpm"
 
-slurm_jwt_key_path: "/nfs/cluster/spool/slurm/jwt_hs256.key"
+slurm_jwt_key_path: "{{ slurm_nfs_path }}/spool/slurm/jwt_hs256.key"

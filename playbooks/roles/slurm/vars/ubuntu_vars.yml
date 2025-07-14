@@ -26,4 +26,4 @@ slurm_backup_server_packages:
 slurm_login_packages:
   - libpmi0
 
-slurm_jwt_key_path: "/nfs/cluster/spool/slurm/jwt_hs256.key"
+slurm_jwt_key_path: "{{ slurm_nfs_path }}/spool/slurm/jwt_hs256.key"
