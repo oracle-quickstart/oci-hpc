@@ -498,7 +498,7 @@ variable "nfs_source_IP" {
   default = ""
   type = string
   }
-variable "nfs_mount_target_IPs" { 
+variable "nfs_list_of_mount_target_IPs" { 
   default = ""
   type = string
   }
