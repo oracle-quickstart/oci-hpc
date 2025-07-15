@@ -334,7 +334,7 @@
         name: slurm
       when: slurm|default(false)|bool
 
-- hosts: controller
+- hosts: controller, slurm_backup
   tasks:
     - include_role:
         name: slurm_rest_api
