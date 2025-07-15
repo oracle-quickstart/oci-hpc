@@ -158,13 +158,14 @@ variableGroups:
     variables:
       - ${add_nfs}
       - ${create_fss}
-      - ${mount_target_count}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
+      - ${mount_target_count}
+      - ${manual_multiple_mount_target}
   - title: "Advanced storage options"
     variables:
       - ${use_advanced}
@@ -1341,6 +1342,23 @@ variables:
     required: true
     visible: 
       and:
+        - ${add_nfs}
+        - ${create_fss}
+
+  # We are disabling manaul multiple mount target. By default, for 1 or more than 1 mount target, we will be using DNS round robin. 
+  # We are keeping the code in case we need to use it for a use case. It made sense a while ago to use multiple mounts, but now that 
+  # we have 80Gbps mount for FSS, and knowing that with multiple MT (mount target), we loose metadata caching and Lustre being available 
+  # for more extreme case, we will do DNS round robin all the time. In addition, it's impossible to predict how many nodes on a particular
+  # MT will be idle, and how many will be using a particular MT. For using manual multiple mount target, you need to remove the word "false" 
+  # under "visible" section below.  
+  manual_multiple_mount_target:
+    type: boolean
+    title: "Mount multiple mount targets via script and not DNS round robin"
+    default: false
+    description: "For FSS, this will look at the current distribution of the mount targets and mount the nodes using a mount target that has been used the least using a script."
+    visible:
+      and:
+        - false
         - ${add_nfs}
         - ${create_fss}
  
