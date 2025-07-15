@@ -1,7 +1,7 @@
 ---
 slurm_user: "slurm"
 slurm_group: "slurm"
-slurm_jwt_token_path: "/nfs/cluster/spool/slurm/jwt_hs256.token"
+slurm_jwt_token_path: "{{ slurm_nfs_path }}/spool/slurm/jwt_hs256.token"
 slurm_conf_path: "/etc/slurm/slurm.conf"
 slurmdbd_conf_path: "/etc/slurm/slurmdbd.conf"
 slurm_conf_authalt_types_line: "AuthAltTypes=auth/jwt"

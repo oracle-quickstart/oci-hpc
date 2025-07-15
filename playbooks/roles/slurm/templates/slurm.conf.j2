@@ -50,7 +50,7 @@ SlurmctldParameters=enable_configless
 MaxNodeCount=10000
 UnkillableStepTimeout=128
 AuthAltTypes=auth/jwt
-AuthAltParameters=jwt_key=/nfs/cluster/spool/slurm/jwt_hs256.key
+AuthAltParameters=jwt_key={{ slurm_nfs_path }}/spool/slurm/jwt_hs256.key
 {% if healthchecks|bool %}
 HealthCheckProgram={{slurm_conf_path}}/prolog.d/healthchecks.sh
 HealthCheckInterval=300
