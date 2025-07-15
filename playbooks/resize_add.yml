@@ -178,7 +178,7 @@
         name: fix_ldap
       when: ldap|default(true)|bool
       
-- hosts: compute_to_add
+- hosts: compute_to_add, slurm_backup
   gather_facts: true
   vars:
     destroy: false
