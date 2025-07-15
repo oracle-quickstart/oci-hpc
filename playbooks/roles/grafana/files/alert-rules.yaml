@@ -216,7 +216,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: node_systemd_unit_state{state="failed", name=~"nscd.service|ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|nvidia-fabricmanager.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|rdma-exporter.service|wpa_supplicant-wired@rdma.*.service"}
+                expr: (node_systemd_unit_state{state="failed", name=~"nscd.service|ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|rdma-exporter.service|wpa_supplicant-wired@rdma.*.service"} or node_systemd_unit_state{state="failed", name="nvidia-fabricmanager.service", shape!~".*A10.*"})
                 hide: false
                 instant: true
                 intervalMs: 60000

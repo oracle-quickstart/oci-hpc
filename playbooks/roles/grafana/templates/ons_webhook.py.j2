@@ -9,19 +9,37 @@ app = Flask(__name__)
 topic_id = "{{ ons_topic_ocid }}"
 
 def generate_message(alert_name, alert_status, alert_message, starts_at, ends_at, labels, annotations):
+    logging.debug(f"Generating message for alert: {alert_name}, status: {alert_status}")
     message_content = render_template_string(
         template,
         alert_name=alert_name,
         alert_status=alert_status,
         starts_at=starts_at,
-        cluster_name=labels.cluster_name,
-        hostname=labels.hostname,
-        oci_name=labels.oci_name,
-        serial_number=labels.serial,
-        rdma_device=labels.rdma_device,
-        gpu=labels.gpu
+        cluster_name=labels.get('cluster_name', 'Unknown Cluster'),
+        hostname=labels.get('hostname', 'Unknown Host'),
+        oci_name=labels.get('oci_name', 'Unknown OCI Name'),
+        serial_number=labels.get('serial', 'Unknown Serial'),
+        rdma_device=labels.get('rdma_device', 'Unknown RDMA Device'),
+        gpu=labels.get('gpu', 'Unknown GPU')
     )
     return message_content
+
+@app.route('/log', methods=['POST'])
+def set_log_level():
+    data = request.get_json()
+    level = data.get('level', '').upper()
+    valid_levels = {
+        'CRITICAL': logging.CRITICAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+    }
+    if level in valid_levels:
+        logging.getLogger().setLevel(valid_levels[level])
+        return jsonify({'status': 'success', 'message': f'Log level set to {level}'}), 200
+    else:
+        return jsonify({'status': 'error', 'message': 'Invalid log level'}), 400
 
 # Route to handle incoming Grafana alerts
 @app.route('/grafana-webhook', methods=['POST'])
@@ -37,8 +55,9 @@ def grafana_webhook():
     # Get the incoming alert data from the request
     alert_data = request.get_json()
     if not alert_data:
-        return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
-    
+        return jsonify({'status': 'error', 'message': 'Invalid data'}), 200
+    else:
+        logging.debug(f"Received alert data: {json.dumps(alert_data, indent=4)}")
     try:
         # Process each alert
         alerts = alert_data.get('alerts', [])
@@ -50,39 +69,40 @@ def grafana_webhook():
             ends_at = alert.get('endsAt')
             name = labels.get('alertname', 'No Alert Name')
             desc = annotations.get('description', 'No Description')
-
+            logging.debug(f"Processing alert: {name}, status: {status}, starts_at: {starts_at}, ends_at: {ends_at}")
+            if name != "DatasourceNoData":
             # Render the alert message using the template
-            alert_message = generate_message(
-                alert_name=name,
-                alert_status=status,
-                alert_message=desc,
-                starts_at=starts_at,
-                ends_at=ends_at,
-                labels=labels,
-                annotations=annotations
-            )
+                alert_message = generate_message(
+                    alert_name=name,
+                    alert_status=status,
+                    alert_message=desc,
+                    starts_at=starts_at,
+                    ends_at=ends_at,
+                    labels=labels,
+                    annotations=annotations
+                )
+                logging.info(alert_message);
 
-            # Log alert message for tracking alerts in case we dont have access to alerts
-            logging.info(alert_message);
+                message_details = oci.ons.models.MessageDetails(
+                    title="GPU Cluster Alert",
+                    body=alert_message
+                )
+                response = notification_client.publish_message(
+                    topic_id=topic_id,  # Use the dynamically fetched topic_id
+                    message_details=message_details,
+                    retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
+                )
 
-            # Publish the formatted alert message to the OCI Notification Topic
-            message_details = oci.ons.models.MessageDetails(
-                title="GPU Cluster Alert",
-                body=alert_message
-            )
-            response = notification_client.publish_message(
-                topic_id=topic_id,  # Use the dynamically fetched topic_id
-                message_details=message_details,
-                retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
-            )
+                logging.info(f"Message published. Message ID: {response.data.message_id}")
+            else:
+                logging.info(f"DatasourceNoData alert ignored")
 
-            logging.info(f"Message published. Message ID: {response.data.message_id}")
         
         return jsonify({'status': 'success', 'message': 'Alert processed'}), 200
 
     except Exception as e:
         logging.error(f"Error processing alert: {e}")
-        return jsonify({'status': 'error', 'message': 'Error processing alert'}), 500
+        return jsonify({'status': 'error', 'message': 'Error processing alert'}), 200
 
 # Start the Flask app and listen on port 5000
 if __name__ == '__main__':

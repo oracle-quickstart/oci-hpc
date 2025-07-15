@@ -95,6 +95,11 @@ g.dashboard.new('Command Center')
               targetBlank: true,
             },
             {
+              title: 'Storage Metrics',
+              url: '/d/storage-metrics-single/storage-metrics?var-hostname=${__field.labels.hostname}',
+              targetBlank: true,
+            },
+            {
               title: 'GPU Metrics',
               url: '/d/gpu-metrics-single/gpu-metrics?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
@@ -104,7 +109,6 @@ g.dashboard.new('Command Center')
               url: '/d/gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             }
-
         ]),
     g.panel.stateTimeline.new('Historical Cluster Node Health')
       + g.panel.stateTimeline.queryOptions.withTargets([
