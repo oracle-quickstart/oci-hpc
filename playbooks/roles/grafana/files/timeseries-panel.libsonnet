@@ -1,7 +1,7 @@
 local g = import '../g.libsonnet';
 
 function(title, promql, legend, unit, gridPos, legendOptions={
-  calcs: ['p99'],
+  calcs: ['p99', 'p95', 'p90'],
   displayMode: 'table',
   placement: 'right',
 }) 

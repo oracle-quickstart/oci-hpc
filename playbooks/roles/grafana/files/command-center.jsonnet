@@ -15,7 +15,7 @@ g.dashboard.new('Command Center')
 + g.dashboard.withPanels([
     statPanel(
       'Total Nodes',
-      'count(count by (nodename) (node_uname_info))',
+      'count(count by (nodename) (node_uname_info{cluster_name=~"$cluster_name"}))',
       {w:4, h:4, x:0, y:0}
     ),
     statPanel(
@@ -25,22 +25,22 @@ g.dashboard.new('Command Center')
     ),
     statPanel(
       'Compute Nodes',
-      'count(node_uname_info{hostname!~".*controller*|.*login*"})',
+      'count(node_uname_info{hostname!~".*controller*|.*login*",cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:8, y:0}
     ),
     statPanel(
       'Healthy Nodes',
-      'count by (cluster_name) (node_health_status{cluster_name=~"$cluster_name"} == 1)',
+      'sum(count by (cluster_name) (node_health_status{cluster_name=~"$cluster_name"} == 1))',
       {w:4, h:4, x:12, y:0}
     ),
     statPanel(
       'Total GPUs',
-      'sum(max by (instance) (DCGM_FI_DEV_COUNT))',
+      'sum(max by (instance) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}))',
       {w:4, h:4, x:16, y:0}
     ),    
     statPanel(
       'Healthy GPUs',
-      'sum by (cluster_name) (available_gpu_count{cluster_name=~"$cluster_name"})',
+      'sum(available_gpu_count{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:20, y:0}
     ),
     /*
@@ -114,7 +114,7 @@ g.dashboard.new('Command Center')
       + g.panel.stateTimeline.queryOptions.withTargets([
           g.query.prometheus.new(
               '$PROMETHEUS_DS',
-              'node_health_status',
+              'node_health_status{cluster_name=~"$cluster_name"}',
           )
           + g.query.prometheus.withLegendFormat('{{hostname}}')
       ])

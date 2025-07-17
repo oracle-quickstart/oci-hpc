@@ -19,9 +19,6 @@
 - include_tasks: nvml_exporter.yml
   when: ('compute' in group_names) and 'GPU' in shape
 
-- include_tasks: nccl_profiler.yml
-  when: ('compute' in group_names) and 'GPU' in shape
-
 - include_tasks: pcie_faults.yml
   when: ('compute' in group_names) and 'GPU' in shape
 
