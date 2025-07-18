@@ -1,6 +1,3 @@
-from flask import Flask, request, jsonify
-from jinja2 import Template
-import oci
 import hashlib
 import json
 import logging
@@ -9,8 +6,15 @@ import queue
 import re
 import sqlite3
 import time
-from threading import Thread
+
 from datetime import datetime, timedelta
+from pathlib import Path
+from threading import Thread
+
+import oci
+
+from flask import Flask, request, jsonify
+from jinja2 import Template
 
 app = Flask(__name__)
 
@@ -20,7 +24,8 @@ reminder_loop_execution_interval_seconds = int(os.environ.get("REMINDER_LOOP_EXE
 push_to_oci_topic_interval_seconds = int(os.environ.get("PUSH_TO_OCI_TOPIC_INTERVAL_SECONDS", "30"))
 aggregate_notifications = False
 template_path = '/etc/raw_message_template.txt'
-db_path = '/var/tmp/grafana_alert_processing_daemon.sqlite'
+db_dir = f'{Path.home()}/.grafana'
+db_name = 'grafana_alert_processing_daemon.sqlite'
 
 alert_queue = queue.Queue(maxsize=1000)
 notification_queue = queue.Queue(maxsize=1000)
@@ -105,7 +110,8 @@ def notification_processing_daemon():
 
 
 def alert_processing_daemon():
-    conn = sqlite3.connect(db_path)
+    os.makedirs(db_dir, exist_ok=True)
+    conn = sqlite3.connect(os.path.join(db_dir, db_name))
     cur = conn.cursor()
     # Create tabele if it doesn't exist
     cur.execute('''CREATE TABLE IF NOT EXISTS active_alerts (
