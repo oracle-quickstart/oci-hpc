@@ -19,6 +19,8 @@ reminder_interval_seconds = int(os.environ.get("REMINDER_INTERVAL_SECONDS", "864
 reminder_loop_execution_interval_seconds = int(os.environ.get("REMINDER_LOOP_EXECUTION_INTERVAL_SECONDS", "60"))
 push_to_oci_topic_interval_seconds = int(os.environ.get("PUSH_TO_OCI_TOPIC_INTERVAL_SECONDS", "30"))
 aggregate_notifications = False
+template_path = '/etc/raw_message_template.txt'
+db_path = '/var/tmp/grafana_alert_processing_daemon.sqlite'
 
 alert_queue = queue.Queue(maxsize=1000)
 notification_queue = queue.Queue(maxsize=1000)
@@ -103,7 +105,7 @@ def notification_processing_daemon():
 
 
 def alert_processing_daemon():
-    conn = sqlite3.connect('/etc/grafana_alert_processing_daemon.sqlite')
+    conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     # Create tabele if it doesn't exist
     cur.execute('''CREATE TABLE IF NOT EXISTS active_alerts (
@@ -217,15 +219,6 @@ def alert_processing_daemon():
             last_reminder_loop_execution_time = current_time
 
 
-def generate_message(notification_dict):
-    logging.debug(f"Generating message for alert: {notification_dict['alert_name']}, status: {notification_dict['alert_status']}")
-    message_content = render_template_string(
-        template,
-        **notification_dict
-    )
-    return message_content
-
-
 @app.route('/log', methods=['POST'])
 def set_log_level():
     data = request.get_json()
@@ -287,7 +280,7 @@ def start_daemons():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     # Load and render the common template
-    with open('/etc/raw_message_template.txt') as f:
+    with open(template_path) as f:
         template = Template(f.read())
     start_daemons()
     
