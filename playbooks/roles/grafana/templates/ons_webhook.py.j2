@@ -23,8 +23,8 @@ reminder_interval_seconds = int(os.environ.get("REMINDER_INTERVAL_SECONDS", "864
 reminder_loop_execution_interval_seconds = int(os.environ.get("REMINDER_LOOP_EXECUTION_INTERVAL_SECONDS", "60"))
 push_to_oci_topic_interval_seconds = int(os.environ.get("PUSH_TO_OCI_TOPIC_INTERVAL_SECONDS", "30"))
 aggregate_notifications = False
-template_path = '/etc/raw_message_template.txt'
-db_dir = f'{Path.home()}/.grafana'
+template_path = '{{ grafana_ons_wehbook_template_path }}'
+db_dir = '{{ grafana_ons_webhook_db_dir }}'
 db_name = 'grafana_alert_processing_daemon.sqlite'
 
 alert_queue = queue.Queue(maxsize=1000)

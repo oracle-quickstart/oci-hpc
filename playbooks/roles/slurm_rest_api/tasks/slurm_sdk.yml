@@ -33,7 +33,7 @@
   shell: |
     source ~/.nvm/nvm.sh
     npm install -g {{ openapi_generator_cli_pkg }}
-    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }}
+    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json
   args:
     executable: /bin/bash
 

@@ -12,3 +12,5 @@ grafana_security:
 grafana_api_keys: 
   - name: "admin"
     role: "Admin"
+grafana_ons_webhook_db_dir: "/opt/ons_wehbook"
+grafana_ons_wehbook_template_path: "/etc/raw_message_template.txt"

@@ -29,6 +29,15 @@
       - oci
       - waitress
 
+- name: Create ons_webhook DB directory
+  become: true
+  file:
+    path: "{{ grafana_ons_webhook_db_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ user }}"
+    group: "{{ user }}"
+    
 - name: Copy webhook script to server
   become: true
   template:
@@ -41,7 +50,7 @@
   become: true
   copy:
     src: files/raw_message_template.txt
-    dest: /etc/raw_message_template.txt
+    dest: "{{ grafana_ons_wehbook_template_path }}"
     mode: '0755'
 
 - name: Render systemd service for webhook
