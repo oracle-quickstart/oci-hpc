@@ -136,8 +136,8 @@
         name: nfs-client
       vars:
         local_path: "/home"
-        export_host: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
-        export_path: "/home"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
         options: ""
         lock: "none"
       when: home_nfs|bool and home_fss|bool and not (manual_multiple_mount_target|default(false)|bool)

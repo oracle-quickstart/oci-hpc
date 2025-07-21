@@ -5,13 +5,14 @@ import os
 import queue
 import re
 import sqlite3
-import time
+import sys
 
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Thread
 
 import oci
+import requests
 
 from flask import Flask, request, jsonify
 from jinja2 import Template
@@ -29,6 +30,7 @@ db_name = 'grafana_alert_processing_daemon.sqlite'
 
 alert_queue = queue.Queue(maxsize=1000)
 notification_queue = queue.Queue(maxsize=1000)
+instance_ip = 'localhost'
 
 def str_to_date(text_date):
     clean_date_match = re.match(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", text_date)
@@ -57,6 +59,7 @@ def push_notifications_to_oci_topic(notification_client, notifications):
 
     logging.info(f"Message published. Message ID: {response.data.message_id}")
     
+
 def alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, last_seen_at):
     annotations = alert_dict.get("annotations", {})
     labels = alert_dict.get("labels", {})
@@ -65,7 +68,7 @@ def alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, 
         "alert_name": labels.get("rulename", labels.get("alertname", "N/A")),
         "alert_status": alert_dict.get("status", "N/A"),
         "starts_at": alert_dict.get("startsAt", "N/A"),
-        "ends_at": alert_dict.get("endsAt", "N/A"),
+        "ends_at": alert_dict.get("endsAt", "N/A") if alert_dict.get("endsAt", "N/A") != '0001-01-01T00:00:00Z' else "-",
         "description": annotations.get("summary", "N/A"),
         "cluster_name": labels.get("cluster_name", "N/A"),
         "hostname": labels.get("hostname", "N/A"),
@@ -76,8 +79,8 @@ def alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, 
         "fire_count": fire_count,
         "first_seen_at": first_seen_at,
         "last_seen_at": last_seen_at,
-        "silence_url": annotations.get("silence_url", "N/A"),
-        "panel_url": annotations.get("panel_url", "N/A")
+        "silence_url": re.sub(r"(https?://)[a-zA-Z0-9\-]+(:\d+.+)", rf"\g<1>{instance_ip}\g<2>", annotations.get("silence_url", alert_dict.get("silenceURL", "N/A"))),
+        "panel_url": re.sub(r"(https?://)[a-zA-Z0-9\-]+(:\d+.+)", rf"\g<1>{instance_ip}\g<2>", annotations.get("panel_url", alert_dict.get("panelURL", "N/A"))), 
     }
 
 
@@ -88,118 +91,130 @@ def notification_processing_daemon():
         notification_client = oci.ons.NotificationDataPlaneClient({}, signer=signer)
     except Exception as e:
         logging.error(f"Error initializing OCI client: {e}")
-        return
-    
+        sys.exit(1)
+        
     while True:
         notifications = []
         if aggregate_notifications:
             # Get all the notifications from the queue
             while not notification_queue.empty():
                 try:
-                    notifications.append(notification_queue.get_nowait())
+                    notifications.append(notification_queue.get(block=True, timeout=push_to_oci_topic_interval_seconds))
                 except:
                     pass
         else:
             try:
-                notifications.append(notification_queue.get_nowait())
+                notifications.append(notification_queue.get(block=True, timeout=push_to_oci_topic_interval_seconds))
             except:
                 pass
         if notifications:
             push_notifications_to_oci_topic(notification_client, notifications)
-        time.sleep(push_to_oci_topic_interval_seconds)
+        # time.sleep(push_to_oci_topic_interval_seconds)
 
 
 def alert_processing_daemon():
-    os.makedirs(db_dir, exist_ok=True)
-    conn = sqlite3.connect(os.path.join(db_dir, db_name))
-    cur = conn.cursor()
-    # Create tabele if it doesn't exist
-    cur.execute('''CREATE TABLE IF NOT EXISTS active_alerts (
-        alert_id TEXT PRIMARY KEY,
-        first_seen_at TEXT NOT NULL,
-        last_seen_at TEXT NOT NULL,
-        last_notified_at TEXT NOT NULL,
-        ended_at TEXT NOT NULL,
-        fire_count INTEGER NOT NULL,
-        payload TEXT NOT NULL
-    )''')
-    conn.commit()
+    try:
+        os.makedirs(db_dir, exist_ok=True)
+        conn = sqlite3.connect(os.path.join(db_dir, db_name))
+        cur = conn.cursor()
+        # Create tabel if it doesn't exist
+        cur.execute('''CREATE TABLE IF NOT EXISTS active_alerts (
+            alert_id TEXT PRIMARY KEY,
+            first_seen_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            last_notified_at TEXT NOT NULL,
+            ended_at TEXT NOT NULL,
+            fire_count INTEGER NOT NULL,
+            payload TEXT NOT NULL
+        )''')
+        conn.commit()
+    except Exception as e:
+        logging.error(f'Failed to create the database for alerts {e}. Exiting..')
+        sys.exit(1)
 
     while True:
         # Process alerts in the queue
+        last_reminder_loop_execution_time = None
+        current_time = datetime.now()
+
         try:
             alert = alert_queue.get(block=True, timeout=30)
-        except queue.Empty:
-            continue
 
-        # Parse the alert JSON
-        alert_dict = json.loads(alert)
-        
-        # Skip alert with name "DatasourceNoData"
-        alert_labels = alert_dict.get('labels', {})
-        alert_name = alert_labels.get('rulename', alert_labels.get('alertname', 'None'))
-        current_time = datetime.now()
-        
-        last_reminder_loop_execution_time = None
-
-        if alert_name and alert_name != "DatasourceNoData":
-
-            # Add alert details into the database
+            # Parse the alert JSON
+            alert_dict = json.loads(alert)
             
-            starts_at = str_to_date(alert_dict.get('startsAt'))
-            alert_id = hashlib.sha256(f'{alert_name}-{alert_dict.get("startsAt")}'.encode('utf-8')).hexdigest()
-            ends_at = str_to_date(alert_dict.get('endsAt'))
-            current_status = alert_dict.get('status', "Status Unknown")
+            # Skip alert with name "DatasourceNoData"
+            alert_labels = alert_dict.get('labels', {})
+            alert_name = alert_labels.get('rulename', alert_labels.get('alertname', 'None'))
+            
 
-            # Check if the alert is present in the database
-            alert_in_db = cur.execute('SELECT * FROM active_alerts WHERE alert_id = ?', (alert_id,)).fetchone()
-            if alert_in_db:
-                # If the alert is resolved, clear the alert from database and send load the notification into the queue
-                if ends_at > starts_at and current_status != "firing":
-                    notification_dict = alert_to_notification_dict(alert_in_db[0], alert_dict, alert_in_db[5], alert_in_db[1], date_to_str(ends_at))
-                    notification_queue.put(notification_dict)
-                    
-                    logging.info(f"Alert {alert_id}/{alert_name} resolved. Notification sent.")
-                    
-                    cur.execute('''
-                        DELETE FROM active_alerts
-                        WHERE alert_id = ?
-                    ''', (alert_id,))
-                    
-                # If the alert is not resolved, increment the fire_count
-                cur.execute('''
-                    UPDATE active_alerts
-                    SET last_seen_at = ?, fire_count = fire_count + 1, payload = ?
-                    WHERE alert_id = ?
-                ''', (date_to_str(current_time), alert, alert_id))
-                logging.info(f"Alert {alert_id}/{alert_name} still active. Incremented Fire Count.")
-            else:
-                # If alert received for the first time and is already clear, just send notification
-                if ends_at > starts_at and current_status != "firing":
-                    notification_dict = alert_to_notification_dict(alert_id, alert_dict, 1, alert_dict.get('startsAt'), alert_dict.get('endsAt'))
-                    logging.info(f"New Alert {alert_id}/{alert_name} seen for the first time with status resolved.")
+            if alert_name and alert_name != "DatasourceNoData":
 
-                # otherwise, load the alert into the database and send notification
+                # Add alert details into the database
+                
+                starts_at = str_to_date(alert_dict.get('startsAt'))
+                # 
+                fingerprint = alert_dict.get("fingerprint", "")
+                if fingerprint:
+                    alert_id = hashlib.sha256(f'{fingerprint}'.encode('utf-8')).hexdigest()
                 else:
-                    notification_dict = alert_to_notification_dict(alert_id, alert_dict, 1, alert_dict.get('startsAt'), alert_dict.get('endsAt'))
-                    cur.execute('''
-                        INSERT INTO active_alerts (alert_id, first_seen_at, last_seen_at, last_notified_at, ended_at, fire_count, payload)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (alert_id, date_to_str(current_time), date_to_str(current_time), date_to_str(current_time), "0001-01-01T00:00:00Z", 1, alert))
-                    logging.info(f"New Alert {alert_id}/{alert_name} seen for the first. Added to the database.")
-                notification_queue.put(notification_dict)
+                    alert_id = hashlib.sha256(f'{alert_name}-{alert_dict.get("startsAt")}'.encode('utf-8')).hexdigest()
+                ends_at = str_to_date(alert_dict.get('endsAt'))
+                current_status = alert_dict.get('status', "Status Unknown")
 
-            # Commit the changes to the database
-            conn.commit()
-        else:
-            logging.debug(f'Skipping processing alert with name DatasourceNoData or empty: {alert}')
-            continue
+                # Check if the alert is present in the database
+                alert_in_db = cur.execute('SELECT * FROM active_alerts WHERE alert_id = ?', (alert_id,)).fetchone()
+                if alert_in_db:
+                    # If the alert is resolved, clear the alert from database and send load the notification into the queue
+                    if ends_at > starts_at and current_status != "firing":
+                        notification_dict = alert_to_notification_dict(alert_in_db[0], alert_dict, alert_in_db[5], alert_in_db[1], date_to_str(ends_at))
+                        notification_queue.put(notification_dict)
+                        
+                        logging.info(f"Alert {alert_id}/{alert_name} resolved. Notification sent.")
+                        
+                        cur.execute('''
+                            DELETE FROM active_alerts
+                            WHERE alert_id = ?
+                        ''', (alert_id,))
+                    else: 
+                        # If the alert is not resolved, increment the fire_count
+                        cur.execute('''
+                            UPDATE active_alerts
+                            SET last_seen_at = ?, fire_count = fire_count + 1, payload = ?
+                            WHERE alert_id = ?
+                        ''', (date_to_str(current_time), alert, alert_id))
+                        logging.info(f"Alert {alert_id}/{alert_name} still active. Incremented Fire Count.")
+                else:
+                    # If alert received for the first time and is already clear, just send notification
+                    if ends_at > starts_at and current_status != "firing":
+                        notification_dict = alert_to_notification_dict(alert_id, alert_dict, 1, alert_dict.get('startsAt'), alert_dict.get('endsAt'))
+                        logging.info(f"New Alert {alert_id}/{alert_name} seen for the first time with status resolved.")
 
-        # Execute notifier loop each 1 minute
+                    # otherwise, load the alert into the database and send notification
+                    else:
+                        notification_dict = alert_to_notification_dict(alert_id, alert_dict, 1, alert_dict.get('startsAt'), alert_dict.get('endsAt'))
+                        cur.execute('''
+                            INSERT INTO active_alerts (alert_id, first_seen_at, last_seen_at, last_notified_at, ended_at, fire_count, payload)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (alert_id, date_to_str(current_time), date_to_str(current_time), date_to_str(current_time), "0001-01-01T00:00:00Z", 1, alert))
+                        logging.info(f"New Alert {alert_id}/{alert_name} seen for the first. Added to the database.")
+                    notification_queue.put(notification_dict)
+
+                # Commit the changes to the database
+                conn.commit()
+            else:
+                logging.debug(f'Skipping processing alert with name DatasourceNoData or empty: {alert}')
+                pass
+        except queue.Empty:
+            pass
+
+        # Execute notifier loop each reminder_loop_execution_interval_seconds
         
         if (not last_reminder_loop_execution_time) or (current_time - last_reminder_loop_execution_time > timedelta(seconds=reminder_loop_execution_interval_seconds)):
-            alerts_in_db = cur.execute('SELECT * FROM active_alerts')
+            alerts_in_db = cur.execute('SELECT * FROM active_alerts').fetchall()
             db_updates = False
+            logging.info(f'The number of existing alerts in DB: {len(alerts_in_db)}')
+            logging.debug(f'Existing alerts in DB: {alerts_in_db}')
             for alert in alerts_in_db:
                 last_notified_at = alert[3]
                 if current_time - str_to_date(last_notified_at) > timedelta(seconds=reminder_interval_seconds):
@@ -209,7 +224,7 @@ def alert_processing_daemon():
                     first_seen_at = alert[1]
                     last_seen_at = alert[2]
                     notification_dict = alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, last_seen_at)
-                    
+                    notification_queue.put(notification_dict)
                     logging.info(f'Sent reminder for alert id {alert_id}/{notification_dict["alert_name"]}')
                     
                     cur.execute('''
@@ -257,7 +272,8 @@ def grafana_webhook():
         alerts = alert_data.get('alerts', [])
         for alert in alerts:
             status = alert.get('status')
-            name = alert.get('labels', {}).get('rulename', 'No Alert Name')
+            alert_labels = alert.get('labels', {})
+            name = alert_labels.get('rulename', alert_labels.get('alertname', 'None'))
             # annotations = alert.get('annotations', {})
             starts_at = alert.get('startsAt')
             ends_at = alert.get('endsAt')
@@ -282,13 +298,40 @@ def start_daemons():
     notification_processing_thread.start()
     logging.info("Alert and notification processing daemons started.")
 
+def get_instance_ip():
+    global instance_ip
+    logging.info('Getting the instance IP address')
+    try:
+        # Get instance IP address
+        headers = {'Authorization': 'Bearer Oracle'}
+        r = requests.get('http://169.254.169.254/opc/v1/vnics', headers=headers)
+        vnic_id = r.json()[0]['vnicId']
+
+        signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+        core_client = oci.core.VirtualNetworkClient({}, signer=signer)
+
+        get_vnic_response = core_client.get_vnic(
+            vnic_id=vnic_id)
+
+        if get_vnic_response.data.public_ip:
+            instance_ip = get_vnic_response.data.public_ip
+        else:
+            instance_ip = get_vnic_response.data.private_ip
+        
+        logging.info(f"Instance IP: {instance_ip}")
+    except Exception as e:
+        logging.error(f"Error getting instance IP: {e}")
+
 # Start the Flask app and listen on port 5000
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
+    
     # Load and render the common template
     with open(template_path) as f:
         template = Template(f.read())
-    start_daemons()
     
+    get_instance_ip()
+    start_daemons()
+
     from waitress import serve
     serve(app, host='0.0.0.0', port=5000)
