@@ -24,6 +24,7 @@ reminder_interval_seconds = int(os.environ.get("REMINDER_INTERVAL_SECONDS", "864
 reminder_loop_execution_interval_seconds = int(os.environ.get("REMINDER_LOOP_EXECUTION_INTERVAL_SECONDS", "60"))
 push_to_oci_topic_interval_seconds = int(os.environ.get("PUSH_TO_OCI_TOPIC_INTERVAL_SECONDS", "30"))
 aggregate_notifications = False
+max_notification_size = 64000
 template_path = '{{ grafana_ons_wehbook_template_path }}'
 db_dir = '{{ grafana_ons_webhook_db_dir }}'
 db_name = 'grafana_alert_processing_daemon.sqlite'
@@ -31,6 +32,9 @@ db_name = 'grafana_alert_processing_daemon.sqlite'
 alert_queue = queue.Queue(maxsize=1000)
 notification_queue = queue.Queue(maxsize=1000)
 instance_ip = 'localhost'
+
+def utf8len(s):
+    return len(s.encode('utf-8'))
 
 def str_to_date(text_date):
     clean_date_match = re.match(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", text_date)
@@ -92,24 +96,37 @@ def notification_processing_daemon():
     except Exception as e:
         logging.error(f"Error initializing OCI client: {e}")
         sys.exit(1)
-        
+
+    notifications = []
+
     while True:
-        notifications = []
+
         if aggregate_notifications:
             # Get all the notifications from the queue
-            while not notification_queue.empty():
-                try:
-                    notifications.append(notification_queue.get(block=True, timeout=push_to_oci_topic_interval_seconds))
-                except:
-                    pass
+            try:
+                notification_from_queue = notification_queue.get(block=True, timeout=push_to_oci_topic_interval_seconds)
+                
+                # Check if the aggregated notification text is larger than max_notification_size (ONS supports maximum 64 KB)
+                if utf8len("\n".join([template.render(**notification) for notification in (notifications + [notification_from_queue])])) > max_notification_size:
+                   push_notifications_to_oci_topic(notification_client, notifications)
+                   notifications = [notification_from_queue]
+                else:
+                   notifications.append(notification_from_queue)
+            
+            # When queue is empty and there are notifications to be sent, send them
+            except queue.Empty:
+                if notifications:
+                    push_notifications_to_oci_topic(notification_client, notifications)
+                notifications = []
         else:
             try:
                 notifications.append(notification_queue.get(block=True, timeout=push_to_oci_topic_interval_seconds))
-            except:
+            except queue.Empty:
                 pass
-        if notifications:
-            push_notifications_to_oci_topic(notification_client, notifications)
-        # time.sleep(push_to_oci_topic_interval_seconds)
+            
+            if notifications:
+                push_notifications_to_oci_topic(notification_client, notifications)
+            notifications = []
 
 
 def alert_processing_daemon():
