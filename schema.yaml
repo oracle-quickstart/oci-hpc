@@ -457,7 +457,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "HPC_OL8"
@@ -819,7 +818,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "GPU_OL8_NV570"
@@ -1767,7 +1765,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "HPC_OL8"
@@ -1998,7 +1995,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "HPC_OL8"
