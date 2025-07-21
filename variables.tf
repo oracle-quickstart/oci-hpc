@@ -345,11 +345,10 @@ variable "marketplace_listing" {
 variable "marketplace_version_id" {
   type = map(string)
   default = {
-    "HPC_OL8"       = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-2025.03.27-0"
-    "GPU_OL8_NV550" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
-    "GPU_OL8_NV560" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-560-CUDA-12.6-2025.03.27-0"
-    "GPU_OL8_NV570" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-570-CUDA-12.8-2025.03.27-0"
-    "GPU_OL8_AMD632" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-AMD-ROCM-632-2025.03.28-0"
+    "HPC_OL8"       = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-2025.07.19-0"
+    "GPU_OL8_NV550" = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.07.19-0"
+    "GPU_OL8_NV570" = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-GPU-570-OPEN-CUDA-12.8-2025.07.18-0"
+    "GPU_OL8_AMD632" = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-AMD-ROCM-632-2025.07.20-0"
   }
 }
 
