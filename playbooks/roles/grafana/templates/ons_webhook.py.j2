@@ -7,7 +7,8 @@ import re
 import sqlite3
 import sys
 
-from datetime import datetime, timedelta
+from time import sleep
+from datetime import datetime, timedelta, time
 from pathlib import Path
 from threading import Thread
 
@@ -20,14 +21,16 @@ from jinja2 import Template
 app = Flask(__name__)
 
 topic_id = "{{ ons_topic_ocid }}"
-reminder_interval_seconds = int(os.environ.get("REMINDER_INTERVAL_SECONDS", "86400"))
-reminder_loop_execution_interval_seconds = int(os.environ.get("REMINDER_LOOP_EXECUTION_INTERVAL_SECONDS", "60"))
-push_to_oci_topic_interval_seconds = int(os.environ.get("PUSH_TO_OCI_TOPIC_INTERVAL_SECONDS", "30"))
-aggregate_notifications = False
-max_notification_size = 64000
 template_path = '{{ grafana_ons_wehbook_template_path }}'
 db_dir = '{{ grafana_ons_webhook_db_dir }}'
 db_name = 'grafana_alert_processing_daemon.sqlite'
+
+minimum_age_of_active_alert_to_include_in_reminder_in_seconds = int(os.environ.get("MINIMUM_AGE_OF_ACTIVE_ALERT_TO_INCLUDE_IN_REMINDER_IN_SECONDS", "43200")) #12 hours
+active_alerts_reminder_time = time(11, 0)
+push_to_oci_topic_interval_seconds = int(os.environ.get("PUSH_TO_OCI_TOPIC_INTERVAL_SECONDS", "30"))
+aggregate_notifications = True
+max_notification_size = 64000
+
 
 alert_queue = queue.Queue(maxsize=1000)
 notification_queue = queue.Queue(maxsize=1000)
@@ -108,10 +111,16 @@ def notification_processing_daemon():
                 
                 # Check if the aggregated notification text is larger than max_notification_size (ONS supports maximum 64 KB)
                 if utf8len("\n".join([template.render(**notification) for notification in (notifications + [notification_from_queue])])) > max_notification_size:
-                   push_notifications_to_oci_topic(notification_client, notifications)
-                   notifications = [notification_from_queue]
+                    push_notifications_to_oci_topic(notification_client, notifications)
+                    notifications = [notification_from_queue]
                 else:
-                   notifications.append(notification_from_queue)
+                    notifications.append(notification_from_queue)
+                    # wait three seconds before checking it the queue is empty (avoid accumulating too much delay sending notifications when aggregate_notifications is True
+                    sleep(3)
+                   
+                    if notification_queue.empty():
+                        push_notifications_to_oci_topic(notification_client, notifications)
+                        notifications = []
             
             # When queue is empty and there are notifications to be sent, send them
             except queue.Empty:
@@ -145,13 +154,26 @@ def alert_processing_daemon():
             payload TEXT NOT NULL
         )''')
         conn.commit()
+        # Create notification table if it doesn't exist
+        cur.execute('''CREATE TABLE IF NOT EXISTS alert_reminder (
+            notification_id TEXT PRIMARY KEY,
+            last_executed_at TEXT NOT NULL
+        )''')
+        conn.commit()
     except Exception as e:
-        logging.error(f'Failed to create the database for alerts {e}. Exiting..')
+        logging.error(f'Failed to create the databases for alerts {e}. Exiting..')
         sys.exit(1)
 
+    last_reminder_execution_date_from_db = cur.execute('SELECT * FROM alert_reminder WHERE notification_id = ?', ("last",)).fetchone()
+    if last_reminder_execution_date_from_db:
+        last_reminder_execution_day = str_to_date(last_reminder_execution_date_from_db[1]).date()
+    else:
+        last_reminder_execution_day = None
+    
+    logging.info(f'Last reminder execution day: {last_reminder_execution_day}')
+    
     while True:
         # Process alerts in the queue
-        last_reminder_loop_execution_time = None
         current_time = datetime.now()
 
         try:
@@ -225,16 +247,15 @@ def alert_processing_daemon():
         except queue.Empty:
             pass
 
-        # Execute notifier loop each reminder_loop_execution_interval_seconds
-        
-        if (not last_reminder_loop_execution_time) or (current_time - last_reminder_loop_execution_time > timedelta(seconds=reminder_loop_execution_interval_seconds)):
+        # Check if is necessary to send reminder
+        if current_time.time() >= active_alerts_reminder_time and ( last_reminder_execution_day is None or current_time.date() > last_reminder_execution_day ):
             alerts_in_db = cur.execute('SELECT * FROM active_alerts').fetchall()
-            db_updates = False
-            logging.info(f'The number of existing alerts in DB: {len(alerts_in_db)}')
+            logging.info(f'Found {len(alerts_in_db)} active alerts in the DB.')
             logging.debug(f'Existing alerts in DB: {alerts_in_db}')
+            db_updates = False
             for alert in alerts_in_db:
                 last_notified_at = alert[3]
-                if current_time - str_to_date(last_notified_at) > timedelta(seconds=reminder_interval_seconds):
+                if current_time - str_to_date(last_notified_at) > timedelta(seconds=minimum_age_of_active_alert_to_include_in_reminder_in_seconds):
                     alert_id = alert[0]
                     alert_dict = json.loads(alert[6])
                     fire_count = alert[5]
@@ -250,11 +271,19 @@ def alert_processing_daemon():
                         WHERE alert_id = ?
                     ''', (date_to_str(current_time), alert_id))
                     db_updates = True
+            
+            cur.execute('''
+                INSERT INTO alert_reminder (notification_id, last_executed_at)
+                VALUES (?, ?)
+                ON CONFLICT(notification_id)
+                DO UPDATE SET last_executed_at = excluded.last_executed_at
+            ''', ("last", date_to_str(current_time)))
 
             if db_updates:
                 conn.commit()
-            
-            last_reminder_loop_execution_time = current_time
+
+            last_reminder_execution_day = current_time.date()
+            logging.info(f'Alert reminder loop successfuly executed on: {current_time}')
 
 
 @app.route('/log', methods=['POST'])
