@@ -1,5 +1,4 @@
 ---
-
 #- name: Download Packages
   #block:    
 - name: Create Slurm directory
@@ -24,14 +23,3 @@
     - "slurm-slurmdbd-{{slurm_version}}.el7.x86_64.rpm"
     - "slurm-torque-{{slurm_version}}.el7.x86_64.rpm"
   run_once: true
-
-#  rescue:
-#    - name: Repository
-#      become: true
-#      yum_repository:
-#        name: oci-hpc
-#        description: oci-hpc
-#        baseurl: https://objectstorage.us-ashburn-1.oraclecloud.com/n/hpc/b/rpms/o/
-#        gpgcheck: no
-#        enabled: yes
-#        retries: 3

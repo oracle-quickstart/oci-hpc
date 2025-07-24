@@ -9,10 +9,10 @@ link_data = {}
 gpu_id = None
 gpu = None
 
-data_tx_kib = Gauge('nvlink_data_tx_kib', 'Total data in KiB transmitted', ['hostname', 'gpu', "link"])
-data_rx_kib = Gauge('nvlink_data_rx_kib', 'Total data in KiB received', ['hostname', 'gpu', "link"])
-raw_tx_kib = Gauge('nvlink_raw_tx_kib', 'Total raw bytes in KiB transmitted', ['hostname', 'gpu', "link"])
-raw_rx_kib = Gauge('nvlink_raw_rx_kib', 'Total raw bytes in KiB received', ['hostname', 'gpu', "link"])
+data_tx_kib = Gauge('nvlink_data_tx_kib_total', 'Total data in KiB transmitted', ['hostname', 'gpu', "link"])
+data_rx_kib = Gauge('nvlink_data_rx_kib_total', 'Total data in KiB received', ['hostname', 'gpu', "link"])
+raw_tx_kib = Gauge('nvlink_raw_tx_kib_total', 'Total raw bytes in KiB transmitted', ['hostname', 'gpu', "link"])
+raw_rx_kib = Gauge('nvlink_raw_rx_kib_total', 'Total raw bytes in KiB received', ['hostname', 'gpu', "link"])
 
 def get_nvlink_metrics():
     hostname = subprocess.getoutput("hostname")
@@ -79,5 +79,5 @@ if __name__ == '__main__':
     # Generate NVLink metrics every 10 seconds
     while True:
         get_nvlink_metrics()
-        time.sleep(10)
+        time.sleep(60)
 

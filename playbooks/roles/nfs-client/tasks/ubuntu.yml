@@ -14,6 +14,7 @@
     mode: 0775
 
 - name: Mount NFS with options
+  ansible_remote_tmp: /tmp
   mount:
     path: "{{ local_path }}"
     src: "{{ export_host }}:{{ export_path | trim() }}"
@@ -22,6 +23,7 @@
     state: mounted
   when: options!=""
 - name: Mount NFS without options
+  ansible_remote_tmp: /tmp
   mount:
     path: "{{ local_path }}"
     src: "{{ export_host }}:{{ export_path | trim() }}"

@@ -12,10 +12,11 @@
     sslverify: 1
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
-- name: install grafana
+- name: install grafana and tempo
   vars: 
     package_name: 
       - grafana
+      - tempo
     package_state: present
   include_role: 
     name: safe_yum
@@ -28,6 +29,15 @@
       - oci
       - waitress
 
+- name: Create ons_webhook DB directory
+  become: true
+  file:
+    path: "{{ grafana_ons_webhook_db_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ user }}"
+    group: "{{ user }}"
+    
 - name: Copy webhook script to server
   become: true
   template:
@@ -40,7 +50,7 @@
   become: true
   copy:
     src: files/raw_message_template.txt
-    dest: /etc/raw_message_template.txt
+    dest: "{{ grafana_ons_wehbook_template_path }}"
     mode: '0755'
 
 - name: Render systemd service for webhook
@@ -103,6 +113,13 @@
   copy:
     src: files/alert-rules.yaml
     dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    mode: '0777'
+
+- name: Copy delete rules to grafana provisioning
+  become: true
+  copy:
+    src: files/delete-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/delete-rules.yaml
     mode: '0777'
 
 - name: Replace all occurrences of a specific string in files

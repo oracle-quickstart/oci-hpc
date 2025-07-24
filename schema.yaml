@@ -35,7 +35,6 @@ variableGroups:
       - ${controller_memory}
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
-      - ${controller_object_storage_par}
       - ${use_marketplace_image_controller}
       - ${marketplace_listing_controller}
       - ${unsupported_controller}
@@ -142,17 +141,31 @@ variableGroups:
       and:
         - ${autoscaling_monitoring}
         - ${autoscaling}
+
+  - title: "Include Lustre Filesystem"
+    variables:
+      - ${add_lfs}
+      - ${create_lfs}
+      - ${lfs_compartment}
+      - ${lfs_capacity_in_gbs}
+      - ${lfs_perf_tier}
+      - ${lfs_target_path}
+      - ${lfs_source_IP}
+      - ${lfs_source_path}
+      - ${lfs_options}
+
   - title: "Additional file system"
     variables:
       - ${add_nfs}
       - ${create_fss}
-      - ${mount_target_count}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
+      - ${mount_target_count}
+      - ${manual_multiple_mount_target}
   - title: "Advanced storage options"
     variables:
       - ${use_advanced}
@@ -224,6 +237,8 @@ variableGroups:
       - ${controller_boot_volume_backup_type}
       - ${use_compute_agent}
       - ${nfs_list_of_mount_target_IPs}
+      - ${lfs_ad}
+      - ${controller_object_storage_par}
       
     visible: false
   - title: "Debug"
@@ -415,7 +430,7 @@ variables:
     title: Create Object Storage PAR
     description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
     type: boolean
-    default: true
+    default: false
 
   unsupported_controller: 
     title: "Use unsupported image" 
@@ -442,7 +457,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "HPC_OL8"
@@ -629,6 +643,7 @@ variables:
       - "BM.GPU.A100-v2.8"
       - "BM.GPU.H100.8"
       - "BM.GPU.H200.8"
+      - "BM.GPU.B200.8"
       - "BM.GPU.MI300X.8"
       - "BM.GPU.L40S.4"
       - "BM.Optimized3.36"
@@ -803,7 +818,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "GPU_OL8_NV570"
@@ -1100,7 +1114,7 @@ variables:
     description: "Only available for a private zone" 
   zone_name:
     title: Private Zone Name
-    description: "The zone needs to be private and unprotected for the stack to be able to add entries"
+    description: "DANGER ZONE: The zone needs to be private and unprotected for the stack to be able to add entries. If you do not have one created or are unsure, uncheck USE DNS"
     type: string
     visible: 
       and:
@@ -1223,13 +1237,13 @@ variables:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: false
-    description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
+    description: "Install Grafana, Node Exporter, and Prometheus for system monitoring (Note: Node Exporter uses ports 9100–9900, Prometheus uses port 9090, and Grafana uses port 3000)."
 
   alerting:
     type: boolean
     title: "Install HPC Cluster alerting Tools"
     default: false
-    description: "Creates a Topic that you can subscribe to"
+    description: "Creates a topic that you can subscribe to (Note: the alert webhook uses port 5000)."
     visible: ${cluster_monitoring}
 
   pam:
@@ -1326,6 +1340,23 @@ variables:
     required: true
     visible: 
       and:
+        - ${add_nfs}
+        - ${create_fss}
+
+  # We are disabling manaul multiple mount target. By default, for 1 or more than 1 mount target, we will be using DNS round robin. 
+  # We are keeping the code in case we need to use it for a use case. It made sense a while ago to use multiple mounts, but now that 
+  # we have 80Gbps mount for FSS, and knowing that with multiple MT (mount target), we loose metadata caching and Lustre being available 
+  # for more extreme case, we will do DNS round robin all the time. In addition, it's impossible to predict how many nodes on a particular
+  # MT will be idle, and how many will be using a particular MT. For using manual multiple mount target, you need to remove the word "false" 
+  # under "visible" section below.  
+  manual_multiple_mount_target:
+    type: boolean
+    title: "Mount multiple mount targets via script and not DNS round robin"
+    default: false
+    description: "For FSS, this will look at the current distribution of the mount targets and mount the nodes using a mount target that has been used the least using a script."
+    visible:
+      and:
+        - false
         - ${add_nfs}
         - ${create_fss}
  
@@ -1734,7 +1765,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "HPC_OL8"
@@ -1965,7 +1995,6 @@ variables:
     enum:
       - "HPC_OL8"
       - "GPU_OL8_NV570"
-      - "GPU_OL8_NV560"
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "HPC_OL8"
@@ -1973,3 +2002,113 @@ variables:
       and:
         - ${use_marketplace_image_monitoring}
         - ${monitoring_node}
+
+  add_lfs:
+    type: boolean
+    title: "Include Existing Lustre Filesystem"
+    default: false
+    description: "The Lustre filesystem being included should pre-exist and be in the same subnet as the GPU/HPC compute nodes."
+    visible: true
+
+  create_lfs:
+    type: boolean
+    title: "Create Lustre Filesystem"
+    default: false
+    description: "For Lustre, leave options field as-is unless you require specific options"
+    visible:
+      and:
+        - ${add_lfs}
+
+  lfs_compartment:
+    title: "Lustre File System Compartment"
+    description: "Compartment for provisioning Lustre File System"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    required: true
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+
+  lfs_ad:
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${lfs_compartment}
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+    default: ${ad}
+    description: " Availability Domain (Should be the same as CPU/GPU compute instances for best performance)"
+    title: "LFS Availability Domain"
+    required: true
+
+  lfs_capacity_in_gbs:
+    type: integer
+    required: true
+    minimum: 31200
+    title: "Size of Lustre Filesystem share in GBs (Should be in multiples of 10400)"
+    default: 31200
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+
+  lfs_perf_tier:
+    type: enum
+    required: true
+    title: "Lustre Performance Tier"
+    enum:
+      - "MBPS_PER_TB_125"
+      - "MBPS_PER_TB_250"
+      - "MBPS_PER_TB_500"
+      - "MBPS_PER_TB_1000"
+    default: "MBPS_PER_TB_125"
+    visible:
+      and:
+        - ${add_lfs}
+        - ${create_lfs}
+
+  lfs_target_path:
+    type: string
+    title: "LFS Path"
+    description: "Local path on which Lustre filesystem will be mounted"
+    required: true
+    default: "/lfs"
+    visible:
+      and:
+        - ${add_lfs}
+
+  lfs_source_IP:
+    type: string
+    title: "Lustre Server IP"
+    description: "IP address of the Lustre server"
+    required: true
+    default: "0.0.0.0"
+    visible:
+      and:
+        - ${add_lfs}
+        - not:
+            - ${create_lfs}
+
+  lfs_source_path:
+    type: string
+    title: "Lustre Server Path"
+    default: "lustrefs"
+    minLength: 1
+    maxLength: 8
+    description: "Lustre filesystem share path on the Lustre server"
+    visible:
+      and:
+        - ${add_lfs}
+    required: true
+
+  lfs_options:
+    type: string
+    title: "Options"
+    default: "defaults,_netdev"
+    description: "Recommended mount options for LFS. Do not modify unless you require custom options"
+    visible:
+      and:
+        - ${add_lfs}
+

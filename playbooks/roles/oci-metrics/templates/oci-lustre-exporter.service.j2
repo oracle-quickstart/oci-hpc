@@ -1,0 +1,13 @@
+[Unit]
+Description=OCI Lustre File System service metrics exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=opc
+Group=opc
+Type=simple
+ExecStart=/usr/bin/env python3 /usr/local/bin/oci-lustre-metrics-exporter.py
+
+[Install]
+WantedBy=multi-user.target

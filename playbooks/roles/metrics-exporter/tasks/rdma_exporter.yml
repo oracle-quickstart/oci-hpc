@@ -3,22 +3,22 @@
   ansible.builtin.pip:
     name: prometheus_client
     executable: /usr/bin/pip3
-  become: yes
+  become: true
 
 - name: Copy service file to scripts directory
   copy:
     src: rdma_counters_exporter.py
     dest: /usr/local/bin
     mode: 0755
-  become: yes
+  become: true
 
 - name: Render systemd service file
   become: true
   template: 
     src: rdma-exporter.service.j2
     dest: /etc/systemd/system/rdma-exporter.service
-    force: yes
-    backup: yes
+    force: true
+    backup: true
     owner: prometheus
     group: prometheus
     mode: 0755
@@ -28,4 +28,4 @@
   service:
     name: rdma-exporter
     state: restarted
-    enabled: yes
+    enabled: true

@@ -2,6 +2,8 @@
 
 [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/oracle-quickstart/oci-hpc/archive/refs/heads/master.zip)
 
+## Create a dynamic group
+For customer tenancies, check or create dynamic group. In OCI Console, navigate to Identity->Domains->Default domain->Dynamic groups, create a dynamic group e.g. instance_principal with `Any {instance.compartment.id = 'ocid1.compartment.oc1.example-ocid'}`. Though this provides a liberal access for the instance principal, it is recommended to narrow the scope depending on customer's security posture requirements. If you change the name of policy, be sure make the change in the policy examples that follow this section. Currently they all assume that you named the dynamic group as `instance_principal`.
 
 ## Policies to deploy the stack: 
 ```
@@ -24,6 +26,7 @@ Allow dynamic-group instance_principal to manage instance-family in compartment 
 Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
 Allow dynamic-group instance_principal to use volumes in compartment compartmentName
 Allow dynamic-group instance_principal to manage dns in compartment compartmentName
+Allow dynamic-group instance_principal to read metrics in compartment compartmentName
 ```
 or:
 

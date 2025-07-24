@@ -14,6 +14,11 @@
   when: ('compute' in group_names) and 'GPU' in shape
 
 - include_tasks: custom_metrics.yml
-  when: ('compute' in group_names) and cluster_network|bool
+  when: ('compute' in group_names) and (cluster_network|bool or 'GPU' in shape)
 
-- include_tasks: critical_process_monitor.yml
+- include_tasks: nvml_exporter.yml
+  when: ('compute' in group_names) and 'GPU' in shape
+
+- include_tasks: pcie_faults.yml
+  when: ('compute' in group_names) and 'GPU' in shape
+

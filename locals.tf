@@ -27,7 +27,7 @@ locals {
   subnet_id = var.private_deployment ? var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 1) : var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
 
   nfs_source_IP = var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : var.nfs_source_IP  
-  nfs_list_of_mount_target_IPs = var.create_fss ? "[\"${join("\",\"",oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP  
+  nfs_list_of_mount_target_IPs = var.create_fss ? join(",",oci_file_storage_mount_target.FSSMountTarget.*.ip_address) : var.nfs_source_IP
 
   // subnet id derived either from created subnet or existing if specified
   // controller_subnet_id = var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
@@ -83,4 +83,7 @@ locals {
   platform_type = local.shape == "BM.GPU4.8" ? "AMD_ROME_BM_GPU" : local.shape == "BM.GPU.B4.8" || local.shape == "BM.GPU.A100-v2.8" ? "AMD_MILAN_BM_GPU" : local.shape == "BM.Standard.E3.128" ? "AMD_ROME_BM" : local.shape == "BM.Standard.E4.128" || local.shape == "BM.DenseIO.E4.128" ? "AMD_MILAN_BM" : "GENERIC_BM"
 
   topic_id = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
+
+  // Lustre IP.
+  luster_IP = var.create_lfs ? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
 }

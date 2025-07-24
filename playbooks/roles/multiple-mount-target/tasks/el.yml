@@ -1,0 +1,106 @@
+---
+# Distribution logic
+- name: Distribute Mount Targets
+  ansible.builtin.script:
+    cmd: "{{ cmd_mmt }}"
+  register: mount_target_assignments
+  delegate_to: controller
+  run_once: True
+
+- name: Distribution Debug
+  ansible.builtin.debug:
+    var: mount_target_assignments
+
+- name: Mount Target Assignment
+  set_fact:
+    mts: "{{ mts | default([]) + [item | combine({'host': item.host, 'mount_target': item.mount_target })] }}"
+  loop: "{{ mount_target_assignments.stdout }}"
+  when: item.host in inventory_hostname
+
+- name: Mounting on which host
+  shell: "echo 'Mounting {{ item.mount_target }} on {{ item.host }}' "   
+  ignore_errors: yes
+  loop: "{{ mts | default([],true) }}"
+
+# Mounting 
+- name: Install NFS Packages
+  vars: 
+    package_name: '{{ nfs_rpm_packages }}'
+  include_role: 
+    name: safe_yum
+
+- name: Create home FSS Share Directory
+  become: true
+  file:
+    path: "{{ local_path_home }}"
+    state: directory
+    owner: opc
+    group: "{{privilege_group_name}}"
+    mode: 0775
+  when: home_fss_var == "true"
+
+- name: Mount home FSS with Options
+  mount:
+    path: "{{ local_path_home }}"
+    src: "{{ item.mount_target }}:{{ export_path_home | trim() }}"
+    fstype: nfs
+    opts: "{{ options_home }}"
+    state: mounted
+  when: options_home != "" and item.mount_target is defined and home_fss_var == "true"
+  loop: "{{ mts }}"
+
+- name: Mount home FSS without Options
+  mount:
+    path: "{{ local_path_home }}"
+    src: "{{ item.mount_target }}:{{ export_path_home | trim() }}"
+    fstype: nfs
+    state: mounted
+  when: options_home=="" and item.mount_target is defined and home_fss_var == "true"
+  loop: "{{ mts }}"
+
+- name: Confirm Permissions On home FSS Share Directory Are Right
+  become: true
+  file:
+    path: "{{ local_path_home }}"
+    state: directory
+    owner: opc
+    group: "{{privilege_group_name}}"
+    mode: 0775
+  when: home_fss_var == "true"
+
+- name: Create FSS Share Directory
+  become: true
+  file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: opc
+    group: "{{privilege_group_name}}"
+    mode: 0775
+
+- name: Mount FSS with Options
+  mount:
+    path: "{{ local_path }}"
+    src: "{{ item.mount_target }}:{{ export_path | trim() }}"
+    fstype: nfs
+    opts: "{{ options }}"
+    state: mounted
+  when: options != "" and item.mount_target is defined
+  loop: "{{ mts }}"
+
+- name: Mount FSS without Options
+  mount:
+    path: "{{ local_path }}"
+    src: "{{ item.mount_target }}:{{ export_path | trim() }}"
+    fstype: nfs
+    state: mounted
+  when: options=="" and item.mount_target is defined
+  loop: "{{ mts }}"
+
+- name: Confirm Permissions On Share Directory Are Right
+  become: true
+  file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: opc
+    group: "{{privilege_group_name}}"
+    mode: 0775

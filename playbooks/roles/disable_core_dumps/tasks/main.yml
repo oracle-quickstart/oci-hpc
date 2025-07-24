@@ -1,0 +1,61 @@
+---
+## 1. Disable Core Dumps via limits.conf (Generic)
+- name: "Disable hard core dumps in /etc/security/limits.conf"
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^\*.*hard.*core'
+    line: '* hard core 0'
+    create: yes
+
+- name: "Disable soft core dumps in /etc/security/limits.conf"
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^\*.*soft.*core'
+    line: '* soft core 0'
+    create: yes
+
+## 2. Disable Core Dumps via sysctl (Generic)
+- name: "Disable core dumps via sysctl"
+  sysctl:
+    name: fs.suid_dumpable
+    value: '0'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+## 3. Ubuntu/Debian: Disable apport
+- name: "Stop and disable apport service (Ubuntu/Debian only)"
+  systemd:
+    name: apport.service
+    state: stopped
+    enabled: no
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: "Disable apport reporting in /etc/default/apport (Ubuntu/Debian only)"
+  lineinfile:
+    path: /etc/default/apport
+    regexp: '^enabled='
+    line: 'enabled=0'
+    create: yes
+  when: ansible_facts['os_family'] == "Debian"
+
+## 4. RHEL/CentOS: Disable ABRT
+- name: "Stop and disable ABRT service (RHEL only)"
+  systemd:
+    name: abrtd.service
+    state: stopped
+    enabled: no
+  when: ansible_facts['os_family'] == "RedHat"
+  failed_when: false   # Don't fail if service doesn't exist
+  ignore_errors: true  # Continue even if error occurs
+
+- name: "Remove ABRT packages (RHEL only)"
+  package:
+    name:
+      - abrt
+      - abrt-addon-ccpp
+      - abrt-cli
+    state: absent
+  when: ansible_facts['os_family'] == "RedHat"
+  failed_when: false
+  ignore_errors: true
