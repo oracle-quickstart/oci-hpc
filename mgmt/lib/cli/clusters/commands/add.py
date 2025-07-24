@@ -20,7 +20,7 @@ def add():
 @click.option('--names', required=False, help='comma separated list of host names')
 @click.option('--memorycluster', required=False, help='Name of the memory cluster to add the nodes in, cluster name is not required if memory cluster is specified')
 def add_node(count, cluster, names, memorycluster):
-    """Replace the image of nodes by serial number."""
+    """Add additional compute hosts to an existing cluster."""
     if names:
         name_list=names.split(',')
         if count != len(name_list):
@@ -55,7 +55,7 @@ def add_node(count, cluster, names, memorycluster):
 @click.option('--instancetype', required=True, help='Specify the instance type of the cluster')
 
 def add_memory_fabric(count, cluster, fabric ,memorycluster,instancetype):
-    """Replace the image of nodes by serial number."""
+    """Add hosts from a memoryfabric to an existing cluster."""
     if cluster is None:
         clusters = get_clusters()
         if len(clusters) == 1:
