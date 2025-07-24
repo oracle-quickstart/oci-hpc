@@ -1,0 +1,52 @@
+---
+- name: Install prometheus_client python package
+  ansible.builtin.pip:
+    name: prometheus_client 
+    executable: /usr/bin/pip3  
+  become: true
+
+- name: Install pyudev python package
+  ansible.builtin.pip:
+    name: pyudev 
+    executable: /usr/bin/pip3  
+  become: true
+
+- name: Copy service file to scripts directory
+  copy:
+    src: pcie_faults_exporter.py
+    dest: /usr/local/bin
+    mode: 0755
+  become: true
+
+- name: Render systemd service file
+  become: true
+  template: 
+    src: pcie-faults-exporter.service.j2
+    dest: /etc/systemd/system/pcie-faults-exporter.service
+    force: yes
+    backup: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0744
+
+- name: Check if critical-process-monitor service exists
+  shell: systemctl list-unit-files | grep -q '^critical-process-monitor'
+  register: cpmon_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Stop and disable critical-process-monitor if it exists
+  service:
+    name: critical-process-monitor
+    state: stopped
+    enabled: no
+  become: true
+  when: cpmon_check.rc == 0
+
+- name: Restart pcie faults exporter
+  become: true
+  service:    
+    name: pcie-faults-exporter
+    state: restarted
+    enabled: yes
+    daemon_reload: true

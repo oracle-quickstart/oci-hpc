@@ -52,12 +52,12 @@
       set_fact:
         rackID: "{{ rackID_script.stdout[1:-41]}}"
       when: blockID_script is failed
-  when: shape == 'BM.GPU.H100.8' or  shape == 'BM.GPU.H200.8'
+  when: shape == 'BM.GPU.H100.8' or  shape == 'BM.GPU.H200.8' and shape != 'BM.GPU.B200.8'
 
 - name: Set Rack ID fact on nodes other than H100
   set_fact:
     rackID: "{{ rackID_script.stdout[1:-41]}}"
-  when: shape != 'BM.GPU.H100.8' and shape != 'BM.GPU.H200.8'
+  when: shape != 'BM.GPU.H100.8' and shape != 'BM.GPU.H200.8' and shape != 'BM.GPU.B200.8'
 
 - name: Get rackIDs
   set_fact:
@@ -158,4 +158,4 @@
   command: "scontrol reconfigure"
   delegate_to: 127.0.0.1
   run_once: true
-  ignore_errors: yes
+  ignore_errors: true

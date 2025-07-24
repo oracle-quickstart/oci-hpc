@@ -1,4 +1,18 @@
 ---
+- name: Ensure group "{{ prometheus_user }}" exists
+  become: true
+  ansible.builtin.group:
+    name: "{{ prometheus_user }}"
+    state: present
+
+- name: Create user for prometheus
+  become: true
+  user:
+    name: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}"
+    state: present 
+    createhome: no   
+    shell: /usr/sbin/nologin
 
 - name: Create user for prometheus
   become: true
@@ -7,7 +21,6 @@
     state: present 
     createhome: no   
     shell: /usr/sbin/nologin
-    append: yes
 
 - name: Create /var/lib/prometheus/node_exporter directory
   become: true

@@ -385,6 +385,8 @@ def check_nvidia_gpu_count():
         alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.H200.8":
          alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.B200.8":
+         alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.B4.8":
          alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.A100-v2.8":
@@ -489,7 +491,7 @@ def check_ecc_errors():
 
     # Write ECC Error Check metric file
     with open(tmp_tf_path, "w") as tmp_tf:
-        help_text = "# HELP gpu_ecc_error_check Pass or Fail based on row remap errors found in a GPU"
+        help_text = "# HELP gpu_ecc_error_check Pass or Fail based on ecc errors found in a GPU"
         type_text = "# TYPE gpu_ecc_error_check gauge"
         tmp_tf.write('{}\n{}\n'.format(help_text, type_text))
         # Check if there are ecc_issues
@@ -512,6 +514,11 @@ def check_ecc_errors():
                 metric_text = "gpu_ecc_error_check 0" + "\n"
                 print(metric_text)
                 tmp_tf.write('{}'.format(metric_text))            
+            else:
+                metric_text = "gpu_ecc_error_check 1" + "\n"
+                print(metric_text)
+                tmp_tf.write('{}'.format(metric_text))            
+
     tmp_tf.close()
 
     copy_metric_file(tmp_tf_path, tf_path, node_exporter_user, node_exporter_group)

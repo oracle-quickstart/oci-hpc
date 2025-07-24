@@ -53,11 +53,10 @@ variable "marketplace_listing" {
 variable "marketplace_version_id" { 
   type = map(string) 
   default = { 
-    "HPC_OL8"       = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-2025.03.27-0"
-    "GPU_OL8_NV550" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
-    "GPU_OL8_NV560" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
-    "GPU_OL8_NV570" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.03.27-0"
-    "GPU_OL8_AMD632" = "Oracle-Linux-8.10-2025.02.28-0-OCA-RHCK-OFED-24.10-1.1.4.0-AMD-ROCM-632-2025.03.28-0"
+    "HPC_OL8"       = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-2025.07.19-0"
+    "GPU_OL8_NV550" = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-GPU-550-CUDA-12.4-2025.07.19-0"
+    "GPU_OL8_NV570" = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-GPU-570-OPEN-CUDA-12.8-2025.07.18-0"
+    "GPU_OL8_AMD632" = "Oracle-Linux-8.10-2025.06.17-0-RHCK-OFED-24.10-1.1.4.0-AMD-ROCM-632-2025.07.20-0"
   }
 }
 
@@ -106,6 +105,9 @@ variable "controller_mount_ip" {default = "${controller_mount_ip}"}
 variable "login_mount_ip" {default = "${login_mount_ip}"}
 variable "home_nfs" { default = ${home_nfs} } 
 variable "home_fss" { default = ${home_fss} } 
+variable "mount_target_count" { default = ${mount_target_count} }
+variable "nfs_list_of_mount_target_IPs" { default = "${nfs_list_of_mount_target_IPs}" }
+variable "manual_multiple_mount_target" { default = ${manual_multiple_mount_target} }
 variable "latency_check" { default = ${latency_check} } 
 variable "create_fss" { default = ${create_fss} } 
 variable "configure" { default = true }
@@ -166,4 +168,24 @@ variable "hostname_convention" {
 }
 variable "ons_topic_ocid" {
   default = "${ons_topic_ocid}"
+}
+variable "add_lfs" {
+  default = "${add_lfs}"
+  type = bool
+}
+variable "lfs_target_path" {
+  default = "${lfs_target_path}"
+  type = string
+}
+variable "lfs_source_IP" {
+  default = "${lfs_source_IP}"
+  type = string
+}
+variable "lfs_source_path" {
+  default = "${lfs_source_path}"
+  type = string
+}
+variable "lfs_options" {
+  default = "${lfs_options}"
+  type = string
 }

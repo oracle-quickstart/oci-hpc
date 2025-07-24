@@ -8,14 +8,24 @@ contactPoints:
       settings:
         url: http://localhost:5000/grafana-webhook
         httpMethod: POST
+policies:
+    - orgId: 1
+      receiver: ons-webhook
+      group_by:
+        - grafana_folder
+        - alertname
+        - hostname
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
 groups:
     - orgId: 1
-      name: Events that might cause cluster instability
-      folder: Critical
+      name: Host Related Warnings or Events (non-GPU and non-RDMA) which may cause cluster instability
+      folder: Warning
       interval: 5m
       rules:
-        - uid: cpu-20pct
-          title: Controller or Login nodes should not have cpu usage more than 90%
+        - uid: cpu-10pct
+          title: Low CPU Free on Controller/Login Node
           condition: B
           data:
             - refId: A
@@ -42,7 +52,7 @@ groups:
                 conditions:
                     - evaluator:
                         params:
-                            - 20
+                            - 10
                             - 0
                         type: lt
                       operator:
@@ -69,12 +79,13 @@ groups:
           execErrState: OK
           for: 15m
           annotations:
-            summary: Controller and login nodes having low cpu availability could result in potential loss of access. Immediate investigation is recommended.
+            summary: Controller and login nodes having low cpu free could result in potential loss of access. 
           isPaused: false
           notification_settings:
             receiver: ons-webhook
-        - uid: disk-20pct
-          title: Controller or Login nodes should have disk free more than 20pct
+            repeat_interval: 24h
+        - uid: controller-node-critical-service-down
+          title: One or more critical services failed on controller.
           condition: B
           data:
             - refId: A
@@ -87,66 +98,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: avg by (hostname, mountpoint) ((node_filesystem_avail_bytes{mountpoint="/", hostname=~".*controller|.*login"} / node_filesystem_size_bytes{mountpoint="/", hostname=~".*controller|.*login"})*100)
-                hide: false
-                instant: true
-                intervalMs: 60000
-                legendFormat: "{{ hostname }} {{ mountpoint }}"
-                maxDataPoints: 43200
-                range: false
-                refId: A
-            - refId: B
-              datasourceUid: __expr__
-              model:
-                conditions:
-                    - evaluator:
-                        params:
-                            - 20
-                            - 0
-                        type: lt
-                      operator:
-                        type: and
-                      query:
-                        params: []
-                      reducer:
-                        params: []
-                        type: avg
-                      type: query
-                datasource:
-                    name: Expression
-                    type: __expr__
-                    uid: __expr__
-                expression: A
-                hide: false
-                intervalMs: 60000
-                maxDataPoints: 43200
-                refId: B
-                type: threshold
-          dashboardUid: ""
-          panelId: 0
-          noDataState: NoData
-          execErrState: OK
-          for: 15m
-          annotations:
-            summary: Controller and login nodes low disk free space could result in potential loss of access. Immediate investigation is recommended.
-          isPaused: false
-          notification_settings:
-            receiver: ons-webhook
-        - uid: mem-20pct
-          title: Controller or Login nodes should have memory free more than 20pct
-          condition: B
-          data:
-            - refId: A
-              relativeTimeRange:
-                from: 600
-                to: 0
-              datasourceUid: DATASOURCE_UID
-              model:
-                datasource:
-                    type: prometheus
-                    uid: DATASOURCE_UID
-                editorMode: code
-                expr: avg by (hostname) (100 * ((node_memory_MemAvailable_bytes{hostname=~".*controller|.*login"}[5m]) / (node_memory_MemTotal_bytes{hostname=~".*controller|.*login"}[5m])))
+                expr: node_systemd_unit_state{state="failed", name=~"mariadb.service|nscd.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -160,7 +112,189 @@ groups:
                 conditions:
                     - evaluator:
                         params:
-                            - 20
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: A critical service failed on controller node.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: login-node-critical-service-down
+          title: One or more critical services failed on login node.
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: node_systemd_unit_state{state="failed", name=~"nscd.service|ssh.service|sssd.service|node_exporter.service"}
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: A critical service failed on login node.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: compute-node-critical-service-down
+          title: One or more critical services failed on compute nodes.
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: (node_systemd_unit_state{state="failed", name=~"nscd.service|ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|rdma-exporter.service|wpa_supplicant-wired@rdma.*.service"} or node_systemd_unit_state{state="failed", name="nvidia-fabricmanager.service", shape!~".*A10.*"})
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: Critical services failed on compute nodes.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+    - orgId: 1
+      name: GPU and RDMA Related Critical Errors requiring system reboot or repair
+      folder: Critical
+      interval: 5m
+      rules:
+        - uid: disk-50g
+          title: Nodes should have atleast 50GB disk free in boot volume
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: node_filesystem_avail_bytes{mountpoint="/",device=~"/dev/sd.*"}
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ mountpoint }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 50000000000
                             - 0
                         type: lt
                       operator:
@@ -187,29 +321,30 @@ groups:
           execErrState: OK
           for: 15m
           annotations:
-            summary: Controller and login nodes having low memory could result in potential loss of access. Immediate investigation is recommended.
+            summary: Nodes low disk free space could result in potential loss of access. Immediate investigation is recommended.
           isPaused: false
           notification_settings:
             receiver: ons-webhook
-        - uid: critical-service-down
-          title: One or more critical services failed/killed/not running.
+            repeat_interval: 24h
+        - uid: mem-50g
+          title: Nodes should have atleast 50GB memory free
           condition: B
           data:
             - refId: A
               relativeTimeRange:
                 from: 600
                 to: 0
-              datasourceUid: ce4bi98xrsjcwb
+              datasourceUid: DATASOURCE_UID
               model:
                 datasource:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: service_up
+                expr: node_memory_MemAvailable_bytes
                 hide: false
                 instant: true
                 intervalMs: 60000
-                legendFormat: "{{ hostname }} {{ service }}"
+                legendFormat: "{{ hostname }}"
                 maxDataPoints: 43200
                 range: false
                 refId: A
@@ -219,7 +354,8 @@ groups:
                 conditions:
                     - evaluator:
                         params:
-                            - 1
+                            - 50000000000
+                            - 0
                         type: lt
                       operator:
                         type: and
@@ -245,15 +381,11 @@ groups:
           execErrState: OK
           for: 15m
           annotations:
-            summary: A critical service may be down.
+            summary: Nodes having low memory could result in potential loss of access. Immediate investigation is recommended.
           isPaused: false
           notification_settings:
             receiver: ons-webhook
-    - orgId: 1
-      name: Errors requiring reboot and may be repair
-      folder: Critical
-      interval: 5m
-      rules:
+            repeat_interval: 24h
         - uid: xid-error
           title: XID Error Check
           condition: B
@@ -313,6 +445,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: ecc-error
           title: GPU ECC Error Check
           condition: B
@@ -372,6 +505,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: row-remap-error
           title: GPU Row Remap Error Check
           condition: B
@@ -430,11 +564,361 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
-    - orgId: 1
-      name: GPU throttling or shutdown due to different power and temperature violations
-      folder: Critical
-      interval: 5m
-      rules:
+            repeat_interval: 24h
+        - uid: missing-gpu
+          title: One or more GPUs may have fell off the bus or are not responding
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: gpu_count
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: One or more GPUs may have fallen off the bus or are not responding. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-aer-correctable-errors
+          title: Increasing PCIe AER Correctable Errors
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_correctable_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: One or more PCIE devices have increasing PCIe AER correctable errors. This may indicate a potential issue with the PCIe hardware. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-aer-fatal-errors
+          title: Increasing PCIe AER Fatal Errors
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_fatal_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: One or more PCIE devices have increasing PCIe AER fatal errors. This may indicate a potential issue with the PCIe hardware. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-aer-nonfatal-errors
+          title: Increasing PCIe AER non-Fatal Errors
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_nonfatal_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: One or more PCIE devices have increasing PCIe AER non-fatal errors. This may indicate a potential issue with the PCIe hardware. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-bus-inaccessible
+          title: PCIE Bus Inaccessible
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: pcie_bus_inaccessible_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIE bus is inaccessible. This may result in network or device loss. Check labels for identifying specific device. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-link-speed-fault
+          title: PCIE Link width and current speed mismatch
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: pcie_bus_linkwidth_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: Link speed degradation of PCIE bus. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
         - uid: throttle-power
           title: GPU throttle due to power violation
           condition: B
@@ -449,7 +933,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_POWER_VIOLATION
+                expr: increase(DCGM_FI_DEV_POWER_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -493,6 +977,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: throttle-board
           title: GPU throttle due to board limit violation
           condition: B
@@ -507,7 +992,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_BOARD_LIMIT_VIOLATION
+                expr: increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -551,6 +1036,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: throttle-thermal
           title: GPU throttle due to thermal violation
           condition: B
@@ -565,7 +1051,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_THERMAL_VIOLATION
+                expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -609,6 +1095,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: throttle-util
           title: GPU throttle due to low utilization violation
           condition: B
@@ -623,7 +1110,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_LOW_UTIL_VIOLATION
+                expr: increase(DCGM_FI_DEV_LOW_UTIL_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -667,6 +1154,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: throttle-sync
           title: GPU throttle due to sync boost violation
           condition: B
@@ -681,7 +1169,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_SYNC_BOOST_VIOLATION
+                expr: increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -725,6 +1213,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: throttle-reliability
           title: GPU throttle due to reliability violation
           condition: B
@@ -739,7 +1228,7 @@ groups:
                     type: prometheus
                     uid: DATASOURCE_UID
                 editorMode: code
-                expr: DCGM_FI_DEV_RELIABILITY_VIOLATION
+                expr: increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m])
                 hide: false
                 instant: true
                 intervalMs: 60000
@@ -783,6 +1272,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: gpu-temp-slowdown
           title: GPU device temperature exceeded 98% of slowdown temparature
           condition: B
@@ -841,6 +1331,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: gpu-temp-shutdown
           title: GPU device temperature exceeded 98% of shutdown temparature
           condition: B
@@ -899,6 +1390,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: gpu-mem-temp-slowdown
           title: GPU memory temperature exceeded 98% of slowdown temparature
           condition: B
@@ -957,6 +1449,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: gpu-mem-temp-shutdown
           title: GPU memory temperature exceeded 98% of shutdown temparature
           condition: B
@@ -1015,11 +1508,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
-    - orgId: 1
-      name: Errors if occurring over longer periods that might require repair
-      folder: Critical
-      interval: 5m
-      rules:
+            repeat_interval: 24h
         - uid: rdma-device-status
           title: RDMA Device Status
           condition: B
@@ -1079,6 +1568,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: rdma-link-flapping
           title: RDMA Link Flapping
           condition: B
@@ -1138,6 +1628,7 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
         - uid: rttcc-status
           title: RTTCC Status Check
           condition: B
@@ -1196,3 +1687,653 @@ groups:
           isPaused: false
           notification_settings:
             receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: oci-rdma-link-speed-fault
+          title: RDMA Link Speed Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_link_speed_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA link speed fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: oci-rdma-pcie-address-fault
+          title: RDMA PCIE Address Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_address_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Address fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: oci-rdma-pcie-cable-flap-fault
+          title: RDMA PCIE Cable Flap Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_cable_flap_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Cable Flap fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: oci-rdma-pcie-cable-plug-fault
+          title: RDMA PCIE Cable Plug Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_cable_plug_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Cable Plug fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: oci-rdma-pcie-cable-state-fault
+          title: RDMA PCIE Cable State Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_cable_state_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE Cable State fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: oci-rdma-pcie-ber-check-fault
+          title: RDMA PCIE BER Check Fault
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(oci_rdma_pcie_ber_check_fault[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: RDMA PCIE BER Check fault counts had been increasing over the last 5 minutes. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-correctable-error-increase
+          title: Increasing PCIe AER Correctable Errors from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_correctable_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe AER correctable error counts have been increasing over the last 5 minutes. This may indicate hardware issues with PCIe devices. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-fatal-error-increase
+          title: Increasing PCIe AER Fatal Errors from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_fatal_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe AER fatal error counts have been increasing over the last 5 minutes. This indicates critical hardware issues with PCIe devices that may require immediate system intervention. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-nonfatal-error-increase
+          title: Increasing PCIe AER Non-Fatal Errors from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: increase(pcie_aer_nonfatal_error_count[5m])
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe AER non-fatal error counts have been increasing over the last 5 minutes. This may indicate hardware issues with PCIe devices that could affect performance. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-bus-linkwidth-fault
+          title: PCIe Bus Link Width Fault from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: pcie_bus_linkwidth_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe bus link width fault detected. This indicates a mismatch between expected and actual link width, potentially causing performance degradation. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h
+        - uid: pcie-bus-inaccessible-fault
+          title: PCIe Bus Inaccessible Fault from PCIe Faults Exporter
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: DATASOURCE_UID
+              model:
+                datasource:
+                    type: prometheus
+                    uid: DATASOURCE_UID
+                editorMode: code
+                expr: pcie_bus_inaccessible_status
+                hide: false
+                instant: true
+                intervalMs: 60000
+                legendFormat: "{{ hostname }} {{ device }} {{ device_type }}"
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                hide: false
+                intervalMs: 60000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: OK
+          for: 15m
+          annotations:
+            summary: PCIe bus is inaccessible. This indicates that the PCIe device cannot be accessed, potentially causing device or network loss. Immediate investigation is required.
+          isPaused: false
+          notification_settings:
+            receiver: ons-webhook
+            repeat_interval: 24h

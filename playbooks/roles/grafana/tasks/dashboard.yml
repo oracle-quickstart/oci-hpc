@@ -1,16 +1,16 @@
 ---
-- name: Download jb
+- name: Download latest jb
   become: true
   get_url:
     url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-amd64
     dest: /usr/local/bin/jb
     mode: '0755'
 
-- name: Download jsonnet
+- name: Download latest jsonnet
   become: true
   get_url:
     url: https://github.com/google/go-jsonnet/releases/download/v0.20.0/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
-    dest: /tmp
+    dest: /tmp/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
 
 - name: Extract jsonnet
   become: true
@@ -19,9 +19,9 @@
     dest: /usr/local/bin
     mode: '0755'
     remote_src: true
-    
 
 - name: Delete existing build directory
+  become: true
   file:
     path: "{{ dashboard_build_dir }}"
     state: absent
@@ -41,16 +41,48 @@
     owner: "{{ user }}"
     group: "{{ user }}"
   loop:
-    - main.jsonnet
     - g.libsonnet
-    - variables.libsonnet
+    - gauge-panel.libsonnet
+    - gauge-panel-util.libsonnet
+    - stat-health-panel.libsonnet
+    - stat-panel-single.libsonnet
+    - stat-panel.libsonnet
+    - statetimeline-panel.libsonnet
+    - timeseries-panel.libsonnet
+    - command-center-variables.libsonnet
+    - command-center.jsonnet
+    - cluster-level-variables.libsonnet
+    - cluster-level.jsonnet
+    - multi-node-variables.libsonnet
+    - multi-node.jsonnet
+    - gpu-metrics-single-variables.libsonnet
+    - gpu-metrics-single.jsonnet
+    - host-metrics-single-variables.libsonnet
+    - host-metrics-single.jsonnet
+    - gpu-health.jsonnet
+    - slurm-variables.libsonnet
+    - slurm-dashboard.jsonnet
+    - oci-variables.libsonnet
+    - oci-dashboard.jsonnet
+    - table-panel.libsonnet
+    - nccl-traces.jsonnet    
 
-- name: Build dashboard with Jsonnet
+- name: Build dashboards with Jsonnet
+  become: true  
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
     /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
-    /usr/local/bin/jsonnet -J vendor main.jsonnet -o cluster_prometheus_v2.json
+    /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
+    /usr/local/bin/jsonnet -J vendor cluster-level.jsonnet -o cluster-level.json
+    /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
+    /usr/local/bin/jsonnet -J vendor gpu-metrics-single.jsonnet -o gpu-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor gpu-health.jsonnet -o gpu-health.json
+    /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
+    /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
+    /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
+  environment:
   args:
     chdir: "{{ dashboard_build_dir }}"
 
@@ -59,20 +91,41 @@
   file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
 
 - name: Save generated dashboard
   copy:
-    src: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-    dest: "/opt/oci-hpc/monitoring/cluster_prometheus_v2.json"
+    src: "{{ dashboard_build_dir }}/{{ item }}"
+    dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
+  loop:
+    - command-center.json
+    - cluster-level.json
+    - multi-node.json
+    - gpu-metrics-single.json
+    - host-metrics-single.json
+    - gpu-health.json
+    - slurm-dashboard.json
+    - oci-dashboard.json
+    - nccl-traces.json
 
-- name: Import NodeExporter, DCGM, RDMA, NVLink Grafana dashboards
+- name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
+    grafana_user: "{{ grafana_security.admin_user }}"
+    grafana_password: "{{ grafana_security.admin_password }}"    
     state: present
     commit_message: Updated by ansible
     overwrite: true
-    path: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-
+    path: "{{ dashboard_build_dir }}/{{ item }}"
+  loop:
+    - command-center.json
+    - cluster-level.json
+    - multi-node.json
+    - gpu-metrics-single.json
+    - host-metrics-single.json
+    - gpu-health.json
+    - slurm-dashboard.json
+    - oci-dashboard.json
+    - nccl-traces.json

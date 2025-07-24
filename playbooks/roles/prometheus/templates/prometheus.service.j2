@@ -12,7 +12,8 @@ ExecStart=/usr/local/bin/prometheus \
     --storage.tsdb.path /var/lib/prometheus/ \
     --web.console.templates=/etc/prometheus/consoles \
     --web.console.libraries=/etc/prometheus/console_libraries \
-    --web.listen-address=:9090
+    --web.listen-address=:9090 \
+    --web.enable-admin-api
 
 [Install]
 WantedBy=multi-user.target

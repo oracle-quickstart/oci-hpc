@@ -112,7 +112,21 @@
       become: true
       shell:
         cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
-    
+
+- name: Generate JWT key if it does not exist
+  openssl_privatekey:
+    path: "{{ slurm_jwt_key_path }}"
+    size: 2048
+  become: true
+
+- name: Set ownership on JWT key
+  file:
+    path: "{{ slurm_jwt_key_path }}"
+    owner: "slurm"
+    group: "slurm"
+    mode: 0700
+  become: true
+
 - name: Create DB for accounting
   become: true
   mysql_db:

@@ -7,6 +7,14 @@
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'
+
+- name: install SLURM server packages Ubuntu
+  vars:
+    package_name: '{{ slurm_server_packages }}'
+    package_state: present
+  include_role:
+    name: safe_yum
+  when: ansible_os_family == 'Debian'
   
 - name: Render systemd units for slurmd and slurmdbd
   become: true

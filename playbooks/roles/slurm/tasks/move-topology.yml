@@ -1,5 +1,4 @@
 ---
-
 - name: move topology.conf on backup servers
   become: true
   copy:

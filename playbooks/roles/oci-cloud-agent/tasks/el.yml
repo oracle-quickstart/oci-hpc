@@ -79,8 +79,7 @@
   command: osms unregister
   when: agent_file.stat.exists
   retries: 5
-  register: unregister_cloud_agent
-  until: unregister_cloud_agent is not failed
+  ignore_errors: True
 
 # Present in OL images prior to May/June 2020, later replaced with oracle cloud agent
 - name: Check if osms-agent service exist
@@ -99,6 +98,7 @@
 - name: Unregister agent
   command: osms unregister
   when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
+  ignore_errors: True
 
 # incase it takes time to get all repo ready after osms unregister
 

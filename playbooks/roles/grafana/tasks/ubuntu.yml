@@ -18,11 +18,16 @@
   apt:
     update_cache: yes
 
-- name: Install Grafana package
+- name: Install Grafana and Tempo
   become: true
+  vars:
+    package_name:
+      - grafana
+      - tempo
+    package_state: present
   apt:
-    name: grafana
-    state: present
+    name: "{{ package_name }}"
+    state: "{{ package_state }}"
 
 - name: Install Python dependencies
   pip:
@@ -32,6 +37,15 @@
       - waitress
     extra_args: --ignore-installed
   become: true
+
+- name: Create ons_webhook DB directory
+  become: true
+  file:
+    path: "{{ grafana_ons_webhook_db_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ user }}"
+    group: "{{ user }}"
 
 - name: Copy webhook script to server
   become: true
@@ -45,7 +59,7 @@
   become: true
   copy:
     src: files/raw_message_template.txt
-    dest: /etc/raw_message_template.txt
+    dest: "{{ grafana_ons_wehbook_template_path }}"
     mode: '0755'
 
 - name: Render systemd service for webhook
@@ -105,11 +119,30 @@
   ignore_errors: true
   register: output
 
+- name: Create Tempo datasource in Grafana
+  grafana_datasource:
+    name: "Tempo"
+    grafana_url: "{{ grafana_api_url }}"
+    grafana_user: "{{ grafana_security.admin_user }}"
+    grafana_password: "{{ grafana_security.admin_password }}"
+    ds_type: "tempo"
+    ds_url: "http://localhost:3200"
+    access: "proxy"
+    is_default: false
+  register: tempo_output
+
 - name: Copy alert rules to grafana provisioning
   become: true
   copy:
     src: files/alert-rules.yaml
     dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    mode: '0777'
+
+- name: Copy delete rules to grafana provisioning
+  become: true
+  copy:
+    src: files/delete-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/delete-rules.yaml
     mode: '0777'
 
 - name: Replace all occurrences of a specific string in files

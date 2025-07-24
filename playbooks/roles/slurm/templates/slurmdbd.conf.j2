@@ -1,10 +1,10 @@
-
 # See the slurmdbd.conf man page for more information.
 #
-
 # Authentication info
 AuthType=auth/munge
 #AuthInfo=/var/run/munge/munge.socket.2
+AuthAltTypes=auth/jwt
+AuthAltParameters=jwt_key={{ slurm_nfs_path }}/spool/slurm/jwt_hs256.key
 
 # slurmDBD info
 DbdHost=localhost
