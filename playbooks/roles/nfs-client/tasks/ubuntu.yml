@@ -14,7 +14,6 @@
     mode: 0775
 
 - name: Mount NFS with options
-  ansible_remote_tmp: /tmp
   mount:
     path: "{{ local_path }}"
     src: "{{ export_host }}:{{ export_path | trim() }}"
@@ -22,14 +21,22 @@
     opts: "{{ options }}"
     state: mounted
   when: options!=""
+  retries: 5
+  delay: 1
+  register: result
+  until: result is not failed
+  
 - name: Mount NFS without options
-  ansible_remote_tmp: /tmp
   mount:
     path: "{{ local_path }}"
     src: "{{ export_host }}:{{ export_path | trim() }}"
     fstype: nfs
     state: mounted
   when: options==""
+  retries: 5
+  delay: 1
+  register: result
+  until: result is not failed
 
 - name: make sure the permissions of the share directory are right
   become: true
