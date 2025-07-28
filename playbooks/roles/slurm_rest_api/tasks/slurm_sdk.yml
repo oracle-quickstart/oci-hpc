@@ -112,6 +112,11 @@
     /usr/bin/python3.10 -m pip install wheel
   when: ansible_os_family == "Debian"
 
+- name: Upgrade Packaging Library
+  shell: |
+    pip install --upgrade packaging==25.0
+  when: ansible_os_family == "Debian"
+
 - name: Build slurm sdk python wheel
   shell: |
     /usr/bin/python3.10 setup.py bdist_wheel
