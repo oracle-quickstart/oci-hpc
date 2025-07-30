@@ -17,7 +17,7 @@ def add():
 @add.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add')
 @click.option('--cluster', required=False, help='Specify the name of the cluster')
-@click.option('--names', required=False, help='comma separated list of host names')
+@click.option('--names', required=False, help='Comma separated list of host names')
 @click.option('--memorycluster', required=False, help='Name of the memory cluster to add the nodes in, cluster name is not required if memory cluster is specified')
 def add_node(count, cluster, names, memorycluster):
     """Add additional compute hosts to an existing cluster."""

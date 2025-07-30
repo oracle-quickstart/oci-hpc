@@ -190,7 +190,7 @@ mgmt clusters create --count 18 --cluster gb200 --instancetype default --fabric 
 
 This should create a computegpumemorycluster as well as stand up the number of instances given in --count.
 
-To add hosts from this same computegpumemoryfabric to a computegpumemorycluster do this with the corresponding cluster_xxxxx name for these hosts as shown as memory_cluster_name in "mgmt fabrics list":
+To instantiate hosts from this same computegpumemoryfabric to an existing computegpumemorycluster, do this with the corresponding cluster_xxxxx name for these hosts as shown as memory_cluster_name in "mgmt fabrics list":
 ```
 mgmt clusters add add-node --count 1 --memorycluster cluster_xxxxx
 ```
