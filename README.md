@@ -179,25 +179,30 @@ The Controller is running a service that will read messages in the queue and sto
   * Add/remove the node in slurm configuration i.e. topology.conf and gres.conf
 
 ## Notes on Nvidia GB200 Deployments
-Currently the TerraForm connector is not working with GB200 shapes due to requirements around GPU memory cluster constructs.  When deploying this shape you should configure nd deploy the stack as usual EXCEPT that the initial size of the cluster needs to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial gpumemorycluster like this:
-```
-#note the lifecycle_state, needs to be AVAILABLE, and fabric_health needs to be HEALTHY.  
-mgmt fabrics list
+Currently the TerraForm connector is not working with GB200 shapes due to requirements around GPU memory cluster constructs.  When deploying this shape you should configure nd deploy the stack as usual EXCEPT that the initial size of the cluster needs to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial gpumemorycluster like this.
 
-#use the OCID from above for --fabric, as well as the number of AVAILABLE hosts for --count
+First check that the lifecycle_state is AVAILABLE, the fabric_health needs to be HEALTHY, and check AVAILABLE nodes:
+```
+mgmt fabrics list
+```
+
+Now use the OCID from above for --fabric, as well as the number of AVAILABLE hosts for --count:
+```
 mgmt clusters create --count 16 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
 ```
 
 This should create a computegpumemorycluster with a name like cluster_xxxxx, as well as stand up the number of instances given in --count.  You should see this reflected in ```mgmt fabrics list``` after a few minutes.
 
-To instantiate more hosts from this same computegpumemoryfabric to an existing computegpumemorycluster, do this with the corresponding cluster_xxxxx name for these hosts as shown as memory_cluster_name in ```mgmt fabrics list```:
+To instantiate more hosts from this same computegpumemoryfabric to this cluster, do this with the corresponding cluster_xxxxx name for these hosts as shown as memory_cluster_name in ```mgmt fabrics list```:
 ```
 mgmt clusters add add-node --count 2 --memorycluster cluster_xxxxx
 ```
+
 To add hosts from other computegpumemoryfabrics to the cluster:
 ```
 mgmt clusters add add-memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
 ```
+
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle Cloud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
