@@ -12,7 +12,7 @@ from ClusterShell.NodeSet import NodeSet
 @click.command()
 @click.option('--nodes', required=True, help='Comma separated list of nodes (IP Addresses, hostnames, OCID\'s, serials or oci names)')
 def tag(nodes):
-    """Terminate nodes."""
+    """Tag nodes as unhealthy."""
     nodes = get_nodes_by_any(NodeSet(nodes))
     
     if not nodes:

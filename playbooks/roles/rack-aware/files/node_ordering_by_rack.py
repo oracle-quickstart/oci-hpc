@@ -12,7 +12,7 @@ def write_ordered_hostfile(ordered_hosts=[],hostfile=None,srun=False):
    fhandler = open(hostfile,"w")
    for h in ordered_hosts:
       if srun:
-        for x in range(8):
+        for x in range(gpus):
           fhandler.write(h+"\n")
       else:
         fhandler.write(h+"\n")

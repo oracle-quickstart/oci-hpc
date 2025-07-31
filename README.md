@@ -178,6 +178,31 @@ The Controller is running a service that will read messages in the queue and sto
   * Add/remove the node to prometheus.yml
   * Add/remove the node in slurm configuration i.e. topology.conf and gres.conf
 
+## Notes on Nvidia GB200 Deployments
+Currently the TerraForm connector is not working with GB200 shapes due to requirements around GPU memory cluster constructs.  When deploying this shape you should configure nd deploy the stack as usual EXCEPT that the initial size of the cluster needs to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial gpumemorycluster like this.
+
+First check that the lifecycle_state is AVAILABLE, the fabric_health needs to be HEALTHY, and check AVAILABLE nodes:
+```
+mgmt fabrics list
+```
+
+Now use the OCID from above for --fabric, as well as the number of AVAILABLE hosts for --count:
+```
+mgmt clusters create --count 16 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
+```
+
+This should create a computegpumemorycluster with a name like cluster_xxxxx, as well as stand up the number of instances given in --count.  You should see this reflected in ```mgmt fabrics list``` after a few minutes.
+
+To instantiate more hosts from this same computegpumemoryfabric to this cluster, do this with the corresponding cluster_xxxxx name for these hosts as shown as memory_cluster_name in ```mgmt fabrics list```:
+```
+mgmt clusters add add-node --count 2 --memorycluster cluster_xxxxx
+```
+
+To add hosts from other computegpumemoryfabrics to the cluster:
+```
+mgmt clusters add add-memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
+```
+
 ## How is resizing different from autoscaling ?
 Autoscaling is the idea of launching new clusters for jobs in the queue. 
 Resizing a cluster is changing the size of a cluster. In some case growing your cluster may be a better idea, be aware that this may lead to capacity errors. Because Oracle Cloud RDMA is non virtualized, you get much better performance but it also means that we had to build HPC islands and split our capacity across different network blocks.
@@ -187,89 +212,32 @@ So while there may be capacity available in the DC, you may not be able to grow 
 > [!NOTE]
 > This section might need some improvements. It is now possible to resize directly from the OCI web console thanks to the event/function/queue approach.
 
-Cluster resizing refers to ability to add or remove nodes from an existing cluster network. Apart from add/remove, the resize.py script can also be used to reconfigure the nodes. 
+Cluster resizing refers to ability to add or remove nodes from an existing cluster network. Apart from add/remove, the mgmt tool can also be used to reconfigure the nodes. 
 
 Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
 - Add/Remove node (IaaS provisioning) to cluster – uses OCI Python SDK 
 - Configure the nodes (uses Ansible)
   -  Configures newly added nodes to be ready to run the jobs
   -  Reconfigure services like Slurm to recognize new nodes on all nodes
-  -  Update rest of the nodes, when any node/s are removed (eg: Slurm config, /etc/hosts, etc.)
 
-  Cluster created by the autoscaling script can also be resized by using the flag --cluster_name cluster-1-hpc
- 
-### resize.sh usage 
+
+### Using mgmt to resize the cluster
 > [!IMPORTANT]
-> Before using the script, make sure you activate the virtual environment: `source /etc/os-release; source /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/activate`
+> If you are using GB200 hosts, see special notes above
 
-The resize.sh is deployed on the controller node as part of the HPC cluster Stack deployment. Unreachable nodes have been causing issues. If nodes in the inventory are unreachable, we will not do cluster modification to the cluster unless --remove_unreachable is also specified. That will terminate the unreachable nodes before running the action that was requested (Example Adding a node) 
-
-```
-/opt/oci-hpc/bin/resize.sh -h
-usage: resize.sh [-h] [--compartment_ocid COMPARTMENT_OCID]
-                 [--cluster_name CLUSTER_NAME] [--nodes NODES [NODES ...]]
-                 [--no_reconfigure] [--user_logging] [--force] [--remove_unreachable]
-                 [{add,remove,list,reconfigure}] [number]
-
-Script to resize the CN
-
-positional arguments:
-  {add,remove,remove_unreachable,list,reconfigure}
-                        Mode type. add/remove node options, implicitly
-                        configures newly added nodes. Also implicitly
-                        reconfigure/restart services like Slurm to recognize
-                        new nodes. Similarly for remove option, terminates
-                        nodes and implicitly reconfigure/restart services like
-                        Slurm on rest of the cluster nodes to remove reference
-                        to deleted nodes.
-  number                Number of nodes to add or delete if a list of
-                        hostnames is not defined
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --compartment_ocid COMPARTMENT_OCID
-                        OCID of the compartment, defaults to the Compartment
-                        OCID of the localhost
-  --cluster_name CLUSTER_NAME
-                        Name of the cluster to resize. Defaults to the name
-                        included in the controller
-  --nodes NODES [NODES ...]
-                        List of nodes to delete
-  --no_reconfigure      If present. Does not rerun the playbooks
-  --user_logging        If present. Use the default settings in ~/.oci/config
-                        to connect to the API. Default is using
-                        instance_principal
-  --force               If present. Nodes will be removed even if the destroy
-                        playbook failed
-  --ansible_crucial     If present during reconfiguration, only crucial
-                        ansible playbooks will be executed on the live nodes.
-                        Non live nodes will be removed
-  --remove_unreachable  If present, nodes that are not sshable will be terminated 
-                        before running the action that was requested
-                        (Example Adding a node)
-  --quiet               If present, the script will not prompt for a response when 
-                        removing nodes and will not give a reminder to save data 
-                        from nodes that are being removed
-```
+The mgmt tool is deployed on the controller node as part of the HPC cluster Stack deployment. 
 
 **Add nodes** 
 
-Consist of the following sub-steps:
-- Add node (IaaS provisioning) to cluster – uses OCI Python SDK 
-- Configure the nodes (uses Ansible)
-  -  Configures newly added nodes to be ready to run the jobs
-  -  Reconfigure services like Slurm to recognize new nodes on all nodes
-
 Add one node 
 ```
-/opt/oci-hpc/bin/resize.sh add 1
-
+mgmt clusters add add-node --count 1
 ```
+
 
 Add three nodes to cluster compute-1-hpc
 ```
-/opt/oci-hpc/bin/resize.sh add 3 --cluster_name compute-1-hpc
-
+mgmt clusters add add-node --count 3 --cluster compute-1-hpc
 ```
 
 
@@ -283,41 +251,25 @@ Consist of the following sub-steps:
 
 Remove specific node:  
 ```
-/opt/oci-hpc/bin/resize.sh remove --nodes inst-dpi8e-assuring-woodcock
+mgmt nodes terminate --nodes GPU-123
 ```
 or 
 
-Remove a list of nodes (space seperated):  
+Remove a list of nodes (comma separated):  
 ```
-/opt/oci-hpc/bin/resize.sh remove --nodes inst-dpi8e-assuring-woodcock inst-ed5yh-assuring-woodcock
+mgmt nodes terminate --nodes GPU-123,GPU-456
 ```
-or 
-Remove one node randomly:  
-```
-/opt/oci-hpc/bin/resize.sh remove 1
-```
-or 
-Remove 3 nodes randomly from compute-1-hpc:  
-```
-/opt/oci-hpc/bin/resize.sh remove 3 --cluster_name compute-1-hpc
 
+Remove a list of nodes (SLURM notation):  
 ```
-or 
-Remove 3 nodes randomly from compute-1-hpc but do not prompt for a response when removing the nodes and do not give a reminder to save data 
-from nodes that are being removed :  
-```
-/opt/oci-hpc/bin/resize.sh remove 3 --cluster_name compute-1-hpc --quiet
-
+mgmt nodes terminate --nodes GPU-[123,456]
 ```
 
 **Reconfigure nodes** 
 
 This allows users to reconfigure nodes (Ansible tasks) of the cluster.  
-
-Full reconfiguration of all nodes of the cluster.   This will run the same steps, which are ran when a new cluster is created.   If you manually updated configs which are created/updated as part of cluster configuration, then this command will overwrite your manual changes.   
-
 ```
-/opt/oci-hpc/bin/resize.sh reconfigure
+mgmt nodes reconfigure compute --nodes GPU-[1,2,3]
 ```
 
 
