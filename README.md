@@ -437,3 +437,18 @@ Running the tool before starting workload on a cluster network should serve as a
 2. RDMA interface initialization or configuration issues including IP address assignment to
 the interface
 3. Insufficient ARP table size on the node to store all needed peer mac addresses
+
+## Contributing
+
+This project welcomes contributions from the community. Before submitting a pull request, please [review our contribution guide](./CONTRIBUTING.md)
+
+## Security
+
+Please consult the [security guide](./SECURITY.md) for our responsible security vulnerability disclosure process
+
+## License
+
+Copyright (c) 2018, 2020 Oracle and/or its affiliates.
+
+Released under the Universal Permissive License v1.0 as shown at
+<https://oss.oracle.com/licenses/upl/>.
