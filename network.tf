@@ -62,6 +62,7 @@ resource "oci_core_security_list" "public-security-list" {
   ingress_security_rules {
     protocol = "6"
     source   = var.ssh_cidr
+    description = "Open port for Grafana"
     tcp_options {
       max = "3000"
       min = "3000"
@@ -70,6 +71,7 @@ resource "oci_core_security_list" "public-security-list" {
   ingress_security_rules {
     protocol = "6"
     source   = var.ssh_cidr
+    description = "Open port for alerts"
     tcp_options {
       max = "5000"
       min = "5000"
