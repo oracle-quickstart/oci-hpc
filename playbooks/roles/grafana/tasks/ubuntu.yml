@@ -22,12 +22,19 @@
   become: true
   vars:
     package_name:
-      - grafana
+      - grafana=12.0.3
       - tempo
     package_state: present
   apt:
+    allow_downgrade: true 
     name: "{{ package_name }}"
     state: "{{ package_state }}"
+
+- name: Hold Grafana package to prevent upgrades
+  become: true
+  dpkg_selections:
+    name: grafana
+    selection: hold
 
 - name: Install Python dependencies
   pip:

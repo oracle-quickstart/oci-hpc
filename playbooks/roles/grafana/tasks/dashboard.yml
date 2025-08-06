@@ -66,6 +66,8 @@
     - oci-dashboard.jsonnet
     - table-panel.libsonnet
     - nccl-traces.jsonnet    
+    - storage-metrics.jsonnet
+    - storage-metrics-variables.libsonnet
 
 - name: Build dashboards with Jsonnet
   become: true  
@@ -82,6 +84,7 @@
     /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
     /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
     /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
+    /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
   environment:
   args:
     chdir: "{{ dashboard_build_dir }}"
@@ -109,6 +112,7 @@
     - slurm-dashboard.json
     - oci-dashboard.json
     - nccl-traces.json
+    - storage-metrics.json
 
 - name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
@@ -129,3 +133,4 @@
     - slurm-dashboard.json
     - oci-dashboard.json
     - nccl-traces.json
+    - storage-metrics.json

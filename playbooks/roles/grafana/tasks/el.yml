@@ -1,5 +1,5 @@
 ---
-- name: add grafana repository
+- name: Add grafana repository
   become: true
   yum_repository: 
     name: grafana
@@ -12,14 +12,21 @@
     sslverify: 1
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
-- name: install grafana and tempo
+- name: Install grafana and tempo
   vars: 
     package_name: 
-      - grafana
+      - grafana-12.0.3
       - tempo
     package_state: present
+    package_allow_downgrade: true
   include_role: 
     name: safe_yum
+
+- name: Hold Grafana package to prevent upgrades
+  become: true
+  community.general.yum_versionlock:
+    name: grafana
+    state: present
 
 - name: Install Python dependencies
   become: true
@@ -74,7 +81,7 @@
     daemon_reload: yes
   when: ons_topic_ocid != ""
 
-- name: start grafana
+- name: Start grafana
   become: true
   service: 
     name: grafana-server
