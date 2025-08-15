@@ -106,10 +106,15 @@ def run_add(nodes, count, names):
         exit(1)
     first_node=nodes[0]
     if first_node.shape == "BM.GPU.GB200.4":
-        memory_clusters=compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
+        memory_clusters = oci.pagination.list_call_get_all_results(
+            compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name
+        ).data
+
         for memory_cluster in memory_clusters:
             mc_id=memory_cluster.id
-            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
+            instance_summaries = oci.pagination.list_call_get_all_results(
+                compute_client.list_compute_gpu_memory_cluster_instances, mc_id
+            ).data
             for instance_summary in instance_summaries:
                 if instance_summary.id == first_node.ocid:
                     memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
@@ -169,7 +174,10 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name, in
     else:
         instance_config_ocid=None
 
-    memory_clusters=compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
+    memory_clusters = oci.pagination.list_call_get_all_results(
+        compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name
+    ).data
+
     if len(memory_clusters):
         for memory_cluster in memory_clusters:
             mc_id=memory_cluster.id
@@ -213,7 +221,7 @@ def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment
     else:
         launch_instance_details=oci.core.models.LaunchInstanceDetails(agent_config=agent_config,availability_domain=first_instance.availability_domain, compartment_id=compartment_ocid,compute_cluster_id=cluster_ocid,shape=first_instance.shape,shape_config=launchInstanceShapeConfigDetails,source_details=first_instance.source_details,metadata=first_instance.metadata,display_name=new_display_name,freeform_tags=freeform_tags,create_vnic_details=create_vnic_details)
     return launch_instance_details
-    
+
 def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
     if cluster_type == "SA" or cluster_type == "CC":
         matching_instances=[]
@@ -239,9 +247,12 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
         instance_summaries = oci.pagination.list_call_get_all_results(compute_management_client.list_instance_pool_instances,compartment_ocid,cluster_ocid,sort_by="TIMECREATED").data
         return(len(instance_summaries))
     elif cluster_type == "MC":
-        instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(cluster_ocid).data.items
+        instance_summaries = oci.pagination.list_call_get_all_results(
+            compute_client.list_compute_gpu_memory_cluster_instances, cluster_ocid
+        ).data
+
         return(len(instance_summaries))
-    
+
 def get_instance_type(node):
 
     instance_pools = oci.pagination.list_call_get_all_results(compute_management_client.list_cluster_networks,node.compartment_id,display_name=node.cluster_name).data
@@ -267,7 +278,9 @@ def get_instance_type(node):
                     ipa_ocid=instance_pool.id
                     return cluster_type,cluster_ocid,ipa_ocid
     try:
-        instance_pools = compute_client.list_compute_clusters(node.compartment_id,display_name=node.cluster_name).data.items
+        instance_pools = oci.pagination.list_call_get_all_results(
+            compute_client.list_compute_clusters, node.compartment_id, display_name=node.cluster_name
+        ).data
     except:
         logger.warning(f"Compute clusters are not enabled in this region")
         instance_pools = []
@@ -719,7 +732,7 @@ def generate_inventory(config,cluster_name):
     except FileNotFoundError:
         logger.error(f"The inventory file {original_inventory} was not found.")
     except Exception as e:
-        logger.error(f"{e}")   
+        logger.error(f"{e}")
 
 def remove_inventory(cluster_name):
     inventory_name=f"/config/playbooks/inventory_{cluster_name}"
@@ -793,7 +806,9 @@ def delete_cluster(cluster_name,nodes_list):
 
 def get_memory_fabrics(tenancy_id,compartment_id):
     fabric_list=[]
-    memory_clusters=compute_client.list_compute_gpu_memory_clusters(compartment_id=compartment_id).data.items
+    memory_clusters = oci.pagination.list_call_get_all_results(
+        compute_client.list_compute_gpu_memory_clusters, compartment_id=compartment_id
+    ).data
     memory_fabric_usage={}
 
     for memory_cluster in memory_clusters:
@@ -810,7 +825,7 @@ def get_memory_fabrics(tenancy_id,compartment_id):
     for host_api in host_api_list:
         if host_api.lifecycle_state not in lifecycle_states:
             lifecycle_states.append(host_api.lifecycle_state)
-    for fabric in compute_client.list_compute_gpu_memory_fabrics(compartment_id=tenancy_id).data.items:
+    for fabric in oci.pagination.list_call_get_all_results(compute_client.list_compute_gpu_memory_fabrics, compartment_id=tenancy_id).data:
         if fabric.id in memory_fabric_usage.keys():
             size=memory_fabric_usage[fabric.id][0]
             cluster_name=memory_fabric_usage[fabric.id][1]
@@ -832,13 +847,19 @@ def get_memory_fabrics(tenancy_id,compartment_id):
     return fabric_list
 
 def delete_memory_cluster(memory_cluster_name,nodelist, compartment_id):
-    memory_clusters=compute_client.list_compute_gpu_memory_clusters(compartment_id,display_name=memory_cluster_name).data.items
+    memory_clusters = oci.pagination.list_call_get_all_results(
+        compute_client.list_compute_gpu_memory_clusters, compartment_id,display_name=memory_cluster_name
+    ).data
+
     if len(memory_clusters):
         for memory_cluster in memory_clusters:
             mc_id=memory_cluster.id
             cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
             cluster_ocid=cluster_data.compute_cluster_id
-            instance_summaries = compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
+            instance_summaries = oci.pagination.list_call_get_all_results(
+                compute_client.list_compute_gpu_memory_cluster_instances, mc_id
+            ).data
+
             if len(nodelist) == 0 and len(instance_summaries) == 0:
                 compute_client.delete_compute_gpu_memory_cluster(mc_id)
                 return cluster_ocid
