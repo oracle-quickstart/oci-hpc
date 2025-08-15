@@ -99,33 +99,30 @@ def run_tag(node):
     except oci.exceptions.ServiceError as e:
         logger.error("The tag does not exists or the controller doesn't have acces to the tag")
         logger.error("Make sure the Tag namespace ComputeInstanceHostActions exists with the defined tag: CustomerReportedHostStatus")
-
 def run_add(nodes, count, names):
     if not nodes:
         logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster")
         exit(1)
-    first_node=nodes[0]
-    if first_node.shape == "BM.GPU.GB200.4":
-        memory_clusters = oci.pagination.list_call_get_all_results(
-            compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name
-        ).data
+    for first_node in nodes:
 
-        for memory_cluster in memory_clusters:
-            mc_id=memory_cluster.id
-            instance_summaries = oci.pagination.list_call_get_all_results(
-                compute_client.list_compute_gpu_memory_cluster_instances, mc_id
-            ).data
-            for instance_summary in instance_summaries:
-                if instance_summary.id == first_node.ocid:
-                    memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
-                    cc_id=memory_cluster_data.compute_cluster_id
-                    instance_config_id=memory_cluster_data.instance_configuration_id
-                    cluster_type="MC"
-                    cluster_ocid=mc_id
-                    cluster_name=memory_cluster_data.display_name
-    else:
-        cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
-        cluster_name=first_node.cluster_name
+        if first_node.shape == "BM.GPU.GB200.4":
+            memory_clusters = oci.pagination.list_call_get_all_results(compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name).data
+            for memory_cluster in memory_clusters:
+                mc_id=memory_cluster.id
+                instance_summaries = oci.pagination.list_call_get_all_results(compute_client.list_compute_gpu_memory_cluster_instances, mc_id).data
+                for instance_summary in instance_summaries:
+                    if instance_summary.id == first_node.ocid:
+                        memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
+                        cc_id=memory_cluster_data.compute_cluster_id
+                        instance_config_id=memory_cluster_data.instance_configuration_id
+                        cluster_type="MC"
+                        cluster_ocid=mc_id
+                        cluster_name=memory_cluster_data.display_name
+        else:
+            cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
+            cluster_name=first_node.cluster_name
+            if not cluster_type is None:
+                break
     current_size=get_instance_count(cluster_type,cluster_ocid,first_node.compartment_id,cluster_name)
     target_size = current_size + count
     if cluster_type == "CC" or cluster_type == "SA":
