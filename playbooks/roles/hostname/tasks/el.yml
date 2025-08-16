@@ -71,12 +71,12 @@
     cmd: "hostname"
   register: hostname_output
 
-- name: Sleep for 10 seconds
+- name: Sleep for 30 seconds
   ansible.builtin.pause:
     seconds: 30
   when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
 
-- name: Sleep for 10 seconds
+- name: Sleep for 30 seconds
   ansible.builtin.pause:
     seconds: 30
   when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
@@ -98,12 +98,12 @@
     cmd: "hostname"
   register: hostname_output
 
-- name: Sleep for 10 seconds
+- name: Sleep for 60 seconds
   ansible.builtin.pause:
     seconds: 60
   when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
 
-- name: Sleep for 10 seconds
+- name: Sleep for 60 seconds
   ansible.builtin.pause:
     seconds: 60
   when: not change_hostname_tag and hostname_output.stdout != instance_metadata['displayName']
