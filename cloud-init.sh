@@ -17,9 +17,10 @@ if [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     fix_apt
 
     sleep 10s
-    sudo apt -y --fix-broken install
+    apt -y --fix-broken install
 
     while true; do
+        apt update
         apt install -y jq
         if [ $? -eq 0 ]; then
             echo "jq installed"
