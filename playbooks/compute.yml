@@ -89,6 +89,13 @@
 
 - hosts: localhost
   become: true
+  tasks: 
+    - include_role: 
+        name: sssd
+      when: ldap|default(true)|bool
+
+- hosts: localhost
+  become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
