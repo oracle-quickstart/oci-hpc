@@ -29,7 +29,7 @@
 
 - name: Copy CA certificate
   copy:
-    src: "{{ ssl_ca_cert }}"
+    src: "/config/key/cluster-ca.crt"
     dest: /etc/ssl/certs/cluster-ca.crt
 
 - name: Adjust OpenLDAP client TLS configuration

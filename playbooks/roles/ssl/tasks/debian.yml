@@ -33,6 +33,14 @@
       args:
         creates: "{{ ssl_cert_path }}/cluster-ca.crt"
 
+    - name: Copy cluster-ca.crt to /config/key
+      ansible.builtin.copy:
+        src: "{{ ssl_cert_path }}/cluster-ca.crt"
+        dest: /config/key
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Render subjectAltName configuration
       template:
         src: "san.conf.j2"
