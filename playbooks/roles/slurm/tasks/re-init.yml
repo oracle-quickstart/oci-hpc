@@ -1,0 +1,27 @@
+---
+
+- name: Create empty GRES.conf
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/gres.conf"
+    regexp: "#GRES.conf"
+    line: "#GRES.conf"
+    state: present
+    create: true
+    force: true
+
+- name: Generate topology.conf
+  become: true
+  ansible.builtin.template:
+    src: topology.conf.j2
+    dest: "{{ slurm_conf_path }}/topology.conf"
+    mode: "0644"
+    force: true
+    owner: slurm
+    group: slurm
+  register: initial_topology
+  run_once: true
+  notify: Reconfigure slurm
+
+- name: Run handlers
+  ansible.builtin.meta: flush_handlers

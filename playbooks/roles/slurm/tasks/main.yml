@@ -57,3 +57,8 @@
       ansible.builtin.include_tasks: common.yml
     - name: Run compute directives
       ansible.builtin.include_tasks: "login.yml"
+
+- when: slurm_mode == 're-init'
+  block:
+    - name: Run common instructions
+      ansible.builtin.include_tasks: re-init.yml
