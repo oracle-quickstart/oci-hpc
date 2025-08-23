@@ -219,7 +219,7 @@ log=/config/logs/${modified_hostname}.log
 while true; do
     echo "Attempting to configure the node"
     ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log
-    if [ $? -eq 0 ]; then
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "Ansible succeeded!" | tee -a $log
         break
     else
