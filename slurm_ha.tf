@@ -174,7 +174,6 @@ resource "null_resource" "cluster_backup" {
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
       vcn_compartment           = var.vcn_compartment,
       zone_name                 = local.zone_name,
-      dns_entries               = var.dns_entries,
       home_nfs                  = var.home_nfs,
       create_fss                = var.create_fss,
       home_fss                  = var.home_fss,
@@ -309,7 +308,7 @@ provisioner "file" {
 
 
 resource "oci_dns_rrset" "rrset-backup" {
-  count           = var.slurm_ha && var.dns_entries ? 1 : 0
+  count           = var.slurm_ha ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "${var.slurm_ha ? oci_core_instance.backup[0].display_name : ""}.${local.zone_name}"
   rtype           = "A"

@@ -59,7 +59,6 @@ region=${region}
 tenancy_ocid=${tenancy_ocid}
 sacct_limits=${sacct_limits}
 zone_name=${zone_name}
-dns_entries=${dns_entries}
 vcn_compartment=${vcn_compartment}
 healthchecks=${healthchecks}
 change_hostname=${change_hostname}

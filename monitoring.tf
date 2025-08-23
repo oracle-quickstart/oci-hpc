@@ -40,7 +40,7 @@ resource "oci_core_instance" "monitoring" {
 }
 
 resource "oci_dns_rrset" "rrset-monitoring" {
-  count           = var.monitoring_node && var.dns_entries ? 1 : 0
+  count           = var.monitoring_node ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "${var.monitoring_node ? oci_core_instance.monitoring[0].display_name : ""}.${local.zone_name}"
   rtype           = "A"

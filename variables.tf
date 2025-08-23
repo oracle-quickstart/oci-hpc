@@ -539,10 +539,6 @@ variable "zone_name" {
   default = ""
   type = string
 }
-variable "dns_entries" {
-  default = true
-  type = bool
-}
 variable "healthchecks" {
   default = true
   type = bool

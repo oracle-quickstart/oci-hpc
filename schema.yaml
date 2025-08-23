@@ -167,7 +167,6 @@ variableGroups:
       - ${private_subnet}
       - ${rdma_subnet}
       - ${additional_subnet}
-      - ${dns_entries}
       - ${zone_name}
   - title: "Software"
     variables:
@@ -990,20 +989,12 @@ variables:
       hidePublicSubnet: true
     visible: ${use_existing_vcn}
     required: true
-  dns_entries: 
-    title: DNS entry
-    type: boolean
-    default: true
-    description: "Only available for a private zone" 
   zone_name:
     title: Private Zone Name
     description: "The zone needs to be private and unprotected for the stack to be able to add entries"
     type: string
-    visible: 
-      and:
-        - ${dns_entries}
-        - ${use_existing_vcn}
-    required: ${dns_entries}
+    visible: ${use_existing_vcn}
+    required: true
   vcn_subnet:
     type: string
     title: "VCN IP range"
