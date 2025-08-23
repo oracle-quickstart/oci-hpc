@@ -1336,17 +1336,20 @@ if __name__ == '__main__':
         exit(0)
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
     if action is None:
-        data["healthcheck_recommendation"] = "Healthy"
+        data["passive_healthcheck_recommendation"] = "Healthy"
     else:
-        data["healthcheck_recommendation"] = action
-    data["last_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
+        data["passive_healthcheck_recommendation"] = action
+    data["passive_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     # Read the healthcheck.log file content
     try:
         with open("/tmp/latest_healthcheck.log", 'r') as log_file:
-            data["healthcheck_logs"] = log_file.read(1023)  # Store log content in JSON
+            data["passive_healthcheck_logs"] = log_file.read(1023)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")
-        data["healthcheck_logs"] = ""
+        data["passive_healthcheck_logs"] = ""
     # Write updated data back to the file
     with open(http_server_file, 'w') as file:
-        json.dump(data, file, indent=4)
+        try:
+            json.dump(data, file, indent=4)
+        except Exception as e:
+            logger.error(f"Error writing to file: {e}")

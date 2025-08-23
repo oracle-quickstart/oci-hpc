@@ -1,7 +1,7 @@
 import click
 from lib.database import get_controller_node
 from lib.logger import logger
-from lib.oci import get_memory_fabrics
+from lib.ociwrap import get_memory_fabrics
 from lib.cli.fabrics.display import print_fabrics
 
 @click.command()

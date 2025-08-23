@@ -1,7 +1,7 @@
 
 import click
 from lib.logger import logger
-from lib.oci import delete_cluster,delete_memory_cluster,delete_compute_cluster
+from lib.ociwrap import delete_cluster,delete_memory_cluster,delete_compute_cluster
 from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster, get_controller_node
 import time
 

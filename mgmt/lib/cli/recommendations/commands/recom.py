@@ -1,7 +1,7 @@
 import click
 from lib.database import get_all_nodes_failing_to_start, get_all_nodes_with_hc_status, get_all_nodes_unreachable
 from lib.functions import run_configure, scan_host_api_logic
-from lib.oci import run_reboot, run_terminate, run_tag
+from lib.ociwrap import run_reboot, run_terminate, run_tag
 from lib.cli.recommendations.display import print_node_list
 
 

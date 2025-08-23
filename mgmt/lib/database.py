@@ -1,230 +1,402 @@
-from sqlalchemy import Column, Integer, String, Boolean, Enum, or_, and_, not_
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.inspection import inspect
-
 import logging
+import os
 import sys
+import time
 
+from datetime import datetime, timezone
+from functools import cached_property
+from typing import Optional
+
+import sqlalchemy
 import yaml
 
-from datetime import datetime, timedelta, timezone
-version = sys.version_info
-if version >= (3, 12):
-    UTC = timezone.utc
+from sqlalchemy import (
+    Integer, String, Boolean, Enum, or_, and_, not_,
+    create_engine, select
+)
 
-Base = declarative_base()
+from sqlalchemy.orm import mapped_column, sessionmaker, DeclarativeBase
+from sqlalchemy.inspection import inspect
+from sqlalchemy.dialects.mysql import INTEGER
 
-class Nodes(Base):
-    __tablename__ = 'nodes' 
+from ClusterShell.NodeSet import NodeSet
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    ip_address = Column(String(128), unique=True, nullable=True)
-    controller_status = Column(Enum('configuring', 'reconfiguring', 'terminating', 'waiting_for_info', 'configured', 'terminated'), nullable=True)
-    started_time = Column(String(128), nullable=True)
-    status = Column(Enum('starting', 'terminating', 'terminated', 'running', 'unreachable'), nullable=True)
-    availability_domain = Column(String(128), nullable=True)
-    first_time_reachable = Column(String(128), nullable=True)
-    cluster_name = Column(String(128), nullable=True)
-    compartment_id = Column(String(128), nullable=True)
-    tenancy_id = Column(String(128), nullable=True)
-    compute_status = Column(Enum('configuring', 'configured','starting','terminating'), nullable=True)
-    controller_name = Column(String(128), nullable=True)
-    fss_mount = Column(String(128), nullable=True)
-    gpu_memory_fabric = Column(String(128), nullable=True)
-    hostname = Column(String(128), unique=True, nullable=True)
-    hpc_island = Column(String(128), nullable=True)
-    image_id = Column(String(128), nullable=True)
-    last_time_reachable = Column(String(128), nullable=True)
-    oci_name = Column(String(128), nullable=True)
-    ocid = Column(String(128), unique=True, nullable=True)
-    rack_id = Column(String(128), nullable=True)
-    rail_id = Column(String(128), nullable=True)
-    network_block_id = Column(String(128), nullable=True)
-    memory_cluster_name = Column(String(128), nullable=True)
-    role = Column(String(128), nullable=True)
-    serial = Column(String(128), nullable=True)
-    shape = Column(String(128), nullable=True)
-    terminated_time = Column(String(128), nullable=True)
-    update_count = Column(Integer, nullable=True)
-    healthcheck_recommendation = Column(String(128), nullable=True)
-    last_healthcheck_time = Column(String(128), nullable=True)
-    healthcheck_logs = Column(String(1024), nullable=True)
-    oci_health = Column(String(128), nullable=True)
-    oci_impacted_components = Column(Boolean, default=True, nullable=False)
-    oci_host_id = Column(String(128), nullable=True)
+# pylint: disable=logging-fstring-interpolation
+# pylint: disable=missing-function-docstring
 
-class TerminatedNodes(Base):
-    __tablename__ = 'terminated_nodes' 
+# This is expected with "Base" subclasses
+# pylint: disable=too-few-public-methods
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    ip_address = Column(String(128), nullable=True)
-    controller_status = Column(Enum('configuring', 'reconfiguring', 'terminating', 'waiting_for_info', 'configured', 'terminated'), nullable=True)
-    started_time = Column(String(128), nullable=True)
-    status = Column(Enum('starting', 'terminating', 'terminated', 'running', 'unreachable'), nullable=True)
-    availability_domain = Column(String(128), nullable=True)
-    first_time_reachable = Column(String(128), nullable=True)
-    cluster_name = Column(String(128), nullable=True)
-    compartment_id = Column(String(128), nullable=True)
-    tenancy_id = Column(String(128), nullable=True)
-    compute_status = Column(Enum('configuring', 'configured','starting','terminating'), nullable=True)
-    controller_name = Column(String(128), nullable=True)
-    fss_mount = Column(String(128), nullable=True)
-    gpu_memory_fabric = Column(String(128), nullable=True)
-    hostname = Column(String(128), nullable=True)
-    hpc_island = Column(String(128), nullable=True)
-    image_id = Column(String(128), nullable=True)
-    last_time_reachable = Column(String(128), nullable=True)
-    oci_name = Column(String(128), nullable=True)
-    ocid = Column(String(128), unique=True, nullable=True)
-    rack_id = Column(String(128), nullable=True)
-    rail_id = Column(String(128), nullable=True)
-    network_block_id = Column(String(128), nullable=True)
-    memory_cluster_name = Column(String(128), nullable=True)
-    role = Column(String(128), nullable=True)
-    serial = Column(String(128), nullable=True)
-    shape = Column(String(128), nullable=True)
-    terminated_time = Column(String(128), nullable=True)
-    update_count = Column(Integer, nullable=True)
-    healthcheck_recommendation = Column(String(128), nullable=True)
-    last_healthcheck_time = Column(String(128), nullable=True)
-    healthcheck_logs = Column(String(1024), nullable=True)
-    oci_health = Column(String(128), nullable=True)
-    oci_impacted_components = Column(Boolean, default=True, nullable=False)
-    oci_host_id = Column(String(128), nullable=True)
+
+MYSQL_CONNECTION_DETAILS = {
+    "db_host": "localhost",
+    "db_user": "clusterUser",
+    "db_pw": "Cluster1234!",
+    "db_name": "clusterDB",
+}
+
+UnsignedInt = Integer().with_variant(INTEGER(unsigned=True), 'mysql')
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class NodesMixin:
+    """
+    Base definition of a "nodes" table.
+
+    The actual Nodes and TerminatedNodes classes will only need to include the
+    columns that differ between them.
+    """
+
+    id                         = mapped_column(UnsignedInt, primary_key=True, autoincrement=True)
+    controller_status          = mapped_column(Enum(
+        'configuring', 'terminating', 'waiting_for_info', 'configured', 'terminated', 'reconfiguring'
+    ), nullable=True)
+    started_time               = mapped_column(String(128), nullable=True)
+    status                     = mapped_column(Enum(
+        'starting', 'terminating', 'terminated', 'running', 'unreachable'
+    ), nullable=True)
+    availability_domain        = mapped_column(String(128), nullable=True)
+    first_time_reachable       = mapped_column(String(128), nullable=True)
+    cluster_name               = mapped_column(String(128), nullable=True)
+    compartment_id             = mapped_column(String(128), nullable=True)
+    tenancy_id                 = mapped_column(String(128), nullable=True)
+    compute_status             = mapped_column(Enum(
+        'configuring', 'configured', 'starting', 'terminating'
+    ), nullable=True)
+    controller_name            = mapped_column(String(128), nullable=True)
+    fss_mount                  = mapped_column(String(128), nullable=True)
+    gpu_memory_fabric          = mapped_column(String(128), nullable=True)
+    hpc_island                 = mapped_column(String(128), nullable=True)
+    image_id                   = mapped_column(String(128), nullable=True)
+    last_time_reachable        = mapped_column(String(128), nullable=True)
+    oci_name                   = mapped_column(String(128), nullable=True)
+    ocid                       = mapped_column(String(128), unique=True, nullable=True)
+    rack_id                    = mapped_column(String(128), nullable=True)
+    rail_id                    = mapped_column(String(128), nullable=True)
+    network_block_id           = mapped_column(String(128), nullable=True)
+    memory_cluster_name        = mapped_column(String(128), nullable=True)
+    role                       = mapped_column(String(128), nullable=True)
+    shape                      = mapped_column(String(128), nullable=True)
+    terminated_time            = mapped_column(String(128), nullable=True)
+    update_count               = mapped_column(Integer, nullable=True)
+    passive_healthcheck_recommendation = mapped_column(String(128), nullable=True)
+    passive_healthcheck_time   = mapped_column(String(128), nullable=True)
+    passive_healthcheck_logs   = mapped_column(String(2048), nullable=True)
+    active_healthcheck_time    = mapped_column(String(128), nullable=True)
+    active_healthcheck_logs    = mapped_column(String(2048), nullable=True)
+    active_healthcheck_recommendation = mapped_column(String(128), nullable=True)
+    multi_node_HC_time         = mapped_column(String(128), nullable=True)
+    multi_node_HC_logs         = mapped_column(String(2048), nullable=True)
+    multi_node_HC_recommendation = mapped_column(String(128), nullable=True)
+    multi_node_HC_node         = mapped_column(String(128), nullable=True)
+    oci_health                 = mapped_column(String(128), nullable=True)
+    oci_impacted_components    = mapped_column(Boolean, default=False, nullable=True)
+    oci_host_id                = mapped_column(String(128), nullable=True)
+
+
+class Nodes(NodesMixin, Base):
+    __tablename__ = 'nodes'
+
+    ip_address = mapped_column(String(128), unique=True, nullable=True)
+    hostname   = mapped_column(String(128), unique=True, nullable=True)
+    serial     = mapped_column(String(128), unique=True, nullable=True)
+
+
+class TerminatedNodes(NodesMixin, Base):
+    __tablename__ = 'terminated_nodes'
+
+    ip_address = mapped_column(String(128), nullable=True)
+    hostname   = mapped_column(String(128), nullable=True)
+    serial     = mapped_column(String(128), nullable=True)
+
 
 class Configurations(Base):
-    __tablename__ = 'configurations' 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(64), unique=True, nullable=False)
-    partition = Column(String(64), nullable=False)
-    shape = Column(String(64), nullable=False)
-    change_hostname = Column(Boolean, default=True, nullable=False)
-    hostname_convention = Column(String(64), nullable=True)
-    permanent = Column(Boolean, default=True, nullable=False)
-    rdma_enabled = Column(Boolean, default=True, nullable=False)
-    stand_alone = Column(Boolean, default=False, nullable=False)
-    region = Column(String(64), nullable=True)
-    availability_domain = Column(String(64), nullable=True)
-    private_subnet_cidr = Column(String(64), nullable=True)
-    private_subnet_id = Column(String(128), nullable=True)
-    image_id = Column(String(128), nullable=True)
-    target_compartment_id = Column(String(128), nullable=True)
-    boot_volume_size = Column(Integer, nullable=True)
-    use_marketplace_image = Column(Boolean, default=False, nullable=False)
-    instance_pool_ocpus = Column(Integer, nullable=True)
-    instance_pool_custom_memory = Column(Boolean, default=False, nullable=False)
-    instance_pool_memory = Column(Integer, nullable=True)
-    marketplace_listing = Column(String(64), nullable=True)
-    hyperthreading = Column(Boolean, default=True, nullable=False)
-    preemptible = Column(Boolean, default=False, nullable=False)
+    __tablename__ = 'configurations'
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(64), unique=True, nullable=False)
+    partition = mapped_column(String(64), nullable=False)
+    shape = mapped_column(String(64), nullable=False)
+    change_hostname = mapped_column(Boolean, default=True, nullable=False)
+    hostname_convention = mapped_column(String(64), nullable=True)
+    permanent = mapped_column(Boolean, default=True, nullable=False)
+    rdma_enabled = mapped_column(Boolean, default=True, nullable=False)
+    stand_alone = mapped_column(Boolean, default=False, nullable=False)
+    region = mapped_column(String(64), nullable=True)
+    availability_domain = mapped_column(String(64), nullable=True)
+    private_subnet_cidr = mapped_column(String(64), nullable=True)
+    private_subnet_id = mapped_column(String(128), nullable=True)
+    image_id = mapped_column(String(128), nullable=True)
+    target_compartment_id = mapped_column(String(128), nullable=True)
+    boot_volume_size = mapped_column(Integer, nullable=True)
+    use_marketplace_image = mapped_column(Boolean, default=False, nullable=False)
+    instance_pool_ocpus = mapped_column(Integer, nullable=True)
+    instance_pool_custom_memory = mapped_column(Boolean, default=False, nullable=False)
+    instance_pool_memory = mapped_column(Integer, nullable=True)
+    marketplace_listing = mapped_column(String(64), nullable=True)
+    hyperthreading = mapped_column(Boolean, default=True, nullable=False)
+    preemptible = mapped_column(Boolean, default=False, nullable=False)
+
 
 logger = logging.getLogger(__name__)
 
-def query_db():
-    try:
-        # DB Connection Details
-        db_host = "localhost"
-        db_user = "clusterUser"
-        db_pw = "Cluster1234!"
-        db_name = "clusterDB"
-        
+
+class DBConn:
+    """
+    Experimental class to see if it makes sense to have a centralized session
+    creator and context manager. I'm not quite happy with this design.
+    """
+
+    def __init__(self, connection_string=None):
+        self.session = None
+
+        connection_string = os.environ.get("DB_CONNECTION_STRING", connection_string)
+
+        if not connection_string:
+            connection_string = "mysql+pymysql://{db_user}:{db_pw}@{db_host}/{db_name}".format_map(
+                MYSQL_CONNECTION_DETAILS
+            )
+
+        self.connection_string = connection_string
+
+    @cached_property
+    def engine(self):
         # Create the SQLAlchemy engine
-        connection_string = f"mysql+pymysql://{db_user}:{db_pw}@{db_host}/{db_name}"
+        return create_engine(self.connection_string)
+
+    def __enter__(self):
+        if self.session is None:
+            Session = sessionmaker(bind=self.engine)
+            self.session = Session()
+
+        return self.session
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            if exc_type is not None:
+                self.session.rollback()
+        finally:
+            self.session.close()
+            self.session = None
+
+
+def db_create():
+    conn = DBConn()
+    Base.metadata.create_all(conn.engine)
+
+
+def db_export(outfile="export.sqlite", use_base_metadata=True):
+    """
+    Export the source database to a sqlite database. This is very simplistic
+    code and does no validation that the source db has the right
+    tables/columns, nor does it check whether the target already exists.
+    """
+
+    engine_db = DBConn().engine
+    engine_sqlite = create_engine(f"sqlite:///{outfile}")
+
+    if use_base_metadata:
+        metadata_obj = Base.metadata
+    else:
+        metadata_obj = sqlalchemy.MetaData()
+        metadata_obj.reflect(bind=engine_db)
+
+    metadata_obj.create_all(engine_sqlite)
+
+    with engine_db.connect() as conn_db, engine_sqlite.connect() as conn_sqlite:
+        for table in metadata_obj.sorted_tables:
+            for row in conn_db.execute(select(table.c)):
+                conn_sqlite.execute(table.insert().values(row._mapping))
+            conn_sqlite.commit()
+
+
+def current_utc_time():
+    if sys.version_info >= (3, 12):
+        now = datetime.now(timezone.utc)
+    else:
+        now = datetime.utcnow()
+
+    return now
+
+
+def query_db():
+    connection_string = os.environ.get("DB_CONNECTION_STRING")
+    if not connection_string:
+        connection_string = "mysql+pymysql://{db_user}:{db_pw}@{db_host}/{db_name}".format_map(
+            MYSQL_CONNECTION_DETAILS
+        )
+
+    try:
+        # Create the SQLAlchemy engine
         engine = create_engine(connection_string)
-        
+
         # Create a session factory
         Session = sessionmaker(bind=engine)
         session = Session()
-        
+
         return session
-    except Exception as e:
-        logger.error(f"Error connecting to the database: {e}")
+    except Exception as exc:
+        logger.error(f"Error connecting to the database: {exc}")
         sys.exit(1)
 
-def node_to_dict(node):
+
+def node_to_dict(node, keys=None):
     return {
         c.key: getattr(node, c.key)
         for c in inspect(node).mapper.column_attrs
+        if keys is None or c.key in keys
     }
+
+
+def field_to_rich_renderable(val):
+    """
+    Convert db data into types "renderable" in Rich tables.
+
+    Works on a very limited set of data types and would need to be extended as
+    new types are used.
+    """
+
+    if val is None:
+        return ""
+
+    # `bool` is a subclass of `int` so this comes before the `int` check
+    if isinstance(val, bool):
+        return str(val)
+
+    if isinstance(val, (int, str)):
+        return val
+
+    # At the time of writing, this type wasn't used. Not sure why I included
+    # this. It's untested.
+    if isinstance(val, bytes):
+        return bytes.decode("utf-8")
+
+    # Unrecognized type. YOLO!
+    return val
+
+
+def node_to_list(node, columns=None):
+    return [
+        field_to_rich_renderable(getattr(node, col))
+        for col in columns
+    ]
+
+
+def list_columns(table="nodes"):
+    return [col for col in Base.metadata.tables[table].columns.keys() if col != "id"]
+
+
+def filter_nodes(session, query=None, filter="all"):
+    """
+    Experimenting with an approach to have a "query" which can be passed to
+    multiple functions and refined as we go.
+
+    This is just the start of an idea as a drop-in replacement for some of the
+    existing `get_*_nodes` methods.
+    """
+
+    if query is None:
+        if filter == "terminated":
+            query = session.query(TerminatedNodes)
+        else:
+            query = session.query(Nodes).filter(Nodes.status != "terminated")
+
+    if filter == "all":
+        pass
+    elif filter == "compute":
+        query = query.filter(Nodes.role == "compute")
+    elif filter == "management":
+        query = query.filter(Nodes.role != "compute")
+    elif filter == "controller":
+        query = query.filter(Nodes.role == "controller")
+
+    return query
+
+
+def filter_nodes_by_cluster(query, cluster_name=None, memory_cluster_name=None):
+    if cluster_name is not None:
+        query = query.filter(
+            Nodes.cluster_name == cluster_name
+        )
+    elif memory_cluster_name is not None:
+        query = query.filter(
+            Nodes.memory_cluster_name == memory_cluster_name
+        )
+    else:
+        # NoOP. This allows the function to be called unconditionally and only
+        # filter data is one of the cluster name args is passed in.
+        return query
+
+    query = query.filter(
+        or_(
+            ~Nodes.role.in_(["controller", "login"]),
+            Nodes.role.is_(None)
+        )
+    )
+
+    return query
+
 
 def get_all_nodes():
     """Get all nodes/servers from the database"""
-    session = query_db()
-    try:
-        nodes = session.query(Nodes).filter(Nodes.status != "terminated").all()
-        return nodes
-    finally:
-        session.close()
+    with DBConn() as session:
+        return filter_nodes(session, filter="all").all()
+
 
 def get_all_compute_nodes():
     """Get all nodes/servers from the database"""
-    session = query_db()
-    try:
-        nodes = session.query(Nodes).filter(and_(
-            Nodes.role == "compute",
-            Nodes.status != "terminated"
-            )
-        ).all()
-        return nodes
-    finally:
-        session.close()
+    with DBConn() as session:
+        return filter_nodes(session, filter="compute").all()
+
 
 def get_all_management_nodes():
     """Get all nodes/servers from the database"""
-    session = query_db()
-    try:
-        nodes = session.query(Nodes).filter(and_(
-            Nodes.role != "compute",
-            Nodes.status != "terminated"
-            )
-        ).all()
-        return nodes
-    finally:
-        session.close()
+    with DBConn() as session:
+        return filter_nodes(session, filter="management").all()
+
 
 def get_controller_node():
     """Get the controller from the database"""
-    session = query_db()
-    try:
-        node = session.query(Nodes).filter(and_(
-            Nodes.role == "controller",
-            Nodes.status != "terminated"
-            )
-        ).first()
-        return node
-    finally:
-        session.close() 
+    with DBConn() as session:
+        return filter_nodes(session, filter="controller").first()
+
 
 def get_all_terminated_nodes():
     """Get all nodes/servers from the database"""
-    session = query_db()
-    try:
-        nodes = session.query(TerminatedNodes).all()
-        return nodes
-    finally:
-        session.close()
+    with DBConn() as session:
+        return filter_nodes(session, filter="terminated").all()
+
 
 def get_all_nodes_to_configure():
     """Get all nodes/servers from the database"""
     session = query_db()
     try:
-        nodes_configuring = session.query(Nodes).filter(Nodes.controller_status.in_(['configuring', 'reconfiguring'])).all()
-        nodes_terminating = session.query(Nodes).filter(Nodes.controller_status.in_(['terminating'])).all()
-        return nodes_configuring,nodes_terminating
+        nodes_configuring = session.query(Nodes).filter(
+            and_(
+                Nodes.controller_status.in_(['configuring', 'reconfiguring']),
+                Nodes.compute_status.in_(['configuring','configured'])
+            )
+        ).all()
+        nodes_terminating = session.query(Nodes).filter(
+                Nodes.controller_status == 'terminating'
+        ).all()
+        return nodes_configuring, nodes_terminating
     finally:
         session.close()
 
-def get_all_nodes_failing_to_start(unreachable_timeout,node_any_list):
+
+def get_all_nodes_failing_to_start(unreachable_timeout, node_any_list):
     """Get all nodes/servers from the database in waiting_for_info status"""
     session = query_db()
-    nodes_failing_to_start=[]
-    current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
+    nodes_failing_to_start = []
+    current_time = current_utc_time()
     time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
     try:
         if node_any_list:
-            nodes_waiting_for_info = session.query(Nodes).filter(            
+            nodes_waiting_for_info = session.query(Nodes).filter(
                 and_(
                     Nodes.controller_status.in_(['waiting_for_info']),
                     or_(
@@ -233,32 +405,39 @@ def get_all_nodes_failing_to_start(unreachable_timeout,node_any_list):
                         Nodes.serial.in_(node_any_list),
                         Nodes.hostname.in_(node_any_list),
                         Nodes.oci_name.in_(node_any_list)
-                    ) 
+                    )
                 )
-            ).all()  
+            ).all()
         else:
-            nodes_waiting_for_info = session.query(Nodes).filter(Nodes.controller_status.in_(['waiting_for_info'])).all()            
+            nodes_waiting_for_info = session.query(Nodes).filter(
+                    Nodes.controller_status.in_(['waiting_for_info'])
+            ).all()
+
         for node in nodes_waiting_for_info:
-            started_time = datetime.strptime(node.started_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            started_time = datetime.strptime(
+                node.started_time, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=timezone.utc)
+
             if started_time < time_th:
                 nodes_failing_to_start.append(node)
         return nodes_failing_to_start
     finally:
         session.close()
 
-def get_all_nodes_unreachable(unreachable_timeout,node_any_list):
+
+def get_all_nodes_unreachable(unreachable_timeout, node_any_list):
     """Get all nodes/servers from the database in waiting_for_info status"""
     session = query_db()
-    unreachable_nodes=[]
-    current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
+    unreachable_nodes = []
+    current_time = current_utc_time()
     time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
     try:
         if node_any_list:
             configured_nodes = session.query(Nodes).filter(
                 and_(
                     and_(
-                    Nodes.controller_status.in_(["configured"]),
-                    Nodes.compute_status.in_(["configured", "configuring"])
+                        Nodes.controller_status.in_(["configured"]),
+                        Nodes.compute_status.in_(["configured", "configuring"])
                     ),
                     or_(
                         Nodes.ip_address.in_(node_any_list),
@@ -266,58 +445,72 @@ def get_all_nodes_unreachable(unreachable_timeout,node_any_list):
                         Nodes.serial.in_(node_any_list),
                         Nodes.hostname.in_(node_any_list),
                         Nodes.oci_name.in_(node_any_list)
-                    ) 
+                    )
                 )
             ).all()
         else:
             configured_nodes = session.query(Nodes).filter(
                 and_(
-                Nodes.controller_status.in_(["configured"]),
-                Nodes.compute_status.in_(["configured", "configuring"])
+                    Nodes.controller_status.in_(["configured"]),
+                    Nodes.compute_status.in_(["configured", "configuring"])
                 )
             ).all()
         for node in configured_nodes:
-            last_time_reachable = datetime.strptime(node.last_time_reachable, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            last_time_reachable = datetime.strptime(
+                node.last_time_reachable, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=timezone.utc)
+
             if last_time_reachable < time_th:
                 unreachable_nodes.append(node)
         return unreachable_nodes
     finally:
         session.close()
 
-def get_all_nodes_with_hc_status(hc_status,node_any_list):
+
+def get_all_nodes_with_hc_status(hc_status, node_any_list):
     """Get all nodes/servers from the database in waiting_for_info status"""
     session = query_db()
     try:
         if node_any_list:
             nodes = session.query(Nodes).filter(
                 and_(
-                    Nodes.healthcheck_recommendation == hc_status,
+                    Nodes.passive_healthcheck_recommendation == hc_status,
                     or_(
                         Nodes.ip_address.in_(node_any_list),
                         Nodes.ocid.in_(node_any_list),
                         Nodes.serial.in_(node_any_list),
                         Nodes.hostname.in_(node_any_list),
                         Nodes.oci_name.in_(node_any_list)
-                    ) 
+                    )
                 )
             ).all()
         else:
-            nodes = session.query(Nodes).filter(Nodes.healthcheck_recommendation == hc_status).all()
+            nodes = session.query(Nodes).filter(Nodes.passive_healthcheck_recommendation == hc_status).all()
         return nodes
     finally:
         session.close()
 
+
 def get_nodes_by_id(node_id_list):
     """Get a specific node by ID"""
+
+    if isinstance(node_id_list, str):
+        node_id_list = NodeSet(node_id_list)
+
     session = query_db()
     try:
         nodes = session.query(Nodes).filter(Nodes.ocid.in_(node_id_list)).all()
         return nodes
     finally:
         session.close()
-    
+
+
 def get_nodes_by_ip(node_ip_list):
     """Get a specific node by ID"""
+
+    if isinstance(node_ip_list, str):
+        node_ip_list = NodeSet(node_ip_list)
+
     session = query_db()
     try:
         nodes = session.query(Nodes).filter(Nodes.ip_address.in_(node_ip_list)).all()
@@ -325,8 +518,12 @@ def get_nodes_by_ip(node_ip_list):
     finally:
         session.close()
 
+
 def get_nodes_by_serial(node_serial_list):
     """Get a specific node by ID"""
+
+    if isinstance(node_serial_list, str):
+        node_serial_list = NodeSet(node_serial_list)
 
     session = query_db()
     try:
@@ -334,18 +531,28 @@ def get_nodes_by_serial(node_serial_list):
         return nodes
     finally:
         session.close()
-        
+
+
 def get_nodes_by_name(node_name_list):
     """Get a specific node by hostname"""
+
+    if isinstance(node_name_list, str):
+        node_name_list = NodeSet(node_name_list)
+
     session = query_db()
     try:
         nodes = session.query(Nodes).filter(Nodes.hostname.in_(node_name_list)).all()
         return nodes
     finally:
         session.close()
-    
+
+
 def get_nodes_by_any(node_any_list):
     """Get a specific node by ID"""
+
+    if isinstance(node_any_list, str):
+        node_any_list = NodeSet(node_any_list)
+
     session = query_db()
     try:
         nodes = session.query(Nodes).filter(or_(
@@ -360,6 +567,7 @@ def get_nodes_by_any(node_any_list):
     finally:
         session.close()
 
+
 def get_running_nodes():
     """Get all nodes with 'running' status"""
     session = query_db()
@@ -369,34 +577,37 @@ def get_running_nodes():
     finally:
         session.close()
 
+
 def get_nodes_by_cluster(cluster_name):
     """Get all nodes belonging to a specific cluster"""
     session = query_db()
     try:
         nodes = session.query(Nodes).filter(Nodes.cluster_name == cluster_name).filter(
             or_(
-                ~Nodes.role.in_(["controller","login"]),
-                Nodes.role == None
+                ~Nodes.role.in_(["controller", "login"]),
+                Nodes.role.is_(None)
             )
         ).all()
         return nodes
     finally:
         session.close()
-        
+
+
 def get_nodes_by_memory_cluster(cluster_name):
     """Get all nodes belonging to a specific cluster"""
     session = query_db()
     try:
         nodes = session.query(Nodes).filter(Nodes.memory_cluster_name == cluster_name).filter(
             or_(
-                ~Nodes.role.in_(["controller","login"]),
-                Nodes.role == None
+                ~Nodes.role.in_(["controller", "login"]),
+                Nodes.role.is_(None)
             )
         ).all()
         return nodes
     finally:
         session.close()
-        
+
+
 def get_nodes_by_status(status):
     """Get all nodes with a specific status"""
     session = query_db()
@@ -405,7 +616,8 @@ def get_nodes_by_status(status):
         return nodes
     finally:
         session.close()
-        
+
+
 def get_nodes_by_shape(shape):
     """Get all nodes with a specific shape"""
     session = query_db()
@@ -414,7 +626,30 @@ def get_nodes_by_shape(shape):
         return nodes
     finally:
         session.close()
+
+def get_nodes_by_filters(filters_dict):
+    """Get all nodes matching the provided filters.
+    
+    Args:
+        filters_dict (dict): Dictionary where keys are column names and values are the filter values.
+                            Example: {'status': 'active', 'shape': 'VM.Standard2.1'}
+    Returns:
+        list: List of Nodes objects matching all the provided filters.
+    """
+    if not filters_dict:
+        return []
         
+    session = query_db()
+    try:
+        query = session.query(Nodes)
+        for column, value in filters_dict.items():
+            if hasattr(Nodes, column):
+                query = query.filter(getattr(Nodes, column) == value)
+        return query.all()
+    finally:
+        session.close()
+
+
 def get_nodes_by_hpc_island(hpc_island):
     """Get all nodes with a specific hpc_island"""
     session = query_db()
@@ -423,7 +658,8 @@ def get_nodes_by_hpc_island(hpc_island):
         return nodes
     finally:
         session.close()
-        
+
+
 def get_nodes_by_network_block(network_block):
     """Get all nodes with a specific network block"""
     session = query_db()
@@ -432,7 +668,8 @@ def get_nodes_by_network_block(network_block):
         return nodes
     finally:
         session.close()
-        
+
+
 def get_nodes_by_rail(rail_id):
     """Get all nodes with a specific rail ID"""
     session = query_db()
@@ -441,7 +678,8 @@ def get_nodes_by_rail(rail_id):
         return nodes
     finally:
         session.close()
-        
+
+
 def list_rails():
     """List all unique rail IDs"""
     session = query_db()
@@ -451,14 +689,19 @@ def list_rails():
     finally:
         session.close()
 
+
 def list_blocks_by_cluster(cluster_name):
     """List all unique network blocks for a specific cluster"""
     session = query_db()
     try:
-        blocks = session.query(Nodes.network_block_id).filter(Nodes.cluster_name == cluster_name).distinct().all()
+        blocks = session.query(Nodes.network_block_id).filter(
+                Nodes.cluster_name == cluster_name
+        ).distinct().all()
+
         return [block[0] for block in blocks]
     finally:
         session.close()
+
 
 def list_rails_by_cluster(cluster_name):
     """List all unique rail IDs for a specific cluster"""
@@ -469,6 +712,7 @@ def list_rails_by_cluster(cluster_name):
     finally:
         session.close()
 
+
 def get_clusters():
     """List all unique clusternames"""
     session = query_db()
@@ -477,6 +721,7 @@ def get_clusters():
         return [cluster_name[0] for cluster_name in cluster_names]
     finally:
         session.close()
+
 
 def db_update_node(node, **kwargs):
     """
@@ -497,15 +742,14 @@ def db_update_node(node, **kwargs):
                 setattr(node, key, value)
             else:
                 logger.warning(f"Unknown attribute '{key}' ignored.")
-
         session.commit()
-        return True
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Error updating node {node.ocid}: {e}")
+        return True 
+    except Exception as exc:
+        logger.error(f"Error updating node {node.ocid}: {exc}")
         return False
     finally:
         session.close()
+
 
 def db_create_node(node_ocid, **kwargs):
     """
@@ -533,16 +777,22 @@ def db_create_node(node_ocid, **kwargs):
                     setattr(node, key, value)
                 else:
                     logger.warning(f"Unknown attribute '{key}' ignored.")
-
+                    logger.debug(
+                        "Available attributes: %s | Tried to set: %s=%s",
+                        [attr for attr in dir(node) if not attr.startswith("_")],
+                        key,
+                        value,
+                    )
         session.commit()
         logger.info(f"Node with OCID {node_ocid} upserted with {kwargs}")
         return True
-    except Exception as e:
+    except Exception as exc:
         session.rollback()
-        logger.error(f"Error upserting node {node_ocid}: {e}")
+        logger.error(f"Error upserting node {node_ocid}: {exc}")
         return False
     finally:
         session.close()
+
 
 def db_move_terminated_node(node):
     session = query_db()
@@ -561,17 +811,22 @@ def db_move_terminated_node(node):
         session.add(terminated_node)
         session.delete(node)
         session.commit()
+        logger.debug(f"Node with OCID {node.ocid} added to TerminatedNodes.")
+        logger.debug(f"Node with OCID {node.ocid} removed from Nodes.")
 
-        logger.info(f"Node with OCID {node.ocid} moved to TerminatedNodes.")
+        test_nodes = session.query(Nodes).filter(Nodes.ocid == node.ocid).all()
+        for test_node in test_nodes:
+            logger.debug(f"Node with OCID {test_node.ocid} is still in the DB.")
         return True
-    except Exception as e:
+    except Exception as exc:
         session.rollback()
-        logger.error(f"Error while moving node with OCID {node_ocid}: {e}")
+        logger.error(f"Error while moving node with OCID {node.ocid}: {exc}")
         return False
     finally:
         session.close()
 
-def db_duplicate_configuration(old_configuration_name,new_configuration_name):
+
+def db_duplicate_configuration(old_configuration_name, new_configuration_name):
     session = query_db()
     try:
         # Fetch the original configuration
@@ -593,12 +848,13 @@ def db_duplicate_configuration(old_configuration_name,new_configuration_name):
 
         logger.info(f"Configuration '{old_configuration_name}' duplicated as '{new_configuration_name}'")
         return True
-    except Exception as e:
+    except Exception as exc:
         session.rollback()
-        logger.error(f"Error duplicating configuration: {e}")
+        logger.error(f"Error duplicating configuration: {exc}")
         return False
     finally:
         session.close()
+
 
 def db_update_configuration(configuration_name, **kwargs):
     """
@@ -613,7 +869,10 @@ def db_update_configuration(configuration_name, **kwargs):
     """
     session = query_db()
     try:
-        configuration = session.query(Configurations).filter(Configurations.name == configuration_name).first()
+        configuration = session.query(Configurations).filter(
+                Configurations.name == configuration_name
+        ).first()
+
         if not configuration:
             logger.warning(f"No node found with OCID: {configuration_name}")
             return False
@@ -624,14 +883,15 @@ def db_update_configuration(configuration_name, **kwargs):
             else:
                 logger.warning(f"Unknown attribute '{key}' ignored.")
 
+        time.sleep(1)
         session.commit()
         return True
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Error updating node {configuration_name}: {e}")
+    except Exception as exc:
+        logger.error(f"Error updating node {configuration_name}: {exc}")
         return False
     finally:
         session.close()
+
 
 def db_delete_configuration(configuration_name):
     """
@@ -641,7 +901,10 @@ def db_delete_configuration(configuration_name):
     """
     session = query_db()
     try:
-        configuration = session.query(Configurations).filter(Configurations.name == configuration_name).first()
+        configuration = session.query(Configurations).filter(
+                Configurations.name == configuration_name
+        ).first()
+
         if not configuration:
             logger.warning(f"No node found with OCID: {configuration_name}")
             return False
@@ -649,12 +912,13 @@ def db_delete_configuration(configuration_name):
         session.commit()
         logger.info(f"Deleted configuration with name {configuration_name}")
         return True
-    except Exception as e:
+    except Exception as exc:
         session.rollback()
-        logger.error(f"Error deleting configuration {configuration_name}: {e}")
+        logger.error(f"Error deleting configuration {configuration_name}: {exc}")
         return False
     finally:
         session.close()
+
 
 def db_import_configuration(filename):
     session = query_db()
@@ -703,8 +967,8 @@ def db_import_configuration(filename):
         session.commit()
         logger.info("All configurations successfully imported.")
 
-    except Exception as e:
-        logger.error(f"Error importing configurations: {e}")
+    except Exception as exc:
+        logger.error(f"Error importing configurations: {exc}")
         session.rollback()
     finally:
         session.close()
@@ -719,6 +983,7 @@ def get_config_by_name(name):
     finally:
         session.close()
 
+
 def get_all_configs():
     """Show details about the configuration"""
     session = query_db()
@@ -727,6 +992,7 @@ def get_all_configs():
         return configs
     finally:
         session.close()
+
 
 def get_config_by_partition(partition):
     """Show details about the configuration"""
@@ -737,6 +1003,7 @@ def get_config_by_partition(partition):
     finally:
         session.close()
 
+
 def get_config_by_shape(shape):
     """Show details about the configuration"""
     session = query_db()
@@ -746,7 +1013,8 @@ def get_config_by_shape(shape):
     finally:
         session.close()
 
-def get_config_by_shape_and_partition(shape,partition):
+
+def get_config_by_shape_and_partition(shape, partition):
     """Show details about the configuration"""
     session = query_db()
     try:
@@ -758,3 +1026,12 @@ def get_config_by_shape_and_partition(shape,partition):
         return configs
     finally:
         session.close()
+
+def db_delete_node(node):
+    session = query_db()
+    try:
+        session.delete(node)
+        session.commit()
+    finally:
+        session.close()
+    

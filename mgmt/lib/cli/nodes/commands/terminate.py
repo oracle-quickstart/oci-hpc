@@ -1,24 +1,22 @@
 import click
-from lib.oci import run_terminate
+from lib.ociwrap import run_terminate
 from lib.database import get_nodes_by_any, db_update_node
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
-### 
+###
 ### Terminate
 ###
 
 @click.command()
-@click.option('--nodes', required=True, help='Comma separated list of nodes (IP Addresses, hostnames, OCID\'s, serials or oci names)')
+@click.option('--nodes', required=True, help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)")
 def terminate(nodes):
     """Terminate nodes."""
     nodes = get_nodes_by_any(NodeSet(nodes))
-    
+
     if not nodes:
         click.echo("Node not found.")
         return
-    else: 
+    else:
         for node in nodes:
             run_terminate(node)
-            db_update_node(node,compute_status="terminating")
-    pass

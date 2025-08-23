@@ -1,7 +1,7 @@
 ---
 
 - name: get All nodes with this controller
-  shell: "{{venv_path}}/bin/python3 /config/mgmt/manage.py nodes list json"
+  shell: "{{venv_path}}/bin/python3 /config/mgmt/manage.py nodes list --format json --fields ALL"
   register: get_cluster_nodes_results
 
 - name: Convert the Python script output to a list of dictionaries
@@ -27,11 +27,12 @@
     new_hosts_info: "{{ new_hosts_info  | default({}) | combine({item.ip_address: item}) }}"
   loop: "{{ query_results }}"
   when: item.role != "compute" and ( item.controller_status == "configuring" or item.controller_status == "reconfiguring" )
-- name: Create an empty dir of all new compute nodes
+  
+- name: Create an empty dir of all compute nodes to remove
   set_fact:
     remove_compute_info: {}
 
-- name: Create a dictionary from curl results of all new compute nodes
+- name: Create a dictionary from curl results of all compute nodes to remove
   set_fact:
     remove_compute_info: "{{ remove_compute_info  | default({}) | combine({item.ip_address: item}) }}"
   loop: "{{ query_results }}"

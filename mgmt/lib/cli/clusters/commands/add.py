@@ -1,7 +1,7 @@
 
 import click
 from lib.logger import logger
-from lib.oci import run_add, run_add_memory_fabric
+from lib.ociwrap import run_add, run_add_memory_fabric
 from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster, get_config_by_name
 
 ### 
@@ -17,10 +17,10 @@ def add():
 @add.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add')
 @click.option('--cluster', required=False, help='Specify the name of the cluster')
-@click.option('--names', required=False, help='Comma separated list of host names')
+@click.option('--names', required=False, help='comma separated list of host names')
 @click.option('--memorycluster', required=False, help='Name of the memory cluster to add the nodes in, cluster name is not required if memory cluster is specified')
 def add_node(count, cluster, names, memorycluster):
-    """Add additional compute hosts to an existing cluster."""
+    """Replace the image of nodes by serial number."""
     if names:
         name_list=names.split(',')
         if count != len(name_list):
@@ -55,7 +55,7 @@ def add_node(count, cluster, names, memorycluster):
 @click.option('--instancetype', required=True, help='Specify the instance type of the cluster')
 
 def add_memory_fabric(count, cluster, fabric ,memorycluster,instancetype):
-    """Add hosts from a memoryfabric to an existing cluster."""
+    """Replace the image of nodes by serial number."""
     if cluster is None:
         clusters = get_clusters()
         if len(clusters) == 1:

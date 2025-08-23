@@ -1,7 +1,7 @@
 
 import click
 from lib.logger import logger
-from lib.oci import create_cluster
+from lib.ociwrap import create_cluster
 from lib.database import get_config_by_name, get_controller_node
 
 import socket
@@ -13,9 +13,9 @@ import socket
 @click.option('--count', type=int, required=True, help='Number of nodes to add')
 @click.option('--cluster', required=True, help='Specify the name of the cluster')
 @click.option('--instancetype', required=True, help='Specify the instance type of the cluster')
-@click.option('--names', required=False, help='Comma separated list of host names')
-@click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes from for BM.GPU.GB200.4 nodes')
-@click.option('--memorycluster', required=False, help='Name to be used for the memory cluster, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid')
+@click.option('--names', required=False, help='comma separated list of host names')
+@click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes in for BM.GPU.GB200.4 nodes')
+@click.option('--memorycluster', required=False, help='Name used for the memory cluster fabric, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid')
 def create(count,cluster,instancetype,names,fabric,memorycluster):
     """Create a new cluster."""
     if names:

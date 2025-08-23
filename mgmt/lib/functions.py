@@ -1,7 +1,7 @@
 from ClusterShell.NodeSet import NodeSet
 from ClusterShell.Task import task_self
 from concurrent.futures import ProcessPoolExecutor
-from lib.oci import get_host_api_dict
+from lib.ociwrap import get_host_api_dict
 from lib.database import get_all_nodes, db_update_node, get_controller_node
 
 import subprocess
@@ -11,14 +11,12 @@ import json
 version = sys.version_info
 
 if version >= (3, 12):
-    from datetime import datetime, timedelta, timezone , UTC
+    from datetime import datetime, timedelta, timezone, UTC
 else:
     from datetime import datetime, timedelta, timezone
 
 
 from lib.logger import logger
-import sys
-import random, string
 
 curl_timeout=3
 unreachable_timeout=timedelta(hours=6)
@@ -44,11 +42,26 @@ def run_configure(nodes):
     logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
 def run_ansible(controller_name):
+    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/ansible-playbook /config/playbooks/manage_nodes.yml"
+
     try:
-        command = ". /etc/os-release;. /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/activate; ansible-playbook /config/playbooks/manage_nodes.yml"
-        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, executable="/bin/bash")
+        result = subprocess.run(
+            command, shell=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            universal_newlines=True, executable="/bin/bash"
+        )
+
         last_line=[s for s in result.stdout.split('\n') if s.startswith(controller_name)][-1]
-        failure_count=int([s for s in last_line.split(' ') if s.startswith('failed')][-1].split('=')[1])+int([s for s in last_line.split(' ') if s.startswith('unreachable')][-1].split('=')[1])
+        failure_count = int(
+            [
+                s for s in last_line.split(' ') if s.startswith('failed')
+            ][-1].split('=')[1]
+        ) + int(
+            [
+                s for s in last_line.split(' ') if s.startswith('unreachable')
+            ][-1].split('=')[1]
+        )
+
         if failure_count:
             print(result.stdout)
             return False
@@ -56,7 +69,39 @@ def run_ansible(controller_name):
             logger.info(f"Ansible finished succesfully")
             return True
     except Exception as e:
-        logger.info(f"Error running ansible: {e}")
+        logger.error(f"Error running ansible: {e}")
+        print(result.stdout)
+        return False
+
+def run_ansible_slurm_init(controller_name):
+    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/ansible-playbook /config/playbooks/slurm_init.yml"
+
+    try:
+        result = subprocess.run(
+            command, shell=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            universal_newlines=True, executable="/bin/bash"
+        )
+
+        last_line=[s for s in result.stdout.split('\n') if s.startswith(controller_name)][-1]
+        failure_count = int(
+            [
+                s for s in last_line.split(' ') if s.startswith('failed')
+            ][-1].split('=')[1]
+        ) + int(
+            [
+                s for s in last_line.split(' ') if s.startswith('unreachable')
+            ][-1].split('=')[1]
+        )
+
+        if failure_count:
+            print(result.stdout)
+            return False
+        else:
+            logger.info(f"Ansible finished succesfully")
+            return True
+    except Exception as e:
+        logger.error(f"Error running ansible: {e}")
         print(result.stdout)
         return False
 
@@ -71,7 +116,7 @@ def update_nodes_based_on_url(nodes,HTTP_SERVER_PORT):
         time_threshold = (current_time.utcnow() - unreachable_timeout).replace(tzinfo=timezone.utc)
     current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    ip_addresses = [node.ip_address for node in nodes]        
+    ip_addresses = [node.ip_address for node in nodes]
     urls=[f"http://{ip_address}:{HTTP_SERVER_PORT}/info" for ip_address in ip_addresses]
     with ProcessPoolExecutor(max_workers=10) as executor:
         content_results = list(executor.map(fetch_content, urls))
@@ -90,7 +135,7 @@ def update_nodes_based_on_url(nodes,HTTP_SERVER_PORT):
                     json_data["status"]="running"
                 if node.first_time_reachable is None:
                     json_data.update({"first_time_reachable":current_time_str})
-                logger.info(f"Stored content for {url}")
+                logger.debug(f"Stored content for {url}")
                 update_dict[node.ocid]=json_data
 
             except json.JSONDecodeError as e:

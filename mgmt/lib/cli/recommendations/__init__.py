@@ -1,10 +1,10 @@
 import click
 from lib.cli.recommendations.commands import recom
 
-@click.group()
-def recommendations():
+@click.group("recommendations")
+def cmd():
     """Commands to show recommendations about the cluster."""
     pass
 
-recommendations.add_command(recom.list)
-recommendations.add_command(recom.run)
+cmd.add_command(recom.list)
+cmd.add_command(recom.run)
