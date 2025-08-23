@@ -89,12 +89,18 @@ resource "null_resource" "controller" {
   }
 
   provisioner "remote-exec" {
-    inline = [
+    inline = concat([
       "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",
       "sudo chown ${var.controller_username}:${var.controller_username} /opt/oci-hpc/",
       "mkdir -p /opt/oci-hpc/bin",
-      "sudo mkdir /config",
+      "sudo mkdir -p /config",
+    ],
+    var.create_fss ? [
+      "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+      "sudo mount /config",
+    ] : [],
+    [
       "sudo chown ${var.controller_username}:${var.controller_username} /config",
       "mkdir -p /config/logs",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
@@ -102,7 +108,7 @@ resource "null_resource" "controller" {
       "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
       "mkdir -p /config/3rdparty",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/3rdparty"
-    ]
+    ])
     connection {
       host        = local.host
       type        = "ssh"
@@ -268,7 +274,6 @@ resource "null_resource" "cluster" {
       rdma_netmask              = cidrnetmask(var.rdma_subnet),
       vcn_compartment           = var.vcn_compartment,
       zone_name                 = local.zone_name,
-      dns_entries               = var.dns_entries,
       home_nfs                  = var.home_nfs,
       create_fss                = var.create_fss,
       home_fss                  = var.home_fss,
@@ -444,7 +449,7 @@ this PAR is used by the scripts to upload NIC metrics to object storage (i.e. sc
 
 
 resource "oci_dns_rrset" "rrset-controller" {
-  count           = var.dns_entries ? 1 : 0
+  count           = 1
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "${oci_core_instance.controller.display_name}.${local.zone_name}"
   rtype           = "A"

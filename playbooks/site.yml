@@ -10,6 +10,8 @@
         name: privilege_group
     - include_role:
         name: nfs-server
+      when: not create_fss|bool
+
 - hosts: controller, slurm_backup
   become: true
   gather_facts: true

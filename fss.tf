@@ -12,6 +12,13 @@ resource "oci_file_storage_file_system" "FSS_home" {
   display_name        = "${local.cluster_name}-fss-home"
 }
 
+resource "oci_file_storage_file_system" "FSS_config" {
+  count               = var.create_fss ? 1 : 0
+  availability_domain = var.fss_ad
+  compartment_id      = var.fss_compartment
+  display_name        = "${local.cluster_name}-fss-config"
+}
+
 resource "oci_file_storage_mount_target" "FSSMountTarget" {
   count               = var.create_fss ? var.mount_target_count : 0
   availability_domain = var.fss_ad
@@ -39,6 +46,18 @@ resource "oci_file_storage_export" "FSSExport_home" {
   export_set_id  = oci_file_storage_mount_target.FSSMountTarget[count.index].export_set_id
   file_system_id = oci_file_storage_file_system.FSS_home[0].id
   path           = "/home"
+  export_options {
+    source          = data.oci_core_vcn.vcn.cidr_block
+    access          = "READ_WRITE"
+    identity_squash = "NONE"
+  }
+}
+
+resource "oci_file_storage_export" "FSSExport_config" {
+  count          = var.create_fss ? var.mount_target_count : 0
+  export_set_id  = oci_file_storage_mount_target.FSSMountTarget[count.index].export_set_id
+  file_system_id = oci_file_storage_file_system.FSS_config[0].id
+  path           = "/config"
   export_options {
     source          = data.oci_core_vcn.vcn.cidr_block
     access          = "READ_WRITE"

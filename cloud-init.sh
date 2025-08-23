@@ -39,6 +39,9 @@ cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/
 login=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.login`
 monitoring=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.monitoring`
 controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller`
+hostname_convention=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.hostname_convention`
+
+fss=fss-${cluster_name}
 
 if [ "$controller" == "true" ]; then
     echo "Do not run the cloud-init on the controller, this will create a circular dependency on the /config mount"
@@ -47,8 +50,10 @@ fi
 
 mkdir /config
 
-if ! grep -qF "$controller_name:/config /config nfs" /etc/fstab; then
-    echo "$controller_name:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
+if ! grep -qF "$fss:/config /config nfs" /etc/fstab; then
+    echo "$fss:/config /config nfs defaults" >> /etc/fstab
+
+    #echo "$controller_name:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
     systemctl daemon-reload
     echo "Entry added to /etc/fstab."
 else
@@ -60,7 +65,7 @@ while true; do
         echo "/config is already mounted. Exiting loop."
         break
     fi
-    echo "Attempting to mount $controller_name:/config"
+    echo "Attempting to mount $fss:/config"
     # Run the mount command and check if it succeeds
     mount /config
     
