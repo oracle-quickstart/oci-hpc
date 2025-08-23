@@ -6,6 +6,8 @@ hosts=$(scontrol show hostnames "$1")
 declare -A cluster_hosts
 declare -A cluster_types
 
+source /etc/os-release
+
 # Group hosts by their partition (cluster name)
 for host in $hosts; do
     partition=$(sinfo -N -n "$host" -o "%P" -h | awk '{print $1}')
