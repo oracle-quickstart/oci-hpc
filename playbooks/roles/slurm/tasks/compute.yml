@@ -94,7 +94,7 @@
     mode: "0400"
   notify: Restart munge
   register: job_result
-  until: job_result.finished
+  until: job_result is not failed
   retries: 10
   delay: 30
 

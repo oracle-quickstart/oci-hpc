@@ -19,7 +19,7 @@
       ansible.builtin.async_status:
         jid: "{{ yum_sleeper.ansible_job_id }}"
       register: job_result
-      until: job_result.finished
+      until: job_result is not failed
       retries: 30
       delay: 10
       when: package_repo|default('None') != 'None'
@@ -42,7 +42,7 @@
       ansible.builtin.async_status:
         jid: "{{ yum_sleeper.ansible_job_id }}"
       register: job_result
-      until: job_result.finished
+      until: job_result is not failed
       retries: 30
       delay: 10
       when: package_repo|default('None') == 'None'
