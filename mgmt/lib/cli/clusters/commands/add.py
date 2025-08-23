@@ -49,8 +49,8 @@ def add_node(count, cluster, names, memorycluster):
 
 @add.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add in the new memory fabric')
-@click.option('--cluster', required=False, help='Specify the name of the compute cluster')
-@click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes in')
+@click.option('--cluster', required=True, help='Specify the name of the compute cluster')
+@click.option('--fabric', required=True, help='OCID of the memory fabric to add the nodes in')
 @click.option('--memorycluster', required=False, help='Name of the memory cluster to add the nodes in, cluster name is not required if memory cluster is specified')
 @click.option('--instancetype', required=True, help='Specify the instance type of the cluster')
 
@@ -73,8 +73,12 @@ def add_memory_fabric(count, cluster, fabric ,memorycluster,instancetype):
             return
     else:
         config=None
+    if memorycluster is None:
+        gpu_memory_cluster_name = cluster+"_"+fabric[-5:]
+    else:
+        gpu_memory_cluster_name=memorycluster
     if not nodes:
         logger.error("No node found, create a new cluster instead")
         return
     else: 
-        run_add_memory_fabric(nodes, int(count), fabric ,memorycluster, instancetype=config)
+        run_add_memory_fabric(nodes, int(count), fabric ,gpu_memory_cluster_name, instancetype=config)
