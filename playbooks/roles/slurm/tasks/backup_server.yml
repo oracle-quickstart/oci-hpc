@@ -73,6 +73,10 @@
     group: munge
     mode: "0400"
   notify: Restart munge
+  register: job_result
+  until: job_result.finished
+  retries: 10
+  delay: 30
 
 - name: Restart munge
   become: true
