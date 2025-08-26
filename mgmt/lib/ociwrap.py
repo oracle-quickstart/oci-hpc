@@ -294,7 +294,7 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
                 continue
             elif len(instance.freeform_tags) == 0:
                 continue
-            elif "controller" in instance.freeform_tags.keys():
+            elif "controller" in instance.freeform_tags.keys() or "login" in instance.freeform_tags.keys() or "monitoring" in instance.freeform_tags.keys():
                 continue
             elif "cluster_name" in instance.freeform_tags.keys():
                 if instance.freeform_tags["cluster_name"]==cluster_name:
