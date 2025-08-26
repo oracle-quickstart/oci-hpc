@@ -6,8 +6,10 @@ def cmd():
     """Commands to manage clusters."""
     pass
 
+# Register the 'add' command group
 cmd.add_command(add.add)
-cmd.add_command(add.add_memory_fabric)
+
+# Register other commands
 cmd.add_command(list.list)
 cmd.add_command(create.create)
 cmd.add_command(delete.delete)
