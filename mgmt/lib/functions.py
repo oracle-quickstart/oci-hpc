@@ -5,6 +5,7 @@ from lib.ociwrap import get_host_api_dict
 from lib.database import get_all_nodes, db_update_node, get_controller_node
 
 import subprocess
+import ipaddress
 
 import sys
 import json
@@ -176,3 +177,25 @@ def scan_host_api_logic():
             else:
                 available_nodes[host_api.shape]=1
     return available_nodes
+
+def get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT):
+    urls=[f"http://{ip_address}:{HTTP_SERVER_PORT}/info" for ip_address in ip_addresses]
+    with ProcessPoolExecutor(max_workers=100) as executor:
+        content_results = list(executor.map(fetch_content, urls))
+    result_dict = dict(zip(ip_addresses, content_results))
+    ocid_dict={}
+    for ip_address,content in result_dict.items():
+        if content:
+            try:
+                json_data = json.loads(content)
+                ocid_dict[ip_address]=json_data["ocid"]
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON from {url}: {e}")
+                ocid_dict[ip_address]=None
+    return ocid_dict
+
+def get_nodes_ocid_by_subnet(subnet_cidr, HTTP_SERVER_PORT):
+    """Scan a subnet and return mapping {ip: ocid} if answering."""
+    network = ipaddress.ip_network(subnet_cidr, strict=False)
+    ip_addresses = [str(ip) for ip in network.hosts()]
+    return get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT)

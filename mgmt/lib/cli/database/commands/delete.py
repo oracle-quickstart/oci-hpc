@@ -1,8 +1,7 @@
 import click
-from lib.database import get_controller_node, get_nodes_by_any, db_delete_node
-from lib.logger import logger
-from lib.ociwrap import get_memory_fabrics
-from lib.cli.fabrics.display import print_fabrics
+from lib.database import get_nodes_by_any, db_delete_node
+
+from ClusterShell.NodeSet import NodeSet
 
 @click.command()
 @click.argument('identifiers')
