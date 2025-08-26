@@ -182,15 +182,21 @@ def get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT):
     urls=[f"http://{ip_address}:{HTTP_SERVER_PORT}/info" for ip_address in ip_addresses]
     with ProcessPoolExecutor(max_workers=100) as executor:
         content_results = list(executor.map(fetch_content, urls))
-    result_dict = dict(zip(ip_addresses, content_results))
+    result_dict = {
+        ip: content
+        for ip, content in zip(ip_addresses, content_results)
+        if content is not None
+    }
+    logger.debug(f"Result dict size: {len(result_dict.keys())}")
     ocid_dict={}
     for ip_address,content in result_dict.items():
+        logger.debug(f"Handling IP {ip_address}")
         if content:
             try:
                 json_data = json.loads(content)
                 ocid_dict[ip_address]=json_data["ocid"]
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to decode JSON from {url}: {e}")
+                logger.error(f"Failed to decode JSON from {ip_address}")
                 ocid_dict[ip_address]=None
     return ocid_dict
 
