@@ -93,11 +93,13 @@ def list_custom_images(compartment_ocid):
     image_ocid = custom_images[choice].id
     return image_ocid
 
-def run_boot_volume_swap(node,image_ocid):
+def run_boot_volume_swap(node,image_ocid,size):
     update_instance_source_details = oci.core.models.UpdateInstanceSourceViaImageDetails()
     update_instance_source_details.image_id = image_ocid
     update_instance_source_details.is_preserve_boot_volume_enabled = False
     update_instance_source_details.is_force_stop_enabled = True
+    if not size is None:
+        update_instance_source_details.boot_volume_size_in_gbs = size
     update_instance_details = oci.core.models.UpdateInstanceDetails()
     update_instance_details.source_details = update_instance_source_details
 

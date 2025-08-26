@@ -8,7 +8,8 @@ from lib.database import get_nodes_by_any, db_update_node, get_controller_node
 @click.command()
 @click.option("--nodes", required=True, help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)")
 @click.option("--image", required=False, help="Specify the image for BVR")
-def boot_volume_swap(nodes, image):
+@click.option("--size", required=False, help="Specify the size for BVR in GB", type=int)
+def boot_volume_swap(nodes, image, size):
     """Boot Volume Swap nodes"""
 
     nodes = get_nodes_by_any(nodes)
@@ -30,7 +31,7 @@ def boot_volume_swap(nodes, image):
 
     for node in nodes:
         try:
-            run_boot_volume_swap(node, image_ocid)
+            run_boot_volume_swap(node, image_ocid, size)
             db_update_node(node, compute_status="starting")
         except Exception as e:
             click.echo(f"Error running boot volume swap for node {node.hostname}: {e}")
