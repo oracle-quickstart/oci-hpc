@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
+import sys, os
 sys.dont_write_bytecode = True
 import logging
 
@@ -16,8 +16,12 @@ def cli():
     pass
 
 if __name__ == "__main__":
+    debug_level=logging.INFO
+    if "MGMT_DEBUG" in os.environ.keys():
+        if os.environ["MGMT_DEBUG"] != 0 and os.environ["MGMT_DEBUG"].lower() != "false":
+            debug_level=logging.DEBUG
     logging.basicConfig(
-        level=logging.INFO,
+        level=debug_level,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
     logging.getLogger("oci").setLevel(logging.WARNING)
