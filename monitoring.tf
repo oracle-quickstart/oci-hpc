@@ -20,6 +20,7 @@ resource "oci_core_instance" "monitoring" {
   freeform_tags = {
     "cluster_name"   = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
+    "monitoring" = "true"
   }
 
   metadata = {
