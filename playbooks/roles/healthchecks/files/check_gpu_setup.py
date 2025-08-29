@@ -968,6 +968,15 @@ if __name__ == '__main__':
     logger.setLevel(args.log_level)
     datetime_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
     logger.info(f"Started GPU host setup check at: {datetime_str}")
+    hostname = metadata['displayName']
+    ocid = metadata['id']
+    # Get host serial number and slurm drain reason
+    try:
+        host_serial = get_host_serial()
+    except Exception as e:
+        logger.warning(f"Failed to get host serial number with error: {e}")
+        host_serial = "Unknown"
+    logger.info(f"Node details: {hostname} - {host_serial} - {ocid} - {shape}")
 
 #Section 3: Function calls to run all health checks.
 ####################################################
@@ -1146,13 +1155,6 @@ if __name__ == '__main__':
 
 #Section 4: Summarize the results and recommend actions.
 ########################################################
-    
-    # Get host serial number and slurm drain reason
-    try:
-        host_serial = get_host_serial()
-    except Exception as e:
-        logger.warning(f"Failed to get host serial number with error: {e}")
-        host_serial = "Unknown"
 
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
@@ -1343,7 +1345,7 @@ if __name__ == '__main__':
     # Read the healthcheck.log file content
     try:
         with open("/tmp/latest_healthcheck.log", 'r') as log_file:
-            data["passive_healthcheck_logs"] = log_file.read(1023)  # Store log content in JSON
+            data["passive_healthcheck_logs"] = log_file.read(2047)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")
         data["passive_healthcheck_logs"] = ""

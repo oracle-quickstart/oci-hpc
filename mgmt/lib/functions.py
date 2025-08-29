@@ -106,7 +106,7 @@ def run_ansible_slurm_init(controller_name):
         print(result.stdout)
         return False
 
-def update_nodes_based_on_url(nodes,HTTP_SERVER_PORT):
+def get_updates_based_on_url(nodes,HTTP_SERVER_PORT):
     update_dict={}
 
     if version >= (3, 12):
@@ -205,3 +205,23 @@ def get_nodes_ocid_by_subnet(subnet_cidr, HTTP_SERVER_PORT):
     network = ipaddress.ip_network(subnet_cidr, strict=False)
     ip_addresses = [str(ip) for ip in network.hosts()]
     return get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT)
+
+def get_slurm_state():
+    # Run sinfo -N -h and capture output
+    result = subprocess.run(
+        ["sinfo", "-N", "-h", "-o", "'%N %R %t'"],
+        capture_output=True, text=True, check=True
+    )
+    
+    sinfo_dict = {}
+    for line in result.stdout.strip().splitlines():
+        parts = line.split()
+        if len(parts) >= 3:
+            node, partition, state = parts[0], parts[1], parts[2]
+            if node not in sinfo_dict.keys():
+                sinfo_dict[node]={}
+                sinfo_dict[node]["state"]=state
+                sinfo_dict[node]["partition"]=[partition]
+            else:
+                sinfo_dict[node]["partition"].append(partition)
+    return sinfo_dict

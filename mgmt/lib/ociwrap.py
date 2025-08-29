@@ -360,7 +360,7 @@ def get_instance_type(node):
     logger.warning(f"Node was not found, maybe it is missing tags?")
     return "SA",None,None
 
-def oci_scan_queue(controller_name):
+def oci_scan_queue_and_update_db(controller_name):
 
     queue_ocid=get_queue_ocid()
     endpoint = CLIENTS.queue_admin_client.get_queue(queue_ocid).data.messages_endpoint
@@ -389,10 +389,15 @@ def oci_scan_queue(controller_name):
                     queue_client.delete_message(queue_ocid, message.receipt)
                 elif content['status'] == "terminating":
                     logger.debug("Node is terminating")
-                    node = get_nodes_by_id(NodeSet(content["ocid"]))[0]
-                    db_update_node(node,controller_status="terminating",terminated_time=current_time_str,compute_status="terminating")
-                    node = get_nodes_by_id(NodeSet(content["ocid"]))[0]
-                    logger.debug("Node: hostname=%s, controller_status=%s, terminated_time=%s", node.hostname, node.controller_status, node.terminated_time)
+                    logger.debug(NodeSet(content["ocid"]))
+                    logger.debug(get_nodes_by_id(NodeSet(content["ocid"])))
+                    existing_nodes=get_nodes_by_id(NodeSet(content["ocid"]))
+                    if len(existing_nodes):
+                        node = existing_nodes[0]
+                        db_update_node(node,controller_status="terminating",terminated_time=current_time_str,compute_status="terminating")
+                        logger.debug("Node: hostname=%s, controller_status=%s, terminated_time=%s", node.hostname, node.controller_status, node.terminated_time)
+                    else:
+                        logger.debug("Node not found in the DB")
                     queue_client.delete_message(queue_ocid, message.receipt)
                     logger.debug("Message is deleted")
             except Exception as e:

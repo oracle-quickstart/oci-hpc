@@ -82,6 +82,8 @@ class NodesMixin:
     shape                      = mapped_column(String(128), nullable=True)
     terminated_time            = mapped_column(String(128), nullable=True)
     update_count               = mapped_column(Integer, nullable=True)
+    slurm_state                = mapped_column(String(128), nullable=True)
+    slurm_partition            = mapped_column(String(128), nullable=True)
     passive_healthcheck_recommendation = mapped_column(String(128), nullable=True)
     passive_healthcheck_time   = mapped_column(String(128), nullable=True)
     passive_healthcheck_logs   = mapped_column(String(2048), nullable=True)
@@ -339,6 +341,29 @@ def filter_nodes_by_cluster(query, cluster_name=None, memory_cluster_name=None):
 
     return query
 
+def get_query_by_fields(field_dict):
+    """Get a query filtered by the given field-value pairs.
+    
+    Args:
+        field_dict: Dictionary of {field_name: value} to filter by
+        
+    Returns:
+        SQLAlchemy query object
+    """
+    with DBConn() as session:
+        query = session.query(Nodes)
+        if field_dict is None:
+            return query
+        try:
+            for key, value in field_dict.items():
+                if not hasattr(Nodes, key):
+                    logger.warning(f"Invalid field name: {key}")
+                    continue
+                query = query.filter(getattr(Nodes, key) == value)
+            return query
+        except Exception as exc:
+            logger.error(f"Error filtering nodes with fields {field_dict}: {exc}")
+            raise
 
 def get_all_nodes():
     """Get all nodes/servers from the database"""
@@ -607,6 +632,23 @@ def get_nodes_by_memory_cluster(cluster_name):
     finally:
         session.close()
 
+def get_nodes_by_active_hc_expired(active_hc_timeout):
+    """Get all nodes belonging to a specific cluster"""
+
+    current_time = current_utc_time()
+    time_th = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
+    session = query_db()
+    try:
+        nodes = session.query(Nodes).filter(Nodes.active_healthcheck_time < time_th).filter(
+            and_(
+                Nodes.role == "compute",
+                Nodes.shape.in_(["BM.GPU.H100.8","BM.GPU.A100-v2.8","BM.GPU4.8","BM.GPU.B4.8","BM.GPU.H200.8","BM.GPU.GB200.4","BM.GPU.B200.8"]),
+                Nodes.slurm_state == "idle"
+            )
+        ).all()
+        return nodes
+    finally:
+        session.close()
 
 def get_nodes_by_status(status):
     """Get all nodes with a specific status"""
