@@ -114,6 +114,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -124,6 +125,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -136,6 +138,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -147,6 +150,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -158,19 +162,10 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
-  provisioner "file" {
-    source      = "logs"
-    destination = "/opt/oci-hpc/"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
   provisioner "file" {
     source      = "samples"
     destination = "/opt/oci-hpc/"
@@ -179,6 +174,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -189,6 +185,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -201,6 +198,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -212,6 +210,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -223,6 +222,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -234,6 +234,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -244,6 +245,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -254,6 +256,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 }
@@ -424,7 +427,7 @@ resource "null_resource" "cluster" {
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
       "echo ${var.configure} > /tmp/configure.conf",
-      "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /opt/oci-hpc/logs/initial_configure.log",
+      "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
     "exit $exit_code"]
     connection {

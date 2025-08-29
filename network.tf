@@ -211,13 +211,13 @@ resource "oci_dns_zone" "dns_zone" {
 resource "oci_dns_rrset" "fss-dns-round-robin" {
   count           = var.create_fss ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "fss-${local.cluster_name}.${local.zone_name}"
+  domain          = "fss-${local.cluster_name}-controller.${local.zone_name}"
   rtype           = "A"
   dynamic "items" {
     for_each = oci_file_storage_mount_target.FSSMountTarget[*]
     iterator = target
     content {
-      domain = "fss-${local.cluster_name}.${local.zone_name}"
+      domain = "fss-${local.cluster_name}-controller.${local.zone_name}"
       rtype  = "A"
       rdata  = target.value["ip_address"]
       ttl    = 1
@@ -230,10 +230,10 @@ resource "oci_dns_rrset" "fss-dns-round-robin" {
 resource "oci_dns_rrset" "controller" {
   count           = (! var.create_fss) ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "fss-${local.cluster_name}.${local.zone_name}"
+  domain          = "fss-${local.cluster_name}-controller.${local.zone_name}"
   rtype           = "A"
   items {
-    domain = "fss-${local.cluster_name}.${local.zone_name}"
+    domain = "fss-${local.cluster_name}-controller.${local.zone_name}"
     rtype  = "A"
     rdata  = oci_core_instance.controller.private_ip
     ttl    = 3600
