@@ -8,7 +8,7 @@
 
 - name: Ensure monitoring directory exists
   ansible.builtin.file:
-    path: "/opt/oci-hpc/logs"
+    path: "/config/logs"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
