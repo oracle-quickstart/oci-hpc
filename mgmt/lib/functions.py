@@ -209,7 +209,7 @@ def get_nodes_ocid_by_subnet(subnet_cidr, HTTP_SERVER_PORT):
 def get_slurm_state():
     # Run sinfo -N -h and capture output
     result = subprocess.run(
-        ["sinfo", "-N", "-h", "-o", "'%N %R %t'"],
+        ["sinfo", "-N", "-h", "-o", "%N %R %t"],
         capture_output=True, text=True, check=True
     )
     
