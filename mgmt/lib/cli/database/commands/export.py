@@ -1,26 +1,9 @@
-import pathlib
-import logging
 
 import click
-
-import lib.database
+from lib.database import db_create
 from lib.logger import logger
 
-
-@click.group("db")
-def cmd():
-    """Commands to manage database. The DB_CONNECTION"""
-    pass
-
-
-@cmd.command()
-def create():
-    """Create database/tables. Will not recreate tables that already exist."""
-    logger.info(f"Initializing DB")
-    lib.database.db_create()
-
-
-@cmd.command()
+@click.command()
 @click.option(
     "--filename", default="export.sqlite", show_default=True,
     help="SQLite filename. Must not already exist."
