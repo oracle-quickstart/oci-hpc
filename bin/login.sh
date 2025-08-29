@@ -222,14 +222,22 @@ sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ans
 modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
 echo $modified_hostname
 log=/config/logs/${modified_hostname}.log
-while true; do
-    echo "Attempting to configure the node"
+max_attempts=5
+attempt=1
+while [ $attempt -le $max_attempts ]; do
+    echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
     source $VENV_PATH/bin/activate
     ansible-playbook -i /config/playbooks/inventory /config/playbooks/login.yml 2>&1 | tee -a $log
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "Ansible succeeded!" | tee -a $log
         break
     else
-        echo "Ansible failed. Retrying..." | tee -a $log
+        echo "Ansible failed. " | tee -a $log
+        if [ $attempt -lt $max_attempts ]; then
+            echo "Retrying..." | tee -a $log
+        else
+            echo "Max attempts ($max_attempts) reached. Giving up." | tee -a $log
+        fi
+        ((attempt++))
     fi
 done 
