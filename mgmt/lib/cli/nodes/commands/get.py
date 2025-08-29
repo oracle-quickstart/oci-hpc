@@ -1,9 +1,8 @@
 
 import click
-from lib.cli.nodes.display import print_nodes_info
+from lib.cli.nodes.display import display_nodes, parse_fields_spec
 from lib.database import get_nodes_by_id, get_nodes_by_serial, get_nodes_by_name, get_nodes_by_ip, get_nodes_by_any
 from lib.logger import logger
-
 class DefaultCommandGroup(click.Group):
     def parse_args(self, ctx, args):
         # Try to resolve the command name early
@@ -28,60 +27,87 @@ def get():
 
 @get.command()
 @click.argument('serials', required=True)
-@click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-def serials(serials, full):
+@click.option(
+    "--format",
+    type=click.Choice(["node", "csv", "json"]),
+    default="node", show_default=True,
+    help="Output format"
+)
+def serials(serials, format):
     """Get information about a node by serial number."""
     nodes = get_nodes_by_serial(serials)
 
     if not nodes:
-        click.echo("node not found.")
-        return
-
-    print_nodes_info(nodes, full=full)
+        click.echo("Node not found.")
+    else:
+        display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command()
-@click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
 @click.argument('names', required=True)
-def names(names, full):
+@click.option(
+    "--format",
+    type=click.Choice(["node", "csv", "json"]),
+    default="node", show_default=True,
+    help="Output format"
+)
+def names(names, format):
     """Get information about a node by host name."""
     nodes = get_nodes_by_name(names)
 
     if not nodes:
         click.echo("Node not found.")
-        return
-
-    print_nodes_info(nodes, full=full)
+    else:
+        display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command()
-@click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
 @click.argument('ids', required=True)
-def ids(ids, full):
+@click.option(
+    "--format",
+    type=click.Choice(["node", "csv", "json"]),
+    default="node", show_default=True,
+    help="Output format"
+)
+@click.option(
+    "--format",
+    type=click.Choice(["node", "csv", "json"]),
+    default="node", show_default=True,
+    help="Output format"
+)
+def ids(ids, format):
     """Get information about a node by ID."""
     nodes = get_nodes_by_id(ids)
 
     if not nodes:
         click.echo("Node not found.")
-        return
-
-    print_nodes_info(nodes, full=full)
+    else:
+        display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command()
-@click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
 @click.argument('ips', required=True)
-def ips(ips, full):
+@click.option(
+    "--format",
+    type=click.Choice(["node", "csv", "json"]),
+    default="node", show_default=True,
+    help="Output format"
+)
+def ips(ips, format):
     """Get information about a node by IP."""
     nodes = get_nodes_by_ip(ips)
 
     if not nodes:
         click.echo("Node not found.")
-        return
-
-    print_nodes_info(nodes, full=full)
+    else:
+        display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command(name='any')
 @click.argument('identifiers')
-@click.option('--full', is_flag=True, help='Get full information.', default=False)
-def any_cmd(identifiers, full):
+@click.option(
+    "--format",
+    type=click.Choice(["node", "csv", "json"]),
+    default="node", show_default=True,
+    help="Output format"
+)
+def any_cmd(identifiers, format):
     """Default: Get info by serial, IP, OCID, or hostname."""
     try:
         nodes = get_nodes_by_any(identifiers)
@@ -93,4 +119,4 @@ def any_cmd(identifiers, full):
     if not nodes:
         click.echo("Node not found.")
     else:
-        print_nodes_info(nodes, full=full)
+        display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)

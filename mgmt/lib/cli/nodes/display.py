@@ -57,6 +57,8 @@ def print_nodes_info(nodes, full=False):
             table.add_row("shape", node.shape)
             table.add_row("terminated_time", node.terminated_time)
             table.add_row("update_count", str(node.update_count))
+            table.add_row("slurm_state", node.slurm_state)
+            table.add_row("slurm_partition", node.slurm_partition)
             table.add_row("passive_healthcheck_recommendation", node.passive_healthcheck_recommendation)
             table.add_row("passive_healthcheck_time", node.passive_healthcheck_time)
             table.add_row("passive_healthcheck_logs", node.passive_healthcheck_logs)

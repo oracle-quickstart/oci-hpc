@@ -1,37 +1,77 @@
-
 import click
-
 from lib.ociwrap import run_boot_volume_swap, list_custom_images
-from lib.database import get_nodes_by_any, db_update_node, get_controller_node
+import lib.database as db
+from lib.logger import logger
+from ClusterShell.NodeSet import NodeSet
 
+def filter_cmd(ctx, nodes, fields):
+    if (not nodes and not fields) or (nodes and fields):
+        click.echo("Error: You must specify either --nodes or --fields")
+        click.echo()
+        click.echo(ctx.get_help())
+        ctx.exit(1)
+
+    # If fields are provided, use them to filter nodes
+    if fields:
+        field_dict = {}
+        for field in fields.split(','):
+            if '=' not in field:
+                raise click.BadParameter(f"Field must be in key=value format: {field}")
+            key, value = field.split('=', 1)
+            field_dict[key] = value.lower() == 'true' if value.lower() in ['true', 'false'] else value
+        nodes_list = db.get_query_by_fields(field_dict).all()
+    else:
+        # Use the provided node identifiers
+        nodes_list = db.get_nodes_by_any(NodeSet(nodes)) if nodes else []
+
+    return nodes_list
 
 @click.command()
-@click.option("--nodes", required=True, help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)")
+@click.option(
+    "--nodes",
+    required=False,
+    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)"
+)
+@click.option(
+    '--fields',
+    required=False,
+    help='Fields to filter nodes (e.g., role=compute,status=running)'
+)
 @click.option("--image", required=False, help="Specify the image for BVR")
 @click.option("--size", required=False, help="Specify the size for BVR in GB", type=int)
-def boot_volume_swap(nodes, image, size):
-    """Boot Volume Swap nodes"""
+@click.pass_context
+def boot_volume_swap(ctx, nodes, fields, image, size):
+    """Boot Volume Swap one or more nodes.
+    
+    You must specify either --nodes or --fields to identify which nodes to reboot.
+    
+    Examples:
+      Boot Volume Swap by node names: --nodes=node1,node2
+      Boot Volume Swap by fields: --fields=role=compute,status=running
+      Boot Volume Swap image: --image=ocid1.image.oc1..exampleuniqueid
+      Boot Volume Swap BV size: --size=100
+    """
 
-    nodes = get_nodes_by_any(nodes)
-    # In case no image is specified, propose a list of image and ask for the value
+    nodes_list = filter_cmd(ctx, nodes, fields)
+        # In case no image is specified, propose a list of image and ask for the value
     if image is None:
         if nodes:
             compartment_id = nodes[0].compartment_id
         else:
-            controller = get_controller_node()
+            controller = db.get_controller_node()
             compartment_id = controller.compartment_id
 
         image_ocid = list_custom_images(compartment_id)
     else:
         image_ocid = image
 
-    if not nodes:
-        click.echo("Node not found.")
-        return
+    if not nodes_list:
+        logger.warning("No matching nodes found.")
+        ctx.exit(1)
 
-    for node in nodes:
+    for node in nodes_list:
         try:
             run_boot_volume_swap(node, image_ocid, size)
-            db_update_node(node, compute_status="starting")
+            db.db_update_node(node, compute_status="starting")
         except Exception as e:
-            click.echo(f"Error running boot volume swap for node {node.hostname}: {e}")
+            logger.error(f"Error running boot volume swap for node {node.hostname}: {e}")
