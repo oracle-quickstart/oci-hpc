@@ -7,6 +7,7 @@ from lib.logger import logger
 import socket
 import subprocess
 from datetime import timedelta
+import random
 
 # ------------------------
 # Shared logic as helpers
@@ -54,11 +55,13 @@ def active_hc_logic():
     active_hc_timeout=timedelta(hours=24)
     nodes=get_nodes_by_active_hc_expired(active_hc_timeout)
     logger.debug(f"Nodes With expired active HC:{len(nodes)}")
-    for node in nodes:
-        logger.debug(f"Running active healthcheck on {node.hostname}")
+    if nodes:
+        node=random.choice(nodes)
+        logger.debug(f"Running active healthcheck on {node.hostname} selected at Random from the list of nodes with expired active HC and idle in Slurm")
         cmd=["sbatch","-N","1","-p","compute","-w",node.hostname,"/opt/oci-hpc/healthchecks/active_HC.sbatch"]        
         subprocess.call(cmd)
-    logger.debug("Active healthcheck is done")
+    else:
+        logger.debug("No nodes with expired active HC and idle in Slurm")
 
 # ------------------------
 # Click Commands
