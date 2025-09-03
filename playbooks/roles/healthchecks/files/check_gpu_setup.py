@@ -561,7 +561,6 @@ def check_gpu_pcie():
                 return ["No GPUs detected"]
 
             widths = list(map(int, output.split("\n")))
-            print(widths)
             if all(width == expected_pcie_width for width in widths):
                 logger.info("GPU PCIe Width Test: Passed")
             else:
