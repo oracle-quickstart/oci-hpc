@@ -1072,6 +1072,7 @@ def get_config_by_shape_and_partition(shape, partition):
 def db_delete_node(node):
     session = query_db()
     try:
+        node = session.merge(node)  # Merge to ensure the object is in the session
         session.delete(node)
         session.commit()
     finally:
