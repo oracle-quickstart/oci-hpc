@@ -28,7 +28,6 @@ def filter_cmd(ctx, nodes, fields):
     return nodes_list
 
 @click.command()
-@click.pass_context
 @click.option(
     "--nodes",
     required=False,
