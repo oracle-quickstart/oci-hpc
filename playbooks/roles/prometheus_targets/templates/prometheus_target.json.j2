@@ -1,0 +1,18 @@
+[
+  {
+    "labels": {
+{% for node_attr, prom_label in prometheus_labels.items() if value is not none %}
+      "{{ prom_label }}": "{{ item.value[node_attr] | default('None') }}"{% if not loop.last %},
+{% endif %}
+{% endfor %}
+
+    },
+    "targets": [
+{% for port in exporter_ports %}
+      "{{ item.value.hostname }}:{{ port }}"{% if not loop.last %},
+{% endif %}
+{% endfor %}
+
+    ]
+  }
+]
