@@ -9,61 +9,23 @@
 - name: Add Grafana repository
   become: true
   apt_repository:
-    repo: "deb https://packages.grafana.com/oss/deb stable main"
+    repo: 'deb https://packages.grafana.com/oss/deb stable main'
     state: present
-    filename: "grafana"
+    filename: 'grafana'
 
 - name: Update apt cache
   become: true
   apt:
-    update_cache: true
+    update_cache: yes
 
-- name: Install Grafana package
-  become: true
-  apt:
-    name: grafana
-    state: present
-
-- name: Install Python dependencies
-  pip:
-    name:
-      - Flask
-      - oci
-      - waitress
-    extra_args: --ignore-installed
-  become: true
-
-- name: Copy webhook script to server
-  become: true
-  template:
-    src: ons_webhook.py.j2
-    dest: /usr/local/bin/ons_webhook.py
-    mode: "0755"
-
-- name: Copy message template to server
-  become: true
-  copy:
-    src: raw_message_template.txt
-    dest: /etc/raw_message_template.txt
-    mode: "0755"
-
-- name: Render systemd service for webhook
-  become: true
-  template:
-    src: ons-webhook.service.j2
-    dest: /etc/systemd/system/ons-webhook.service
-    force: true
-    backup: true
-    mode: "0644"
-
-- name: Start and enable webhook service
-  become: true
-  systemd:
-    name: ons-webhook.service
-    state: started
-    enabled: true
-    daemon_reload: true
-  when: ons_topic_ocid != ""
+- name: Install Grafana and Tempo
+  vars:
+    package_name:
+      - grafana
+      - tempo
+    package_state: present
+  include_role:
+    name: safe_yum
 
 - name: Start and enable Grafana service
   become: true
@@ -72,53 +34,5 @@
     state: restarted
     enabled: true
 
-- name: Ensure Grafana key directory exists
-  file:
-    path: "/etc/opt/oci-hpc/passwords/grafana"
-    state: directory
-  delegate_to: localhost
-
-- name: Check Grafana API key list
-  uri:
-    url: "{{ grafana_api_url }}/api/auth/keys"
-    method: GET
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    return_content: true
-  no_log: false
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
-
-- name: Create Prometheus datasource in Grafana
-  grafana_datasource:
-    name: "Prometheus"
-    grafana_url: "{{ grafana_api_url }}"
-    grafana_user: "{{ grafana_security.admin_user }}"
-    grafana_password: "{{ grafana_security.admin_password }}"
-    ds_type: "prometheus"
-    ds_url: "http://localhost:9090"
-  ignore_errors: true
-  register: output
-
-- name: Copy alert rules to grafana provisioning
-  become: true
-  copy:
-    src: files/alert-rules.yaml
-    dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
-    mode: "0777"
-
-- name: Replace all occurrences of a specific string in files
-  become: true
-  ansible.builtin.replace:
-    path: /etc/grafana/provisioning/alerting/alert-rules.yaml
-    regexp: "DATASOURCE_UID"
-    replace: "{{ output.datasource.uid }}"
-
-- name: Restart grafana
-  become: true
-  ansible.builtin.service:
-    name: grafana-server
-    state: restarted
+- name: Setup Grafana
+  include_tasks: setup_grafana.yml

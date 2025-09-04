@@ -21,7 +21,7 @@ data "oci_core_cluster_network_instances" "cluster_network_instances" {
 }
 
 data "oci_core_compute_gpu_memory_cluster_instances" "memory_cluster_network_instances" {
-  count = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4"? 1 : 0
+  count                         = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4" ? 1 : 0
   compute_gpu_memory_cluster_id = oci_core_compute_gpu_memory_cluster.compute_gpu_memory_cluster[0].id
 }
 
@@ -37,7 +37,7 @@ data "oci_core_instance" "cluster_network_instances" {
 }
 
 data "oci_core_instance" "memory_cluster_network_instances" {
-  count = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4"? 1 : 0
+  count       = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4" ? 1 : 0
   instance_id = data.oci_core_compute_gpu_memory_cluster_instances.memory_cluster_network_instances[0].compute_gpu_memory_cluster_instance_collection[count.index]["id"]
 }
 
@@ -104,23 +104,23 @@ data "oci_identity_regions" "regions" {
 }
 
 data "oci_artifacts_container_repository" "container_repo" {
-    count = var.use_OCI_generated_container ? 0 : 1
-    repository_id = local.registry_id
+  count         = var.use_OCI_generated_container ? 0 : 1
+  repository_id = local.registry_id
 }
 
 data "oci_identity_user" "user" {
-    user_id = var.current_user_ocid
+  user_id = var.current_user_ocid
 }
 
 data "oci_objectstorage_namespace" "namespace" {
-    compartment_id = var.targetCompartment
+  compartment_id = var.targetCompartment
 }
 
 data "oci_identity_compartment" "compartment" {
-    id = var.targetCompartment
+  id = var.targetCompartment
 }
 
 data "oci_core_compute_gpu_memory_fabrics" "test_compute_gpu_memory_fabrics" {
-    #Required
-    compartment_id = var.tenancy_ocid
+  #Required
+  compartment_id = var.tenancy_ocid
 }

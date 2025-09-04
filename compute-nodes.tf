@@ -1,7 +1,7 @@
 resource "random_string" "cc_name" {
-  count = var.stand_alone ? var.node_count : 0
-  length = 5
-  lower  = true
+  count   = var.stand_alone ? var.node_count : 0
+  length  = 5
+  lower   = true
   numeric = false
   special = false
 }
@@ -46,12 +46,12 @@ resource "oci_core_instance" "compute_cluster_instances" {
       }
     }
   }
- 
+
   display_name = "inst-${random_string.cc_name[count.index].result}-${local.cluster_name}"
 
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
-    "controller_name" = oci_core_instance.controller.display_name
+    "cluster_name"        = local.cluster_name
+    "controller_name"     = oci_core_instance.controller.display_name
     "hostname_convention" = var.hostname_convention
   }
 
@@ -135,7 +135,7 @@ resource "oci_core_instance" "compute_instances" {
     for_each = var.preemptible ? [1] : []
     content {
       preemption_action {
-        type = "TERMINATE"
+        type                 = "TERMINATE"
         preserve_boot_volume = false
       }
     }
@@ -144,8 +144,8 @@ resource "oci_core_instance" "compute_instances" {
   display_name = "inst-${random_string.cc_name[count.index].result}-${local.cluster_name}"
 
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
-    "controller_name" = oci_core_instance.controller.display_name
+    "cluster_name"        = local.cluster_name
+    "controller_name"     = oci_core_instance.controller.display_name
     "hostname_convention" = var.hostname_convention
   }
 

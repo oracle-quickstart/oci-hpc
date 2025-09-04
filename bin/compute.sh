@@ -195,6 +195,7 @@ if [ "$INSTALL_VENV" = True ]; then
   ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
   ansible-galaxy collection install ansible.posix --force > /dev/null
   ansible-galaxy collection install community.crypto --force > /dev/null
+  ansible-galaxy collection install oracle.oci --force > /dev/null
 fi
 threads=$(nproc)
 forks=$(($threads * 8))

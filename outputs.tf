@@ -17,3 +17,18 @@ output "login" {
 output "monitoring" {
   value = var.monitoring_node ? local.host_monitoring : "No Monitoring Node Defined"
 }
+
+output "grafana_password" {
+  value     = random_password.grafana_admin_pwd.result
+  sensitive = true
+}
+
+output "grafana_url" {
+  value = var.cluster_monitoring ? (
+    var.monitoring_node ? (
+      oci_core_instance.monitoring[0].public_ip != "" ? "http://${oci_core_instance.monitoring[0].public_ip}:3000" : "http://${oci_core_instance.monitoring[0].private_ip}:3000"
+      ) : (
+      oci_core_instance.controller.public_ip != "" ? "http://${oci_core_instance.controller.public_ip}:3000" : "http://${oci_core_instance.controller.private_ip}:3000"
+    )
+  ) : "N/A"
+}

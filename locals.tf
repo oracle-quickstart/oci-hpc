@@ -1,7 +1,7 @@
 locals {
   // display names of instances 
   cluster_instances_ids   = var.cluster_network_shape == "BM.GPU.GB200.4" ? data.oci_core_instance.memory_cluster_network_instances.*.id : var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.id : oci_core_instance.compute_instances.*.id : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.id : data.oci_core_instance.instance_pool_instances.*.id
-  cluster_instances_names = var.cluster_network_shape == "BM.GPU.GB200.4" ? data.oci_core_instance.memory_cluster_network_instances.*.display_name : var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.display_name : oci_core_instance.compute_instances.*.display_name  : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
+  cluster_instances_names = var.cluster_network_shape == "BM.GPU.GB200.4" ? data.oci_core_instance.memory_cluster_network_instances.*.display_name : var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.display_name : oci_core_instance.compute_instances.*.display_name : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
 
   image_ocid                   = var.unsupported ? var.image_ocid : var.image
   custom_controller_image_ocid = var.unsupported_controller ? var.unsupported_controller_image : var.custom_controller_image
@@ -15,7 +15,7 @@ locals {
   login_ocpus         = (var.login_shape == "VM.DenseIO.E4.Flex" || var.login_shape == "VM.DenseIO.E5.Flex") ? var.login_ocpus_denseIO_flex : var.login_ocpus
   monitoring_ocpus    = (var.monitoring_shape == "VM.DenseIO.E4.Flex" || var.monitoring_shape == "VM.DenseIO.E5.Flex") ? var.monitoring_ocpus_denseIO_flex : var.monitoring_ocpus
   // ips of the instances
-  cluster_instances_ips       = var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.private_ip : oci_core_instance.compute_instances.*.private_ip: var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
+  cluster_instances_ips       = var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.private_ip : oci_core_instance.compute_instances.*.private_ip : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.private_ip : data.oci_core_instance.instance_pool_instances.*.private_ip
   first_vcn_ip                = cidrhost(data.oci_core_subnet.private_subnet.cidr_block, 0)
   cluster_instances_ips_index = [for ip in local.cluster_instances_ips : tostring((tonumber(split(".", ip)[3]) - tonumber(split(".", local.first_vcn_ip)[3])) + 256 * (tonumber(split(".", ip)[2]) - tonumber(split(".", local.first_vcn_ip)[2])) + 1)]
 
@@ -26,8 +26,8 @@ locals {
   //  subnet_id = var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
   subnet_id = var.private_deployment ? var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 1) : var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
 
-  nfs_source_IP = var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : var.nfs_source_IP  
-  nfs_list_of_mount_target_IPs = var.create_fss ? "[\"${join("\",\"",oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP  
+  nfs_source_IP                = var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : var.nfs_source_IP
+  nfs_list_of_mount_target_IPs = var.create_fss ? "[\"${join("\",\"", oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP
 
   // subnet id derived either from created subnet or existing if specified
   // controller_subnet_id = var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
@@ -69,13 +69,13 @@ locals {
   platform_type = local.shape == "BM.GPU4.8" ? "AMD_ROME_BM_GPU" : local.shape == "BM.GPU.B4.8" || local.shape == "BM.GPU.A100-v2.8" ? "AMD_MILAN_BM_GPU" : local.shape == "BM.Standard.E3.128" ? "AMD_ROME_BM" : local.shape == "BM.Standard.E4.128" || local.shape == "BM.DenseIO.E4.128" ? "AMD_MILAN_BM" : "GENERIC_BM"
 
   // variables to create functions and events
-  ocir_namespace = lookup(data.oci_objectstorage_namespace.namespace, "namespace")
+  ocir_namespace   = lookup(data.oci_objectstorage_namespace.namespace, "namespace")
   compartment_name = lookup(data.oci_identity_compartment.compartment, "name")
-  region_key = [ for d in flatten(data.oci_identity_regions.regions.regions): lower(d.key) if d.name == var.region][0]
-  auth_token = var.use_OCI_generated_container ? "" : var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token) 
-  registry_id = var.use_OCI_generated_container ? "" : var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id   
+  region_key       = [for d in flatten(data.oci_identity_regions.regions.regions) : lower(d.key) if d.name == var.region][0]
+  auth_token       = var.use_OCI_generated_container ? "" : var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token)
+  registry_id      = var.use_OCI_generated_container ? "" : var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id
 
-  topic_id = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
+  topic_id   = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
   ocir_image = var.use_OCI_generated_container ? "${local.region_key}.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
 
   # Pick the right IP based on flags

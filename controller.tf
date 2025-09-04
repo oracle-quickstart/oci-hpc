@@ -41,7 +41,7 @@ resource "null_resource" "boot_volume_backup_policy" {
 }
 
 resource "oci_core_instance" "controller" {
-  depends_on          = [local.controller_subnet,oci_functions_function.function]
+  depends_on          = [local.controller_subnet, oci_functions_function.function]
   availability_domain = var.controller_ad
   compartment_id      = var.targetCompartment
   shape               = var.controller_shape
@@ -59,9 +59,9 @@ resource "oci_core_instance" "controller" {
   display_name = "${local.cluster_name}-controller"
 
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
+    "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
-    "controller" = "true"
+    "controller"      = "true"
   }
 
   metadata = {
@@ -95,19 +95,19 @@ resource "null_resource" "controller" {
       "sudo chown ${var.controller_username}:${var.controller_username} /opt/oci-hpc/",
       "mkdir -p /opt/oci-hpc/bin",
       "sudo mkdir -p /config",
-    ],
-    var.create_fss ? [
-      "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
-      "sudo mount /config",
-    ] : [],
-    [
-      "sudo chown ${var.controller_username}:${var.controller_username} /config",
-      "mkdir -p /config/logs",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
-      "mkdir -p /config/key",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
-      "mkdir -p /config/3rdparty",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/3rdparty"
+      ],
+      var.create_fss ? [
+        "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+        "sudo mount /config",
+      ] : [],
+      [
+        "sudo chown ${var.controller_username}:${var.controller_username} /config",
+        "mkdir -p /config/logs",
+        "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
+        "mkdir -p /config/key",
+        "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
+        "mkdir -p /config/3rdparty",
+        "sudo chown ${var.controller_username}:${var.controller_username} /config/3rdparty"
     ])
     connection {
       host        = local.host
@@ -257,69 +257,71 @@ resource "null_resource" "controller" {
     }
   }
 }
+
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller ]
+  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
-      controller_name           = oci_core_instance.controller.display_name,
-      controller_ip             = oci_core_instance.controller.private_ip,
-      backup_name               = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
-      backup_ip                 = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
-      monitoring_name           = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
-      monitoring_ip             = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
-      public_subnet             = data.oci_core_subnet.public_subnet.cidr_block,
-      private_subnet            = data.oci_core_subnet.private_subnet.cidr_block,
-      rdma_network              = cidrhost(var.rdma_subnet, 0),
-      rdma_netmask              = cidrnetmask(var.rdma_subnet),
-      vcn_compartment           = var.vcn_compartment,
-      zone_name                 = local.zone_name,
-      home_nfs                  = var.home_nfs,
-      create_fss                = var.create_fss,
-      home_fss                  = var.home_fss,
-      scratch_nfs               = var.use_scratch_nfs && var.node_count > 0,
-      scratch_nfs_path          = var.scratch_nfs_path,
-      add_nfs                   = var.add_nfs,
-      nfs_target_path           = var.nfs_target_path,
-      nfs_source_IP             = local.nfs_source_IP,
-      nfs_source_path           = var.nfs_source_path,
-      nfs_options               = var.nfs_options,
-      localdisk                 = var.localdisk,
-      log_vol                   = var.log_vol,
-      redundancy                = var.redundancy,
-      rdma_enabled              = var.rdma_enabled,
-      slurm                     = var.slurm,
-      slurm_version             = var.slurm_version,
-      rack_aware                = var.rack_aware,
-      slurm_nfs_path            = var.create_fss ? var.nfs_source_path : "/config"
-      spack                     = var.spack,
-      ldap                      = var.ldap,
-      scratch_nfs_type          = var.scratch_nfs_type,
-      autoscaling               = var.autoscaling,
-      cluster_name              = local.cluster_name,
-      shape                     = local.shape,
-      instance_pool_ocpus       = local.instance_pool_ocpus,
-      queue                     = var.queue,
-      cluster_monitoring        = var.cluster_monitoring,
-      hyperthreading            = var.hyperthreading,
-      controller_username       = var.controller_username,
-      compute_username          = var.compute_username,
-      enroot                    = var.enroot,
-      pyxis                     = var.pyxis,
-      privilege_sudo            = var.privilege_sudo,
-      privilege_group_name      = var.privilege_group_name,
-      latency_check             = var.latency_check,
-      pam                       = var.pam,
-      sacct_limits              = var.sacct_limits,
-      region                    = var.region,
-      tenancy_ocid              = var.tenancy_ocid,
-      healthchecks              = var.healthchecks,
-      change_hostname           = var.change_hostname,
-      hostname_convention       = var.hostname_convention,
-      queue_ocid                = local.queue_ocid,
-      ons_topic_ocid            = local.topic_id,
-      ondemand_partition        = var.ondemand_partition,
-      ondemand_partition_count  = var.ondemand_partition_count
+      controller_name          = oci_core_instance.controller.display_name,
+      controller_ip            = oci_core_instance.controller.private_ip,
+      backup_name              = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
+      backup_ip                = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
+      monitoring_name          = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
+      monitoring_ip            = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
+      public_subnet            = data.oci_core_subnet.public_subnet.cidr_block,
+      private_subnet           = data.oci_core_subnet.private_subnet.cidr_block,
+      rdma_network             = cidrhost(var.rdma_subnet, 0),
+      rdma_netmask             = cidrnetmask(var.rdma_subnet),
+      vcn_compartment          = var.vcn_compartment,
+      zone_name                = local.zone_name,
+      home_nfs                 = var.home_nfs,
+      create_fss               = var.create_fss,
+      home_fss                 = var.home_fss,
+      scratch_nfs              = var.use_scratch_nfs && var.node_count > 0,
+      scratch_nfs_path         = var.scratch_nfs_path,
+      add_nfs                  = var.add_nfs,
+      nfs_target_path          = var.nfs_target_path,
+      nfs_source_IP            = local.nfs_source_IP,
+      nfs_source_path          = var.nfs_source_path,
+      nfs_options              = var.nfs_options,
+      localdisk                = var.localdisk,
+      log_vol                  = var.log_vol,
+      redundancy               = var.redundancy,
+      rdma_enabled             = var.rdma_enabled,
+      slurm                    = var.slurm,
+      slurm_version            = var.slurm_version,
+      rack_aware               = var.rack_aware,
+      slurm_nfs_path           = var.create_fss ? var.nfs_source_path : "/config"
+      spack                    = var.spack,
+      ldap                     = var.ldap,
+      scratch_nfs_type         = var.scratch_nfs_type,
+      autoscaling              = var.autoscaling,
+      cluster_name             = local.cluster_name,
+      shape                    = local.shape,
+      instance_pool_ocpus      = local.instance_pool_ocpus,
+      queue                    = var.queue,
+      cluster_monitoring       = var.cluster_monitoring,
+      hyperthreading           = var.hyperthreading,
+      controller_username      = var.controller_username,
+      compute_username         = var.compute_username,
+      enroot                   = var.enroot,
+      pyxis                    = var.pyxis,
+      privilege_sudo           = var.privilege_sudo,
+      privilege_group_name     = var.privilege_group_name,
+      latency_check            = var.latency_check,
+      pam                      = var.pam,
+      sacct_limits             = var.sacct_limits,
+      region                   = var.region,
+      tenancy_ocid             = var.tenancy_ocid,
+      healthchecks             = var.healthchecks,
+      change_hostname          = var.change_hostname,
+      hostname_convention      = var.hostname_convention,
+      queue_ocid               = local.queue_ocid,
+      ons_topic_ocid           = local.topic_id,
+      ondemand_partition       = var.ondemand_partition,
+      ondemand_partition_count = var.ondemand_partition_count
+      grafana_initial_creds    = base64encode(random_password.grafana_admin_pwd.result)
     })
 
     destination = "/config/playbooks/inventory"

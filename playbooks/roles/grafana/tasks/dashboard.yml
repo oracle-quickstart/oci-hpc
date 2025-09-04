@@ -74,16 +74,49 @@
     owner: "{{ user }}"
     group: "{{ user }}"
   loop:
-    - main.jsonnet
+    - cluster-level-variables.libsonnet
+    - cluster-level.jsonnet
+    - command-center-variables.libsonnet
+    - command-center.jsonnet
     - g.libsonnet
-    - variables.libsonnet
+    - gauge-panel.libsonnet
+    - gauge-panel-util.libsonnet
+    - gpu-health.jsonnet
+    - gpu-metrics-single-variables.libsonnet
+    - gpu-metrics-single.jsonnet
+    - host-metrics-single-variables.libsonnet
+    - host-metrics-single.jsonnet
+    - multi-node-variables.libsonnet
+    - multi-node.jsonnet
+    - nccl-traces.jsonnet
+    - oci-variables.libsonnet
+    - oci-dashboard.jsonnet
+    - slurm-dashboard.jsonnet
+    - slurm-variables.libsonnet
+    - stat-health-panel.libsonnet
+    - stat-panel-single.libsonnet
+    - stat-panel.libsonnet
+    - statetimeline-panel.libsonnet
+    - storage-metrics.jsonnet
+    - storage-metrics-variables.libsonnet
+    - table-panel.libsonnet
+    - timeseries-panel.libsonnet
 
 - name: Build dashboard with Jsonnet
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
     /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
-    /usr/local/bin/jsonnet -J vendor main.jsonnet -o cluster_prometheus_v2.json
+    /usr/local/bin/jsonnet -J vendor cluster-level.jsonnet -o cluster-level.json
+    /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
+    /usr/local/bin/jsonnet -J vendor gpu-metrics-single.jsonnet -o gpu-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor gpu-health.jsonnet -o gpu-health.json
+    /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
+    /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
+    /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
+    /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
+    /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
   args:
     chdir: "{{ dashboard_build_dir }}"
 
@@ -97,14 +130,37 @@
 
 - name: Save generated dashboard
   copy:
-    src: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
-    dest: "/opt/oci-hpc/monitoring/cluster_prometheus_v2.json"
+    src: "{{ dashboard_build_dir }}/{{ item }}"
+    dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
+  loop:
+    - cluster-level.json
+    - command-center.json
+    - gpu-health.json
+    - gpu-metrics-single.json
+    - host-metrics-single.json
+    - multi-node.json
+    - nccl-traces.json
+    - oci-dashboard.json
+    - slurm-dashboard.json
+    - storage-metrics.json
 
-- name: Import NodeExporter, DCGM, RDMA, NVLink Grafana dashboards
+- name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
+    grafana_api_key: "{{ grafana_api_token }}"
     state: present
     commit_message: Updated by ansible
     overwrite: true
-    path: "{{ dashboard_build_dir }}/cluster_prometheus_v2.json"
+    path: "{{ dashboard_build_dir }}/{{ item }}"
+  loop:
+    - cluster-level.json
+    - command-center.json
+    - gpu-health.json
+    - gpu-metrics-single.json
+    - host-metrics-single.json
+    - multi-node.json
+    - nccl-traces.json
+    - oci-dashboard.json
+    - slurm-dashboard.json
+    - storage-metrics.json
