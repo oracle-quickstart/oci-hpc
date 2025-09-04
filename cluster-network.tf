@@ -1,5 +1,5 @@
 resource "oci_core_cluster_network" "cluster_network" {
-  count          = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && var.cluster_network_shape != "BM.GPU.GB200.4"? 1 : 0
+  count          = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && var.cluster_network_shape != "BM.GPU.GB200.4" ? 1 : 0
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_functions_function.function]
   compartment_id = var.targetCompartment
   instance_pools {
@@ -8,8 +8,8 @@ resource "oci_core_cluster_network" "cluster_network" {
     display_name              = local.cluster_name
   }
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
-    "controller_name" = oci_core_instance.controller.display_name
+    "cluster_name"        = local.cluster_name
+    "controller_name"     = oci_core_instance.controller.display_name
     "hostname_convention" = var.hostname_convention
   }
   placement_configuration {
@@ -24,14 +24,14 @@ resource "oci_core_cluster_network" "cluster_network" {
 
 
 resource "oci_core_compute_gpu_memory_cluster" "compute_gpu_memory_cluster" {
-   count = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4"? 1 : 0
-    availability_domain = var.ad
-    compartment_id = var.targetCompartment
-    compute_cluster_id = oci_core_compute_cluster.compute_cluster[0].id
-    instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id
+  count                     = var.node_count > 0 && var.cluster_network_shape == "BM.GPU.GB200.4" ? 1 : 0
+  availability_domain       = var.ad
+  compartment_id            = var.targetCompartment
+  compute_cluster_id        = oci_core_compute_cluster.compute_cluster[0].id
+  instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id
 
-    #Optional
-    display_name = "${local.cluster_name}-fabric1"
-    gpu_memory_fabric_id = var.memory_fabric_id
-    size = var.node_count
+  #Optional
+  display_name         = "${local.cluster_name}-fabric1"
+  gpu_memory_fabric_id = var.memory_fabric_id
+  size                 = var.node_count
 }

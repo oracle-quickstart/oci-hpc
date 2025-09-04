@@ -90,7 +90,7 @@
 - name: Add CA certificate to default trust store
   copy:
     src: "{{ ssl_cert_path }}/cluster-ca.crt"
-    dest: "/usr/local/share/ca-certificates//cluster-ca.crt"
+    dest: "/usr/local/share/ca-certificates/cluster-ca.crt"
   register: cert_copy
 
 - name: Update certificate trust store

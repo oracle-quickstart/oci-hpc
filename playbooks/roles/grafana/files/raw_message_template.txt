@@ -1,17 +1,2 @@
-************************************
-Alert: {{ alert_name }}
-Status: {{ alert_status }}
-{{ alert_message }}
-Starts At: {{ starts_at }}
-Ends At: {{ ends_at }}
------------------------------------
-Labels:
-{% for key, value in labels.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
------------------------------------
-Annotations:
-{% for key, value in annotations.items() %}
-{{ key }}: {{ value }}
-{% endfor %}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+{%- macro field(label, value) -%}{%- if value and value != 'N/A' and value != '-' %} | {{ label }}: {{ value }}{% endif -%}{%- endmacro -%}
+Alert: {{ alert_name }}{{ field('Status', alert_status) }}{{ field('Starts', starts_at) }}{%- if ends_at != '-' and ends_at != 'N/A' %}{{ field('Resolved At', ends_at) }}{% endif %} | Fire Count: {{ fire_count }}{{ field('Description', description) }}{{ field('Cluster', cluster_name) }}{{ field('Host', hostname) }}{{ field('OCI name', oci_name) }}{{ field('Serial', serial_number) }}{{ field('RDMA', rdma_device) }}{{ field('GPU', gpu) }}{{ field('Panel URL', panel_url) }}{{ field('Silence URL', silence_url) }}

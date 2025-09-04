@@ -19,9 +19,9 @@ resource "oci_core_instance" "login" {
   display_name = "${local.cluster_name}-login"
 
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
+    "cluster_name"    = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
-    "login" = "true"
+    "login"           = "true"
   }
 
   metadata = {
@@ -43,7 +43,7 @@ resource "oci_core_instance" "login" {
 }
 
 resource "oci_dns_rrset" "rrset-login" {
-  count           = var.login_node  ? 1 : 0
+  count           = var.login_node ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "${var.login_node ? oci_core_instance.login[0].display_name : ""}.${local.zone_name}"
   rtype           = "A"

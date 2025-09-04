@@ -3,25 +3,11 @@ global:
   external_labels:
     monitor: 'prometheus'
 
+rule_files:
+- recording_rules.yml
+
 scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-{% for host, info in host_info.items() %}
-      - targets: [{% for port in exporter_ports  %}{{ host }}:{{port}}{{ "," if not loop.last }}{%- endfor %}]
-        labels:
-          serial: {{ info.serial_number }}
-          hostname: {{ host }}
-          cluster_name: {{ info.cluster_name }}
-          ocid: {{ info.ocid }}
-          oci_name: {{ info.oci_name }}
-          availability_domain: {{ info.availability_domain }}
-          compartment_id: {{ info.compartment_id }}
-          rack_id: {{ info.rack_id }}
-          gpu_memory_fabric: {{ info.gpu_memory_fabric }}
-          network_block_id: {{ info.network_block_id }}
-          memory_cluster_name: {{ info.memory_cluster_name }}
-          rail_id: {{ info.rail_id }}
-          hpc_island: {{ info.hpc_island }}
-          fss_mount: {{ info.fss_ip }}
-          shape: {{ info.shape }}
-{% endfor %}
+- job_name: prometheus
+  file_sd_configs:
+  - files:
+    - '/etc/prometheus/targets/*.json'

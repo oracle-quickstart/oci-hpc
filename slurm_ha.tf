@@ -18,9 +18,9 @@ resource "oci_core_instance" "backup" {
   display_name = "${local.cluster_name}-backup"
 
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
+    "cluster_name"    = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
-    "controller" = "true"
+    "controller"      = "true"
   }
 
   metadata = {
@@ -162,64 +162,65 @@ resource "null_resource" "cluster_backup" {
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
-      controller_name           = oci_core_instance.controller.display_name,
-      controller_ip             = oci_core_instance.controller.private_ip,
-      backup_name               = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
-      backup_ip                 = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
-      monitoring_name           = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
-      monitoring_ip             = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
-      public_subnet             = data.oci_core_subnet.public_subnet.cidr_block,
-      private_subnet            = data.oci_core_subnet.private_subnet.cidr_block,
-      rdma_network              = cidrhost(var.rdma_subnet, 0),
-      rdma_netmask              = cidrnetmask(var.rdma_subnet),
-      vcn_compartment           = var.vcn_compartment,
-      zone_name                 = local.zone_name,
-      home_nfs                  = var.home_nfs,
-      create_fss                = var.create_fss,
-      home_fss                  = var.home_fss,
-      scratch_nfs               = var.use_scratch_nfs && var.node_count > 0,
-      scratch_nfs_path          = var.scratch_nfs_path,
-      add_nfs                   = var.add_nfs,
-      nfs_target_path           = var.nfs_target_path,
-      nfs_source_IP             = local.nfs_source_IP,
-      nfs_source_path           = var.nfs_source_path,
-      nfs_options               = var.nfs_options,
-      localdisk                 = var.localdisk,
-      log_vol                   = var.log_vol,
-      redundancy                = var.redundancy,
-      rdma_enabled              = var.rdma_enabled,
-      slurm                     = var.slurm,
-      slurm_version             = var.slurm_version,
-      rack_aware                = var.rack_aware,
-      slurm_nfs_path            = var.create_fss ? var.nfs_source_path : "/config"
-      spack                     = var.spack,
-      ldap                      = var.ldap,
-      scratch_nfs_type          = var.scratch_nfs_type,
-      autoscaling               = var.autoscaling,
-      cluster_name              = local.cluster_name,
-      shape                     = local.shape,
-      instance_pool_ocpus       = local.instance_pool_ocpus,
-      queue                     = var.queue,
-      cluster_monitoring        = var.cluster_monitoring,
-      hyperthreading            = var.hyperthreading,
-      controller_username       = var.controller_username,
-      compute_username          = var.compute_username,
-      enroot                    = var.enroot,
-      pyxis                     = var.pyxis,
-      privilege_sudo            = var.privilege_sudo,
-      privilege_group_name      = var.privilege_group_name,
-      latency_check             = var.latency_check,
-      pam                       = var.pam,
-      sacct_limits              = var.sacct_limits,
-      region                    = var.region,
-      tenancy_ocid              = var.tenancy_ocid,
-      healthchecks              = var.healthchecks,
-      change_hostname           = var.change_hostname,
-      hostname_convention       = var.hostname_convention,
-      queue_ocid                = local.queue_ocid,
-      ons_topic_ocid            = local.topic_id,
-      ondemand_partition        = var.ondemand_partition,
-      ondemand_partition_count  = var.ondemand_partition_count
+      controller_name          = oci_core_instance.controller.display_name,
+      controller_ip            = oci_core_instance.controller.private_ip,
+      backup_name              = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
+      backup_ip                = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
+      monitoring_name          = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
+      monitoring_ip            = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
+      public_subnet            = data.oci_core_subnet.public_subnet.cidr_block,
+      private_subnet           = data.oci_core_subnet.private_subnet.cidr_block,
+      rdma_network             = cidrhost(var.rdma_subnet, 0),
+      rdma_netmask             = cidrnetmask(var.rdma_subnet),
+      vcn_compartment          = var.vcn_compartment,
+      zone_name                = local.zone_name,
+      home_nfs                 = var.home_nfs,
+      create_fss               = var.create_fss,
+      home_fss                 = var.home_fss,
+      scratch_nfs              = var.use_scratch_nfs && var.node_count > 0,
+      scratch_nfs_path         = var.scratch_nfs_path,
+      add_nfs                  = var.add_nfs,
+      nfs_target_path          = var.nfs_target_path,
+      nfs_source_IP            = local.nfs_source_IP,
+      nfs_source_path          = var.nfs_source_path,
+      nfs_options              = var.nfs_options,
+      localdisk                = var.localdisk,
+      log_vol                  = var.log_vol,
+      redundancy               = var.redundancy,
+      rdma_enabled             = var.rdma_enabled,
+      slurm                    = var.slurm,
+      slurm_version            = var.slurm_version,
+      rack_aware               = var.rack_aware,
+      slurm_nfs_path           = var.create_fss ? var.nfs_source_path : "/config"
+      spack                    = var.spack,
+      ldap                     = var.ldap,
+      scratch_nfs_type         = var.scratch_nfs_type,
+      autoscaling              = var.autoscaling,
+      cluster_name             = local.cluster_name,
+      shape                    = local.shape,
+      instance_pool_ocpus      = local.instance_pool_ocpus,
+      queue                    = var.queue,
+      cluster_monitoring       = var.cluster_monitoring,
+      hyperthreading           = var.hyperthreading,
+      controller_username      = var.controller_username,
+      compute_username         = var.compute_username,
+      enroot                   = var.enroot,
+      pyxis                    = var.pyxis,
+      privilege_sudo           = var.privilege_sudo,
+      privilege_group_name     = var.privilege_group_name,
+      latency_check            = var.latency_check,
+      pam                      = var.pam,
+      sacct_limits             = var.sacct_limits,
+      region                   = var.region,
+      tenancy_ocid             = var.tenancy_ocid,
+      healthchecks             = var.healthchecks,
+      change_hostname          = var.change_hostname,
+      hostname_convention      = var.hostname_convention,
+      queue_ocid               = local.queue_ocid,
+      ons_topic_ocid           = local.topic_id,
+      ondemand_partition       = var.ondemand_partition,
+      ondemand_partition_count = var.ondemand_partition_count
+      grafana_initial_creds    = base64encode(random_password.grafana_admin_pwd.result)
     })
 
 
@@ -233,7 +234,7 @@ resource "null_resource" "cluster_backup" {
   }
 
 
-provisioner "file" {
+  provisioner "file" {
     content = templatefile("${path.module}/conf/queues.conf.example", {
       rdma_enabled                = var.rdma_enabled,
       stand_alone                 = var.stand_alone,

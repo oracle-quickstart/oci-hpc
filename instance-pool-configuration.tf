@@ -10,12 +10,12 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       availability_domain = var.ad
       compartment_id      = var.targetCompartment
       create_vnic_details {
-        subnet_id      = local.subnet_id
+        subnet_id        = local.subnet_id
         assign_public_ip = false
       }
       freeform_tags = {
-        "cluster_name"   = local.cluster_name
-        "controller_name" = oci_core_instance.controller.display_name
+        "cluster_name"        = local.cluster_name
+        "controller_name"     = oci_core_instance.controller.display_name
         "hostname_convention" = var.hostname_convention
       }
       metadata = {

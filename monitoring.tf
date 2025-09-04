@@ -18,9 +18,9 @@ resource "oci_core_instance" "monitoring" {
   display_name = "${local.cluster_name}-monitoring"
 
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
+    "cluster_name"    = local.cluster_name
     "controller_name" = oci_core_instance.controller.display_name
-    "monitoring" = "true"
+    "monitoring"      = "true"
   }
 
   metadata = {
@@ -53,4 +53,13 @@ resource "oci_dns_rrset" "rrset-monitoring" {
   }
   scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
+resource "random_password" "grafana_admin_pwd" {
+  length           = 16
+  override_special = "-_@"
+  min_upper        = 1
+  min_lower        = 1
+  min_special      = 1
+  min_numeric      = 1
 }

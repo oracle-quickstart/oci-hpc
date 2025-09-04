@@ -60,8 +60,8 @@ resource "oci_core_security_list" "public-security-list" {
   }
 
   ingress_security_rules {
-    protocol = "6"
-    source   = var.ssh_cidr
+    protocol    = "6"
+    source      = var.ssh_cidr
     description = "Open port for Grafana"
     tcp_options {
       max = "3000"
@@ -69,8 +69,8 @@ resource "oci_core_security_list" "public-security-list" {
     }
   }
   ingress_security_rules {
-    protocol = "6"
-    source   = var.ssh_cidr
+    protocol    = "6"
+    source      = var.ssh_cidr
     description = "Open port for alerts"
     tcp_options {
       max = "5000"
@@ -228,7 +228,7 @@ resource "oci_dns_rrset" "fss-dns-round-robin" {
 }
 
 resource "oci_dns_rrset" "controller" {
-  count           = (! var.create_fss) ? 1 : 0
+  count           = (!var.create_fss) ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "fss-${local.cluster_name}.${local.zone_name}"
   rtype           = "A"
@@ -244,7 +244,7 @@ resource "oci_dns_rrset" "controller" {
 
 resource "null_resource" "dns_ready" {
   triggers = {
-    fss_rrset       = try(oci_dns_rrset.fss-dns-round-robin[0].id, "")
+    fss_rrset        = try(oci_dns_rrset.fss-dns-round-robin[0].id, "")
     controller_rrset = try(oci_dns_rrset.controller[0].id, "")
   }
 }

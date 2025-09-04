@@ -11,11 +11,50 @@ source:
   reference: 67628143
 locale: "en"
 
+outputGroups:
+- title: "Cluster deployment details"
+  outputs:
+    - controller
+    - backup
+    - login
+    - monitoring
+
+- title: "Cluster monitoring details"
+  outputs:
+    - grafana_url
+    - grafana_password
+
 outputs:
   controller:
-    title: "controller Instance Public IP"
+    title: "Controller Instance Public IP"
     type: copyableString
     visible: true
+
+  backup:
+    title: "Backup Controller Instance IP"
+    type: copyableString
+    visible: true
+
+  login:
+    title: "Login Instance IP"
+    type: copyableString
+    visible: true
+
+  monitoring:
+    title: "Monitoring Instance IP"
+    type: copyableString
+    visible: true
+
+  grafana_url:
+    title: "Grafana URL"
+    type: link
+    visible: ${cluster_monitoring}
+
+  grafana_password:
+    title: "Grafana admin password"
+    type: copyableString
+    visible: ${cluster_monitoring}
+    sensitive: true
 
 variableGroups:
   - title: "Cluster configuration"
@@ -211,15 +250,17 @@ variableGroups:
       - ${configure}
 variables:
   targetCompartment:
-    title: "target compartment"
+    title: "Target compartment"
     type: oci:identity:compartment:id
     default: ${compartment_ocid}
     required: true
+
   use_multiple_ads:
     type: boolean
     title: "Multiple ADs"
     description: "Use multiple ADs in case of capacity constraints (Autoscaling Only) Autoscaling will try another AD upon failure."
     default: false
+  
   ad:
     type: oci:identity:availabilitydomain:name
     visible: complexExpression
@@ -228,6 +269,7 @@ variables:
     required: true
     description: "Availability Domain"
     title: "Availability Domain"
+  
   secondary_ad:
     type: oci:identity:availabilitydomain:name
     visible: ${use_multiple_ads}
@@ -236,6 +278,7 @@ variables:
     required: false
     description: "Secondary Availability Domain"
     title: "Secondary Availability Domain"
+  
   third_ad:
     type: oci:identity:availabilitydomain:name
     visible: ${use_multiple_ads}
@@ -244,21 +287,25 @@ variables:
     required: false
     description: "Third Availability Domain"
     title: "Third Availability Domain"
+  
   ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key"
     description: "Public SSH key"
     required: true
+  
   use_custom_name:
     type: boolean
-    title: "use custom cluster name"
+    title: "Use custom cluster name"
     description: "Use custom name for the cluster"
     default: false
+  
   ldap:
     type: boolean
     title: "Configure LDAP authentication from controller"
     description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
     default: true
+  
   cluster_name:
     title: "Name of the cluster"
     description: "Custom cluster name"
@@ -268,6 +315,7 @@ variables:
       and:
         - ${use_custom_name}
     required: true
+  
   controller_ad:
     type: oci:identity:availabilitydomain:name
     dependsOn:
@@ -277,6 +325,7 @@ variables:
     description: "Availability Domain for controller host"
     title: "Availability Domain"
     #default: ${ad}
+  
   controller_shape:
     title: "Controller Shape"
     type: oci:core:instanceshape:name
@@ -284,8 +333,9 @@ variables:
       compartmentId: ${targetCompartment}
     required: true
     default: VM.Standard.E5.Flex
+  
   controller_ocpus:
-    title: "Cores"
+    title: "Number of OCPUs"
     type: integer
     description: Number of OCPU's for flex shape
     minimum: 1
@@ -315,7 +365,7 @@ variables:
     required: true
 
   controller_ocpus_denseIO_flex:
-    title: "Cores"
+    title: "Number of OCPUs"
     type: enum
     description: Number of OCPU's for Dense IO flex shape
     enum:
@@ -359,8 +409,9 @@ variables:
           - eq:
             - ${controller_shape}
             - "VM.Standard3.Flex"
+
   controller_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -403,7 +454,7 @@ variables:
 
   use_marketplace_image_controller:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
     visible: true
@@ -439,7 +490,7 @@ variables:
     default: "image.ocid"
   
   controller_image_compartment:
-    title: "controller image compartment"
+    title: "Controller image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -451,7 +502,7 @@ variables:
     required: true
 
   custom_controller_image:
-    title: "controller Image ID"
+    title: "Controller Image ID"
     description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 22.04 are supported as controller image at this moment. "
     type: oci:core:image:id
     dependsOn:
@@ -479,7 +530,7 @@ variables:
   
   home_nfs:
     type: boolean
-    title: "shared NFS /home from controller. To use FSS, make sure you created one or added NFS mount information"
+    title: "Shared NFS /home from controller. To use FSS, make sure you created one or added NFS mount information"
     visible:
       and:
         - ${use_advanced}
@@ -509,6 +560,7 @@ variables:
         - ${home_fss}
         - not: 
           - ${create_fss}
+
   rdma_enabled:
     title: Use cluster network
     type: boolean
@@ -595,7 +647,7 @@ variables:
     description: "Shape of compute nodes used in permanent/initial cluster"
 
   instance_pool_ocpus:
-    title: Cores
+    title: "Number of OCPUs"
     type: integer
     description: Number of OCPU's for flex shape
     minimum: 1
@@ -627,7 +679,7 @@ variables:
     required: true
 
   instance_pool_ocpus_denseIO_flex:
-    title: Cores
+    title: "Number of OCPUs"
     type: enum
     description: Number of OCPU's for Dense IO flex shape
     enum:
@@ -674,7 +726,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard3.Flex"
   instance_pool_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -747,7 +799,7 @@ variables:
 
   use_marketplace_image:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
 
@@ -765,7 +817,7 @@ variables:
     visible: ${use_marketplace_image}
 
   compute_image_compartment:
-    title: "compute image compartment"
+    title: "Compute image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -945,22 +997,26 @@ variables:
       and:
         - ${use_advanced}
         - ${use_scratch_nfs}
+
   private_deployment:
     type: boolean
     title: "Deploy Master Node without a public IP"
     description: "Deploy with no Public IP for the master node. 'Master Node Subnet' must be a Private subnet. This will require the creation of a controller service, VPN or FastConnect to connect via ssh to the master node"      
     default: false
+
   use_existing_vcn:
     type: boolean
     title: "Use Existing VCN"
     description: "Use existing VCN or create new one. If true, make sure the security lists are correctly set in the subnets (ex: Open traffic within VCN)"
     default: false
+
   vcn_compartment:
     title: "VCN compartment"
     type: oci:identity:compartment:id
     visible: true
     default: ${targetCompartment}
     required: true
+
   vcn_id:
     type: oci:core:vcn:id
     visible:
@@ -971,6 +1027,7 @@ variables:
     required: true
     dependsOn:
       compartmentId: ${vcn_compartment}
+
   public_subnet_id:
     title: Master Node Subnet
     type: oci:core:subnet:id
@@ -980,6 +1037,7 @@ variables:
       hidePrivateSubnet: false
     visible: ${use_existing_vcn}  
     required: true
+
   private_subnet_id:
     title: Private Subnet
     type: oci:core:subnet:id
@@ -989,12 +1047,14 @@ variables:
       hidePublicSubnet: true
     visible: ${use_existing_vcn}
     required: true
+
   zone_name:
     title: Private Zone Name
     description: "The zone needs to be private and unprotected for the stack to be able to add entries"
     type: string
     visible: ${use_existing_vcn}
     required: true
+
   vcn_subnet:
     type: string
     title: "VCN IP range"
@@ -1004,6 +1064,7 @@ variables:
     visible:
       not:
         - ${use_existing_vcn}
+
   public_subnet:
     type: string
     title: "Master Node subnet IP range"
@@ -1013,6 +1074,7 @@ variables:
     visible:
       not:
         - ${use_existing_vcn}
+
   additional_subnet:
     type: string
     title: "Additional subnet IP range"
@@ -1022,12 +1084,14 @@ variables:
     visible:
       not:
         - ${use_existing_vcn}
+
   rdma_subnet:
     type: string
     title: "RDMA subnet IP range"
     default: "10.224.0.0/12"
     description: "Must be at least the same size as private subnet for HPC and at least 16 times the size of the private subnet for GPUs, currently cannnot be modified with the compute agent"
     required: true
+
   private_subnet:
     type: string
     title: "Private subnet IP range"
@@ -1037,17 +1101,20 @@ variables:
     visible:
       not:
         - ${use_existing_vcn}
+
   ssh_cidr:
     type: string
     title: "Initial CIDR range allowed to SSH"
     default: "0.0.0.0/0"
     description: "Allowed SSH network in CIDR notation"
     required: true
+
   slurm:
     type: boolean
     title: "Install SLURM"
     default: true
     description: "Install Slurm Scheduler" 
+
   slurm_version:
     type: enum
     title: "SLURM version"
@@ -1116,7 +1183,7 @@ variables:
 
   alerting:
     type: boolean
-    title: "Install HPC Cluster alerting Tools"
+    title: "Install HPC Cluster alerting tools"
     default: false
     description: "Creates a Topic that you can subscribe to"
     visible: ${cluster_monitoring}
@@ -1246,9 +1313,10 @@ variables:
       and:
         - ${add_nfs}
     required: true
+
   nfs_source_IP:
     type: string
-    title: "NFS server IP"
+    title: "Existing NFS server IP"
     default: "0.0.0.0"
     required: true
     description: "IP address of the NFS server"
@@ -1257,6 +1325,7 @@ variables:
         - ${add_nfs} 
         - not:
           - ${create_fss}
+
   nfs_source_path:
     type: string
     title: "NFS server Path"
@@ -1291,8 +1360,6 @@ variables:
       and:
         - ${privilege_sudo}
 
-
-
   login_node:
     type: boolean
     title: "Login Node"
@@ -1313,6 +1380,7 @@ variables:
     default: ${ad}  
 
   login_shape:
+    title: "Login Shape"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -1322,6 +1390,7 @@ variables:
 
   login_ocpus:
     type: integer
+    title: "Number of OCPUs"
     description: Number of OCPU's for flex shape
     minimum: 1
     maximum: 64
@@ -1351,7 +1420,7 @@ variables:
     required: true
 
   login_ocpus_denseIO_flex:
-    title: Cores
+    title: "Number of OCPUs"
     type: enum
     description: Number of OCPU's for Dense IO flex shape
     enum:
@@ -1397,8 +1466,9 @@ variables:
             - ${login_shape}
             - "VM.Standard3.Flex"
         - ${login_node}
+
   login_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -1451,7 +1521,7 @@ variables:
           - ${use_marketplace_image_login}
 
   login_image_compartment:
-    title: "login image compartment"
+    title: "Login image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -1477,6 +1547,7 @@ variables:
           - not: 
               - ${use_marketplace_image_login}
     required: true
+
   unsupported_login_image:
     title: "Image OCID"
     description: "Custom image ID for login nodes"
@@ -1499,7 +1570,7 @@ variables:
 
   use_marketplace_image_login:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
     visible: ${login_node}
@@ -1519,8 +1590,6 @@ variables:
       and:
         - ${use_marketplace_image_login}
         - ${login_node}
-
-
 
   monitoring_node:
     type: boolean
@@ -1543,6 +1612,7 @@ variables:
     default: ${ad}  
 
   monitoring_shape:
+    title: "Monitoring node shape"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -1552,6 +1622,7 @@ variables:
 
   monitoring_ocpus:
     type: integer
+    title: "Number of OCPUs"
     description: Number of OCPU's for flex shape
     minimum: 1
     maximum: 64
@@ -1581,7 +1652,7 @@ variables:
     required: true
 
   monitoring_ocpus_denseIO_flex:
-    title: Cores
+    title: "Number of OCPUs"
     type: enum
     description: Number of OCPU's for Dense IO flex shape
     enum:
@@ -1627,8 +1698,9 @@ variables:
             - ${monitoring_shape}
             - "VM.Standard3.Flex"
         - ${monitoring_node}
+
   monitoring_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -1681,7 +1753,7 @@ variables:
           - ${use_marketplace_image_monitoring}
 
   monitoring_image_compartment:
-    title: "monitoring image compartment"
+    title: "Monitoring image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -1694,7 +1766,7 @@ variables:
     required: true
 
   custom_monitoring_image:
-    title: "monitoring Image ID"
+    title: "Monitoring Image ID"
     description: "Custom image ID for monitoring nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as monitoring image at this moment. "
     type: oci:core:image:id
     dependsOn:
@@ -1707,6 +1779,7 @@ variables:
           - not: 
               - ${use_marketplace_image_monitoring}
     required: true
+
   unsupported_monitoring_image:
     title: "Image OCID"
     description: "Custom image ID for monitoring nodes"
@@ -1729,7 +1802,7 @@ variables:
 
   use_marketplace_image_monitoring:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
     visible: ${monitoring_node}
@@ -1765,6 +1838,7 @@ variables:
     visible:
       not:
         - ${use_OCI_generated_container}
+
   auth_token:
     title: "Auth token"
     type: password
@@ -1776,6 +1850,7 @@ variables:
         - ${use_existing_auth_token}
         - not:
             - ${use_OCI_generated_container}
+
   home_region:
     type: oci:identity:region:name 
     title: "Home Region"
@@ -1787,7 +1862,8 @@ variables:
       - not: 
         - ${use_existing_auth_token}        
       - not: 
-        - ${use_OCI_generated_container}       
+        - ${use_OCI_generated_container}    
+
   use_existing_registry:
     type: boolean
     title: "Use existing registry"
@@ -1796,7 +1872,8 @@ variables:
     required: true
     visible:
       not: 
-        - ${use_OCI_generated_container}   
+        - ${use_OCI_generated_container}
+
   registry_id:
     type: string
     title: "OCID of existing registry"
