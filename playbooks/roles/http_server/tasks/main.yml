@@ -27,6 +27,27 @@
     dest: /etc/systemd/system/python-http-server.service
     mode: "0644"
 
+- name: Read existing info file if it exists
+  ansible.builtin.stat:
+    path: "{{ http_server_directory }}/files/info"
+  register: info_stat
+
+- name: Read existing info file if it exists
+  ansible.builtin.slurp:
+    src: "{{ http_server_directory }}/files/info"
+  register: info_file
+  when: info_stat.stat.exists
+
+- name: Parse JSON content
+  ansible.builtin.set_fact:
+    previous_info: "{{ info_file.content | b64decode | from_json }}"
+  when: info_stat.stat.exists
+
+- name: Set empty dict if file doesn't exist
+  ansible.builtin.set_fact:
+    previous_info: {}
+  when: not info_stat.stat.exists
+
 - name: Gather serial number
   ansible.builtin.command: "sudo dmidecode -s system-serial-number"
   register: serial_output
@@ -111,7 +132,12 @@
 - name: Set http_role based on hostvars or default to "compute"
   ansible.builtin.set_fact:
     http_role: "{{ hostvars[inventory_hostname]['role'] }}"
-  when: not http_server_role is defined
+  when: not http_server_role is defined and "role" in hostvars[inventory_hostname]
+
+- name: Set http_role based on hostvars or default to "compute"
+  ansible.builtin.set_fact:
+    http_role: "{{ info_stat['role'] }}"
+  when: not http_server_role is defined and not "role" in hostvars[inventory_hostname]
 
 - name: Set http_role based on hostvars or default to "compute"
   ansible.builtin.set_fact:
