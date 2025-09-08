@@ -6,6 +6,7 @@
       - fastapi[standard-no-fastapi-cloud-cli]
       - uvicorn
       - oci
+    executable: "/usr/local/bin/pip3"
 
 - name: Create ons_webhook DB directory
   become: true
