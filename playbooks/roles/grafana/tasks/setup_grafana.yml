@@ -1,4 +1,9 @@
 ---
+- name: Ensure prerequisites
+  become: true
+  ansible.builtin.pip:
+    name: oci
+
 - name: Check if the Grafana token file exists
   stat:
     path: "{{ grafana_service_account.token_file }}"
@@ -127,6 +132,7 @@
   delay: 3
 
 - name: Get VNIC details from OCI API
+  become: true
   oracle.oci.oci_network_vnic_facts:
     auth_type: "instance_principal"
     vnic_id: "{{ instance_vnics.json[0].vnicId }}"
