@@ -12,13 +12,14 @@ ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 
 source /etc/os-release
 if [ ! -d /opt/oci-hpc ] ; then
-  sudo mkdir /opt/oci-hpc 
-  if [ $ID == "ubuntu" ] ; then
-    sudo chown -R ubuntu:ubuntu /opt/
-  else
-    sudo chown -R opc:opc /opt/
-  fi
+  sudo mkdir /opt/oci-hpc
+fi   
+if [ $ID == "ubuntu" ] ; then
+  sudo chown -R ubuntu:ubuntu /opt/
+else
+  sudo chown -R opc:opc /opt/
 fi
+
 vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
   if [ $vid == 7 ] ; then
@@ -175,14 +176,15 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
     $VENV_PATH/bin/python3 -m pip install urllib3 --upgrade > /dev/null
     $VENV_PATH/bin/pip install pip --upgrade > /dev/null
     $VENV_PATH/bin/pip install pyopenssl --upgrade > /dev/null
+    deactivate
+  fi
+  source $VENV_PATH/bin/activate
+  # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
+  cd /tmp
+  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults --install-dir /opt/oci-cli > /dev/null
 
-    # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
-    cd /tmp
-    bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults --install-dir /opt/oci-cli > /dev/null
-
-    # install oci module
-    $VENV_PATH/bin/pip install oci > /dev/null
-    fi
+  # install oci module
+  $VENV_PATH/bin/pip install oci > /dev/null
 fi 
 
 if [ "$INSTALL_VENV" = True ]; then
