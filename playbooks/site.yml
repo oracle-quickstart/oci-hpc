@@ -12,6 +12,15 @@
         name: nfs-server
       when: not create_fss|bool
 
+- name: Wait for all hosts in inventory to be accessible
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Wait for SSH to come up
+      ansible.builtin.wait_for_connection:
+        timeout: 600   # total wait time per host
+        delay: 5 
+
 - hosts: controller, slurm_backup
   become: true
   gather_facts: true
