@@ -154,7 +154,7 @@ def run_add(nodes, count, names):
         logger.error("The resize script cannot work for a cluster if there are no nodes in the cluster")
         sys.exit(1)
     for first_node in nodes:
-        if first_node.shape == "BM.GPU.GB200.4":
+        if first_node.shape == "BM.GPU.GB200.4" or first_node.shape == "BM.GPU.GB200-v2.4":
             memory_clusters = oci.pagination.list_call_get_all_results(compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name).data
             for memory_cluster in memory_clusters:
                 mc_id=memory_cluster.id
@@ -173,7 +173,7 @@ def run_add(nodes, count, names):
         if not cluster_type is None:
             break
     first_node=nodes[0]
-    if first_node.shape == "BM.GPU.GB200.4":
+    if first_node.shape == "BM.GPU.GB200.4" or first_node.shape == "BM.GPU.GB200-v2.4":
         memory_clusters=CLIENTS.compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
         for memory_cluster in memory_clusters:
             mc_id=memory_cluster.id
@@ -230,7 +230,7 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name, in
         logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster and no instance type has been specified")
         sys.exit(1)
     if fabric_id is None:
-        logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
+        logger.error(f"For BM.GPU.GB200.4 or BM.GPU.GB200-v2.4, the memory fabric needs to be specified, Exiting")
         sys.exit(1)
     first_node=nodes[0]
     if not instancetype is None:
@@ -516,7 +516,7 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
         else:
             new_display_name=hostname
             new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname}
-        if shape == "BM.GPU.GB200.4":
+        if shape == "BM.GPU.GB200.4" or shape == "BM.GPU.GB200-v2.4":
             new_tags["memory_cluster_name"]=memory_cluster_name
 
         if shape.endswith("Flex"):
@@ -717,7 +717,7 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
 
         new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
         new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
-        if shape == "BM.GPU.GB200.4":
+        if shape == "BM.GPU.GB200.4" or shape == "BM.GPU.GB200-v2.4":
             new_tags["memory_cluster_name"]=memory_cluster_name
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
@@ -812,14 +812,14 @@ def remove_inventory(cluster_name):
 
 def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None):
     generate_inventory(config,cluster_name)
-    if not config.stand_alone or config.shape == "BM.GPU.GB200.4":
+    if not config.stand_alone or config.shape == "BM.GPU.GB200.4" or config.shape == "BM.GPU.GB200-v2.4":
         instance_config_data=generate_instance_config(config, controller_hostname, cluster_name, memory_cluster_name = gpu_memory_cluster_name)
         instance_config_ocid=instance_config_data.id
 
         if config.rdma_enabled:
-            if config.shape == "BM.GPU.GB200.4":
+            if config.shape == "BM.GPU.GB200.4" or config.shape == "BM.GPU.GB200-v2.4":
                 if gpu_memory_fabric is None:
-                    logger.error(f"For BM.GPU.GB200.4, the memory fabric needs to be specified, Exiting")
+                    logger.error(f"For BM.GPU.GB200.4 or BM.GPU.GB200-v2.4, the memory fabric needs to be specified, Exiting")
                     sys.exit(1)
                 cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.availability_domain,display_name=cluster_name)
                 cn = CLIENTS.compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
@@ -869,7 +869,7 @@ def delete_cluster(cluster_name,nodes_list):
         if cluster_type == "CC":
             CLIENTS.compute_client.delete_compute_cluster(cluster_ocid)
     elif cluster_type == "MC":
-        logger.error("A BM.GPU.GB200.4 instance should not be calling this function")
+        logger.error("A BM.GPU.GB200.4 or BM.GPU.GB200-v2.4 instance should not be calling this function")
     remove_inventory(cluster_name)
 
 def get_memory_fabrics(tenancy_id,compartment_id):
