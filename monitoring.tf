@@ -1,6 +1,6 @@
 resource "oci_core_instance" "monitoring" {
   count               = var.monitoring_node ? 1 : 0
-  depends_on          = [oci_core_subnet.public-subnet]
+  depends_on          = [oci_core_subnet.public-subnet, null_resource.controller]
   availability_domain = var.monitoring_ad
   compartment_id      = var.targetCompartment
   shape               = var.monitoring_shape

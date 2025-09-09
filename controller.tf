@@ -83,7 +83,7 @@ resource "oci_core_instance" "controller" {
 }
 
 resource "null_resource" "controller" {
-  depends_on = [oci_core_instance.controller]
+  depends_on = [oci_core_instance.controller, null_resource.fss_home_dependency, null_resource.fss_config_dependency]
   triggers = {
     controller = oci_core_instance.controller.id
   }
@@ -92,7 +92,7 @@ resource "null_resource" "controller" {
     inline = concat([
       "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",
-      "sudo chown ${var.controller_username}:${var.controller_username} /opt/oci-hpc/",
+      "sudo chown -R ${var.controller_username}:${var.controller_username} /opt/",
       "mkdir -p /opt/oci-hpc/bin",
       "sudo mkdir -p /config",
       ],
@@ -423,9 +423,26 @@ resource "null_resource" "cluster" {
       "sudo chown ${var.controller_username}:${var.controller_username} /config/key/cluster.key",
       "sudo cp -pr /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
+      "exit_code=$${PIPESTATUS[0]}",
+    "exit $exit_code"]
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+}
+
+resource "null_resource" "configure" {
+  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller, oci_dns_rrset.rrset-login, oci_dns_rrset.rrset-monitoring]
+
+  provisioner "remote-exec" {
+    inline = [
+      "#!/bin/bash",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
-      "echo ${var.configure} > /tmp/configure.conf",
+      "echo ${var.configure} > /tmp/configure.conf",      
       "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /opt/oci-hpc/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
     "exit $exit_code"]
@@ -437,6 +454,10 @@ resource "null_resource" "cluster" {
     }
   }
 }
+
+
+
+
 
 locals {
   current_timestamp           = timestamp()

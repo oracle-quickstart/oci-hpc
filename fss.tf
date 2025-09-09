@@ -53,6 +53,13 @@ resource "oci_file_storage_export" "FSSExport_home" {
   }
 }
 
+resource "null_resource" "fss_home_dependency" {
+  triggers = {
+    # This will only be set if FSS is created
+    fss_export_home_id  = var.create_fss && var.home_fss ? oci_file_storage_export.FSSExport_home[0].id : ""
+  }
+}
+
 resource "oci_file_storage_export" "FSSExport_config" {
   count          = var.create_fss ? var.mount_target_count : 0
   export_set_id  = oci_file_storage_mount_target.FSSMountTarget[count.index].export_set_id
@@ -64,3 +71,11 @@ resource "oci_file_storage_export" "FSSExport_config" {
     identity_squash = "NONE"
   }
 }
+
+resource "null_resource" "fss_config_dependency" {
+  triggers = {
+    # This will only be set if FSS is created
+    fss_export_config_id  = var.create_fss ? oci_file_storage_export.FSSExport_config[0].id : ""
+  }
+}
+

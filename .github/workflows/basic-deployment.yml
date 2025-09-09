@@ -1,0 +1,280 @@
+name: basic_deployment_slurm
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "3.0.0" ]
+  pull_request:
+    branches: [ "3.0.0" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This job deploys with a custom OL image and a opc user
+  deploy_OL8:
+    # The type of runner that the job will run on
+    runs-on: ol8
+    env:
+      # Variables with OL8 custom image OCID
+      TF_VAR_controller_username: "opc"
+      TF_VAR_compute_username: "opc"
+      TF_VAR_login_username: "opc"
+      TF_VAR_monitoring_username: "opc"
+      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
+      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
+      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
+      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+     
+      - name: creating working directory, cd and copy files
+        run: |
+          mkdir ${{ github.sha }}
+          for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
+          cd ${{ github.sha }}
+
+      # Runs a single command using the runners shell
+      - name: get terraform version
+        run: terraform --version
+
+      # Runs a set of commands using the runners shell
+      - name: Setup and execute terraform apply
+        run: |
+          cp .github/workflows/provider_testing.tf provider.tf
+          cp .github/workflows/variables_testing.tf variables.tf
+          terraform init
+          terraform apply --auto-approve
+
+      - name: sleep command for nodes to be configured
+        run: sleep 600
+
+      - name: Run sinfo
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+
+      - name: Check there are 2 nodes in Slurm
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+
+      - name: Check mgmt is there and working
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+
+      - name: Get all logs in /config/logs
+        if: always()
+        run: |
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+          for f in /config/logs/*; do
+              echo -e "#######$f#######\n" "$(cat $f)\n"
+          done
+          EOF
+
+      - name: Execute terraform destroy
+        if: always()
+        run: terraform destroy --auto-approve
+
+      - name: go up one directory
+        if: always()
+        run: |
+          cd ..  
+
+  # This job deploys with a custom Ubuntu 22.04 image and a ubuntu user
+  deploy_Ubuntu:
+    # The type of runner that the job will run on
+    runs-on: ubuntu    
+    env:
+      TF_VAR_controller_username: "ubuntu"
+      TF_VAR_compute_username: "ubuntu"
+      TF_VAR_login_username: "ubuntu"
+      TF_VAR_monitoring_username: "ubuntu"
+      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      - name: creating working directory, cd and copy files
+        run: |
+          cp .github/workflows/provider_testing.tf provider.tf
+          cp .github/workflows/variables_testing.tf variables.tf        
+          mkdir ${{ github.sha }}
+          for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
+          cd ${{ github.sha }}
+      # Runs a single command using the runners shell
+      - name: get terraform version
+        run: terraform --version
+
+      # Runs a set of commands using the runners shell
+      - name: Setup and execute Terraform
+        run: |
+          terraform init
+          terraform apply --auto-approve
+
+      - name: sleep command for nodes to be configured
+        run: sleep 600
+
+      - name: Run sinfo
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+
+      - name: Check there are 2 nodes in Slurm
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+
+      - name: Check mgmt is there and working
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+
+      - name: Get all logs in /config/logs
+        if: always()
+        run: |
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+          for f in /config/logs/*; do
+              echo -e "#######$f#######\n" "$(cat $f)\n"
+          done
+          EOF
+
+      - name: Execute terraform destroy
+        if: always()
+        run: terraform destroy --auto-approve
+
+      - name: go up one directory
+        if: always()
+        run: |
+          cd ..     
+
+  # # This job deploys with a custom OL image and a opc user
+  # deploy_ubuntu_fss:
+  #   # The type of runner that the job will run on
+  #   runs-on: ubuntu_fss
+  #   env:
+  #     TF_VAR_controller_username: "ubuntu"
+  #     TF_VAR_compute_username: "ubuntu"
+  #     TF_VAR_login_username: "ubuntu"
+  #     TF_VAR_monitoring_username: "ubuntu"
+  #     TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+  #     TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+  #     TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+  #     TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+
+  #   # Steps represent a sequence of tasks that will be executed as part of the job
+  #   steps:
+  #     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+  #     - uses: actions/checkout@v4
+     
+  #     - name: creating working directory, cd and copy files
+  #       run: |
+  #         mkdir ${{ github.sha }}
+  #         for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
+  #         cd ${{ github.sha }}
+
+  #     # Runs a single command using the runners shell
+  #     - name: get terraform version
+  #       run: terraform --version
+
+  #     # Runs a set of commands using the runners shell
+  #     - name: Setup and execute terraform apply
+  #       run: |
+  #         cp .github/workflows/provider_testing.tf provider.tf
+  #         cp .github/workflows/variables_testing_fss.tf variables.tf
+  #         terraform init
+  #         terraform apply --auto-approve
+
+  #     - name: sleep command for nodes to be configured
+  #       run: sleep 600
+
+  #     - name: Run sinfo
+  #       run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+
+  #     - name: Check there are 2 nodes in Slurm
+  #       run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+
+  #     - name: Check mgmt is there and working
+  #       run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+
+  #     - name: Get all logs in /config/logs
+  #       if: always()
+  #       run: |
+  #         ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+  #         for f in /config/logs/*; do
+  #             echo -e "#######$f#######\n" "$(cat $f)\n"
+  #         done
+  #         EOF
+
+  #     - name: Execute terraform destroy
+  #       if: always()
+  #       run: terraform destroy --auto-approve
+
+  #     - name: go up one directory
+  #       if: always()
+  #       run: |
+  #         cd ..  
+  deploy_OL9:
+    # The type of runner that the job will run on
+    runs-on: ol9
+    env:
+      TF_VAR_controller_username: "opc"
+      TF_VAR_compute_username: "opc"
+      TF_VAR_login_username: "opc"
+      TF_VAR_monitoring_username: "opc"
+      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
+      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
+      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
+      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+     
+      - name: creating working directory, cd and copy files
+        run: |
+          mkdir ${{ github.sha }}
+          for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
+          cd ${{ github.sha }}
+
+      # Runs a single command using the runners shell
+      - name: get terraform version
+        run: terraform --version
+
+      # Runs a set of commands using the runners shell
+      - name: Setup and execute terraform apply
+        run: |
+          cp .github/workflows/provider_testing.tf provider.tf
+          cp .github/workflows/variables_testing.tf variables.tf
+          terraform init
+          terraform apply --auto-approve
+
+      - name: sleep command for nodes to be configured
+        run: sleep 600
+
+      - name: Run sinfo
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+
+      - name: Check there are 2 nodes in Slurm
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+
+      - name: Check mgmt is there and working
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+
+      - name: Get all logs in /config/logs
+        if: always()
+        run: |
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+          for f in /config/logs/*; do
+              echo -e "#######$f#######\n" "$(cat $f)\n"
+          done
+          EOF
+
+      - name: Execute terraform destroy
+        if: always()
+        run: terraform destroy --auto-approve
+
+      - name: go up one directory
+        if: always()
+        run: |
+          cd ..            
