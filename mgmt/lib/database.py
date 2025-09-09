@@ -752,6 +752,8 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     logger.debug(f"Count after shape filter: {query.count()}")
     query = query.filter(Nodes.slurm_state == "idle")
     logger.debug(f"Count after slurm state filter: {query.count()}")
+    query = query.having(label_map["passive_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after passive healthcheck filter: {query.count()}")
     # Add having for expired active healthcheck
     col = label_map.get("active_healthcheck_last_time")
     if col is not None:
