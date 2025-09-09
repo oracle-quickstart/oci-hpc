@@ -128,10 +128,10 @@ def slurm_reason(message):
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in [None,"FabricManagerRestart","Reboot","Terminate"]:
+    if action not in [None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"]:
         print("No action was found")
         return 0
-    if action == "Reboot" or action == "FabricManagerRestart":
+    if action == "Reboot" or action == "FabricManagerRestart" or action == "Wait_For_OCA":
         if current == "Terminate":
             return current
         else:
@@ -140,6 +140,11 @@ def recommended_action(current, action):
         return current
     if action == "Terminate":
         return action
+    if action == "Wait_For_OCA":
+        if current in ["FabricManagerRestart","Reboot","Terminate"]:
+            return current
+        else:
+            return action
 
 #Section 1: All Health Check functions.
 ########################################
@@ -975,7 +980,9 @@ if __name__ == '__main__':
     except Exception as e:
         logger.warning(f"Failed to get host serial number with error: {e}")
         host_serial = "Unknown"
-    logger.info(f"Node details: {hostname} - {host_serial} - {ocid} - {shape}")
+    logger.info(f"Node details: {hostname} - {host_serial} - {shape}")
+    logger.info(f"Node details: {ocid}")
+
 
 #Section 3: Function calls to run all health checks.
 ####################################################
@@ -1073,22 +1080,28 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check the bus with error: {e}")
             bus_results = None
 
-    # 10.3 Check RDMA link status
+    # 10.3 Check RDMA link status (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_stat:
-        try:
-            rdma_link_issues = check_rdma_link_status()
-        except Exception as e:
-            logger.warning(f"Failed to check RDMA link status with error: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                rdma_link_issues = check_rdma_link_status()
+            except Exception as e:
+                logger.warning(f"Failed to check RDMA link status with error: {e}")
+                rdma_link_issues = []
+        else:
             rdma_link_issues = []
 
-    # 11.3 Check RDMA link flapping
+    # 11.3 Check RDMA link flapping (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_flap:
-        try:
-            lft = LinkFlappingTest(time_interval=args.lf_interval)
-            lft.get_rdma_link_failures()
-            lft_issues = lft.process_rdma_link_flapping()
-        except Exception as e:
-            logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                lft = LinkFlappingTest(time_interval=args.lf_interval)
+                lft.get_rdma_link_failures()
+                lft_issues = lft.process_rdma_link_flapping()
+            except Exception as e:
+                logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+                lft_issues = {"failures": [], "link_down": []}
+        else:
             lft_issues = {"failures": [], "link_down": []}
  
     # 12.3 Check GPU Xid errors
@@ -1100,12 +1113,15 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check GPU Xid errors with error: {e}")
             xid_results = {"status": "None", "results": {}}
 
-    # 13.3 Check WPA Authentication status
+    # 13.3 Check WPA Authentication status (only if OCA status is COMPLETED)
     if run_all or args.wpa_auth:
-        try:
-            wpa_auth_results = check_wpa_auth(metadata)
-        except Exception as e:
-            logger.warning(f"Failed to get WPA Authentication status: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                wpa_auth_results = check_wpa_auth(metadata)
+            except Exception as e:
+                logger.warning(f"Failed to get WPA Authentication status: {e}")
+                wpa_auth_results = None
+        else:
             wpa_auth_results = None
 
     # 14.3 Check Fabric Manager status
@@ -1162,6 +1178,7 @@ if __name__ == '__main__':
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
+            action = recommended_action(action, "Wait_For_OCA")
     
     # 2.4 Summarize OCA version check
     if run_all or args.oca_ver:
@@ -1320,6 +1337,8 @@ if __name__ == '__main__':
             logger.error("Recommended Action is to Force Reboot from the console or API")
     if action == "Terminate":
         logger.error("Recommended Action is to Terminate the node and Create a SR")
+    if action == "Wait_For_OCA":
+        logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
     if slurm_error_count > 0 and args.slurm:
         print("Healthcheck:: " + slurm_drain_reason[:-1])
