@@ -15,8 +15,14 @@ import lib.database as db
 
 
 def print_nodes_info(nodes, full=False):
-
-    for node in nodes:
+    extra_columns=db.get_extra_columns()
+    for node_tuple in nodes:
+        node=node_tuple[0]
+        addtl_columns=db.get_extra_columns()    
+        values={}
+        for index,tuple_value in enumerate(node_tuple):
+            if index>0:
+                values[extra_columns[index-1]]=tuple_value
         table = rich.table.Table(show_header=False, show_lines=True)
         table.add_column(justify="left")
         table.add_column(justify="left")
@@ -28,6 +34,7 @@ def print_nodes_info(nodes, full=False):
             table.add_row("Serial", node.serial)
             table.add_row("IP", node.ip_address)
             table.add_row("Shape", node.shape)
+            table.add_row("passive_healthcheck_status", values["passive_healthcheck_status"])
         else:
             table.add_row("ip_address", node.ip_address)
             table.add_row("controller_status", node.controller_status)
@@ -57,16 +64,10 @@ def print_nodes_info(nodes, full=False):
             table.add_row("shape", node.shape)
             table.add_row("terminated_time", node.terminated_time)
             table.add_row("update_count", str(node.update_count))
-            table.add_row("passive_healthcheck_recommendation", node.passive_healthcheck_recommendation)
-            table.add_row("passive_healthcheck_time", node.passive_healthcheck_time)
-            table.add_row("passive_healthcheck_logs", node.passive_healthcheck_logs)
-            table.add_row("active_healthcheck_time", node.active_healthcheck_time)
-            table.add_row("active_healthcheck_logs", node.active_healthcheck_logs)
-            table.add_row("active_healthcheck_recommendation", node.active_healthcheck_recommendation)
-            table.add_row("multi_node_HC_time", node.multi_node_HC_time)
-            table.add_row("multi_node_HC_logs", node.multi_node_HC_logs)
-            table.add_row("multi_node_HC_recommendation", node.multi_node_HC_recommendation)
-            table.add_row("multi_node_HC_node", node.multi_node_HC_node)
+            table.add_row("slurm_state", node.slurm_state)
+            table.add_row("slurm_partition", node.slurm_partition)
+            for col in addtl_columns:
+                table.add_row(col, values[col])
         console = rich.get_console()
         console.print(table)
 
@@ -83,10 +84,16 @@ def print_node_list(nodes, title):
     table.add_column("ip_address", justify="left")
     table.add_column("shape", justify="left")
 
-    for node in nodes:
+    for node_tuple in nodes:
+        node=node_tuple[0]
+        extra_columns=db.get_extra_columns()
+        values={}
+        for index,tuple_value in enumerate(node_tuple):
+            if index>0:
+                values[extra_columns[index-1]]=tuple_value
+        
         table.add_row(
-            node.hostname, node.status, node.compute_status,
-            node.passive_healthcheck_recommendation, node.cluster_name,
+            node.hostname, node.status, node.compute_status,values["passive_healthcheck_recommendation"], node.cluster_name,
             node.memory_cluster_name, str(node.ocid), node.serial,
             node.ip_address, node.shape
         )
@@ -176,15 +183,15 @@ def parse_fields_spec(fields_spec):
 	# Default list of fields
     fields_def = [
         "hostname",
+        "passive_healthcheck_status",
         "status",
         "compute_status",
-        "passive_healthcheck_recommendation",
         "cluster_name",
         "memory_cluster_name",
         "ocid",
         "serial",
         "ip_address",
-        "shape",
+        "shape"
     ]
 
     fields_all = db.list_columns("nodes")
@@ -206,9 +213,11 @@ def parse_fields_spec(fields_spec):
         elif value[0].lower() == "simple":
             # Only single-line fields
             fields = fields_all
-            fields.remove("passive_healthcheck_logs")
-            fields.remove("active_healthcheck_logs")
-            fields.remove("multi_node_HC_logs")
+            value.pop(0)
+        elif value[0].lower() == "hc":
+            # Only single-line fields
+            fields_hc = [field for field in fields_all if "healthcheck_" in field]
+            fields = fields_def + fields_hc
             value.pop(0)
         elif value[0].lower() == "list":
             raise ListValidFields(fields_all)
@@ -245,7 +254,7 @@ def parse_fields_spec(fields_spec):
 
 def display_nodes_as_json(nodes, fields, one_line=False, **ignored_kwargs):
     keys = set(fields) if fields else None
-    node_dicts = [db.node_to_dict(node, keys) for node in nodes]
+    node_dicts = [db.node_to_dict(node, keys, healthcheck=True) for node in nodes]
     if one_line:
         print(json.dumps(node_dicts))
     else:
@@ -253,7 +262,7 @@ def display_nodes_as_json(nodes, fields, one_line=False, **ignored_kwargs):
 
 
 def display_nodes_as_csv(nodes, fields, show_header=True, **ignored_kwargs):
-    node_dicts = [db.node_to_dict(node, fields) for node in nodes]
+    node_dicts = [db.node_to_dict(node, fields, healthcheck=True) for node in nodes]
     writer = csv.DictWriter(sys.stdout, fieldnames=fields, dialect="unix")
     if show_header:
         writer.writeheader()
@@ -261,7 +270,7 @@ def display_nodes_as_csv(nodes, fields, show_header=True, **ignored_kwargs):
 
 
 def display_nodes_as_nodeset(nodes, **ignored_kwargs):
-    click.echo(NodeSet.fromlist(node.hostname for node in nodes))
+    click.echo(NodeSet.fromlist(node.hostname for node[0] in nodes))
 
 
 def display_nodes_as_table(nodes, fields, per_node=False, table_style=None, show_header=True, width=None):
@@ -281,7 +290,6 @@ def display_nodes_as_table(nodes, fields, per_node=False, table_style=None, show
         "none":  {"show_lines": False, "box": None},
         "box":   {"show_lines": False},
     }[table_style]
-
     node_lists = (db.node_to_list(node, fields) for node in nodes)
 
     if per_node:

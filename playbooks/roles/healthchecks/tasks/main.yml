@@ -17,6 +17,8 @@
     group: "{{ ansible_user }}"
   with_items:
     - check_gpu_setup.py
+    - active_healthcheck.py
+    - active_HC.sbatch
     - gpu_bw_test.py
     - rdma_link_flapping.py
     - xid_checker.py

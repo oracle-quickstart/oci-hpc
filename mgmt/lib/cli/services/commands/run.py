@@ -1,11 +1,13 @@
 import click
 
-from lib.database import get_all_nodes, get_nodes_by_any, db_update_node,get_controller_node, get_all_nodes_to_configure, db_move_terminated_node
-from lib.functions import update_nodes_based_on_url, run_ansible, scan_host_api_logic
-from lib.ociwrap import oci_scan_queue, get_host_api_dict
+from lib.database import get_all_nodes, get_nodes_by_any, db_update_node,get_controller_node, get_all_nodes_to_configure, db_move_terminated_node, get_nodes_by_active_hc_expired
+from lib.functions import get_updates_based_on_url, run_ansible, scan_host_api_logic, get_slurm_state, append_to_healthchecks
+from lib.ociwrap import oci_scan_queue_and_update_db
 from lib.logger import logger
 import socket
-
+import subprocess
+from datetime import timedelta
+import random
 
 # ------------------------
 # Shared logic as helpers
@@ -16,9 +18,21 @@ def update_metadata_logic(http_port=9876, nodes=None):
         node_list = get_nodes_by_any(nodes)
     else:
         node_list = get_all_nodes()
-    update_dict = update_nodes_based_on_url(node_list, http_port)
+    update_dict = get_updates_based_on_url(node_list, http_port,"info")
+    hc_update_dict = get_updates_based_on_url(node_list, http_port, "healthchecks")
+    logger.debug(f"{update_dict}")
+    logger.debug(f"{hc_update_dict}")
+    #TODO ADD Slurm drain state change
+    slurm_dict=get_slurm_state()
     for node in node_list:
+        if node.hostname in slurm_dict.keys():
+            update_dict[node.ocid]["slurm_state"]=slurm_dict[node.hostname]["state"]
+            update_dict[node.ocid]["slurm_partition"]=','.join(slurm_dict[node.hostname]["partition"])
         db_update_node(node, **update_dict[node.ocid])
+        logger.debug(f"Node {node.ocid} is not {hc_update_dict.keys()}")
+        if node.ocid in hc_update_dict.keys() and hc_update_dict[node.ocid] != {}:
+            logger.debug(f"Updating healthchecks for {node.hostname}")
+            append_to_healthchecks(node.ocid, **hc_update_dict[node.ocid])
 
 
 def scan_queue_logic():
@@ -27,14 +41,14 @@ def scan_queue_logic():
         controller_hostname = socket.gethostname()
     else:
         controller_hostname = controller.hostname
-    oci_scan_queue(controller_hostname)
+    oci_scan_queue_and_update_db(controller_hostname)
 
 
 def ansible_logic():
     controller = get_controller_node()
     nodes_configuring,nodes_terminating = get_all_nodes_to_configure()
-    logger.debug("Nodes configuring"+str(nodes_configuring))
-    logger.debug("Nodes terminating"+str(nodes_terminating))
+    logger.debug("Nodes configuring:"+str(len(nodes_configuring)))
+    logger.debug("Nodes terminating:"+str(len(nodes_terminating)))
     if len(nodes_configuring)+len(nodes_terminating):
         ansible_successfull=run_ansible(controller.hostname)
         if ansible_successfull:
@@ -46,6 +60,19 @@ def ansible_logic():
     else:
         logger.info("No nodes to configure")
 
+def active_hc_logic():
+    active_hc_timeout=timedelta(hours=24)
+    nodes=get_nodes_by_active_hc_expired(active_hc_timeout)
+    
+    logger.debug(f"Nodes With expired active HC:{len(nodes)}")
+    if nodes:
+        node_tuple=random.choice(nodes)
+        node=node_tuple[0]
+        logger.debug(f"Running active healthcheck on {node.hostname} selected at Random from the list of nodes with expired active HC and idle in Slurm")
+        cmd=["sbatch","-N","1","-p","compute","-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]        
+        subprocess.call(cmd)
+    else:
+        logger.debug("No nodes with expired active HC and idle in Slurm")
 
 # ------------------------
 # Click Commands
@@ -95,3 +122,9 @@ def all(http_port):
     available_nodes=scan_host_api_logic()
     for shape in available_nodes.keys():
         click.echo(f"There are {available_nodes[shape]} available nodes of shape {shape} in your pool.")
+    active_hc_logic()
+
+@run.command()
+def active_hc():
+    """Run active healthcheck."""
+    active_hc_logic()

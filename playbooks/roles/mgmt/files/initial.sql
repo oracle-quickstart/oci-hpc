@@ -29,18 +29,8 @@ CREATE TABLE IF NOT EXISTS clusterDB.nodes (
     shape VARCHAR(128),
     terminated_time VARCHAR(128),
     update_count INT,
-    passive_healthcheck_recommendation VARCHAR(128),
-    passive_healthcheck_time VARCHAR(128),
-    passive_healthcheck_logs VARCHAR(2048),
-    active_healthcheck_time VARCHAR(128),
-    active_healthcheck_logs VARCHAR(2048),
-    active_healthcheck_recommendation VARCHAR(128),
-    multi_node_HC_time VARCHAR(128),
-    multi_node_HC_logs VARCHAR(2048),
-    multi_node_HC_recommendation VARCHAR(128),
-    multi_node_HC_node VARCHAR(128),
-    oci_health VARCHAR(128),
-    oci_impacted_components BOOLEAN,
+    slurm_state VARCHAR(128),
+    slurm_partition VARCHAR(128),
     oci_host_id VARCHAR(128)
 );
 
@@ -75,18 +65,8 @@ CREATE TABLE IF NOT EXISTS clusterDB.terminated_nodes (
     shape VARCHAR(128),
     terminated_time VARCHAR(128),
     update_count INT,
-    passive_healthcheck_recommendation VARCHAR(128),
-    passive_healthcheck_time VARCHAR(128),
-    passive_healthcheck_logs VARCHAR(2048),
-    active_healthcheck_time VARCHAR(128),
-    active_healthcheck_logs VARCHAR(2048),
-    active_healthcheck_recommendation VARCHAR(128),
-    multi_node_HC_time VARCHAR(128),
-    multi_node_HC_logs VARCHAR(2048),
-    multi_node_HC_recommendation VARCHAR(128),
-    multi_node_HC_node VARCHAR(128),
-    oci_health VARCHAR(128),
-    oci_impacted_components BOOLEAN,
+    slurm_state VARCHAR(128),
+    slurm_partition VARCHAR(128),
     oci_host_id VARCHAR(128)
 );
 
@@ -115,4 +95,17 @@ CREATE TABLE IF NOT EXISTS clusterDB.configurations (
     marketplace_listing VARCHAR(64),
     hyperthreading BOOLEAN,
     preemptible BOOLEAN
+);
+
+
+CREATE TABLE IF NOT EXISTS clusterDB.healthchecks (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    ocid VARCHAR(128),
+    healthcheck_type ENUM('passive', 'active', 'multi-node','slurm','host_api'),
+    healthcheck_logs VARCHAR(2048),
+    healthcheck_time_change VARCHAR(128),
+    healthcheck_last_time VARCHAR(128),
+    healthcheck_recommendation VARCHAR(128),
+    healthcheck_status VARCHAR(128),
+    healthcheck_associated_node VARCHAR(128)
 );

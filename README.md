@@ -300,7 +300,7 @@ If you have some state that is messing with Slurm, you can make sure it is put b
 To turn on autoscaling: 
 Uncomment the line in `crontab -e`:
 ```
-* * * * * /opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /opt/oci-hpc/logs/crontab_slurm.log 2>&1
+* * * * * /opt/oci-hpc/autoscaling/crontab/autoscale_slurm.sh >> /config/logs/crontab_slurm.log 2>&1
 ```
 And in /etc/ansible/hosts, below value should be true
 ```
@@ -346,7 +346,7 @@ sleep 1000
 
 ## Logs: 
 ```
-/opt/oci-hpc/logs
+/config/logs
 ```
 
 Each cluster will have his own log with name: `create_clustername_date.log` and `delete_clustername_date.log`
