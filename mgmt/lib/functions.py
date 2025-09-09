@@ -181,7 +181,6 @@ def append_to_healthchecks(node_ocid, **kwargs):
         db_update_node("ocid1.node.oc1..abc", status="running", controller_status="configured")
     """
     latest_healthchecks=db_get_latest_healthchecks(node_ocid)
-    print(latest_healthchecks)
     if "passive_healthcheck_status" in kwargs:
         passive_hc=None
         status=None
