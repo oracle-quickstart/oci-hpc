@@ -1327,14 +1327,14 @@ if __name__ == '__main__':
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
 
-    http_server_file="/opt/oci-hpc/http_server/files/info"
+    http_server_file="/opt/oci-hpc/http_server/files/healthchecks"
     # Read the existing data from the file
     try:
         with open(http_server_file, 'r') as file:
             data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
-        print("Error: File not found or not in valid JSON format.")
-        exit(0)
+        logger.debug("Error: File not found or not in valid JSON format.")
+        data={}
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
     if action is None:
         data["passive_healthcheck_recommendation"] = "Healthy"
@@ -1348,6 +1348,10 @@ if __name__ == '__main__':
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")
         data["passive_healthcheck_logs"] = ""
+    if slurm_drain_reason != "":
+        data["passive_healthcheck_status"] = slurm_drain_reason
+    else:
+        data["passive_healthcheck_status"] = "Healthy"
     # Write updated data back to the file
     with open(http_server_file, 'w') as file:
         try:

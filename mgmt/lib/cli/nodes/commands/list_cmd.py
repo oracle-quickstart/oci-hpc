@@ -63,7 +63,7 @@ def callback_fields(ctx, param, value):
     callback=callback_fields,
     help="""
         Comma separated list of fields to display. Also accepts ALL, DEFAULT,
-        SIMPLE (all single-line fields), or LIST (to list field names and exit)
+        SIMPLE (all single-line fields), HC (all healthcheck fields + simple fields), or LIST (to list field names and exit)
     """
 )
 @click.option(
@@ -97,7 +97,7 @@ def list_cmd(columns, format, **options):
 
             field_dict[key] = new_value
 
-    query = db.get_query_by_fields(field_dict)
+    query = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict)
     query = db.filter_nodes_by_cluster(
         query,
         cluster_name=options["cluster"],
