@@ -216,27 +216,27 @@ sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
 
-# modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
-# echo $modified_hostname
-# log=/config/logs/${modified_hostname}.log
-# max_attempts=5
-# attempt=1
-# wait_time=10
-# while [ $attempt -le $max_attempts ]; do
-#     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
-#     ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log
-#     if [ ${PIPESTATUS[0]} -eq 0 ]; then
-#         echo "Ansible succeeded!" | tee -a $log
-#         break
-#     else
-#         echo "Ansible failed. " | tee -a $log
-#         if [ $attempt -lt $max_attempts ]; then
-#             echo "Retrying in ($wait_time)s ..." | tee -a $log
-#             sleep $wait_time
-#             wait_time=$((wait_time * 2))
-#         else
-#             echo "Max attempts ($max_attempts) reached. Giving up." | tee -a $log
-#         fi
-#         ((attempt++))
-#     fi
-# done 
+modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
+echo $modified_hostname
+log=/config/logs/${modified_hostname}.log
+max_attempts=5
+attempt=1
+wait_time=10
+while [ $attempt -le $max_attempts ]; do
+    echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
+    ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        echo "Ansible succeeded!" | tee -a $log
+        break
+    else
+        echo "Ansible failed. " | tee -a $log
+        if [ $attempt -lt $max_attempts ]; then
+            echo "Retrying in ($wait_time)s ..." | tee -a $log
+            sleep $wait_time
+            wait_time=$((wait_time * 2))
+        else
+            echo "Max attempts ($max_attempts) reached. Giving up." | tee -a $log
+        fi
+        ((attempt++))
+    fi
+done 
