@@ -14,9 +14,9 @@ source /etc/os-release
 if [ ! -d /opt/oci-hpc ] ; then
   sudo mkdir /opt/oci-hpc 
   if [ $ID == "ubuntu" ] ; then
-    sudo chown ubuntu:ubuntu /opt/oci-hpc 
+    sudo chown -R ubuntu:ubuntu /opt/
   else
-    sudo chown opc:opc /opt/oci-hpc 
+    sudo chown -R opc:opc /opt/
   fi
 fi
 vid=`echo $VERSION|awk -F. '{print $1}'`
@@ -219,6 +219,7 @@ echo $modified_hostname
 log=/config/logs/${modified_hostname}.log
 max_attempts=5
 attempt=1
+wait_time=10
 while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
     ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log
@@ -228,7 +229,9 @@ while [ $attempt -le $max_attempts ]; do
     else
         echo "Ansible failed. " | tee -a $log
         if [ $attempt -lt $max_attempts ]; then
-            echo "Retrying..." | tee -a $log
+            echo "Retrying in ($wait_time)s ..." | tee -a $log
+            sleep $wait_time
+            wait_time=$((wait_time * 2))
         else
             echo "Max attempts ($max_attempts) reached. Giving up." | tee -a $log
         fi
