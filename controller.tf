@@ -262,7 +262,7 @@ resource "null_resource" "controller" {
 }
 
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller]
+  depends_on = [null_resource.controller, oci_core_instance.controller]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
@@ -438,7 +438,7 @@ resource "null_resource" "cluster" {
 }
 
 resource "null_resource" "configure" {
-  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller, oci_dns_rrset.rrset-login, oci_dns_rrset.rrset-monitoring]
+  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller]
 
   provisioner "remote-exec" {
     inline = [
