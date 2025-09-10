@@ -158,11 +158,12 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
    bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
       -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
 fi 
-ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
+ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
 ansible-galaxy collection install community.general --upgrade --force > /dev/null
 ansible-galaxy collection install ansible.posix --force > /dev/null
 ansible-galaxy collection install community.crypto --force > /dev/null
 ansible-galaxy collection install oracle.oci --force > /dev/null
+ansible-galaxy collection install ansible.utils --force > /dev/null
 
 threads=$(nproc)
 forks=$(($threads * 8))

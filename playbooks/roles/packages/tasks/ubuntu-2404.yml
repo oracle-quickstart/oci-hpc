@@ -29,3 +29,15 @@
         state: latest
         executable: "{{venv_path}}/bin/pip3"
       ignore_errors: true
+
+    - name: Install oci
+      ansible.builtin.pip:
+        name: ["oci"]
+        executable: "{{ venv_path }}/bin/pip3"
+
+    - name: Install oci
+      become: true
+      ansible.builtin.pip:
+        name: oci
+        executable: /usr/bin/pip3
+      ignore_errors: true

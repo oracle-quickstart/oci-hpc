@@ -1,16 +1,4 @@
 ---
-- name: Install psutil and distro
-  ansible.builtin.pip:
-    name: ["oci"]
-    executable: "{{ venv_path }}/bin/pip3"
-
-- name: Install prometheus_client python package
-  become: true
-  ansible.builtin.pip:
-    name: oci
-    executable: /usr/bin/pip3
-  ignore_errors: true
-
 - name: Check if the Grafana token file exists
   stat:
     path: "{{ grafana_service_account.token_file }}"

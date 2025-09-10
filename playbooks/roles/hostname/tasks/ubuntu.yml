@@ -29,7 +29,7 @@
 
 - name: Update hostname for HPC cluster
   vars:
-    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
   when: change_hostname_tag

@@ -446,7 +446,7 @@ resource "null_resource" "configure" {
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
       "echo ${var.configure} > /tmp/configure.conf",
-      "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
+      "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
     "exit $exit_code"]
     connection {
