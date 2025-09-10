@@ -70,12 +70,12 @@ def active_hc_logic():
         node=node_tuple[0]
         logger.debug(f"Running active healthcheck on {node.hostname} selected at Random from the list of nodes with expired active HC and idle in Slurm")
         cmd=["sbatch","-N","1","-p","compute","-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]
-        logger.debug(f"Running command: {" ".join(cmd)}")
+        logger.debug(f"Running command: {' '.join(cmd)}")
         results = subprocess.run(cmd)
         if results.returncode != 0:
             logger.debug("Slurm launch failed, trying to reconfiguring Slurm before retrying")
             reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
-            logger.debug(f"Running command: {" ".join(cmd)}")
+            logger.debug(f"Running command: {' '.join(cmd)}")
             results = subprocess.run(cmd)
     else:
         logger.debug("No nodes with expired active HC and idle in Slurm")
