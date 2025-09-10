@@ -209,11 +209,17 @@
 
 - name: Generate a list of types to check
   vars:
-    temp_list: "{% for instancetype in item.instance_types %}{% if not instancetype.permanent %}{{ instancetype.hostname_convention }}-[1-{{ instancetype.max_number_nodes
-      }}],{% endif %}{% endfor %}"
+    temp_list: >-
+      {%- set tl = [] -%}
+      {%- for instancetype in item.instance_types -%}
+        {%- if not instancetype.permanent -%}
+          {{ tl.append(instancetype.hostname_convention ~ "-[1-" ~ instancetype.max_number_nodes ~ "]") }}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ tl | join(',') | default('') }}
   ansible.builtin.set_fact:
-    nodesname_dict: "{{ nodesname_dict | combine({item.name: temp_list[:-1]}, recursive=True) }}"
-  with_items: "{{queues}}"
+    nodesname_dict: "{{ nodesname_dict | default({}) | combine({item.name: temp_list}, recursive=True) }}"
+  with_items: "{{ queues }}"
 
 - name: Check if shapes need to be added
   become: true
