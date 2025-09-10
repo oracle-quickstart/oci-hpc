@@ -425,7 +425,7 @@ def filter_nodes_by_cluster(query, cluster_name=None, memory_cluster_name=None):
 
     query = query.filter(
         or_(
-            ~Nodes.role.in_(["controller", "login"]),
+            ~Nodes.role.in_(["controller", "login", "monitoring"]),
             Nodes.role.is_(None)
         )
     )
@@ -720,7 +720,7 @@ def get_nodes_by_memory_cluster(cluster_name):
     try:
         nodes = session.query(Nodes).filter(Nodes.memory_cluster_name == cluster_name).filter(
             or_(
-                ~Nodes.role.in_(["controller", "login"]),
+                ~Nodes.role.in_(["controller", "login", "monitoring"]),
                 Nodes.role.is_(None)
             )
         ).all()
