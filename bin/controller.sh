@@ -155,36 +155,8 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name')
 
   # First try to install into /opt/oci-cli
-  if ! bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
-      -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1; then
-      
-      echo "Direct install to /opt/oci-cli failed, falling back to default install in ~"
-
-      # Run default installer (to $HOME/bin and $HOME/lib usually)
-      bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
-          -s --accept-all-defaults --oci-cli-version "$LATEST_OCICLI"  2>&1
-
-      # Ensure target directory exists
-      mkdir -p /opt/oci-cli
-
-      # Move bin and lib from ~ into /opt/oci-cli
-      if [ -d "$HOME/bin" ]; then
-          mv "$HOME/bin" /opt/oci-cli/
-      fi
-      if [ -d "$HOME/lib" ]; then
-          mv "$HOME/lib" /opt/oci-cli/
-      fi
-  fi
-  ls /opt/oci-cli/bin/
-  ls /opt/oci-cli/lib/
-  ls $HOME/bin/
-  
-  # install oci module
-  /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/python3 -m pip install oci > /dev/null
-  ls /opt/oci-cli/bin/
-  ls /opt/oci-cli/lib/
-  ls $HOME/bin/
-fi 
+   bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
+      -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
 
 ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
 ansible-galaxy collection install community.general --upgrade --force > /dev/null
