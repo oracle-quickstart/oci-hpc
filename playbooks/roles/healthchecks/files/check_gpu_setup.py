@@ -692,7 +692,7 @@ def check_wpa_auth(metadata):
     elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8"]:
         interface_range = range(8)
         required_authenticated = 8
-    elif shape == "BM.GPU.GB200.4" or shape == "BM.GPU.GB200-v2.4":
+    elif shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
         interface_range = range(4)
         required_authenticated = 0
     else:
@@ -992,7 +992,7 @@ if __name__ == '__main__':
     run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool)) or args.slurm
 
     # 1.3 Check OCA Status
-    if (run_all or args.oca_stat) and shape != "BM.GPU.GB200.4" and shape != "BM.GPU.GB200-v2.4":
+    if (run_all or args.oca_stat) and (not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -1052,7 +1052,7 @@ if __name__ == '__main__':
             gpu_results = None
 
     # 7.3 Check GPU PCIe width
-    if (run_all or args.gpu_pcie) and shape != "BM.GPU.GB200.4" and shape != "BM.GPU.GB200-v2.4":    
+    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):    
         try:
             gpu_pcie_results = check_gpu_pcie()
         except Exception as e:
@@ -1159,7 +1159,7 @@ if __name__ == '__main__':
             bad_page_issues = []
 
     # 17.3 Check if AMD GPU has pending bad pages
-    if (run_all or args.ip_address) and shape != "BM.GPU.GB200.4" and shape != "BM.GPU.GB200-v2.4":   
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):   
         try:
             metadata = get_metadata()
             missing_ips,ip_list = check_ip_addresses(metadata)
@@ -1175,7 +1175,7 @@ if __name__ == '__main__':
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if (run_all or args.oca_stat) and shape != "BM.GPU.GB200.4" and shape != "BM.GPU.GB200-v2.4":
+    if (run_all or args.oca_stat) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
@@ -1233,7 +1233,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 7.4 Summarize GPU PCIe width check
-    if (run_all or args.gpu_pcie) and shape != "BM.GPU.GB200.4" and shape != "BM.GPU.GB200-v2.4":
+    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
             if gpu_pcie_results:
                 logger.error(f"{host_serial} - GPU PCIe Width: {gpu_pcie_results}")
                 slurm_reason("GPU PCIe Width Error")
@@ -1323,7 +1323,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 17.4 Summarize pending bad pages check for AMD
-    if (run_all or args.ip_address) and shape != "BM.GPU.GB200.4" and shape != "BM.GPU.GB200-v2.4":
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
         if len(missing_ips) > 0:
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
             slurm_reason("Missing IPs")
