@@ -168,30 +168,19 @@ def run_add(nodes, count, names):
                         cluster_ocid=mc_id
                         cluster_name=memory_cluster_data.display_name
         else:
+            logger.debug(f"The first node name is {first_node.hostname}")
             cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
             cluster_name=first_node.cluster_name
+            logger.debug(f"The detected type is {cluster_type} and the cluster name is {cluster_name}")
         if not cluster_type is None:
             break
-    first_node=nodes[0]
-    if first_node.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
-        memory_clusters=CLIENTS.compute_client.list_compute_gpu_memory_clusters(first_node.compartment_id,display_name=first_node.memory_cluster_name).data.items
-        for memory_cluster in memory_clusters:
-            mc_id=memory_cluster.id
-            instance_summaries = CLIENTS.compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
-            for instance_summary in instance_summaries:
-                if instance_summary.id == first_node.ocid:
-                    memory_cluster_data=CLIENTS.compute_client.get_compute_gpu_memory_cluster(mc_id).data
-                    cc_id=memory_cluster_data.compute_cluster_id
-                    instance_config_id=memory_cluster_data.instance_configuration_id
-                    cluster_type="MC"
-                    cluster_ocid=mc_id
-                    cluster_name=memory_cluster_data.display_name
-    else:
-        cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
-        cluster_name=first_node.cluster_name
     current_size=get_instance_count(cluster_type,cluster_ocid,first_node.compartment_id,cluster_name)
+    logger.debug(f"The detected type is {cluster_type} with a size of {current_size}")
     target_size = current_size + count
+    logger.debug(f"The target size is {target_size}")
+
     if cluster_type == "CC" or cluster_type == "SA":
+        logger.debug(f"The detected type is Compute cluster or Stand Alone node")
         first_instance=CLIENTS.compute_client.get_instance(first_node.ocid).data
         logger.info(f"Launching {count} in the Cluster")
         for i in range(count):
@@ -208,10 +197,12 @@ def run_add(nodes, count, names):
             logger.info(f"Launching {count} in the Cluster for a total size of {target_size}")
             CLIENTS.compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
     elif cluster_type == "MC":
+        logger.debug(f"The detected type is Compute GPU Memory Cluster")
         update_compute_gpu_memory_cluster_details = oci.core.models.UpdateComputeGpuMemoryClusterDetails(size=target_size)
         logger.info(f"Launching {count} in the Cluster for a total size of {target_size}")
         CLIENTS.compute_client.update_compute_gpu_memory_cluster(cluster_ocid,update_compute_gpu_memory_cluster_details)
     else:
+        logger.debug(f"The detected type is Instance Pool/Cluster Network")
         if names:
             logger.info(f"Host names are ignored for Instance Pools and Cluster Networks")
         update_size = oci.core.models.UpdateInstancePoolDetails(size=target_size)
@@ -313,9 +304,9 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
         return(len(instance_summaries))
 
 def get_instance_type(node):
-
     instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_cluster_networks,node.compartment_id,display_name=node.cluster_name).data
     if len(instance_pools):
+        logger.debug(f"Found Cluster Network with name {node.cluster_name}")
         for instance_pool in instance_pools:
             ipa_ocid=instance_pool.instance_pools[0].id
             instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,node.compartment_id,ipa_ocid).data
@@ -328,10 +319,13 @@ def get_instance_type(node):
 
     instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pools,node.compartment_id,display_name=node.cluster_name).data
     if len(instance_pools):
+        logger.debug(f"Found Instance Pool with name {node.cluster_name}")
         for instance_pool in instance_pools:
             instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,node.compartment_id,instance_pool.id).data
             for instance_summary in instance_summaries:
+                logger.debug(f"instance_summary.id = {instance_summary.id}")
                 if instance_summary.id == node.ocid:
+                    logger.debug(f"Found Node in Instance Pool {node.ocid}")
                     cluster_type="IPA"
                     cluster_ocid=instance_pool.id
                     ipa_ocid=instance_pool.id
@@ -342,6 +336,7 @@ def get_instance_type(node):
         logger.warning(f"Compute clusters are not enabled in this region")
         instance_pools = []
     if len(instance_pools):
+        logger.debug(f"Found Compute Cluster with name {node.cluster_name}")
         for instance_pool in instance_pools:
             instance_summaries = CLIENTS.compute_client.list_instances(node.compartment_id,compute_cluster_id=instance_pool.id).data
             for instance_summary in instance_summaries:
