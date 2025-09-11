@@ -77,6 +77,8 @@
     executable: /usr/bin/pip3
 
 - name: Update SELinux context for {{ mysql_db_path }}
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   become: true
   sefcontext:
     target: "{{ mysql_db_path }}(/.*)?"
