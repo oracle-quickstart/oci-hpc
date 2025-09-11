@@ -4,7 +4,7 @@ name: basic_deployment_slurm
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "3.0.0", "3.0.0_arnaud_merged" ]
+    branches: [ "3.0.0" ]
   pull_request:
     branches: [ "3.0.0" ]
 
@@ -55,18 +55,18 @@ jobs:
         run: sleep 600
 
       - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci sinfo'
 
       - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci "timeout 30 srun -N 2 hostname"'
 
       - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci "mgmt --help"'
 
       - name: Get all logs in /config/logs
         if: always()
         run: |
-          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T bash --noprofile --norc << 'EOF'
           for f in /config/logs/*; do
               echo -e "#######$f#######\n" "$(cat $f)\n"
           done
