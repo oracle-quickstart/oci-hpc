@@ -13,7 +13,7 @@
     state: present
     filename: 'grafana'
   register: apt_repository
-  until: apt_repository.changed
+  until: apt_repository is not failed
   retries: 10
   delay: 20
 
