@@ -46,11 +46,15 @@ def scan_queue_logic():
 
 def ansible_logic():
     controller = get_controller_node()
+    if controller is None:
+        controller_hostname = socket.gethostname()
+    else:
+        controller_hostname = controller.hostname
     nodes_configuring,nodes_terminating = get_all_nodes_to_configure()
     logger.debug("Nodes configuring:"+str(len(nodes_configuring)))
     logger.debug("Nodes terminating:"+str(len(nodes_terminating)))
     if len(nodes_configuring)+len(nodes_terminating):
-        ansible_successfull=run_ansible(controller.hostname)
+        ansible_successfull=run_ansible(controller_hostname)
         if ansible_successfull:
             for node in nodes_configuring:
                 db_update_node(node,controller_status="configured")
