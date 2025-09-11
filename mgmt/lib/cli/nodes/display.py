@@ -254,7 +254,7 @@ def parse_fields_spec(fields_spec):
 
 def display_nodes_as_json(nodes, fields, one_line=False, **ignored_kwargs):
     keys = set(fields) if fields else None
-    node_dicts = [db.node_to_dict(node, keys, healthcheck=True) for node in nodes]
+    node_dicts = [db.node_to_dict(node, keys) for node in nodes]
     if one_line:
         print(json.dumps(node_dicts))
     else:
@@ -262,7 +262,7 @@ def display_nodes_as_json(nodes, fields, one_line=False, **ignored_kwargs):
 
 
 def display_nodes_as_csv(nodes, fields, show_header=True, **ignored_kwargs):
-    node_dicts = [db.node_to_dict(node, fields, healthcheck=True) for node in nodes]
+    node_dicts = [db.node_to_dict(node, fields) for node in nodes]
     writer = csv.DictWriter(sys.stdout, fieldnames=fields, dialect="unix")
     if show_header:
         writer.writeheader()
