@@ -110,5 +110,4 @@
     state: present
 
 - name: import the queues.conf into the DB
-  shell: "{{venv_path}}/bin/python3 /config/mgmt/manage.py configurations create
-    from-file --file /opt/oci-hpc/conf/queues.conf"
+  shell: "{{venv_path}}/bin/python3 /config/mgmt/manage.py configurations create from-file --file /opt/oci-hpc/conf/queues.conf"

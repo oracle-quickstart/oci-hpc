@@ -6,13 +6,18 @@ import json
 def list():
     """List commands for nodes."""
     pass  
-@click.option('--json','as_json', is_flag=True, help='Get full information about the node.', default=False)
+@click.option(
+    "--format",
+    type=click.Choice(["tabular", "json"]),
+    default="tabular", show_default=True,
+    help="Output format"
+)
 @list.command()
-def list(as_json):
+def list(format):
     clusters = get_clusters()
     cluster_string=", ".join(clusters)
     
-    if as_json:
+    if format=="json":
         print(json.dumps(clusters, indent=4))
     else:
         click.echo(f"Clusters Available: {cluster_string}")

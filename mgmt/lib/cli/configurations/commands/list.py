@@ -5,12 +5,16 @@ from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
 
 @click.command()
-@click.option('--yaml', is_flag=True, show_default=True, default=False, help='List in YAML format.')
-@click.option('--json', is_flag=True, show_default=True, default=False, help='List in JSON format.')
+@click.option(
+    "--format",
+    type=click.Choice(["tabular", "json","yaml"]),
+    default="tabular", show_default=True,
+    help="Output format"
+)
 @click.option('--output_file', help='Name of the output file.')
 @click.option('--partition', help='Get all configurations in that defined partition.')
 @click.option('--shape',  help='Get all configurations with a particular shape.')
-def list(yaml, json, output_file, partition, shape):
+def list(format, output_file, partition, shape):
     """List commands for nodes."""
     if partition:
         if shape:
@@ -26,9 +30,9 @@ def list(yaml, json, output_file, partition, shape):
         else:
             configurations = get_all_configs()
             title="All"
-    if yaml:
+    if format=="yaml":
         print_config_list_yaml_json(configurations,output_file, type="yaml")
-    elif json:
+    elif format=="json":
         print_config_list_yaml_json(configurations,output_file, type="json")
     else:
         print_config_list(configurations,title)

@@ -18,7 +18,7 @@
 
 - name: Set fact
   ansible.builtin.set_fact:
-    rdma_metadata: "{{ h_metadata['content'] }}"
+    rdma_metadata: "{{ h_metadata['content'] | from_json }}"
 
 - name: Add empty rdmaTopologyData
   ansible.builtin.set_fact:

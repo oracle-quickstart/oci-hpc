@@ -7,7 +7,7 @@
   delay: 10
   until: result.stdout | int == 0
 
-- name: "Installing/Removing {{package_name}}"
+- name: "Installing/Removing package"
   become: true
   ansible.builtin.apt:
     name: "{{ package_name }}"
@@ -20,7 +20,7 @@
   delay: 5
   when: not deb_name is defined
 
-- name: "Installing/Removing {{deb_name}}"
+- name: "Installing/Removing deb package"
   become: true
   ansible.builtin.apt:
     deb: "{{ item }}"

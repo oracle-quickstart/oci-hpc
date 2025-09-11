@@ -4,10 +4,10 @@
   ansible.builtin.blockinfile:
     block: "{{ lookup('template', 'gres.conf.j2') }}"
     path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {mark} {{ new_compute_info[item].hostname }}"
+    marker: "### {mark} {{ item.value.hostname }}"
   delegate_to: 127.0.0.1
-  when: "'GPU' in new_compute_info[item].shape"
-  with_items: "{{ new_compute_info }}"
+  when: "'GPU' in item.value.shape"
+  with_items: "{{ new_compute_info | dict2items }}"
 
 - name: Remove nodes from current topology before adding them
   block:
@@ -376,27 +376,27 @@
     # Make rack_id_dict a dictionary of either the railID or RackID depending on what is in the DB
     - name: Make rackID dictionary
       ansible.builtin.set_fact:
-        rack_id_dict: "{{ rack_id_dict | default({}) | combine({new_compute_info[item].hostname: new_compute_info[item].rail_id[-32:]}) }}"
-      with_items: "{{ new_compute_info }}"
-      when: new_compute_info[item].rail_id != 'None'
+        rack_id_dict: "{{ rack_id_dict | default({}) | combine({item.value.hostname: item.value.rail_id[-32:]}) }}"
+      with_items: "{{ new_compute_info | dict2items }}"
+      when: item.value.rail_id != 'None'
 
     - name: Make rackID dictionary
       ansible.builtin.set_fact:
-        rack_id_dict: "{{ rack_id_dict | default({}) | combine({new_compute_info[item].hostname: new_compute_info[item].rack_id[-32:]}) }}"
-      with_items: "{{ new_compute_info }}"
-      when: new_compute_info[item].rail_id == 'None'
+        rack_id_dict: "{{ rack_id_dict | default({}) | combine({item.value.hostname: item.value.rack_id[-32:]}) }}"
+      with_items: "{{ new_compute_info | dict2items }}"
+      when: item.value.rail_id == 'None'
 
     - name: Make networkBlockID dictionary
       ansible.builtin.set_fact:
-        nb_id_dict: "{{ nb_id_dict | default({}) | combine({new_compute_info[item].hostname: new_compute_info[item].network_block_id[-32:]}) }}"
-      with_items: "{{ new_compute_info }}"
-      when: new_compute_info[item].network_block_id != 'None'
+        nb_id_dict: "{{ nb_id_dict | default({}) | combine({item.value.hostname: item.value.network_block_id[-32:]}) }}"
+      with_items: "{{ new_compute_info | dict2items }}"
+      when: item.value.network_block_id != 'None'
 
     - name: Make networkBlockID dictionary
       ansible.builtin.set_fact:
-        nb_id_dict: "{{ nb_id_dict | default({}) | combine({new_compute_info[item].hostname: new_compute_info[item].network_block_id}) }}"
-      with_items: "{{ new_compute_info }}"
-      when: new_compute_info[item].network_block_id == 'None'
+        nb_id_dict: "{{ nb_id_dict | default({}) | combine({item.value.hostname: item.value.network_block_id}) }}"
+      with_items: "{{ new_compute_info | dict2items }}"
+      when: item.value.network_block_id == 'None'
 
     # Build dictionaries of cluster, NetworkBlock and Racks with the list of switch. 
 
@@ -407,26 +407,22 @@
 
     - name: Build dictionary of racks to add
       ansible.builtin.set_fact:
-        rack_dict: "{{ rack_dict | combine({rack_name: (rack_dict[rack_name] | default([])) + [new_compute_info[item].hostname] | unique}) }}"
+        rack_dict: "{{ rack_dict | combine({rack_name: (rack_dict[rack_name] | default([])) + [item.value.hostname] | unique}) }}"
       vars:
-        rack_name: "{{ new_compute_info[item].cluster_name }}:{{ nb_id_dict[new_compute_info[item].hostname] }}:{{ rack_id_dict[new_compute_info[item].hostname] }}"
-      with_items: "{{ new_compute_info }}"
+        rack_name: "{{ item.value.cluster_name }}:{{ nb_id_dict[item.value.hostname] }}:{{ rack_id_dict[item.value.hostname] }}"
+      with_items: "{{ new_compute_info | dict2items }}"
       
     - name: Make empty nb_dict
       ansible.builtin.set_fact:
         nb_dict: "{{ nb_dict | default({}) }}"
       run_once: true
-      
-    - name: debug
-      ansible.builtin.debug:
-        var: new_compute_info
     
     - name: Build dictionary of nb to add
       ansible.builtin.set_fact:
-        nb_dict: "{{ nb_dict | combine({nb_name: (nb_dict[nb_name] | default([])) + [new_compute_info[item].cluster_name + ':' + nb_id_dict[new_compute_info[item].hostname]+ ':' + rack_id_dict[new_compute_info[item].hostname]] | unique}) }}"
+        nb_dict: "{{ nb_dict | combine({nb_name: (nb_dict[nb_name] | default([])) + [item.value.cluster_name + ':' + nb_id_dict[item.value.hostname]+ ':' + rack_id_dict[item.value.hostname]] | unique}) }}"
       vars:
-        nb_name: "{{ new_compute_info[item].cluster_name }}:{{ nb_id_dict[new_compute_info[item].hostname] }}"
-      with_items: "{{ new_compute_info }}"
+        nb_name: "{{ item.value.cluster_name }}:{{ nb_id_dict[item.value.hostname] }}"
+      with_items: "{{ new_compute_info | dict2items }}"
       
     - name: Make empty cluster_dict
       ansible.builtin.set_fact:
@@ -435,8 +431,8 @@
 
     - name: Build dictionary of clusters to add
       ansible.builtin.set_fact:
-        cluster_dict: "{{ cluster_dict | combine({new_compute_info[item].cluster_name: (cluster_dict[new_compute_info[item].cluster_name] | default([])) + [new_compute_info[item].cluster_name + ':' + nb_id_dict[new_compute_info[item].hostname]] | unique}) }}"
-      with_items: "{{ new_compute_info }}"
+        cluster_dict: "{{ cluster_dict | combine({item.value.cluster_name: (cluster_dict[item.value.cluster_name] | default([])) + [item.value.cluster_name + ':' + nb_id_dict[item.value.hostname]] | unique}) }}"
+      with_items: "{{ new_compute_info | dict2items }}"
 
 # Add the racks with all the nodes. 
     - name: Get current nodes in Switch

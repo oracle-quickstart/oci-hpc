@@ -43,7 +43,7 @@ resource "oci_core_instance" "backup" {
 
 resource "null_resource" "backup" {
   count      = var.slurm_ha ? 1 : 0
-  depends_on = [oci_core_instance.backup, null_resource.controller]
+  depends_on = [oci_core_instance.backup]
   triggers = {
     backup = oci_core_instance.backup[0].id
   }

@@ -1,9 +1,4 @@
 ---
-- name: Ensure prerequisites
-  become: true
-  ansible.builtin.pip:
-    name: oci
-
 - name: Check if the Grafana token file exists
   stat:
     path: "{{ grafana_service_account.token_file }}"
@@ -137,6 +132,7 @@
     auth_type: "instance_principal"
     vnic_id: "{{ instance_vnics.json[0].vnicId }}"
   register: vnic_details
+  delegate_to: localhost
 
 - name: Instance IP address (public if available, else private)
   set_fact:

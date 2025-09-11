@@ -10,7 +10,7 @@
 
 - name: Set fact
   ansible.builtin.set_fact:
-    instance_metadata: "{{ i_metadata['content'] }}"
+    instance_metadata: "{{ i_metadata['content'] | from_json }}"
 
 - name: Make sure freeformTags in included
   ansible.builtin.set_fact:
@@ -29,7 +29,7 @@
 
 - name: Update hostname for HPC cluster
   vars:
-    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
   when: change_hostname_tag
@@ -56,7 +56,7 @@
 
 - name: Update hostname for HPC cluster
   vars:
-    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
   when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
@@ -83,7 +83,7 @@
 
 - name: Update hostname for HPC cluster
   vars:
-    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
   when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
@@ -110,7 +110,7 @@
 
 - name: Update hostname for HPC cluster
   vars:
-    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
   when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]

@@ -114,6 +114,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -124,6 +125,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -136,6 +138,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -147,6 +150,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -158,19 +162,10 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
-  provisioner "file" {
-    source      = "logs"
-    destination = "/opt/oci-hpc/"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
   provisioner "file" {
     source      = "samples"
     destination = "/opt/oci-hpc/"
@@ -179,6 +174,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -189,6 +185,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -201,6 +198,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -212,6 +210,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -223,6 +222,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 
@@ -234,6 +234,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -244,6 +245,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
   provisioner "file" {
@@ -254,12 +256,13 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
+      timeout     = "10m"
     }
   }
 }
 
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller]
+  depends_on = [null_resource.controller, oci_core_instance.controller]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
@@ -435,15 +438,15 @@ resource "null_resource" "cluster" {
 }
 
 resource "null_resource" "configure" {
-  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller, oci_dns_rrset.rrset-login, oci_dns_rrset.rrset-monitoring]
+  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller]
 
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
-      "echo ${var.configure} > /tmp/configure.conf",      
-      "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /opt/oci-hpc/logs/initial_configure.log",
+      "echo ${var.configure} > /tmp/configure.conf",
+      "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
     "exit $exit_code"]
     connection {
