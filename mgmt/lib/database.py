@@ -251,20 +251,26 @@ def query_db():
         sys.exit(1)
 
 
-def node_to_dict(node_tuple, keys=None, healthcheck=False):
+def node_to_dict(node_tuple, keys=None):
     node=node_tuple[0]
-    return_dict={
+    dict_all={
         c.key: getattr(node, c.key)
         for c in inspect(node).mapper.column_attrs
         if keys is None or c.key in keys
     }
-    if healthcheck:
-        addtl_columns=get_extra_columns()    
-        values={}
-        for index,tuple_value in enumerate(node_tuple):
-            if index>0:
-                values[addtl_columns[index-1]]=tuple_value
-        return_dict.update(values)
+    return_dict={}
+    addtl_columns=get_extra_columns()    
+    values={}
+    for index,tuple_value in enumerate(node_tuple):
+        if index>0:
+            values[addtl_columns[index-1]]=tuple_value
+    dict_all.update(values)
+    if keys is not None:
+        for key in sorted(keys):
+            return_dict[key]=dict_all[key]
+    else:
+        for key in sorted(dict_all.keys()):
+            return_dict[key]=dict_all[key]
     return return_dict
 
 def field_to_rich_renderable(val):

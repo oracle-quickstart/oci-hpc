@@ -1,7 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=active_HC
+#SBATCH --job-name=active_HealthCheck
 #SBATCH --nodes=1
 #SBATCH --exclusive
+#SBATCH --output=/tmp/active_HealthCheck/%x-%j.out  # %x = job name, %j = job ID
+#SBATCH --error=/tmp/active_HealthCheck/%x-%j.out
 
 # Fetch the instance shape
 shape=$(curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .shape)
