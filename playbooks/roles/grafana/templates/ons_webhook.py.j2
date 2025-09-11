@@ -296,19 +296,18 @@ def alert_processing_daemon():
             alerts_in_db = cur.execute('SELECT * FROM active_alerts').fetchall()
             logging.info(f'Found {len(alerts_in_db)} active alerts in the DB.')
             logging.debug(f'Existing alerts in DB: {alerts_in_db}')
-            db_updates = False
+
             for alert in alerts_in_db:
                 alert_id = alert[0]
                 last_notified_at = alert[3]
                 first_seen_at = alert[1]
                 
                 # Cleanup old alarms
-                if current_time - str_to_date(first_seen_at) > timedelta(seconds=minimum_age_of_active_alert_to_include_in_reminder_in_seconds):
+                if current_time - str_to_date(first_seen_at) > timedelta(seconds=maximum_age_of_alert_in_seconds):
                     cur.execute('''
                             DELETE FROM active_alerts
                             WHERE alert_id = ?
                         ''', (alert_id,))
-                    db_updates = True
                     continue
                 
                 # Send alarm reminders
@@ -327,7 +326,6 @@ def alert_processing_daemon():
                         SET last_notified_at = ?
                         WHERE alert_id = ?
                     ''', (date_to_str(current_time), alert_id))
-                    db_updates = True
             
             # Update alert_reminder table with the last execution time.
             cur.execute('''
@@ -337,8 +335,7 @@ def alert_processing_daemon():
                 DO UPDATE SET last_executed_at = excluded.last_executed_at
             ''', ("last", date_to_str(current_time)))
 
-            if db_updates:
-                conn.commit()
+            conn.commit()
 
             last_reminder_execution_day = current_time.date()
             logging.info(f'Alert reminder loop successfuly executed on: {current_time}')
