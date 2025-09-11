@@ -56,8 +56,8 @@ def boot_volume_swap(ctx, nodes, fields, image, size):
     nodes_list = filter_cmd(ctx, nodes, fields)
         # In case no image is specified, propose a list of image and ask for the value
     if image is None:
-        if nodes:
-            compartment_id = nodes[0].compartment_id
+        if nodes_list:
+            compartment_id = nodes_list[0].compartment_id
         else:
             controller = db.get_controller_node()
             compartment_id = controller.compartment_id
