@@ -12,6 +12,10 @@
     repo: 'deb https://packages.grafana.com/oss/deb stable main'
     state: present
     filename: 'grafana'
+  register: apt_repository
+  until: apt_repository.changed
+  retries: 10
+  delay: 20
 
 - name: Update apt cache
   become: true
