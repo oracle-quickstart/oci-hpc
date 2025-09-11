@@ -114,6 +114,10 @@
     mode: "0775"
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  retries: 3
+  delay: 10
+  register: copy_scrape
+  until: copy_scrape is not failed
 
 - name: Copying the rules recording file
   become: true
@@ -125,7 +129,12 @@
     mode: '0775'
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  retries: 3
+  delay: 10
+  register: copy_rules
+  until: copy_rules is not failed
   
+
 - name: Restart prometheus
   become: true
   service:
