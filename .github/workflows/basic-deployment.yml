@@ -52,7 +52,7 @@ jobs:
           terraform apply --auto-approve
 
       - name: sleep command for nodes to be configured
-        run: sleep 600
+        run: sleep 900
 
       - name: Run sinfo
         run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci sinfo'
