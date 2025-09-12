@@ -9,12 +9,18 @@
   when: compute_node|bool and 'GPU' in shape
 
 - ansible.builtin.include_tasks: rdma_exporter.yml
-  when: compute_node|bool  and rdma_enabled|bool
+  when: compute_node|bool and rdma_enabled|bool
 
 - ansible.builtin.include_tasks: nvlink_exporter.yml
-  when: compute_node|bool  and 'GPU' in shape
+  when: compute_node|bool and 'GPU' in shape
 
 - ansible.builtin.include_tasks: custom_metrics.yml
-  when: compute_node|bool  and rdma_enabled|bool
+  when: compute_node|bool and rdma_enabled|bool
 
-- ansible.builtin.include_tasks: critical_process_monitor.yml
+- include_tasks: nvml_exporter.yml
+  when: compute_node|bool and 'GPU' in shape
+
+- include_tasks: pcie_faults.yml
+  when: compute_node|bool and 'GPU' in shape
+
+# - ansible.builtin.include_tasks: critical_process_monitor.yml
