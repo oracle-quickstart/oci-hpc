@@ -43,6 +43,9 @@ hostname_convention=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.1
 
 fss=fss-${controller_name}
 
+fss_ip=$(host "${fss}" | awk '{print $4}')
+controller_ip=$(host "${controller_name}"| awk '{print $4}')
+
 if [ "$controller" == "true" ]; then
     echo "Do not run the cloud-init on the controller, this will create a circular dependency on the /config mount"
     exit
@@ -50,14 +53,23 @@ fi
 
 mkdir /config
 
-if ! grep -qF "$fss:/config /config nfs" /etc/fstab; then
-    echo "$fss:/config /config nfs defaults" >> /etc/fstab
-
-    #echo "$controller_name:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
-    systemctl daemon-reload
-    echo "Entry added to /etc/fstab."
+if [ "$fss_ip" == "$controller_ip" ]; then
+    echo "FSS and controller are on the same host"
+    if ! grep -qF "$controller_name:/config /config nfs" /etc/fstab; then
+        echo "$controller_name:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
+        systemctl daemon-reload
+        echo "Entry added to /etc/fstab."
+    else
+        echo "Entry already exists in /etc/fstab."
+    fi
 else
-    echo "Entry already exists in /etc/fstab."
+    if ! grep -qF "$fss:/config /config nfs" /etc/fstab; then
+        echo "$fss:/config /config nfs defaults" >> /etc/fstab
+        systemctl daemon-reload
+        echo "Entry added to /etc/fstab."
+    else
+        echo "Entry already exists in /etc/fstab."
+    fi
 fi
 
 while true; do
@@ -65,7 +77,7 @@ while true; do
         echo "/config is already mounted. Exiting loop."
         break
     fi
-    echo "Attempting to mount $fss:/config"
+    echo "Attempting to mount /config"
     # Run the mount command and check if it succeeds
     mount /config
     

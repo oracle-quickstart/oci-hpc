@@ -35,6 +35,7 @@ def print_nodes_info(nodes, full=False):
             table.add_row("IP", node.ip_address)
             table.add_row("Shape", node.shape)
             table.add_row("passive_healthcheck_status", values["passive_healthcheck_status"])
+            table.add_row("active_healthcheck_status", values["active_healthcheck_status"])
         else:
             table.add_row("ip_address", node.ip_address)
             table.add_row("controller_status", node.controller_status)
@@ -184,6 +185,7 @@ def parse_fields_spec(fields_spec):
     fields_def = [
         "hostname",
         "passive_healthcheck_status",
+        "active_healthcheck_status",
         "status",
         "compute_status",
         "cluster_name",
