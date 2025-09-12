@@ -74,7 +74,7 @@ def print_nodes_info(nodes, full=False):
 
 def print_node_list(nodes, title):
     table = rich.table.Table(title=title)
-    table.add_column("hostname", justify="left")
+    table.add_column("hostname", justify="left", no_wrap=True)
     table.add_column("status", justify="left")
     table.add_column("compute_status", justify="left")
     table.add_column("passive_healthcheck_recommendation", justify="left")
