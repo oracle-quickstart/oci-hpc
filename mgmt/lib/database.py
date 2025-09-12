@@ -773,6 +773,51 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     result = query.all()
     return result
 
+def get_nodes_by_multi_node_hc_expired(active_hc_timeout):
+    """Get all nodes whose active healthcheck is expired."""
+
+    current_time = current_utc_time()
+    time_th = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
+
+    query = get_nodes_with_latest_healthchecks()
+
+    # Build a label map for extra columns
+    label_map = {
+        col["name"]: col["expr"]
+        for col in query.column_descriptions
+        if "expr" in col
+    }
+    # Debug counts
+    query = query.filter(Nodes.role == "compute")
+    logger.debug(f"Count after role filter: {query.count()}")
+    query = query.filter(Nodes.shape.in_([
+        "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
+        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8", "BM.GPU.GB200-v2.4"
+    ]))
+    logger.debug(f"Count after shape filter: {query.count()}")
+    query = query.filter(Nodes.slurm_state == "idle")
+    logger.debug(f"Count after slurm state filter: {query.count()}")
+    query = query.having(label_map["passive_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after passive healthcheck filter: {query.count()}")
+    query = query.having(label_map["active_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after passive healthcheck filter: {query.count()}")
+
+    query_healthy=query.filter(label_map["multi_node_healthcheck_recommendation"] == "Healthy")    
+    logger.debug(f"Count after healthy multi node healthcheck filter: {query_healthy.count()}")
+    # Add having for expired active healthcheck
+    col = label_map.get("multi_node_healthcheck_last_time")
+    if col is not None:
+        query_healthy = query_healthy.having(
+            or_(
+                col == None,  # NULL treated as expired
+                cast(col, DateTime) < time_th
+            )
+        )
+    logger.debug(f"Count after expired active healthy healthcheck filter: {query_healthy.count()}")
+    query_potentially_bad=query.filter(label_map["multi_node_healthcheck_recommendation"] == "Potentially Bad")
+    logger.debug(f"Count after potentially bad multi node healthcheck filter: {query_potentially_bad.count()}")
+    return query_healthy,query_potentially_bad
+
 def get_nodes_by_status(status):
     """Get all nodes with a specific status"""
     session = query_db()
