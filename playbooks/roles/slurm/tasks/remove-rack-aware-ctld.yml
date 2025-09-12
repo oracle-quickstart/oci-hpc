@@ -3,10 +3,10 @@
   become: true
   ansible.builtin.blockinfile:
     path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {mark} {{ remove_compute_info[item].hostname }}"
+    marker: "### {mark} {{ item.value.hostname }}"
     state: absent
-  when: "'GPU' in remove_compute_info[item].shape"
-  with_items: "{{ remove_compute_info }}"
+  when: "'GPU' in item.value.shape"
+  with_items: "{{ remove_compute_info | dict2items }}"
 
 - name: Remove nodes from current topology before adding them
   block:
@@ -378,10 +378,10 @@
 - name: Add nodes to current topology if they are on-demand
   block:
     - name: Check if the node is on-demand
-      ansible.builtin.shell: "sudo scontrol show topology {{remove_compute_info[item].hostname}} | grep Switches= | grep {{remove_compute_info[item].cluster_name}}:inactive"
+      ansible.builtin.shell: "sudo scontrol show topology {{item.value.hostname}} | grep Switches= | grep {{item.value.cluster_name}}:inactive"
       register: ondemand_nodes
       run_once: true
-      with_items: "{{remove_compute_info}}"
+      with_items: "{{remove_compute_info | dict2items}}"
       ignore_errors: true
 
     - name: Build empty list of on-demand nodes
@@ -392,7 +392,7 @@
 
     - name: Build list of on-demand nodes
       ansible.builtin.set_fact:
-        ondemand_node_dict: "{{ ondemand_node_dict | default({}) | combine({item.item: remove_compute_info[item.item]}) }}"
+        ondemand_node_dict: "{{ ondemand_node_dict | default({}) | combine({item.item: item.item.value}) }}"
       with_items: "{{ ondemand_nodes.results }}"
       when: ( item.stdout | length ) > 0
 

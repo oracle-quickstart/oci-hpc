@@ -44,7 +44,7 @@
 
 - name: set fact
   set_fact:
-    instance_metadata: "{{ i_metadata['content'] }}"
+    instance_metadata: "{{ i_metadata['content'] | from_json }}"
 
 - name: detect mellanox interfaces
   set_fact:

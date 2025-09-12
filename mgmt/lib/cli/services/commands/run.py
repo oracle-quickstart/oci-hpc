@@ -46,11 +46,15 @@ def scan_queue_logic():
 
 def ansible_logic():
     controller = get_controller_node()
+    if controller is None:
+        controller_hostname = socket.gethostname()
+    else:
+        controller_hostname = controller.hostname
     nodes_configuring,nodes_terminating = get_all_nodes_to_configure()
     logger.debug("Nodes configuring:"+str(len(nodes_configuring)))
     logger.debug("Nodes terminating:"+str(len(nodes_terminating)))
     if len(nodes_configuring)+len(nodes_terminating):
-        ansible_successfull=run_ansible(controller.hostname)
+        ansible_successfull=run_ansible(controller_hostname)
         if ansible_successfull:
             for node in nodes_configuring:
                 db_update_node(node,controller_status="configured")
@@ -69,8 +73,14 @@ def active_hc_logic():
         node_tuple=random.choice(nodes)
         node=node_tuple[0]
         logger.debug(f"Running active healthcheck on {node.hostname} selected at Random from the list of nodes with expired active HC and idle in Slurm")
-        cmd=["sbatch","-N","1","-p","compute","-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]        
-        subprocess.call(cmd)
+        cmd=["sbatch","-N","1","-p","compute","-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]
+        logger.debug(f"Running command: {' '.join(cmd)}")
+        results = subprocess.run(cmd)
+        if results.returncode != 0:
+            logger.debug("Slurm launch failed, trying to reconfiguring Slurm before retrying")
+            reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
+            logger.debug(f"Running command: {' '.join(cmd)}")
+            results = subprocess.run(cmd)
     else:
         logger.debug("No nodes with expired active HC and idle in Slurm")
 

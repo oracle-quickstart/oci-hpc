@@ -111,7 +111,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fix_apt
   sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get -y install python python-netaddr python3 python3-pip
+    sudo apt-get -y install python python-netaddr python3 python3-pip jq
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
@@ -119,7 +119,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       do
         echo "wait until apt update is done"
         sleep 10s
-        sudo apt-get -y install python3 python3-netaddr python3-pip
+        sudo apt-get -y install python3 python3-netaddr python3-pip jq
         apt_success=$?
         echo $apt_success
       done
@@ -128,15 +128,15 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
-    sudo apt-get -y install python python-netaddr python3 python3-pip
+    sudo apt-get -y install python python-netaddr python3 python3-pip jq
     sudo python3 -m pip install virtualenv
   elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip
+    sudo apt-get -y install python3 python3-netaddr python3-pip jq
     sudo python3 -m pip install virtualenv
   else
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip
+    sudo apt-get -y install python3 python3-netaddr python3-pip jq
     fix_apt
     sudo apt-get -y install python3-virtualenv
   fi
@@ -152,17 +152,18 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp
-  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults --install-dir /opt/oci-cli > /dev/null
+  LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name')
 
-  # install oci module
-  /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/pip install oci > /dev/null
+  # First try to install into /opt/oci-cli
+   bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
+      -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
 fi 
-
-ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
-ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
+ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
+ansible-galaxy collection install community.general --upgrade --force > /dev/null
 ansible-galaxy collection install ansible.posix --force > /dev/null
 ansible-galaxy collection install community.crypto --force > /dev/null
 ansible-galaxy collection install oracle.oci --force > /dev/null
+ansible-galaxy collection install ansible.utils --force > /dev/null
 
 threads=$(nproc)
 forks=$(($threads * 8))

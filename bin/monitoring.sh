@@ -136,7 +136,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fix_apt
   sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get -y install python python-netaddr python3 python3-pip
+    sudo apt-get -y install python python-netaddr python3 python3-pip jq
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
@@ -153,15 +153,15 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
-    sudo apt-get -y install python python-netaddr python3 python3-pip
+    sudo apt-get -y install python python-netaddr python3 python3-pip jq
     sudo python3 -m pip install virtualenv
   elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip
+    sudo apt-get -y install python3 python3-netaddr python3-pip jq
     sudo python3 -m pip install virtualenv
   else
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip
+    sudo apt-get -y install python3 python3-netaddr python3-pip jq
     fix_apt
     sudo apt-get -y install python3-virtualenv
   fi
@@ -188,11 +188,12 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 fi 
 
 if [ "$INSTALL_VENV" = True ]; then
-  ansible-galaxy collection install ansible.netcommon:=2.5.1 --force > /dev/null
-  ansible-galaxy collection install community.general:=4.8.1 --force > /dev/null
+  ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
+  ansible-galaxy collection install community.general --upgrade --force > /dev/null
   ansible-galaxy collection install ansible.posix --force > /dev/null
   ansible-galaxy collection install community.crypto --force > /dev/null
   ansible-galaxy collection install oracle.oci --force > /dev/null
+  ansible-galaxy collection install ansible.utils --force > /dev/null
 fi
 threads=$(nproc)
 forks=$(($threads * 8))
@@ -216,27 +217,27 @@ sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
 
-# modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
-# echo $modified_hostname
-# log=/config/logs/${modified_hostname}.log
-# max_attempts=5
-# attempt=1
-# wait_time=10
-# while [ $attempt -le $max_attempts ]; do
-#     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
-#     ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log
-#     if [ ${PIPESTATUS[0]} -eq 0 ]; then
-#         echo "Ansible succeeded!" | tee -a $log
-#         break
-#     else
-#         echo "Ansible failed. " | tee -a $log
-#         if [ $attempt -lt $max_attempts ]; then
-#             echo "Retrying in ($wait_time)s ..." | tee -a $log
-#             sleep $wait_time
-#             wait_time=$((wait_time * 2))
-#         else
-#             echo "Max attempts ($max_attempts) reached. Giving up." | tee -a $log
-#         fi
-#         ((attempt++))
-#     fi
-# done 
+modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
+echo $modified_hostname
+log=/config/logs/${modified_hostname}.log
+max_attempts=5
+attempt=1
+wait_time=10
+while [ $attempt -le $max_attempts ]; do
+    echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
+    ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        echo "Ansible succeeded!" | tee -a $log
+        break
+    else
+        echo "Ansible failed. " | tee -a $log
+        if [ $attempt -lt $max_attempts ]; then
+            echo "Retrying in ($wait_time)s ..." | tee -a $log
+            sleep $wait_time
+            wait_time=$((wait_time * 2))
+        else
+            echo "Max attempts ($max_attempts) reached. Giving up." | tee -a $log
+        fi
+        ((attempt++))
+    fi
+done 

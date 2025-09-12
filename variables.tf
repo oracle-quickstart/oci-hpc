@@ -10,18 +10,7 @@ variable "targetCompartment" {
 variable "ad" {
   type = string
 }
-variable "secondary_ad" {
-  default = ""
-  type    = string
-}
-variable "third_ad" {
-  default = ""
-  type    = string
-}
-variable "use_multiple_ads" {
-  default = false
-  type    = bool
-}
+
 variable "ssh_key" {
   type = string
 }

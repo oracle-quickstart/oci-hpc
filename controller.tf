@@ -262,7 +262,7 @@ resource "null_resource" "controller" {
 }
 
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, null_resource.backup, oci_core_instance.controller]
+  depends_on = [null_resource.controller, oci_core_instance.controller]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
@@ -346,7 +346,7 @@ resource "null_resource" "cluster" {
       boot_volume_size            = var.boot_volume_size,
       shape                       = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
       region                      = var.region,
-      ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      ad                          = var.ad,
       private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id           = local.subnet_id,
       targetCompartment           = var.targetCompartment,
@@ -381,7 +381,7 @@ resource "null_resource" "cluster" {
       boot_volume_size            = var.boot_volume_size,
       shape                       = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
       region                      = var.region,
-      ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      ad                          = var.ad,
       private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id           = local.subnet_id,
       targetCompartment           = var.targetCompartment,
@@ -438,7 +438,7 @@ resource "null_resource" "cluster" {
 }
 
 resource "null_resource" "configure" {
-  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller, oci_dns_rrset.rrset-login, oci_dns_rrset.rrset-monitoring]
+  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller]
 
   provisioner "remote-exec" {
     inline = [
@@ -446,7 +446,7 @@ resource "null_resource" "configure" {
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
       "echo ${var.configure} > /tmp/configure.conf",
-      "timeout 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
+      "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
     "exit $exit_code"]
     connection {

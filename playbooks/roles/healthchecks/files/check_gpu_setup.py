@@ -82,6 +82,7 @@ def get_devices():
         "BM.GPU.H200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
         "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
         "BM.GPU.GB200.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
+        "BM.GPU.GB200-v2.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
         "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
@@ -128,10 +129,10 @@ def slurm_reason(message):
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in [None,"FabricManagerRestart","Reboot","Terminate"]:
+    if action not in [None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"]:
         print("No action was found")
         return 0
-    if action == "Reboot" or action == "FabricManagerRestart":
+    if action == "Reboot" or action == "FabricManagerRestart" or action == "Wait_For_OCA":
         if current == "Terminate":
             return current
         else:
@@ -140,6 +141,11 @@ def recommended_action(current, action):
         return current
     if action == "Terminate":
         return action
+    if action == "Wait_For_OCA":
+        if current in ["FabricManagerRestart","Reboot","Terminate"]:
+            return current
+        else:
+            return action
 
 #Section 1: All Health Check functions.
 ########################################
@@ -445,7 +451,7 @@ def check_gpu_count():
         lines = output.split('\n')
         # Remove empty lines
         lines = [line for line in lines if line]
-        if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4", "BM.GPU.GB200.4"]:
+        if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4"]:
             expected_gpus = 4
         elif shape in ["VM.GPU.A10.1", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1"]:
             expected_gpus = 1
@@ -497,7 +503,7 @@ def check_gpu_count():
                 else:
                     expected_gpus = 8
                 lspci_expected_results = lspci_expected_results_gpu
-            elif shape == "BM.GPU.GB200.4":
+            elif shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4"]:
                 find_number = "2941"
                 expected_gpus = 4
                 lspci_expected_results = lspci_expected_results_gb200
@@ -686,7 +692,7 @@ def check_wpa_auth(metadata):
     elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8"]:
         interface_range = range(8)
         required_authenticated = 8
-    elif shape == "BM.GPU.GB200.4":
+    elif shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
         interface_range = range(4)
         required_authenticated = 0
     else:
@@ -975,7 +981,9 @@ if __name__ == '__main__':
     except Exception as e:
         logger.warning(f"Failed to get host serial number with error: {e}")
         host_serial = "Unknown"
-    logger.info(f"Node details: {hostname} - {host_serial} - {ocid} - {shape}")
+    logger.info(f"Node details: {hostname} - {host_serial} - {shape}")
+    logger.info(f"Node details: {ocid}")
+
 
 #Section 3: Function calls to run all health checks.
 ####################################################
@@ -984,7 +992,7 @@ if __name__ == '__main__':
     run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool)) or args.slurm
 
     # 1.3 Check OCA Status
-    if (run_all or args.oca_stat) and shape != "BM.GPU.GB200.4":
+    if (run_all or args.oca_stat) and (not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -1044,7 +1052,7 @@ if __name__ == '__main__':
             gpu_results = None
 
     # 7.3 Check GPU PCIe width
-    if (run_all or args.gpu_pcie) and shape != "BM.GPU.GB200.4":    
+    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):    
         try:
             gpu_pcie_results = check_gpu_pcie()
         except Exception as e:
@@ -1073,22 +1081,28 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check the bus with error: {e}")
             bus_results = None
 
-    # 10.3 Check RDMA link status
+    # 10.3 Check RDMA link status (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_stat:
-        try:
-            rdma_link_issues = check_rdma_link_status()
-        except Exception as e:
-            logger.warning(f"Failed to check RDMA link status with error: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                rdma_link_issues = check_rdma_link_status()
+            except Exception as e:
+                logger.warning(f"Failed to check RDMA link status with error: {e}")
+                rdma_link_issues = []
+        else:
             rdma_link_issues = []
 
-    # 11.3 Check RDMA link flapping
+    # 11.3 Check RDMA link flapping (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_flap:
-        try:
-            lft = LinkFlappingTest(time_interval=args.lf_interval)
-            lft.get_rdma_link_failures()
-            lft_issues = lft.process_rdma_link_flapping()
-        except Exception as e:
-            logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                lft = LinkFlappingTest(time_interval=args.lf_interval)
+                lft.get_rdma_link_failures()
+                lft_issues = lft.process_rdma_link_flapping()
+            except Exception as e:
+                logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+                lft_issues = {"failures": [], "link_down": []}
+        else:
             lft_issues = {"failures": [], "link_down": []}
  
     # 12.3 Check GPU Xid errors
@@ -1100,12 +1114,15 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check GPU Xid errors with error: {e}")
             xid_results = {"status": "None", "results": {}}
 
-    # 13.3 Check WPA Authentication status
+    # 13.3 Check WPA Authentication status (only if OCA status is COMPLETED)
     if run_all or args.wpa_auth:
-        try:
-            wpa_auth_results = check_wpa_auth(metadata)
-        except Exception as e:
-            logger.warning(f"Failed to get WPA Authentication status: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                wpa_auth_results = check_wpa_auth(metadata)
+            except Exception as e:
+                logger.warning(f"Failed to get WPA Authentication status: {e}")
+                wpa_auth_results = None
+        else:
             wpa_auth_results = None
 
     # 14.3 Check Fabric Manager status
@@ -1142,7 +1159,7 @@ if __name__ == '__main__':
             bad_page_issues = []
 
     # 17.3 Check if AMD GPU has pending bad pages
-    if (run_all or args.ip_address) and shape != "BM.GPU.GB200.4":   
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):   
         try:
             metadata = get_metadata()
             missing_ips,ip_list = check_ip_addresses(metadata)
@@ -1158,10 +1175,11 @@ if __name__ == '__main__':
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if (run_all or args.oca_stat) and shape != "BM.GPU.GB200.4":
+    if (run_all or args.oca_stat) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
+            action = recommended_action(action, "Wait_For_OCA")
     
     # 2.4 Summarize OCA version check
     if run_all or args.oca_ver:
@@ -1215,7 +1233,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 7.4 Summarize GPU PCIe width check
-    if (run_all or args.gpu_pcie) and shape != "BM.GPU.GB200.4":
+    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
             if gpu_pcie_results:
                 logger.error(f"{host_serial} - GPU PCIe Width: {gpu_pcie_results}")
                 slurm_reason("GPU PCIe Width Error")
@@ -1305,7 +1323,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 17.4 Summarize pending bad pages check for AMD
-    if (run_all or args.ip_address) and shape != "BM.GPU.GB200.4":
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
         if len(missing_ips) > 0:
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
             slurm_reason("Missing IPs")
@@ -1320,6 +1338,8 @@ if __name__ == '__main__':
             logger.error("Recommended Action is to Force Reboot from the console or API")
     if action == "Terminate":
         logger.error("Recommended Action is to Terminate the node and Create a SR")
+    if action == "Wait_For_OCA":
+        logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
     if slurm_error_count > 0 and args.slurm:
         print("Healthcheck:: " + slurm_drain_reason[:-1])

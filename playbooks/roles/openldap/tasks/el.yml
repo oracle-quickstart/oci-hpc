@@ -56,12 +56,9 @@
   register: openldap_root_pwd_hash
   changed_when: false
 
-- name: Create Python virtual environment with system site packages
-  command: "python3 -m venv {{venv_path}} --system-site-packages"
-  when: ansible_distribution_major_version != "8"
-  ignore_errors: true
-
 - name: Selinux fcontext on files
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   sefcontext:
     target: "{{ openldap_server_conf_path }}(/.*)?"
     setype: slapd_db_t

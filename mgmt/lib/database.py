@@ -251,20 +251,26 @@ def query_db():
         sys.exit(1)
 
 
-def node_to_dict(node_tuple, keys=None, healthcheck=False):
+def node_to_dict(node_tuple, keys=None):
     node=node_tuple[0]
-    return_dict={
+    dict_all={
         c.key: getattr(node, c.key)
         for c in inspect(node).mapper.column_attrs
         if keys is None or c.key in keys
     }
-    if healthcheck:
-        addtl_columns=get_extra_columns()    
-        values={}
-        for index,tuple_value in enumerate(node_tuple):
-            if index>0:
-                values[addtl_columns[index-1]]=tuple_value
-        return_dict.update(values)
+    return_dict={}
+    addtl_columns=get_extra_columns()    
+    values={}
+    for index,tuple_value in enumerate(node_tuple):
+        if index>0:
+            values[addtl_columns[index-1]]=tuple_value
+    dict_all.update(values)
+    if keys is not None:
+        for key in sorted(keys):
+            return_dict[key]=dict_all[key]
+    else:
+        for key in sorted(dict_all.keys()):
+            return_dict[key]=dict_all[key]
     return return_dict
 
 def field_to_rich_renderable(val):
@@ -425,7 +431,7 @@ def filter_nodes_by_cluster(query, cluster_name=None, memory_cluster_name=None):
 
     query = query.filter(
         or_(
-            ~Nodes.role.in_(["controller", "login"]),
+            ~Nodes.role.in_(["controller", "login", "monitoring"]),
             Nodes.role.is_(None)
         )
     )
@@ -705,7 +711,7 @@ def get_nodes_by_cluster(cluster_name):
     try:
         nodes = session.query(Nodes).filter(Nodes.cluster_name == cluster_name).filter(
             or_(
-                ~Nodes.role.in_(["controller", "login"]),
+                ~Nodes.role.in_(["controller", "login", "monitoring"]),
                 Nodes.role.is_(None)
             )
         ).all()
@@ -720,7 +726,7 @@ def get_nodes_by_memory_cluster(cluster_name):
     try:
         nodes = session.query(Nodes).filter(Nodes.memory_cluster_name == cluster_name).filter(
             or_(
-                ~Nodes.role.in_(["controller", "login"]),
+                ~Nodes.role.in_(["controller", "login", "monitoring"]),
                 Nodes.role.is_(None)
             )
         ).all()
@@ -747,7 +753,7 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     logger.debug(f"Count after role filter: {query.count()}")
     query = query.filter(Nodes.shape.in_([
         "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
-        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8"
+        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8", "BM.GPU.GB200-v2.4"
     ]))
     logger.debug(f"Count after shape filter: {query.count()}")
     query = query.filter(Nodes.slurm_state == "idle")

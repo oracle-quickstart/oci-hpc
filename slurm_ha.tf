@@ -43,7 +43,7 @@ resource "oci_core_instance" "backup" {
 
 resource "null_resource" "backup" {
   count      = var.slurm_ha ? 1 : 0
-  depends_on = [oci_core_instance.backup, null_resource.controller]
+  depends_on = [oci_core_instance.backup]
   triggers = {
     backup = oci_core_instance.backup[0].id
   }
@@ -244,7 +244,7 @@ resource "null_resource" "cluster_backup" {
       boot_volume_size            = var.boot_volume_size,
       shape                       = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
       region                      = var.region,
-      ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      ad                          = var.ad,
       private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id           = local.subnet_id,
       targetCompartment           = var.targetCompartment,
@@ -279,7 +279,7 @@ resource "null_resource" "cluster_backup" {
       boot_volume_size            = var.boot_volume_size,
       shape                       = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
       region                      = var.region,
-      ad                          = var.use_multiple_ads ? join(" ", [var.ad, var.secondary_ad, var.third_ad]) : var.ad,
+      ad                          = var.ad,
       private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
       private_subnet_id           = local.subnet_id,
       targetCompartment           = var.targetCompartment,
