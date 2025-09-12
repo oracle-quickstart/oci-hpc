@@ -14,8 +14,7 @@ import shlex
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('multi_node_active_healthcheck')
 
-
-file_handler = logging.FileHandler("/tmp/latest_multi_node_active_healthcheck.log", mode='w')
+file_handler = logging.FileHandler("/tmp/latest_multi_node_active_healthcheck_result.log", mode='w')
 logger.addHandler(file_handler)
 
 version = sys.version_info
@@ -226,7 +225,7 @@ def run_multi_node_nccl_test(hostfile, shape):
         # else:
         #     return False, "NCCL test failed"
         if result.returncode == 0:
-            logger.info("dhvani")
+            # logger.info("dhvani")
             output = result.stdout
             bw=None
             threshold = shape_mapping.get(shape, {}).get("threshold")
@@ -377,10 +376,14 @@ if __name__ == '__main__':
     datetime_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
     logger.info(f"Finished multi-node active healthcheck at: {datetime_str}")
 
-
-    result = {"action": action, "value": 42}
+    if action == None:
+        action = "None"
+    if slurm_drain_reason == "":
+        slurm_drain_reason = "None"
+        
+    hc_result = {"action": action, "reason": slurm_drain_reason}
     with open('/tmp/multi_node_hc_result.json', 'w') as f:
-        json.dump(result, f)
+        json.dump(hc_result, f)
     #-----
 
     # http_server_file="/opt/oci-hpc/http_server/files/healthchecks"

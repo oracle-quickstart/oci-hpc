@@ -10,7 +10,6 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('multi_node_active_healthcheck')
 
-
 # file_handler = logging.FileHandler("/tmp/latest_multi_node_active_healthcheck.log", mode='w')
 # logger.addHandler(file_handler)
 

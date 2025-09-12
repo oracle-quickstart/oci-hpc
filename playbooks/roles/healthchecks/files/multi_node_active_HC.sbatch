@@ -40,6 +40,33 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
     sleep 2
   fi
 
+  # # Get the hostnames of the assigned nodes
+  # nodes=($(scontrol show hostname $SLURM_JOB_NODELIST))
+
+  # node1=${nodes[0]}
+  # node2=${nodes[1]}
+  # file_to_copy="/tmp/latest_multi_node_active_healthcheck.log"
+  # dest_path="/tmp/latest_multi_node_active_healthcheck.log"
+
+  # # Only execute the copy from the source node
+  # if [ "$(hostname)" == "$node1" ]; then
+  #   # Use scp to copy the file to the second node
+  #   scp $file_to_copy ${node2}:$dest_path
+  # fi
+
+  # Extract the 'action' field
+  action=$(jq -r '.action' /tmp/multi_node_hc_result.json)
+
+  # Extract the 'reason' field
+  reason=$(jq -r '.reason' /tmp/multi_node_hc_result.json)
+
+  # Use the extracted values
+  echo "Action: $action"
+  echo "Reason: $reason"
+
+  srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 15s sudo python3 /opt/oci-hpc/healthchecks/write_hc_http_server_file.py --action $action --reason $reason --node1 $node1 --node2 $node2
+  sleep 2
+
   # Only check for drain messages if log file exists
   if [ -f "$FILE" ]; then
     DRAIN_MSG=$(grep "Healthcheck::" "$FILE")

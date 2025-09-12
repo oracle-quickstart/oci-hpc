@@ -27,11 +27,10 @@ if __name__ == '__main__':
     parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level default: INFO")
     parser.add_argument('-a', '--action', required=True, type=str, help='Slurm recommended action')
     parser.add_argument('-r', '--reason', required=True, type=str, help='Slurm drain reason')
+    parser.add_argument('-n', '--node1', required=True, type=str, help='node1 name')
+    parser.add_argument('-m', '--node2', required=True, type=str, help='node2 name')
 
     args = parser.parse_args()
-    if not args.hostfile.strip():
-        logger.error("Error: --hostfile argument cannot be empty", flush=True)
-        sys.exit(1)
     metadata = get_metadata()
     shape = metadata['shape']
     hostname = metadata['displayName']
@@ -39,6 +38,8 @@ if __name__ == '__main__':
     logger.setLevel(args.log_level)
     action = args.action
     slurm_drain_reason = args.reason
+    node1 = args.node1
+    node2 = args.node2
 
     http_server_file="/opt/oci-hpc/http_server/files/healthchecks"
     # Read the existing data from the file
@@ -49,7 +50,7 @@ if __name__ == '__main__':
         logger.debug("Error: File not found or not in valid JSON format.")
         data={}
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
-    if action is None:
+    if action == "None":
         data["multi_node_HC_recommendation"] = "Healthy"
     else:
         data["multi_node_HC_recommendation"] = action
@@ -61,10 +62,15 @@ if __name__ == '__main__':
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")
         data["multi_node_HC_logs"] = ""
-    if slurm_drain_reason:
-        data["multi_node_HC_status"] = slurm_drain_reason
-    else:
+    if slurm_drain_reason == "None":
         data["multi_node_HC_status"] = "Healthy"
+    else:
+        data["multi_node_HC_status"] = slurm_drain_reason
+    if hostname == node1:
+        multi_node_HC_node = node2
+    else:
+        multi_node_HC_node = node1
+    data["multi_node_HC_node"] = multi_node_HC_node
     # Write updated data back to the file
     with open(http_server_file, 'w') as file:
         try:
