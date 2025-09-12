@@ -1,4 +1,4 @@
-setting to v.7.17 due to a bug in 7.18 for FSS sept.12 2025
+#setting to v.7.17 due to a bug in 7.18 for FSS sept.12 2025
 provider "oci" {
 auth = "InstancePrincipal"
 region           = "${var.region}"
