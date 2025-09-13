@@ -800,9 +800,15 @@ def get_nodes_by_multi_node_hc_expired(active_hc_timeout):
     query = query.having(label_map["passive_healthcheck_recommendation"] == "Healthy")
     logger.debug(f"Count after passive healthcheck filter: {query.count()}")
     query = query.having(label_map["active_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after passive healthcheck filter: {query.count()}")
+    logger.debug(f"Count after active healthcheck filter: {query.count()}")
 
-    query_healthy=query.filter(label_map["multi_node_healthcheck_recommendation"] == "Healthy")    
+    query_healthy=query.having(
+        or_(
+        label_map["multi_node_healthcheck_recommendation"] == "Healthy",
+        label_map["multi_node_healthcheck_recommendation"] == "",
+        label_map["multi_node_healthcheck_recommendation"].is_(None)
+        )
+    )
     logger.debug(f"Count after healthy multi node healthcheck filter: {query_healthy.count()}")
     # Add having for expired active healthcheck
     col = label_map.get("multi_node_healthcheck_last_time")
@@ -814,9 +820,9 @@ def get_nodes_by_multi_node_hc_expired(active_hc_timeout):
             )
         )
     logger.debug(f"Count after expired active healthy healthcheck filter: {query_healthy.count()}")
-    query_potentially_bad=query.filter(label_map["multi_node_healthcheck_recommendation"] == "Potentially Bad")
+    query_potentially_bad=query.having(label_map["multi_node_healthcheck_recommendation"] == "Potentially Bad")
     logger.debug(f"Count after potentially bad multi node healthcheck filter: {query_potentially_bad.count()}")
-    return query_healthy,query_potentially_bad
+    return query_healthy.all(),query_potentially_bad.all()
 
 def get_nodes_by_status(status):
     """Get all nodes with a specific status"""

@@ -94,7 +94,7 @@ def active_hc_logic():
     else:
         logger.debug("No nodes with expired active HC and idle in Slurm")
 
-def multi_node_hc_expired():
+def multi_node_hc_logic():
     multi_node_hc_timeout=timedelta(hours=24)
     nodes_healthy, nodes_potentially_bad =get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout)
     
@@ -108,7 +108,7 @@ def multi_node_hc_expired():
         hc_partition=[partition for partition in partition if 'healthcheck' in partition]
         if hc_partition:
             logger.debug(f"Running multi node healthcheck on {node.hostname} selected at Random from the list of nodes with expired multi node HC and idle in Slurm")
-            cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_HC.sbatch"]        
+            cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"]        
             logger.debug(f"Running command: {' '.join(cmd)}")
             results = subprocess.run(cmd)
             if results.returncode != 0:
@@ -130,7 +130,7 @@ def multi_node_hc_expired():
                 hc_partition=[partition for partition in partition if 'healthcheck' in partition]
                 if hc_partition:
                     logger.debug(f"Running multi node healthcheck on {node.hostname}")
-                    cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"-x",node_tuple[1]["multi_node_healthcheck_associated_node"],"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_HC.sbatch"]        
+                    cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"-x",node_tuple[1]["multi_node_healthcheck_associated_node"],"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_HC.sbatch"]        
                     logger.debug(f"Running command: {' '.join(cmd)}")
                     results = subprocess.run(cmd)
                     if results.returncode != 0:
@@ -149,35 +149,6 @@ def multi_node_hc_expired():
         logger.debug("No nodes with expired active HC and idle in Slurm")
     
 
-def multi_node_hc_logic():
-    active_hc_timeout=timedelta(hours=24)
-    nodes=get_nodes_by_active_hc_expired(active_hc_timeout)
-    
-    logger.debug(f"Nodes With expired active HC:{len(nodes)}")
-    if nodes:
-        node_tuple=random.choice(nodes)
-        node=node_tuple[0]
-        partition=node_tuple[0].slurm_partition.split(',')
-        hc_partition=[partition for partition in partition if 'healthcheck' in partition]
-        if hc_partition:
-            logger.debug(f"Running active healthcheck on {node.hostname} selected at Random from the list of nodes with expired active HC and idle in Slurm")
-            cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]        
-            logger.debug(f"Running command: {' '.join(cmd)}")
-            results = subprocess.run(cmd)
-            if results.returncode != 0:
-                logger.debug("Slurm launch failed, trying to reconfiguring Slurm before retrying")
-                reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
-                logger.debug(f"Running command: {' '.join(cmd)}")
-                results2 = subprocess.run(cmd)
-                if results2.returncode != 0:
-                    logger.warning(f"Slurm launch failed after reconfiguring Slurm")
-                    logger.warning(f"Error message: {results2.stderr}")
-                else:
-                    logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
-            else:
-                logger.warning(f"No healthcheck partition found for {node.hostname}")
-    else:
-        logger.debug("No nodes with expired active HC and idle in Slurm")
 # ------------------------
 # Click Commands
 # ------------------------
