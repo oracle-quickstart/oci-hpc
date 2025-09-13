@@ -130,7 +130,7 @@ def slurm_reason(message):
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
     if action not in [None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"]:
-        print("No action was found")
+        logger.error("No action was found")
         return 0
     if action == "Reboot" or action == "FabricManagerRestart" or action == "Wait_For_OCA":
         if current == "Terminate":
@@ -857,7 +857,7 @@ def check_bad_pages():
         result = subprocess.run(["amd-smi", "bad-pages", "--json"], capture_output=True, check=True)
         data = json.loads(result.stdout.decode('utf-8'))
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-        print(f"Error executing amd-smi or parsing JSON: {e}")
+        logger.error(f"Error executing amd-smi or parsing JSON: {e}")
         return
 
     errors = []
@@ -868,7 +868,7 @@ def check_bad_pages():
 
     if errors:
         for error in errors:
-            print(error)
+            logger.error(error)
     else:
         logger.info("GPU Pending Bad Pages Check: Passed")
 
@@ -1342,8 +1342,8 @@ if __name__ == '__main__':
         logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
     if slurm_error_count > 0 and args.slurm:
-        print("Healthcheck:: " + slurm_drain_reason[:-1])
-        print("Healthcheck:: Recommended Action:" + str(action))
+        logger.error("Healthcheck:: " + slurm_drain_reason[:-1])
+        logger.error("Healthcheck:: Recommended Action:" + str(action))
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
 
