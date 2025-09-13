@@ -1,0 +1,69 @@
+---
+
+- name: Install required packages
+  vars:
+    package_name:
+      - python3-prometheus-client
+      - python3-pyudev
+    package_state: present
+    package_cache: true
+  ansible.builtin.include_role:
+    name: safe_yum
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Install required python packages
+  become: true
+  ansible.builtin.pip:
+    name:
+      - pyudev
+      - prometheus_client
+    executable: "{{ venv_path }}/bin/pip3"
+
+- name: Install required python packages
+  become: true
+  ansible.builtin.pip:
+    name: 
+      - pyudev
+      - prometheus_client
+    executable: /usr/bin/pip3
+  ignore_errors: true
+
+- name: Copy service file to scripts directory
+  copy:
+    src: pcie_faults_exporter.py
+    dest: /usr/local/bin
+    mode: 0755
+  become: true
+
+- name: Render systemd service file
+  become: true
+  template: 
+    src: pcie-faults-exporter.service.j2
+    dest: /etc/systemd/system/pcie-faults-exporter.service
+    force: yes
+    backup: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0744
+
+- name: Check if critical-process-monitor service exists
+  shell: systemctl list-unit-files | grep -q '^critical-process-monitor'
+  register: cpmon_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Stop and disable critical-process-monitor if it exists
+  service:
+    name: critical-process-monitor
+    state: stopped
+    enabled: no
+  become: true
+  when: cpmon_check.rc == 0
+
+- name: Restart pcie faults exporter
+  become: true
+  service:    
+    name: pcie-faults-exporter
+    state: restarted
+    enabled: yes
+    daemon_reload: true

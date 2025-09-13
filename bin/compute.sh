@@ -147,7 +147,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       do
         echo "wait until apt update is done"
         sleep 10s
-        sudo apt-get -y install python3 python3-netaddr python3-pip
+        sudo apt-get -y install python3 python3-netaddr python3-pip jq
         apt_success=$?
         echo $apt_success
       done
@@ -184,8 +184,11 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   source $VENV_PATH/bin/activate
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp
-  bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" -s --accept-all-defaults --install-dir /opt/oci-cli > /dev/null
+  LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name')
 
+  # First try to install into /opt/oci-cli
+   bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
+      -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
   # install oci module
   $VENV_PATH/bin/pip install oci > /dev/null
 fi 
@@ -224,6 +227,27 @@ modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169
 echo $modified_hostname
 log=/config/logs/${modified_hostname}.log
 max_attempts=5
+max_attempts_ansible_install=50
+attempt=1
+
+while [ $attempt -le $max_attempts_ansible_install ]; do
+    echo "Attempt $attempt of $max_attempts_ansible_install: Is ansible installed?" | tee -a $log
+    ansible localhost -c local -m ping 2>&1 | tee -a $log
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        echo "Ansible is installed!" | tee -a $log
+        break
+    else
+        echo "Ansible is not installed. " | tee -a $log
+        if [ $attempt -lt $max_attempts_ansible_install ]; then
+            echo "Retrying..." | tee -a $log
+            sleep 30s
+        else
+            echo "Max attempts ($max_attempts_ansible_install) reached. Giving up." | tee -a $log
+        fi
+        ((attempt++))
+    fi
+done 
+
 attempt=1
 wait_time=10
 while [ $attempt -le $max_attempts ]; do
