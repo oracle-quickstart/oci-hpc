@@ -6,12 +6,9 @@ import requests
 import subprocess
 import logging
 
-# Configure logger for multi_node_active_healthcheck
+# Configure logger for node_details
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('multi_node_active_healthcheck')
-
-# file_handler = logging.FileHandler("/tmp/latest_multi_node_active_healthcheck.log", mode='w')
-# logger.addHandler(file_handler)
+logger = logging.getLogger('node_details')
 
 def get_metadata():
     headers = { 'Authorization' : 'Bearer Oracle' }

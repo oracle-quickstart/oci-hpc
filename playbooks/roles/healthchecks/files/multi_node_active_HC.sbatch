@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=multi_node_active_HC
+#SBATCH --job-name=multi_node_active_HealthCheck
 #SBATCH --nodes=2
 #SBATCH --exclusive
 #SBATCH --gpus-per-node=8
 #SBATCH --ntasks-per-node=8
-#SBATCH --output=/home/ubuntu/dhvani/slurm-%j.out
-#SBATCH --error=/home/ubuntu/dhvani/slurm-%j.out
+#SBATCH --output=/tmp/multi_node_active_HealthCheck/%x-%j.out  # %x = job name, %j = job ID
+#SBATCH --error=/tmp/multi_node_active_HealthCheck/%x-%j.out
 
 
 # Fetch the instance shape
@@ -36,49 +36,23 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
   if [ "$TIME_DIFF" -gt 60 ]; then
     srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 10s python3 /opt/oci-hpc/healthchecks/node_details.py
     sleep 2
-    python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile $MACHINEFILE --slurm
+    
+    python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile $MACHINEFILE
     sleep 2
-  fi
-
-  # # Get the hostnames of the assigned nodes
-  # nodes=($(scontrol show hostname $SLURM_JOB_NODELIST))
-
-  # node1=${nodes[0]}
-  # node2=${nodes[1]}
-  # file_to_copy="/tmp/latest_multi_node_active_healthcheck.log"
-  # dest_path="/tmp/latest_multi_node_active_healthcheck.log"
-
-  # # Only execute the copy from the source node
-  # if [ "$(hostname)" == "$node1" ]; then
-  #   # Use scp to copy the file to the second node
-  #   scp $file_to_copy ${node2}:$dest_path
-  # fi
-
-  # Extract the 'action' field
-  action=$(jq -r '.action' /tmp/multi_node_hc_result.json)
-
-  # Extract the 'reason' field
-  reason=$(jq -r '.reason' /tmp/multi_node_hc_result.json)
-
-  # Use the extracted values
-  echo "Action: $action"
-  echo "Reason: $reason"
-
-  srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 15s sudo python3 /opt/oci-hpc/healthchecks/write_hc_http_server_file.py --action $action --reason $reason --node1 $node1 --node2 $node2
-  sleep 2
-
-  # Only check for drain messages if log file exists
-  if [ -f "$FILE" ]; then
-    DRAIN_MSG=$(grep "Healthcheck::" "$FILE")
-    if [ -n "$DRAIN_MSG" ]; then
-      if [ -n "$SLURM_JOB_ID" ]; then
-        echo "${DRAIN_MSG}"
-        exit 1
-      else
-        for node in $(scontrol show hostnames $SLURM_JOB_NODELIST); do
-          sudo scontrol update nodename="$(node)" state=drain reason="${DRAIN_MSG}"
-        done
-      fi
+    
+    # Get the hostnames of the assigned nodes
+    nodes=($(scontrol show hostname $SLURM_JOB_NODELIST))
+    node1=${nodes[0]}
+    node2=${nodes[1]}
+    file_to_copy="/tmp/latest_multi_node_active_healthcheck.log"
+    dest_path="/tmp/latest_multi_node_active_healthcheck.log"
+    # Only execute the copy from the source node
+    if [ "$(hostname)" == "$node1" ]; then
+      # Use scp to copy the file to the second node
+      scp $file_to_copy ${node2}:$dest_path
     fi
+
+    srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 20s sudo python3 /opt/oci-hpc/healthchecks/write_hc_http_server_file.py --node1 $node1 --node2 $node2 --slurm
+    sleep 2
   fi
 fi
