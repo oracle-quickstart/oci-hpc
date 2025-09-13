@@ -23,6 +23,10 @@
     - rdma_link_flapping.py
     - xid_checker.py
     - shared_logging.py
+    - multi_node_active_HC.sbatch
+    - multi_node_active_healthcheck.py
+    - node_details.py
+    - write_hc_http_server_file.py
 
 - name: Download oci-mesh-pinger
   ansible.builtin.get_url:
