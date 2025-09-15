@@ -9,6 +9,8 @@ g.dashboard.new('GPU Health Status')
   GPU Node Component Health Status
 |||)
 + g.dashboard.withTimezone('browser')
++ g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([
   variables.prometheus,

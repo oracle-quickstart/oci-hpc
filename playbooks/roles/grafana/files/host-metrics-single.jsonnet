@@ -9,6 +9,8 @@ g.dashboard.new('Host Metrics')
   Host Metrics Dashboard for a single cluster node.
 |||)
 + g.dashboard.withTimezone('browser')
++ g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([
   variables.prometheus,
