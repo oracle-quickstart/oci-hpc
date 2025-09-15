@@ -7,6 +7,8 @@ g.dashboard.new('Command Center')
   Command Center
 |||)
 + g.dashboard.withTimezone('browser')
++ g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([
   variables.prometheus,
@@ -20,17 +22,17 @@ g.dashboard.new('Command Center')
     ),
     statPanel(
       'Management Nodes',
-      'count(node_uname_info{hostname=~".*controller*|.*login*"})',
+      'count(node_uname_info{hostname=~".*controller*|.*login*|.*backup*"})',
       {w:4, h:4, x:4, y:0}
     ),
     statPanel(
       'Compute Nodes',
-      'count(node_health_status{hostname!~".*controller*|.*login*",cluster_name=~"$cluster_name"})',
+      'count(node_health_status{hostname!~".*controller*|.*login*|.*backup*",cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:8, y:0}
     ),
     statPanel(
       'Healthy Nodes',
-      'sum(count by (cluster_name) (node_health_status{hostname!~".*controller*|.*login*",cluster_name=~"$cluster_name"} == 1))',
+      'sum(count by (cluster_name) (node_health_status{hostname!~".*controller*|.*login*|.*backup*",cluster_name=~"$cluster_name"} == 1))',
       {w:4, h:4, x:12, y:0}
     ),
     statPanel(
@@ -59,7 +61,7 @@ g.dashboard.new('Command Center')
         + g.panel.stat.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                'node_health_status{cluster_name=~"$cluster_name", hostname!~".*controller.*"}'
+                'node_health_status{cluster_name=~"$cluster_name", hostname!~".*controller.*|.*login*|.*backup*"}'
             )
         + g.query.prometheus.withLegendFormat('{{hostname}}')
         ])
