@@ -118,8 +118,8 @@ def multi_node_hc_logic():
                     logger.warning(f"Error message: {results2.stderr}")
                 else:
                     logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
-            else:
-                logger.warning(f"No healthcheck partition found for {node.hostname}")
+        else:
+            logger.warning(f"No healthcheck partition found for {node.hostname}")
         if nodes_potentially_bad:
             for node in nodes_potentially_bad:
                 partition=node.slurm_partition.split(',')
