@@ -80,4 +80,7 @@ locals {
 
   # Pick the right IP based on flags
   config_target_name = var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : oci_dns_rrset.controller[0].domain
+
+  lustre_IP = var.create_lfs ? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
+
 }
