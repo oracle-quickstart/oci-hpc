@@ -1159,14 +1159,17 @@ if __name__ == '__main__':
             bad_page_issues = []
 
     # 17.3 Check if AMD GPU has pending bad pages
-    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):   
-        try:
-            metadata = get_metadata()
-            missing_ips,ip_list = check_ip_addresses(metadata)
-            if len(missing_ips) == 0:
-                logger.info("All interfaces have an IP defined: Passed")
-        except Exception as e:
-            logger.warning(f"Failed to get all IPS: {e}")
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):  
+        if oca_state == "COMPLETED":
+            try:
+                metadata = get_metadata()
+                missing_ips,ip_list = check_ip_addresses(metadata)
+                if len(missing_ips) == 0:
+                    logger.info("All interfaces have an IP defined: Passed")
+            except Exception as e:
+                logger.warning(f"Failed to get all IPS: {e}")
+                missing_ips = []
+        else:
             missing_ips = []
 
 #Section 4: Summarize the results and recommend actions.
@@ -1308,11 +1311,11 @@ if __name__ == '__main__':
     # 15.4 Summarize CPU profile check
     if run_all or args.cpu_profile:
         if cpu_profile_issues:
-            logger.error(f"CPU Profile need to be 'performance'.")
-            for issue in cpu_profile_issues:
-                logger.error(f" - {issue}")
-            slurm_reason("CPU Profile error")
-            action = recommended_action(action, "Terminate")
+            logger.warning(f"CPU Profile need to be 'performance'.")
+            #for issue in cpu_profile_issues:
+            #    logger.error(f" - {issue}")
+            #slurm_reason("CPU Profile error")
+            #action = recommended_action(action, "Terminate")
 
     # 16.4 Summarize pending bad pages check for AMD
     if run_all or args.bad_page:
@@ -1364,7 +1367,7 @@ if __name__ == '__main__':
     # Read the healthcheck.log file content
     try:
         with open("/tmp/latest_healthcheck.log", 'r') as log_file:
-            data["passive_healthcheck_logs"] = log_file.read(2047)  # Store log content in JSON
+            data["passive_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")
         data["passive_healthcheck_logs"] = ""

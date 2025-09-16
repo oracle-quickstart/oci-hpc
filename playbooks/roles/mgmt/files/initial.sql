@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS clusterDB.healthchecks (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     ocid VARCHAR(128),
     healthcheck_type ENUM('passive', 'active', 'multi-node','slurm','host_api'),
-    healthcheck_logs VARCHAR(2048),
+    healthcheck_logs VARCHAR(4096),
     healthcheck_time_change VARCHAR(128),
     healthcheck_last_time VARCHAR(128),
     healthcheck_recommendation VARCHAR(128),

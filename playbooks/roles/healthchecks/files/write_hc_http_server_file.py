@@ -49,7 +49,7 @@ if __name__ == '__main__':
         data={}
     
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
-    data["multi_node_healthcheck_last_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    data["multi_node_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
     prev_multi_node_hc_status = data.get("multi_node_healthcheck_status")
     prev_multi_node_hc_assoc_node = data.get("multi_node_healthcheck_associated_node")
@@ -64,10 +64,13 @@ if __name__ == '__main__':
     # Read the latest_multi_node_active_healthcheck.log file content
     try:
         with open("/tmp/latest_multi_node_active_healthcheck.log", 'r') as log_file:
-            data["multi_node_healthcheck_logs"] = log_file.read(2047)  # Store log content in JSON
-            for line in log_file:
+            content = log_file.read(4095)
+            data["multi_node_healthcheck_logs"] = content  # Store log content in JSON
+            for line in content.splitlines():
                 if "result:" in line:
                     result_text = line.split(":", 1)[1].strip()
+                    logger.info(f"Multi-node Healthcheck Result: {result_text}")
+                    break
     except FileNotFoundError:
         logger.warning(f"{hostname}: Log file not found, initializing empty logs.")
         data["multi_node_healthcheck_logs"] = ""
@@ -89,13 +92,13 @@ if __name__ == '__main__':
     else:
         data["multi_node_healthcheck_status"] = "Potentially Bad"
         data["multi_node_healthcheck_recommendation"] = "Run the NCCL test with another node"
-    
+    logger.info(f"Data to write: {data}")
     # Write updated data back to the file
     with open(http_server_file, 'w') as file:
         try:
             json.dump(data, file, indent=4)
         except Exception as e:
-            logger.error(f"{hostname}: Error writing to file: {e}")
+            logger.error(f"Error writing to file: {e}")
 
     slurm_reason = "Healthcheck, active NCCL test, multi-node active NCCL test failed"
     if slurm_error and args.slurm:

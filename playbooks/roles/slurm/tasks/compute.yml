@@ -125,3 +125,15 @@
   until: result is not failed
   retries: 5
   delay: 5
+
+- name: test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 -w `hostname` hostname"
+  ignore_errors: true
+
+- name: Reconfigure slurm
+  become: true
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5

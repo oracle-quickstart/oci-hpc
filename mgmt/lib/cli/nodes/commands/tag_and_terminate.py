@@ -4,6 +4,7 @@ from lib.ociwrap import run_tag, run_terminate
 
 import lib.database as db
 from ClusterShell.NodeSet import NodeSet
+from lib.logger import logger
 
 def filter_cmd(ctx, nodes, fields):
     if (not nodes and not fields) or (nodes and fields):
@@ -20,8 +21,7 @@ def filter_cmd(ctx, nodes, fields):
                 raise click.BadParameter(f"Field must be in key=value format: {field}")
             key, value = field.split('=', 1)
             field_dict[key] = value.lower() == 'true' if value.lower() in ['true', 'false'] else value
-        nodes_tuple_list = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict).all()
-        nodes_list = [node_tuple[0] for node_tuple in nodes_tuple_list]
+        nodes_list = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict).all()
     else:
         # Use the provided node identifiers
         nodes_list = db.get_nodes_by_any(NodeSet(nodes)) if nodes else []

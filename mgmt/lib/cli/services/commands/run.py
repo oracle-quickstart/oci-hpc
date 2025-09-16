@@ -70,9 +70,8 @@ def active_hc_logic():
     
     logger.debug(f"Nodes With expired active HC:{len(nodes)}")
     if nodes:
-        node_tuple=random.choice(nodes)
-        node=node_tuple[0]
-        partition=node_tuple[0].slurm_partition.split(',')
+        node=random.choice(nodes)
+        partition=node.slurm_partition.split(',')
         hc_partition=[partition for partition in partition if 'healthcheck' in partition]
         if hc_partition:
             logger.debug(f"Running active healthcheck on {node.hostname} selected at Random from the list of nodes with expired active HC and idle in Slurm")
@@ -89,22 +88,20 @@ def active_hc_logic():
                     logger.warning(f"Error message: {results2.stderr}")
                 else:
                     logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
-            else:
-                logger.warning(f"No healthcheck partition found for {node.hostname}")
+        else:
+            logger.warning(f"No healthcheck partition found for {node.hostname}")
     else:
         logger.debug("No nodes with expired active HC and idle in Slurm")
 
 def multi_node_hc_logic():
     multi_node_hc_timeout=timedelta(hours=24)
     nodes_healthy, nodes_potentially_bad =get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout)
-    
     logger.debug(f"Nodes With expired Healthy multi node HC:{len(nodes_healthy)}")    
     logger.debug(f"Nodes With Potentially bad multi node HC:{len(nodes_potentially_bad)}")
 
     if nodes_healthy:
-        node_tuple=random.choice(nodes_healthy)
-        node=node_tuple[0]
-        partition=node_tuple[0].slurm_partition.split(',')
+        node=random.choice(nodes_healthy)
+        partition=node.slurm_partition.split(',')
         hc_partition=[partition for partition in partition if 'healthcheck' in partition]
         if hc_partition:
             logger.debug(f"Running multi node healthcheck on {node.hostname} selected at Random from the list of nodes with expired multi node HC and idle in Slurm")
@@ -124,13 +121,12 @@ def multi_node_hc_logic():
             else:
                 logger.warning(f"No healthcheck partition found for {node.hostname}")
         if nodes_potentially_bad:
-            for node_tuple in nodes_potentially_bad:
-                node=node_tuple[0]
+            for node in nodes_potentially_bad:
                 partition=node.slurm_partition.split(',')
                 hc_partition=[partition for partition in partition if 'healthcheck' in partition]
                 if hc_partition:
                     logger.debug(f"Running multi node healthcheck on {node.hostname}")
-                    cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"-x",node_tuple[1]["multi_node_healthcheck_associated_node"],"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_HC.sbatch"]        
+                    cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"-x",node.multi_node_healthcheck_associated_node,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_HC.sbatch"]        
                     logger.debug(f"Running command: {' '.join(cmd)}")
                     results = subprocess.run(cmd)
                     if results.returncode != 0:
@@ -143,8 +139,8 @@ def multi_node_hc_logic():
                             logger.warning(f"Error message: {results2.stderr}")
                         else:
                             logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
-                    else:
-                        logger.warning(f"No healthcheck partition found for {node.hostname}")
+                else:
+                    logger.warning(f"No healthcheck partition found for {node.hostname}")
     else:
         logger.debug("No nodes with expired active HC and idle in Slurm")
     
@@ -198,7 +194,7 @@ def all(http_port):
     for shape in available_nodes.keys():
         click.echo(f"There are {available_nodes[shape]} available nodes of shape {shape} in your pool.")
     active_hc_logic()
-    #multi_node_hc_logic()
+    multi_node_hc_logic()
 
 @run.command()
 def active_hc():

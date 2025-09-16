@@ -82,7 +82,7 @@ while true; do
     mount /config
     
     if [ $? -eq 0 ]; then
-        ls /config/compute.sh
+        ls /config/bin/compute.sh
         if [ $? -eq 0 ]; then
             echo "Mount succeeded!"
             break
@@ -97,9 +97,9 @@ while true; do
 done
 
 if [ "$login" == "true" ]; then
-    su - $default_user /config/login.sh 2>&1 | tee -a /tmp/cloud-init.log
+    su - $default_user /config/bin/login.sh 2>&1 | tee -a /tmp/cloud-init.log
 elif [ "$monitoring" == "true" ]; then
-    su - $default_user /config/monitoring.sh 2>&1 | tee -a /tmp/cloud-init.log
+    su - $default_user /config/bin/monitoring.sh 2>&1 | tee -a /tmp/cloud-init.log
 else
-    su - $default_user /config/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
+    su - $default_user /config/bin/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
 fi

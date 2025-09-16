@@ -46,26 +46,32 @@ def run_multi_node_nccl_test(hostfile, shape):
     shape_mapping = {
         "BM.GPU.B4.8": {
             "var_UCX_NET_DEVICES": "mlx5_0:1",
+            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
             "threshold": 185
         },
         "BM.GPU.A100-v2.8": {
             "var_UCX_NET_DEVICES": "mlx5_0:1",
+            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_1",
             "threshold": 185
         },
         "BM.GPU4.8": {
             "var_UCX_NET_DEVICES": "mlx5_4:1",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17",
             "threshold": 185
         },
         "BM.GPU.H100.8": {
             "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17",
             "threshold": 440
         },
         "BM.GPU.H200.8": {
             "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
             "threshold": 440
         },
         "BM.GPU.B200.8": {
             "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
             "threshold": 440
         }
     }
@@ -78,7 +84,10 @@ def run_multi_node_nccl_test(hostfile, shape):
     if var_UCX_NET_DEVICES == "":
         logger.error("Shape not found for multi-node NCCL test")
         return False,"Shape not found for multi-node NCCL test"
-
+    var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
+    if var_NCCL_IB_HCA == "":
+        logger.error("Shape not found for multi-node NCCL test")
+        return False,"Shape not found for multi-node NCCL test"
     if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
@@ -86,6 +95,7 @@ def run_multi_node_nccl_test(hostfile, shape):
             "--mca", "coll", "^hcoll",
             "-x", "UCX_TLS=ud,self,sm",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
+            "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
             "-x", "HCOLL_ENABLE_MCAST_ALL=0",
             "-x", "coll_hcoll_enable=0",
             "-x", "NCCL_ALGO=Ring",
@@ -104,6 +114,7 @@ def run_multi_node_nccl_test(hostfile, shape):
             "-x", "coll_hcoll_enable=0",
             "-x", "UCX_TLS=tcp",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
+            "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
             "-x", "RX_QUEUE_LEN=8192",
             "-x", "IB_RX_QUEUE_LEN=8192",
             "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
@@ -120,6 +131,8 @@ def run_multi_node_nccl_test(hostfile, shape):
     cmd = f"source {mpivars_path} && {mpirun_str}"
     logger.info(cmd)
 
+    healthy = "Healthy"
+    potentially_bad = "Potentially Bad"
     try:
         result = subprocess.run(
             cmd,
@@ -131,8 +144,6 @@ def run_multi_node_nccl_test(hostfile, shape):
             stderr=subprocess.PIPE
         )
 
-        healthy = "Healthy"
-        potentially_bad = "Potentially Bad"
         if result.returncode == 0:
             output = result.stdout
             logger.info(output)

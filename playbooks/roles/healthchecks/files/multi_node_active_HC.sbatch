@@ -30,14 +30,13 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
   fi
 
   MACHINEFILE="hostfile"
-  scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
+  scontrol show hostnames $SLURM_JOB_NODELIST > /tmp/hostfile_$SLURM_JOB_ID
 
   # Run healthcheck if file is older than 60s or missing
   if [ "$TIME_DIFF" -gt 60 ]; then
     srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 10s python3 /opt/oci-hpc/healthchecks/node_details.py
     sleep 2
-    
-    python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile $MACHINEFILE
+    python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile /tmp/hostfile_$SLURM_JOB_ID
     sleep 2
     
     # Get the hostnames of the assigned nodes
@@ -51,8 +50,9 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
       # Use scp to copy the file to the second node
       scp $file_to_copy ${node2}:$dest_path
     fi
-
-    srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 20s sudo python3 /opt/oci-hpc/healthchecks/write_hc_http_server_file.py --node1 $node1 --node2 $node2 --slurm
+    echo write
+    srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 30s sudo python3 /opt/oci-hpc/healthchecks/write_hc_http_server_file.py --node1 $node1 --node2 $node2 --slurm
     sleep 2
+    echor write done
   fi
 fi

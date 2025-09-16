@@ -42,6 +42,12 @@ def run_configure(nodes):
     task.run()
     logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
+def run_command(nodes,command):
+    logger.debug(f"Running command {command} on: {NodeSet(','.join([node.ip_address for node in nodes]))}")
+    task = task_self()
+    task.shell(command, nodes=NodeSet(','.join([node.ip_address for node in nodes])))
+    task.run()
+    logger.info(f"Command is done, logs are available at /config/logs/")
 def run_ansible(controller_name):
     command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/ansible-playbook /config/playbooks/manage_nodes.yml"
 
@@ -229,13 +235,16 @@ def append_to_healthchecks(node_ocid, **kwargs):
                 status=healthcheck.healthcheck_status
         if passive_hc is None or (status != kwargs["multi_node_healthcheck_status"]):
             logger.debug(f"Creating multi-node healthcheck for {node_ocid}")
-            db_create_healthcheck(node_ocid, {"healthcheck_last_time":kwargs["multi_node_healthcheck_time"],\
+            try:
+                db_create_healthcheck(node_ocid, {"healthcheck_last_time":kwargs["multi_node_healthcheck_time"],\
                                     "healthcheck_type":"multi-node", \
                                     "healthcheck_logs":kwargs["multi_node_healthcheck_logs"],\
                                     "healthcheck_time_change":kwargs["multi_node_healthcheck_time"],\
                                     "healthcheck_recommendation":kwargs["multi_node_healthcheck_recommendation"],\
                                     "healthcheck_status":kwargs["multi_node_healthcheck_status"],\
-                                    "healthcheck_associated_node":json_data["multi_node_healthcheck_associated_node"]})
+                                    "healthcheck_associated_node":kwargs["multi_node_healthcheck_associated_node"]})
+            except Exception as e:
+                logger.error(f"Failed to create multi-node healthcheck for {node_ocid}: {e}")
         else:
             logger.debug(f"Updating multi-node healthcheck for {node_ocid}")
             db_update_healthcheck(healthcheck, {"healthcheck_last_time":kwargs["multi_node_healthcheck_time"]})
