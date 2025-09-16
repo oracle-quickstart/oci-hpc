@@ -66,20 +66,20 @@ def reconfigure(ctx, nodes, fields, action, command):
         return
 
     if action == "controller" or action == "all":
-        logger.info("Reconfiguring controllers: "+str(nodeset([node.hostname for node in nodes_list])))
+        logger.info("Reconfiguring controllers: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
         for node in nodes_list:
             db.db_update_node(node, controller_status="reconfiguring")
     if action == "compute" or action == "all":
         command_to_run="sudo bash /var/lib/cloud/instance/scripts/part-001"
-        logger.info("Re-running cloud-init on nodes: "+str(nodeset([node.hostname for node in nodes_list])))
+        logger.info("Re-running cloud-init on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
         for node in nodes_list:
             db.db_update_node(node, compute_status="starting")
         run_command(nodes_list,command_to_run)
     if action == "custom":
-        logger.info("Running Ansible custom role on nodes: "+str(nodeset([node.hostname for node in nodes_list])))
+        logger.info("Running Ansible custom role on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
         command_to_run="/config/bin/custom_ansible.sh custom"
         run_command(nodes_list,command_to_run)
     if action == "command":
-        logger.info("Running command on nodes: "+str(nodeset([node.hostname for node in nodes_list])))
-        logger.info(f"Running custom command {command} on nodes: "+str(nodeset([node.hostname for node in nodes_list])))
+        logger.info("Running command on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        logger.info(f"Running custom command {command} on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
         run_command(nodes_list,command)
