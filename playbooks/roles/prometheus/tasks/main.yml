@@ -56,6 +56,10 @@
     remote_src: true
     creates: "{{ prometheus_download_dir }}"
   run_once: true
+  retries: 3
+  delay: 10
+  register: download_prometheus
+  until: download_prometheus is not failed
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
 - name: Copying the service binary for prometheus
