@@ -64,8 +64,17 @@ resource "oci_core_security_list" "public-security-list" {
     source      = var.ssh_cidr
     description = "Open port for Grafana"
     tcp_options {
-      max = "3000"
-      min = "3000"
+      max = "80"
+      min = "80"
+    }
+  }
+  ingress_security_rules {
+    protocol    = "6"
+    source      = var.ssh_cidr
+    description = "Open port for Grafana"
+    tcp_options {
+      max = "443"
+      min = "443"
     }
   }
   ingress_security_rules {

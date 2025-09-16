@@ -134,18 +134,27 @@
   register: vnic_details
   delegate_to: localhost
 
-- name: Instance IP address (public if available, else private)
+- name: Set grafana domain if public IP exists and is not empty
   set_fact:
-    instance_ip: "{{ vnic_details.vnic.public_ip | default(vnic_details.vnic.private_ip, true) }}"
+    grafana_domain: "grafana.{{ vnic_details.vnic.public_ip }}.sslip.io"
+  when: (vnic_details.vnic.public_ip | default('', true) | length) > 0
+
+- name: Set grafana domain if no public IP exists
+  set_fact:
+    grafana_domain: "{{ vnic_details.vnic.private_ip }}"
+  when: (vnic_details.vnic.public_ip | default('', true) | length) == 0
 
 - name: Set Grafana domain
   become: true
-  ansible.builtin.lineinfile:
+  community.general.ini_file:
     path: /etc/grafana/grafana.ini
-    regexp: ^;domain =.*$
-    insertafter: '# The public facing domain .*'
-    firstmatch: true
-    line: domain = {{ instance_ip }}
+    section: server
+    option: domain
+    value: "{{ grafana_domain }}"
+    state: present
+
+- name: Setup Caddy
+  include_tasks: setup_caddy.yml
 
 - name: Restart grafana
   become: true
