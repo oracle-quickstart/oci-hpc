@@ -26,9 +26,9 @@ output "grafana_password" {
 output "grafana_url" {
   value = var.cluster_monitoring ? (
     var.monitoring_node ? (
-      oci_core_instance.monitoring[0].public_ip != "" ? "http://${oci_core_instance.monitoring[0].public_ip}:3000" : "http://${oci_core_instance.monitoring[0].private_ip}:3000"
+      oci_core_instance.monitoring[0].public_ip != "" ? "https://grafana.${oci_core_instance.monitoring[0].public_ip}.sslip.io" : "http://${oci_core_instance.monitoring[0].private_ip}"
       ) : (
-      oci_core_instance.controller.public_ip != "" ? "http://${oci_core_instance.controller.public_ip}:3000" : "http://${oci_core_instance.controller.private_ip}:3000"
+      oci_core_instance.controller.public_ip != "" ? "https://grafana.${oci_core_instance.controller.public_ip}.sslip.io" : "http://${oci_core_instance.controller.private_ip}"
     )
   ) : "N/A"
 }
