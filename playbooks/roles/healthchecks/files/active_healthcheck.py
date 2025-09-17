@@ -59,7 +59,28 @@ def get_host_serial():
 
     return "Unknown Instance"  # Final fallback if all methods fail
 
-def run_local_nccl_test():
+def run_local_nccl_test(shape):
+        # Set defaults
+    shape_mapping = {
+        "BM.GPU.B4.8": {
+            "threshold": 185
+        },
+        "BM.GPU.A100-v2.8": {
+            "threshold": 185
+        },
+        "BM.GPU4.8": {
+            "threshold": 185
+        },
+        "BM.GPU.H100.8": {
+            "threshold": 440
+        },
+        "BM.GPU.H200.8": {
+            "threshold": 440
+        },
+        "BM.GPU.B200.8": {
+            "threshold": 440
+        }
+    }
     try:
         gpu_count=subprocess.check_output(['nvidia-smi', '--query-gpu=count', '--format=csv,noheader']).decode('utf-8').strip()[0]
         result = subprocess.run(['/opt/oci-hpc/nccl-test/build/all_reduce_perf', '-b', '1G', '-e', '10G', '-g', gpu_count, '-n', '50', '-f', '2'], stdout=subprocess.PIPE,timeout=120)
@@ -73,7 +94,7 @@ def run_local_nccl_test():
                     except:
                         logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
                         return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
-                    if bw < 200:
+                    if bw < shape_mapping[shape]["threshold"]:
                         logger.error(f"NCCL Test Failed: Avg bus bandwidth is {bw}")
                         return False,"NCCL Test Failed: Avg bus bandwidth is less than 200"
             if not bw is None:
@@ -174,7 +195,7 @@ if __name__ == '__main__':
         host_serial = "Unknown"
     logger.info(f"Node details: {hostname} - {host_serial} - {ocid} - {shape}")
 
-    nccl_state,nccl_output = run_local_nccl_test()
+    nccl_state,nccl_output = run_local_nccl_test(shape)
     if not nccl_state:
         logger.error(f"{hostname} - NCCL Test Failed: {nccl_output}")
         slurm_reason("Single node NCCL Test Failed")
@@ -213,7 +234,7 @@ if __name__ == '__main__':
     # Read the healthcheck.log file content
     try:
         with open("/tmp/latest_active_healthcheck.log", 'r') as log_file:
-            data["active_healthcheck_logs"] = log_file.read(2047)  # Store log content in JSON
+            data["active_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")
         data["active_healthcheck_logs"] = ""

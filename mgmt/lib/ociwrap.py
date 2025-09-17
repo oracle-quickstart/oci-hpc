@@ -457,7 +457,7 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
 
     with open("/config/key/public", "r") as file:
         public_key = file.read()
-    with open("/config/cloud-init.sh", "r") as file:
+    with open("/config/bin/cloud-init.sh", "r") as file:
         cloud_init = base64.b64encode(file.read().encode()).decode()
 
     """
@@ -663,7 +663,7 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
 
     with open("/config/key/public", "r") as file:
         public_key = file.read()
-    with open("/config/cloud-init.sh", "r") as file:
+    with open("/config/bin/cloud-init.sh", "r") as file:
         cloud_init = base64.b64encode(file.read().encode()).decode()
 
     """

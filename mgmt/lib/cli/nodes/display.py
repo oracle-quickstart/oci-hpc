@@ -15,14 +15,7 @@ import lib.database as db
 
 
 def print_nodes_info(nodes, full=False):
-    extra_columns=db.get_extra_columns()
-    for node_tuple in nodes:
-        node=node_tuple[0]
-        addtl_columns=db.get_extra_columns()    
-        values={}
-        for index,tuple_value in enumerate(node_tuple):
-            if index>0:
-                values[extra_columns[index-1]]=tuple_value
+    for node in nodes:
         table = rich.table.Table(show_header=False, show_lines=True)
         table.add_column(justify="left")
         table.add_column(justify="left")
@@ -34,8 +27,8 @@ def print_nodes_info(nodes, full=False):
             table.add_row("Serial", node.serial)
             table.add_row("IP", node.ip_address)
             table.add_row("Shape", node.shape)
-            table.add_row("passive_healthcheck_status", values["passive_healthcheck_status"])
-            table.add_row("active_healthcheck_status", values["active_healthcheck_status"])
+            table.add_row("passive_healthcheck_recommendation", node.passive_healthcheck_recommendation)
+            table.add_row("active_healthcheck_recommendation", node.active_healthcheck_recommendation)
         else:
             table.add_row("ip_address", node.ip_address)
             table.add_row("controller_status", node.controller_status)
@@ -67,17 +60,19 @@ def print_nodes_info(nodes, full=False):
             table.add_row("update_count", str(node.update_count))
             table.add_row("slurm_state", node.slurm_state)
             table.add_row("slurm_partition", node.slurm_partition)
-            for col in addtl_columns:
-                table.add_row(col, values[col])
+            for hc_type in ["passive","active","multi_node"]:
+                for hc_entry in db.get_extra_columns_per_hc():
+                    table.add_row(f"{hc_type}_{hc_entry}", getattr(node, f"{hc_type}_{hc_type}_{hc_entry}"))
+
         console = rich.get_console()
         console.print(table)
 
 def print_node_list(nodes, title):
     table = rich.table.Table(title=title)
-    table.add_column("hostname", justify="left")
+    table.add_column("hostname", justify="left", no_wrap=True)
     table.add_column("status", justify="left")
     table.add_column("compute_status", justify="left")
-    table.add_column("passive_healthcheck_recommendation", justify="left")
+    table.add_column("healthcheck_recommendation", justify="left")
     table.add_column("cluster_name", justify="left")
     table.add_column("memory_cluster_name", justify="left")
     table.add_column("ocid", justify="left")
@@ -85,16 +80,9 @@ def print_node_list(nodes, title):
     table.add_column("ip_address", justify="left")
     table.add_column("shape", justify="left")
 
-    for node_tuple in nodes:
-        node=node_tuple[0]
-        extra_columns=db.get_extra_columns()
-        values={}
-        for index,tuple_value in enumerate(node_tuple):
-            if index>0:
-                values[extra_columns[index-1]]=tuple_value
-        
+    for node in nodes:        
         table.add_row(
-            node.hostname, node.status, node.compute_status,values["passive_healthcheck_recommendation"], node.cluster_name,
+            node.hostname, node.status, node.compute_status,node.healthcheck_recommendation, node.cluster_name,
             node.memory_cluster_name, str(node.ocid), node.serial,
             node.ip_address, node.shape
         )
@@ -184,8 +172,7 @@ def parse_fields_spec(fields_spec):
 	# Default list of fields
     fields_def = [
         "hostname",
-        "passive_healthcheck_status",
-        "active_healthcheck_status",
+        "healthcheck_recommendation",
         "status",
         "compute_status",
         "cluster_name",
@@ -196,7 +183,7 @@ def parse_fields_spec(fields_spec):
         "shape"
     ]
 
-    fields_all = db.list_columns("nodes")
+    fields_all = db.list_columns()
     valid_fields = set(fields_all)
 
     fields = []

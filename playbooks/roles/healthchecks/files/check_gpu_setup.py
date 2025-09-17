@@ -130,7 +130,7 @@ def slurm_reason(message):
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
     if action not in [None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"]:
-        print("No action was found")
+        logger.error("No action was found")
         return 0
     if action == "Reboot" or action == "FabricManagerRestart" or action == "Wait_For_OCA":
         if current == "Terminate":
@@ -857,7 +857,7 @@ def check_bad_pages():
         result = subprocess.run(["amd-smi", "bad-pages", "--json"], capture_output=True, check=True)
         data = json.loads(result.stdout.decode('utf-8'))
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-        print(f"Error executing amd-smi or parsing JSON: {e}")
+        logger.error(f"Error executing amd-smi or parsing JSON: {e}")
         return
 
     errors = []
@@ -868,7 +868,7 @@ def check_bad_pages():
 
     if errors:
         for error in errors:
-            print(error)
+            logger.error(error)
     else:
         logger.info("GPU Pending Bad Pages Check: Passed")
 
@@ -1159,14 +1159,17 @@ if __name__ == '__main__':
             bad_page_issues = []
 
     # 17.3 Check if AMD GPU has pending bad pages
-    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):   
-        try:
-            metadata = get_metadata()
-            missing_ips,ip_list = check_ip_addresses(metadata)
-            if len(missing_ips) == 0:
-                logger.info("All interfaces have an IP defined: Passed")
-        except Exception as e:
-            logger.warning(f"Failed to get all IPS: {e}")
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):  
+        if oca_state == "COMPLETED":
+            try:
+                metadata = get_metadata()
+                missing_ips,ip_list = check_ip_addresses(metadata)
+                if len(missing_ips) == 0:
+                    logger.info("All interfaces have an IP defined: Passed")
+            except Exception as e:
+                logger.warning(f"Failed to get all IPS: {e}")
+                missing_ips = []
+        else:
             missing_ips = []
 
 #Section 4: Summarize the results and recommend actions.
@@ -1308,11 +1311,11 @@ if __name__ == '__main__':
     # 15.4 Summarize CPU profile check
     if run_all or args.cpu_profile:
         if cpu_profile_issues:
-            logger.error(f"CPU Profile need to be 'performance'.")
-            for issue in cpu_profile_issues:
-                logger.error(f" - {issue}")
-            slurm_reason("CPU Profile error")
-            action = recommended_action(action, "Terminate")
+            logger.warning(f"CPU Profile need to be 'performance'.")
+            #for issue in cpu_profile_issues:
+            #    logger.error(f" - {issue}")
+            #slurm_reason("CPU Profile error")
+            #action = recommended_action(action, "Terminate")
 
     # 16.4 Summarize pending bad pages check for AMD
     if run_all or args.bad_page:
@@ -1342,8 +1345,8 @@ if __name__ == '__main__':
         logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
     if slurm_error_count > 0 and args.slurm:
-        print("Healthcheck:: " + slurm_drain_reason[:-1])
-        print("Healthcheck:: Recommended Action:" + str(action))
+        logger.error("Healthcheck:: " + slurm_drain_reason[:-1])
+        logger.error("Healthcheck:: Recommended Action:" + str(action))
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
 
@@ -1364,7 +1367,7 @@ if __name__ == '__main__':
     # Read the healthcheck.log file content
     try:
         with open("/tmp/latest_healthcheck.log", 'r') as log_file:
-            data["passive_healthcheck_logs"] = log_file.read(2047)  # Store log content in JSON
+            data["passive_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")
         data["passive_healthcheck_logs"] = ""

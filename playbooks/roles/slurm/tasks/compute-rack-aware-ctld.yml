@@ -376,25 +376,25 @@
     # Make rack_id_dict a dictionary of either the railID or RackID depending on what is in the DB
     - name: Make rackID dictionary
       ansible.builtin.set_fact:
-        rack_id_dict: "{{ rack_id_dict | default({}) | combine({item.value.hostname: item.value.rail_id[-32:]}) }}"
+        rack_id_dict: "{{ rack_id_dict | default({}) | combine({item.value.hostname: item.value.rail_id[-8:]}) }}"
       with_items: "{{ new_compute_info | dict2items }}"
       when: item.value.rail_id != 'None'
 
     - name: Make rackID dictionary
       ansible.builtin.set_fact:
-        rack_id_dict: "{{ rack_id_dict | default({}) | combine({item.value.hostname: item.value.rack_id[-32:]}) }}"
+        rack_id_dict: "{{ rack_id_dict | default({}) | combine({item.value.hostname: item.value.rack_id[-8:]}) }}"
       with_items: "{{ new_compute_info | dict2items }}"
       when: item.value.rail_id == 'None'
 
     - name: Make networkBlockID dictionary
       ansible.builtin.set_fact:
-        nb_id_dict: "{{ nb_id_dict | default({}) | combine({item.value.hostname: item.value.network_block_id[-32:]}) }}"
+        nb_id_dict: "{{ nb_id_dict | default({}) | combine({item.value.hostname: item.value.network_block_id[-8:]}) }}"
       with_items: "{{ new_compute_info | dict2items }}"
       when: item.value.network_block_id != 'None'
 
     - name: Make networkBlockID dictionary
       ansible.builtin.set_fact:
-        nb_id_dict: "{{ nb_id_dict | default({}) | combine({item.value.hostname: item.value.network_block_id}) }}"
+        nb_id_dict: "{{ nb_id_dict | default({}) | combine({item.value.hostname: item.value.network_block_id[-8:]}) }}"
       with_items: "{{ new_compute_info | dict2items }}"
       when: item.value.network_block_id == 'None'
 
@@ -611,3 +611,4 @@
   until: result is not failed
   retries: 5
   delay: 5
+  

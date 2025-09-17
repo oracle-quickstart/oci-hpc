@@ -4,6 +4,15 @@
     path: "{{ grafana_service_account.token_file }}"
   register: grafana_token_file_stat_result
 
+- name: Wait for Grafana to be ready
+  uri:
+    url: "http://localhost:3000/api/health"
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 30
+  delay: 5
+
 - name: Change admin default password
   uri:
     url: "http://localhost:3000/api/user/password"
@@ -18,8 +27,8 @@
       newPassword: "{{ grafana_initial_creds | b64decode }}"
       confirmNew: "{{ grafana_initial_creds | b64decode }}"
   register: service_account_result
-  retries: 3
-  delay: 3
+  retries: 5
+  delay: 10
   when: not grafana_token_file_stat_result.stat.exists
 
 - name: Create service account for API access
@@ -35,8 +44,8 @@
       name: "{{ grafana_service_account.name }}"
       role: "{{ grafana_service_account.role }}"
   register: service_account_result
-  retries: 3
-  delay: 3
+  retries: 5
+  delay: 10
   when: not grafana_token_file_stat_result.stat.exists
 
 - name: Set service account ID

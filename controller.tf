@@ -95,6 +95,7 @@ resource "null_resource" "controller" {
       "sudo chown -R ${var.controller_username}:${var.controller_username} /opt/",
       "mkdir -p /opt/oci-hpc/bin",
       "sudo mkdir -p /config",
+      "sudo chown -R ${var.controller_username}:${var.controller_username} /config/"
       ],
       var.create_fss ? [
         "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
@@ -104,6 +105,8 @@ resource "null_resource" "controller" {
         "sudo chown ${var.controller_username}:${var.controller_username} /config",
         "mkdir -p /config/logs",
         "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
+        "mkdir -p /config/bin",
+        "sudo chown ${var.controller_username}:${var.controller_username} /config/bin",
         "mkdir -p /config/key",
         "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
         "mkdir -p /config/3rdparty",
@@ -156,7 +159,7 @@ resource "null_resource" "controller" {
 
   provisioner "file" {
     source      = "cloud-init.sh"
-    destination = "/config/cloud-init.sh"
+    destination = "/config/bin/cloud-init.sh"
     connection {
       host        = local.host
       type        = "ssh"
@@ -323,8 +326,13 @@ resource "null_resource" "cluster" {
       queue_ocid               = local.queue_ocid,
       ons_topic_ocid           = local.topic_id,
       ondemand_partition       = var.ondemand_partition,
-      ondemand_partition_count = var.ondemand_partition_count
-      grafana_initial_creds    = base64encode(random_password.grafana_admin_pwd.result)
+      ondemand_partition_count = var.ondemand_partition_count,
+      grafana_initial_creds    = base64encode(random_password.grafana_admin_pwd.result),
+      add_lfs                   = var.add_lfs,
+      lfs_target_path           = var.lfs_target_path,
+      lfs_source_IP             = local.lustre_IP,
+      lfs_source_path           = var.lfs_source_path,
+      lfs_options               = var.lfs_options
     })
 
     destination = "/config/playbooks/inventory"
@@ -411,17 +419,21 @@ resource "null_resource" "cluster" {
     inline = [
       "#!/bin/bash",
       "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
-      "cp /opt/oci-hpc/bin/compute.sh /config/",
-      "cp /opt/oci-hpc/bin/login.sh /config/",
-      "cp /opt/oci-hpc/bin/monitoring.sh /config/",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/compute.sh",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/login.sh",
-      "sudo chown ${var.controller_username}:${var.controller_username} /config/monitoring.sh",
-      "sudo chmod 775 /config/compute.sh",
-      "sudo chmod 775 /config/login.sh",
-      "sudo chmod 775 /config/monitoring.sh",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/bin",
+      "cp /opt/oci-hpc/bin/compute.sh /config/bin",
+      "cp /opt/oci-hpc/bin/login.sh /config/bin",
+      "cp /opt/oci-hpc/bin/monitoring.sh /config/bin",
+      "cp /opt/oci-hpc/bin/custom_ansible.sh /config/bin",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/compute.sh",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/login.sh",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/monitoring.sh",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/custom_ansible.sh",
+      "sudo chmod 775 /config/bin/compute.sh",
+      "sudo chmod 775 /config/bin/login.sh",
+      "sudo chmod 775 /config/bin/monitoring.sh",
+      "sudo chmod 775 /config/bin/custom_ansible.sh",
       "sudo chmod 600 /config/key/cluster.key",
-      "sudo chmod 775 /config/cloud-init.sh",
+      "sudo chmod 775 /config/bin/cloud-init.sh",
       "sudo chmod 777 /config/playbooks",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/key/cluster.key",
       "sudo cp -pr /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/id_ed25519",

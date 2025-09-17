@@ -1,7 +1,10 @@
 import click
-from lib.functions import run_configure
+from lib.functions import run_command
 import lib.database as db
 from ClusterShell.NodeSet import NodeSet
+
+from lib.logger import logger
+
 def filter_cmd(ctx, nodes, fields):
     if (not nodes and not fields) or (nodes and fields):
         click.echo("Error: You must specify either --nodes or --fields")
@@ -17,21 +20,14 @@ def filter_cmd(ctx, nodes, fields):
                 raise click.BadParameter(f"Field must be in key=value format: {field}")
             key, value = field.split('=', 1)
             field_dict[key] = value.lower() == 'true' if value.lower() in ['true', 'false'] else value
-        nodes_tuple_list = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict).all()
-        nodes_list = [node_tuple[0] for node_tuple in nodes_tuple_list]
+        nodes_list = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict).all()
     else:
         # Use the provided node identifiers
         nodes_list = db.get_nodes_by_any(NodeSet(nodes)) if nodes else []
 
     return nodes_list
 
-@click.group()
-def reconfigure():
-    """List commands for nodes."""
-    pass
-
-
-@reconfigure.command()
+@click.command()
 @click.option(
     "--nodes",
     required=False,
@@ -42,37 +38,48 @@ def reconfigure():
     required=False,
     help='Fields to filter nodes (e.g., role=compute,status=running)'
 )
-@click.pass_context
-def controller(ctx, nodes, fields):
-    """Switch the configure flag in the DB to reconfigure the node on the controller."""
-    nodes_list = filter_cmd(ctx, nodes, fields)
-    if not nodes_list:
-        click.echo("No nodes found.")
-        return
-
-    for node in nodes_list:
-        db.db_update_node(node, controller_status="reconfiguring")
-
-
-@reconfigure.command()
 @click.option(
-    "--nodes",
+    '--action',
+    type=click.Choice(["compute", "controller", "all", "custom", "command"]),
+    default="all",
     required=False,
-    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)"
+    help='What to reconfigure (compute will rerun the cloud-init, controller will reconfigure the node on the controller (Slurm Topology and Prometheus targets), \n all will reconfigure the node on the controller and the cloud-init, customer will reconfigure the node on the controller and the cloud-init, \n custom will reconfigure the node on the controller and the cloud-init, \n command will run a custom command on the nodes)'
 )
 @click.option(
-    '--fields',
+    '--command',
     required=False,
-    help='Fields to filter nodes (e.g., role=compute,status=running)'
+    help='Specify the command to run on the nodes. To be used with --action=command'
 )
 @click.pass_context
-def compute(ctx, nodes, fields):
+def reconfigure(ctx, nodes, fields, action, command):
     """Rerun the cloud-init script on the nodes."""
+    if action == "command":
+        if not command:
+            click.echo("No command specified.")
+            return
+    else:
+        if command:
+            click.echo("The command will be ignored since the action is not set to command.")
     nodes_list = filter_cmd(ctx,nodes, fields)
     if not nodes_list:
         click.echo("No nodes found.")
         return
 
-    run_configure(nodes_list)
-    for node in nodes_list:
-        db.db_update_node(node, compute_status="starting")
+    if action == "controller" or action == "all":
+        logger.info("Reconfiguring controllers: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        for node in nodes_list:
+            db.db_update_node(node, controller_status="reconfiguring")
+    if action == "compute" or action == "all":
+        command_to_run="sudo bash /var/lib/cloud/instance/scripts/part-001"
+        logger.info("Re-running cloud-init on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        for node in nodes_list:
+            db.db_update_node(node, compute_status="starting")
+        run_command(nodes_list,command_to_run)
+    if action == "custom":
+        logger.info("Running Ansible custom role on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        command_to_run="/config/bin/custom_ansible.sh custom"
+        run_command(nodes_list,command_to_run)
+    if action == "command":
+        logger.info("Running command on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        logger.info(f"Running custom command {command} on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        run_command(nodes_list,command)
