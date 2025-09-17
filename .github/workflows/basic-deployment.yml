@@ -47,7 +47,8 @@ jobs:
       - name: Setup and execute terraform apply
         run: |
           cp .github/workflows/provider_testing.tf provider.tf
-          cp .github/workflows/variables_testing.tf variables.tf
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing.tfvars terraform.tfvars
           terraform init
           terraform apply --auto-approve
 
@@ -130,7 +131,8 @@ jobs:
       - name: creating working directory, cd and copy files
         run: |
           cp .github/workflows/provider_testing.tf provider.tf
-          cp .github/workflows/variables_testing.tf variables.tf        
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing.tfvars terraform.tfvars     
           mkdir ${{ github.sha }}
           for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
           cd ${{ github.sha }}
@@ -234,7 +236,8 @@ jobs:
       - name: Setup and execute terraform apply
         run: |
           cp .github/workflows/provider_testing.tf provider.tf
-          cp .github/workflows/variables_testing_fss.tf variables.tf
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing_fss.tfvars terraform.tfvars   
           terraform init
           terraform apply --auto-approve
 
@@ -327,7 +330,8 @@ jobs:
       - name: Setup and execute terraform apply
         run: |
           cp .github/workflows/provider_testing.tf provider.tf
-          cp .github/workflows/variables_testing.tf variables.tf
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing.tfvars terraform.tfvars
           terraform init
           terraform apply --auto-approve
 
@@ -409,7 +413,8 @@ jobs:
       - name: creating working directory, cd and copy files
         run: |
           cp .github/workflows/provider_testing.tf provider.tf
-          cp .github/workflows/variables_testing.tf variables.tf        
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing.tfvars terraform.tfvars     
           mkdir ${{ github.sha }}
           for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
           cd ${{ github.sha }}
