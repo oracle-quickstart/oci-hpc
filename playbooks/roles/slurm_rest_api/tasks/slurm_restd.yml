@@ -1,0 +1,69 @@
+---
+- name: Install python build dependencies (apt)
+  package:
+    name:
+      - gcc
+      - make
+      - patch
+      - zlib1g-dev
+      - libbz2-dev
+      - libreadline-dev
+      - sqlite3
+      - libsqlite3-dev
+      - libssl-dev
+      - tk-dev
+      - libffi-dev
+      - xz-utils
+      - libjwt-dev
+      - libhttp-parser-dev
+      - default-jre
+      - python3.10
+      - python3.10-dev
+      - python3-pip
+    state: present
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Install python build dependencies (dnf)
+  dnf:
+    name:
+      - gcc
+      - make
+      - patch
+      - zlib-devel
+      - bzip2
+      - bzip2-devel
+      - readline-devel
+      - sqlite
+      - sqlite-devel
+      - openssl-devel
+      - tk-devel
+      - libffi-devel
+      - xz-devel
+      - libjwt-devel
+      - http-parser-devel
+      - java-1.8.0-openjdk
+      - python38
+      - python38-devel
+      - python38-pip
+    enablerepo: ol8_codeready_builder
+    state: present
+  become: true
+  when: ansible_os_family == "RedHat"
+  
+- name: Render slurmrestd systemd service file
+  become: true
+  template: 
+    src: slurmrestd.service.j2
+    dest: /etc/systemd/system/slurmrestd.service
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0744
+
+- name: start slurmrestd service
+  become: true
+  service:
+    name: slurmrestd
+    daemon_reload: true
+    state: restarted
+    enabled: yes

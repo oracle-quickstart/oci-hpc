@@ -1,0 +1,3 @@
+- include_tasks: slurm_restd.yml
+- include_tasks: slurm_sdk.yml
+- include_tasks: slurm_exporter.yml

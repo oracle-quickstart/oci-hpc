@@ -1,0 +1,139 @@
+import openapi_client
+from openapi_client.rest import ApiException
+from pprint import pprint
+from prometheus_client import start_http_server, Gauge, REGISTRY
+from collections import defaultdict
+import subprocess
+import ujson
+import platform
+import time
+import os
+
+configuration = openapi_client.Configuration(
+    host = "http://controller:6820",
+    access_token = "{{ slurm_jwt_token }}"
+)
+
+slurm_node_state_count = Gauge('slurm_node_state_count', 'Node State', ['state'])
+slurm_cpus_total = Gauge('slurm_cpus_total', 'Total Compute CPUs in the cluster', ['cluster_name'])
+slurm_effective_cpus_total = Gauge('slurm_effective_cpus_total', 'Total Compute CPUs available for scheduling in the cluster', ['cluster_name'])
+slurm_gpus_total = Gauge('slurm_gpus_total', 'Total GPUs in the cluster', ['cluster_name'])
+slurm_partition_jobs_cpus_total = Gauge('slurm_partition_jobs_cpus_total', 'Total CPUs consumed by jobs in a given partition', ['partition'])
+slurm_partition_jobs_nodes_total = Gauge('slurm_partition_jobs_nodes_total', 'Total Nodes allocated for jobs in a given partition', ['partition'])
+slurm_partition_jobs_gpus_total = Gauge('slurm_partition_jobs_gpus_total', 'Total GPUs consumed by jobs in a given partition', ['partition'])
+slurm_active_reservations_cores_total = Gauge('slurm_active_reservations_cores_total', 'Total Cores reserved for given reservation', ['reservation'])
+slurm_active_reservations_cpus_total = Gauge('slurm_active_reservations_cpus_total', 'Total CPUs reserved for given reservation', ['reservation'])
+slurm_active_reservations_nodes_total = Gauge('slurm_active_reservations_nodes_total', 'Total Nodes reserved for given reservation', ['reservation'])
+slurm_alloc_gpus_user_count = Gauge('slurm_alloc_gpus_user_count', 'GPUs allocated to a user', ['user'])
+slurm_alloc_cpus_user_count = Gauge('slurm_alloc_cpus_user_count', 'CPUs allocated to a user', ['user'])
+slurm_alloc_nodes_user_count = Gauge('slurm_alloc_nodes_user_count', 'Nodes allocated to a user', ['user'])
+
+def init_slurm_metrics():
+    slurm_node_state_count.labels(state='none').set(0)
+    slurm_cpus_total.labels(cluster_name='none').set(0)
+    slurm_effective_cpus_total.labels(cluster_name='none').set(0)
+    slurm_gpus_total.labels(cluster_name='none').set(0)
+    slurm_partition_jobs_cpus_total.labels(partition='none').set(0)
+    slurm_partition_jobs_nodes_total.labels(partition='none').set(0)
+    slurm_partition_jobs_gpus_total.labels(partition='none').set(0)
+    slurm_active_reservations_cores_total.labels(reservation='none').set(0)
+    slurm_active_reservations_cpus_total.labels(reservation='none').set(0)
+    slurm_active_reservations_nodes_total.labels(reservation='none').set(0)
+    slurm_alloc_gpus_user_count.labels(user='none').set(0)
+    slurm_alloc_cpus_user_count.labels(user='none').set(0)
+    slurm_alloc_nodes_user_count.labels(user='none').set(0)
+
+def get_slurm_metrics():
+    cluster_name = platform.node().rsplit('-', 1)[0]
+    node_state_info = defaultdict(int)
+    partition_jobs_cpus = defaultdict(int)
+    partition_jobs_gpus = defaultdict(int)
+    partition_jobs_nodes = defaultdict(int)
+    total_cpus=0
+    total_gpus=0
+    effective_cpus=0
+    reservation_nodes = defaultdict(int)
+    reservation_cores = defaultdict(int)
+    reservation_cpus = defaultdict(int)
+    user_nodes = defaultdict(int)
+    user_gpus = defaultdict(int)
+    user_cpus = defaultdict(int)
+    with openapi_client.ApiClient(configuration) as api_client:
+        api_instance = openapi_client.SlurmApi(api_client)
+        try:
+            #Nodes
+            api_response = api_instance.slurm_v0039_get_nodes()
+            nodes_json = ujson.loads(api_response.to_json())
+            nodes = api_response.nodes
+            for node in nodes:
+                total_cpus += node.cpus
+                effective_cpus += node.effective_cpus
+                if node.gres != "":
+                  total_gpus += int(node.gres.split(":")[2].split("(")[0])
+                for state in node.state:
+                    node_state_info[state] += 1
+            for key in node_state_info:
+               slurm_node_state_count.labels(state=key).set(node_state_info[key])
+            slurm_cpus_total.labels(cluster_name=cluster_name).set(total_cpus)
+            slurm_gpus_total.labels(cluster_name=cluster_name).set(total_gpus)
+            slurm_effective_cpus_total.labels(cluster_name=cluster_name).set(effective_cpus)
+            #Jobs
+            api_response = api_instance.slurm_v0039_get_jobs()
+            jobs = ujson.loads(api_response.to_json())
+            for job in jobs["jobs"]:
+                if job["job_state"] == "RUNNING":
+                    cpu_count = 0
+                    gpu_count = 0
+                    node_count = 0
+                    parts = job["tres_alloc_str"].split(',')
+                    for part in parts:
+                      if part.startswith("cpu="):
+                        cpu_count = int(part.split('=')[1])
+                      elif part.startswith("gres/gpu="):
+                        gpu_count = int(part.split('=')[1])
+                      elif part.startswith("node="):
+                        node_count = int(part.split('=')[1])
+                    user_nodes[job["user_name"]] += node_count
+                    user_cpus[job["user_name"]] += cpu_count
+                    user_gpus[job["user_name"]] += gpu_count
+                if len(job["gres_detail"]) > 0:
+                    for gres in job["gres_detail"]:
+                        gpus_used = int(gres.split(":")[2].split("(")[0])
+                        partition_jobs_gpus[job["partition"]] += int(gres.split(":")[2].split("(")[0])
+                if "job_resources" in job and "allocated_cores" in job["job_resources"]:
+                  partition_jobs_cpus[job["partition"]] += job["job_resources"]["allocated_cores"] or job["job_resources"]["allocated_cpus"]
+                  partition_jobs_nodes[job["partition"]] += job["job_resources"]["allocated_hosts"]
+            for key in partition_jobs_cpus:
+                slurm_partition_jobs_cpus_total.labels(partition=key).set(partition_jobs_cpus[key])
+            for key in partition_jobs_gpus:
+                slurm_partition_jobs_gpus_total.labels(partition=key).set(partition_jobs_gpus[key])
+            for key in partition_jobs_nodes:
+                slurm_partition_jobs_nodes_total.labels(partition=key).set(partition_jobs_nodes[key])
+            for key in user_nodes:
+                slurm_alloc_nodes_user_count.labels(user=key).set(user_nodes[key])
+            for key in user_cpus:
+                slurm_alloc_cpus_user_count.labels(user=key).set(user_cpus[key])
+            for key in user_gpus:
+                slurm_alloc_gpus_user_count.labels(user=key).set(user_gpus[key])
+            #Reservations
+            api_response = api_instance.slurm_v0039_get_reservations()
+            reservations = ujson.loads(api_response.to_json())
+            for reservation in reservations["reservations"]:
+                if time.time() < int(reservation["end_time"]):
+                   reservation_nodes[reservation["name"]] += int(reservation["node_count"])
+                   reservation_cores[reservation["name"]] += int(reservation["core_count"])
+                   reservation_cpus[reservation["name"]] += int(reservation["tres"].split("=")[1])
+            for key in reservation_cpus:
+                slurm_active_reservations_cpus_total.labels(reservation=key).set(reservation_cpus[key])
+            for key in reservation_cores:
+                slurm_active_reservations_cores_total.labels(reservation=key).set(reservation_cores[key])
+            for key in reservation_nodes:
+                slurm_active_reservations_nodes_total.labels(reservation=key).set(reservation_nodes[key])
+        except ApiException as e:
+            print("Exception: %s\n" % e)
+if __name__ == '__main__':
+    init_slurm_metrics()
+    start_http_server(9900)
+    while True:
+        get_slurm_metrics()
+        time.sleep(10)

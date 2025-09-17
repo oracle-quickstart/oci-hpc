@@ -1,0 +1,19 @@
+[Unit]
+Description=Slurm Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User={{ slurm_user }}
+Group={{ slurm_group }}
+Type=simple
+{% if ansible_os_family == "Debian" %}
+Environment="PYTHONPATH=/usr/local/lib/python3.10/site-packages:/usr/local/lib64/python3.10/site-packages"
+ExecStart=/usr/bin/python3.10 /usr/local/bin/slurm-exporter.py
+{% elif ansible_os_family == "RedHat" %}
+Environment="PYTHONPATH=/usr/local/lib/python3.8/site-packages:/usr/local/lib64/python3.8/site-packages"
+ExecStart=/usr/bin/python3.8 /usr/local/bin/slurm-exporter.py
+{% endif %}
+
+[Install]
+WantedBy=multi-user.target
