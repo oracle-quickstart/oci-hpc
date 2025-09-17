@@ -51,8 +51,35 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: sleep command for nodes to be configured
-        run: sleep 900
+      - name: Wait for nodes to be configured (max 30 minutes)
+        run: |
+          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
+          start_time=$(date +%s)
+          timeout=$((30 * 60))  # 30 minutes
+
+          while true; do
+              not_ready=$(mgmt nodes list \
+                  --fields role=compute \
+                  --columns hostname,compute_status,controller_status \
+                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
+              
+              if [[ -z "$not_ready" ]]; then
+                  echo "✅ All nodes are configured!"
+                  break
+              fi
+
+              now=$(date +%s)
+              elapsed=$((now - start_time))
+              if (( elapsed > timeout )); then
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  exit 1
+              fi
+
+              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
+              echo "$not_ready"
+              sleep 10
+          done
+          EOF
 
       - name: Run sinfo
         run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci sinfo'
@@ -117,8 +144,35 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: sleep command for nodes to be configured
-        run: sleep 600
+      - name: Wait for nodes to be configured (max 30 minutes)
+        run: |
+          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
+          start_time=$(date +%s)
+          timeout=$((30 * 60))  # 30 minutes
+
+          while true; do
+              not_ready=$(mgmt nodes list \
+                  --fields role=compute \
+                  --columns hostname,compute_status,controller_status \
+                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
+              
+              if [[ -z "$not_ready" ]]; then
+                  echo "✅ All nodes are configured!"
+                  break
+              fi
+
+              now=$(date +%s)
+              elapsed=$((now - start_time))
+              if (( elapsed > timeout )); then
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  exit 1
+              fi
+
+              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
+              echo "$not_ready"
+              sleep 10
+          done
+          EOF
 
       - name: Run sinfo
         run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
@@ -184,8 +238,35 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: sleep command for nodes to be configured
-        run: sleep 600
+      - name: Wait for nodes to be configured (max 30 minutes)
+        run: |
+          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
+          start_time=$(date +%s)
+          timeout=$((30 * 60))  # 30 minutes
+
+          while true; do
+              not_ready=$(mgmt nodes list \
+                  --fields role=compute \
+                  --columns hostname,compute_status,controller_status \
+                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
+              
+              if [[ -z "$not_ready" ]]; then
+                  echo "✅ All nodes are configured!"
+                  break
+              fi
+
+              now=$(date +%s)
+              elapsed=$((now - start_time))
+              if (( elapsed > timeout )); then
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  exit 1
+              fi
+
+              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
+              echo "$not_ready"
+              sleep 10
+          done
+          EOF
 
       - name: Run sinfo
         run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
@@ -250,8 +331,35 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: sleep command for nodes to be configured
-        run: sleep 600
+      - name: Wait for nodes to be configured (max 30 minutes)
+        run: |
+          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
+          start_time=$(date +%s)
+          timeout=$((30 * 60))  # 30 minutes
+
+          while true; do
+              not_ready=$(mgmt nodes list \
+                  --fields role=compute \
+                  --columns hostname,compute_status,controller_status \
+                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
+              
+              if [[ -z "$not_ready" ]]; then
+                  echo "✅ All nodes are configured!"
+                  break
+              fi
+
+              now=$(date +%s)
+              elapsed=$((now - start_time))
+              if (( elapsed > timeout )); then
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  exit 1
+              fi
+
+              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
+              echo "$not_ready"
+              sleep 10
+          done
+          EOF
 
       - name: Run sinfo
         run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
@@ -315,8 +423,35 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: sleep command for nodes to be configured
-        run: sleep 600
+      - name: Wait for nodes to be configured (max 30 minutes)
+        run: |
+          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
+          start_time=$(date +%s)
+          timeout=$((30 * 60))  # 30 minutes
+
+          while true; do
+              not_ready=$(mgmt nodes list \
+                  --fields role=compute \
+                  --columns hostname,compute_status,controller_status \
+                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
+              
+              if [[ -z "$not_ready" ]]; then
+                  echo "✅ All nodes are configured!"
+                  break
+              fi
+
+              now=$(date +%s)
+              elapsed=$((now - start_time))
+              if (( elapsed > timeout )); then
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  exit 1
+              fi
+
+              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
+              echo "$not_ready"
+              sleep 10
+          done
+          EOF
 
       - name: Run sinfo
         run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
