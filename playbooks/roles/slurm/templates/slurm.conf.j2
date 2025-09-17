@@ -64,7 +64,8 @@ AccountingStorageEnforce=limits,associations,qos,safe
 JobCompType=jobcomp/none
 TrackWckey=no
 {% endif %}
-
+AuthAltTypes=auth/jwt
+AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}
 ResumeProgram=/etc/slurm/resume.sh
 SuspendProgram=/etc/slurm/suspend.sh
 ResumeRate=0

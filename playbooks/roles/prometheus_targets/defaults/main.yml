@@ -42,14 +42,14 @@ compute_ports:
   - "9500"
   - "9600"
   - "9700"
-  # - "9800"  - Not yet configured
+  - "9800"  
 
 controller_ports:
   - "9100"
   # - "9200" - OCI FSS Metrics - not yet configured
   # - "9250" - OCI Lustre FS - not yet configured
   # - "9300" - OCI RDMA Faults - not yet configured
-  # - "9900" - SlurmRESTD - not yet configured
+  - "9900" 
 
 login_ports:
   - "9100"
