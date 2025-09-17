@@ -101,6 +101,10 @@
     - storage-metrics-variables.libsonnet
     - table-panel.libsonnet
     - timeseries-panel.libsonnet
+  retries: 3
+  delay: 10
+  until: copy_result is not failed
+  register: copy_result
 
 - name: Build dashboard with Jsonnet
   ansible.builtin.shell: |
