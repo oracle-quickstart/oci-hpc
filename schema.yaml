@@ -147,6 +147,7 @@ variableGroups:
     variables:
       - ${cluster_monitoring}
       - ${alerting}
+      - ${ingest_oci_metrics}
       - ${monitoring_node}
       - ${monitoring_ad}
       - ${monitoring_shape}
@@ -1186,6 +1187,13 @@ variables:
     default: false
     description: "Creates a Topic that you can subscribe to"
     visible: ${cluster_monitoring}
+
+  ingest_oci_metrics:
+    type: boolean
+    title: "Ingest OCI metrics in Prometheus"
+    description: "Setup pipeline to ingest cluster resources metrics from OCI Metrics into Prometheus"
+    default: false
+    visible: cluster_monitoring
 
   pam:
     type: boolean

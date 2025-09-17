@@ -79,3 +79,4 @@ lfs_target_path=${lfs_target_path}
 lfs_source_IP=${lfs_source_IP}
 lfs_source_path=${lfs_source_path}
 lfs_options=${lfs_options}
+metrics_stream_ocid=${metrics_stream_ocid}

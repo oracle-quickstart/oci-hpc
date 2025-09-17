@@ -46,7 +46,7 @@
       register: current_switchName
       run_once: true
       with_items: "{{hostnames_list}}"
-      
+
     - name: Get Switchname
       ansible.builtin.set_fact:
         rem_switchnames_dict: "{{ rem_switchnames_dict | default({}) | combine({item.item: item.stdout}) }}"
@@ -200,7 +200,7 @@
     - name: debug rem_racks_dict
       ansible.builtin.debug:
         var: rem_racks_dict
- 
+
     - name: debug rem_networkblocknames
       ansible.builtin.debug:
         var: rem_networkblocknames
@@ -273,7 +273,6 @@
       when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) > 0 )
       run_once: true
       notify: Reconfigure slurm
-
 
 # Find which Network Blocks need to be removed
 # List all Network Blocks from the hosts to remove and check if theyre are racks left
@@ -352,7 +351,8 @@
 
     - name: Get condensed_Nodes
       ansible.builtin.set_fact:
-        nbs_on_cluster_condensed: "{{ nbs_on_cluster_condensed | default({}) | combine({item: rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | join(',')}) }}"
+        nbs_on_cluster_condensed: "{{ nbs_on_cluster_condensed | default({}) | combine({item: rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove)
+          | join(',')}) }}"
       with_items: "{{rem_clusternames}}"
       when: ( ( rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length ) > 0 )
       run_once: true
@@ -399,7 +399,6 @@
     - name: Add nodes to current topology if they are on-demand
       when: ondemand_node_dict.keys() | length > 0
       block:
-      
       # Build dictionaries of cluster the list of nodes. 
 
         - name: Build dictionary of racks to add

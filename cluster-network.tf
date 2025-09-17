@@ -30,7 +30,11 @@ resource "oci_core_compute_gpu_memory_cluster" "compute_gpu_memory_cluster" {
   compute_cluster_id        = oci_core_compute_cluster.compute_cluster[0].id
   instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id
 
-  #Optional
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+
   display_name         = "${local.cluster_name}-fabric1"
   gpu_memory_fabric_id = var.memory_fabric_id
   size                 = var.node_count

@@ -219,13 +219,14 @@ resource "null_resource" "cluster_backup" {
       queue_ocid               = local.queue_ocid,
       ons_topic_ocid           = local.topic_id,
       ondemand_partition       = var.ondemand_partition,
-      ondemand_partition_count = var.ondemand_partition_count
+      ondemand_partition_count = var.ondemand_partition_count,
       grafana_initial_creds    = base64encode(random_password.grafana_admin_pwd.result),
-      add_lfs                   = var.add_lfs,
-      lfs_target_path           = var.lfs_target_path,
-      lfs_source_IP             = local.lustre_IP,
-      lfs_source_path           = var.lfs_source_path,
-      lfs_options               = var.lfs_options
+      add_lfs                  = var.add_lfs,
+      lfs_target_path          = var.lfs_target_path,
+      lfs_source_IP            = local.lustre_IP,
+      lfs_source_path          = var.lfs_source_path,
+      lfs_options              = var.lfs_options,
+      metrics_stream_ocid      = local.metrics_stream_ocid
     })
 
 

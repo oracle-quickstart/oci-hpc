@@ -1,0 +1,5 @@
+[[outputs.prometheus_client]]
+  listen = ":{{ telegraf_prometheus_port }}"
+  expiration_interval = "60s"
+  collectors_exclude = ["gocollector", "process"]
+  export_timestamp = true

@@ -2,4 +2,5 @@
 ssl_cert_path: "/etc/ssl/certs"
 ssl_ca_cert: "{{ ssl_cert_path }}/cluster-ca.crt"
 ssl_cert_group: ssl
-venv_path: "{% if ansible_distribution == 'Ubuntu' %}/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% elif ansible_distribution == 'OracleLinux' %}/config/venv/Ol_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% endif %}"
+venv_path: "{% if ansible_distribution == 'Ubuntu' %}/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% elif
+  ansible_distribution == 'OracleLinux' %}/config/venv/Ol_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% endif %}"

@@ -11,3 +11,11 @@ scrape_configs:
   file_sd_configs:
   - files:
     - '/etc/prometheus/targets/*.json'
+
+{% if metrics_stream_ocid | default('') | length > 0 %}
+- job_name: oci-metrics
+  honor_timestamps: true
+  static_configs:
+  - targets:
+    - {{ oci_metrics_host }}:{{ telegraf_prometheus_port }}
+{% endif %}

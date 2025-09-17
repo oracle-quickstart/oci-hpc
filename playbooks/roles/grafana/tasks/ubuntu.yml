@@ -9,9 +9,9 @@
 - name: Add Grafana repository
   become: true
   apt_repository:
-    repo: 'deb https://packages.grafana.com/oss/deb stable main'
+    repo: "deb https://packages.grafana.com/oss/deb stable main"
     state: present
-    filename: 'grafana'
+    filename: "grafana"
   register: apt_repository
   until: apt_repository is not failed
   retries: 10
@@ -20,7 +20,7 @@
 - name: Update apt cache
   become: true
   apt:
-    update_cache: yes
+    update_cache: true
 
 - name: Install Grafana and Tempo
   vars:

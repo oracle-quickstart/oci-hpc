@@ -3,6 +3,11 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
+  
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 
   instance_details {
     instance_type = "compute"

@@ -33,6 +33,8 @@
   apt_key:
     state: present
     url: https://dl.cloudsmith.io/public/caddy/stable/gpg.key
+  retries: 3
+  delay: 3
   when: ansible_os_family == 'Debian'
 
 - name: Add Caddy apt repository
@@ -57,7 +59,7 @@
     dest: /etc/caddy/Caddyfile
     force: true
     mode: "0644"
-    
+
 - name: Create the log directory for caddy
   become: true
   ansible.builtin.file:

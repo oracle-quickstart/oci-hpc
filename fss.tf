@@ -3,6 +3,11 @@ resource "oci_file_storage_file_system" "FSS" {
   availability_domain = var.fss_ad
   compartment_id      = var.fss_compartment
   display_name        = "${local.cluster_name}-fss"
+  
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_file_storage_file_system" "FSS_home" {
@@ -10,6 +15,11 @@ resource "oci_file_storage_file_system" "FSS_home" {
   availability_domain = var.fss_ad
   compartment_id      = var.fss_compartment
   display_name        = "${local.cluster_name}-fss-home"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_file_storage_file_system" "FSS_config" {
@@ -17,6 +27,11 @@ resource "oci_file_storage_file_system" "FSS_config" {
   availability_domain = var.fss_ad
   compartment_id      = var.fss_compartment
   display_name        = "${local.cluster_name}-fss-config"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_file_storage_mount_target" "FSSMountTarget" {
@@ -26,6 +41,11 @@ resource "oci_file_storage_mount_target" "FSSMountTarget" {
   subnet_id           = local.subnet_id
   display_name        = "${local.cluster_name}-mt-${count.index}"
   hostname_label      = "fileserver${count.index}"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_file_storage_export" "FSSExport" {

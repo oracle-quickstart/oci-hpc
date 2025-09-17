@@ -76,6 +76,7 @@ locals {
   registry_id      = var.use_OCI_generated_container ? "" : var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id
 
   topic_id   = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
+  metrics_stream_ocid  = var.ingest_oci_metrics ? oci_streaming_stream.telegraf_stream[0].id : ""
   ocir_image = var.use_OCI_generated_container ? "${local.region_key}.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
 
   # Pick the right IP based on flags
