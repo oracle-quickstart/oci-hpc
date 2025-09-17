@@ -57,7 +57,7 @@
     dest: /etc/caddy/Caddyfile
     force: true
     mode: "0644"
-    
+
 - name: Create the log directory for caddy
   become: true
   ansible.builtin.file:
