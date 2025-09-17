@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 cluster_name = "none"
 
-SCONTROL_PATH = shutil.which("scontrol")
+SCONTROL_PATH = "/usr/local/bin/scontrol"
 
 def signal_handler(signum, frame):
     logger.info("Shutting down NVML...")

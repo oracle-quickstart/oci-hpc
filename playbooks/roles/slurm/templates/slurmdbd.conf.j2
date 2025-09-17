@@ -5,6 +5,8 @@
 # Authentication info
 AuthType=auth/munge
 #AuthInfo=/var/run/munge/munge.socket.2
+AuthAltTypes=auth/jwt
+AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}
 
 # slurmDBD info
 DbdHost=localhost
