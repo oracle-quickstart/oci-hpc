@@ -54,20 +54,6 @@
     name: safe_yum
   when: ansible_os_family == 'RedHat'
 
-- name: Generate JWT key if it does not exist
-  openssl_privatekey:
-    path: "{{ slurm_jwt_key_path }}"
-    size: 2048
-  become: true
-
-- name: Set ownership on JWT key
-  file:
-    path: "{{ slurm_jwt_key_path }}"
-    owner: "slurm"
-    group: "slurm"
-    mode: 0700
-  become: true
-
 - name: Render systemd units for slurm and slurmdbd
   become: true
   ansible.builtin.template:
@@ -134,7 +120,20 @@
       become: true
       ansible.builtin.command:
         cmd: chown {{ ansible_user }}:{{ ansible_user }} /config/key/munge.key
+        
+- name: Generate JWT key if it does not exist
+  openssl_privatekey:
+    path: "{{ slurm_jwt_key_path }}"
+    size: 2048
+  become: true
 
+- name: Set ownership on JWT key
+  file:
+    path: "{{ slurm_jwt_key_path }}"
+    owner: "slurm"
+    group: "slurm"
+    mode: 0700
+  become: true
 - name: Create DB for accounting
   become: true
   mysql_db:
