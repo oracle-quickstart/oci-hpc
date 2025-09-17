@@ -39,7 +39,7 @@
         dest: /config/key
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Render subjectAltName configuration
       template:

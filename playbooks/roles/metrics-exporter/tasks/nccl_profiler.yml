@@ -1,11 +1,11 @@
 ---
 - name: Get nccl version
   become: true
-  shell: 
+  shell:
     cmd: find -L /usr/lib -name "libnccl.so*" -print | tail -1 | awk -F".so." '{print $2}'
   register: nccl_version_output
-  delegate_to: "{{ groups['compute'][0] }}"        
-  run_once: true  
+  delegate_to: "{{ groups['compute'][0] }}"
+  run_once: true
 
 - name: Set nccl version globally
   set_fact:
@@ -107,19 +107,19 @@
 - name: Install required python packages
   become: true
   ansible.builtin.pip:
-    name: 
+    name:
       - watchdog
       - opentelemetry-sdk
       - opentelemetry-exporter-otlp
     executable: /usr/bin/pip3
   ignore_errors: true
-  
+
 - name: Install NCCL trace exporter script
   become: true
   copy:
     src: nccl_profiler_exporter.py
     dest: "{{ nccl_exporter_script }}"
-    mode: '0755'
+    mode: "0755"
 
 - name: Find monitoring hosts
   set_fact:
@@ -152,12 +152,12 @@
     dest: "{{ exporter_service_file }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: 0744
-    
+    mode: "0744"
+
 - name: Ensure nccl-profiler-exporter service is enabled and running
   become: true
   systemd:
     name: nccl-profiler-exporter.service
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true

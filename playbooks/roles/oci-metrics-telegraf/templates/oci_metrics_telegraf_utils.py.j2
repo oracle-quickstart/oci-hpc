@@ -1,0 +1,702 @@
+from abc import ABC, abstractmethod
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class OCIClientFactory:
+    """Factory for creating OCI clients with proper configuration."""
+    
+    def __init__(self, config=None, signer= None, retry_strategy=None):
+        self.config = config or {}
+        self.signer = signer
+        
+        if retry_strategy:
+            self.retry_strategy = retry_strategy
+        else:
+            from oci.retry import DEFAULT_RETRY_STRATEGY
+            self.retry_strategy = DEFAULT_RETRY_STRATEGY
+    
+    def create_client(self, client_class):
+        """Create a client with standardized configuration."""
+        return client_class(
+            config=self.config,
+            signer=self.signer,
+            retry_strategy=self.retry_strategy
+        )
+
+
+class ResourceHandler(ABC):
+    """Abstract base class for handling specific resource types."""
+    
+    def __init__(self, factory):
+        self.factory = factory
+        self._clients = {}
+    
+    @abstractmethod
+    def get_resource_identifier_key(self):
+        """Return the key used to identify resources for this handler."""
+        pass
+    
+    @abstractmethod
+    def initialize_clients(self):
+        """Initialize required OCI clients."""
+        pass
+
+    @abstractmethod
+    def get_client(self, client_type):
+        """Return the requested client for this handler type."""
+        pass
+
+    @abstractmethod
+    def get_resource(self, resource_id, tags):
+        """Retrieve resource and return (response, attribute_mapping)."""
+        pass
+
+
+class APIGatewayHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'GatewayClient' not in self._clients:
+            from oci.apigateway import GatewayClient
+            self._clients['GatewayClient'] = self.factory.create_client(GatewayClient)
+
+    def get_client(self, client_type):
+        if client_type == 'GatewayClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+    
+    def get_resource(self, resource_id, tags):
+        if "apigateway" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the APIGatewayHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('GatewayClient').get_gateway(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class BastionHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'BastionClient' not in self._clients:
+            from oci.bastion import BastionClient
+            self._clients['BastionClient'] = self.factory.create_client(BastionClient)
+
+    def get_client(self, client_type):
+        if client_type == 'BastionClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "bastion" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the BastionHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('BastionClient').get_bastion(resource_id)
+        return response, {"name": "display_name"}
+
+
+class BlockStorageHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'BlockstorageClient' not in self._clients:
+            from oci.core import BlockstorageClient
+            self._clients['BlockstorageClient'] = self.factory.create_client(BlockstorageClient)
+
+    def get_client(self, client_type):
+        if client_type == 'BlockstorageClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+
+        if "bootvolume" not in resource_id.split(".") and "volume" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the BlockStorageHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        if "bootvolume" in resource_id.split("."):
+            response = self.get_client('BlockstorageClient').get_boot_volume(resource_id)
+            return response, {"display_name": "display_name", "size_in_gbs": "size", "availability_domain": "AD"}
+        else:
+            response = self.get_client('BlockstorageClient').get_volume(resource_id)
+            return response, {"display_name": "display_name", "size_in_gbs": "size", "availability_domain": "AD"}    
+        
+
+class ComputeHandler(ResourceHandler):
+    NAMESPACES = ("oci_compute_infrastructure_health", "oci_compute_instance_health", "oci_computeagent", "oci_compute", "gpu_infrastructure_health", "rdma_infrastructure_health")
+    
+    def get_resource_identifier_key(self) -> str:
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'ComputeClient' not in self._clients:
+            from oci.core import ComputeClient
+            self._clients['ComputeClient'] = self.factory.create_client(ComputeClient)
+
+    def get_client(self, client_type):
+        if client_type == 'ComputeClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "instance" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the ComputeHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('ComputeClient').get_instance(resource_id)
+        return response, {"display_name": "display_name", "availability_domain": "AD"}
+
+
+class FastConnectHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'VirtualNetworkClient' not in self._clients:
+            from oci.core import VirtualNetworkClient
+            self._clients['VirtualNetworkClient'] = self.factory.create_client(VirtualNetworkClient)
+
+    def get_client(self, client_type):
+        if client_type == 'VirtualNetworkClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+
+        if "crossconnectgroup" not in resource_id.split(".") and "crossconnect" not in resource_id.split(".") and "virtualcircuit" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the FastConnectHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        if "crossconnectgroup" in resource_id.split("."):
+            response = self.get_client('VirtualNetworkClient').get_cross_connect_group(resource_id)
+            return response, {"display_name": "display_name"}
+        elif "crossconnect" in resource_id.split("."):
+            response = self.get_client('VirtualNetworkClient').get_cross_connect(resource_id)
+            return response, {"display_name": "display_name", "port_speed_shape_name": "port_speed_shape_name", "port_name": "port_name", "location_name": "location_name"}
+        else:
+            response = self.get_client('VirtualNetworkClient').get_virtual_circuit(resource_id)
+            return response, {"display_name": "display_name", "ip_mtu": "ip_mtu", "bandwidth_shape_name": "bandwidth_shape_name", }    
+
+
+class FileStorageHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'FileStorageClient' not in self._clients:
+            from oci.file_storage import FileStorageClient
+            self._clients['FileStorageClient'] = self.factory.create_client(FileStorageClient)
+
+    def get_client(self, client_type):
+        if client_type == 'FileStorageClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+
+        if "mounttarget" not in resource_id.split(".") and "filesystem" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the FileStorageHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        if "mounttarget" in resource_id.split("."):
+            response = self.get_client('FileStorageClient').get_mount_target(resource_id)
+            return  response, {"display_name": "display_name", "availability_domain": "AD", "observed_throughput": "current_throughput", "requested_throughput": "requested_throughput"}
+        else:
+            response = self.get_client('FileStorageClient').get_file_system(resource_id)
+            return response, {"display_name": "display_name", "availability_domain": "AD"}
+
+
+class InternetGatewayHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+
+    def initialize_clients(self):
+        if 'VirtualNetworkClient' not in self._clients:
+            from oci.core import VirtualNetworkClient
+            self._clients['VirtualNetworkClient'] = self.factory.create_client(VirtualNetworkClient)
+
+    def get_client(self, client_type):
+        if client_type == 'VirtualNetworkClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "internetgateway" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the InternetGatewayHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('VirtualNetworkClient').get_internet_gateway(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class LbaasHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'LoadBalancerClient' not in self._clients:
+            from oci.load_balancer import LoadBalancerClient
+            self._clients['LoadBalancerClient'] = self.factory.create_client(LoadBalancerClient)
+
+    def get_client(self, client_type):
+        if client_type == 'LoadBalancerClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "loadbalancer" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the LbaasHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('LoadBalancerClient').get_load_balancer(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class LoggingHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'LoggingManagementClient' not in self._clients:
+            from oci.logging import LoggingManagementClient
+            self._clients['LoggingManagementClient'] = self.factory.create_client(LoggingManagementClient)
+
+    def get_client(self, client_type):
+        if client_type == 'LoggingManagementClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        logGroupId = tags.get("logGroupId", None)
+
+        if "log" not in resource_id.split(".") and logGroupId is None:
+            raise ValueError(f"Unsupported resource ID for the LoggingHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('LoggingManagementClient').get_log(logGroupId, resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class LustreFileSystemHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'LustreFileStorageClient' not in self._clients:
+            from oci.lustre_file_storage import LustreFileStorageClient
+            self._clients['LustreFileStorageClient'] = self.factory.create_client(LustreFileStorageClient)
+
+    def get_client(self, client_type):
+        if client_type == 'LustreFileStorageClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "lustrefilesystem" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the LustreFileSystemHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('LustreFileStorageClient').get_lustre_file_system(resource_id)
+        return response, {"display_name": "display_name", "availability_domain": "AD", "performance_tier": "performance_tier", "capacity_in_gbs": "capacity_in_gbs"}
+
+
+class ManagementAgentHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'ManagementAgentClient' not in self._clients:
+            from oci.management_agent import ManagementAgentClient
+            self._clients['ManagementAgentClient'] = self.factory.create_client(ManagementAgentClient)
+
+    def get_client(self, client_type):
+        if client_type == 'ManagementAgentClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "managementagent" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the ManagementAgentHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('ManagementAgentClient').get_management_agent(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class NatGatewayHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'VirtualNetworkClient' not in self._clients:
+            from oci.core import VirtualNetworkClient
+            self._clients['VirtualNetworkClient'] = self.factory.create_client(VirtualNetworkClient)
+
+    def get_client(self, client_type):
+        if client_type == 'VirtualNetworkClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "natgateway" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the NatGatewayHandler: {resource_id}")
+        
+        self.initialize_clients()
+        response = self.get_client('VirtualNetworkClient').get_nat_gateway(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class ObjectStorageHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceID"
+    
+    def initialize_clients(self):
+        if 'ObjectStorageClient' not in self._clients:
+            from oci.object_storage import ObjectStorageClient
+            self._clients['ObjectStorageClient'] = self.factory.create_client(ObjectStorageClient)
+        
+        if 'ResourceSearchClient' not in self._clients:
+            from oci.resource_search import ResourceSearchClient
+            self._clients['ResourceSearchClient'] = self.factory.create_client(ResourceSearchClient)
+
+    def get_client(self, client_type):
+        if client_type == 'ObjectStorageClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        elif client_type == 'ResourceSearchClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        else:
+            raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "bucket" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the ObjectStorageHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        from oci.resource_search.models import StructuredSearchDetails
+        resource_search_response = self.get_client('ResourceSearchClient').search_resources(
+            search_details=StructuredSearchDetails(
+                type="Structured",
+                query=f"query bucket resources where identifier='{resource_id}'"
+            ),
+            limit=1
+        )
+        if resource_search_response.status == 200 and len(resource_search_response.data.items):
+            bucket_name = resource_search_response.data.items[0].display_name
+            namespace = self.get_client('ObjectStorageClient').get_namespace()
+
+            response = self.get_client('ObjectStorageClient').get_bucket(namespace_name=namespace.data, bucket_name=bucket_name)
+            return response, {"name": "display_name"}
+
+
+class OKEHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'ContainerEngineClient' not in self._clients:
+            from oci.container_engine import ContainerEngineClient
+            self._clients['ContainerEngineClient'] = self.factory.create_client(ContainerEngineClient)
+
+        if 'ComputeClient' not in self._clients:
+            from oci.core import ComputeClient
+            self._clients['ComputeClient'] = self.factory.create_client(ComputeClient)
+
+    def get_client(self, client_type):
+        if client_type == 'ComputeClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        elif client_type == 'ContainerEngineClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        else:
+            raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "instance" not in resource_id.split(".") and "cluster" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the OKEHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        if "instance" in resource_id.split("."):
+            response = self.get_client('ComputeClient').get_instance(resource_id)
+            return response, {"display_name": "display_name"}
+        else:
+            response = self.get_client('ContainerEngineClient').get_cluster(resource_id)
+            return response, {"name": "display_name"}
+
+
+class PostgresqlHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'PostgresqlClient' not in self._clients:
+            from oci.psql import PostgresqlClient
+            self._clients['PostgresqlClient'] = self.factory.create_client(PostgresqlClient)
+
+    def get_client(self, client_type):
+        if client_type == 'PostgresqlClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "postgresqldbsystem" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the PostgresqlHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        response = self.get_client('PostgresqlClient').get_db_system(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class SecretHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'VaultsClient' not in self._clients:
+            from oci.vault import VaultsClient
+            self._clients['VaultsClient'] = self.factory.create_client(VaultsClient)
+
+    def get_client(self, client_type):
+        if client_type == 'VaultsClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "vaultsecret" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the SecretHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        response = self.get_client('VaultsClient').get_secret(resource_id)
+        return response, {"secret_name": "secret_name"}
+
+
+
+class ServiceConnectorHubHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "connectorId"
+    
+    def initialize_clients(self):
+        if 'ServiceConnectorClient' not in self._clients:
+            from oci.sch import ServiceConnectorClient
+            self._clients['ServiceConnectorClient'] = self.factory.create_client(ServiceConnectorClient)
+
+    def get_client(self, client_type):
+        if client_type == 'ServiceConnectorClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "serviceconnector" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the ServiceConnectorHubHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        response = self.get_client('ServiceConnectorClient').get_service_connector(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class ServiceGatewayHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'VirtualNetworkClient' not in self._clients:
+            from oci.core import VirtualNetworkClient
+            self._clients['VirtualNetworkClient'] = self.factory.create_client(VirtualNetworkClient)
+
+    def get_client(self, client_type):
+        if client_type == 'VirtualNetworkClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "servicegateway" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the ServiceGatewayHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        response = self.get_client('VirtualNetworkClient').get_service_gateway(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+
+class VCNHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'VirtualNetworkClient' not in self._clients:
+            from oci.core import VirtualNetworkClient
+            self._clients['VirtualNetworkClient'] = self.factory.create_client(VirtualNetworkClient)
+
+    def get_client(self, client_type):
+        if client_type == 'VirtualNetworkClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "vnic" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the VCNHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        response = self.get_client('VirtualNetworkClient').get_vnic(resource_id)
+        return response, {"display_name": "display_name", "availability_domain": "AD", "private_ip": "private_ip", "public_ip": "public_ip"}
+
+
+class VCNIPHandler(ResourceHandler):
+    def get_resource_identifier_key(self):
+        return "resourceId"
+    
+    def initialize_clients(self):
+        if 'VirtualNetworkClient' not in self._clients:
+            from oci.core import VirtualNetworkClient
+            self._clients['VirtualNetworkClient'] = self.factory.create_client(VirtualNetworkClient)
+
+    def get_client(self, client_type):
+        if client_type == 'VirtualNetworkClient':
+            if client_type not in self._clients:
+                self.initialize_clients()
+            return self._clients[client_type]
+        raise ValueError(f"Unsupported client type: {client_type}")
+
+    def get_resource(self, resource_id, tags):
+        if "subnet" not in resource_id.split("."):
+            raise ValueError(f"Unsupported resource ID for the VCNIPHandler: {resource_id}")
+        
+        self.initialize_clients()
+
+        response = self.get_client('VirtualNetworkClient').get_subnet(resource_id)
+        return response, {"display_name": "display_name"}
+
+
+class OCIMetaClient:
+    
+    def __init__(self, **kwargs):
+        self.factory = OCIClientFactory(
+            config=kwargs.get("config"),
+            signer=kwargs.get("signer"),
+            retry_strategy=kwargs.get("retry_strategy")
+        )
+        
+        # Register handlers for different namespaces
+        self.handlers = {
+            "oci_apigateway": APIGatewayHandler(self.factory),
+            "oci_bastion": BastionHandler(self.factory),
+            "oci_blockstore": BlockStorageHandler(self.factory),
+            "oci_compute": ComputeHandler(self.factory),
+            "oci_compute_infrastructure_health": ComputeHandler(self.factory),
+            "oci_compute_instance_health": ComputeHandler(self.factory),
+            "oci_computeagent": ComputeHandler(self.factory),
+            "gpu_infrastructure_health": ComputeHandler(self.factory),
+            "rdma_infrastructure_health": ComputeHandler(self.factory),
+            "oci_fastconnect": FastConnectHandler(self.factory),
+            "oci_filestorage": FileStorageHandler(self.factory),
+            "oci_internet_gateway": InternetGatewayHandler(self.factory),
+            "oci_lbaas": LbaasHandler(self.factory),
+            "oci_logging": LoggingHandler(self.factory),
+            "oci_lustrefilesystem": LustreFileSystemHandler(self.factory),
+            "oci_managementagent": ManagementAgentHandler(self.factory),
+            "oci_nat_gateway": NatGatewayHandler(self.factory),
+            "oci_objectstorage": ObjectStorageHandler(self.factory),
+            "oci_oke": OKEHandler(self.factory),
+            "oci_postgresql": PostgresqlHandler(self.factory),
+            "oci_secrets": SecretHandler(self.factory),
+            "oci_service_connector_hub": ServiceConnectorHubHandler(self.factory),
+            "oci_service_gateway": ServiceGatewayHandler(self.factory),
+            "oci_vcn": VCNHandler(self.factory),
+            "oci_vcnip": VCNIPHandler(self.factory)
+        }
+    
+    def get_namespaced_client(self, namespace):
+        if namespace not in self.handlers:
+            raise ValueError(f"Unsupported namespace: {namespace}")
+
+
+    def get_resource_ocid(self, namespace, tags):
+        if namespace not in self.handlers:
+            raise ValueError(f"Unsupported namespace: {namespace}")
+        
+        identifier_key = self.handlers[namespace].get_resource_identifier_key()
+        resource_id = tags.get(identifier_key)
+        
+        if not resource_id:
+            raise ValueError(f"Missing {identifier_key} in tags for namespace {namespace}")
+        
+        return resource_id
+    
+    def get_resource(self, namespace, tags):
+        """Get resource information for the given namespace and tags."""
+        try:
+            if namespace not in self.handlers:
+                raise ValueError(f"Unsupported namespace: {namespace}")
+            
+            resource_id = self.get_resource_ocid(namespace, tags)
+            handler = self.handlers[namespace]
+            
+            return handler.get_resource(resource_id, tags)
+            
+        except Exception as e:
+            logger.error(f"Error retrieving resource for namespace {namespace}: {str(e)}")
+            raise
+    
+    def add_handler(self, namespace, handler):
+        """Add a custom handler for a namespace."""
+        self.handlers[namespace] = handler
+    
+    def get_supported_namespaces(self):
+        """Return list of supported namespaces."""
+        return list(self.handlers.keys())

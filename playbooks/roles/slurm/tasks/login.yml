@@ -76,4 +76,3 @@
   delay: 30
   register: job_result
   until: job_result is not failed
-

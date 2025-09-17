@@ -1,3 +1,4 @@
+---
 - include_tasks: sync_targets.yml
   when: (all_hosts_info | default({}) | length ) > 0
 

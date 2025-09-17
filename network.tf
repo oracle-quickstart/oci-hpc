@@ -4,6 +4,11 @@ resource "oci_core_vcn" "vcn" {
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_VCN"
   dns_label      = "cluster"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_security_list" "internal-security-list" {
@@ -11,6 +16,11 @@ resource "oci_core_security_list" "internal-security-list" {
   vcn_id         = oci_core_vcn.vcn[0].id
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_private_sec_list"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 
   ingress_security_rules {
     protocol = "all"
@@ -44,6 +54,11 @@ resource "oci_core_security_list" "public-security-list" {
   vcn_id         = oci_core_vcn.vcn[0].id
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_public_sec_list"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 
   ingress_security_rules {
     protocol = "all"
@@ -114,6 +129,11 @@ resource "oci_core_internet_gateway" "ig1" {
   vcn_id         = oci_core_vcn.vcn[0].id
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_internet-gateway"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_nat_gateway" "ng1" {
@@ -121,6 +141,11 @@ resource "oci_core_nat_gateway" "ng1" {
   vcn_id         = oci_core_vcn.vcn[0].id
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_nat-gateway"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 
@@ -133,6 +158,11 @@ resource "oci_core_service_gateway" "sg1" {
   services {
     service_id = data.oci_core_services.services.services[0]["id"]
   }
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_route_table" "public_route_table" {
@@ -140,6 +170,11 @@ resource "oci_core_route_table" "public_route_table" {
   compartment_id = var.vcn_compartment
   vcn_id         = oci_core_vcn.vcn[0].id
   display_name   = "${local.cluster_name}_public_route_table"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 
   route_rules {
     destination       = "0.0.0.0/0"
@@ -154,6 +189,11 @@ resource "oci_core_route_table" "private_route_table" {
   compartment_id = var.vcn_compartment
   vcn_id         = oci_core_vcn.vcn[0].id
 
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+
   route_rules {
     destination       = "0.0.0.0/0"
     destination_type  = "CIDR_BLOCK"
@@ -166,6 +206,7 @@ resource "oci_core_route_table" "private_route_table" {
     network_entity_id = oci_core_service_gateway.sg1[0].id
   }
 }
+
 resource "oci_core_dhcp_options" "cluster_dhcp_options" {
   count          = var.use_existing_vcn ? 0 : 1
   compartment_id = var.vcn_compartment
@@ -180,6 +221,7 @@ resource "oci_core_dhcp_options" "cluster_dhcp_options" {
   vcn_id       = oci_core_vcn.vcn[0].id
   display_name = "${local.cluster_name}_DHCP"
 }
+
 resource "oci_core_subnet" "public-subnet" {
   count = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
   # availability_domain = var.ad
@@ -191,6 +233,11 @@ resource "oci_core_subnet" "public-subnet" {
   display_name      = "${local.cluster_name}_public_subnet"
   route_table_id    = oci_core_route_table.public_route_table[0].id
   dhcp_options_id   = oci_core_dhcp_options.cluster_dhcp_options[0].id
+  
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_subnet" "private-subnet" {
@@ -205,6 +252,11 @@ resource "oci_core_subnet" "private-subnet" {
   prohibit_public_ip_on_vnic = true
   route_table_id             = oci_core_route_table.private_route_table[0].id
   dhcp_options_id            = oci_core_dhcp_options.cluster_dhcp_options[0].id
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_dns_zone" "dns_zone" {
@@ -214,6 +266,11 @@ resource "oci_dns_zone" "dns_zone" {
   zone_type      = "PRIMARY"
   scope          = "PRIVATE"
   view_id        = data.oci_dns_views.dns_views.views[0].id
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 

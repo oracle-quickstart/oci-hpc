@@ -669,3 +669,7 @@ variable "lfs_options" {
   default = "defaults,_netdev"
   type = string
 }
+variable "ingest_oci_metrics" {
+  default = false
+  type    = bool
+}

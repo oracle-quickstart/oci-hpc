@@ -44,10 +44,9 @@
     dest: "{{ prometheus_targets_dir }}/{{ item.value.hostname }}.json"
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
-    mode: '0775'
+    mode: "0775"
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   loop: "{{ all_hosts_info | dict2items | selectattr('value.role', 'equalto', 'controller') | rejectattr('value.controller_status', 'equalto', 'terminating') }}"
-
 
 - name: Sync targets for the login node(s)
   become: true
@@ -58,7 +57,7 @@
     dest: "{{ prometheus_targets_dir }}/{{ item.value.hostname }}.json"
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
-    mode: '0775'
+    mode: "0775"
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   loop: "{{ all_hosts_info | dict2items | selectattr('value.role', 'equalto', 'login') | rejectattr('value.controller_status', 'equalto', 'terminating') }}"
 
@@ -71,7 +70,6 @@
     dest: "{{ prometheus_targets_dir }}/{{ item.value.hostname }}.json"
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
-    mode: '0775'
+    mode: "0775"
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   loop: "{{ all_hosts_info | dict2items | selectattr('value.role', 'equalto', 'compute') | rejectattr('value.controller_status', 'equalto', 'terminating') }}"
-

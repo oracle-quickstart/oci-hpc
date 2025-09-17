@@ -14,7 +14,7 @@
     - name: Create a list of hostnames to remove
       ansible.builtin.set_fact:
         hostnames_list: "{{ new_compute_info | dict2items | map(attribute='value.hostname') | list }}"
- # get Info from the Rack Switches
+    # get Info from the Rack Switches
     - name: Get RackLine
       ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{item}} | grep Level=0 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_switch
@@ -40,7 +40,7 @@
       register: current_switchName
       run_once: true
       with_items: "{{hostnames_list}}"
-      
+
     - name: Get Switchname
       ansible.builtin.set_fact:
         rem_switchnames_dict: "{{ rem_switchnames_dict | default({}) | combine({item.item: item.stdout}) }}"
@@ -194,7 +194,7 @@
     - name: debug rem_racks_dict
       ansible.builtin.debug:
         var: rem_racks_dict
- 
+
     - name: debug rem_networkblocknames
       ansible.builtin.debug:
         var: rem_networkblocknames
@@ -268,7 +268,6 @@
       when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) > 0 )
       run_once: true
       notify: Reconfigure slurm
-
 
 # Find which Network Blocks need to be removed
 # List all Network Blocks from the hosts to remove and check if theyre are racks left
@@ -347,7 +346,8 @@
 
     - name: Get condensed_Nodes
       ansible.builtin.set_fact:
-        nbs_on_cluster_dict_condensed: "{{ nbs_on_cluster_dict_condensed | default({}) | combine({item: rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | join(',')}) }}"
+        nbs_on_cluster_dict_condensed: "{{ nbs_on_cluster_dict_condensed | default({}) | combine({item: rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove)
+          | join(',')}) }}"
       with_items: "{{rem_clusternames}}"
       when: ( ( rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length ) > 0 )
       run_once: true
@@ -372,7 +372,6 @@
 
 - name: Add nodes to current topology
   block:
-
     # Make rack_id_dict a dictionary of either the railID or RackID depending on what is in the DB
     - name: Make rackID dictionary
       ansible.builtin.set_fact:
@@ -411,19 +410,20 @@
       vars:
         rack_name: "{{ item.value.cluster_name }}:{{ nb_id_dict[item.value.hostname] }}:{{ rack_id_dict[item.value.hostname] }}"
       with_items: "{{ new_compute_info | dict2items }}"
-      
+
     - name: Make empty nb_dict
       ansible.builtin.set_fact:
         nb_dict: "{{ nb_dict | default({}) }}"
       run_once: true
-    
+
     - name: Build dictionary of nb to add
       ansible.builtin.set_fact:
-        nb_dict: "{{ nb_dict | combine({nb_name: (nb_dict[nb_name] | default([])) + [item.value.cluster_name + ':' + nb_id_dict[item.value.hostname]+ ':' + rack_id_dict[item.value.hostname]] | unique}) }}"
+        nb_dict: "{{ nb_dict | combine({nb_name: (nb_dict[nb_name] | default([])) + [item.value.cluster_name + ':' + nb_id_dict[item.value.hostname]+ ':' + rack_id_dict[item.value.hostname]]
+          | unique}) }}"
       vars:
         nb_name: "{{ item.value.cluster_name }}:{{ nb_id_dict[item.value.hostname] }}"
       with_items: "{{ new_compute_info | dict2items }}"
-      
+
     - name: Make empty cluster_dict
       ansible.builtin.set_fact:
         cluster_dict: "{{ cluster_dict | default({}) }}"
@@ -431,10 +431,11 @@
 
     - name: Build dictionary of clusters to add
       ansible.builtin.set_fact:
-        cluster_dict: "{{ cluster_dict | combine({item.value.cluster_name: (cluster_dict[item.value.cluster_name] | default([])) + [item.value.cluster_name + ':' + nb_id_dict[item.value.hostname]] | unique}) }}"
+        cluster_dict: "{{ cluster_dict | combine({item.value.cluster_name: (cluster_dict[item.value.cluster_name] | default([])) + [item.value.cluster_name + ':'
+          + nb_id_dict[item.value.hostname]] | unique}) }}"
       with_items: "{{ new_compute_info | dict2items }}"
 
-# Add the racks with all the nodes. 
+    # Add the racks with all the nodes. 
     - name: Get current nodes in Switch
       ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}} \""
       register: nodes_in_switch
@@ -504,7 +505,7 @@
 
     - name: debug nb_dict
       ansible.builtin.debug:
-        var: nb_dict  
+        var: nb_dict
 
     - name: Get current Racks in NetworkBlock
       ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}} \""
@@ -521,7 +522,8 @@
 
     - name: create nbs_on_cluster_dict
       ansible.builtin.set_fact:
-        nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union(nb_dict[item.item] | list | unique)}) }}"
+        nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union(nb_dict[item.item]
+          | list | unique)}) }}"
       with_items: "{{racks_in_nb.results}}"
       run_once: true
       when: item.rc == 0
@@ -573,7 +575,8 @@
 
     - name: create nbs_on_cluster_dict
       ansible.builtin.set_fact:
-        nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union (cluster_dict[item.item] | list | unique)}) }}"
+        nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union (cluster_dict[item.item]
+          | list | unique)}) }}"
       with_items: "{{nb_in_cluster.results}}"
       run_once: true
       when: item.rc == 0

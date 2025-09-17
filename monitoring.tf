@@ -63,3 +63,57 @@ resource "random_password" "grafana_admin_pwd" {
   min_special      = 1
   min_numeric      = 1
 }
+
+resource "oci_streaming_stream" "telegraf_stream" {
+  count          = var.cluster_monitoring && var.ingest_oci_metrics ? 1 : 0
+
+  name           = "${local.cluster_name}-stream"
+  partitions     = 1
+  compartment_id = var.targetCompartment
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+
+  retention_in_hours = 24
+}
+
+resource "oci_sch_service_connector" "telegraf_service_connector" {
+  count          = var.cluster_monitoring && var.ingest_oci_metrics ? 1 : 0
+
+  compartment_id = var.targetCompartment
+  display_name   = "${local.cluster_name}-metrics-exporter"
+  
+  source {
+    kind = "monitoring"
+
+    monitoring_sources {
+      compartment_id = var.targetCompartment
+      
+      namespace_details {
+        kind = "selected"
+        dynamic "namespaces" {
+          for_each = ["oci_blockstore", "oci_fastconnect", "oci_filestorage", "oci_internet_gateway", "oci_lustrefilesystem", "oci_objectstorage", "oci_nat_gateway", "oci_service_gateway", "oci_vcn", "oci_dynamic_routing_gateway"] # "gpu_infrastructure_health", "rdma_infrastructure_health"
+          content {
+            metrics {
+              kind = "all"
+            }
+            namespace = namespaces.value
+          }
+        }     
+      }
+    }
+  }
+
+  target {
+    kind      = "streaming"
+    stream_id = oci_streaming_stream.telegraf_stream[0].id
+  }
+
+  description   = "Service connector hub used to export OCI metrics to Prometheus for Slurm cluster ${local.cluster_name}"
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+}

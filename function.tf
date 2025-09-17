@@ -18,6 +18,10 @@ resource "oci_artifacts_container_repository" "container_repository" {
   compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}-registry"
 
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 
@@ -26,6 +30,11 @@ resource "oci_functions_application" "fn_application" {
   display_name   = "${local.cluster_name}-app"
   subnet_ids     = [local.subnet_id]
   shape          = "GENERIC_X86"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "time_sleep" "wait_for_registry_to_be_ready" {
@@ -84,6 +93,11 @@ resource "oci_functions_function" "function" {
     "PRIVATE_SUBNET"  = var.private_subnet
     "ZONE_NAME"       = local.zone_name
     shape             = "GENERIC_X86"
+  }
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
   }
 }
 

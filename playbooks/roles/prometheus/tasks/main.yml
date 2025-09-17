@@ -4,8 +4,8 @@
   become: true
   user:
     name: "{{ prometheus_user }}"
-    state: present 
-    createhome: false 
+    state: present
+    createhome: false
     shell: /usr/sbin/nologin
     append: true
   run_once: true
@@ -40,9 +40,9 @@
   file:
     path: "{{ prometheus_targets_dir }}"
     state: directory
-    owner: "{{ prometheus_user }}" 
-    group: "{{ prometheus_user }}"    
-    mode: '0777'
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "0777"
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
 
@@ -110,6 +110,8 @@
 
 - name: Copying the scrape config
   become: true
+  vars:
+    oci_metrics_host: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   template:
     src: templates/prometheus.yml.j2
     dest: "{{ prometheus_dest_dir }}/prometheus.yml"
@@ -130,14 +132,13 @@
     dest: "{{ prometheus_dest_dir }}/recording_rules.yml"
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
-    mode: '0775'
+    mode: "0775"
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
   retries: 3
   delay: 10
   register: copy_rules
   until: copy_rules is not failed
-  
 
 - name: Restart prometheus
   become: true

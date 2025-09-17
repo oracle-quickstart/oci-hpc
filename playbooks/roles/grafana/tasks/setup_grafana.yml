@@ -50,7 +50,8 @@
 
 - name: Set service account ID
   set_fact:
-    service_account_id: "{{ service_account_result.json.id if service_account_result.json is defined else (existing_service_accounts.json | selectattr('name', 'equalto', 'oci-hpc-monitoring') | first).id }}"
+    service_account_id: "{{ service_account_result.json.id if service_account_result.json is defined else (existing_service_accounts.json | selectattr('name', 'equalto',
+      'oci-hpc-monitoring') | first).id }}"
   when: not grafana_token_file_stat_result.stat.exists
 
 - name: Create service account token
@@ -76,7 +77,7 @@
     group: "{{ user }}"
     content: "{{ service_account_token.json.key | b64encode }}"
     dest: "{{ grafana_service_account.token_file }}"
-    mode: '0400'
+    mode: "0400"
   when: (service_account_token.json.key is defined) and (not grafana_token_file_stat_result.stat.exists)
 
 - name: Read Grafana token from file
@@ -108,14 +109,14 @@
   copy:
     src: files/alert-rules.yaml
     dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
-    mode: '0777'
+    mode: "0777"
 
 - name: Copy delete rules to grafana provisioning
   become: true
   copy:
     src: files/delete-rules.yaml
     dest: /etc/grafana/provisioning/alerting/delete-rules.yaml
-    mode: '0777'
+    mode: "0777"
 
 - name: Replace all occurrences of a specific string in files
   become: true
