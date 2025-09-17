@@ -50,9 +50,6 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
       # Use scp to copy the file to the second node
       scp $file_to_copy ${node2}:$dest_path
     fi
-    echo write
     srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 30s sudo python3 /opt/oci-hpc/healthchecks/write_hc_http_server_file.py --node1 $node1 --node2 $node2 --slurm
-    sleep 2
-    echor write done
   fi
 fi
