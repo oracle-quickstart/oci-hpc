@@ -1,5 +1,4 @@
 ---
-
 - name: Create empty GRES.conf
   become: true
   ansible.builtin.lineinfile:

@@ -1,0 +1,4 @@
+# Run executable as long-running input plugin
+[[inputs.execd]]
+  command = ["/usr/bin/env", "python3", "{{ telegraf_input_path }}"]
+  buffer_size = "2048KiB"

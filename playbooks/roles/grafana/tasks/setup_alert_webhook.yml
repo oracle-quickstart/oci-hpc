@@ -1,9 +1,8 @@
 ---
-
 - name: Install Python dependencies
   become: true
   ansible.builtin.pip:
-    name: 
+    name:
       - fastapi[standard-no-fastapi-cloud-cli]
       - uvicorn
       - oci
@@ -12,7 +11,7 @@
 - name: Install Python dependencies
   become: true
   ansible.builtin.pip:
-    name: 
+    name:
       - fastapi[standard-no-fastapi-cloud-cli]
       - uvicorn
       - oci
@@ -24,7 +23,7 @@
   file:
     path: "{{ grafana_ons_webhook_db_dir }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: "{{ user }}"
     group: "{{ user }}"
 
@@ -33,7 +32,7 @@
   template:
     src: templates/ons_webhook.py.j2
     dest: /usr/local/bin/ons_webhook.py
-    mode: '0755'
+    mode: "0755"
     force: true
 
 - name: Copy message template to server
@@ -41,7 +40,7 @@
   copy:
     src: files/raw_message_template.txt
     dest: "{{ grafana_ons_webhook_template_path }}"
-    mode: '0755'
+    mode: "0755"
     force: true
 
 - name: Render systemd service for webhook
@@ -49,14 +48,14 @@
   template:
     src: ons-webhook.service.j2
     dest: /etc/systemd/system/ons-webhook.service
-    force: yes
-    backup: yes
-    mode: '0644'
+    force: true
+    backup: true
+    mode: "0644"
 
 - name: Start and enable webhook service
   become: true
   systemd:
     name: ons-webhook.service
     state: restarted
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true

@@ -90,8 +90,8 @@
 
 - hosts: localhost
   become: true
-  tasks: 
-    - include_role: 
+  tasks:
+    - include_role:
         name: sssd
       when: ldap|default(true)|bool
 

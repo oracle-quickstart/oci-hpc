@@ -1,0 +1,146 @@
+---
+- name: Add InfluxData repository - for Telegraf
+  become: true
+  yum_repository:
+    name: influxdata
+    description: InfluxData Repository - Stable
+    baseurl: https://repos.influxdata.com/stable/$basearch/main
+    enabled: 1
+    gpgcheck: 1
+    gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+  when: ansible_os_family == 'RedHat'
+
+- name: Add InfluxData's key
+  become: true
+  apt_key:
+    state: present
+    url: https://repos.influxdata.com/influxdata-archive_compat.key
+  when: ansible_os_family == 'Debian'
+
+- name: Manage InfluxData APT repositories - for Telegraf
+  become: true
+  apt_repository:
+    repo: deb https://repos.influxdata.com/debian stable main
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install Telegraf
+  vars:
+    package_name:
+      - telegraf
+    package_state: latest
+  include_role:
+    name: safe_yum
+
+- name: Force Telegraf gid 995
+  become: true
+  lineinfile:
+    path: /etc/group
+    state: present
+    regexp: "^telegraf:x:(.*)$"
+    line: "telegraf:x:995:"
+    backrefs: true
+
+- name: Force Telegraf uid 995
+  become: true
+  lineinfile:
+    path: /etc/passwd
+    state: present
+    regexp: "^telegraf:x:(.*)$"
+    line: "telegraf:x:995:995::/etc/telegraf:/bin/false"
+    backrefs: true
+
+- name: Copy telegraf.conf
+  become: true
+  copy:
+    src: "telegraf.conf"
+    dest: /etc/telegraf/telegraf.conf
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+
+- name: Render Telegraf configuration files
+  become: true
+  template:
+    src: "{{ item }}.j2"
+    dest: /etc/telegraf/telegraf.d/{{item}}
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+  with_items:
+    - filter.conf
+    - input.conf
+    - output.conf
+
+- name: Render OCI Metric Python files
+  become: true
+  template:
+    src: "{{ item }}.j2"
+    dest: /usr/local/bin/{{item}}
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+  with_items:
+    - oci_metrics_telegraf_input.py
+    - oci_metrics_telegraf_filter.py
+    - oci_metrics_telegraf_utils.py
+
+- name: Install required python packages
+  become: true
+  ansible.builtin.pip:
+    name:
+      - memoization
+      - line-protocol-parser
+      - influx-line-protocol
+      - flatdict
+      - oci
+    executable: "{{venv_path}}/bin/pip3"
+
+- name: Install required python packages
+  become: true
+  ansible.builtin.pip:
+    name:
+      - memoization
+      - line-protocol-parser
+      - influx-line-protocol
+      - flatdict
+      - oci
+    executable: /usr/bin/pip3
+  ignore_errors: true
+
+- name: Add environment variable to file
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/default/telegraf
+    line: PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+    owner: root
+    group: root
+    mode: "0644"
+
+# - name: Ensure systemd override directory for Telegraf exists
+#   ansible.builtin.file:
+#     path: /etc/systemd/system/telegraf.service.d
+#     state: directory
+#     owner: root
+#     group: root
+#     mode: '0755'
+
+# - name: Add environment variables to Telegraf via systemd override
+#   ansible.builtin.copy:
+#     dest: /etc/systemd/system/telegraf.service.d/override.conf
+#     content: |
+#       [Service]
+#       Environment=PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+#     owner: root
+#     group: root
+#     mode: '0644'
+
+- name: Restart Telegraf
+  become: true
+  service:
+    name: telegraf
+    state: restarted
+    enabled: true

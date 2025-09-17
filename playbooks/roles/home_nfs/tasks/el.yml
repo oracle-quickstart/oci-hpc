@@ -1,6 +1,6 @@
 ---
 - name: Set use_nfs_home_dirs if SELINUX is enabled
-  vars: 
+  vars:
     ansible_python_interpreter: "/usr/bin/python3"
   ansible.posix.seboolean:
     name: use_nfs_home_dirs

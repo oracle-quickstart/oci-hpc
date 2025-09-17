@@ -52,7 +52,4 @@
 
 - name: Enable and Start Custom Metric Service
   become: true
-  ansible.builtin.service:
-    name=customMetrics.service
-    state=started
-    enabled=yes
+  ansible.builtin.service: name=customMetrics.service state=started enabled=yes
