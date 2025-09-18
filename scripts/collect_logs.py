@@ -109,7 +109,7 @@ def sosReport(host, path):
 # get console history logs
 def consoleHistoryLogs(host, path, compartment):
     if compartment is None:
-        res = requests.get('http://169.254.169.254/opc/v1/instance')
+        res = requests.get('http://169.254.169.254/opc/v2/instance')
         compartment_id = res.json()['compartmentId']
     else:
         compartment_id = compartment
