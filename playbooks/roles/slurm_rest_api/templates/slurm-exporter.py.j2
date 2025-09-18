@@ -10,7 +10,7 @@ import time
 import os
 
 configuration = openapi_client.Configuration(
-    host = "http://controller:6820",
+    host = "http://{{ controller_hostname }}:6820",
     access_token = "{{ slurm_jwt_token }}"
 )
 

@@ -151,11 +151,11 @@
         name: spack
       when: spack|default(false)|bool
     - ansible.builtin.include_role:
-        name: metrics-exporter
-      when: cluster_monitoring|default(false)|bool
-    - ansible.builtin.include_role:
         name: slurm
       when: slurm|default(false)|bool
+    - ansible.builtin.include_role:
+        name: metrics-exporter
+      when: cluster_monitoring|default(false)|bool
 
 - hosts: localhost
   become: true
