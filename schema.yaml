@@ -341,13 +341,28 @@ variables:
             - "VM.Standard.E5.Flex"
           - eq:
             - ${controller_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - ${controller_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${controller_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${controller_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${controller_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.AMD.Generic"
     required: true
 
   controller_ocpus_denseIO_flex:
@@ -383,18 +398,33 @@ variables:
           - eq:
             - ${controller_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${controller_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${controller_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${controller_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${controller_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${controller_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.AMD.Generic"
 
   controller_memory:
     title: Memory in GBs
@@ -413,18 +443,33 @@ variables:
             - eq:
               - ${controller_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${controller_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${controller_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${controller_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${controller_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${controller_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${controller_custom_memory}
     required: true
@@ -664,18 +709,33 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${instance_pool_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.AMD.Generic"
     required: true
 
   instance_pool_ocpus_denseIO_flex:
@@ -713,18 +773,33 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${instance_pool_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.AMD.Generic"
   instance_pool_memory:
     title: Memory in GBs
     type: integer
@@ -742,18 +817,33 @@ variables:
             - eq:
               - ${instance_pool_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${instance_pool_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${instance_pool_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${instance_pool_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${instance_pool_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${instance_pool_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${instance_pool_custom_memory}
             - not: 
@@ -1408,21 +1498,36 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.Standard.E3.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E5.Flex"
           - eq:
             - ${login_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - ${login_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${login_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${login_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.AMD.Generic"
         - ${login_node}
     required: true
 
@@ -1460,18 +1565,33 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${login_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${login_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${login_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.AMD.Generic"
         - ${login_node}
 
   login_memory:
@@ -1491,18 +1611,33 @@ variables:
             - eq:
               - ${login_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${login_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${login_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${login_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${login_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${login_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${login_custom_memory}
             - ${login_node}
@@ -1640,21 +1775,36 @@ variables:
           - eq:
             - ${monitoring_shape}
             - "VM.Standard.E3.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E5.Flex"
           - eq:
             - ${monitoring_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - ${monitoring_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${monitoring_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${monitoring_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.AMD.Generic"
         - ${monitoring_node}
     required: true
 
@@ -1692,18 +1842,33 @@ variables:
           - eq:
             - ${monitoring_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${monitoring_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${monitoring_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.AMD.Generic"
         - ${monitoring_node}
 
   monitoring_memory:
@@ -1723,18 +1888,36 @@ variables:
             - eq:
               - ${monitoring_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${monitoring_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${monitoring_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${monitoring_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${monitoring_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${monitoring_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard3.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${monitoring_custom_memory}
             - ${monitoring_node}
