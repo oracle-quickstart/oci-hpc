@@ -598,10 +598,10 @@ variables:
   memory_fabric_id: 
     title: Memory Fabric ID
     type: string
-    description: Specify the memory Fabric OCID. Only one memory cluster can be spun up for the initial spin up. Use the CLI to create additionnal Memory Cluster
+    description: Specify the memory fabric OCID. Only one memory cluster can be spun up for the initial spin up. Use the CLI to create additional memory clusters
     default: ""
     visible: 
-      eq:
+      and:
         - or:
           - eq:
             - ${cluster_network_shape}
@@ -1059,7 +1059,7 @@ variables:
     type: string
     title: "VCN IP range"
     description: "VCN subnet"
-    default: "172.16.0.0/21"
+    default: "172.16.0.0/16"
     required: true
     visible:
       not:
@@ -1095,7 +1095,7 @@ variables:
   private_subnet:
     type: string
     title: "Private subnet IP range"
-    default: "172.16.4.0/22"
+    default: "172.16.128.0/17"
     description: "Must be within VCN subnet"
     required: true
     visible:
