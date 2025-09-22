@@ -1,4 +1,15 @@
 ---
+- name: Set python version variables
+  set_fact:
+    python_version: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
+      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
+      {% else %}3{% endif %}
+    python_executable: "/usr/bin/python{{ python_version }}"
+    pip_executable: "/usr/bin/pip{{ python_version }}"
+
 - name: Install python build dependencies (apt)
   package:
     name:
@@ -17,8 +28,8 @@
       - libjwt-dev
       - libhttp-parser-dev
       - default-jre
-      - python3.10
-      - python3.10-dev
+      - "python{{ python_version }}"
+      - "python{{ python_version }}-dev"
       - python3-pip
     state: present
   become: true
@@ -43,10 +54,10 @@
       - libjwt-devel
       - http-parser-devel
       - java-1.8.0-openjdk
-      - python38
-      - python38-devel
-      - python38-pip
-    enablerepo: ol8_codeready_builder
+      - "python{{ python_version }}"
+      - "python{{ python_version }}-devel"
+      - "python{{ python_version }}-pip"
+    enablerepo: ol8_codeready_builder,ol8_appstream,ol9_codeready_builder,ol9_appstream
     state: present
   become: true
   when: ansible_os_family == "RedHat"

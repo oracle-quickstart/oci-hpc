@@ -1,0 +1,15 @@
+---
+python_version: |
+  {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}
+  3.8
+  {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}
+  3.9
+  {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}
+  3.10
+  {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}
+  3.12
+  {% else %}
+  3
+  {% endif %}
+python_executable: "/usr/bin/python{{ python_version }}"
+pip_executable: "/usr/bin/pip{{ python_version }}"

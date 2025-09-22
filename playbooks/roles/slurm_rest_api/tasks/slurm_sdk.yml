@@ -1,9 +1,20 @@
 ---
+- name: Set Python version facts based on OS
+  set_fact:
+    python_version: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
+      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
+      {% else %}3{% endif %}
+    python_executable: "/usr/bin/python{{ python_version }}"
+    pip_executable: "/usr/bin/pip{{ python_version }}"
+
 - name: Install NVM
   uri:
     url: "{{ nvm_install_url }}"
-    dest: "/tmp/nvm_install.sh"  # Save the script to a temporary file
-    mode: 0755  # Make the script executable
+    dest: "/tmp/nvm_install.sh"
+    mode: 0755
   register: nvm_download_result
   become: true
   when: not ansible_env.HOME is undefined
@@ -131,79 +142,41 @@
   args:
     chdir: "{{ sdk_output_dir }}"
 
-- name: Install wheel package (Debian)
+- name: Install wheel package
   become: true
   shell: |
-    /usr/bin/python3.10 -m pip install wheel
-  when: ansible_os_family == "Debian"
+    {{ python_executable }} -m pip install wheel
 
-- name: Upgrade Packaging Library
+- name: Upgrade Packaging Library (pip)
+  become: true
   shell: |
-    pip install --upgrade packaging==25.0
-  when: ansible_os_family == "Debian"
+    {{ pip_executable }} install --upgrade packaging==25.0
 
 - name: Build slurm sdk python wheel
   shell: |
-    /usr/bin/python3.10 setup.py bdist_wheel
+    {{ python_executable }} setup.py bdist_wheel
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  when: ansible_os_family == "Debian"
 
 - name: Install slurm sdk the python wheel
   become: true
   shell: |
-    /usr/bin/python3.10 -m pip install --upgrade pip
-    /usr/bin/python3.10 -m pip install pydantic>=2
-    /usr/bin/python3.10 -m pip install openapi_client
-    /usr/bin/python3.10 -m pip install --force-reinstall --upgrade dist/*.whl
+    {{ python_executable }} -m pip install --upgrade pip
+    {{ python_executable }} -m pip install pydantic>=2
+    {{ python_executable }} -m pip install openapi_client
+    {{ python_executable }} -m pip install --force-reinstall --upgrade dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  when: ansible_os_family == "Debian"
 
-- name: Build python wheel
-  become: true
-  shell: |
-    /usr/bin/pip3.8 install wheel
-    /usr/bin/python3.8 setup.py bdist_wheel
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "RedHat"
-
-- name: Install the python wheel
-  become: true
-  shell: |
-    /usr/bin/python3.8 -m pip install --upgrade pip
-    /usr/bin/python3.8 -m pip install pydantic>=2
-    /usr/bin/python3.8 -m pip install openapi_client
-    /usr/bin/python3.8 -m pip install --force-reinstall --upgrade dist/*.whl
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "RedHat"
-
-- name: Install test requirements (ubuntu)
+- name: Install test requirements if present
   pip:
     requirements: "{{ sdk_output_dir }}/test-requirements.txt"
-    executable: /usr/bin/pip3.10
+    executable: "{{ pip_executable }}"
     state: present
   when: >
     ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True and
-    ansible_os_family == "Debian"
-  vars:
-    ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
-
-- name: Install test requirements
-  pip:
-    requirements: "{{ sdk_output_dir }}/test-requirements.txt"
-    executable: /usr/bin/pip3.8
-    state: present
-  when: >
-    ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True and
-    ansible_os_family == "RedHat"
+    ansible_stat.stat.exists == True
   vars:
     ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
