@@ -155,13 +155,13 @@ def run_add(nodes, count, names):
         sys.exit(1)
     for first_node in nodes:
         if first_node.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
-            memory_clusters = oci.pagination.list_call_get_all_results(compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name).data
+            memory_clusters = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name).data
             for memory_cluster in memory_clusters:
                 mc_id=memory_cluster.id
-                instance_summaries = oci.pagination.list_call_get_all_results(compute_client.list_compute_gpu_memory_cluster_instances, mc_id).data
+                instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_gpu_memory_cluster_instances, mc_id).data
                 for instance_summary in instance_summaries:
                     if instance_summary.id == first_node.ocid:
-                        memory_cluster_data=compute_client.get_compute_gpu_memory_cluster(mc_id).data
+                        memory_cluster_data=CLIENTS.compute_client.get_compute_gpu_memory_cluster(mc_id).data
                         cc_id=memory_cluster_data.compute_cluster_id
                         instance_config_id=memory_cluster_data.instance_configuration_id
                         cluster_type="MC"
