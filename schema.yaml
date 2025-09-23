@@ -1059,7 +1059,7 @@ variables:
     type: string
     title: "VCN IP range"
     description: "VCN subnet"
-    default: "172.16.0.0/16"
+    default: "172.16.0.0/18"
     required: true
     visible:
       not:
@@ -1095,7 +1095,7 @@ variables:
   private_subnet:
     type: string
     title: "Private subnet IP range"
-    default: "172.16.128.0/17"
+    default: "172.16.32.0/19"
     description: "Must be within VCN subnet"
     required: true
     visible:
