@@ -122,14 +122,6 @@
         name: sssd
       when: ldap|default(true)|bool
 
-- hosts: controller, slurm_backup
-  vars:
-    compute_node: false
-  tasks:
-    - include_role:
-        name: metrics-exporter
-      when: cluster_monitoring|default(false)|bool
-
 - hosts: controller
   become: true
   tasks:
@@ -176,6 +168,14 @@
     - include_role:
         name: slurm
       when: slurm|default(false)|bool
+
+- hosts: controller, slurm_backup
+  vars:
+    compute_node: false
+  tasks:
+    - include_role:
+        name: metrics-exporter
+      when: cluster_monitoring|default(false)|bool
 
 - hosts: controller, slurm_backup
   tasks:
