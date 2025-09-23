@@ -8,14 +8,19 @@
       {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
       {% else %}3{% endif %}
     python_executable: "/usr/bin/python{{ python_version }}"
-    pip_executable: "/usr/bin/pip{{ python_version }}"
 
-- name: Install NVM
-  uri:
+- name: Define pip command with break-system-packages
+  set_fact:
+    pip_cmd: "{{ python_executable }} -m pip"
+    pip_break_flag: "{{ (ansible_facts.os_family == 'Debian') | ternary('--break-system-packages','') }}"
+
+# ----------------- NVM / Node / OpenAPI Generator -----------------
+
+- name: Download NVM install script
+  ansible.builtin.get_url:
     url: "{{ nvm_install_url }}"
-    dest: "/tmp/nvm_install.sh"
-    mode: 0755
-  register: nvm_download_result
+    dest: /tmp/nvm_install.sh
+    mode: '0755'
   become: true
   when: not ansible_env.HOME is undefined
 
@@ -30,12 +35,7 @@
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
-  when: nvm_download_result.status == 200 and not nvm_exists.stat.exists
-
-- name: Load NVM in current shell
-  shell: ". ~/.nvm/nvm.sh"
-  args:
-    executable: /bin/bash
+  when: not nvm_exists.stat.exists
 
 - name: Check if Node.js is already installed via NVM
   shell: |
@@ -53,7 +53,7 @@
     nvm install-latest-npm
   args:
     executable: /bin/bash
-  when: node_lts_check.rc != 0 or node_lts_check.stdout | int == 0
+  when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
 
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
@@ -72,6 +72,8 @@
   args:
     executable: /bin/bash
   when: openapi_cli_check.rc != 0
+
+# ----------------- JWT + OpenAPI Spec -----------------
 
 - name: Generate JWT token
   command: "scontrol token lifespan=31556926"
@@ -97,8 +99,8 @@
   set_fact:
     slurm_jwt_token: "{{ (jwt_token_file.content | b64decode).split('=')[1] }}"
 
-- name: Create sdk output directory
-  ansible.builtin.file:
+- name: Ensure OpenAPI download dir
+  file:
     path: "{{ openapi_download_path }}"
     state: directory
 
@@ -116,7 +118,7 @@
     paths: "{{ ansible_env.HOME }}/.nvm"
     patterns: "{{ openapi_generator_jar_version }}.jar"
     file_type: file
-    recurse: yes
+    recurse: true
   register: openapi_jar_find
 
 - name: Copy openapi-generator jar to local path
@@ -124,33 +126,54 @@
     remote_src: true
     src: "{{ item.path }}"
     dest: "{{ openapi_download_path }}/openapi-generator.jar"
-  with_items: "{{ openapi_jar_find.files }}"
+  loop: "{{ openapi_jar_find.files }}"
   when: openapi_jar_find.matched > 0
   become: true
 
-- name: Create SDK output directory
+# ----------------- Generate SDK -----------------
+
+- name: Ensure SDK output directory
   file:
     path: "{{ sdk_output_dir }}"
     state: directory
 
-- name: Generate Slurm python-pydantic SDK
+- name: Generate Slurm python SDK from OpenAPI
   shell: |
     java -jar {{ openapi_download_path }}/openapi-generator.jar generate \
       -g python \
       -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
-      -o {{ sdk_output_dir }}/ 
+      -o {{ sdk_output_dir }}/
   args:
     chdir: "{{ sdk_output_dir }}"
 
-- name: Install wheel package
-  become: true
-  shell: |
-    {{ python_executable }} -m pip install wheel
+# ----------------- System Python (PEP 668 bypass) -----------------
 
-- name: Upgrade Packaging Library (pip)
+- name: Ensure pip/wheel via apt (Debian/Ubuntu)
   become: true
-  shell: |
-    {{ pip_executable }} install --upgrade packaging==25.0
+  apt:
+    name:
+      - python3-pip
+      - python3-wheel
+    state: present
+    update_cache: yes
+  register: apt_result
+  until: apt_result is succeeded
+  retries: 5
+  delay: 6
+  when: ansible_facts.os_family == "Debian"
+
+- name: Ensure pip/wheel via dnf (RHEL/OL)
+  become: true
+  dnf:
+    name:
+      - python3-pip
+      - python3-wheel
+    state: present
+  register: dnf_result
+  until: dnf_result is succeeded
+  retries: 3
+  delay: 4
+  when: ansible_facts.os_family == "RedHat"
 
 - name: Build slurm sdk python wheel
   shell: |
@@ -159,24 +182,31 @@
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
 
-- name: Install slurm sdk the python wheel
+# PREINSTALL runtime deps as overlays (no uninstall of Debian packages)
+- name: Preinstall runtime deps as overlays (no uninstall)
   become: true
-  shell: |
-    {{ python_executable }} -m pip install --upgrade pip
-    {{ python_executable }} -m pip install pydantic>=2
-    {{ python_executable }} -m pip install openapi_client
-    {{ python_executable }} -m pip install --force-reinstall --upgrade dist/*.whl
+  shell: >
+    {{ pip_cmd }} install --upgrade --ignore-installed typing_extensions>=4.12.2 {{ pip_break_flag }} &&
+    {{ pip_cmd }} install --upgrade --ignore-installed annotated_types>=0.6.0 {{ pip_break_flag }} &&
+    {{ pip_cmd }} install --upgrade --ignore-installed typing_inspection>=0.4.0 {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+
+# Now install pydantic itself as an overlay
+- name: Install pydantic>=2 as overlay
+  become: true
+  shell: >
+    {{ pip_cmd }} install --upgrade --ignore-installed "pydantic>=2" {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+
+# Finally install your generated SDK wheel (also overlay to avoid uninstalls)
+- name: Install slurm sdk wheel (system site-packages, overlay)
+  become: true
+  shell: >
+    {{ pip_cmd }} install --force-reinstall --upgrade --ignore-installed dist/*.whl {{ pip_break_flag }}
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-
-- name: Install test requirements if present
-  pip:
-    requirements: "{{ sdk_output_dir }}/test-requirements.txt"
-    executable: "{{ pip_executable }}"
-    state: present
-  when: >
-    ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True
-  vars:
-    ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"

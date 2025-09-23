@@ -1,5 +1,5 @@
 ---
-- name: Set python version variables
+- name: Set Python version facts based on OS
   set_fact:
     python_version: >-
       {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
@@ -8,73 +8,260 @@
       {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
       {% else %}3{% endif %}
     python_executable: "/usr/bin/python{{ python_version }}"
-    pip_executable: "/usr/bin/pip{{ python_version }}"
 
-- name: Install python build dependencies (apt)
-  package:
-    name:
-      - gcc
-      - make
-      - patch
-      - zlib1g-dev
-      - libbz2-dev
-      - libreadline-dev
-      - sqlite3
-      - libsqlite3-dev
-      - libssl-dev
-      - tk-dev
-      - libffi-dev
-      - xz-utils
-      - libjwt-dev
-      - libhttp-parser-dev
-      - default-jre
-      - "python{{ python_version }}"
-      - "python{{ python_version }}-dev"
-      - python3-pip
-    state: present
+- name: Define pip command with break-system-packages
+  set_fact:
+    pip_cmd: "{{ python_executable }} -m pip"
+    pip_break_flag: "{{ (ansible_facts.os_family == 'Debian') | ternary('--break-system-packages','') }}"
+
+# ---------- OL/RHEL ONLY: interpreter + Java 17 for OpenAPI Generator ----------
+- name: Use platform-python on OL/RHEL 8/9
+  set_fact:
+    ansible_python_interpreter: "/usr/libexec/platform-python"
+  when:
+    - ansible_os_family == "RedHat"
+    - (ansible_distribution_major_version | int) >= 8
+
+- name: Install Java 17 on OL/RHEL
   become: true
-  when: ansible_os_family == "Debian"
-
-- name: Install python build dependencies (dnf)
   dnf:
-    name:
-      - gcc
-      - make
-      - patch
-      - zlib-devel
-      - bzip2
-      - bzip2-devel
-      - readline-devel
-      - sqlite
-      - sqlite-devel
-      - openssl-devel
-      - tk-devel
-      - libffi-devel
-      - xz-devel
-      - libjwt-devel
-      - http-parser-devel
-      - java-1.8.0-openjdk
-      - "python{{ python_version }}"
-      - "python{{ python_version }}-devel"
-      - "python{{ python_version }}-pip"
-    enablerepo: ol8_codeready_builder,ol8_appstream,ol9_codeready_builder,ol9_appstream
+    name: java-17-openjdk-headless
     state: present
-  become: true
   when: ansible_os_family == "RedHat"
-  
-- name: Render slurmrestd systemd service file
-  become: true
-  template: 
-    src: slurmrestd.service.j2
-    dest: /etc/systemd/system/slurmrestd.service
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: 0744
 
-- name: start slurmrestd service
+- name: Find java binary (OL/RHEL)
+  shell: "readlink -f $(command -v java)"
+  register: java_bin_rhel
+  changed_when: false
+  when: ansible_os_family == "RedHat"
+
+- name: Set JAVA_HOME fact (OL/RHEL)
+  set_fact:
+    JAVA_HOME: "{{ java_bin_rhel.stdout | dirname | dirname }}"
+  when: ansible_os_family == "RedHat"
+
+# ----------------- NVM / Node / OpenAPI Generator -----------------
+
+- name: Download NVM install script
+  ansible.builtin.get_url:
+    url: "{{ nvm_install_url }}"
+    dest: /tmp/nvm_install.sh
+    mode: '0755'
   become: true
-  service:
-    name: slurmrestd
-    daemon_reload: true
-    state: restarted
-    enabled: yes
+  when: not ansible_env.HOME is undefined
+
+- name: Check if NVM is already installed
+  stat:
+    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+  register: nvm_exists
+
+- name: Execute NVM install script
+  shell: "/tmp/nvm_install.sh"
+  args:
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  when: not nvm_exists.stat.exists
+
+- name: Check if Node.js is already installed via NVM
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm list --no-colors | grep -c "lts"
+  args:
+    executable: /bin/bash
+  register: node_lts_check
+  ignore_errors: true
+
+- name: Install Node LTS and latest npm
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm install --lts
+    nvm install-latest-npm
+  args:
+    executable: /bin/bash
+  when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
+
+- name: Check if OpenAPI generator CLI is already installed
+  shell: |
+    source ~/.nvm/nvm.sh
+    npm list -g {{ openapi_generator_cli_pkg }}
+  args:
+    executable: /bin/bash
+  register: openapi_cli_check
+  ignore_errors: true
+  environment:
+    # Only matters on OL/RHEL; harmless on Ubuntu
+    JAVA_HOME: "{{ JAVA_HOME | default('') }}"
+    PATH: "{{ (JAVA_HOME | default('')) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
+
+- name: Install OpenAPI generator CLI via npm
+  shell: |
+    source ~/.nvm/nvm.sh
+    npm install -g {{ openapi_generator_cli_pkg }}
+    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json
+  args:
+    executable: /bin/bash
+  when: openapi_cli_check.rc != 0
+  environment:
+    # Ensure the CLI runs with Java 17 on OL/RHEL
+    JAVA_HOME: "{{ JAVA_HOME | default('') }}"
+    PATH: "{{ (JAVA_HOME | default('')) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
+
+# ----------------- JWT + OpenAPI Spec -----------------
+
+- name: Generate JWT token
+  command: "scontrol token lifespan=31556926"
+  become_user: "{{ slurm_user }}"
+  register: jwt_token_result
+
+- name: Save JWT token to file
+  copy:
+    content: "{{ jwt_token_result.stdout }}"
+    dest: "{{ slurm_jwt_token_path }}"
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_group }}"
+    mode: "0600"
+  become: true
+
+- name: Read JWT token from file
+  slurp:
+    src: "{{ slurm_jwt_token_path }}"
+  register: jwt_token_file
+  become: true
+
+- name: Set JWT token fact
+  set_fact:
+    slurm_jwt_token: "{{ (jwt_token_file.content | b64decode).split('=')[1] }}"
+
+- name: Ensure OpenAPI download dir
+  file:
+    path: "{{ openapi_download_path }}"
+    state: directory
+
+- name: Download Slurm OpenAPI spec
+  uri:
+    url: "{{ slurm_rest_api_spec_url }}"
+    dest: "{{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }}"
+    headers:
+      X-SLURM-USER-NAME: "{{ slurm_user }}"
+      X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
+  become: true
+
+- name: Find the openapi-generator jar
+  find:
+    paths: "{{ ansible_env.HOME }}/.nvm"
+    patterns: "{{ openapi_generator_jar_version }}.jar"
+    file_type: file
+    recurse: true
+  register: openapi_jar_find
+
+- name: Copy openapi-generator jar to local path
+  copy:
+    remote_src: true
+    src: "{{ item.path }}"
+    dest: "{{ openapi_download_path }}/openapi-generator.jar"
+  loop: "{{ openapi_jar_find.files }}"
+  when: openapi_jar_find.matched > 0
+  become: true
+
+# ----------------- Generate SDK -----------------
+
+- name: Ensure SDK output directory
+  file:
+    path: "{{ sdk_output_dir }}"
+    state: directory
+
+- name: Generate Slurm python SDK from OpenAPI
+  shell: |
+    set -euo pipefail
+    source ~/.nvm/nvm.sh
+    # Ensure the selected version is active (harmless if already set)
+    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json || true
+    # Generate the SDK
+    openapi-generator-cli generate \
+      -g python \
+      -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
+      -o {{ sdk_output_dir }}/
+  args:
+    chdir: "{{ sdk_output_dir }}"
+    executable: /bin/bash
+  environment:
+    # On OL/RHEL we exported JAVA_HOME earlier; pass it here. On Ubuntu this is empty and harmless.
+    JAVA_HOME: "{{ JAVA_HOME | default('') }}"
+    PATH: "{{ (JAVA_HOME | default('')) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
+      
+# ----------------- System Python (PEP 668 bypass) -----------------
+
+- name: Ensure pip/wheel via apt (Debian/Ubuntu)
+  become: true
+  apt:
+    name:
+      - python3-pip
+      - python3-wheel
+    state: present
+    update_cache: yes
+  register: apt_result
+  until: apt_result is succeeded
+  retries: 5
+  delay: 6
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install wheel via pip (overlay) on RHEL/OL
+  become: true
+  shell: >
+    {{ pip_cmd }} install --upgrade --ignore-installed wheel
+  when:
+    - ansible_facts.os_family == "RedHat"
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+
+# --- Fix pyproject.toml license so setuptools validation passes ---
+- name: Check for pyproject.toml in SDK dir
+  stat:
+    path: "{{ sdk_output_dir }}/pyproject.toml"
+  register: pyproject
+
+# Convert any string license to a valid table (robust for any value)
+- name: Make license a table with text=... (PEP 621 compliant)
+  ansible.builtin.replace:
+    path: "{{ sdk_output_dir }}/pyproject.toml"
+    # Matches:  license = "anything"
+    regexp: '^(?P<prefix>\s*license\s*=\s*)"([^"]+)"\s*$'
+    replace: '\g<prefix>{ text = "\2" }'
+  when: pyproject.stat.exists
+
+- name: Build slurm sdk python wheel
+  shell: |
+    {{ python_executable }} setup.py bdist_wheel
+  args:
+    chdir: "{{ sdk_output_dir }}"
+    executable: /bin/bash
+
+# PREINSTALL runtime deps as overlays (no uninstall of Debian packages)
+- name: Preinstall runtime deps as overlays (no uninstall)
+  become: true
+  shell: >
+    {{ pip_cmd }} install --upgrade --ignore-installed typing_extensions>=4.12.2 {{ pip_break_flag }} &&
+    {{ pip_cmd }} install --upgrade --ignore-installed annotated_types>=0.6.0 {{ pip_break_flag }} &&
+    {{ pip_cmd }} install --upgrade --ignore-installed typing_inspection>=0.4.0 {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+
+# Install pydantic itself as an overlay
+- name: Install pydantic>=2 as overlay
+  become: true
+  shell: >
+    {{ pip_cmd }} install --upgrade --ignore-installed "pydantic>=2" {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+
+# Install your generated SDK wheel (also overlay to avoid uninstalls)
+- name: Install slurm sdk wheel (system site-packages, overlay)
+  become: true
+  shell: >
+    {{ pip_cmd }} install --force-reinstall --upgrade --ignore-installed dist/*.whl {{ pip_break_flag }}
+  args:
+    chdir: "{{ sdk_output_dir }}"
+    executable: /bin/bash
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
