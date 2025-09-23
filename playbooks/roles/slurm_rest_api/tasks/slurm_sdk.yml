@@ -39,12 +39,14 @@
 
 - name: Check if Node.js is already installed via NVM
   shell: |
+    set -e
     source ~/.nvm/nvm.sh
-    nvm list --no-colors | grep -c "lts"
+    nvm list --no-colors | grep -c "lts" || true
   args:
     executable: /bin/bash
   register: node_lts_check
-  ignore_errors: true
+  changed_when: false
+  failed_when: false
 
 - name: Install Node LTS and latest npm
   shell: |
@@ -57,12 +59,14 @@
 
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
+    set -e
     source ~/.nvm/nvm.sh
-    npm list -g {{ openapi_generator_cli_pkg }}
+    npm list -g @openapitools/openapi-generator-cli || true
   args:
     executable: /bin/bash
   register: openapi_cli_check
-  ignore_errors: true
+  changed_when: false
+  failed_when: false
 
 - name: Install OpenAPI generator CLI via npm
   shell: |
@@ -162,17 +166,24 @@
   delay: 6
   when: ansible_facts.os_family == "Debian"
 
-- name: Ensure pip/wheel via dnf (RHEL/OL)
+# ---- RHEL/OL: ensure pip via dnf, install wheel via pip overlay ----
+- name: Ensure python3-pip via dnf (RHEL/OL)
   become: true
   dnf:
-    name:
-      - python3-pip
-      - python3-wheel
+    name: python3-pip
     state: present
   register: dnf_result
   until: dnf_result is succeeded
   retries: 3
   delay: 4
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Install wheel via pip (overlay) on RHEL/OL
+  become: true
+  shell: >
+    {{ python_executable }} -m pip install --upgrade --ignore-installed wheel {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
   when: ansible_facts.os_family == "RedHat"
 
 - name: Build slurm sdk python wheel
