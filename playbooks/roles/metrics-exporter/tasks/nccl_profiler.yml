@@ -1,8 +1,8 @@
 ---
 - name: Get nccl version
   become: true
-  shell:
-    cmd: find -L /usr/lib -name "libnccl.so*" -print | tail -1 | awk -F".so." '{print $2}'
+  ansible.builtin.shell:
+    cmd: find -L /usr/lib -name "libnccl.so*" -print | grep -E "libnccl\.so\.[0-9]+\.[0-9]+\.[0-9]+$" | awk -F".so." '{print $2}'
   register: nccl_version_output
   delegate_to: "{{ groups['compute'][0] }}"
   run_once: true
@@ -15,7 +15,7 @@
 
 - name: Find nccl releases
   become: true
-  shell:
+  ansible.builtin.shell:
     cmd: curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"'
   register: nccl_releases
   delegate_to: localhost
@@ -23,13 +23,20 @@
 
 - name: Select appropriate NCCL version
   set_fact:
-    nccl_tarball_url: "{{ nccl_releases.stdout_lines | select('search', nccl_version) | first | split(' ') | last }}"
+    nccl_tarball_url: >-
+      {{
+        nccl_releases.stdout_lines
+        | select('match', '^v' + nccl_version + '-1')
+        | first
+        | split(' ')
+        | last
+      }}
   delegate_to: localhost
   run_once: true
 
 - name: Download NCCL tarball
   become: true
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ nccl_tarball_url }}"
     dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
   delegate_to: localhost
@@ -37,7 +44,7 @@
 
 - name: Copy nccl tarball to target
   become: true
-  copy:
+  ansible.builtin.copy:
     src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
     dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
   delegate_to: localhost
@@ -45,81 +52,63 @@
 
 - name: Extract NCCL tarball
   become: true
-  unarchive:
+  ansible.builtin.unarchive:
     src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
     dest: "/tmp"
 
 - name: Get NCCL directory
-  shell: "ls -d /tmp/NVIDIA-nccl-*"
+  ansible.builtin.shell: "ls -d /tmp/NVIDIA-nccl-*"
   register: nccl_directory
 
 - name: Build NCCL profiler plugin
   become: true
-  command: make
+  ansible.builtin.command: make
   args:
     chdir: "{{ nccl_directory.stdout }}/ext-profiler/example"
   environment:
     PATH: "{{ ansible_env.PATH }}"
 
-- name: Extract PLUGIN_SO filename from Makefile
-  shell: |
-    awk -F':= ' '/^PLUGIN_SO[[:space:]]*:=/ {print $2}' {{ nccl_directory.stdout }}/ext-profiler/example/Makefile
-  register: plugin_so_filename
-  changed_when: false
+- name: Find the .so file in the directory
+  ansible.builtin.find:
+    paths: "{{ nccl_directory.stdout }}/ext-profiler/example"
+    patterns: "*.so"
+    file_type: file
+  register: so_file
 
 - name: Copy NCCL profiler library (Debian)
   become: true
-  copy:
-    src: "{{ nccl_directory.stdout }}/ext-profiler/example/{{ plugin_so_filename.stdout }}"
-    dest: "/usr/lib/{{ ansible_architecture }}-linux-gnu/{{ plugin_so_filename.stdout }}"
+  ansible.builtin.copy:
+    src: "{{so_file.files[0].path}}"
+    dest: "/usr/lib/x86_64-linux-gnu/{{so_file.files[0].path | basename}}"
     mode: "0644"
     remote_src: true
   when: ansible_os_family == "Debian"
 
 - name: Copy NCCL profiler library (RedHat)
   become: true
-  copy:
-    src: "{{ nccl_directory.stdout }}/ext-profiler/example/{{ plugin_so_filename.stdout }}"
-    dest: "/usr/lib64/{{ plugin_so_filename.stdout }}"
+  ansible.builtin.copy:
+    src: "{{so_file.files[0].path}}"
+    dest: "/usr/lib64/{{so_file.files[0].path | basename}}"
     mode: "0644"
     remote_src: true
   when: ansible_distribution == "RedHat"
 
-- name: Install required packages
-  vars:
-    package_name:
-      - python3-watchdog
-    package_state: present
-    package_cache: true
-  ansible.builtin.include_role:
-    name: safe_yum
-  when: ansible_distribution == 'Ubuntu'
-
-- name: Install required python packages
+- name: Install nccl-profiler-exporter python dependencies
   become: true
   ansible.builtin.pip:
     name:
+      - orjson
       - watchdog
       - opentelemetry-sdk
       - opentelemetry-exporter-otlp
-    executable: "{{ venv_path }}/bin/pip3"
-
-- name: Install required python packages
-  become: true
-  ansible.builtin.pip:
-    name:
-      - watchdog
-      - opentelemetry-sdk
-      - opentelemetry-exporter-otlp
-    executable: /usr/bin/pip3
-  ignore_errors: true
+    executable: pip3
 
 - name: Install NCCL trace exporter script
   become: true
-  copy:
+  ansible.builtin.copy:
     src: nccl_profiler_exporter.py
     dest: "{{ nccl_exporter_script }}"
-    mode: "0755"
+    mode: '0755'
 
 - name: Find monitoring hosts
   set_fact:
@@ -147,16 +136,16 @@
 
 - name: Create systemd service for nccl-profiler-exporter
   become: true
-  template:
+  ansible.builtin.template:
     src: nccl-profiler-exporter.service.j2
     dest: "{{ exporter_service_file }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: "0744"
-
+    mode: 0744
+    
 - name: Ensure nccl-profiler-exporter service is enabled and running
   become: true
-  systemd:
+  ansible.builtin.systemd:
     name: nccl-profiler-exporter.service
     enabled: true
     state: started
