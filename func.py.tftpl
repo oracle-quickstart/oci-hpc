@@ -225,7 +225,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
         else:
             instance_launch = False
             update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname)
-            content_dict = {"hostname": hostname,"cluster_name": cluster_name,"status": "terminating","ocid":instance_ocid,"compartment":compartment_ocid}    
+            content_dict = {"hostname": hostname,"cluster_name": cluster_name,"status": "terminating","ocid":instance_ocid,"compartment_id":compartment_ocid}    
         content = json.dumps(content_dict, indent = 4) 
         cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
         endpoint = cp_client.get_queue(queue_ocid).data.messages_endpoint
