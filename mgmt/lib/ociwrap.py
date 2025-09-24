@@ -377,6 +377,9 @@ def oci_scan_queue_and_update_db(controller_name):
                 logger.debug(str(content))
                 if content['status'] == "starting":
                     logger.debug("Node is starting")
+                    if "compartment" in content.keys():
+                        content['compartment_id']=content['compartment']
+                        del content["compartment"]
                     content['controller_status']="configuring"
                     content['started_time']=current_time_str
                     nodes_to_add.append(content)
@@ -490,12 +493,18 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
             plugins_config=plugins_config_definition
         )
 
-
-        new_create_vnic = oci.core.models.CreateVnicDetails(
-            assign_public_ip=False,
-            subnet_id=subnet_id
-            # Additional fields can be added here if needed
-        )
+        if config.role == "login":
+            new_create_vnic = oci.core.models.CreateVnicDetails(
+                assign_public_ip=True,
+                subnet_id=subnet_id
+                # Additional fields can be added here if needed
+                )
+        else:
+                new_create_vnic = oci.core.models.CreateVnicDetails(
+                    assign_public_ip=False,
+                    subnet_id=subnet_id
+                    # Additional fields can be added here if needed
+                )
 
         new_source_details = oci.core.models.InstanceSourceViaImageDetails(
             source_type="image",
@@ -513,7 +522,8 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
             new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname}
         if shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
             new_tags["memory_cluster_name"]=memory_cluster_name
-
+        if config.role == "login":
+            new_tags["login"]="true"
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.LaunchInstanceDetails(
             availability_domain=availability_domain,
@@ -844,6 +854,11 @@ def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_
         for i in range(count):
             launch_instance_details = getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_id, cluster_name, hostname=names[i])
             CLIENTS.compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
+
+def create_login_nodes(config, count, controller_hostname, cluster_name, names):
+    for i in range(count):
+        launch_instance_details = getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, None, cluster_name, hostname=names[i])
+        CLIENTS.compute_client_composite_operations.launch_instance_and_wait_for_state(launch_instance_details,wait_for_states=["RUNNING"])
 
 def delete_cluster(cluster_name,nodes_list):
     cluster_type,cluster_ocid,ipa_ocid = get_instance_type(nodes_list[0])

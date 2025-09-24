@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS clusterDB.configurations (
     `name` VARCHAR(64),
     `partition` VARCHAR(64),
     shape VARCHAR(64),
+    role ENUM('compute', 'login'),
     change_hostname BOOLEAN,
     hostname_convention VARCHAR(64),
     permanent BOOLEAN,

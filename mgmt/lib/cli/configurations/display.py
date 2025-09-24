@@ -9,6 +9,7 @@ def print_config_info(configuration):
     table.add_column(justify="left")
     table.add_column(justify="left")
     table.add_row("name", str(configuration.name))
+    table.add_row("role", str(configuration.role))
     table.add_row("partition", str(configuration.partition))
     table.add_row("shape", str(configuration.shape))
     table.add_row("change_hostname", str(configuration.change_hostname))
@@ -35,7 +36,8 @@ def print_config_info(configuration):
 
 def print_config_list(configurations, title):
     table = Table(title=title)
-    table.add_column("name", justify="left")
+    table.add_column("name", justify="left",no_wrap=True)
+    table.add_column("role", justify="left")
     table.add_column("partition", justify="left")
     table.add_column("shape", justify="left")
     table.add_column("hostname_convention", justify="left")
@@ -66,6 +68,7 @@ def print_config_list(configurations, title):
              memory_display_field=configuration.instance_pool_memory
              
         table.add_row(str(configuration.name), 
+                      str(configuration.role), 
                       str(configuration.partition), 
                       str(configuration.shape), 
                       str(hostname_convention), 
@@ -94,6 +97,7 @@ def print_config_list_yaml_json(configurations,output_file=None,type="yaml"):
     for config in configurations:
         instance_type = {
             "name": config.name,
+            "role": config.role,
             "default": False,  # we'll update this below
             "shape": config.shape,
             "change_hostname": config.change_hostname,  # fallback logic
