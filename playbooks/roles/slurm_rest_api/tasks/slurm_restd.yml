@@ -1,4 +1,20 @@
 ---
+- name: Set python version variables
+  set_fact:
+    python_version: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
+      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
+      {% else %}3{% endif %}
+
+- name: Set python executable paths
+  set_fact:
+    python_executable: "/usr/bin/python{{ python_version }}"
+    pip_executable: "/usr/bin/pip{{ python_version }}"
+
+# ----------------- OS deps incl. Java -----------------
+
 - name: Install python build dependencies (apt)
   package:
     name:
@@ -17,12 +33,22 @@
       - libjwt-dev
       - libhttp-parser-dev
       - default-jre
-      - python3.10
-      - python3.10-dev
+      - "python{{ python_version }}"
+      - "{{ 'python' + (python_version | trim) + '-dev' }}"
       - python3-pip
-    state: present
   become: true
   when: ansible_os_family == "Debian"
+
+# Decide Java version on OL/RHEL
+- name: Choose Java package on OL/RHEL
+  set_fact:
+    java_pkg: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version|int >= 9 %}
+      java-17-openjdk
+      {% else %}
+      java-11-openjdk
+      {% endif %}
+  when: ansible_os_family == "RedHat"
 
 - name: Install python build dependencies (dnf)
   dnf:
@@ -42,18 +68,109 @@
       - xz-devel
       - libjwt-devel
       - http-parser-devel
-      - java-1.8.0-openjdk
-      - python38
-      - python38-devel
-      - python38-pip
-    enablerepo: ol8_codeready_builder
+      - "{{ java_pkg | default('java-17-openjdk') }}"
+      - "python{{ python_version }}"
+      - "{{ 'python' + (python_version | trim) + '-devel' }}"
+      - python3-pip
+    enablerepo: ol8_codeready_builder,ol8_appstream,ol9_codeready_builder,ol9_appstream
     state: present
   become: true
   when: ansible_os_family == "RedHat"
-  
+
+# ----------------- NVM / Node / OpenAPI Generator -----------------
+
+- name: Download NVM install script
+  ansible.builtin.get_url:
+    url: "{{ nvm_install_url }}"
+    dest: /tmp/nvm_install.sh
+    mode: '0755'
+  become: true
+  when: not ansible_env.HOME is undefined
+
+- name: Check if NVM is already installed
+  stat:
+    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+  register: nvm_exists
+
+- name: Execute NVM install script
+  shell: "/tmp/nvm_install.sh"
+  args:
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  when: not nvm_exists.stat.exists
+
+- name: Check if Node.js is already installed via NVM
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm list --no-colors | grep -c "lts"
+  args:
+    executable: /bin/bash
+  register: node_lts_check
+  ignore_errors: true
+
+- name: Install Node LTS and latest npm
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm install --lts
+    nvm install-latest-npm
+  args:
+    executable: /bin/bash
+  when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
+
+# ----------------- Java home detection (safe) -----------------
+
+- name: Detect JAVA_HOME from current java on PATH
+  shell: |
+    set -e
+    JAVA_BIN="$(command -v java || true)"
+    if [ -n "$JAVA_BIN" ]; then
+      readlink -f "$JAVA_BIN" | awk -F'/bin/java' '{print $1}'
+    fi
+  args:
+    executable: /bin/bash
+  register: java_home_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Set JAVA_HOME fact (may be empty)
+  set_fact:
+    JAVA_HOME: "{{ (java_home_cmd.stdout | default('')) | trim }}"
+
+# ----------------- OpenAPI Generator CLI via npm -----------------
+
+- name: Check if OpenAPI generator CLI is already installed
+  shell: |
+    set -e
+    source ~/.nvm/nvm.sh
+    npm list -g @openapitools/openapi-generator-cli
+  args:
+    executable: /bin/bash
+  register: openapi_cli_check
+  ignore_errors: true
+  environment:
+    JAVA_HOME: "{{ JAVA_HOME }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
+
+- name: Install OpenAPI generator CLI via npm (and select version)
+  shell: |
+    set -e
+    source ~/.nvm/nvm.sh
+    npm install -g @openapitools/openapi-generator-cli
+    # Choose a JAR version that works with Java 11+ (7.10.0 works on OL8; OL9 is fine with it too)
+    openapi-generator-cli version-manager set 7.10.0 --openapitools /tmp/openapitools.json
+  args:
+    executable: /bin/bash
+  when: (openapi_cli_check.rc | default(1)) != 0
+  environment:
+    JAVA_HOME: "{{ JAVA_HOME }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
+
+# ----------------- slurmrestd service -----------------
+
 - name: Render slurmrestd systemd service file
   become: true
-  template: 
+  template:
     src: slurmrestd.service.j2
     dest: /etc/systemd/system/slurmrestd.service
     owner: "{{ ansible_user }}"
