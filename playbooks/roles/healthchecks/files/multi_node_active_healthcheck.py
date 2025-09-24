@@ -100,6 +100,10 @@ def run_multi_node_nccl_test(hostfile, shape):
             "-x", "coll_hcoll_enable=0",
             "-x", "NCCL_ALGO=Ring",
             "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
+            "-x", "NCCL_IB_SL=0",
+            "-x", "NCCL_IB_TC=41",
+            "-x", "NCCL_IB_QPS_PER_CONNECTION=4",
+            "-x", "NCCL_IB_GID_INDEX=3",
             "--np", "16",
             "--hostfile", hostfile,
             exec_cmd, "-b1G", "-e10G", f"-i{increment}", "-n", "100"
@@ -108,20 +112,30 @@ def run_multi_node_nccl_test(hostfile, shape):
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
             "--bind-to", "numa",
-            "-npernode", "8",
             "--mca", "coll", "^hcoll",
             "-x", "HCOLL_ENABLE_MCAST_ALL=0",
+            "-x", "NCCL_CUMEM_ENABLE=0",
+            "-x", "NCCL_IB_SPLIT_DATA_ON_QPS=0",
+            "-x", "NCCL_IB_QPS_PER_CONNECTION=1",
+            "-x", "NCCL_IB_GID_INDEX=3",
+            "-x", "NCCL_IB_TC=41",
+            "-x", "NCCL_IB_SL=0",
+            "-x", "NCCL_IB_TIMEOUT=22",
+            "-x", "NCCL_NET_PLUGIN=none",
             "-x", "coll_hcoll_enable=0",
             "-x", "UCX_TLS=tcp",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
             "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
             "-x", "RX_QUEUE_LEN=8192",
             "-x", "IB_RX_QUEUE_LEN=8192",
+            "-x", f"NCCL_SOCKET_IFNAME={var_UCX_NET_DEVICES}",
+            "-x", "NCCL_IGNORE_CPU_AFFINITY=1",
             "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
             "--np", "16",
             "--hostfile", hostfile,
             exec_cmd, "-b", "1G", "-e", "16G", "-f", "2", "-g", "1", "-n", "50"
         ]
+
     else:
         logger.error("No suitable shape found for NCCL multi-node test")
         return False,"No suitable shape found for NCCL multi-node test"
@@ -146,7 +160,6 @@ def run_multi_node_nccl_test(hostfile, shape):
 
         if result.returncode == 0:
             output = result.stdout
-            logger.info(output)
             bw=None
             threshold = shape_mapping.get(shape, {}).get("threshold")
             if threshold == "":
