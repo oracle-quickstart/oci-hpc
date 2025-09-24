@@ -187,30 +187,6 @@
         rem_clusternames: "{{ rem_cluster_dict.keys() | list | unique }}"
       run_once: true
 
-    - name: debug rem_switchnames
-      ansible.builtin.debug:
-        var: rem_switchnames
-
-    - name: debug rem_racks_dict
-      ansible.builtin.debug:
-        var: rem_racks_dict
-
-    - name: debug rem_networkblocknames
-      ansible.builtin.debug:
-        var: rem_networkblocknames
-
-    - name: debug rem_nb_dict
-      ansible.builtin.debug:
-        var: rem_nb_dict
-
-    - name: debug rem_clusternames
-      ansible.builtin.debug:
-        var: rem_clusternames
-
-    - name: debug rem_cluster_dict
-      ansible.builtin.debug:
-        var: rem_cluster_dict
-
 # Find which Racks need to be removed
 # List all racks from the hosts to remove and check if theyre are nodes left
 
@@ -225,16 +201,6 @@
       with_items: "{{rem_switchnames}}"
       when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) < 1 )
       run_once: true
-
-    - name: Remove line from topology
-      become: true
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{ item }}\\sNodes=.*"
-        state: absent
-      with_items: "{{switchname_to_remove}}"
-      run_once: true
-      notify: Reconfigure slurm
 
     - name: Generate rem_nodes_on_switch_condensed
       ansible.builtin.command: "scontrol show hostlistsorted {{rem_racks_dict[item] | difference(hostnames_list) | join(',')}}"
@@ -251,23 +217,6 @@
       run_once: true
       ignore_errors: true
 
-    - name: debug rem_nodes_on_switch_condensed
-      ansible.builtin.debug:
-        var: rem_nodes_on_switch_condensed
-      when: rem_nodes_on_switch_condensed is defined
-
-    - name: Remove node from line
-      become: true
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{ item }}\\sNodes.*"
-        line: "SwitchName={{ item }} Nodes={{ rem_nodes_on_switch_condensed[item] }}"
-        state: present
-      with_items: "{{rem_switchnames}}"
-      ignore_errors: true
-      when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) > 0 )
-      run_once: true
-      notify: Reconfigure slurm
 
 # Find which Network Blocks need to be removed
 # List all Network Blocks from the hosts to remove and check if theyre are racks left
@@ -284,15 +233,12 @@
       when: ( ( rem_nb_dict[item] | difference(switchname_to_remove) | length ) < 1 )
       run_once: true
 
-    - name: Remove line from topology
-      become: true
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{ item }}\\Switches=.*"
-        state: absent
-      with_items: "{{rem_networkblocknames_to_remove}}"
+
+
+    - name: Create empty directory
+      ansible.builtin.set_fact:
+        racks_on_nb_condensed: {}
       run_once: true
-      notify: Reconfigure slurm
 
     - name: Get condensed_Nodes
       ansible.builtin.set_fact:
@@ -302,22 +248,7 @@
       run_once: true
       ignore_errors: true
 
-    - name: debug racks_on_nb_condensed
-      ansible.builtin.debug:
-        var: racks_on_nb_condensed
 
-    - name: Remove node from line
-      become: true
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{ item }}\\sSwitches.*"
-        line: "SwitchName={{ item }} Switches={{ racks_on_nb_condensed[item] }}"
-        state: present
-      with_items: "{{rem_networkblocknames}}"
-      ignore_errors: true
-      when: ( ( rem_nb_dict[item] | difference(switchname_to_remove) | length ) > 0 )
-      run_once: true
-      notify: Reconfigure slurm
 
 # Find which Network Blocks need to be removed
 # List all Network Blocks from the hosts to remove and check if theyre are racks left
@@ -334,15 +265,6 @@
       when: ( ( rem_cluster_dict[item] | difference(clusternames_to_remove) | length ) < 1 )
       run_once: true
 
-    - name: Remove line from topology
-      become: true
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{ item }}\\sSwitches=.*"
-        state: absent
-      with_items: "{{clusternames_to_remove}}"
-      run_once: true
-      notify: Reconfigure slurm
 
     - name: Get condensed_Nodes
       ansible.builtin.set_fact:
@@ -353,11 +275,114 @@
       run_once: true
       ignore_errors: true
 
+    - name: debug hostnames_list
+      ansible.builtin.debug:
+        var: hostnames_list
+
+    - name: debug rem_switchnames
+      ansible.builtin.debug:
+        var: rem_switchnames
+
+    - name: debug switchname_to_remove
+      ansible.builtin.debug:
+        var: switchname_to_remove
+
+    - name: debug rem_racks_dict
+      ansible.builtin.debug:
+        var: rem_racks_dict
+
+    - name: debug rem_networkblocknames
+      ansible.builtin.debug:
+        var: rem_networkblocknames
+
+    - name: debug rem_networkblocknames_to_remove
+      ansible.builtin.debug:
+        var: rem_networkblocknames_to_remove
+
+    - name: debug rem_nb_dict
+      ansible.builtin.debug:
+        var: rem_nb_dict
+
+    - name: debug rem_clusternames
+      ansible.builtin.debug:
+        var: rem_clusternames
+
+    - name: debug rem_cluster_dict
+      ansible.builtin.debug:
+        var: rem_cluster_dict
+
     - name: debug nbs_on_cluster_dict_condensed
       ansible.builtin.debug:
         var: nbs_on_cluster_dict_condensed
 
-    - name: Remove node from line
+    - name: debug racks_on_nb_condensed
+      ansible.builtin.debug:
+        var: racks_on_nb_condensed
+
+
+
+    - name: debug rem_nodes_on_switch_condensed
+      ansible.builtin.debug:
+        var: rem_nodes_on_switch_condensed
+
+
+    - name: Remove line from topology (Nodes)
+      become: true
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}/topology.conf"
+        regexp: "SwitchName={{ item }}\\sNodes=.*"
+        state: absent
+      with_items: "{{switchname_to_remove}}"
+      run_once: true
+      notify: Reconfigure slurm
+
+    - name: Remove node from line (Nodes)
+      become: true
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}/topology.conf"
+        regexp: "SwitchName={{ item }}\\sNodes.*"
+        line: "SwitchName={{ item }} Nodes={{ rem_nodes_on_switch_condensed[item] }}"
+        state: present
+      with_items: "{{rem_switchnames}}"
+      ignore_errors: true
+      when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) > 0 )
+      run_once: true
+      notify: Reconfigure slurm
+
+    - name: Remove line from topology (Rails)
+      become: true
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}/topology.conf"
+        regexp: "SwitchName={{ item }}\\Switches=.*"
+        state: absent
+      with_items: "{{rem_networkblocknames_to_remove}}"
+      run_once: true
+      notify: Reconfigure slurm
+
+    - name: Remove node from line (Rails)
+      become: true
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}/topology.conf"
+        regexp: "SwitchName={{ item }}\\sSwitches.*"
+        line: "SwitchName={{ item }} Switches={{ racks_on_nb_condensed[item] }}"
+        state: present
+      with_items: "{{rem_networkblocknames}}"
+      ignore_errors: true
+      when: ( ( rem_nb_dict[item] | difference(switchname_to_remove) | length ) > 0 )
+      run_once: true
+      notify: Reconfigure slurm
+
+    - name: Remove line from topology (NBs)
+      become: true
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}/topology.conf"
+        regexp: "SwitchName={{ item }}\\sSwitches=.*"
+        state: absent
+      with_items: "{{clusternames_to_remove}}"
+      run_once: true
+      notify: Reconfigure slurm
+
+    - name: Remove node from line (NBs)
       become: true
       ansible.builtin.lineinfile:
         path: "{{ slurm_conf_path }}/topology.conf"
