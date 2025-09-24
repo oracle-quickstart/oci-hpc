@@ -1,6 +1,8 @@
 ---
+# ----------------- Python version & paths -----------------
 - name: Set Python version facts based on OS
   set_fact:
+    # IMPORTANT: OL8 must be "3.8" (with a dot), not "38"
     python_version: >-
       {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
       {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
@@ -8,6 +10,35 @@
       {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
       {% else %}3{% endif %}
     python_executable: "/usr/bin/python{{ python_version }}"
+
+# --- OL8 hard override for interpreter path ---
+- name: OL8 | hard-set python_executable to /usr/bin/python3.8
+  set_fact:
+    python_executable: /usr/bin/python3.8
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# Recompute pip_cmd after overriding interpreter
+- name: Recompute pip_cmd after OL8 override
+  set_fact:
+    pip_cmd: "{{ python_executable }} -m pip"
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# For dnf-based distros, map RPM names correctly (OL8 uses python38*, OL9 uses python3*)
+- name: Set Python package name facts for dnf-based distros
+  set_fact:
+    py_pkg_base: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38
+      {% else %}python3{% endif %}
+    py_pkg_pip: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38-pip
+      {% else %}python3-pip{% endif %}
+  when: ansible_os_family == "RedHat"
 
 - name: Define pip command with break-system-packages
   set_fact:
@@ -57,6 +88,8 @@
     executable: /bin/bash
   when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
 
+# ----------------- OpenAPI Generator CLI via npm -----------------
+
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
     set -e
@@ -68,7 +101,7 @@
   changed_when: false
   failed_when: false
 
-- name: Install OpenAPI generator CLI via npm
+- name: Install OpenAPI generator CLI via npm (and select version)
   shell: |
     source ~/.nvm/nvm.sh
     npm install -g {{ openapi_generator_cli_pkg }}
@@ -152,6 +185,7 @@
 
 # ----------------- System Python (PEP 668 bypass) -----------------
 
+# Debian/Ubuntu: install pip & wheel from apt
 - name: Ensure pip/wheel via apt (Debian/Ubuntu)
   become: true
   apt:
@@ -166,18 +200,80 @@
   delay: 6
   when: ansible_facts.os_family == "Debian"
 
-# ---- RHEL/OL: ensure pip via dnf, install wheel via pip overlay ----
-- name: Ensure python3-pip via dnf (RHEL/OL)
+# OL8: enable repos + module and install python38 + python38-pip so /usr/bin/python3.8 exists
+- name: OL8 | enable CodeReady Builder + AppStream
+  become: true
+  command: dnf config-manager --set-enabled ol8_codeready_builder ol8_appstream
+  changed_when: false
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | enable python38 module stream
+  command: dnf -y module enable python38
+  register: ol8_module_enable
+  changed_when: ol8_module_enable.rc == 0
+  failed_when: false
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | install python38 base + pip
   become: true
   dnf:
-    name: python3-pip
+    name:
+      - "{{ py_pkg_base }}"   # python38
+      - "{{ py_pkg_pip }}"    # python38-pip
+    state: present
+    enablerepo: ol8_codeready_builder,ol8_appstream
+  register: ol8_py
+  until: ol8_py is succeeded
+  retries: 3
+  delay: 4
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# **OL8 safeguard**: pick the real interpreter path if python_executable is wrong
+- name: OL8 | detect /usr/bin/python3.8
+  stat:
+    path: /usr/bin/python3.8
+  register: ol8_py38_bin
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | correct python_executable if needed
+  set_fact:
+    python_executable: >-
+      {{ (ol8_py38_bin.stat.exists | default(false))
+         | ternary('/usr/bin/python3.8',
+                   (python_executable if python_executable is defined else '/usr/bin/python3')) }}
+    pip_cmd: "{{ python_executable }} -m pip"
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# OL9 / RHEL9+: just ensure python3-pip
+- name: Ensure python3-pip via dnf (RHEL/OL9+)
+  become: true
+  dnf:
+    name: "{{ py_pkg_pip }}"  # python3-pip
     state: present
   register: dnf_result
   until: dnf_result is succeeded
   retries: 3
   delay: 4
-  when: ansible_facts.os_family == "RedHat"
+  when:
+    - ansible_facts.os_family == "RedHat"
+    - not (ansible_distribution == "OracleLinux" and ansible_distribution_major_version == "8")
 
+# All RHEL/OL: ensure 'wheel' via pip overlay (RPM not needed)
 - name: Install wheel via pip (overlay) on RHEL/OL
   become: true
   shell: >
@@ -185,6 +281,8 @@
   environment:
     PIP_ROOT_USER_ACTION: "ignore"
   when: ansible_facts.os_family == "RedHat"
+
+# ----------------- Build & install SDK wheel -----------------
 
 - name: Build slurm sdk python wheel
   shell: |
@@ -199,7 +297,7 @@
   shell: >
     {{ pip_cmd }} install --upgrade --ignore-installed typing_extensions>=4.12.2 {{ pip_break_flag }} &&
     {{ pip_cmd }} install --upgrade --ignore-installed annotated_types>=0.6.0 {{ pip_break_flag }} &&
-    {{ pip_cmd }} install --upgrade --ignore-installed typing_inspection>=0.4.0 {{ pip_break_flag }}
+    {{ pip_cmd }} install --upgrade --ignore-installed typing-inspect>=0.4.0 {{ pip_break_flag }}
   environment:
     PIP_ROOT_USER_ACTION: "ignore"
 
