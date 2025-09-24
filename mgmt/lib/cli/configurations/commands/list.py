@@ -13,26 +13,27 @@ from ClusterShell.NodeSet import NodeSet
 )
 @click.option('--output_file', help='Name of the output file.')
 @click.option('--partition', help='Get all configurations in that defined partition.')
+@click.option('--role', type=click.Choice(["compute", "login", "all"]), help='Get all configurations for compute or login.', default="all", show_default=True)
 @click.option('--shape',  help='Get all configurations with a particular shape.')
-def list(format, output_file, partition, shape):
+def list(format, output_file, partition, role, shape):
     """List commands for nodes."""
     if partition:
         if shape:
-            configurations = get_config_by_shape_and_partition(shape,partition)
-            title=f"Shape={shape},Partition={partition}"
+            configurations = get_config_by_shape_and_partition(shape,partition, role)
+            title=f"Shape={shape},Partition={partition},Role={role}"
         else:
-            configurations = get_config_by_partition(partition)
-            title=f"Partition={partition}"
+            configurations = get_config_by_partition(partition, role)
+            title=f"Partition={partition},Role={role}"
     else:
         if shape:
-            configurations = get_config_by_shape(shape)
-            title=f"Shape={shape}"
+            configurations = get_config_by_shape(shape, role)
+            title=f"Shape={shape},Role={role}"
         else:
-            configurations = get_all_configs()
-            title="All"
+            configurations = get_all_configs(role)
+            title=f"Role={role}"
     if format=="yaml":
-        print_config_list_yaml_json(configurations,output_file, type="yaml")
+        print_config_list_yaml_json(configurations,output_file,type="yaml")
     elif format=="json":
-        print_config_list_yaml_json(configurations,output_file, type="json")
+        print_config_list_yaml_json(configurations,output_file,type="json")
     else:
         print_config_list(configurations,title)

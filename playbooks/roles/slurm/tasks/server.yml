@@ -1,6 +1,6 @@
 ---
 - name: Get All configurations in the DB
-  ansible.builtin.command: "{{venv_path}}/bin/python3 /config/mgmt/manage.py configurations list --format json"
+  ansible.builtin.command: "{{venv_path}}/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
   register: get_configurations_results
 
 - name: Convert the Python script output to a list of dictionaries
@@ -120,7 +120,7 @@
       become: true
       ansible.builtin.command:
         cmd: chown {{ ansible_user }}:{{ ansible_user }} /config/key/munge.key
-        
+
 - name: Generate JWT key if it does not exist
   openssl_privatekey:
     path: "{{ slurm_jwt_key_path }}"

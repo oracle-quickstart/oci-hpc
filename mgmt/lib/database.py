@@ -106,6 +106,7 @@ class Configurations(Base):
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     name = mapped_column(String(64), unique=True, nullable=False)
+    role = mapped_column(Enum('compute', 'login'), nullable=False)
     partition = mapped_column(String(64), nullable=False)
     shape = mapped_column(String(64), nullable=False)
     change_hostname = mapped_column(Boolean, default=True, nullable=False)
@@ -428,6 +429,8 @@ def filter_nodes(session, query=None, filter="all"):
         query = query.filter(Nodes.role != "compute")
     elif filter == "controller":
         query = query.filter(Nodes.role == "controller")
+    elif filter == "login":
+        query = query.filter(Nodes.role == "login")
 
     return query
 
@@ -459,20 +462,22 @@ def filter_nodes_by_cluster(query, cluster_name=None, memory_cluster_name=None):
 
 def get_query_by_fields(query, field_dict):
     """Get a query filtered by node fields and latest healthcheck results."""
-
     if not field_dict:
         return query
 
     col_names = {c['name'] for c in query.column_descriptions}
 
     try:
-        for key, value in field_dict.items():
+        for i, (key, value) in enumerate(field_dict.items()):
+            param_name = f"value_{i}"  # unique param per filter
+
             if key == "healthcheck_recommendation":
-                query = query.having(text("healthcheck_recommendation = :value")).params(value=value)
+                query = query.having(text(f"healthcheck_recommendation = :{param_name}")).params(**{param_name: value})
             elif key in col_names:
-                query = query.filter(text(f"{key} = :value")).params(value=value)
+                query = query.filter(text(f"{key} = :{param_name}")).params(**{param_name: value})
             else:
                 logger.warning(f"Invalid field name: {key}")
+
         return query
 
     except Exception as exc:
@@ -496,6 +501,10 @@ def get_all_management_nodes():
     with DBConn() as session:
         return filter_nodes(session, filter="management").all()
 
+def get_all_login_nodes():
+    """Get all nodes/servers from the database"""
+    with DBConn() as session:
+        return filter_nodes(session, filter="login").all()
 
 def get_controller_node():
     """Get the controller from the database"""
@@ -776,7 +785,7 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
     """Get all nodes whose active healthcheck is expired."""
     current_time = current_utc_time()
     time_th_multi_node = (current_time - multi_node_hc_timeout).replace(tzinfo=timezone.utc)
-    active_hc_timeout=timedelta(minutes=5)
+    active_hc_timeout=timedelta(minutes=10)
     time_th_active_hc = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
 
     query = get_nodes_with_latest_healthchecks()
@@ -785,16 +794,21 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
     label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
     # Filters
     query = query.filter(label_map["role"] == "compute")
+    logger.debug(f"Count after role filter: {query.count()}")
 
     query = query.filter(label_map["shape"].in_([
         "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
         "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4",
         "BM.GPU.B200.8", "BM.GPU.GB200-v2.4"
     ]))
-    query = query.filter(label_map["slurm_state"] == "idle")
-    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
-    query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after shape filter: {query.count()}")
 
+    query = query.filter(label_map["slurm_state"] == "idle")
+    logger.debug(f"Count after slurm state filter: {query.count()}")
+    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after passive healthcheck Healthy filter: {query.count()}")
+    query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after active healthcheck Healthy for 10 minutes filter: {query.count()}")
 
     query_healthy = query.filter(
         or_(
@@ -803,6 +817,7 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
             label_map["multi_node_healthcheck_recommendation"].is_(None),
         )
     )
+    logger.debug(f"Count after multi node healthcheck Healthy filter: {query_healthy.count()}")
     col = label_map.get("active_healthcheck_last_time")
     if col is not None:
         query_healthy = query_healthy.filter(
@@ -819,11 +834,11 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
                 cast(col, DateTime) < time_th_multi_node
             )
         )
-
+    logger.debug(f"Count after multi node healthcheck Healthy for 24 hours filter: {query_healthy.count()}")
     query_potentially_bad = query.filter(
         label_map["multi_node_healthcheck_recommendation"] == "Potentially Bad"
     )
-
+    logger.debug(f"Count after multi node healthcheck Potentially Bad filter: {query_potentially_bad.count()}")
     return query_healthy.all(), query_potentially_bad.all()
 
 def get_nodes_by_status(status):
@@ -1167,6 +1182,7 @@ def db_import_configuration(filename):
             for instance in instance_types:
                 # Map YAML keys to SQLAlchemy model fields
                 config = Configurations(
+                    role="compute",
                     name=instance.get("name"),
                     partition=queue.get("name"),  # using queue name as partition
                     shape=instance.get("shape"),
@@ -1199,6 +1215,41 @@ def db_import_configuration(filename):
 
                 session.add(config)
 
+        logins = yaml_data.get("login", [])
+        for login in logins:
+            config = Configurations(
+                role="login",
+                name=login.get("name"),
+                partition=login.get("partition"),
+                shape=login.get("shape"),
+                change_hostname=login.get("change_hostname", True),
+                hostname_convention=login.get("hostname_convention"),
+                permanent=login.get("permanent", True),
+                rdma_enabled=login.get("rdma_enabled", True),
+                stand_alone=login.get("stand_alone", False),
+                region=login.get("region"),
+                availability_domain=login.get("availability_domain"),
+                private_subnet_cidr=login.get("private_subnet"),
+                private_subnet_id=login.get("private_subnet_id"),
+                image_id=login.get("image_id"),
+                target_compartment_id=login.get("target_compartment_id"),
+                boot_volume_size=login.get("boot_volume_size", 50),
+                use_marketplace_image=login.get("use_marketplace_image", True),
+                instance_pool_ocpus=login.get("instance_pool_ocpus"),
+                instance_pool_custom_memory=login.get("instance_pool_custom_memory", False),
+                instance_pool_memory=login.get("instance_pool_memory"),
+                marketplace_listing=login.get("marketplace_listing"),
+                hyperthreading=login.get("hyperthreading", True),
+                preemptible=login.get("preemptible", False)
+            )
+
+            # Check if config already exists
+            existing = session.query(Configurations).filter_by(name=config.name).first()
+            if existing:
+                logger.info(f"Configuration '{config.name}' already exists. Skipping.")
+                continue
+
+            session.add(config)
         session.commit()
         logger.info("All configurations successfully imported.")
 
@@ -1219,44 +1270,69 @@ def get_config_by_name(name):
         session.close()
 
 
-def get_all_configs():
+def get_all_configs(role):
     """Show details about the configuration"""
     session = query_db()
     try:
-        configs = session.query(Configurations).all()
+        if role == "all":
+            configs = session.query(Configurations).all()
+        else:
+            configs = session.query(Configurations).filter(Configurations.role == role).all()
         return configs
     finally:
         session.close()
 
 
-def get_config_by_partition(partition):
+def get_config_by_partition(partition, role):
     """Show details about the configuration"""
     session = query_db()
     try:
-        configs = session.query(Configurations).filter(Configurations.partition == partition).all()
+        if role == "all":
+            configs = session.query(Configurations).filter(Configurations.partition == partition).all()
+        else:
+            configs = session.query(Configurations).filter(
+                and_(Configurations.partition == partition,
+                     Configurations.role == role
+                     )
+            ).all()
         return configs
     finally:
         session.close()
 
 
-def get_config_by_shape(shape):
+def get_config_by_shape(shape, role):
     """Show details about the configuration"""
     session = query_db()
     try:
-        configs = session.query(Configurations).filter(Configurations.shape == shape).all()
+        if role == "all":
+            configs = session.query(Configurations).filter(Configurations.shape == shape).all()
+        else:
+            configs = session.query(Configurations).filter(
+                and_(Configurations.shape == shape,
+                     Configurations.role == role
+                     )
+            ).all()
         return configs
     finally:
         session.close()
 
 
-def get_config_by_shape_and_partition(shape, partition):
+def get_config_by_shape_and_partition(shape, partition, role):
     """Show details about the configuration"""
     session = query_db()
     try:
-        configs = session.query(Configurations).filter(
-            and_(Configurations.shape == shape,
-                 Configurations.partition == partition
-                 )
+        if role == "all":
+            configs = session.query(Configurations).filter(
+                and_(Configurations.shape == shape,
+                     Configurations.partition == partition
+                     )
+            ).all()
+        else:
+            configs = session.query(Configurations).filter(
+                and_(Configurations.shape == shape,
+                     Configurations.partition == partition,
+                     Configurations.role == role
+                     )
             ).all()
         return configs
     finally:

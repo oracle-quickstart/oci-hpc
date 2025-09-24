@@ -147,7 +147,7 @@ resource "null_resource" "controller" {
 
   provisioner "file" {
     source      = "conf"
-    destination = "/opt/oci-hpc/"
+    destination = "/config/"
     connection {
       host        = local.host
       type        = "ssh"
@@ -346,7 +346,7 @@ resource "null_resource" "cluster" {
   }
 
   provisioner "file" {
-    content = templatefile("${path.module}/conf/queues.conf.example", {
+    content = templatefile("${path.module}/conf/initial_configs.conf", {
       rdma_enabled                = var.rdma_enabled,
       stand_alone                 = var.stand_alone,
       marketplace_listing         = var.marketplace_listing,
@@ -370,44 +370,20 @@ resource "null_resource" "cluster" {
       ondemand_partition          = var.ondemand_partition,
       ondemand_partition_count    = var.ondemand_partition_count,
       preemptible                 = var.preemptible
+      public_subnet               = data.oci_core_subnet.public_subnet.cidr_block,
+      public_subnet_id            = local.controller_subnet_id
+      login_shape                 = var.login_shape,
+      login_ad                    = var.login_ad,
+      login_image                 = local.login_image
+      login_boot_volume_size      = var.login_boot_volume_size
+      use_marketplace_image_login = var.use_marketplace_image_login
+      login_instance_pool_ocpus   = local.instance_pool_ocpus
+      login_instance_pool_memory  = var.login_memory
+      login_instance_pool_custom_memory = var.login_custom_memory
+      marketplace_listing_login   = var.marketplace_listing_login
     })
 
-    destination = "/opt/oci-hpc/conf/queues.conf.example"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
-  provisioner "file" {
-    content = templatefile("${path.module}/conf/queues.conf", {
-      rdma_enabled                = var.rdma_enabled,
-      stand_alone                 = var.stand_alone,
-      marketplace_listing         = var.marketplace_listing,
-      image                       = local.image_ocid,
-      use_marketplace_image       = var.use_marketplace_image,
-      boot_volume_size            = var.boot_volume_size,
-      shape                       = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape,
-      region                      = var.region,
-      ad                          = var.ad,
-      private_subnet              = data.oci_core_subnet.private_subnet.cidr_block,
-      private_subnet_id           = local.subnet_id,
-      targetCompartment           = var.targetCompartment,
-      instance_pool_ocpus         = local.instance_pool_ocpus,
-      instance_pool_memory        = var.instance_pool_memory,
-      instance_pool_custom_memory = var.instance_pool_custom_memory,
-      queue                       = var.queue,
-      hyperthreading              = var.hyperthreading,
-      cluster_name                = local.cluster_name,
-      change_hostname             = var.change_hostname,
-      hostname_convention         = var.hostname_convention,
-      ondemand_partition          = var.ondemand_partition,
-      ondemand_partition_count    = var.ondemand_partition_count,
-      preemptible                 = var.preemptible
-    })
-
-    destination = "/opt/oci-hpc/conf/queues.conf"
+    destination = "/config/conf/initial_configs.conf"
     connection {
       host        = local.host
       type        = "ssh"
