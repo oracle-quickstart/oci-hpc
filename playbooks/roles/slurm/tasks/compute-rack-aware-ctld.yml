@@ -262,7 +262,7 @@
       ansible.builtin.set_fact:
         clusternames_to_remove: "{{ clusternames_to_remove | default([]) + [item] | unique }}"
       with_items: "{{rem_clusternames}}"
-      when: ( ( rem_cluster_dict[item] | difference(clusternames_to_remove) | length ) < 1 )
+      when: ( ( rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length ) < 1 )
       run_once: true
 
 
@@ -319,7 +319,9 @@
       ansible.builtin.debug:
         var: racks_on_nb_condensed
 
-
+    - name: debug clusternames_to_remove
+      ansible.builtin.debug:
+        var: clusternames_to_remove
 
     - name: debug rem_nodes_on_switch_condensed
       ansible.builtin.debug:
@@ -353,7 +355,7 @@
       become: true
       ansible.builtin.lineinfile:
         path: "{{ slurm_conf_path }}/topology.conf"
-        regexp: "SwitchName={{ item }}\\Switches=.*"
+        regexp: "SwitchName={{ item }}\\sSwitches=.*"
         state: absent
       with_items: "{{rem_networkblocknames_to_remove}}"
       run_once: true
