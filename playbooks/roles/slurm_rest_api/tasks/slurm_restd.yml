@@ -248,9 +248,9 @@
   template:
     src: slurmrestd.service.j2
     dest: /etc/systemd/system/slurmrestd.service
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0744"
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: start slurmrestd service
   become: true
