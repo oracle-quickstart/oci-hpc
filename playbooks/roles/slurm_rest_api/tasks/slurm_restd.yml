@@ -167,6 +167,23 @@
     PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
 # ----------------- slurmrestd service -----------------
+- name: Create the slurmrestd group
+  become: true
+  ansible.builtin.group:
+    name: slurmrestd
+    system: yes
+    state: present
+
+- name: create slurmrestd user
+  become: true
+  user:
+    comment: "Slurmrestd user"
+    name: slurmrestd
+    system: yes
+    shell: /usr/sbin/nologin
+    create_home: no
+    group: slurmrestd
+    state: present   
 
 - name: Render slurmrestd systemd service file
   become: true
