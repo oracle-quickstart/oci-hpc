@@ -127,7 +127,6 @@
       - libffi-devel
       - xz-devel
       - libjwt-devel
-      - http-parser-devel
       - "{{ java_pkg | default('java-17-openjdk') }}"
       - python3
       - python3-devel
