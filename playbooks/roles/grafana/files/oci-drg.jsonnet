@@ -1,11 +1,11 @@
 local g = import './g.libsonnet';
-local variables = import './oci-igw-variables.libsonnet';
+local variables = import './oci-drg-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Internet Gateway')
-+ g.dashboard.withUid('oci-igw')
+g.dashboard.new('Dynamic Routing Gateway')
++ g.dashboard.withUid('oci-drg')
 + g.dashboard.withDescription(|||
-  Internet Gateway
+  Dynamic Routing Gateway
 |||)
 + g.dashboard.withTimezone('browser')
 + g.dashboard.withRefresh('30s')
@@ -18,46 +18,46 @@ g.dashboard.new('Internet Gateway')
 
 + g.dashboard.withPanels([
     timeseriesPanel(
-      'Bytes From Internet Gateway',
-      'rate(oci_internet_gateway:bytes_from_igw_count[5m])',
+      'Bytes From DRG Atchmnt',
+      'rate(oci_dynamic_routing_gateway:bytes_from_drg_attachment[5m])',
       '{{cluster_name}}',
       'Bps',
       {w:12, h:8, x:0, y:0}
     ),    
     timeseriesPanel(
-      'Bytes To Internet Gateway',
-      'rate(oci_internet_gateway:bytes_to_igw_count[5m])',
+      'Bytes To DRG Atchmnt',
+      'rate(oci_dynamic_routing_gateway:bytes_to_drg_attachment[5m])',
       '{{cluster_name}}',
       'Bps',
       {w:12, h:8, x:12, y:0}
     ),    
     timeseriesPanel(
-      'Packets From Internet Gateway',
-      'rate(oci_internet_gateway:packets_from_igw_count[5m])',
+      'Packets From DRG Atchmnt',
+      'rate(oci_dynamic_routing_gateway:packets_from_drg_attachment[5m])',
       '{{cluster_name}}',
       'pps',
       {w:12, h:8, x:0, y:8}
     ),    
     timeseriesPanel(
-      'Packets To Internet Gateway',
-      'rate(oci_internet_gateway:packets_to_igw_count[5m])',
+      'Packets To DRG Atchmnt',
+      'rate(oci_dynamic_routing_gateway:packets_to_drg_attachment[5m])',
       '{{cluster_name}}',
       'pps',
       {w:12, h:8, x:12, y:8}
     ),   
     timeseriesPanel(
-      'Packet Drops From Internet Gateway',
-      'rate(oci_internet_gateway:packet_drops_from_igw_count[5m])',
+      'Pkt Drops From DRG Atchmnt',
+      'rate(oci_dynamic_routing_gateway:packet_drops_from_drg_attachment[5m])',
       '{{cluster_name}}',
-      'pps',
+      'none',
       {w:12, h:8, x:0, y:16}
     ),    
     timeseriesPanel(
-      'Packet Drops To Internet Gateway',
-      'rate(oci_internet_gateway:packet_drop_to_igw_count[5m])',
-      '{{cluster_name}}',
-      'pps',
+      'Pkt Drops To DRG Atchmnt',
+      'rate(oci_dynamic_routing_gateway:packet_drops_to_drg_attachment[5m])',
+      '{{drop_type}}',
+      'none',
       {w:12, h:8, x:12, y:16}
-    ),   
+    ),     
 ])
 

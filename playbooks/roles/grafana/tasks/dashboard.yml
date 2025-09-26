@@ -1,60 +1,27 @@
 ---
-- name: Install git
-  vars:
-    package_name:
-      - git
-    package_state: present
-  include_role:
-    name: safe_yum
-
-- name: Get DEB architecture # noqa no-changed-when
-  ansible.builtin.command: dpkg --print-architecture
-  register: deb_architecture
-  when: ansible_os_family == 'Debian'
-
-- name: Set DPKG architecture
-  set_fact:
-    arch_suffix: "{{ deb_architecture.stdout }}"
-  when: ansible_os_family == 'Debian'
-
-- name: Map system architecture to suffix
-  set_fact:
-    arch_suffix: "{{ arch_map[ansible_architecture] }}"
-  vars:
-    arch_map:
-      x86_64: amd64
-      aarch64: arm64
-
-- name: Map system architecture to suffix
-  set_fact:
-    jsonnet_file: "go-jsonnet_Linux_{{arch_map[ansible_architecture]}}.tar.gz"
-  vars:
-    arch_map:
-      x86_64: x86_64
-      aarch64: arm64
-
-- name: Download jb
+- name: Download latest jb
   become: true
   get_url:
-    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
+    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-amd64
     dest: /usr/local/bin/jb
-    mode: "0755"
+    mode: '0755'
 
-- name: Download jsonnet
+- name: Download latest jsonnet
   become: true
   get_url:
-    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{jsonnet_file}}
-    dest: /tmp
+    url: https://github.com/google/go-jsonnet/releases/download/v0.20.0/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+    dest: /tmp/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
 
 - name: Extract jsonnet
   become: true
   unarchive:
-    src: /tmp/{{jsonnet_file}}
+    src: /tmp/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
     dest: /usr/local/bin
-    mode: "0755"
+    mode: '0755'
     remote_src: true
 
 - name: Delete existing build directory
+  become: true
   file:
     path: "{{ dashboard_build_dir }}"
     state: absent
@@ -63,7 +30,7 @@
   ansible.builtin.file:
     path: "{{ dashboard_build_dir }}"
     state: directory
-    mode: "0755"
+    mode: '0755'
     owner: "{{ user }}"
     group: "{{ user }}"
 
@@ -89,8 +56,24 @@
     - multi-node-variables.libsonnet
     - multi-node.jsonnet
     - nccl-traces.jsonnet
-    - oci-variables.libsonnet
-    - oci-dashboard.jsonnet
+    - oci-block-variables.libsonnet
+    - oci-block.jsonnet
+    - oci-drg-variables.libsonnet
+    - oci-drg.jsonnet
+    - oci-fastconnect-variables.libsonnet
+    - oci-fastconnect.jsonnet
+    - oci-fss-variables.libsonnet
+    - oci-fss.jsonnet
+    - oci-igw-variables.libsonnet
+    - oci-igw.jsonnet
+    - oci-lustre-variables.libsonnet
+    - oci-lustre.jsonnet
+    - oci-natgw-variables.libsonnet
+    - oci-natgw.jsonnet
+    - oci-sgw-variables.libsonnet
+    - oci-sgw.jsonnet
+    - oci-vcn-variables.libsonnet
+    - oci-vcn.jsonnet
     - slurm-dashboard.jsonnet
     - slurm-variables.libsonnet
     - stat-health-panel.libsonnet
@@ -101,12 +84,10 @@
     - storage-metrics-variables.libsonnet
     - table-panel.libsonnet
     - timeseries-panel.libsonnet
-  retries: 3
-  delay: 10
-  until: copy_result is not failed
-  register: copy_result
 
-- name: Build dashboard with Jsonnet
+
+- name: Build dashboards with Jsonnet
+  become: true  
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
@@ -118,9 +99,18 @@
     /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
     /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
     /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
-    /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
+    /usr/local/bin/jsonnet -J vendor oci-block.jsonnet -o oci-block.json
+    /usr/local/bin/jsonnet -J vendor oci-drg.jsonnet -o oci-drg.json
+    /usr/local/bin/jsonnet -J vendor oci-fastconnect.jsonnet -o oci-fastconnect.json
+    /usr/local/bin/jsonnet -J vendor oci-fss.jsonnet -o oci-fss.json
+    /usr/local/bin/jsonnet -J vendor oci-igw.jsonnet -o oci-igw.json
+    /usr/local/bin/jsonnet -J vendor oci-lustre.jsonnet -o oci-lustre.json
+    /usr/local/bin/jsonnet -J vendor oci-natgw.jsonnet -o oci-natgw.json
+    /usr/local/bin/jsonnet -J vendor oci-sgw.jsonnet -o oci-sgw.json
+    /usr/local/bin/jsonnet -J vendor oci-vcn.jsonnet -o oci-vcn.json
     /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
     /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
+  environment:
   args:
     chdir: "{{ dashboard_build_dir }}"
 
@@ -145,7 +135,15 @@
     - host-metrics-single.json
     - multi-node.json
     - nccl-traces.json
-    - oci-dashboard.json
+    - oci-block.json
+    - oci-drg.json
+    - oci-fastconnect.json
+    - oci-fss.json
+    - oci-igw.json
+    - oci-lustre.json
+    - oci-natgw.json
+    - oci-sgw.json
+    - oci-vcn.json    
     - slurm-dashboard.json
     - storage-metrics.json
 
@@ -165,6 +163,14 @@
     - host-metrics-single.json
     - multi-node.json
     - nccl-traces.json
-    - oci-dashboard.json
+    - oci-block.json
+    - oci-drg.json
+    - oci-fastconnect.json
+    - oci-fss.json
+    - oci-igw.json
+    - oci-lustre.json
+    - oci-natgw.json
+    - oci-sgw.json
+    - oci-vcn.json
     - slurm-dashboard.json
     - storage-metrics.json

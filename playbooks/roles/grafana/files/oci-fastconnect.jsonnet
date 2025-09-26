@@ -1,11 +1,11 @@
 local g = import './g.libsonnet';
-local variables = import './oci-igw-variables.libsonnet';
+local variables = import './oci-fastconnect-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Internet Gateway')
-+ g.dashboard.withUid('oci-igw')
+g.dashboard.new('Fast Connect')
++ g.dashboard.withUid('oci-fastconnet')
 + g.dashboard.withDescription(|||
-  Internet Gateway
+  Fast Connect
 |||)
 + g.dashboard.withTimezone('browser')
 + g.dashboard.withRefresh('30s')
@@ -18,46 +18,53 @@ g.dashboard.new('Internet Gateway')
 
 + g.dashboard.withPanels([
     timeseriesPanel(
-      'Bytes From Internet Gateway',
-      'rate(oci_internet_gateway:bytes_from_igw_count[5m])',
+      'Bits Received',
+      'rate(oci_fastconnect:bits_received_count[5m])',
       '{{cluster_name}}',
       'Bps',
       {w:12, h:8, x:0, y:0}
     ),    
     timeseriesPanel(
-      'Bytes To Internet Gateway',
-      'rate(oci_internet_gateway:bytes_to_igw_count[5m])',
+      'Bits Sent',
+      'rate(oci_fastconnect:bits_sent_count[5m])',
       '{{cluster_name}}',
       'Bps',
       {w:12, h:8, x:12, y:0}
     ),    
     timeseriesPanel(
-      'Packets From Internet Gateway',
-      'rate(oci_internet_gateway:packets_from_igw_count[5m])',
+      'Packets Received',
+      'rate(oci_fastconnect:packets_received_count[5m])',
       '{{cluster_name}}',
       'pps',
       {w:12, h:8, x:0, y:8}
     ),    
     timeseriesPanel(
-      'Packets To Internet Gateway',
-      'rate(oci_internet_gateway:packets_to_igw_count[5m])',
+      'Packets Sent',
+      'rate(oci_fastconnect:packets_sent_count[5m])',
       '{{cluster_name}}',
       'pps',
       {w:12, h:8, x:12, y:8}
-    ),   
+    ),    
     timeseriesPanel(
-      'Packet Drops From Internet Gateway',
-      'rate(oci_internet_gateway:packet_drops_from_igw_count[5m])',
+      'Packets Discarded',
+      'rate(oci_fastconnect:packets_discarded_count[5m])',
       '{{cluster_name}}',
-      'pps',
+      'none',
       {w:12, h:8, x:0, y:16}
     ),    
     timeseriesPanel(
-      'Packet Drops To Internet Gateway',
-      'rate(oci_internet_gateway:packet_drop_to_igw_count[5m])',
+      'Packets Error',
+      'rate(oci_fastconnect:packets_error_count[5m])',
       '{{cluster_name}}',
-      'pps',
+      'none',
       {w:12, h:8, x:12, y:16}
-    ),   
+    ),    
+    timeseriesPanel(
+      'Connection State',
+      'rate(oci_fastconnect:connection_state_count[5m])',
+      '{{cluster_name}}',
+      'none',
+      {w:12, h:8, x:12, y:24}
+    ),     
 ])
 
