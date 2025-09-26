@@ -10,8 +10,18 @@
 
 - name: Set python executable paths
   set_fact:
+    # Keep your defaults…
     python_executable: "/usr/bin/python{{ python_version }}"
     pip_executable: "/usr/bin/pip{{ python_version }}"
+
+# Hard override for OL8 so we NEVER point to /usr/bin/python38 (doesn't exist)
+- name: OL8 | force interpreter paths to python3.8/pip3.8
+  set_fact:
+    python_executable: /usr/bin/python3.8
+    pip_executable: /usr/bin/pip3.8
+  when:
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
 
 # ----------------- OS deps incl. Java -----------------
 
@@ -43,14 +53,34 @@
 - name: Choose Java package on OL/RHEL
   set_fact:
     java_pkg: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version|int >= 9 %}
+      {% if ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version | int) >= 9 %}
       java-17-openjdk
       {% else %}
       java-11-openjdk
       {% endif %}
   when: ansible_os_family == "RedHat"
 
-- name: Install python build dependencies (dnf)
+# ---------- OL8 ONLY: enable repos + module, install python38 ----------
+- name: OL8 | enable CodeReady Builder + AppStream
+  become: true
+  command: dnf config-manager --set-enabled ol8_codeready_builder ol8_appstream
+  changed_when: false
+  when:
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | enable python38 module stream
+  become: true
+  command: dnf -y module enable python38
+  register: ol8_py38_mod
+  changed_when: ol8_py38_mod.rc == 0
+  failed_when: false
+  when:
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | install build deps (python38, -devel, -pip)
+  become: true
   dnf:
     name:
       - gcc
@@ -68,14 +98,43 @@
       - xz-devel
       - libjwt-devel
       - http-parser-devel
-      - "{{ java_pkg | default('java-17-openjdk') }}"
-      - "python{{ python_version }}"
-      - "{{ 'python' + (python_version | trim) + '-devel' }}"
-      - python3-pip
-    enablerepo: ol8_codeready_builder,ol8_appstream,ol9_codeready_builder,ol9_appstream
+      - "{{ java_pkg | default('java-11-openjdk') }}"
+      - python38
+      - python38-devel
+      - python38-pip
+    enablerepo: ol8_codeready_builder,ol8_appstream
     state: present
+  when:
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# ---------- OL9 and other RHEL/OL (non-OL8): keep your python3 names ----------
+- name: Install python build dependencies (dnf) for OL9/RHEL9+
   become: true
-  when: ansible_os_family == "RedHat"
+  dnf:
+    name:
+      - gcc
+      - make
+      - patch
+      - zlib-devel
+      - bzip2
+      - bzip2-devel
+      - readline-devel
+      - sqlite
+      - sqlite-devel
+      - openssl-devel
+      - tk-devel
+      - libffi-devel
+      - xz-devel
+      - libjwt-devel
+      - "{{ java_pkg | default('java-17-openjdk') }}"
+      - python3
+      - python3-devel
+      - python3-pip
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - not (ansible_distribution == "OracleLinux" and ansible_distribution_major_version == "8")
 
 # ----------------- NVM / Node / OpenAPI Generator -----------------
 
@@ -157,7 +216,6 @@
     set -e
     source ~/.nvm/nvm.sh
     npm install -g @openapitools/openapi-generator-cli
-    # Choose a JAR version that works with Java 11+ (7.10.0 works on OL8; OL9 is fine with it too)
     openapi-generator-cli version-manager set 7.10.0 --openapitools /tmp/openapitools.json
   args:
     executable: /bin/bash
@@ -167,15 +225,32 @@
     PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
 # ----------------- slurmrestd service -----------------
+- name: Create the slurmrestd group
+  become: true
+  ansible.builtin.group:
+    name: slurmrestd
+    system: yes
+    state: present
+
+- name: create slurmrestd user
+  become: true
+  user:
+    comment: "Slurmrestd user"
+    name: slurmrestd
+    system: yes
+    shell: /usr/sbin/nologin
+    create_home: no
+    group: slurmrestd
+    state: present
 
 - name: Render slurmrestd systemd service file
   become: true
   template:
     src: slurmrestd.service.j2
     dest: /etc/systemd/system/slurmrestd.service
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: 0744
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: start slurmrestd service
   become: true

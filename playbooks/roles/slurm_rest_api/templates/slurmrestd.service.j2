@@ -12,8 +12,8 @@ EnvironmentFile=-/etc/default/slurmrestd
 # Please either use the -u and -g options in /etc/sysconfig/slurmrestd or
 # /etc/default/slurmrestd, or explicitly set the User and Group in this file
 # an unpriviledged user to run as.
-User=slurm
-Group=slurm
+User=slurmrestd
+Group=slurmrestd
 ExecStart={{ slurmrestd_path }} $SLURMRESTD_OPTIONS
 # Enable auth/jwt be default, comment out the line to disable it for slurmrestd
 Environment=SLURM_JWT=daemon

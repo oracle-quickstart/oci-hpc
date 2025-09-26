@@ -282,6 +282,20 @@
     PIP_ROOT_USER_ACTION: "ignore"
   when: ansible_facts.os_family == "RedHat"
 
+# --- Make sure Python build toolchain is up-to-date (fixes canonicalize_version error) ---
+
+- name: Upgrade packaging, setuptools, wheel, build as overlay
+  become: true
+  shell: >
+    {{ python_executable }} -m pip install --upgrade --ignore-installed
+    "packaging>=24.1"
+    "setuptools>=68"
+    "wheel>=0.41"
+    "build>=1.2.1"
+    {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+
 # ----------------- Build & install SDK wheel -----------------
 
 - name: Build slurm sdk python wheel
