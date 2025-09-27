@@ -214,39 +214,39 @@ def run_multi_node_nccl_test(hostfile, shape):
                     try:
                         bw=float(line.split()[5])
                     except:
-                        logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
+                        logger.error(f"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found")
                         logger.info(f"result: {potentially_bad}")
-                        return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
+                        return False,"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found"
                     if bw < threshold:
-                        logger.error(f"NCCL Test Failed: Avg bus bandwidth is {bw}")
+                        logger.error(f"Multi-node NCCL Test Failed: Avg bus bandwidth is {bw}")
                         logger.info(f"result: {potentially_bad}")
-                        return False,f"NCCL Test Failed: Avg bus bandwidth is less than {threshold}"
+                        return False,f"Multi-node NCCL Test Failed: Avg bus bandwidth is less than {threshold}"
             if not bw is None:
-                logger.info(f"NCCL Test Succeeded: Avg bus bandwidth is {bw}")
+                logger.info(f"Multi-node NCCL Test Succeeded: Avg bus bandwidth is {bw}")
                 logger.info(f"result: {healthy}")
-                return True,"NCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
+                return True,"Multi-node NCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
             else:
-                logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
+                logger.error(f"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found")
                 logger.info(f"result: {potentially_bad}")
-                return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
+                return False,"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found"
         else:
-            logger.error(f"NCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}")
+            logger.error(f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}")
             logger.info(f"result: {potentially_bad}")
-            return False,f"NCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}"
+            return False,f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}"
     except subprocess.TimeoutExpired:
-        logger.error("NCCL Test Failed: NCCL test timed out after 2 minutes")
+        logger.error("Multi-node NCCL Test Failed: Multi-node NCCL test timed out after 2 minutes")
         logger.info(f"result: {potentially_bad}")
-        return False,"NCCL Test Failed: NCCL test timed out after 2 minutes"
+        return False,"Multi-node NCCL Test Failed: Multi-node NCCL test timed out after 2 minutes"
     except Exception as e:
-        logger.error(f"NCCL Test Failed: Failed to run multi-node nccl test. {e}")
+        logger.error(f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {e}")
         logger.info(f"result: {potentially_bad}")
-        return False, f"NCCL Test Failed: Failed to run multi-node nccl test. {e}"
+        return False, f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {e}"
 
 def run_ib_write_bw(shape, server, client='localhost'):    
     ib_write_bw = shape_mapping.get(shape, {}).get('ib_write_bw', '')
     if ib_write_bw == "":
-        logger.error("Shape not found for multi-node ib write test")
-        return False,"Shape not found for multi-node ib write test"
+        logger.error("Shape not found for ib write test")
+        return False,"Shape not found for ib write test"
 
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
     hca_list = var_NCCL_IB_HCA.lstrip("=").split(',')
@@ -273,11 +273,11 @@ def run_ib_write_bw(shape, server, client='localhost'):
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to run ib write bw test: {e}")
             logger.info(f"result: {potentially_bad}")
-            return False, e
+            return False, "ib write bw Test Failed"
         except subprocess.TimeoutExpired:
-            logger.info("ib write bw test timed out after 20 seconds")
+            logger.error("ib write bw test timed out after 20 seconds")
             logger.info(f"result: {potentially_bad}")
-            return False, "Timeout after 20 seconds"
+            return False, "ib write bw Test Failed: Timeout after 20 seconds"
         # Parse output
         bw = ""
         for line in client_output.splitlines():
@@ -324,13 +324,13 @@ def run_ib_write_lat(shape, server, client='localhost'):
             logger.error(f"stdout: {e.stdout}")
             logger.error(f"stderr: {e.stderr}")
             logger.info(f"result: {potentially_bad}")
-            return False, f"CalledProcessError: {e}"
+            return False, "ib write latency Test Failed"
         except subprocess.TimeoutExpired as e:
             logger.error("ib write latency test timed out after 60 seconds")
             logger.error(f"stdout: {e.stdout}")
             logger.error(f"stderr: {e.stderr}")
             logger.info(f"result: {potentially_bad}")
-            return False, "Timeout after 60 seconds"
+            return False, "ib write latency Test Failed: Timed out after 60 seconds"
 
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
     hca_list = var_NCCL_IB_HCA.lstrip('=').split(',')
@@ -422,7 +422,7 @@ def write_hc_http_server_file(node1, node2):
         slurm_error = True
     else:
         data["multi_node_healthcheck_status"] = potentially_bad
-        data["multi_node_healthcheck_recommendation"] = "Run the NCCL test with another node"
+        data["multi_node_healthcheck_recommendation"] = "Run the multi-node active healthcheck with another node"
     logger.info(f"Data to write: {data}")
     # Write updated data back to the file
     with open(http_server_file, 'w') as file:
