@@ -110,6 +110,10 @@
     src: files/alert-rules.yaml
     dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
     mode: "0777"
+  register: alert_rules
+  until: alert_rules is not failed
+  retries: 3
+  delay: 5
 
 - name: Copy delete rules to grafana provisioning
   become: true
@@ -117,6 +121,10 @@
     src: files/delete-rules.yaml
     dest: /etc/grafana/provisioning/alerting/delete-rules.yaml
     mode: "0777"
+  register: delete_rules
+  until: delete_rules is not failed
+  retries: 3
+  delay: 5
 
 - name: Replace all occurrences of a specific string in files
   become: true
@@ -133,6 +141,7 @@
     headers:
       Authorization: "Bearer Oracle"
   register: instance_vnics
+  until: instance_vnics is not failed
   retries: 3
   delay: 3
 

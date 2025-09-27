@@ -284,7 +284,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: node_filesystem_avail_bytes{mountpoint="/",device=~"/dev/sd.*"}
+              expr: node_filesystem_avail_bytes{mountpoint="/"}
               hide: false
               instant: true
               intervalMs: 60000

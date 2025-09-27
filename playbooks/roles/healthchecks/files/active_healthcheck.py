@@ -6,6 +6,7 @@ import json
 import requests
 import subprocess
 import logging
+import getpass
 
 # Configure logger for active_healthcheck
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -35,6 +36,27 @@ def is_user_root():
         return False
     return True
 
+def get_default_user():
+    try:
+        with open("/etc/os-release") as f:
+            data = f.read().lower()
+
+        if any(word in data for word in ["ubuntu", "debian"]):
+            return "ubuntu"
+
+        if any(word in data for word in ["oracle", "rhel", "centos", "rocky", "alma", "fedora"]):
+            return "opc"
+
+        return "root"  # fallback if unknown
+    except FileNotFoundError:
+        return "root"
+
+def is_user_default():
+    default_user = get_default_user()
+    if getpass.getuser() != default_user:
+        return False,default_user
+    return True,default_user
+
 def get_host_serial():
     try:
         # Try dmidecode first (Only works on BM instances)
@@ -59,6 +81,15 @@ def get_host_serial():
 
     return "Unknown Instance"  # Final fallback if all methods fail
 
+def run_as_default_user(cmd, timeout=None):
+    user_is_default,default_user = is_user_default()
+    if user_is_default:
+        cmd_user = ["bash", "-lc", cmd]
+    else:
+        cmd_user = ["sudo", "-u", default_user, "-i", "bash", "-lc", cmd]
+
+    return subprocess.run(cmd_user, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+
 def run_local_nccl_test(shape):
         # Set defaults
     shape_mapping = {
@@ -82,8 +113,11 @@ def run_local_nccl_test(shape):
         }
     }
     try:
-        gpu_count=subprocess.check_output(['nvidia-smi', '--query-gpu=count', '--format=csv,noheader']).decode('utf-8').strip()[0]
-        result = subprocess.run(['/opt/oci-hpc/nccl-test/build/all_reduce_perf', '-b', '1G', '-e', '10G', '-g', gpu_count, '-n', '50', '-f', '2'], stdout=subprocess.PIPE,timeout=120)
+        cmd_gpu_count="nvidia-smi --query-gpu=count --format=csv,noheader"
+        gpu_count=run_as_default_user(cmd_gpu_count).stdout.decode('utf-8').strip()[0]
+
+        cmd_nccl_test="source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g " + gpu_count + " -n 50 -f 2"
+        result = run_as_default_user(cmd_nccl_test, timeout=120)
         if result.returncode == 0:
             output = result.stdout.decode('utf-8')
             bw=None
@@ -98,21 +132,83 @@ def run_local_nccl_test(shape):
                         logger.error(f"NCCL Test Failed: Avg bus bandwidth is {bw}")
                         return False,"NCCL Test Failed: Avg bus bandwidth is less than 200"
             if not bw is None:
-                logger.info(f"NCCL Test Succeeded: Avg bus bandwidth is {bw}")
                 return True,"NCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
             else:
                 logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
                 return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
         else:
-            output = result.stdout.decode('utf-8')
-            logger.error(f"Failed to run local nccl test: {result.stderr.decode('utf-8')}")
-            return False, result.stderr.decode('utf-8')
+            print(result)
+            if result.stdout is None:
+                if result.stderr is None:
+                    output=""
+                else:
+                    output=result.stderr.decode('utf-8')
+            else:
+                output=result.stdout.decode('utf-8')
+            logger.error(f"Failed to run local nccl test: {output}")
+            return False, output
     except subprocess.TimeoutExpired:
         logger.error("NCCL test timed out after 2 minutes")
         output = result.stdout.decode('utf-8')
+        print(output)
         return False, "Timeout after 2 minutes"
     except Exception as e:
         logger.error(f"Failed to run local nccl test: {e}")
+        output = result.stdout.decode('utf-8')
+        print(output)
+        return False, str(e)
+
+
+def run_gpu_fryer(run_time):
+    try:
+        #check if it is installed: 
+        cmd_install_check="which gpu-fryer"
+        install_check = run_as_default_user(cmd_install_check)
+        if install_check.returncode != 0:
+
+            cmd_install = """
+                curl -sSf https://sh.rustup.rs | sh -s -- -y && \
+                source "$HOME/.cargo/env" && \
+                cargo install gpu-fryer
+                """
+            for i in range(3):
+                install = run_as_default_user(cmd_install)
+                if install.returncode == 0:
+                    break
+                else:
+                    if i == 2 :
+                        logger.error(f"Failed to install gpu-fryer: {install.stdout.decode('utf-8')}")
+                        return False, install.stdout.decode('utf-8')
+                    else:
+                        time.sleep(20)
+        default_user = get_default_user()
+        if default_user == "opc":
+            cmd_gpu_fryer = f"gpu-fryer --nvml-lib-path /lib64/libnvidia-ml.so.1 {run_time}"
+        else:
+            cmd_gpu_fryer = f"gpu-fryer {run_time}"
+        result = run_as_default_user(cmd_gpu_fryer, timeout=run_time+20)
+        if result.returncode != 0:
+            logger.error(f"Failed to run gpu-fryer: {result.stdout.decode('utf-8')}")
+            return False, result.stdout.decode('utf-8')
+        output = result.stdout.decode('utf-8')
+        if result.returncode == 0:
+            for line in output.splitlines():
+                if "All GPUs seem healthy" in line:
+                    return True,"GPU Fryer test succeeded"
+            logger.error(f"GPU Fryer failed")
+            print(output)
+            return False,"GPU Fryer failed"
+        else:
+            logger.error(f"GPU Fryer failed")
+            print(output)
+            return False,"GPU Fryer failed"
+    except subprocess.TimeoutExpired:
+        logger.error(f"GPU Fryer test timed out after {run_time+20} seconds")
+        output = result.stdout.decode('utf-8')
+        print(output)
+        return False, f"Timeout after {run_time+20} seconds"
+    except Exception as e:
+        logger.error(f"Failed to run local GPU Fryer test: {e}")
         output = result.stdout.decode('utf-8')
         print(output)
         return False, str(e)
@@ -200,7 +296,15 @@ if __name__ == '__main__':
         logger.error(f"{hostname} - NCCL Test Failed: {nccl_output}")
         slurm_reason("Single node NCCL Test Failed")
         action = recommended_action(action, "Tag_and_Terminate")
-
+    else:
+        logger.info(f"{hostname} - NCCL Test Succeeded: {nccl_output}")
+    gpu_fryer_state,gpu_fryer_output = run_gpu_fryer(20)
+    if not gpu_fryer_state:
+        logger.error(f"{hostname} - GPU Fryer Test Failed: {gpu_fryer_output}")
+        slurm_reason("Single node GPU Fryer Test Failed")
+        action = recommended_action(action, "Tag_and_Terminate")
+    else:
+        logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()
         if last_2hour_reboot > 0 or number_of_reboots > 5:

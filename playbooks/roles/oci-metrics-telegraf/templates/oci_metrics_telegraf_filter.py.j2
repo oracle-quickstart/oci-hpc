@@ -376,6 +376,11 @@ if __name__ == "__main__":
             for key in FREEFORM_TAGS_FILTERS.keys():
                 if key in node_tags.keys():
                     FREEFORM_TAGS_FILTERS[key] = node_tags[key]
+        
+        # Remove keys with no value from the FREEFORM_TAGS_FILTERS dict
+        for key, value in tuple(FREEFORM_TAGS_FILTERS.items()):
+            if value == "":
+                FREEFORM_TAGS_FILTERS.pop(key)
 
         main(config, signer)
     else:

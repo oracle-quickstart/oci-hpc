@@ -23,4 +23,6 @@
 - include_tasks: pcie_faults.yml
   when: compute_node|bool and 'GPU' in shape
 
+- include_tasks: nccl_profiler.yml
+  when: compute_node|bool and 'GPU' in shape
 # - ansible.builtin.include_tasks: critical_process_monitor.yml

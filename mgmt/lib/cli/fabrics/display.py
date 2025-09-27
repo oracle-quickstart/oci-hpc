@@ -14,17 +14,17 @@ def print_fabrics(fabric_list, full=False):
                         continue
                     table.add_row(attr, str(getattr(fabric[0], attr)))
                 table.add_row("size", str(fabric[1]))
-                table.add_row("cluster_name", str(fabric[2]))
-                table.add_row("cluster_id", str(fabric[3]))
+                table.add_row("memory_cluster_name", str(fabric[2]))
+                table.add_row("memory_cluster_id", str(fabric[3]))
                 for i in fabric[4].keys():
                     table.add_row(i, str(fabric[4][i]))
                 console.print(table)
         else:
             table = Table(title="Fabrics")
             attributes1 = ["id","lifecycle_state","fabric_health"]
-            attributes2 = ["Cluster"]
+            attributes2 = ["memory_cluster"]
             for attr in attributes1+attributes2:
-                if attr == "id" or attr == "Cluster":
+                if attr == "id" or attr == "memory_cluster":
                     table.add_column(attr, justify="left", no_wrap=True)
                 else:
                     table.add_column(attr, justify="left")

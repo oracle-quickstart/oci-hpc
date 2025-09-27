@@ -226,7 +226,7 @@ variable "monitoring_boot_volume_size" {
   type    = number
 }
 variable "rack_aware" {
-  default = false
+  default = true
   type    = bool
 }
 variable "ldap" {

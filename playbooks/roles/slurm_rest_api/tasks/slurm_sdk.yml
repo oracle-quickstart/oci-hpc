@@ -1,10 +1,57 @@
 ---
-- name: Install NVM
-  uri:
+# ----------------- Python version & paths -----------------
+- name: Set Python version facts based on OS
+  set_fact:
+    # IMPORTANT: OL8 must be "3.8" (with a dot), not "38"
+    python_version: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
+      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
+      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
+      {% else %}3{% endif %}
+    python_executable: "/usr/bin/python{{ python_version }}"
+
+# --- OL8 hard override for interpreter path ---
+- name: OL8 | hard-set python_executable to /usr/bin/python3.8
+  set_fact:
+    python_executable: /usr/bin/python3.8
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# Recompute pip_cmd after overriding interpreter
+- name: Recompute pip_cmd after OL8 override
+  set_fact:
+    pip_cmd: "{{ python_executable }} -m pip"
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# For dnf-based distros, map RPM names correctly (OL8 uses python38*, OL9 uses python3*)
+- name: Set Python package name facts for dnf-based distros
+  set_fact:
+    py_pkg_base: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38
+      {% else %}python3{% endif %}
+    py_pkg_pip: >-
+      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38-pip
+      {% else %}python3-pip{% endif %}
+  when: ansible_os_family == "RedHat"
+
+- name: Define pip command with break-system-packages
+  set_fact:
+    pip_cmd: "{{ python_executable }} -m pip"
+    pip_break_flag: "{{ (ansible_facts.os_family == 'Debian') | ternary('--break-system-packages','') }}"
+
+# ----------------- NVM / Node / OpenAPI Generator -----------------
+
+- name: Download NVM install script
+  ansible.builtin.get_url:
     url: "{{ nvm_install_url }}"
-    dest: "/tmp/nvm_install.sh"  # Save the script to a temporary file
-    mode: 0755  # Make the script executable
-  register: nvm_download_result
+    dest: /tmp/nvm_install.sh
+    mode: '0755'
   become: true
   when: not ansible_env.HOME is undefined
 
@@ -19,21 +66,18 @@
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
-  when: nvm_download_result.status == 200 and not nvm_exists.stat.exists
-
-- name: Load NVM in current shell
-  shell: ". ~/.nvm/nvm.sh"
-  args:
-    executable: /bin/bash
+  when: not nvm_exists.stat.exists
 
 - name: Check if Node.js is already installed via NVM
   shell: |
+    set -e
     source ~/.nvm/nvm.sh
-    nvm list --no-colors | grep -c "lts"
+    nvm list --no-colors | grep -c "lts" || true
   args:
     executable: /bin/bash
   register: node_lts_check
-  ignore_errors: true
+  changed_when: false
+  failed_when: false
 
 - name: Install Node LTS and latest npm
   shell: |
@@ -42,18 +86,22 @@
     nvm install-latest-npm
   args:
     executable: /bin/bash
-  when: node_lts_check.rc != 0 or node_lts_check.stdout | int == 0
+  when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
+
+# ----------------- OpenAPI Generator CLI via npm -----------------
 
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
+    set -e
     source ~/.nvm/nvm.sh
-    npm list -g {{ openapi_generator_cli_pkg }}
+    npm list -g @openapitools/openapi-generator-cli || true
   args:
     executable: /bin/bash
   register: openapi_cli_check
-  ignore_errors: true
+  changed_when: false
+  failed_when: false
 
-- name: Install OpenAPI generator CLI via npm
+- name: Install OpenAPI generator CLI via npm (and select version)
   shell: |
     source ~/.nvm/nvm.sh
     npm install -g {{ openapi_generator_cli_pkg }}
@@ -61,6 +109,8 @@
   args:
     executable: /bin/bash
   when: openapi_cli_check.rc != 0
+
+# ----------------- JWT + OpenAPI Spec -----------------
 
 - name: Generate JWT token
   command: "scontrol token lifespan=31556926"
@@ -86,8 +136,8 @@
   set_fact:
     slurm_jwt_token: "{{ (jwt_token_file.content | b64decode).split('=')[1] }}"
 
-- name: Create sdk output directory
-  ansible.builtin.file:
+- name: Ensure OpenAPI download dir
+  file:
     path: "{{ openapi_download_path }}"
     state: directory
 
@@ -105,7 +155,7 @@
     paths: "{{ ansible_env.HOME }}/.nvm"
     patterns: "{{ openapi_generator_jar_version }}.jar"
     file_type: file
-    recurse: yes
+    recurse: true
   register: openapi_jar_find
 
 - name: Copy openapi-generator jar to local path
@@ -113,97 +163,173 @@
     remote_src: true
     src: "{{ item.path }}"
     dest: "{{ openapi_download_path }}/openapi-generator.jar"
-  with_items: "{{ openapi_jar_find.files }}"
+  loop: "{{ openapi_jar_find.files }}"
   when: openapi_jar_find.matched > 0
   become: true
 
-- name: Create SDK output directory
+# ----------------- Generate SDK -----------------
+
+- name: Ensure SDK output directory
   file:
     path: "{{ sdk_output_dir }}"
     state: directory
 
-- name: Generate Slurm python-pydantic SDK
+- name: Generate Slurm python SDK from OpenAPI
   shell: |
     java -jar {{ openapi_download_path }}/openapi-generator.jar generate \
       -g python \
       -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
-      -o {{ sdk_output_dir }}/ 
+      -o {{ sdk_output_dir }}/
   args:
     chdir: "{{ sdk_output_dir }}"
 
-- name: Install wheel package (Debian)
-  become: true
-  shell: |
-    /usr/bin/python3.10 -m pip install wheel
-  when: ansible_os_family == "Debian"
+# ----------------- System Python (PEP 668 bypass) -----------------
 
-- name: Upgrade Packaging Library
-  shell: |
-    pip install --upgrade packaging==25.0
-  when: ansible_os_family == "Debian"
+# Debian/Ubuntu: install pip & wheel from apt
+- name: Ensure pip/wheel via apt (Debian/Ubuntu)
+  become: true
+  apt:
+    name:
+      - python3-pip
+      - python3-wheel
+    state: present
+    update_cache: yes
+  register: apt_result
+  until: apt_result is succeeded
+  retries: 5
+  delay: 6
+  when: ansible_facts.os_family == "Debian"
+
+# OL8: enable repos + module and install python38 + python38-pip so /usr/bin/python3.8 exists
+- name: OL8 | enable CodeReady Builder + AppStream
+  become: true
+  command: dnf config-manager --set-enabled ol8_codeready_builder ol8_appstream
+  changed_when: false
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | enable python38 module stream
+  command: dnf -y module enable python38
+  register: ol8_module_enable
+  changed_when: ol8_module_enable.rc == 0
+  failed_when: false
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | install python38 base + pip
+  become: true
+  dnf:
+    name:
+      - "{{ py_pkg_base }}"   # python38
+      - "{{ py_pkg_pip }}"    # python38-pip
+    state: present
+    enablerepo: ol8_codeready_builder,ol8_appstream
+  register: ol8_py
+  until: ol8_py is succeeded
+  retries: 3
+  delay: 4
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# **OL8 safeguard**: pick the real interpreter path if python_executable is wrong
+- name: OL8 | detect /usr/bin/python3.8
+  stat:
+    path: /usr/bin/python3.8
+  register: ol8_py38_bin
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+- name: OL8 | correct python_executable if needed
+  set_fact:
+    python_executable: >-
+      {{ (ol8_py38_bin.stat.exists | default(false))
+         | ternary('/usr/bin/python3.8',
+                   (python_executable if python_executable is defined else '/usr/bin/python3')) }}
+    pip_cmd: "{{ python_executable }} -m pip"
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution == "OracleLinux"
+    - ansible_distribution_major_version == "8"
+
+# OL9 / RHEL9+: just ensure python3-pip
+- name: Ensure python3-pip via dnf (RHEL/OL9+)
+  become: true
+  dnf:
+    name: "{{ py_pkg_pip }}"  # python3-pip
+    state: present
+  register: dnf_result
+  until: dnf_result is succeeded
+  retries: 3
+  delay: 4
+  when:
+    - ansible_facts.os_family == "RedHat"
+    - not (ansible_distribution == "OracleLinux" and ansible_distribution_major_version == "8")
+
+# All RHEL/OL: ensure 'wheel' via pip overlay (RPM not needed)
+- name: Install wheel via pip (overlay) on RHEL/OL
+  become: true
+  shell: >
+    {{ python_executable }} -m pip install --upgrade --ignore-installed wheel {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+  when: ansible_facts.os_family == "RedHat"
+
+# --- Make sure Python build toolchain is up-to-date (fixes canonicalize_version error) ---
+
+- name: Upgrade packaging, setuptools, wheel, build as overlay
+  become: true
+  shell: >
+    {{ python_executable }} -m pip install --upgrade --ignore-installed
+    "packaging>=24.1"
+    "setuptools>=68"
+    "wheel>=0.41"
+    "build>=1.2.1"
+    {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
+
+# ----------------- Build & install SDK wheel -----------------
 
 - name: Build slurm sdk python wheel
   shell: |
-    /usr/bin/python3.10 setup.py bdist_wheel
+    {{ python_executable }} setup.py bdist_wheel
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  when: ansible_os_family == "Debian"
 
-- name: Install slurm sdk the python wheel
+# PREINSTALL runtime deps as overlays (no uninstall of Debian packages)
+- name: Preinstall runtime deps as overlays (no uninstall)
   become: true
-  shell: |
-    /usr/bin/python3.10 -m pip install --upgrade pip
-    /usr/bin/python3.10 -m pip install pydantic>=2
-    /usr/bin/python3.10 -m pip install openapi_client
-    /usr/bin/python3.10 -m pip install --force-reinstall --upgrade dist/*.whl
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "Debian"
+  shell: >
+    {{ pip_cmd }} install --upgrade --ignore-installed typing_extensions>=4.12.2 {{ pip_break_flag }} &&
+    {{ pip_cmd }} install --upgrade --ignore-installed annotated_types>=0.6.0 {{ pip_break_flag }} &&
+    {{ pip_cmd }} install --upgrade --ignore-installed typing-inspect>=0.4.0 {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
 
-- name: Build python wheel
+# Now install pydantic itself as an overlay
+- name: Install pydantic>=2 as overlay
   become: true
-  shell: |
-    /usr/bin/pip3.8 install wheel
-    /usr/bin/python3.8 setup.py bdist_wheel
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "RedHat"
+  shell: >
+    {{ pip_cmd }} install --upgrade --ignore-installed "pydantic>=2" {{ pip_break_flag }}
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
 
-- name: Install the python wheel
+# Finally install your generated SDK wheel (also overlay to avoid uninstalls)
+- name: Install slurm sdk wheel (system site-packages, overlay)
   become: true
-  shell: |
-    /usr/bin/python3.8 -m pip install --upgrade pip
-    /usr/bin/python3.8 -m pip install pydantic>=2
-    /usr/bin/python3.8 -m pip install openapi_client
-    /usr/bin/python3.8 -m pip install --force-reinstall --upgrade dist/*.whl
+  shell: >
+    {{ pip_cmd }} install --force-reinstall --upgrade --ignore-installed dist/*.whl {{ pip_break_flag }}
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  when: ansible_os_family == "RedHat"
-
-- name: Install test requirements (ubuntu)
-  pip:
-    requirements: "{{ sdk_output_dir }}/test-requirements.txt"
-    executable: /usr/bin/pip3.10
-    state: present
-  when: >
-    ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True and
-    ansible_os_family == "Debian"
-  vars:
-    ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
-
-- name: Install test requirements
-  pip:
-    requirements: "{{ sdk_output_dir }}/test-requirements.txt"
-    executable: /usr/bin/pip3.8
-    state: present
-  when: >
-    ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True and
-    ansible_os_family == "RedHat"
-  vars:
-    ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
+  environment:
+    PIP_ROOT_USER_ACTION: "ignore"
