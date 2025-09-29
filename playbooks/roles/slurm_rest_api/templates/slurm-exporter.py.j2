@@ -62,7 +62,7 @@ def get_slurm_metrics():
         api_instance = openapi_client.SlurmApi(api_client)
         try:
             #Nodes
-            api_response = api_instance.slurm_v0039_get_nodes()
+            api_response = api_instance.slurm_v{{ slurm_api_version }}_get_nodes()
             nodes_json = ujson.loads(api_response.to_json())
             nodes = api_response.nodes
             for node in nodes:
@@ -78,7 +78,7 @@ def get_slurm_metrics():
             slurm_gpus_total.labels(cluster_name=cluster_name).set(total_gpus)
             slurm_effective_cpus_total.labels(cluster_name=cluster_name).set(effective_cpus)
             #Jobs
-            api_response = api_instance.slurm_v0039_get_jobs()
+            api_response = api_instance.slurm_v{{ slurm_api_version }}_get_jobs()
             jobs = ujson.loads(api_response.to_json())
             for job in jobs["jobs"]:
                 if job["job_state"] == "RUNNING":
@@ -116,7 +116,7 @@ def get_slurm_metrics():
             for key in user_gpus:
                 slurm_alloc_gpus_user_count.labels(user=key).set(user_gpus[key])
             #Reservations
-            api_response = api_instance.slurm_v0039_get_reservations()
+            api_response = api_instance.slurm_v{{ slurm_api_version }}_get_reservations()
             reservations = ujson.loads(api_response.to_json())
             for reservation in reservations["reservations"]:
                 if time.time() < int(reservation["end_time"]):
