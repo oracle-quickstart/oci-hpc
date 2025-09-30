@@ -9,13 +9,12 @@ import logging
 from pathlib import Path
 import glob
 import shlex
+import time
+import re
 
 # Configure logger for multi_node_active_healthcheck
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('multi_node_active_healthcheck')
-
-file_handler = logging.FileHandler("/tmp/latest_multi_node_active_healthcheck.log", mode='w')
-logger.addHandler(file_handler)
 
 version = sys.version_info
 if version >= (3, 12):
@@ -23,15 +22,112 @@ if version >= (3, 12):
 else:
     from datetime import datetime, timedelta
 
+# Set defaults
+# IMPORTANT: when adding var_NCCL_IB_HCA, make sure it has "=" sign in the front and the values are comma-separated with no extra space around the comma
+shape_mapping = {
+    "BM.GPU.B4.8": {
+        "var_UCX_NET_DEVICES": "mlx5_0:1",
+        "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
+        "threshold": 185,
+        "ib_write_bw": 96
+    },
+    "BM.GPU.A100-v2.8": {
+        "var_UCX_NET_DEVICES": "mlx5_0:1",
+        "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_1",
+        "threshold": 185,
+        "ib_write_bw": 96
+    },
+    "BM.GPU4.8": {
+        "var_UCX_NET_DEVICES": "mlx5_4:1",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17",
+        "threshold": 185,
+        "ib_write_bw": 96
+    },
+    "BM.GPU.H100.8": {
+        "var_UCX_NET_DEVICES": "eth0",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17",
+        "threshold": 440,
+        "ib_write_bw": 192
+    },
+    "BM.GPU.H200.8": {
+        "var_UCX_NET_DEVICES": "eth0",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
+        "threshold": 440,
+        "ib_write_bw": 384
+    },
+    "BM.GPU.B200.8": {
+        "var_UCX_NET_DEVICES": "eth0",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
+        "threshold": 440,
+        "ib_write_bw": 384
+    },
+    "BM.GPU.GB200.4": {
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
+        "ib_write_bw": 384
+    },
+    "BM.GPU.GB200-v2.4": {
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
+        "ib_write_bw": 384
+    },
+    "BM.Optimized3.36": {
+        "var_NCCL_IB_HCA": "=mlx5_2",
+        "ib_write_bw": 96
+    }
+}
+
+healthy = "Healthy"
+potentially_bad = "Potentially Bad"
+bad = "Bad"
+ib_write_lat_threshold = 4
+
 def get_metadata():
     headers = { 'Authorization' : 'Bearer Oracle' }
     metadata_url = "http://169.254.169.254/opc/"
     metadata_ver = "2"
     request_url = metadata_url + "v" + metadata_ver + "/instance/"
     return requests.get(request_url, headers=headers).json()
+
+# Check if the user is root
+def is_user_root():
+    if os.geteuid() != 0:
+        logger.debug("User is not root!")
+        return False
+    return True
+
+def get_host_serial():
+    try:
+        # Try dmidecode first (Only works on BM instances)
+        cmd = ['sudo', 'dmidecode', '-s', 'system-serial-number'] if not is_user_root() else ['dmidecode', '-s', 'system-serial-number']
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        serial_number = result.stdout.decode('utf-8').strip()
+
+        # If dmidecode output is empty, "Not Specified", or failed, assume it's a VM
+        if result.returncode == 0 and serial_number != "Not Specified":
+            return f"BM Instance: {serial_number}"  # Bare metal instance serial number
+
+    except (FileNotFoundError, ValueError):
+        pass  # Continue to check for VM instance
+
+    try:
+        # Fallback: Get instance OCID from OCI metadata (for VM instances)
+        instance_ocid = metadata.get("id", "Unknown")
+        return f"VM Instance: {instance_ocid}"  # VM instance identifier
+
+    except requests.RequestException:
+        pass  # Metadata service not available
+
+    return "Unknown Instance"  # Final fallback if all methods fail
     
 def custom_join(cmd_list):
     return ' '.join(('^hcoll' if x == '^hcoll' else shlex.quote(x)) for x in cmd_list)
+
+def get_node_details():
+    try:
+        host_serial = get_host_serial()
+    except Exception as e:
+        logger.warning(f"Failed to get host serial number with error: {e}")
+        host_serial = "Unknown"
+    logger.info(f"Node details: {hostname} - {host_serial} - {ocid} - {shape}")
 
 def run_multi_node_nccl_test(hostfile, shape):
 
@@ -42,40 +138,6 @@ def run_multi_node_nccl_test(hostfile, shape):
         logger.error(f"No mpivars.sh found")
         return False,"No mpivars.sh found"
 
-    # Set defaults
-    shape_mapping = {
-        "BM.GPU.B4.8": {
-            "var_UCX_NET_DEVICES": "mlx5_0:1",
-            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
-            "threshold": 185
-        },
-        "BM.GPU.A100-v2.8": {
-            "var_UCX_NET_DEVICES": "mlx5_0:1",
-            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_1",
-            "threshold": 185
-        },
-        "BM.GPU4.8": {
-            "var_UCX_NET_DEVICES": "mlx5_4:1",
-            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17",
-            "threshold": 185
-        },
-        "BM.GPU.H100.8": {
-            "var_UCX_NET_DEVICES": "eth0",
-            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17",
-            "threshold": 440
-        },
-        "BM.GPU.H200.8": {
-            "var_UCX_NET_DEVICES": "eth0",
-            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
-            "threshold": 440
-        },
-        "BM.GPU.B200.8": {
-            "var_UCX_NET_DEVICES": "eth0",
-            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
-            "threshold": 440
-        }
-    }
-
     increment=1024*1024*1024*9
     NCCL_DEBUG="WARN"
     exec_cmd="/opt/oci-hpc/nccl-test/build/all_reduce_perf"
@@ -85,9 +147,6 @@ def run_multi_node_nccl_test(hostfile, shape):
         logger.error("Shape not found for multi-node NCCL test")
         return False,"Shape not found for multi-node NCCL test"
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
-    if var_NCCL_IB_HCA == "":
-        logger.error("Shape not found for multi-node NCCL test")
-        return False,"Shape not found for multi-node NCCL test"
     if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
@@ -145,8 +204,6 @@ def run_multi_node_nccl_test(hostfile, shape):
     cmd = f"source {mpivars_path} && {mpirun_str}"
     logger.info(cmd)
 
-    healthy = "Healthy"
-    potentially_bad = "Potentially Bad"
     try:
         result = subprocess.run(
             cmd,
@@ -170,55 +227,302 @@ def run_multi_node_nccl_test(hostfile, shape):
                     try:
                         bw=float(line.split()[5])
                     except:
-                        logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
+                        logger.error(f"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found")
                         logger.info(f"result: {potentially_bad}")
-                        return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
+                        return False,"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found"
                     if bw < threshold:
-                        logger.error(f"NCCL Test Failed: Avg bus bandwidth is {bw}")
+                        logger.error(f"Multi-node NCCL Test Failed: Avg bus bandwidth is {bw}")
                         logger.info(f"result: {potentially_bad}")
-                        return False,f"NCCL Test Failed: Avg bus bandwidth is less than {threshold}"
+                        return False,f"Multi-node NCCL Test Failed: Avg bus bandwidth is less than {threshold}"
             if not bw is None:
-                logger.info(f"NCCL Test Succeeded: Avg bus bandwidth is {bw}")
+                logger.info(f"Multi-node NCCL Test Succeeded: Avg bus bandwidth is {bw}")
                 logger.info(f"result: {healthy}")
-                return True,"NCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
+                return True,"Multi-node NCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
             else:
-                logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
+                logger.error(f"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found")
                 logger.info(f"result: {potentially_bad}")
-                return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
+                return False,"Multi-node NCCL Test Failed: Avg bus bandwidth could not be found"
         else:
-            logger.error(f"Failed to run multi-node nccl test: {result.stderr}")
+            logger.error(f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}")
             logger.info(f"result: {potentially_bad}")
-            return False, result.stderr
+            return False,f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}"
     except subprocess.TimeoutExpired:
-        logger.info("NCCL test timed out after 2 minutes")
+        logger.error("Multi-node NCCL Test Failed: Multi-node NCCL test timed out after 2 minutes")
         logger.info(f"result: {potentially_bad}")
-        return False, "Timeout after 2 minutes"
+        return False,"Multi-node NCCL Test Failed: Multi-node NCCL test timed out after 2 minutes"
     except Exception as e:
-        logger.error(f"Failed to run multi-node nccl test: {e}")
+        logger.error(f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {e}")
         logger.info(f"result: {potentially_bad}")
-        return False, str(e)
+        return False, f"Multi-node NCCL Test Failed: Failed to run multi-node nccl test. {e}"
+
+def run_ib_write_bw(shape, server, client='localhost'):    
+    ib_write_bw = shape_mapping.get(shape, {}).get('ib_write_bw', '')
+    if ib_write_bw == "":
+        logger.error("Shape not found for ib write test")
+        return False,"Shape not found for ib write test"
+
+    var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
+    hca_list = var_NCCL_IB_HCA.lstrip("=").split(',')
+    
+    cmd_base = "/usr/bin/ib_write_bw -F -q 2 -x 3 --report_gbits"
+    results = {}
+
+    for dev in hca_list:
+        logger.info(f"{server} {client} {dev}")
+        # Start server-side ib_write_bw over SSH
+        ssh_server_cmd = f"ssh {shlex.quote(server)} 'exec {cmd_base} -d {dev}'"
+        server_proc = subprocess.Popen(
+            ssh_server_cmd, shell=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        time.sleep(1)  # Ensure server process is listening
+        
+        # Run client-side ib_write_bw over SSH
+        ssh_client_cmd = f"ssh {shlex.quote(client)} '{cmd_base} -d {dev} {server}'"
+        try:
+            client_output = subprocess.check_output(
+                ssh_client_cmd, shell=True, timeout=20, text=True
+            )
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to run ib write bw test: {e}")
+            logger.info(f"result: {potentially_bad}")
+            return False, "ib write bw Test Failed"
+        except subprocess.TimeoutExpired:
+            logger.error("ib write bw test timed out after 20 seconds")
+            logger.info(f"result: {potentially_bad}")
+            return False, "ib write bw Test Failed: Timeout after 20 seconds"
+        # Parse output
+        bw = ""
+        for line in client_output.splitlines():
+            if "65536      10000" in line:
+                parts = line.split()
+                if len(parts) >= 3:
+                    bw = parts[2]
+                    break
+        logger.info(bw)
+        results[dev] = bw
+        server_proc.terminate()
+    success = True
+    for key, value in results.items():
+        if value != "":
+            value = float(value)
+            if value < ib_write_bw:
+                logger.error(f"ib write bw Test Failed: Avg bandwidth for {key} is {value} Gb/s")
+                success = False
+        else:
+            logger.error(f"ib write bw Test Failed: Avg bandwidth for {key} could not be found")
+            success = False
+    if success:
+        logger.info(f"result: {healthy}")
+        return True,"ib write bw Test Succeeded: Avg bandwidth for each RDMA interface is equal to or above the threshold "+str(ib_write_bw)
+    else:
+        logger.info(f"result: {potentially_bad}")
+        return False,"ib write bw Test Failed. One or more RDMA interfaces have Avg bandwidth either below the threshold or could not be found."
+
+def run_ib_write_lat(shape, server, client='localhost'):
+    # Helper to execute ssh command and return stdout
+    def ssh(host, cmd):
+        try:
+            result = subprocess.run(
+                ['ssh', host, cmd],
+                timeout=60,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding='utf-8',
+                check=True  # ensures CalledProcessError is raised on error
+            )
+            return True, result.stdout  # Return success and output string
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to run ib write latency test (exit code {e.returncode}): {e}")
+            logger.error(f"stdout: {e.stdout}")
+            logger.error(f"stderr: {e.stderr}")
+            logger.info(f"result: {potentially_bad}")
+            return False, "ib write latency Test Failed"
+        except subprocess.TimeoutExpired as e:
+            logger.error("ib write latency test timed out after 60 seconds")
+            logger.error(f"stdout: {e.stdout}")
+            logger.error(f"stderr: {e.stderr}")
+            logger.info(f"result: {potentially_bad}")
+            return False, "ib write latency Test Failed: Timed out after 60 seconds"
+
+    var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
+    hca_list = var_NCCL_IB_HCA.lstrip('=').split(',')
+    total_hcas = len(hca_list)
+    half = total_hcas // 2
+    cmd_base = "/usr/bin/ib_write_lat -F -x 3 -s 8 -n 10000"
+    
+    success = True
+    for idx, dev in enumerate(hca_list):
+        numa_node = 0 if idx < half else 1
+        logger.info(f"{server} {client} {dev} → NUMA {numa_node}:")
+
+        # Start server side as background process (no output)
+        # Use 'nohup' to not kill process if ssh disconnects
+        server_cmd = f"nohup numactl -N {numa_node} {cmd_base} -d {dev} > /dev/null 2>&1 &"
+        cmd_state,cmd_output = ssh(server, server_cmd)
+        if not cmd_state:
+            logger.info(f"result: {potentially_bad}")
+            return cmd_state,cmd_output
+
+        time.sleep(1)  # Give server time to listen
+
+        # On client: run ib_write_lat
+        client_cmd = (
+            f"numactl -N {numa_node} {cmd_base} -d {dev} {server} | grep '^ 8[[:space:]]\\+10000' | awk '{{print $6}}'"
+        )
+        cmd_state,cmd_output = ssh(client, client_cmd)
+        if not cmd_state:
+            logger.info(f"result: {potentially_bad}")
+            return cmd_state,cmd_output
+        latency = cmd_output.strip()
+        logger.info(f"Latency: {latency}")
+        if float(latency) > ib_write_lat_threshold:
+            success = False       
+    if success:
+        logger.info(f"result: {healthy}")
+        return True,"ib write latency Test Succeeded"
+    else:
+        logger.info(f"result: {potentially_bad}")
+        return False,"ib write latency Test Failed. Latency is equal to or above the threshold of " + str(ib_write_lat_threshold) + " microseconds."
+
+def write_hc_http_server_file(node1, node2):
+    slurm_error = False
+
+    http_server_file="/opt/oci-hpc/http_server/files/healthchecks"
+    # Read the existing data from the file
+    try:
+        with open(http_server_file, 'r') as file:
+            data = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.debug(f"{hostname}: Error: File not found or not in valid JSON format.")
+        data={}
+    
+    current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
+    data["multi_node_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    prev_multi_node_hc_status = data.get("multi_node_healthcheck_status")
+    prev_multi_node_hc_assoc_node = data.get("multi_node_healthcheck_associated_node")
+
+    if hostname == node1:
+        multi_node_HC_associated_node = node2
+    else:
+        multi_node_HC_associated_node = node1
+    data["multi_node_healthcheck_associated_node"] = multi_node_HC_associated_node
+    
+    result_text = ""
+    healthcheck = healthy
+    # Read the latest_multi_node_active_healthcheck.log file content
+    try:
+        with open("/tmp/latest_multi_node_active_healthcheck.log", 'r') as log_file:
+            content = log_file.read()
+            data["multi_node_healthcheck_logs"] = content  # Store log content in JSON
+            for line in content.splitlines():
+                if "result:" in line:
+                    result_text = line.split(":", 1)[1].strip()
+                    if result_text == potentially_bad or result_text == "":
+                        healthcheck = potentially_bad
+            logger.info(f"Multi-node Healthcheck Result: {healthcheck}")
+    except FileNotFoundError:
+        logger.warning(f"{hostname}: Log file not found, initializing empty logs.")
+        data["multi_node_healthcheck_logs"] = ""
+
+    if healthcheck == healthy:
+        data["multi_node_healthcheck_status"] = healthy
+        data["multi_node_healthcheck_recommendation"] = healthy
+    elif healthcheck == potentially_bad and (prev_multi_node_hc_status == potentially_bad or prev_multi_node_hc_status == bad) and prev_multi_node_hc_assoc_node != multi_node_HC_associated_node:
+        data["multi_node_healthcheck_status"] = bad
+        data["multi_node_healthcheck_recommendation"] = "Tag and Terminate"
+        slurm_error = True
+    else:
+        data["multi_node_healthcheck_status"] = potentially_bad
+        data["multi_node_healthcheck_recommendation"] = "Run the multi-node active healthcheck with another node"
+    logger.info(f"Data to write: {data}")
+    # Write updated data back to the file
+    with open(http_server_file, 'w') as file:
+        try:
+            json.dump(data, file, indent=4)
+        except Exception as e:
+            logger.error(f"Error writing to file: {e}")
+
+    slurm_reason = "Healthcheck, multi-node active healthcheck test failed"
+    if slurm_error and args.slurm:
+        logger.info(f"{hostname}: Healthcheck:: {slurm_reason}")
+        logger.info(f"{hostname}: Healthcheck:: Recommended Action: Tag and Terminate")
+        cmd = [
+            'sudo', 'scontrol', 'update',
+            f'nodename={hostname}',
+            'state=drain',
+            f'reason={slurm_reason}'
+        ]
+        try:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=20)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"{hostname}: Node Drain Error: {e.stderr}")
+        except subprocess.TimeoutExpired:
+            logger.error(f"{hostname}: Node Drain Error. Drain command timed out after 20 seconds.")
 
 if __name__ == '__main__':
     action = None
     parser = argparse.ArgumentParser(description='Run multi-node NCCL active test')
     parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level default: INFO")
-    parser.add_argument('-f', '--hostfile', required=True, type=str, help='Hostfile with one host per line')
+    parser.add_argument('-m', '--mode', required=True, type=int, choices=[1,2,3], help='1: write node details, 2: run multi-node active healthchecks, 3: write to /opt/oci-hpc/http_server/files/healthchecks')
+    parser.add_argument('-f', '--hostfile', type=str, help='Hostfile with one host per line')
+    parser.add_argument('-n', '--node1', type=str, help='node1 name')
+    parser.add_argument('-o', '--node2', type=str, help='node2 name')
+    parser.add_argument('-slurm', '--slurm', action='store_true', help='Add a Slurm message')
 
     args = parser.parse_args()
-    if not args.hostfile.strip():
-        logger.error("Error: --hostfile argument cannot be empty", flush=True)
-        sys.exit(1)
     metadata = get_metadata()
     shape = metadata['shape']
     hostname = metadata['displayName']
     ocid = metadata['id']
     logger.setLevel(args.log_level)
-    datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    logger.info(f"Started multi-node active healthcheck at: {datetime_str}")
+    var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
+    if var_NCCL_IB_HCA == "":
+        logger.error("Shape not found for multi-node active healthcheck")
+        sys.exit(1)
+    
+    if args.mode == 1:
+        get_node_details()
+    elif args.mode == 2:
+        if not args.hostfile.strip():
+            logger.error("Error: --hostfile argument cannot be empty", flush=True)
+            sys.exit(1)
+        with open(args.hostfile, 'r') as f:
+            nodes = [line.strip() for line in f if line.strip()]
+        client_host, server_host = nodes
 
-    nccl_state,nccl_output = run_multi_node_nccl_test(args.hostfile, shape)
-    if not nccl_state:
-        logger.error(f"Multi-node NCCL Test Failed: {nccl_output}")
+        file_handler = logging.FileHandler("/tmp/latest_multi_node_active_healthcheck.log", mode='w')
+        logger.addHandler(file_handler)
+        
+        datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logger.info(f"Started multi-node active healthcheck at: {datetime_str}")
+    
+        nccl_state,nccl_output = run_multi_node_nccl_test(args.hostfile, shape)
+        if not nccl_state:
+            logger.error(nccl_output)
+        else:
+            logger.info(nccl_output)
 
-    datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    logger.info(f"Finished multi-node active healthcheck at: {datetime_str}")
+        ib_write_bw_state,ib_write_bw_output = run_ib_write_bw(shape, server_host, client_host)
+        if not ib_write_bw_state:
+            logger.error(ib_write_bw_output)
+        else:
+            logger.info(ib_write_bw_output)
+
+        ib_write_lat_state,ib_write_lat_output = run_ib_write_lat(shape, server_host, client_host)
+        if not ib_write_lat_state:
+            logger.error(ib_write_lat_output)
+        else:
+            logger.info(ib_write_lat_output)         
+
+        datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logger.info(f"Finished multi-node active healthcheck at: {datetime_str}")
+    elif args.mode == 3:
+        if not args.node1.strip():
+            logger.error("Error: --node1 argument cannot be empty", flush=True)
+            sys.exit(1)   
+        if not args.node2.strip():
+            logger.error("Error: --node2 argument cannot be empty", flush=True)
+            sys.exit(1)                    
+        write_hc_http_server_file(args.node1, args.node2)

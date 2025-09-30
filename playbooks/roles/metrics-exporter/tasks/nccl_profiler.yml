@@ -4,7 +4,7 @@
   ansible.builtin.shell:
     cmd: find -L /usr/lib -name "libnccl.so*" -print | grep -E "libnccl\.so\.[0-9]+\.[0-9]+\.[0-9]+$" | awk -F".so." '{print $2}'
   register: nccl_version_output
-  delegate_to: "{{ groups['compute'][0] }}"
+  delegate_to: localhost
   run_once: true
 
 - name: Set nccl version globally
