@@ -17,7 +17,8 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
    [ "$shape" = "BM.GPU4.8" ] || \
    [ "$shape" = "BM.GPU.B4.8" ] || \
    [ "$shape" = "BM.GPU.H200.8" ] || \
-   [ "$shape" = "BM.GPU.B200.8" ]; then
+   [ "$shape" = "BM.GPU.B200.8" ] || \
+   [ "$shape" = "BM.GPU.MI300X.8" ]; then
 
   FILE="/tmp/latest_multi_node_active_healthcheck.log"
 
