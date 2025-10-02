@@ -43,11 +43,11 @@ locals {
 
   compute_image = var.use_marketplace_image ? oci_core_app_catalog_subscription.mp_image_subscription[0].listing_resource_id : local.image_ocid
 
-  is_controller_flex_shape = length(regexall(".*VM.*.*Flex$", var.controller_shape)) > 0 ? [local.controller_ocpus] : []
-  is_login_flex_shape      = length(regexall(".*VM.*.*Flex$", var.login_shape)) > 0 ? [local.login_ocpus] : []
-  is_monitoring_flex_shape = length(regexall(".*VM.*.*Flex$", var.monitoring_shape)) > 0 ? [local.monitoring_ocpus] : []
+  is_controller_flex_shape = length(regexall(".*VM.*.*(Flex|Generic)$", var.controller_shape)) > 0 ? [local.controller_ocpus] : []
+  is_login_flex_shape      = length(regexall(".*VM.*.*(Flex|Generic)$", var.login_shape)) > 0 ? [local.login_ocpus] : []
+  is_monitoring_flex_shape = length(regexall(".*VM.*.*(Flex|Generic)$", var.monitoring_shape)) > 0 ? [local.monitoring_ocpus] : []
 
-  is_instance_pool_flex_shape = length(regexall(".*VM.*.*Flex$", var.instance_pool_shape)) > 0 ? [local.instance_pool_ocpus] : []
+  is_instance_pool_flex_shape = length(regexall(".*VM.*.*(Flex|Generic)$", var.instance_pool_shape)) > 0 ? [local.instance_pool_ocpus] : []
 
   queue_ocid = oci_queue_queue.queue.id
   // Cluster OCID
