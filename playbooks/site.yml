@@ -122,14 +122,6 @@
         name: sssd
       when: ldap|default(true)|bool
 
-- hosts: controller
-  become: true
-  tasks:
-    - include_role:
-        name: mgmt
-    - include_role:
-        name: queue_write
-
 - hosts: controller, slurm_backup
   become: true
   tasks:
@@ -153,6 +145,14 @@
         export_path: "{{ lfs_source_path }}"
         lock: "none"
       when: add_lfs|default(false)|bool
+
+- hosts: controller
+  become: true
+  tasks:
+    - include_role:
+        name: mgmt
+    - include_role:
+        name: queue_write
 
 - hosts: controller, slurm_backup
   vars:
