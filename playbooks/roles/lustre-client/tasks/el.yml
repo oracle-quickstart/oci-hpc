@@ -28,7 +28,8 @@
           delegate_to: 127.0.0.1
           run_once: true
         - name: First try downloading .tgz file
-          get_url:
+          environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+          ansible.builtin.get_url:
             url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/YgdAE95IZFWvt39VffXXn9O8ir6JwAnqSSZCP5sAGf5UEqLS2gasO8NychBhNXUv/n/fsssolutions/b/rclone-1/o/OL8-Lustre-client-dkms.tgz"
             dest: "{{ download_path }}/OL8-Lustre-client-dkms"
           when: ( not lfs_dwld.stat.exists )
@@ -43,14 +44,15 @@
             path: "{{ download_path }}/OL8-Lustre-client-dkms/OL8-Lustre-client-dkms.tgz"
           register: lfs_dwld
         - name: First try downloading .tgz file
-          get_url:
+          environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+          ansible.builtin.get_url:
             url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/YgdAE95IZFWvt39VffXXn9O8ir6JwAnqSSZCP5sAGf5UEqLS2gasO8NychBhNXUv/n/fsssolutions/b/rclone-1/o/OL8-Lustre-client-dkms.tgz"
             dest: "{{ download_path }}/OL8-Lustre-client-dkms"
           when: ( not lfs_dwld.stat.exists )
-      when: download_path == '/tmp'
   rescue:
     - name: Retry downloading the Lustre .tgz file
-      get_url:
+      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+      ansible.builtin.get_url:
         url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/YgdAE95IZFWvt39VffXXn9O8ir6JwAnqSSZCP5sAGf5UEqLS2gasO8NychBhNXUv/n/fsssolutions/b/rclone-1/o/OL8-Lustre-client-dkms.tgz"
         dest: "{{ download_path }}/OL8-Lustre-client-dkms"
       delegate_to: 127.0.01
@@ -59,7 +61,8 @@
       delay: 10
       when: download_path != '/tmp'
     - name: Retry downloading the Lustre .tgz file
-      get_url:
+      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+      ansible.builtin.get_url:
         url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/YgdAE95IZFWvt39VffXXn9O8ir6JwAnqSSZCP5sAGf5UEqLS2gasO8NychBhNXUv/n/fsssolutions/b/rclone-1/o/OL8-Lustre-client-dkms.tgz"
         dest: "{{ download_path }}/OL8-Lustre-client-dkms"
       retries: 5

@@ -42,14 +42,21 @@ def run_configure(nodes):
     task.run()
     logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
-def run_command(nodes,command):
+def run_command(nodes,command,print_output=False):
     logger.debug(f"Running command {command} on: {NodeSet(','.join([node.ip_address for node in nodes]))}")
     task = task_self()
     task.shell(command, nodes=NodeSet(','.join([node.ip_address for node in nodes])))
     task.run()
-    logger.info(f"Command is done, logs are available at /config/logs/")
+    if print_output:
+        for node in nodes:
+            logger.info(f"Output from {node.hostname}: ")
+            logger.info(f"{task.node_buffer(node.ip_address).decode().strip()}\n")
+            logger.info(f"------------------------------------------------------------------------------------------------")
+    else:
+        logger.info(f"Command is done, logs are available at /config/logs/")
+
 def run_ansible(controller_name):
-    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/ansible-playbook /config/playbooks/manage_nodes.yml"
+    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/oci/bin/ansible-playbook /config/playbooks/manage_nodes.yml"
 
     try:
         result = subprocess.run(
@@ -81,7 +88,7 @@ def run_ansible(controller_name):
         return False
 
 def run_ansible_slurm_init(controller_name):
-    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/ansible-playbook /config/playbooks/slurm_init.yml"
+    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/oci/bin/ansible-playbook /config/playbooks/slurm_init.yml"
 
     try:
         result = subprocess.run(
@@ -321,3 +328,48 @@ def get_slurm_state():
             else:
                 sinfo_dict[node]["partition"].append(partition)
     return sinfo_dict
+
+def run_active_hc(node):
+    partitions=node.slurm_partition.split(',')
+    hc_partition=[partition for partition in partitions if 'healthcheck' in partition]
+    if hc_partition:
+        logger.debug(f"Submitting active healthcheck on {node.hostname} through partition {hc_partition[0]}")
+        cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]        
+        logger.debug(f"Running command: {' '.join(cmd)}")
+        results = subprocess.run(cmd)
+        if results.returncode != 0:
+            logger.debug("Slurm launch failed, trying to reconfiguring Slurm before retrying")
+            reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
+            logger.debug(f"Running command: {' '.join(cmd)}")
+            results2 = subprocess.run(cmd)
+            if results2.returncode != 0:
+                logger.warning(f"Slurm launch failed after reconfiguring Slurm")
+                logger.warning(f"Error message: {results2.stderr}")
+            else:
+                logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
+    else:
+        logger.warning(f"No healthcheck partition found for {node.hostname}")
+
+def run_multi_node_active_hc(node,exclude_node=None):
+    partitions=node.slurm_partition.split(',')
+    hc_partition=[partition for partition in partitions if 'healthcheck' in partition]
+    if hc_partition:
+        logger.info(f"Submitting multi node healthcheck on {node.hostname} through partition {hc_partition[0]}")
+        if exclude_node is None:
+            cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"]       
+        else:
+            cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"-x",exclude_node,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_HC.sbatch"] 
+        logger.debug(f"Running command: {' '.join(cmd)}")
+        results = subprocess.run(cmd)
+        if results.returncode != 0:
+            logger.debug("Slurm launch failed, trying to reconfiguring Slurm before retrying")
+            reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
+            logger.debug(f"Running command: {' '.join(cmd)}")
+            results2 = subprocess.run(cmd)
+            if results2.returncode != 0:
+                logger.warning(f"Slurm launch failed after reconfiguring Slurm")
+                logger.warning(f"Error message: {results2.stderr}")
+            else:
+                logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
+    else:
+        logger.warning(f"No healthcheck partition found for {node.hostname}")

@@ -5,7 +5,7 @@
       vars:
         ansible_python_interpreter: /usr/bin/python3
       become: true
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         enablerepo: "{{ package_repo | default('None') }}"
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
@@ -13,44 +13,27 @@
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
       when: package_repo|default('None') != 'None'
-      async: 200
-      poll: 10
       register: yum_sleeper
-
-    - name: Check on an async yum task
-      ansible.builtin.async_status:
-        jid: "{{ yum_sleeper.ansible_job_id }}"
-      register: job_result
-      until: job_result is not failed
-      retries: 30
+      retries: 5
       delay: 10
-      when: package_repo|default('None') != 'None'
-      failed_when: job_result.rc is defined and job_result.rc > 0 and not 'could not find job' in job_result.msg
+      until: yum_sleeper is not failed
 
     - name: "Yum first try {{package_name}}"
       vars:
         ansible_python_interpreter: /usr/bin/python3
       become: true
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
         update_cache: "{{ package_cache | default('false') | bool }}"
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
       when: package_repo|default('None') == 'None'
-      async: 200
-      poll: 10
       register: yum_sleeper
-
-    - name: Check on an async yum task
-      ansible.builtin.async_status:
-        jid: "{{ yum_sleeper.ansible_job_id }}"
-      register: job_result
-      until: job_result is not failed
-      retries: 30
+      retries: 5
       delay: 10
-      when: package_repo|default('None') == 'None'
-      failed_when: job_result.rc is defined and job_result.rc > 0 and not 'could not find job' in job_result.msg
+      until: yum_sleeper is not failed
+
   rescue:
     # There seem to be a yum process from the cloud-agent that is randomly hanging and is blocking for other tasks.
     - name: Make sure the yum cloud-agent process is destroyed.
@@ -66,7 +49,7 @@
       become: true
       vars:
         ansible_python_interpreter: /usr/bin/python3
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         enablerepo: "{{ package_repo | default('None') }}"
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
@@ -83,7 +66,7 @@
       vars:
         ansible_python_interpreter: /usr/bin/python3
       become: true
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
         update_cache: "{{ package_cache | default('false') | bool }}"

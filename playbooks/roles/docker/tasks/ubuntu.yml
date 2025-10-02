@@ -62,13 +62,3 @@
       ansible.builtin.service:
         name: containerd
         enabled: true
-
-#  - name: Install Docker Module for Python
-#    pip:
-#      name: docker
-
-#  - name: add ubuntu user to docker group
-#    user:
-#      name: ubuntu
-#      groups: docker
-#      append: true
