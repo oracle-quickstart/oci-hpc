@@ -248,8 +248,7 @@ def run_multi_node_rccl_test(hostfile, shape):
     if paths:
         mpivars_path = paths[0]
     else:
-        logger.error(f"No mpivars.sh found")
-        return False,"No mpivars.sh found"
+        return False,"RCCL Test Failed: No mpivars.sh found"
 
     increment=1024*1024*1024*9
     NCCL_DEBUG="WARN"
@@ -257,8 +256,7 @@ def run_multi_node_rccl_test(hostfile, shape):
 
     var_UCX_NET_DEVICES = shape_mapping.get(shape, {}).get('var_UCX_NET_DEVICES', '')
     if var_UCX_NET_DEVICES == "":
-        logger.error("Shape not found for multi-node NCCL test")
-        return False,"Shape not found for multi-node NCCL test"
+        return False,"RCCL Test Failed: Shape not found for RCCL test"
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
     if shape in ("BM.GPU.MI300X.8"):
         mpirun_cmd = [
@@ -280,13 +278,11 @@ def run_multi_node_rccl_test(hostfile, shape):
         ]
 
     else:
-        logger.error("No suitable shape found for NCCL multi-node test")
-        return False,"No suitable shape found for NCCL multi-node test"
+        return False,"RCCL Test Failed: No suitable shape found for RCCL test"
 
     # Prepare the mpirun command as a string with proper quotations
     mpirun_str = custom_join(mpirun_cmd)
     cmd = f"source {mpivars_path} && {mpirun_str}"
-    logger.info(cmd)
 
     try:
         result = subprocess.run(
@@ -304,40 +300,27 @@ def run_multi_node_rccl_test(hostfile, shape):
             bw=None
             threshold = shape_mapping.get(shape, {}).get("threshold")
             if threshold == "":
-                logger.error("Shape not found for multi-node RCCL test")
-                return False,"Shape not found for multi-node RCCL test"
+                return False,"RCCL Test Failed: Shape not found for RCCL test"
             for line in output.splitlines():
                 if "Avg bus bandwidth" in line:
                     try:
                         bw=float(line.split()[5])
                     except:
-                        logger.error(f"Multi-node RCCL Test Failed: Avg bus bandwidth could not be found")
-                        logger.info(f"result: {potentially_bad}")
-                        return False,"Multi-node RCCL Test Failed: Avg bus bandwidth could not be found"
+                        return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
                     if bw < threshold:
-                        logger.error(f"Multi-node RCCL Test Failed: Avg bus bandwidth is {bw}")
-                        logger.info(f"result: {potentially_bad}")
-                        return False,f"Multi-node RCCL Test Failed: Avg bus bandwidth is less than {threshold}"
+                        return False,f"RCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
             if not bw is None:
-                logger.info(f"Multi-node RCCL Test Succeeded: Avg bus bandwidth is {bw}")
-                logger.info(f"result: {healthy}")
-                return True,"Multi-node RCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
+                return True,"RCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
             else:
-                logger.error(f"Multi-node RCCL Test Failed: Avg bus bandwidth could not be found")
-                logger.info(f"result: {potentially_bad}")
-                return False,"Multi-node RCCL Test Failed: Avg bus bandwidth could not be found"
+                return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
         else:
             logger.error(f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}")
             logger.info(f"result: {potentially_bad}")
             return False,f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}"
     except subprocess.TimeoutExpired:
-        logger.error("Multi-node RCCL Test Failed: Multi-node RCCL test timed out after 2 minutes")
-        logger.info(f"result: {potentially_bad}")
-        return False,"Multi-node RCCL Test Failed: Multi-node RCCL test timed out after 2 minutes"
+        return False,"RCCL Test Failed: NCCL test timed out after 2 minutes"
     except Exception as e:
-        logger.error(f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {e}")
-        logger.info(f"result: {potentially_bad}")
-        return False, f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {e}"
+        return False, f"RCCL Test Failed: Failed to run nccl test. {e}"
 
 
 def run_ib_write_bw(shape, server, client='localhost'):    
