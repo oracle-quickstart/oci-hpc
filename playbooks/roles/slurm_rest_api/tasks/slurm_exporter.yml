@@ -1,70 +1,167 @@
----
-- name: Set python version variables
+# Pick one Python for all OSes
+- name: Set unified Python version + paths
   set_fact:
-    python_version: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
-      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
-      {% else %}3{% endif %}
-    python_executable: "/usr/bin/python{{ python_version }}"
+    py_ver: "3.11.9"
+    pyenv_root: "/opt/pyenv"
+    venv_dir: "/opt/oci-hpc/venv"
 
-- name: Define pip command and break flag
-  set_fact:
-    pip_cmd: "{{ python_executable }} -m pip"
-    pip_break_flag: "{{ (ansible_facts.os_family == 'Debian') | ternary('--break-system-packages','') }}"
-
-- name: Ensure pip present on Debian/Ubuntu
-  become: true
+# ---- Build prerequisites for compiling CPython ----
+# Ubuntu
+- name: Install build deps (Ubuntu)
   apt:
-    name: python3-pip
+    name:
+      - make
+      - build-essential
+      - libssl-dev
+      - zlib1g-dev
+      - libbz2-dev
+      - libreadline-dev
+      - libsqlite3-dev
+      - wget
+      - curl
+      - llvm
+      - libncursesw5-dev
+      - xz-utils
+      - tk-dev
+      - libxml2-dev
+      - libxmlsec1-dev
+      - libffi-dev
+      - liblzma-dev
+      - git
     state: present
     update_cache: yes
-  when: ansible_facts.os_family == "Debian"
-
-- name: Ensure pip present on RHEL/OL
+  when: ansible_os_family == "Debian"
   become: true
+
+# OL8/OL9
+- name: Install build deps (OL/RHEL)
   dnf:
-    name: python3-pip
+    name:
+      - gcc
+      - gcc-c++
+      - make
+      - zlib-devel
+      - bzip2
+      - bzip2-devel
+      - readline-devel
+      - sqlite
+      - sqlite-devel
+      - openssl-devel
+      - tk-devel
+      - libffi-devel
+      - xz-devel
+      - findutils
+      - git
     state: present
-  when: ansible_facts.os_family == "RedHat"
-
-- name: Install prometheus_client python package (system site-packages)
+  when: ansible_os_family == "RedHat"
   become: true
-  shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed prometheus_client {{ pip_break_flag }}
+
+# ---- Install pyenv system-wide (idempotent) ----
+- name: Ensure pyenv root exists
+  file:
+    path: "{{ pyenv_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Clone pyenv
+  git:
+    repo: "https://github.com/pyenv/pyenv.git"
+    dest: "{{ pyenv_root }}"
+    version: master
+    update: no
+  become: true
+
+# ---- Build the chosen Python with pyenv (idempotent) ----
+- name: Check if Python {{ py_ver }} already installed by pyenv
+  stat:
+    path: "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python"
+  register: pyenv_py
+  become: true
+
+- name: Build Python {{ py_ver }} via pyenv
+  shell: |
+    export PYENV_ROOT="{{ pyenv_root }}"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    pyenv install -s "{{ py_ver }}"
+  args:
+    executable: /bin/bash
+  when: not pyenv_py.stat.exists
+  become: true
+
+# ---- Create venv from the unified Python (idempotent) ----
+- name: Ensure venv directory exists
+  file:
+    path: "{{ venv_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Create venv if missing
+  shell: |
+    "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python" -m venv "{{ venv_dir }}"
+  args:
+    creates: "{{ venv_dir }}/bin/activate"
+    executable: /bin/bash
+  become: true
+
+# ---- Upgrade tooling & install deps INSIDE venv (safe) ----
+- name: Upgrade pip/setuptools/wheel in venv
+  shell: |
+    "{{ venv_dir }}/bin/python" -m pip install --upgrade pip setuptools wheel
   environment:
     PIP_ROOT_USER_ACTION: "ignore"
-
-- name: Install ujson python package (system site-packages)
   become: true
-  shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed ujson {{ pip_break_flag }}
+
+- name: Install exporter deps in venv
+  shell: |
+    "{{ venv_dir }}/bin/python" -m pip install --upgrade prometheus_client ujson
   environment:
     PIP_ROOT_USER_ACTION: "ignore"
+  become: true
 
+# ---- Render your exporter and service (unchanged, but call venv python) ----
 - name: Render slurm-exporter python script
-  become: true
   template:
     src: slurm-exporter.py.j2
     dest: /usr/local/bin/slurm-exporter.py
     owner: "{{ slurm_user }}"
     group: "{{ slurm_group }}"
     mode: "0744"
-
-- name: Render slurm-exporter systemd service file
   become: true
-  template:
-    src: slurm-exporter.service.j2
+
+# Example systemd unit (if you template it, ensure ExecStart uses venv python)
+- name: Render slurm-exporter systemd service
+  copy:
     dest: /etc/systemd/system/slurm-exporter.service
-    owner: root
-    group: root
     mode: "0644"
+    content: |
+      [Unit]
+      Description=Slurm Prometheus Exporter
+      After=network-online.target
+      Wants=network-online.target
 
-- name: Start slurm-exporter service
+      [Service]
+      Type=simple
+      User={{ slurm_user }}
+      Group={{ slurm_group }}
+      ExecStart={{ venv_dir }}/bin/python /usr/local/bin/slurm-exporter.py
+      Restart=on-failure
+      RestartSec=3
+
+      [Install]
+      WantedBy=multi-user.target
   become: true
+
+- name: Start/enable slurm-exporter
   service:
     name: slurm-exporter
     daemon_reload: true
     state: restarted
     enabled: yes
+  become: true

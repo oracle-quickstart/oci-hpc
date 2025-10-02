@@ -1,52 +1,132 @@
----
-# ----------------- Python version & paths -----------------
-- name: Set Python version facts based on OS
+# ==================== Unified Python via venv (all OS) ====================
+- name: Set unified Python/venv paths
   set_fact:
-    # IMPORTANT: OL8 must be "3.8" (with a dot), not "38"
-    python_version: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
-      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
-      {% else %}3{% endif %}
-    python_executable: "/usr/bin/python{{ python_version }}"
+    py_ver: "3.11.9"                 # One Python version for all hosts
+    pyenv_root: "/opt/pyenv"
+    venv_dir: "/opt/oci-hpc/venv"
+    vpy: "{{ venv_dir }}/bin/python"
+    vpip: "{{ venv_dir }}/bin/pip"
 
-# --- OL8 hard override for interpreter path ---
-- name: OL8 | hard-set python_executable to /usr/bin/python3.8
-  set_fact:
-    python_executable: /usr/bin/python3.8
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
+# ---- Build prerequisites for compiling CPython ----
+# Ubuntu 22/24
+- name: Install build deps (Ubuntu)
+  apt:
+    name:
+      - make
+      - build-essential
+      - libssl-dev
+      - zlib1g-dev
+      - libbz2-dev
+      - libreadline-dev
+      - libsqlite3-dev
+      - wget
+      - curl
+      - llvm
+      - libncursesw5-dev
+      - xz-utils
+      - tk-dev
+      - libxml2-dev
+      - libxmlsec1-dev
+      - libffi-dev
+      - liblzma-dev
+      - git
+      - default-jre
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  become: true
 
-# Recompute pip_cmd after overriding interpreter
-- name: Recompute pip_cmd after OL8 override
+# OL8 / OL9
+- name: Choose Java package on OL/RHEL
   set_fact:
-    pip_cmd: "{{ python_executable }} -m pip"
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-# For dnf-based distros, map RPM names correctly (OL8 uses python38*, OL9 uses python3*)
-- name: Set Python package name facts for dnf-based distros
-  set_fact:
-    py_pkg_base: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38
-      {% else %}python3{% endif %}
-    py_pkg_pip: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38-pip
-      {% else %}python3-pip{% endif %}
+    java_pkg: "{{ 'java-17-openjdk' if (ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version|int) >= 9) else 'java-11-openjdk' }}"
   when: ansible_os_family == "RedHat"
 
-- name: Define pip command with break-system-packages
+- name: Install build deps (OL/RHEL)
+  dnf:
+    name:
+      - gcc
+      - gcc-c++
+      - make
+      - zlib-devel
+      - bzip2
+      - bzip2-devel
+      - readline-devel
+      - sqlite
+      - sqlite-devel
+      - openssl-devel
+      - tk-devel
+      - libffi-devel
+      - xz-devel
+      - findutils
+      - git
+      - "{{ java_pkg }}"
+    state: present
+  when: ansible_os_family == "RedHat"
+  become: true
+
+# ---- Install pyenv system-wide (idempotent) ----
+- name: Ensure pyenv root exists
+  file:
+    path: "{{ pyenv_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Install/Update pyenv
+  git:
+    repo: "https://github.com/pyenv/pyenv.git"
+    dest: "{{ pyenv_root }}"
+    version: master
+    update: no
+  become: true
+
+# ---- Build the chosen Python with pyenv (idempotent) ----
+- name: Check if Python {{ py_ver }} already installed by pyenv
+  stat:
+    path: "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python"
+  register: pyenv_py
+  become: true
+
+- name: Build Python {{ py_ver }} via pyenv
+  shell: |
+    export PYENV_ROOT="{{ pyenv_root }}"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+    pyenv install -s "{{ py_ver }}"
+  args:
+    executable: /bin/bash
+  when: not pyenv_py.stat.exists
+  become: true
+
+# ---- Create venv from the unified Python (idempotent) ----
+- name: Ensure venv directory exists
+  file:
+    path: "{{ venv_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Create venv if missing
+  shell: |
+    "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python" -m venv "{{ venv_dir }}"
+  args:
+    creates: "{{ venv_dir }}/bin/activate"
+    executable: /bin/bash
+  become: true
+
+# Define pip command for later tasks (always venv pip)
+- name: Define pip command (venv)
   set_fact:
-    pip_cmd: "{{ python_executable }} -m pip"
-    pip_break_flag: "{{ (ansible_facts.os_family == 'Debian') | ternary('--break-system-packages','') }}"
+    pip_cmd: "{{ vpip }}"
+    # break-system-packages irrelevant in venv, keep empty for portability
+    pip_break_flag: ""
 
-# ----------------- NVM / Node / OpenAPI Generator -----------------
-
+# ==================== NVM / Node / OpenAPI Generator ====================
 - name: Download NVM install script
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
@@ -54,7 +134,6 @@
     dest: /tmp/nvm_install.sh
     mode: '0755'
   become: true
-  when: not ansible_env.HOME is undefined
 
 - name: Check if NVM is already installed
   stat:
@@ -89,7 +168,23 @@
     executable: /bin/bash
   when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
 
-# ----------------- OpenAPI Generator CLI via npm -----------------
+# ==================== OpenAPI Generator CLI via npm ====================
+- name: Detect JAVA_HOME from current java on PATH
+  shell: |
+    set -e
+    JAVA_BIN="$(command -v java || true)"
+    if [ -n "$JAVA_BIN" ]; then
+      readlink -f "$JAVA_BIN" | awk -F'/bin/java' '{print $1}'
+    fi
+  args:
+    executable: /bin/bash
+  register: java_home_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Set JAVA_HOME fact (may be empty)
+  set_fact:
+    JAVA_HOME: "{{ (java_home_cmd.stdout | default('')) | trim }}"
 
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
@@ -101,6 +196,9 @@
   register: openapi_cli_check
   changed_when: false
   failed_when: false
+  environment:
+    JAVA_HOME: "{{ JAVA_HOME }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
 - name: Install OpenAPI generator CLI via npm (and select version)
   shell: |
@@ -110,9 +208,11 @@
   args:
     executable: /bin/bash
   when: openapi_cli_check.rc != 0
+  environment:
+    JAVA_HOME: "{{ JAVA_HOME }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
-# ----------------- JWT + OpenAPI Spec -----------------
-
+# ==================== JWT + OpenAPI Spec ====================
 - name: Generate JWT token
   command: "scontrol token lifespan=31556926"
   become_user: "{{ slurm_user }}"
@@ -144,17 +244,15 @@
     headers:
       X-SLURM-USER-NAME: "{{ slurm_user }}"
       X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
-  register: api_response  
+  register: api_response
 
 - name: Extract all version strings
   ansible.builtin.set_fact:
-    version_strings: >-
-      {{ api_response.content | regex_findall('slurm_v([0-9]+)_get_jobs') }}
+    version_strings: "{{ api_response.content | regex_findall('slurm_v([0-9]+)_get_jobs') }}"
 
 - name: Set highest version string
   ansible.builtin.set_fact:
-    slurm_api_version: >-
-      {{ version_strings | max | string }}
+    slurm_api_version: "{{ version_strings | max | string }}"
 
 - name: Ensure OpenAPI download dir
   file:
@@ -187,8 +285,7 @@
   when: openapi_jar_find.matched > 0
   become: true
 
-# ----------------- Generate SDK -----------------
-
+# ==================== Generate SDK ====================
 - name: Ensure SDK output directory
   file:
     path: "{{ sdk_output_dir }}"
@@ -203,151 +300,42 @@
   args:
     chdir: "{{ sdk_output_dir }}"
 
-# ----------------- System Python (PEP 668 bypass) -----------------
-
-# Debian/Ubuntu: install pip & wheel from apt
-- name: Ensure pip/wheel via apt (Debian/Ubuntu)
-  become: true
-  apt:
-    name:
-      - python3-pip
-      - python3-wheel
-    state: present
-    update_cache: yes
-  register: apt_result
-  until: apt_result is succeeded
-  retries: 5
-  delay: 6
-  when: ansible_facts.os_family == "Debian"
-
-# OL8: enable repos + module and install python38 + python38-pip so /usr/bin/python3.8 exists
-- name: OL8 | enable CodeReady Builder + AppStream
-  become: true
-  command: dnf config-manager --set-enabled ol8_codeready_builder ol8_appstream
-  changed_when: false
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-- name: OL8 | enable python38 module stream
-  command: dnf -y module enable python38
-  register: ol8_module_enable
-  changed_when: ol8_module_enable.rc == 0
-  failed_when: false
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-- name: OL8 | install python38 base + pip
-  become: true
-  dnf:
-    name:
-      - "{{ py_pkg_base }}"   # python38
-      - "{{ py_pkg_pip }}"    # python38-pip
-    state: present
-    enablerepo: ol8_codeready_builder,ol8_appstream
-  register: ol8_py
-  until: ol8_py is succeeded
-  retries: 3
-  delay: 4
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-# **OL8 safeguard**: pick the real interpreter path if python_executable is wrong
-- name: OL8 | detect /usr/bin/python3.8
-  stat:
-    path: /usr/bin/python3.8
-  register: ol8_py38_bin
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-- name: OL8 | correct python_executable if needed
-  set_fact:
-    python_executable: >-
-      {{ (ol8_py38_bin.stat.exists | default(false))
-         | ternary('/usr/bin/python3.8',
-                   (python_executable if python_executable is defined else '/usr/bin/python3')) }}
-    pip_cmd: "{{ python_executable }} -m pip"
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-# OL9 / RHEL9+: just ensure python3-pip
-- name: Ensure python3-pip via dnf (RHEL/OL9+)
-  become: true
-  dnf:
-    name: "{{ py_pkg_pip }}"  # python3-pip
-    state: present
-  register: dnf_result
-  until: dnf_result is succeeded
-  retries: 3
-  delay: 4
-  when:
-    - ansible_facts.os_family == "RedHat"
-    - not (ansible_distribution == "OracleLinux" and ansible_distribution_major_version == "8")
-
-# All RHEL/OL: ensure 'wheel' via pip overlay (RPM not needed)
-- name: Install wheel via pip (overlay) on RHEL/OL
-  become: true
+# ==================== Build & install SDK into venv ====================
+# Keep build toolchain inside the venv; no system packages touched.
+- name: Upgrade packaging, setuptools, wheel, build (venv)
   shell: >
-    {{ python_executable }} -m pip install --upgrade --ignore-installed wheel {{ pip_break_flag }}
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-  when: ansible_facts.os_family == "RedHat"
-
-# --- Make sure Python build toolchain is up-to-date (fixes canonicalize_version error) ---
-
-- name: Upgrade packaging, setuptools, wheel, build as overlay
-  become: true
-  shell: >
-    {{ python_executable }} -m pip install --upgrade --ignore-installed
+    {{ vpip }} install --upgrade
     "packaging>=24.1"
     "setuptools>=68"
     "wheel>=0.41"
     "build>=1.2.1"
-    {{ pip_break_flag }}
   environment:
     PIP_ROOT_USER_ACTION: "ignore"
 
-# ----------------- Build & install SDK wheel -----------------
-
-- name: Build slurm sdk python wheel
+- name: Build slurm sdk python wheel (venv)
   shell: |
-    {{ python_executable }} setup.py bdist_wheel
+    {{ vpy }} setup.py bdist_wheel
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
 
-# PREINSTALL runtime deps as overlays (no uninstall of Debian packages)
-- name: Preinstall runtime deps as overlays (no uninstall)
-  become: true
+- name: Preinstall runtime deps into venv
   shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed typing_extensions>=4.12.2 {{ pip_break_flag }} &&
-    {{ pip_cmd }} install --upgrade --ignore-installed annotated_types>=0.6.0 {{ pip_break_flag }} &&
-    {{ pip_cmd }} install --upgrade --ignore-installed typing-inspect>=0.4.0 {{ pip_break_flag }}
+    {{ vpip }} install --upgrade typing_extensions>=4.12.2 &&
+    {{ vpip }} install --upgrade annotated_types>=0.6.0 &&
+    {{ vpip }} install --upgrade typing-inspect>=0.4.0
   environment:
     PIP_ROOT_USER_ACTION: "ignore"
 
-# Now install pydantic itself as an overlay
-- name: Install pydantic>=2 as overlay
-  become: true
+- name: Install pydantic>=2 into venv
   shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed "pydantic>=2" {{ pip_break_flag }}
+    {{ vpip }} install --upgrade "pydantic>=2"
   environment:
     PIP_ROOT_USER_ACTION: "ignore"
 
-# Finally install your generated SDK wheel (also overlay to avoid uninstalls)
-- name: Install slurm sdk wheel (system site-packages, overlay)
-  become: true
+- name: Install generated SDK wheel into venv
   shell: >
-    {{ pip_cmd }} install --force-reinstall --upgrade --ignore-installed dist/*.whl {{ pip_break_flag }}
+    {{ vpip }} install --force-reinstall --upgrade dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
