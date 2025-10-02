@@ -27,6 +27,7 @@
     - multi_node_active_healthcheck.py
 
 - name: Download oci-mesh-pinger
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: "{{ mp_download_link_x86 }}"
     dest: "/tmp/{{ mp_filename }}"
@@ -36,7 +37,7 @@
   ansible.builtin.get_url:
     url: "{{ mp_download_link_arm }}"
     dest: "/tmp/{{ mp_filename }}"
-  when: ('controller' in group_names) and ansible_architecture == "aarch64"
+  when: ('controller' in group_names) and ansible_architecture == "aarch64" and ansible_distribution_major_version != "8"
 
 - name: Untar meshpinger
   ansible.builtin.unarchive:
@@ -78,8 +79,3 @@
   ansible.builtin.include_role:
     name: safe_yum
   ignore_errors: true
-
-- name: Install psutil and distro
-  ansible.builtin.pip:
-    name: ["psutil", "distro"]
-    executable: "{{ venv_path }}/bin/pip3"

@@ -1,5 +1,5 @@
 [controller]
-${controller_name} ansible_host=${controller_ip} ansible_user=${controller_username} role=controller ansible_python_interpreter=/config/venv/##VENV_OS_ARCH##/bin/python3
+${controller_name} ansible_host=${controller_ip} ansible_user=${controller_username} role=controller ansible_python_interpreter=/config/venv/##VENV_OS_ARCH##/oci/bin/python3
 [slurm_backup]
 %{ if backup_name !="" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=controller%{ endif }
 [monitoring]

@@ -128,5 +128,5 @@
 
 [[processors.execd]]
   order = 2
-  command = ["/usr/bin/env", "python3", "{{ telegraf_filter_path }}"]
+  command = ["/usr/bin/env", "{{venv_path}}/bin/python3", "{{ telegraf_filter_path }}"]
   environment = ["ENRICH_METRICS=true"]

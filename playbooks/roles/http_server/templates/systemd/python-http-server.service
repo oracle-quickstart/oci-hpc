@@ -5,7 +5,7 @@ After=network.target
 [Service]
 User={{ ansible_user }}
 Group={{ ansible_user }}
-ExecStart=/usr/bin/python3 /opt/oci-hpc/http_server/bin/http_server.py
+ExecStart={{venv_path}}/bin/python3 /opt/oci-hpc/http_server/bin/http_server.py
 Restart=always
 RestartSec=30
 

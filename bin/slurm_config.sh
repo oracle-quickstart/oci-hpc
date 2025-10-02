@@ -10,11 +10,6 @@ folder=`dirname $scripts`
 conf_folder=$folder/../conf/
 playbooks_path=/config/playbooks/
 
-source /etc/os-release
-
-
-VENV_PATH=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
-source $VENV_PATH/bin/activate
 
 if [[ ${@: -1} == "--INITIAL" || ${@: -1} == "--initial" || ${@: -1} == "-INITIAL" || ${@: -1} == "-initial" ]]
 then

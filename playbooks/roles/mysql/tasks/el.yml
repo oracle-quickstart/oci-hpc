@@ -67,13 +67,6 @@
   pip:
     name: pymysql
     state: present
-    executable: "{{venv_path}}/bin/pip3"
-
-- name: Make sure pymysql is present
-  become: true
-  pip:
-    name: pymysql
-    state: present
     executable: /usr/bin/pip3
 
 - name: Update SELinux context for {{ mysql_db_path }}
