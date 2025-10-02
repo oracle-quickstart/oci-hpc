@@ -16,8 +16,8 @@ modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169
 
 
 source /etc/os-release
-
-VENV_PATH=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+export VENV_PATH=${UV_INSTALL_DIR}/oci
 
 max_attempts=3
 attempt=1

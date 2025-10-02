@@ -137,7 +137,7 @@
   ignore_errors: true
 
 - name: Download Weka installer
-  get_url:
+  ansible.builtin.get_url:
     url: "http://{{ dist_server }}:14000/dist/v1/install"
     dest: /tmp/weka_client_install
     mode: "0755"

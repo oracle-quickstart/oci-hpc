@@ -6,6 +6,7 @@
     state: present
 
 - name: Download Go tarball
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   become: true
   ansible.builtin.get_url:
     url: "{{ go_url }}"
@@ -61,6 +62,7 @@
   when: not dcgm_exporter.stat.exists | bool
 
 - name: Download DCGM Exporter tarball
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   become: true
   ansible.builtin.get_url:
     url: "{{ dcgm_exporter_url }}"

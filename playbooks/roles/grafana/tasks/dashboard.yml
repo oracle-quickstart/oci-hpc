@@ -35,14 +35,16 @@
 
 - name: Download jb
   become: true
-  get_url:
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  ansible.builtin.get_url:
     url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
     dest: /usr/local/bin/jb
     mode: "0755"
 
 - name: Download jsonnet
   become: true
-  get_url:
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  ansible.builtin.get_url:
     url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{jsonnet_file}}
     dest: /tmp
 
