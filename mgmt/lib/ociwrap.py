@@ -448,44 +448,7 @@ def get_host_api_dict(compartment,tenancy):
     return compartment_host_api + tenancy_host_api
 
 def get_marketplace_image(marketplace_listing, compartment_id):
-    # marketplace_listing_id = ""
-    # marketplace_version_id = ""
-    # with open("/config/conf/marketplace.conf", "r") as f:
-    #     config = json.load(f)
-    #     prefix = marketplace_listing[:3]
-    #     if prefix == "HPC":
-    #         marketplace_listing_id = config["marketplace_listing_id_HPC"]
-    #     elif prefix == "GPU":
-    #         marketplace_listing_id = config["marketplace_listing_id_GPU"]
-    #     marketplace_version_id = config["marketplace_version_id"][marketplace_listing]
-
-    # # Get app catalog listing agreement
-    # get_agreement_response = CLIENTS.compute_client.get_app_catalog_listing_agreements(
-    #     listing_id=marketplace_listing_id,
-    #     resource_version=marketplace_version_id
-    # )
-    # agreement = get_agreement_response.data
-
-    # # Create app catalog subscription
-    # subscription_details = oci.core.models.CreateAppCatalogSubscriptionDetails(
-    #     compartment_id=compartment_id,
-    #     listing_id=agreement.listing_id,
-    #     listing_resource_version=agreement.listing_resource_version,
-    #     oracle_terms_of_use_link=agreement.oracle_terms_of_use_link,
-    #     signature=agreement.signature,
-    #     time_retrieved=agreement.time_retrieved
-    # )
-    # CLIENTS.compute_client.create_app_catalog_subscription(subscription_details)
-
-    # # Get the listing_resource_id which is the image OCID from the app catalog listing
-    # get_app_catalog_listing_response = CLIENTS.compute_client.get_app_catalog_listing_resource_version(
-    #     listing_id=marketplace_listing_id,
-    #     resource_version=marketplace_version_id
-    # )
-    # return get_app_catalog_listing_response.data.listing_resource_id
-
     config_path = "/config/conf/marketplace.conf"
-
     try:
         # Read & parse config file
         with open(config_path, "r") as f:
