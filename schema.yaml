@@ -1122,7 +1122,7 @@ variables:
     enum:
       - "24.05.1-2" 
       - "23.11.8-1" 
-      - "25.05.0-1" 
+      - "25.05.3-1" 
     default: "24.05.1-2" 
     visible: ${slurm}
     required: true

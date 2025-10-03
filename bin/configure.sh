@@ -30,7 +30,6 @@ fi
 
 source /etc/os-release
 VENV_OS_ARCH="${ID^}_${VERSION_ID}_$(uname -m)"
-source /config/venv/${VENV_OS_ARCH}/bin/activate
 
 if [ -f /config/playbooks/inventory ] ; then 
   sed -i "s|##VENV_OS_ARCH##|$VENV_OS_ARCH|g" /config/playbooks/inventory
@@ -61,15 +60,17 @@ fi
 # Ansible will take care of key exchange and learning the host fingerprints, but for the first time we need
 # to disable host key checking.
 #
+export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+export VENV_PATH=${UV_INSTALL_DIR}/oci
 
 if [[ $execution -eq 1 ]] ; then
-  ANSIBLE_HOST_KEY_CHECKING=False ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key $playbook -i $inventory
+  ANSIBLE_HOST_KEY_CHECKING=False $VENV_PATH/bin/ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1
+  ANSIBLE_HOST_KEY_CHECKING=False $VENV_PATH/bin/ansible-playbook --private-key ~/.ssh/cluster.key $playbook -i $inventory
 else
 
         cat <<- EOF > /tmp/motd
         At least one of the cluster nodes has been innacessible during installation. Please validate the hosts and re-run:
-        ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ~/.ssh/cluster.key /config/playbooks/site.yml
+        ANSIBLE_HOST_KEY_CHECKING=False $VENV_PATH/bin/ansible-playbook --private-key ~/.ssh/cluster.key /config/playbooks/site.yml
 EOF
 
 sudo mv /tmp/motd /etc/motd

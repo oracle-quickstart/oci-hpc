@@ -139,12 +139,12 @@
 # ----------------- NVM / Node / OpenAPI Generator -----------------
 
 - name: Download NVM install script
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: "{{ nvm_install_url }}"
     dest: /tmp/nvm_install.sh
     mode: '0755'
   become: true
-  when: not ansible_env.HOME is undefined
 
 - name: Check if NVM is already installed
   stat:

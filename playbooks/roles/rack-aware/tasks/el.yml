@@ -12,17 +12,6 @@
     - parallel-ssh
   ignore_errors: true
 
-- name: Install pssh and parallel-ssh
-  become: true
-  ansible.builtin.pip:
-    name: ["pssh", "parallel-ssh"]
-    executable: "{{venv_path}}/bin/pip3"
-    state: latest
-  with_items:
-    - pssh
-    - parallel-ssh
-  ignore_errors: true
-
 - name: Make sure /opt/oci-hpc/bin/ exists
   become: true
   ansible.builtin.file:

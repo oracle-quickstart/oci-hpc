@@ -97,17 +97,6 @@
       - influx-line-protocol
       - flatdict
       - oci
-    executable: "{{venv_path}}/bin/pip3"
-
-- name: Install required python packages
-  become: true
-  ansible.builtin.pip:
-    name:
-      - memoization
-      - line-protocol-parser
-      - influx-line-protocol
-      - flatdict
-      - oci
     executable: /usr/bin/pip3
   ignore_errors: true
 

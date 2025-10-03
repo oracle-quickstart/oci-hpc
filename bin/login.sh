@@ -42,13 +42,8 @@ elif [ $ID == "centos" ] ; then
   repo="epel"
 fi
 
-VENV_PATH=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
-# Check if venv is available
-if [ -f "${VENV_PATH}/bin/activate" ]; then
-    INSTALL_VENV=False
-else
-    INSTALL_VENV=True
-fi
+export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+export VENV_PATH=${UV_INSTALL_DIR}/oci
 
 # Install ansible and other required packages
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
@@ -56,46 +51,13 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python-netaddr
-    sudo python3 -m pip install virtualenv
-    if [ "$INSTALL_VENV" = True ]; then
-      sudo mkdir $VENV_PATH
-      virtualenv $VENV_PATH --always-copy
-    fi
-    source $VENV_PATH/bin/activate
-  elif [ $vid == 8 ] ; then
+elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64
     sudo python3.8 -m pip install --upgrade pip
-    sudo python3.8 -m pip install virtualenv
-    if [ "$INSTALL_VENV" = True ]; then
-      sudo mkdir $VENV_PATH
-      virtualenv $VENV_PATH --always-copy
-      $VENV_PATH/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
-    fi
-    source $VENV_PATH/bin/activate
-    sudo mkdir /etc/ansible
-    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
-    sudo ln -s /usr/local/bin/ansible /bin/ansible
   elif [ $vid == 9 ] ; then
     sudo dnf install -y python3 python3-pip
     sudo python3 -m pip install --upgrade pip
-    sudo python3 -m pip install virtualenv
-    if [ "$INSTALL_VENV" = True ]; then
-      sudo mkdir $VENV_PATH
-      virtualenv $VENV_PATH --always-copy
-      $VENV_PATH/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
-    fi
-    source $VENV_PATH/bin/activate
-    sudo mkdir /etc/ansible
-    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
-    sudo ln -s /usr/local/bin/ansible /bin/ansible
-  fi
-  if [ "$INSTALL_VENV" = True ]; then
-    $VENV_PATH/bin/python3 -m pip install netaddr --upgrade > /dev/null
-    $VENV_PATH/bin/python3 -m pip install setuptools_rust --upgrade > /dev/null
-    $VENV_PATH/bin/python3 -m pip install requests --upgrade > /dev/null
-    $VENV_PATH/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-    $VENV_PATH/bin/python3 -m pip install oci-cli --upgrade > /dev/null
   fi
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
@@ -114,7 +76,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   }
   fix_apt
 
-  if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] && [ "$INSTALL_VENV" = True ]; then 
+  if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] ; then 
     echo deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main | sudo tee -a /etc/apt/sources.list
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
@@ -139,7 +101,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fix_apt
   sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get -y install python python-netaddr python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
@@ -147,41 +109,21 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       do
         echo "wait until apt update is done"
         sleep 10s
-        sudo apt-get -y install python3 python3-netaddr python3-pip jq
+        sudo apt-get -y install python3 python3-pip jq
         apt_success=$?
         echo $apt_success
       done
-    sudo ln -s /usr/bin/python3 /usr/bin/python
   fi
-
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
-    sudo apt-get -y install python python-netaddr python3 python3-pip jq
-    sudo python3 -m pip install virtualenv
+    sudo apt-get -y install python3 python3-pip jq
   elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip jq
-    sudo python3 -m pip install virtualenv
+    sudo apt-get -y install python3 python3-pip jq
   else
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip jq
-    fix_apt
-    sudo apt-get -y install python3-virtualenv
+    sudo apt-get -y install python3 python3-pip jq
   fi
-
-  if [ "$INSTALL_VENV" = True ]; then
-    virtualenv $VENV_PATH
-    source $VENV_PATH/bin/activate
-    $VENV_PATH/bin/python3 -m pip install ansible
-    $VENV_PATH/bin/python3 -m pip install -U pip > /dev/null
-    $VENV_PATH/bin/python3 -m pip install netaddr --upgrade > /dev/null
-    $VENV_PATH/bin/python3 -m pip install requests --upgrade > /dev/null
-    $VENV_PATH/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-    $VENV_PATH/bin/pip install pip --upgrade > /dev/null
-    $VENV_PATH/bin/pip install pyopenssl --upgrade > /dev/null
-    deactivate
-  fi
-  source $VENV_PATH/bin/activate
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp
   LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name')
@@ -189,18 +131,8 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   # First try to install into /opt/oci-cli
    bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
       -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
-  # install oci module
-  $VENV_PATH/bin/pip install oci > /dev/null
 fi 
 
-if [ "$INSTALL_VENV" = True ]; then
-  ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
-  ansible-galaxy collection install community.general --upgrade --force > /dev/null
-  ansible-galaxy collection install ansible.posix --force > /dev/null
-  ansible-galaxy collection install community.crypto --force > /dev/null
-  ansible-galaxy collection install oracle.oci --force > /dev/null
-  ansible-galaxy collection install ansible.utils --force > /dev/null
-fi
 threads=$(nproc)
 forks=$(($threads * 8))
 
@@ -213,7 +145,7 @@ if [ ! -d /etc/ansible ] ; then
   fi
 fi
 
-ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
+$VENV_PATH/bin/ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
 sudo sed -i "s/^\(#\|;\)forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
 sudo sed -i "0,/^\(#\|;\)fact_caching_connection.*/s//fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
@@ -231,9 +163,8 @@ max_attempts_ansible_install=50
 attempt=1
 
 while [ $attempt -le $max_attempts_ansible_install ]; do
-    source $VENV_PATH/bin/activate
     echo "Attempt $attempt of $max_attempts_ansible_install: Is ansible installed?" | tee -a $log
-    ansible localhost -c local -m ping 2>&1 | tee -a $log
+    $VENV_PATH/bin/ansible localhost -c local -m ping 2>&1 | tee -a $log
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "Ansible is installed!" | tee -a $log
         break
@@ -253,8 +184,7 @@ attempt=1
 wait_time=10
 while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
-    source $VENV_PATH/bin/activate
-    ansible-playbook -i /config/playbooks/inventory /config/playbooks/login.yml 2>&1 | tee -a $log
+    $VENV_PATH/bin/ansible-playbook -i /config/playbooks/inventory /config/playbooks/login.yml 2>&1 | tee -a $log
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "Ansible succeeded!" | tee -a $log
         break

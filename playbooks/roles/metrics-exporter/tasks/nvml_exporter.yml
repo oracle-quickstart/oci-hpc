@@ -42,15 +42,6 @@
       - pynvml
       - psutil
       - prometheus_client
-    executable: "{{ venv_path }}/bin/pip3"
-
-- name: Install required python packages
-  become: true
-  ansible.builtin.pip:
-    name:
-      - pynvml
-      - psutil
-      - prometheus_client
     executable: /usr/bin/pip3
   ignore_errors: true
 

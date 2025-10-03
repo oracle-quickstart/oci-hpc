@@ -48,6 +48,7 @@
 
 - name: Download/unarchive Packages for prometheus
   become: true
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   unarchive:
     src: "{{ prometheus_download_url }}"
     dest: /tmp
