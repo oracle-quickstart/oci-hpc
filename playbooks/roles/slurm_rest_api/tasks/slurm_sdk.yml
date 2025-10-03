@@ -92,10 +92,58 @@
   shell: |
     source ~/.nvm/nvm.sh
     npm install -g {{ openapi_generator_cli_pkg }}
-    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json
+    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }}
   args:
     executable: /bin/bash
   when: openapi_cli_check.rc != 0
+
+- name: Wait for jar download to complete
+  pause:
+    seconds: 5
+  when: openapi_cli_check.rc != 0
+
+- name: Find the openapi-generator jar
+  find:
+    paths: "{{ ansible_env.HOME }}/.nvm"
+    patterns: "{{ openapi_generator_jar_version }}.jar"
+    file_type: file
+    recurse: true
+  register: openapi_jar_find
+
+- name: Debug - Show jar search results
+  debug:
+    msg: "Found {{ openapi_jar_find.matched }} jar files: {{ openapi_jar_find.files | map(attribute='path') | list }}"
+
+- name: Fail if jar not found
+  fail:
+    msg: "OpenAPI Generator jar version {{ openapi_generator_jar_version }} not found in {{ ansible_env.HOME }}/.nvm"
+  when: openapi_jar_find.matched == 0
+
+- name: Ensure OpenAPI download directory exists
+  file:
+    path: "{{ openapi_download_path }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Copy openapi-generator jar to local path
+  copy:
+    remote_src: true
+    src: "{{ openapi_jar_find.files[0].path }}"
+    dest: "{{ openapi_download_path }}/openapi-generator.jar"
+    mode: '0644'
+  become: true
+  when: openapi_jar_find.matched > 0
+
+- name: Verify jar file exists and is readable
+  stat:
+    path: "{{ openapi_download_path }}/openapi-generator.jar"
+  register: jar_stat
+  failed_when: not jar_stat.stat.exists
+
+- name: Debug - Show jar file info
+  debug:
+    msg: "Jar file: {{ openapi_download_path }}/openapi-generator.jar ({{ jar_stat.stat.size }} bytes)"
 
 # ----------------- JWT + OpenAPI Spec -----------------
 
@@ -154,23 +202,6 @@
     headers:
       X-SLURM-USER-NAME: "{{ slurm_user }}"
       X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
-  become: true
-
-- name: Find the openapi-generator jar
-  find:
-    paths: "{{ ansible_env.HOME }}/.nvm"
-    patterns: "{{ openapi_generator_jar_version }}.jar"
-    file_type: file
-    recurse: true
-  register: openapi_jar_find
-
-- name: Copy openapi-generator jar to local path
-  copy:
-    remote_src: true
-    src: "{{ item.path }}"
-    dest: "{{ openapi_download_path }}/openapi-generator.jar"
-  loop: "{{ openapi_jar_find.files }}"
-  when: openapi_jar_find.matched > 0
   become: true
 
 # ----------------- Generate SDK -----------------
