@@ -1252,10 +1252,12 @@ def db_import_configuration(filename):
             session.add(config)
         session.commit()
         logger.info("All configurations successfully imported.")
+        return True
 
     except Exception as exc:
         logger.error(f"Error importing configurations: {exc}")
         session.rollback()
+        return False
     finally:
         session.close()
 
