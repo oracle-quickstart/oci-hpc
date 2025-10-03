@@ -117,6 +117,7 @@ def alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, 
     return {
         "alert_id": alert_id,
         "alert_name": labels.get("rulename", labels.get("alertname", "N/A")),
+        "hostname": labels.get("hostname", "N/A"),
         "alert_status": alert_dict.get("status", "N/A"),
         "starts_at": alert_dict.get("startsAt", "N/A"),
         "ends_at": alert_dict.get("endsAt", "N/A") if alert_dict.get("endsAt", "N/A") != '0001-01-01T00:00:00Z' else "-",
