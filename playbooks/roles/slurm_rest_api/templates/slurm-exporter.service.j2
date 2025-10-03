@@ -7,8 +7,16 @@ After=network-online.target
 User={{ slurm_user }}
 Group={{ slurm_group }}
 Type=simple
-Environment="PYTHONPATH=/usr/local/lib/python{{ python_version }}/site-packages:/usr/local/lib64/python{{ python_version }}/site-packages"
-ExecStart={{ python_executable }} /usr/local/bin/slurm-exporter.py
+
+# Activate the virtual environment before running
+Environment="PATH={{ venv_dir }}/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONPATH={{ venv_dir }}/lib/python{{ python_version }}/site-packages"
+
+# Run exporter from virtual environment
+ExecStart={{ venv_dir }}/bin/python {{ venv_dir }}/bin/slurm-exporter.py
+
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
