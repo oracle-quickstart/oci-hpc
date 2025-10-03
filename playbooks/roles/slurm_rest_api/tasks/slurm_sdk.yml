@@ -1,132 +1,38 @@
-# ==================== Unified Python via venv (all OS) ====================
-- name: Set unified Python/venv paths
+---
+# ----------------- Detect venv Python -----------------
+- name: Detect UV venv Python executable
+  shell: |
+    source /etc/os-release
+    vid=$(echo $VERSION | awk -F. '{print $1}')
+    export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+    echo "${UV_INSTALL_DIR}/oci/bin/python"
+  args:
+    executable: /bin/bash
+  register: venv_python_detect
+  changed_when: false
+
+- name: Set Python facts from venv
   set_fact:
-    py_ver: "3.11.9"                 # One Python version for all hosts
-    pyenv_root: "/opt/pyenv"
-    venv_dir: "/opt/oci-hpc/venv"
-    vpy: "{{ venv_dir }}/bin/python"
-    vpip: "{{ venv_dir }}/bin/pip"
+    python_executable: "{{ venv_python_detect.stdout | trim }}"
+    pip_cmd: "{{ venv_python_detect.stdout | trim }} -m pip"
 
-# ---- Build prerequisites for compiling CPython ----
-# Ubuntu 22/24
-- name: Install build deps (Ubuntu)
-  apt:
-    name:
-      - make
-      - build-essential
-      - libssl-dev
-      - zlib1g-dev
-      - libbz2-dev
-      - libreadline-dev
-      - libsqlite3-dev
-      - wget
-      - curl
-      - llvm
-      - libncursesw5-dev
-      - xz-utils
-      - tk-dev
-      - libxml2-dev
-      - libxmlsec1-dev
-      - libffi-dev
-      - liblzma-dev
-      - git
-      - default-jre
-    state: present
-    update_cache: yes
-  when: ansible_os_family == "Debian"
-  become: true
-
-# OL8 / OL9
-- name: Choose Java package on OL/RHEL
-  set_fact:
-    java_pkg: "{{ 'java-17-openjdk' if (ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version|int) >= 9) else 'java-11-openjdk' }}"
-  when: ansible_os_family == "RedHat"
-
-- name: Install build deps (OL/RHEL)
-  dnf:
-    name:
-      - gcc
-      - gcc-c++
-      - make
-      - zlib-devel
-      - bzip2
-      - bzip2-devel
-      - readline-devel
-      - sqlite
-      - sqlite-devel
-      - openssl-devel
-      - tk-devel
-      - libffi-devel
-      - xz-devel
-      - findutils
-      - git
-      - "{{ java_pkg }}"
-    state: present
-  when: ansible_os_family == "RedHat"
-  become: true
-
-# ---- Install pyenv system-wide (idempotent) ----
-- name: Ensure pyenv root exists
-  file:
-    path: "{{ pyenv_root }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  become: true
-
-- name: Install/Update pyenv
-  git:
-    repo: "https://github.com/pyenv/pyenv.git"
-    dest: "{{ pyenv_root }}"
-    version: master
-    update: no
-  become: true
-
-# ---- Build the chosen Python with pyenv (idempotent) ----
-- name: Check if Python {{ py_ver }} already installed by pyenv
+- name: Verify venv Python exists
   stat:
-    path: "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python"
-  register: pyenv_py
-  become: true
+    path: "{{ python_executable }}"
+  register: venv_python_stat
+  failed_when: not venv_python_stat.stat.exists
 
-- name: Build Python {{ py_ver }} via pyenv
-  shell: |
-    export PYENV_ROOT="{{ pyenv_root }}"
-    export PATH="$PYENV_ROOT/bin:$PATH"
-    eval "$(pyenv init -)"
-    pyenv install -s "{{ py_ver }}"
-  args:
-    executable: /bin/bash
-  when: not pyenv_py.stat.exists
-  become: true
+- name: Get Python version from venv
+  command: "{{ python_executable }} --version"
+  register: python_version_output
+  changed_when: false
 
-# ---- Create venv from the unified Python (idempotent) ----
-- name: Ensure venv directory exists
-  file:
-    path: "{{ venv_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  become: true
+- name: Display detected Python
+  debug:
+    msg: "Using Python: {{ python_executable }} ({{ python_version_output.stdout }})"
 
-- name: Create venv if missing
-  shell: |
-    "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python" -m venv "{{ venv_dir }}"
-  args:
-    creates: "{{ venv_dir }}/bin/activate"
-    executable: /bin/bash
-  become: true
+# ----------------- NVM / Node / OpenAPI Generator -----------------
 
-# Define pip command for later tasks (always venv pip)
-- name: Define pip command (venv)
-  set_fact:
-    pip_cmd: "{{ vpip }}"
-    # break-system-packages irrelevant in venv, keep empty for portability
-    pip_break_flag: ""
-
-# ==================== NVM / Node / OpenAPI Generator ====================
 - name: Download NVM install script
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
@@ -134,6 +40,7 @@
     dest: /tmp/nvm_install.sh
     mode: '0755'
   become: true
+  when: not ansible_env.HOME is undefined
 
 - name: Check if NVM is already installed
   stat:
@@ -168,23 +75,7 @@
     executable: /bin/bash
   when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
 
-# ==================== OpenAPI Generator CLI via npm ====================
-- name: Detect JAVA_HOME from current java on PATH
-  shell: |
-    set -e
-    JAVA_BIN="$(command -v java || true)"
-    if [ -n "$JAVA_BIN" ]; then
-      readlink -f "$JAVA_BIN" | awk -F'/bin/java' '{print $1}'
-    fi
-  args:
-    executable: /bin/bash
-  register: java_home_cmd
-  changed_when: false
-  failed_when: false
-
-- name: Set JAVA_HOME fact (may be empty)
-  set_fact:
-    JAVA_HOME: "{{ (java_home_cmd.stdout | default('')) | trim }}"
+# ----------------- OpenAPI Generator CLI via npm -----------------
 
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
@@ -196,9 +87,6 @@
   register: openapi_cli_check
   changed_when: false
   failed_when: false
-  environment:
-    JAVA_HOME: "{{ JAVA_HOME }}"
-    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
 - name: Install OpenAPI generator CLI via npm (and select version)
   shell: |
@@ -208,11 +96,9 @@
   args:
     executable: /bin/bash
   when: openapi_cli_check.rc != 0
-  environment:
-    JAVA_HOME: "{{ JAVA_HOME }}"
-    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
-# ==================== JWT + OpenAPI Spec ====================
+# ----------------- JWT + OpenAPI Spec -----------------
+
 - name: Generate JWT token
   command: "scontrol token lifespan=31556926"
   become_user: "{{ slurm_user }}"
@@ -248,11 +134,13 @@
 
 - name: Extract all version strings
   ansible.builtin.set_fact:
-    version_strings: "{{ api_response.content | regex_findall('slurm_v([0-9]+)_get_jobs') }}"
+    version_strings: >-
+      {{ api_response.content | regex_findall('slurm_v([0-9]+)_get_jobs') }}
 
 - name: Set highest version string
   ansible.builtin.set_fact:
-    slurm_api_version: "{{ version_strings | max | string }}"
+    slurm_api_version: >-
+      {{ version_strings | max | string }}
 
 - name: Ensure OpenAPI download dir
   file:
@@ -285,7 +173,8 @@
   when: openapi_jar_find.matched > 0
   become: true
 
-# ==================== Generate SDK ====================
+# ----------------- Generate SDK -----------------
+
 - name: Ensure SDK output directory
   file:
     path: "{{ sdk_output_dir }}"
@@ -300,44 +189,28 @@
   args:
     chdir: "{{ sdk_output_dir }}"
 
-# ==================== Build & install SDK into venv ====================
-# Keep build toolchain inside the venv; no system packages touched.
-- name: Upgrade packaging, setuptools, wheel, build (venv)
-  shell: >
-    {{ vpip }} install --upgrade
-    "packaging>=24.1"
-    "setuptools>=68"
-    "wheel>=0.41"
-    "build>=1.2.1"
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
+# ----------------- Build & install SDK wheel using venv -----------------
 
-- name: Build slurm sdk python wheel (venv)
+- name: Build slurm sdk python wheel using venv
   shell: |
-    {{ vpy }} setup.py bdist_wheel
+    {{ python_executable }} setup.py bdist_wheel
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
 
-- name: Preinstall runtime deps into venv
-  shell: >
-    {{ vpip }} install --upgrade typing_extensions>=4.12.2 &&
-    {{ vpip }} install --upgrade annotated_types>=0.6.0 &&
-    {{ vpip }} install --upgrade typing-inspect>=0.4.0
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-
-- name: Install pydantic>=2 into venv
-  shell: >
-    {{ vpip }} install --upgrade "pydantic>=2"
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-
-- name: Install generated SDK wheel into venv
-  shell: >
-    {{ vpip }} install --force-reinstall --upgrade dist/*.whl
+- name: Install slurm sdk wheel into venv
+  shell: |
+    {{ pip_cmd }} install --force-reinstall --upgrade dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
+
+- name: Verify SDK installation
+  command: "{{ pip_cmd }} show openapi-client"
+  register: sdk_verify
+  changed_when: false
+  failed_when: sdk_verify.rc != 0
+
+- name: Display SDK installation info
+  debug:
+    msg: "{{ sdk_verify.stdout_lines }}"

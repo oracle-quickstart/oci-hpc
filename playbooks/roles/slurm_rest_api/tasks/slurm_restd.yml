@@ -1,122 +1,33 @@
-# ==================== Unified Python via venv (all OS) ====================
-- name: Set unified Python/venv paths
+- name: Set OS ID
   set_fact:
-    py_ver: "3.11.9"
-    pyenv_root: "/opt/pyenv"
-    venv_dir: "/opt/oci-hpc/venv"
+    os_id: "{{ 'ol' if ansible_distribution == 'OracleLinux' else 'centos' if ansible_distribution == 'CentOS' else ansible_distribution | lower }}"
+
+- name: Set unified venv paths
+  set_fact:
+    venv_dir: "/config/venv/{{ os_id | capitalize }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/oci"
     vpy: "{{ venv_dir }}/bin/python"
     vpip: "{{ venv_dir }}/bin/pip"
 
-# ---- Build prerequisites for compiling CPython ----
-# Ubuntu 22/24
-- name: Install build deps (Ubuntu)
+- name: Choose Java package on OL/RHEL
+  set_fact:
+    java_pkg: "{{ 'java-17-openjdk' if (ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version|int) >= 9) else 'java-11-openjdk' }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Install required deps (Ubuntu)
   apt:
     name:
-      - make
-      - build-essential
-      - libssl-dev
-      - zlib1g-dev
-      - libbz2-dev
-      - libreadline-dev
-      - libsqlite3-dev
-      - wget
-      - curl
-      - llvm
-      - libncursesw5-dev
-      - xz-utils
-      - tk-dev
-      - libxml2-dev
-      - libxmlsec1-dev
-      - libffi-dev
-      - liblzma-dev
-      - git
       - default-jre
     state: present
     update_cache: yes
   when: ansible_os_family == "Debian"
   become: true
 
-# OL8 / OL9
-- name: Choose Java package on OL/RHEL
-  set_fact:
-    java_pkg: "{{ 'java-17-openjdk' if (ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version|int) >= 9) else 'java-11-openjdk' }}"
-  when: ansible_os_family == "RedHat"
-
-- name: Install build deps (OL/RHEL)
+- name: Install required deps (OL/RHEL)
   dnf:
     name:
-      - gcc
-      - gcc-c++
-      - make
-      - zlib-devel
-      - bzip2
-      - bzip2-devel
-      - readline-devel
-      - sqlite
-      - sqlite-devel
-      - openssl-devel
-      - tk-devel
-      - libffi-devel
-      - xz-devel
-      - findutils
-      - git
       - "{{ java_pkg }}"
     state: present
   when: ansible_os_family == "RedHat"
-  become: true
-
-# ---- Install pyenv system-wide (idempotent) ----
-- name: Ensure pyenv root exists
-  file:
-    path: "{{ pyenv_root }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  become: true
-
-- name: Install/Update pyenv
-  git:
-    repo: "https://github.com/pyenv/pyenv.git"
-    dest: "{{ pyenv_root }}"
-    version: master
-    update: no
-  become: true
-
-# ---- Build the chosen Python with pyenv (idempotent) ----
-- name: Check if Python {{ py_ver }} already installed by pyenv
-  stat:
-    path: "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python"
-  register: pyenv_py
-  become: true
-
-- name: Build Python {{ py_ver }} via pyenv
-  shell: |
-    export PYENV_ROOT="{{ pyenv_root }}"
-    export PATH="$PYENV_ROOT/bin:$PATH"
-    eval "$(pyenv init -)"
-    pyenv install -s "{{ py_ver }}"
-  args:
-    executable: /bin/bash
-  when: not pyenv_py.stat.exists
-  become: true
-
-# ---- Create venv from the unified Python (idempotent) ----
-- name: Ensure venv directory exists
-  file:
-    path: "{{ venv_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  become: true
-
-- name: Create venv if missing
-  shell: |
-    "{{ pyenv_root }}/versions/{{ py_ver }}/bin/python" -m venv "{{ venv_dir }}"
-  args:
-    creates: "{{ venv_dir }}/bin/activate"
-    executable: /bin/bash
   become: true
 
 # ==================== NVM / OpenAPI Generator ====================
