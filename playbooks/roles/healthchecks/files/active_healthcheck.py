@@ -7,6 +7,7 @@ import requests
 import subprocess
 import logging
 import getpass
+import time
 
 # Configure logger for active_healthcheck
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -130,7 +131,7 @@ def run_local_nccl_test(shape):
                         return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
                     if bw < shape_mapping[shape]["threshold"]:
                         logger.error(f"NCCL Test Failed: Avg bus bandwidth is {bw}")
-                        return False,"NCCL Test Failed: Avg bus bandwidth is less than 200"
+                        return False,f"NCCL Test Failed: Avg bus bandwidth is less than {shape_mapping[shape]['threshold']}"
             if not bw is None:
                 return True,"NCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
             else:
@@ -157,7 +158,58 @@ def run_local_nccl_test(shape):
         output = result.stdout.decode('utf-8')
         print(output)
         return False, str(e)
-
+    
+def run_local_rccl_test(shape):
+    # from https://rocm.blogs.amd.com/software-tools-optimization/mi300x-rccl-xgmi/README.html
+    shape_mapping = {
+        "BM.GPU.MI300X.8": {
+            "threshold": 310
+        }
+    } 
+    try:
+        cmd_gpu_count="rocm-smi --showproductname --json | jq 'length'"
+        gpu_count=run_as_default_user(cmd_gpu_count).stdout.decode('utf-8').strip()[0]
+        cmd_rccl_test="source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && /opt/rccl-tests/build/all_reduce_perf -b 1G -e 16G -f 2 -g " + gpu_count + " -n 50 -f 2"
+        result = run_as_default_user(cmd_rccl_test, timeout=120)
+        if result.returncode == 0:
+            output = result.stdout.decode('utf-8')
+            bw=None
+            for line in output.splitlines():
+                if "Avg bus bandwidth" in line:
+                    try:
+                        bw=float(line.split()[5])
+                    except:
+                        logger.error(f"RCCL Test Failed: Avg bus bandwidth could not be found")
+                        return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
+                    if bw < shape_mapping[shape]["threshold"]:
+                        logger.error(f"RCCL Test Failed: Avg bus bandwidth is {bw}")
+                        return False,f"RCCL Test Failed: Avg bus bandwidth is less than {shape_mapping[shape]['threshold']}"
+            if not bw is None:
+                return True,"RCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
+            else:
+                logger.error(f"RCCL Test Failed: Avg bus bandwidth could not be found")
+                return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
+        else:
+            print(result)
+            if result.stdout is None:
+                if result.stderr is None:
+                    output=""
+                else:
+                    output=result.stderr.decode('utf-8')
+            else:
+                output=result.stdout.decode('utf-8')
+            logger.error(f"Failed to run local Rccl test: {output}")
+            return False, output
+    except subprocess.TimeoutExpired:
+        logger.error("RCCL test timed out after 2 minutes")
+        output = result.stdout.decode('utf-8')
+        print(output)
+        return False, "Timeout after 2 minutes"
+    except Exception as e:
+        logger.error(f"Failed to run local rccl test: {e}")
+        output = result.stdout.decode('utf-8')
+        print(output)
+        return False, str(e)
 
 def run_gpu_fryer(run_time):
     try:
@@ -291,20 +343,33 @@ if __name__ == '__main__':
         host_serial = "Unknown"
     logger.info(f"Node details: {hostname} - {host_serial} - {ocid} - {shape}")
 
-    nccl_state,nccl_output = run_local_nccl_test(shape)
-    if not nccl_state:
-        logger.error(f"{hostname} - NCCL Test Failed: {nccl_output}")
-        slurm_reason("Single node NCCL Test Failed")
-        action = recommended_action(action, "Tag_and_Terminate")
+    if "BM.GPU.MI" not in shape:
+        # NVIDIA GPU's
+        nccl_state,nccl_output = run_local_nccl_test(shape)
+        if not nccl_state:
+            logger.error(f"{hostname} - NCCL Test Failed: {nccl_output}")
+            slurm_reason("Single node NCCL Test Failed")
+            action = recommended_action(action, "Tag_and_Terminate")
+        else:
+            logger.info(f"{hostname} - NCCL Test Succeeded: {nccl_output}")
+        gpu_fryer_state,gpu_fryer_output = run_gpu_fryer(20)
+        if not gpu_fryer_state:
+            logger.error(f"{hostname} - GPU Fryer Test Failed: {gpu_fryer_output}")
+            slurm_reason("Single node GPU Fryer Test Failed")
+            action = recommended_action(action, "Tag_and_Terminate")
+        else:
+            logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
     else:
-        logger.info(f"{hostname} - NCCL Test Succeeded: {nccl_output}")
-    gpu_fryer_state,gpu_fryer_output = run_gpu_fryer(20)
-    if not gpu_fryer_state:
-        logger.error(f"{hostname} - GPU Fryer Test Failed: {gpu_fryer_output}")
-        slurm_reason("Single node GPU Fryer Test Failed")
-        action = recommended_action(action, "Tag_and_Terminate")
-    else:
-        logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
+        #AMD GPU's: 
+        rccl_state,rccl_output = run_local_rccl_test(shape)
+        if not rccl_state:
+            logger.error(f"{hostname} - RCCL Test Failed: {rccl_output}")
+            slurm_reason("Single node RCCL Test Failed")
+            action = recommended_action(action, "Tag_and_Terminate")
+        else:
+            logger.info(f"{hostname} - RCCL Test Succeeded: {rccl_output}")
+
+
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()
         if last_2hour_reboot > 0 or number_of_reboots > 5:
