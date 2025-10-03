@@ -1,70 +1,33 @@
----
-- name: Set python version variables
+- name: Set OS ID
   set_fact:
-    python_version: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
-      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
-      {% else %}3{% endif %}
-    python_executable: "/usr/bin/python{{ python_version }}"
+    os_id: "{{ 'ol' if ansible_distribution == 'OracleLinux' else 'centos' if ansible_distribution == 'CentOS' else ansible_distribution | lower }}"
 
-- name: Define pip command and break flag
+- name: Set unified venv paths
   set_fact:
-    pip_cmd: "{{ python_executable }} -m pip"
-    pip_break_flag: "{{ (ansible_facts.os_family == 'Debian') | ternary('--break-system-packages','') }}"
-
-- name: Ensure pip present on Debian/Ubuntu
-  become: true
-  apt:
-    name: python3-pip
-    state: present
-    update_cache: yes
-  when: ansible_facts.os_family == "Debian"
-
-- name: Ensure pip present on RHEL/OL
-  become: true
-  dnf:
-    name: python3-pip
-    state: present
-  when: ansible_facts.os_family == "RedHat"
-
-- name: Install prometheus_client python package (system site-packages)
-  become: true
-  shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed prometheus_client {{ pip_break_flag }}
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-
-- name: Install ujson python package (system site-packages)
-  become: true
-  shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed ujson {{ pip_break_flag }}
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
+    venv_dir: "/config/venv/{{ os_id | capitalize }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/oci"
 
 - name: Render slurm-exporter python script
-  become: true
   template:
     src: slurm-exporter.py.j2
     dest: /usr/local/bin/slurm-exporter.py
     owner: "{{ slurm_user }}"
     group: "{{ slurm_group }}"
     mode: "0744"
-
-- name: Render slurm-exporter systemd service file
   become: true
+
+- name: Render slurm-exporter systemd service
   template:
     src: slurm-exporter.service.j2
     dest: /etc/systemd/system/slurm-exporter.service
-    owner: root
-    group: root
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_group }}"
     mode: "0644"
-
-- name: Start slurm-exporter service
   become: true
+
+- name: Start/enable slurm-exporter
   service:
     name: slurm-exporter
     daemon_reload: true
     state: restarted
     enabled: yes
+  become: true

@@ -1,49 +1,35 @@
 ---
-# ----------------- Python version & paths -----------------
-- name: Set Python version facts based on OS
-  set_fact:
-    # IMPORTANT: OL8 must be "3.8" (with a dot), not "38"
-    python_version: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
-      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
-      {% else %}3{% endif %}
-    python_executable: "/usr/bin/python{{ python_version }}"
+# ----------------- Detect venv Python -----------------
+- name: Detect UV venv Python executable
+  shell: |
+    source /etc/os-release
+    vid=$(echo $VERSION | awk -F. '{print $1}')
+    export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+    echo "${UV_INSTALL_DIR}/oci/bin/python"
+  args:
+    executable: /bin/bash
+  register: venv_python_detect
+  changed_when: false
 
-# --- OL8 hard override for interpreter path ---
-- name: OL8 | hard-set python_executable to /usr/bin/python3.8
+- name: Set Python facts from venv
   set_fact:
-    python_executable: /usr/bin/python3.8
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
+    python_executable: "{{ venv_python_detect.stdout | trim }}"
+    pip_cmd: "{{ venv_python_detect.stdout | trim }} -m pip"
 
-# Recompute pip_cmd after overriding interpreter
-- name: Recompute pip_cmd after OL8 override
-  set_fact:
-    pip_cmd: "{{ python_executable }} -m pip"
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
+- name: Verify venv Python exists
+  stat:
+    path: "{{ python_executable }}"
+  register: venv_python_stat
+  failed_when: not venv_python_stat.stat.exists
 
-# For dnf-based distros, map RPM names correctly (OL8 uses python38*, OL9 uses python3*)
-- name: Set Python package name facts for dnf-based distros
-  set_fact:
-    py_pkg_base: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38
-      {% else %}python3{% endif %}
-    py_pkg_pip: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}python38-pip
-      {% else %}python3-pip{% endif %}
-  when: ansible_os_family == "RedHat"
+- name: Get Python version from venv
+  command: "{{ python_executable }} --version"
+  register: python_version_output
+  changed_when: false
 
-- name: Define pip command with break-system-packages
-  set_fact:
-    pip_cmd: "{{ python_executable }} -m pip"
-    pip_break_flag: "{{ (ansible_facts.os_family == 'Debian') | ternary('--break-system-packages','') }}"
+- name: Display detected Python
+  debug:
+    msg: "Using Python: {{ python_executable }} ({{ python_version_output.stdout }})"
 
 # ----------------- NVM / Node / OpenAPI Generator -----------------
 
@@ -144,7 +130,7 @@
     headers:
       X-SLURM-USER-NAME: "{{ slurm_user }}"
       X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
-  register: api_response  
+  register: api_response
 
 - name: Extract all version strings
   ansible.builtin.set_fact:
@@ -203,153 +189,28 @@
   args:
     chdir: "{{ sdk_output_dir }}"
 
-# ----------------- System Python (PEP 668 bypass) -----------------
+# ----------------- Build & install SDK wheel using venv -----------------
 
-# Debian/Ubuntu: install pip & wheel from apt
-- name: Ensure pip/wheel via apt (Debian/Ubuntu)
-  become: true
-  apt:
-    name:
-      - python3-pip
-      - python3-wheel
-    state: present
-    update_cache: yes
-  register: apt_result
-  until: apt_result is succeeded
-  retries: 5
-  delay: 6
-  when: ansible_facts.os_family == "Debian"
-
-# OL8: enable repos + module and install python38 + python38-pip so /usr/bin/python3.8 exists
-- name: OL8 | enable CodeReady Builder + AppStream
-  become: true
-  command: dnf config-manager --set-enabled ol8_codeready_builder ol8_appstream
-  changed_when: false
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-- name: OL8 | enable python38 module stream
-  command: dnf -y module enable python38
-  register: ol8_module_enable
-  changed_when: ol8_module_enable.rc == 0
-  failed_when: false
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-- name: OL8 | install python38 base + pip
-  become: true
-  dnf:
-    name:
-      - "{{ py_pkg_base }}"   # python38
-      - "{{ py_pkg_pip }}"    # python38-pip
-    state: present
-    enablerepo: ol8_codeready_builder,ol8_appstream
-  register: ol8_py
-  until: ol8_py is succeeded
-  retries: 3
-  delay: 4
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-# **OL8 safeguard**: pick the real interpreter path if python_executable is wrong
-- name: OL8 | detect /usr/bin/python3.8
-  stat:
-    path: /usr/bin/python3.8
-  register: ol8_py38_bin
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-- name: OL8 | correct python_executable if needed
-  set_fact:
-    python_executable: >-
-      {{ (ol8_py38_bin.stat.exists | default(false))
-         | ternary('/usr/bin/python3.8',
-                   (python_executable if python_executable is defined else '/usr/bin/python3')) }}
-    pip_cmd: "{{ python_executable }} -m pip"
-  when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-# OL9 / RHEL9+: just ensure python3-pip
-- name: Ensure python3-pip via dnf (RHEL/OL9+)
-  become: true
-  dnf:
-    name: "{{ py_pkg_pip }}"  # python3-pip
-    state: present
-  register: dnf_result
-  until: dnf_result is succeeded
-  retries: 3
-  delay: 4
-  when:
-    - ansible_facts.os_family == "RedHat"
-    - not (ansible_distribution == "OracleLinux" and ansible_distribution_major_version == "8")
-
-# All RHEL/OL: ensure 'wheel' via pip overlay (RPM not needed)
-- name: Install wheel via pip (overlay) on RHEL/OL
-  become: true
-  shell: >
-    {{ python_executable }} -m pip install --upgrade --ignore-installed wheel {{ pip_break_flag }}
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-  when: ansible_facts.os_family == "RedHat"
-
-# --- Make sure Python build toolchain is up-to-date (fixes canonicalize_version error) ---
-
-- name: Upgrade packaging, setuptools, wheel, build as overlay
-  become: true
-  shell: >
-    {{ python_executable }} -m pip install --upgrade --ignore-installed
-    "packaging>=24.1"
-    "setuptools>=68"
-    "wheel>=0.41"
-    "build>=1.2.1"
-    {{ pip_break_flag }}
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-
-# ----------------- Build & install SDK wheel -----------------
-
-- name: Build slurm sdk python wheel
+- name: Build slurm sdk python wheel using venv
   shell: |
     {{ python_executable }} setup.py bdist_wheel
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
 
-# PREINSTALL runtime deps as overlays (no uninstall of Debian packages)
-- name: Preinstall runtime deps as overlays (no uninstall)
-  become: true
-  shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed typing_extensions>=4.12.2 {{ pip_break_flag }} &&
-    {{ pip_cmd }} install --upgrade --ignore-installed annotated_types>=0.6.0 {{ pip_break_flag }} &&
-    {{ pip_cmd }} install --upgrade --ignore-installed typing-inspect>=0.4.0 {{ pip_break_flag }}
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-
-# Now install pydantic itself as an overlay
-- name: Install pydantic>=2 as overlay
-  become: true
-  shell: >
-    {{ pip_cmd }} install --upgrade --ignore-installed "pydantic>=2" {{ pip_break_flag }}
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
-
-# Finally install your generated SDK wheel (also overlay to avoid uninstalls)
-- name: Install slurm sdk wheel (system site-packages, overlay)
-  become: true
-  shell: >
-    {{ pip_cmd }} install --force-reinstall --upgrade --ignore-installed dist/*.whl {{ pip_break_flag }}
+- name: Install slurm sdk wheel into venv
+  shell: |
+    {{ pip_cmd }} install --force-reinstall --upgrade dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
-  environment:
-    PIP_ROOT_USER_ACTION: "ignore"
+
+- name: Verify SDK installation
+  command: "{{ pip_cmd }} show openapi-client"
+  register: sdk_verify
+  changed_when: false
+  failed_when: sdk_verify.rc != 0
+
+- name: Display SDK installation info
+  debug:
+    msg: "{{ sdk_verify.stdout_lines }}"
