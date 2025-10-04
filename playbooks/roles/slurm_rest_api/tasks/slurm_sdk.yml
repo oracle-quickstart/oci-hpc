@@ -114,19 +114,25 @@
   become: true
 
 # ----------------- Generate SDK -----------------
-- name: Ensure SDK output directory
+- name: Ensure SDK output directory exists and is empty
   file:
     path: "{{ sdk_output_dir }}"
-    state: directory
+    state: "{{ item }}"
+  loop:
+    - absent
+    - directory
+  become: true
 
 - name: Generate Slurm python SDK from OpenAPI
   shell: |
     java -jar {{ openapi_download_path }}/openapi-generator.jar generate \
       -g python \
       -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
-      -o {{ sdk_output_dir }}/
+      -o {{ sdk_output_dir }}/ \
+      --skip-validate-spec
   args:
-    chdir: "{{ sdk_output_dir }}"
+    chdir: "{{ openapi_download_path }}"
+  become: true
 
 # ----------------- Build & install SDK wheel using venv -----------------
 - name: Build slurm sdk python wheel using venv
