@@ -23,3 +23,6 @@ slurm_rest_api_spec_filename: "slurm_api.json"
 
 sdk_output_dir: "/opt/oci-hpc/slurm_sdk"
 python_sdk_output_dir: "py-pydantic"
+venv_dir: "/opt/oci-hpc/venv"
+vpip: "{{ venv_dir }}/bin/pip"
+vpy: "{{ venv_dir }}/bin/python"
