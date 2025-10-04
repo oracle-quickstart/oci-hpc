@@ -269,7 +269,8 @@ def scan_host_api_logic():
     for node in node_list:
         for host_api in host_api_list:
             if node.ocid == host_api.instance_id:
-                db_update_node(node,oci_health=host_api.health,oci_impacted_components=host_api.has_impacted_components,oci_host_id=host_api.id)
+                db_update_node(node,oci_host_id=host_api.id)
+                #db_update_node(node,oci_health=host_api.health,oci_impacted_components=host_api.has_impacted_components,oci_host_id=host_api.id)
     for host_api in host_api_list:
         if host_api.instance_id is None and host_api.lifecycle_state == "AVAILABLE":
             if host_api.shape in available_nodes.keys():
