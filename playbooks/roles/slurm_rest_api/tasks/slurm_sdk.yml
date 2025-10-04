@@ -27,9 +27,14 @@
   register: python_version_output
   changed_when: false
 
+# Extract version number for backward compatibility with templates
+- name: Extract Python version number
+  set_fact:
+    python_version: "{{ python_version_output.stdout | regex_replace('^Python ([0-9]+\\.[0-9]+).*', '\\1') }}"
+
 - name: Display detected Python
   debug:
-    msg: "Using Python: {{ python_executable }} ({{ python_version_output.stdout }})"
+    msg: "Using Python: {{ python_executable }} (version {{ python_version }})"
 
 # ----------------- Ensure OpenAPI download directory -----------------
 - name: Ensure OpenAPI download dir
