@@ -114,13 +114,10 @@
   become: true
 
 # ----------------- Generate SDK -----------------
-- name: Ensure SDK output directory exists and is empty
+- name: Ensure SDK output directory
   file:
     path: "{{ sdk_output_dir }}"
-    state: "{{ item }}"
-  loop:
-    - absent
-    - directory
+    state: directory
   become: true
 
 - name: Generate Slurm python SDK from OpenAPI
@@ -128,8 +125,7 @@
     java -jar {{ openapi_download_path }}/openapi-generator.jar generate \
       -g python \
       -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
-      -o {{ sdk_output_dir }}/ \
-      --skip-validate-spec
+      -o {{ sdk_output_dir }}/
   args:
     chdir: "{{ openapi_download_path }}"
   become: true
