@@ -27,78 +27,40 @@
   register: python_version_output
   changed_when: false
 
+# Extract version number for backward compatibility with templates
+- name: Extract Python version number
+  set_fact:
+    python_version: "{{ python_version_output.stdout | regex_replace('^Python ([0-9]+\\.[0-9]+).*', '\\1') }}"
+
 - name: Display detected Python
   debug:
-    msg: "Using Python: {{ python_executable }} ({{ python_version_output.stdout }})"
+    msg: "Using Python: {{ python_executable }} (version {{ python_version }})"
 
-# ----------------- NVM / Node / OpenAPI Generator -----------------
-
-- name: Download NVM install script
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
-  ansible.builtin.get_url:
-    url: "{{ nvm_install_url }}"
-    dest: /tmp/nvm_install.sh
+# ----------------- Ensure OpenAPI download directory -----------------
+- name: Ensure OpenAPI download dir
+  file:
+    path: "{{ openapi_download_path }}"
+    state: directory
     mode: '0755'
   become: true
-  when: not ansible_env.HOME is undefined
 
-- name: Check if NVM is already installed
+# ----------------- OpenAPI Generator JAR -----------------
+- name: Download openapi-generator jar directly
+  get_url:
+    url: "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/{{ openapi_generator_jar_version }}/openapi-generator-cli-{{ openapi_generator_jar_version }}.jar"
+    dest: "{{ openapi_download_path }}/openapi-generator.jar"
+    mode: '0644'
+    validate_certs: "{{ false if ansible_distribution == 'OracleLinux' else true }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  become: true
+
+- name: Verify jar file exists
   stat:
-    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
-  register: nvm_exists
-
-- name: Execute NVM install script
-  shell: "/tmp/nvm_install.sh"
-  args:
-    executable: /bin/bash
-  environment:
-    HOME: "{{ ansible_env.HOME }}"
-  when: not nvm_exists.stat.exists
-
-- name: Check if Node.js is already installed via NVM
-  shell: |
-    set -e
-    source ~/.nvm/nvm.sh
-    nvm list --no-colors | grep -c "lts" || true
-  args:
-    executable: /bin/bash
-  register: node_lts_check
-  changed_when: false
-  failed_when: false
-
-- name: Install Node LTS and latest npm
-  shell: |
-    source ~/.nvm/nvm.sh
-    nvm install --lts
-    nvm install-latest-npm
-  args:
-    executable: /bin/bash
-  when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
-
-# ----------------- OpenAPI Generator CLI via npm -----------------
-
-- name: Check if OpenAPI generator CLI is already installed
-  shell: |
-    set -e
-    source ~/.nvm/nvm.sh
-    npm list -g @openapitools/openapi-generator-cli || true
-  args:
-    executable: /bin/bash
-  register: openapi_cli_check
-  changed_when: false
-  failed_when: false
-
-- name: Install OpenAPI generator CLI via npm (and select version)
-  shell: |
-    source ~/.nvm/nvm.sh
-    npm install -g {{ openapi_generator_cli_pkg }}
-    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json
-  args:
-    executable: /bin/bash
-  when: openapi_cli_check.rc != 0
+    path: "{{ openapi_download_path }}/openapi-generator.jar"
+  register: jar_stat
+  failed_when: not jar_stat.stat.exists
 
 # ----------------- JWT + OpenAPI Spec -----------------
-
 - name: Generate JWT token
   command: "scontrol token lifespan=31556926"
   become_user: "{{ slurm_user }}"
@@ -142,11 +104,6 @@
     slurm_api_version: >-
       {{ version_strings | max | string }}
 
-- name: Ensure OpenAPI download dir
-  file:
-    path: "{{ openapi_download_path }}"
-    state: directory
-
 - name: Download Slurm OpenAPI spec
   uri:
     url: "{{ slurm_rest_api_spec_url }}"
@@ -156,25 +113,7 @@
       X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
   become: true
 
-- name: Find the openapi-generator jar
-  find:
-    paths: "{{ ansible_env.HOME }}/.nvm"
-    patterns: "{{ openapi_generator_jar_version }}.jar"
-    file_type: file
-    recurse: true
-  register: openapi_jar_find
-
-- name: Copy openapi-generator jar to local path
-  copy:
-    remote_src: true
-    src: "{{ item.path }}"
-    dest: "{{ openapi_download_path }}/openapi-generator.jar"
-  loop: "{{ openapi_jar_find.files }}"
-  when: openapi_jar_find.matched > 0
-  become: true
-
 # ----------------- Generate SDK -----------------
-
 - name: Ensure SDK output directory
   file:
     path: "{{ sdk_output_dir }}"
@@ -190,7 +129,6 @@
     chdir: "{{ sdk_output_dir }}"
 
 # ----------------- Build & install SDK wheel using venv -----------------
-
 - name: Build slurm sdk python wheel using venv
   shell: |
     {{ python_executable }} setup.py bdist_wheel
