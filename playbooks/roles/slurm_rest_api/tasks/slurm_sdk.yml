@@ -137,6 +137,7 @@
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
+  become: true
 
 - name: Install slurm sdk wheel into venv
   shell: |
@@ -144,12 +145,14 @@
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
+  become: true
 
 - name: Verify SDK installation
   command: "{{ pip_cmd }} show openapi-client"
   register: sdk_verify
   changed_when: false
   failed_when: sdk_verify.rc != 0
+  become: true
 
 - name: Display SDK installation info
   debug:
