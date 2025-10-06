@@ -61,10 +61,10 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum install --enablerepo=$repo -y ansible python-netaddr python-dnf
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf
+    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser
     sudo python3.8 -m pip install --upgrade pip
   elif [ $vid == 9 ] ; then
-    sudo dnf install -y python3 python3-pip python3-dnf
+    sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
     sudo python3 -m pip install --upgrade pip
   fi
 
@@ -109,7 +109,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fix_apt
   sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
@@ -117,20 +117,20 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       do
         echo "wait until apt update is done"
         sleep 10s
-        sudo apt-get -y install python3 python3-pip jq
+        sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
         apt_success=$?
         echo $apt_success
       done
   fi
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   else
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   fi
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp

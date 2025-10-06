@@ -27,9 +27,14 @@
   register: python_version_output
   changed_when: false
 
+# Extract version number for backward compatibility with templates
+- name: Extract Python version number
+  set_fact:
+    python_version: "{{ python_version_output.stdout | regex_replace('^Python ([0-9]+\\.[0-9]+).*', '\\1') }}"
+
 - name: Display detected Python
   debug:
-    msg: "Using Python: {{ python_executable }} ({{ python_version_output.stdout }})"
+    msg: "Using Python: {{ python_executable }} (version {{ python_version }})"
 
 # ----------------- Ensure OpenAPI download directory -----------------
 - name: Ensure OpenAPI download dir
@@ -45,6 +50,8 @@
     url: "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/{{ openapi_generator_jar_version }}/openapi-generator-cli-{{ openapi_generator_jar_version }}.jar"
     dest: "{{ openapi_download_path }}/openapi-generator.jar"
     mode: '0644'
+    validate_certs: "{{ false if ansible_distribution == 'OracleLinux' else true }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   become: true
 
 - name: Verify jar file exists
@@ -111,6 +118,7 @@
   file:
     path: "{{ sdk_output_dir }}"
     state: directory
+  become: true
 
 - name: Generate Slurm python SDK from OpenAPI
   shell: |
@@ -119,7 +127,8 @@
       -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
       -o {{ sdk_output_dir }}/
   args:
-    chdir: "{{ sdk_output_dir }}"
+    chdir: "{{ openapi_download_path }}"
+  become: true
 
 # ----------------- Build & install SDK wheel using venv -----------------
 - name: Build slurm sdk python wheel using venv
@@ -128,6 +137,7 @@
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
+  become: true
 
 - name: Install slurm sdk wheel into venv
   shell: |
@@ -135,12 +145,14 @@
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
+  become: true
 
 - name: Verify SDK installation
   command: "{{ pip_cmd }} show openapi-client"
   register: sdk_verify
   changed_when: false
   failed_when: sdk_verify.rc != 0
+  become: true
 
 - name: Display SDK installation info
   debug:
