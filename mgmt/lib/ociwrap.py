@@ -71,10 +71,6 @@ class OCIClients:
     @cached_property
     def queue_admin_client(self):
         return oci.queue.QueueAdminClient(config={}, signer=self.signer)
-    
-    @cached_property
-    def marketplace_client(self):
-        return oci.marketplace.MarketplaceClient(config={}, signer=self.signer)
 
 
 CLIENTS = OCIClients()
