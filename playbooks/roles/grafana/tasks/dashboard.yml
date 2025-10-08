@@ -1,16 +1,18 @@
 ---
 - name: Download latest jb
   become: true
-  get_url:
-    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-amd64
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  ansible.builtin.get_url:
+    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
     dest: /usr/local/bin/jb
     mode: '0755'
 
 - name: Download latest jsonnet
   become: true
-  get_url:
-    url: https://github.com/google/go-jsonnet/releases/download/v0.20.0/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
-    dest: /tmp/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  ansible.builtin.get_url:
+    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{jsonnet_file}}
+    dest: /tmp
 
 - name: Extract jsonnet
   become: true

@@ -8,7 +8,7 @@ User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple
 Environment="grafana_api_key={{ grafana_api_token | b64encode }}"
-ExecStart=/usr/bin/python3 /usr/local/bin/ons_webhook.py
+ExecStart={{venv_path}}/bin/python3 /usr/local/bin/ons_webhook.py
 Restart=on-failure
 
 [Install]

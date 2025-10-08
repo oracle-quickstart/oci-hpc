@@ -12,13 +12,23 @@ ssh_options="-i ~/.ssh/cluster.key -o StrictHostKeyChecking=no"
 sudo cloud-init status --wait
 
 source /etc/os-release
+if [ ! -d /opt/oci-hpc ] ; then
+  sudo mkdir /opt/oci-hpc
+fi   
+if [ $ID == "ubuntu" ] ; then
+  sudo chown -R ubuntu:ubuntu /opt/
+else
+  sudo chown -R opc:opc /opt/
+fi
 
 vid=`echo $VERSION|awk -F. '{print $1}'`
 if [ $ID == "ol" ] ; then
   if [ $vid == 7 ] ; then
     repo="ol7_developer_EPEL"
+    sudo osms unregister 
   elif [ $vid == 8 ] ; then
     repo="ol8_developer_EPEL"
+    sudo osms unregister 
   elif [ $vid == 9 ] ; then
     repo="ol9_developer_EPEL"
   fi
@@ -26,49 +36,37 @@ elif [ $ID == "centos" ] ; then
   repo="epel"
 fi
 
-# to ensure existing enabled repos are available. 
-if [ $ID == "ol" ] ; then 
-  sudo osms unregister 
-fi 
-VENV_PATH=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+export UV_CACHE_DIR=${UV_INSTALL_DIR}/cache
+export UV_PYTHON_INSTALL_DIR=${UV_INSTALL_DIR}/python
+export UV_LOCAL_CACHE_DIR=/opt/uv_local/cache/
+export UV_LOCAL_PYTHON_INSTALL_DIR=${UV_LOCAL_CACHE_DIR}/python
+
+sudo mkdir -p ${UV_LOCAL_CACHE_DIR}
+sudo mkdir -p ${UV_CACHE_DIR}:${UV_LOCAL_CACHE_DIR}
+sudo mkdir -p ${UV_PYTHON_INSTALL_DIR}:${UV_LOCAL_PYTHON_INSTALL_DIR}
+if [ $ID == "ubuntu" ] ; then
+  sudo chown -R ubuntu:ubuntu ${UV_LOCAL_CACHE_DIR}
+  sudo chown -R ubuntu:ubuntu ${UV_INSTALL_DIR}
+else
+  sudo chown -R opc:opc ${UV_LOCAL_CACHE_DIR}
+  sudo chown -R opc:opc ${UV_INSTALL_DIR}
+fi
 
 # Install ansible and other required packages
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
   if [ $vid == 7 ]; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y ansible python-netaddr
-    sudo python3 -m pip install virtualenv
-    virtualenv $VENV_PATH --always-copy
-    source $VENV_PATH/bin/activate
+    sudo yum install --enablerepo=$repo -y ansible python-netaddr python-dnf
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y python38.x86_64
+    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser
     sudo python3.8 -m pip install --upgrade pip
-    sudo python3.8 -m pip install virtualenv
-    virtualenv $VENV_PATH --always-copy
-    source $VENV_PATH/bin/activate
-    $VENV_PATH/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
-    sudo mkdir /etc/ansible
-    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
-    sudo ln -s /usr/local/bin/ansible /bin/ansible
   elif [ $vid == 9 ] ; then
-    sudo dnf install -y python3 python3-pip
+    sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
     sudo python3 -m pip install --upgrade pip
-    sudo python3 -m pip install virtualenv
-    virtualenv $VENV_PATH --always-copy
-    source $VENV_PATH/bin/activate
-    $VENV_PATH/bin/python3 -m pip install ansible cryptography netaddr > /dev/null
-    sudo mkdir /etc/ansible
-    sudo ln -s /usr/local/bin/ansible-playbook /bin/ansible-playbook
-    sudo ln -s /usr/local/bin/ansible /bin/ansible
   fi
-  $VENV_PATH/bin/python3 -m pip install netaddr --upgrade > /dev/null
-  $VENV_PATH/bin/python3 -m pip install setuptools_rust --upgrade > /dev/null
-  $VENV_PATH/bin/python3 -m pip install requests --upgrade > /dev/null
-  $VENV_PATH/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-  $VENV_PATH/bin/python3 -m pip install oci-cli --upgrade > /dev/null
-
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held
@@ -111,7 +109,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fix_apt
   sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get -y install python python-netaddr python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
@@ -119,37 +117,21 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       do
         echo "wait until apt update is done"
         sleep 10s
-        sudo apt-get -y install python3 python3-netaddr python3-pip jq
+        sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
         apt_success=$?
         echo $apt_success
       done
-    sudo ln -s /usr/bin/python3 /usr/bin/python
   fi
-
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
-    sudo apt-get -y install python python-netaddr python3 python3-pip jq
-    sudo python3 -m pip install virtualenv
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip jq
-    sudo python3 -m pip install virtualenv
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   else
     fix_apt
-    sudo apt-get -y install python3 python3-netaddr python3-pip jq
-    fix_apt
-    sudo apt-get -y install python3-virtualenv
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   fi
-  virtualenv $VENV_PATH
-  source $VENV_PATH/bin/activate
-  $VENV_PATH/bin/python3 -m pip install ansible
-  $VENV_PATH/bin/python3 -m pip install -U pip > /dev/null
-  $VENV_PATH/bin/python3 -m pip install netaddr --upgrade > /dev/null
-  $VENV_PATH/bin/python3 -m pip install requests --upgrade > /dev/null
-  $VENV_PATH/bin/python3 -m pip install urllib3 --upgrade > /dev/null
-  $VENV_PATH/bin/pip install pip --upgrade > /dev/null
-  $VENV_PATH/bin/pip install pyopenssl --upgrade > /dev/null
-
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp
   LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name')
@@ -157,14 +139,93 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   # First try to install into /opt/oci-cli
    bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
       -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
-  $VENV_PATH/bin/pip install oci > /dev/null
 fi 
-ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
-ansible-galaxy collection install community.general --upgrade --force > /dev/null
-ansible-galaxy collection install ansible.posix --force > /dev/null
-ansible-galaxy collection install community.crypto --force > /dev/null
-ansible-galaxy collection install oracle.oci --force > /dev/null
-ansible-galaxy collection install ansible.utils --force > /dev/null
+
+curl -LsSf https://astral.sh/uv/install.sh > ${UV_INSTALL_DIR}/install.sh
+chmod +x ${UV_INSTALL_DIR}/install.sh
+${UV_INSTALL_DIR}/install.sh
+
+source ${UV_INSTALL_DIR}/env
+
+if ( [ $ID == "ol" ] || [ $ID == "centos" ] ) && [ $vid == 8 ] ; then 
+    uv python install 3.10
+else
+    uv python install 3.12
+fi
+uv venv ${UV_INSTALL_DIR}/oci --clear
+source ${UV_INSTALL_DIR}/oci/bin/activate
+uv pip install pip
+uv pip install ansible
+if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
+  if [ $vid == 8 ]; then
+    uv pip install ansible-core==2.12
+  fi
+fi
+uv pip install oci-cli
+uv pip install oci
+uv pip install cryptography
+uv pip install netaddr
+uv pip install setuptools_rust
+uv pip install requests
+uv pip install urllib3
+uv pip install pyopenssl
+uv pip install psutil
+uv pip install distro
+uv pip install prometheus_client
+uv pip install watchdog
+uv pip install opentelemetry-sdk
+uv pip install opentelemetry-exporter-otlp
+uv pip install pynvml
+uv pip install pyudev
+uv pip install clustershell
+uv pip install sqlalchemy
+uv pip install rich
+uv pip install click
+uv pip install ansible_runner
+uv pip install pymysql
+uv pip install memoization
+uv pip install line-protocol-parser
+uv pip install influx-line-protocol
+uv pip install flatdict
+uv pip install pssh
+uv pip install parallel-ssh
+uv pip install ldap3
+uv pip install orjson
+uv pip install watchdog
+uv pip install opentelemetry-sdk
+uv pip install opentelemetry-exporter-otlp
+
+# --- Python build toolchain packages for Slurm SDK ---
+echo "Installing Python build toolchain and SDK dependencies..."
+uv pip install "packaging>=24.1"
+uv pip install "setuptools>=68"
+uv pip install "wheel>=0.41"
+uv pip install "build>=1.2.1"
+
+# --- Slurm SDK runtime dependencies ---
+echo "Installing Slurm SDK runtime dependencies..."
+uv pip install "typing_extensions>=4.12.2"
+uv pip install "annotated_types>=0.6.0"
+uv pip install "typing-inspect>=0.4.0"
+uv pip install "pydantic>=2"
+
+# Other packages
+uv pip install ujson
+
+export VENV_PATH=${UV_INSTALL_DIR}/oci
+
+$VENV_PATH/bin/ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install community.general --upgrade --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install ansible.posix --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install community.crypto --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install ansible.utils --force > /dev/null
+if ( [ $ID == "ol" ] || [ $ID == "centos" ] ) && [ $vid == 8 ] ; then 
+    export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
+    export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt 
+    $VENV_PATH/bin/ansible-galaxy collection install git+https://github.com/oracle/oci-ansible-collection.git > /dev/null
+else
+    $VENV_PATH/bin/ansible-galaxy collection install oracle.oci --force > /dev/null
+fi
 
 threads=$(nproc)
 forks=$(($threads * 8))
@@ -178,7 +239,7 @@ if [ ! -d /etc/ansible ] ; then
   fi
 fi
 
-ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
+$VENV_PATH/bin/ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
 sudo sed -i "s/^\(#\|;\)forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
 sudo sed -i "0,/^\(#\|;\)fact_caching_connection.*/s//fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
@@ -188,3 +249,4 @@ sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
 
+echo "Controller setup complete. VENV_PATH=${VENV_PATH}"

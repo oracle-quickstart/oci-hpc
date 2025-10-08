@@ -20,20 +20,3 @@
     state: latest
     executable: /usr/bin/pip3
   ignore_errors: true
-
-- name: Upgrade Pip3
-  become: true
-  ansible.builtin.pip:
-    name: [pip]
-    state: latest
-    executable: "{{venv_path}}/bin/pip3"
-  ignore_errors: true
-
-- name: Install oci-cli latest version
-  become: true
-  ansible.builtin.pip:
-    name: [oci-cli]
-    state: latest
-    executable: "{{venv_path}}/bin/pip3"
-  ignore_errors: true
-  when: ('controller' in group_names)

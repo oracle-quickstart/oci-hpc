@@ -1,5 +1,5 @@
 import click
-from lib.cli.nodes.commands import boot_volume_swap, list_cmd, tag_and_terminate, terminate, reboot, tag, reconfigure, get
+from lib.cli.nodes.commands import boot_volume_swap, list_cmd, tag_and_terminate, terminate, reboot, tag, reconfigure, get, healthchecks
 
 @click.group("nodes")
 def cmd():
@@ -14,3 +14,4 @@ cmd.add_command(tag.tag)
 cmd.add_command(tag_and_terminate.tag_and_terminate)
 cmd.add_command(reconfigure.reconfigure)
 cmd.add_command(get.get)
+cmd.add_command(healthchecks.healthchecks)

@@ -1,13 +1,4 @@
 ---
-#- name: Download Lustre client installation script for Ubuntu
-#  get_url:
-#    url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/h_p88COOGQtqu3NXk-cKndTddqyCKbraaKS0-jBIiyNIREeFWYyEduQFXjjJsoX1/n/fsssolutions/b/rclone-1/o/ubuntu-lustre-installinstall-ubuntu.sh"
-#    dest: "/tmp/ubuntu-lustre-installinstall-ubuntu.sh"
-#    mode: '0755'
-#  retries: 10
-#  delay: 10
-#  register: result
-#  until: result is not failed
 
 - name: Copy Lustre client installation script for Ubuntu
   copy:

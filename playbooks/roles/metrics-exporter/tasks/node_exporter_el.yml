@@ -40,6 +40,7 @@
 
 - name: Download node_exporter {{ node_exporter }}
   become: true
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz
     dest: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz

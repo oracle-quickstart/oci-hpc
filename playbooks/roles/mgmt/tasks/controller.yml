@@ -9,14 +9,6 @@
     name: safe_yum
   ignore_errors: true
 
-- name: install clustershell
-  become: true
-  pip:
-    name: ["clustershell", "sqlalchemy", "rich", "click", "ansible_runner"]
-    executable: "{{venv_path}}/bin/pip3"
-    state: latest
-  ignore_errors: true
-
 - name: Ensure db directory exists
   file:
     path: "/opt/oci-hpc/db"

@@ -1,150 +1,45 @@
----
-- name: Set python version variables
+- name: Set OS ID
   set_fact:
-    python_version: >-
-      {% if ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8' %}3.8
-      {% elif ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9' %}3.9
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '22' %}3.10
-      {% elif ansible_distribution == 'Ubuntu' and ansible_distribution_major_version == '24' %}3.12
-      {% else %}3{% endif %}
+    os_id: "{{ 'ol' if ansible_distribution == 'OracleLinux' else 'centos' if ansible_distribution == 'CentOS' else ansible_distribution | lower }}"
 
-- name: Set python executable paths
+- name: Set unified venv paths
   set_fact:
-    # Keep your defaults…
-    python_executable: "/usr/bin/python{{ python_version }}"
-    pip_executable: "/usr/bin/pip{{ python_version }}"
+    venv_dir: "/config/venv/{{ os_id | capitalize }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/oci"
+    vpy: "{{ venv_dir }}/bin/python"
+    vpip: "{{ venv_dir }}/bin/pip"
 
-# Hard override for OL8 so we NEVER point to /usr/bin/python38 (doesn't exist)
-- name: OL8 | force interpreter paths to python3.8/pip3.8
-  set_fact:
-    python_executable: /usr/bin/python3.8
-    pip_executable: /usr/bin/pip3.8
-  when:
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-# ----------------- OS deps incl. Java -----------------
-
-- name: Install python build dependencies (apt)
-  package:
-    name:
-      - gcc
-      - make
-      - patch
-      - zlib1g-dev
-      - libbz2-dev
-      - libreadline-dev
-      - sqlite3
-      - libsqlite3-dev
-      - libssl-dev
-      - tk-dev
-      - libffi-dev
-      - xz-utils
-      - libjwt-dev
-      - libhttp-parser-dev
-      - default-jre
-      - "python{{ python_version }}"
-      - "{{ 'python' + (python_version | trim) + '-dev' }}"
-      - python3-pip
-  become: true
-  when: ansible_os_family == "Debian"
-
-# Decide Java version on OL/RHEL
 - name: Choose Java package on OL/RHEL
   set_fact:
-    java_pkg: >-
-      {% if ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version | int) >= 9 %}
-      java-17-openjdk
-      {% else %}
-      java-11-openjdk
-      {% endif %}
+    java_pkg: "{{ 'java-17-openjdk' if (ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version|int) >= 9) else 'java-11-openjdk' }}"
   when: ansible_os_family == "RedHat"
 
-# ---------- OL8 ONLY: enable repos + module, install python38 ----------
-- name: OL8 | enable CodeReady Builder + AppStream
+- name: Install required deps (Ubuntu)
+  apt:
+    name:
+      - default-jre
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
   become: true
-  command: dnf config-manager --set-enabled ol8_codeready_builder ol8_appstream
-  changed_when: false
-  when:
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
 
-- name: OL8 | enable python38 module stream
-  become: true
-  command: dnf -y module enable python38
-  register: ol8_py38_mod
-  changed_when: ol8_py38_mod.rc == 0
-  failed_when: false
-  when:
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-- name: OL8 | install build deps (python38, -devel, -pip)
-  become: true
+- name: Install required deps (OL/RHEL)
   dnf:
     name:
-      - gcc
-      - make
-      - patch
-      - zlib-devel
-      - bzip2
-      - bzip2-devel
-      - readline-devel
-      - sqlite
-      - sqlite-devel
-      - openssl-devel
-      - tk-devel
-      - libffi-devel
-      - xz-devel
-      - libjwt-devel
-      - http-parser-devel
-      - "{{ java_pkg | default('java-11-openjdk') }}"
-      - python38
-      - python38-devel
-      - python38-pip
-    enablerepo: ol8_codeready_builder,ol8_appstream
+      - "{{ java_pkg }}"
     state: present
-  when:
-    - ansible_distribution == "OracleLinux"
-    - ansible_distribution_major_version == "8"
-
-# ---------- OL9 and other RHEL/OL (non-OL8): keep your python3 names ----------
-- name: Install python build dependencies (dnf) for OL9/RHEL9+
+  when: ansible_os_family == "RedHat"
   become: true
-  dnf:
-    name:
-      - gcc
-      - make
-      - patch
-      - zlib-devel
-      - bzip2
-      - bzip2-devel
-      - readline-devel
-      - sqlite
-      - sqlite-devel
-      - openssl-devel
-      - tk-devel
-      - libffi-devel
-      - xz-devel
-      - libjwt-devel
-      - "{{ java_pkg | default('java-17-openjdk') }}"
-      - python3
-      - python3-devel
-      - python3-pip
-    state: present
-  when:
-    - ansible_os_family == "RedHat"
-    - not (ansible_distribution == "OracleLinux" and ansible_distribution_major_version == "8")
 
-# ----------------- NVM / Node / OpenAPI Generator -----------------
+# ==================== NVM / OpenAPI Generator ====================
+# (unchanged logic; we only add robust cert env for OL and JAVA_HOME detection)
 
 - name: Download NVM install script
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: "{{ nvm_install_url }}"
     dest: /tmp/nvm_install.sh
     mode: '0755'
   become: true
-  when: not ansible_env.HOME is undefined
 
 - name: Check if NVM is already installed
   stat:
@@ -161,12 +56,14 @@
 
 - name: Check if Node.js is already installed via NVM
   shell: |
+    set -e
     source ~/.nvm/nvm.sh
-    nvm list --no-colors | grep -c "lts"
+    nvm list --no-colors | grep -c "lts" || true
   args:
     executable: /bin/bash
   register: node_lts_check
-  ignore_errors: true
+  changed_when: false
+  failed_when: false
 
 - name: Install Node LTS and latest npm
   shell: |
@@ -177,8 +74,7 @@
     executable: /bin/bash
   when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
 
-# ----------------- Java home detection (safe) -----------------
-
+# ---- Java home detection for openapi-generator-cli ----
 - name: Detect JAVA_HOME from current java on PATH
   shell: |
     set -e
@@ -196,35 +92,33 @@
   set_fact:
     JAVA_HOME: "{{ (java_home_cmd.stdout | default('')) | trim }}"
 
-# ----------------- OpenAPI Generator CLI via npm -----------------
-
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
     set -e
     source ~/.nvm/nvm.sh
-    npm list -g @openapitools/openapi-generator-cli
+    npm list -g @openapitools/openapi-generator-cli || true
   args:
     executable: /bin/bash
   register: openapi_cli_check
-  ignore_errors: true
+  changed_when: false
+  failed_when: false
   environment:
     JAVA_HOME: "{{ JAVA_HOME }}"
     PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
 - name: Install OpenAPI generator CLI via npm (and select version)
   shell: |
-    set -e
     source ~/.nvm/nvm.sh
     npm install -g @openapitools/openapi-generator-cli
     openapi-generator-cli version-manager set 7.10.0 --openapitools /tmp/openapitools.json
   args:
     executable: /bin/bash
-  when: (openapi_cli_check.rc | default(1)) != 0
+  when: openapi_cli_check.rc != 0
   environment:
     JAVA_HOME: "{{ JAVA_HOME }}"
     PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
 
-# ----------------- slurmrestd service -----------------
+# ==================== slurmrestd service ====================
 - name: Create the slurmrestd group
   become: true
   ansible.builtin.group:
@@ -232,7 +126,7 @@
     system: yes
     state: present
 
-- name: create slurmrestd user
+- name: Create slurmrestd user
   become: true
   user:
     comment: "Slurmrestd user"
@@ -252,7 +146,7 @@
     group: root
     mode: "0644"
 
-- name: start slurmrestd service
+- name: Start slurmrestd service
   become: true
   service:
     name: slurmrestd

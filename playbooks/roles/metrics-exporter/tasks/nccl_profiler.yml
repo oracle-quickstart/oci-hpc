@@ -1,152 +1,151 @@
 ---
 - name: Get nccl version
   become: true
-  ansible.builtin.shell:
-    cmd: find -L /usr/lib -name "libnccl.so*" -print | grep -E "libnccl\.so\.[0-9]+\.[0-9]+\.[0-9]+$" | awk -F".so." '{print $2}'
+  ansible.builtin.shell: |
+    find -L /usr/lib /usr/lib64 /usr/local/lib /usr/lib/x86_64-linux-gnu -name "libnccl.so*" -print |
+    grep -E "libnccl\.so\.[0-9]+\.[0-9]+\.[0-9]+$" |
+    awk -F".so." '{print $2}' | head -n 1
   register: nccl_version_output
-  delegate_to: "{{ groups['compute'][0] }}"
-  run_once: true
-
-- name: Set nccl version globally
-  set_fact:
-    nccl_version: "{{ nccl_version_output.stdout }}"
   delegate_to: localhost
   run_once: true
+  ignore_errors: true
+  failed_when: nccl_version_output.stdout | trim == ""
 
-- name: Find nccl releases
-  become: true
-  ansible.builtin.shell:
-    cmd: curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"'
-  register: nccl_releases
-  delegate_to: localhost
-  run_once: true
+- name: Run nccl profiler tasks
+  when: nccl_version_output.stdout | trim != ""
+  block:
+    - name: Set nccl version globally
+      set_fact:
+        nccl_version: "{{ nccl_version_output.stdout }}"
+      delegate_to: localhost
+      run_once: true
 
-- name: Select appropriate NCCL version
-  set_fact:
-    nccl_tarball_url: >-
-      {{
-        nccl_releases.stdout_lines
-        | select('match', '^v' + nccl_version + '-1')
-        | first
-        | split(' ')
-        | last
-      }}
-  delegate_to: localhost
-  run_once: true
+    - name: Find nccl releases
+      become: true
+      ansible.builtin.shell:
+        cmd: curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"'
+      register: nccl_releases
+      delegate_to: localhost
+      run_once: true
 
-- name: Download NCCL tarball
-  become: true
-  ansible.builtin.get_url:
-    url: "{{ nccl_tarball_url }}"
-    dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
-  delegate_to: localhost
-  run_once: true
+    - name: Select appropriate NCCL version
+      set_fact:
+        nccl_tarball_url: >-
+          {{
+            nccl_releases.stdout_lines
+            | select('match', '^v' + nccl_version + '-1')
+            | first
+            | split(' ')
+            | last
+          }}
+      delegate_to: localhost
+      run_once: true
 
-- name: Copy nccl tarball to target
-  become: true
-  ansible.builtin.copy:
-    src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
-    dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
-  delegate_to: localhost
-  run_once: true
+    - name: Download NCCL tarball
+      become: true
+      ansible.builtin.get_url:
+        url: "{{ nccl_tarball_url }}"
+        dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+      delegate_to: localhost
+      run_once: true
+      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
 
-- name: Extract NCCL tarball
-  become: true
-  ansible.builtin.unarchive:
-    src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
-    dest: "/tmp"
 
-- name: Get NCCL directory
-  ansible.builtin.shell: "ls -d /tmp/NVIDIA-nccl-*"
-  register: nccl_directory
+    - name: Copy nccl tarball to target
+      become: true
+      ansible.builtin.copy:
+        src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+        dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+      delegate_to: localhost
+      run_once: true
 
-- name: Build NCCL profiler plugin
-  become: true
-  ansible.builtin.command: make
-  args:
-    chdir: "{{ nccl_directory.stdout }}/ext-profiler/example"
-  environment:
-    PATH: "{{ ansible_env.PATH }}"
+    - name: Extract NCCL tarball
+      become: true
+      ansible.builtin.unarchive:
+        src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+        dest: "/tmp"
 
-- name: Find the .so file in the directory
-  ansible.builtin.find:
-    paths: "{{ nccl_directory.stdout }}/ext-profiler/example"
-    patterns: "*.so"
-    file_type: file
-  register: so_file
+    - name: Get NCCL directory
+      ansible.builtin.shell: "ls -d /tmp/NVIDIA-nccl-*"
+      register: nccl_directory
 
-- name: Copy NCCL profiler library (Debian)
-  become: true
-  ansible.builtin.copy:
-    src: "{{so_file.files[0].path}}"
-    dest: "/usr/lib/x86_64-linux-gnu/{{so_file.files[0].path | basename}}"
-    mode: "0644"
-    remote_src: true
-  when: ansible_os_family == "Debian"
+    - name: Build NCCL profiler plugin
+      become: true
+      ansible.builtin.command: make
+      args:
+        chdir: "{{ nccl_directory.stdout }}/ext-profiler/example"
+      environment:
+        PATH: "{{ ansible_env.PATH }}"
 
-- name: Copy NCCL profiler library (RedHat)
-  become: true
-  ansible.builtin.copy:
-    src: "{{so_file.files[0].path}}"
-    dest: "/usr/lib64/{{so_file.files[0].path | basename}}"
-    mode: "0644"
-    remote_src: true
-  when: ansible_distribution == "RedHat"
+    - name: Find the .so file in the directory
+      ansible.builtin.find:
+        paths: "{{ nccl_directory.stdout }}/ext-profiler/example"
+        patterns: "*.so"
+        file_type: file
+      register: so_file
 
-- name: Install nccl-profiler-exporter python dependencies
-  become: true
-  ansible.builtin.pip:
-    name:
-      - orjson
-      - watchdog
-      - opentelemetry-sdk
-      - opentelemetry-exporter-otlp
-    executable: pip3
+    - name: Copy NCCL profiler library (Debian)
+      become: true
+      ansible.builtin.copy:
+        src: "{{so_file.files[0].path}}"
+        dest: "/usr/lib/x86_64-linux-gnu/{{so_file.files[0].path | basename}}"
+        mode: "0644"
+        remote_src: true
+      when: ansible_os_family == "Debian"
 
-- name: Install NCCL trace exporter script
-  become: true
-  ansible.builtin.copy:
-    src: nccl_profiler_exporter.py
-    dest: "{{ nccl_exporter_script }}"
-    mode: '0755'
+    - name: Copy NCCL profiler library (RedHat)
+      become: true
+      ansible.builtin.copy:
+        src: "{{so_file.files[0].path}}"
+        dest: "/usr/lib64/{{so_file.files[0].path | basename}}"
+        mode: "0644"
+        remote_src: true
+      when: ansible_distribution == "RedHat"
 
-- name: Find monitoring hosts
-  set_fact:
-    monitoring_hosts: "{{ groups['all'] | select('search', 'monitoring') | list }}"
-  run_once: true
+    - name: Install NCCL trace exporter script
+      become: true
+      ansible.builtin.copy:
+        src: nccl_profiler_exporter.py
+        dest: "{{ nccl_exporter_script }}"
+        mode: '0755'
 
-- name: Find controller hosts
-  set_fact:
-    controller_hosts: "{{ groups['all'] | select('search', 'controller') | list }}"
-  run_once: true
+    - name: Find monitoring hosts
+      set_fact:
+        monitoring_hosts: "{{ groups['all'] | select('search', 'monitoring') | list }}"
+      run_once: true
 
-- name: Set Tempo host
-  set_fact:
-    tempo_host: >-
-      {{ monitoring_hosts[0] if monitoring_hosts | length > 0
-         else controller_hosts[0] if controller_hosts | length > 0
-         else groups['all'][0] }}
-  run_once: true
+    - name: Find controller hosts
+      set_fact:
+        controller_hosts: "{{ groups['all'] | select('search', 'controller') | list }}"
+      run_once: true
 
-- name: Set Tempo endpoint variable
-  set_fact:
-    tempo_endpoint: "{{ hostvars[tempo_host]['ansible_host'] | default(tempo_host) }}:4317"
-  when: tempo_host is defined
-  run_once: true
+    - name: Set Tempo host
+      set_fact:
+        tempo_host: >-
+          {{ monitoring_hosts[0] if monitoring_hosts | length > 0
+            else controller_hosts[0] if controller_hosts | length > 0
+            else groups['all'][0] }}
+      run_once: true
 
-- name: Create systemd service for nccl-profiler-exporter
-  become: true
-  ansible.builtin.template:
-    src: nccl-profiler-exporter.service.j2
-    dest: "{{ exporter_service_file }}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: 0744
-    
-- name: Ensure nccl-profiler-exporter service is enabled and running
-  become: true
-  ansible.builtin.systemd:
-    name: nccl-profiler-exporter.service
-    enabled: true
-    state: started
-    daemon_reload: true
+    - name: Set Tempo endpoint variable
+      set_fact:
+        tempo_endpoint: "{{ hostvars[tempo_host]['ansible_host'] | default(tempo_host) }}:4317"
+      when: tempo_host is defined
+      run_once: true
+
+    - name: Create systemd service for nccl-profiler-exporter
+      become: true
+      ansible.builtin.template:
+        src: nccl-profiler-exporter.service.j2
+        dest: "{{ exporter_service_file }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0744
+        
+    - name: Ensure nccl-profiler-exporter service is enabled and running
+      become: true
+      ansible.builtin.systemd:
+        name: nccl-profiler-exporter.service
+        enabled: true
+        state: started
+        daemon_reload: true
