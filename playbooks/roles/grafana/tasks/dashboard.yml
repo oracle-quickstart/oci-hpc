@@ -1,4 +1,9 @@
 ---
+- name: Resolve arch/jsonnet filenames
+  ansible.builtin.set_fact:
+    arch_suffix: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
+    jsonnet_file: "go-jsonnet_0.21.0_Linux_{{ 'x86_64' if ansible_architecture == 'x86_64' else 'arm64' }}.tar.gz"
+
 - name: Download latest jb
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
@@ -11,16 +16,18 @@
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{jsonnet_file}}
+    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{ jsonnet_file }}
     dest: /tmp
 
 - name: Extract jsonnet
   become: true
-  unarchive:
-    src: /tmp/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ jsonnet_file }}"
     dest: /usr/local/bin
-    mode: '0755'
     remote_src: true
+    mode: '0755'
+    extra_opts: ["--strip-components=1"]
+    creates: /usr/local/bin/jsonnet
 
 - name: Delete existing build directory
   become: true
@@ -113,6 +120,7 @@
     /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
     /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
   environment:
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
   args:
     chdir: "{{ dashboard_build_dir }}"
 

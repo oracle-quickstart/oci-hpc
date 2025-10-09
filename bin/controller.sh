@@ -58,13 +58,13 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
   if [ $vid == 7 ]; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y ansible python-netaddr python-dnf
+    sudo yum install --enablerepo=$repo -y ansible python-netaddr python-dnf git ca-certificates
   elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser
+    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser git ca-certificates
     sudo python3.8 -m pip install --upgrade pip
   elif [ $vid == 9 ] ; then
-    sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
+    sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser git ca-certificates
     sudo python3 -m pip install --upgrade pip
   fi
 
@@ -109,7 +109,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fix_apt
   sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9 git ca-certificates
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
@@ -117,20 +117,20 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       do
         echo "wait until apt update is done"
         sleep 10s
-        sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
+        sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9 git ca-certificates
         apt_success=$?
         echo $apt_success
       done
   fi
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9 git ca-certificates
   elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9 git ca-certificates
   else
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9 git ca-certificates
   fi
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp
@@ -191,9 +191,6 @@ uv pip install pssh
 uv pip install parallel-ssh
 uv pip install ldap3
 uv pip install orjson
-uv pip install watchdog
-uv pip install opentelemetry-sdk
-uv pip install opentelemetry-exporter-otlp
 
 # --- Python build toolchain packages for Slurm SDK ---
 echo "Installing Python build toolchain and SDK dependencies..."

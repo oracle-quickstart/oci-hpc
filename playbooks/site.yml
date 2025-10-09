@@ -84,7 +84,6 @@
 
 - hosts: controller
   become: true
-  vars:
   tasks:
     - include_role:
         name: ssl
