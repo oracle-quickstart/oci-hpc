@@ -208,6 +208,8 @@ uv pip install "pydantic>=2"
 
 # Other packages
 uv pip install ujson
+uv pip install "fastapi[standard-no-fastapi-cloud-cli]"
+uv pip install uvicorn
 
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 

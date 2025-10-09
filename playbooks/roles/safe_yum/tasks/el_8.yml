@@ -1,26 +1,23 @@
 ---
-- name: "Safe Yum install of latest {{package_name}}"
+- name: "Safe Yum install of latest {{ package_name }}"
   block:
-    - name: "Yum first try {{package_name}}"
-      vars:
-        ansible_python_interpreter: /usr/bin/python3
+
+    - name: "Yum first try {{ package_name }} (with enablerepo)"
       become: true
       ansible.builtin.yum:
-        enablerepo: "{{ package_repo | default('None') }}"
+        enablerepo: "{{ package_repo }}"
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
         update_cache: "{{ package_cache | default('false') | bool }}"
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
-      when: package_repo|default('None') != 'None'
+      when: package_repo is defined and package_repo | length > 0
       register: yum_sleeper
       retries: 5
       delay: 10
       until: yum_sleeper is not failed
 
-    - name: "Yum first try {{package_name}}"
-      vars:
-        ansible_python_interpreter: /usr/bin/python3
+    - name: "Yum first try {{ package_name }} (no enablerepo)"
       become: true
       ansible.builtin.yum:
         name: "{{ package_name }}"
@@ -28,51 +25,51 @@
         update_cache: "{{ package_cache | default('false') | bool }}"
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
-      when: package_repo|default('None') == 'None'
+      when: package_repo is not defined or package_repo | length == 0
       register: yum_sleeper
       retries: 5
       delay: 10
       until: yum_sleeper is not failed
 
   rescue:
-    # There seem to be a yum process from the cloud-agent that is randomly hanging and is blocking for other tasks.
-    - name: Make sure the yum cloud-agent process is destroyed.
-      ansible.builtin.shell: "ps -ef | grep /v[a]r/lib/oracle-cloud-agent/plugins/unifiedmonitoring/temp-unified-monitoring.rpm | head -n 1 | awk '{print $2}'"
+    # Oracle cloud-agent sometimes holds yum/dnf locks; clear it and retry.
+    - name: Find cloud-agent rpm process
+      become: true
+      ansible.builtin.shell: >
+        ps -eo pid,cmd | awk '/\/var\/lib\/oracle-cloud-agent\/plugins\/unifiedmonitoring\/temp-unified-monitoring\.rpm/ {print $1; exit}'
       register: yum_process
 
-    - name: Kill Yum Process
-      ansible.builtin.command: "sudo kill -9 {{ yum_process.stdout }}"
-      when: yum_process.stdout != ""
+    - name: Kill cloud-agent rpm process if present
+      become: true
+      ansible.builtin.command: "kill -9 {{ yum_process.stdout }}"
+      when: yum_process.stdout | length > 0
       ignore_errors: true
 
-    - name: "Yum 2nd try {{ package_name }}"
+    - name: "Yum 2nd try {{ package_name }} (with enablerepo)"
       become: true
-      vars:
-        ansible_python_interpreter: /usr/bin/python3
       ansible.builtin.yum:
-        enablerepo: "{{ package_repo | default('None') }}"
+        enablerepo: "{{ package_repo }}"
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
         update_cache: "{{ package_cache | default('false') | bool }}"
         lock_timeout: 90
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
+      when: package_repo is defined and package_repo | length > 0
       register: packages_output
       retries: 5
       delay: 10
       until: packages_output is not failed
-      when: package_repo|default('None') != 'None'
 
-    - name: "Yum 2nd try {{ package_name }}"
-      vars:
-        ansible_python_interpreter: /usr/bin/python3
+    - name: "Yum 2nd try {{ package_name }} (no enablerepo)"
       become: true
       ansible.builtin.yum:
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
         update_cache: "{{ package_cache | default('false') | bool }}"
         lock_timeout: 90
+        disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
+      when: package_repo is not defined or package_repo | length == 0
       register: packages_output
       retries: 5
       delay: 10
       until: packages_output is not failed
-      when: package_repo|default('None') == 'None'

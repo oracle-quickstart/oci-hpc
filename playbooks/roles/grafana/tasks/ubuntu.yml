@@ -1,42 +1,50 @@
 ---
-- name: Add Grafana GPG key
+- name: Ensure keyrings directory exists
   become: true
-  apt_key:
-    url: https://packages.grafana.com/gpg.key
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/grafana-archive-keyring.gpg
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
 
-- name: Add Grafana repository
+- name: Download Grafana APT GPG key
   become: true
-  apt_repository:
-    repo: "deb https://packages.grafana.com/oss/deb stable main"
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.gpg
+    mode: '0644'
+
+- name: Add Grafana APT repository
+  become: true
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+    filename: grafana
     state: present
-    filename: "grafana"
-  register: apt_repository
-  until: apt_repository is not failed
+  register: apt_repo
+  until: apt_repo is not failed
   retries: 10
   delay: 20
 
 - name: Update apt cache
   become: true
-  apt:
+  ansible.builtin.apt:
     update_cache: true
+    cache_valid_time: 3600
 
+# Install packages directly with apt on Ubuntu/Debian
 - name: Install Grafana and Tempo
-  vars:
-    package_name:
+  become: true
+  ansible.builtin.apt:
+    name:
       - grafana
       - tempo
-    package_state: present
-  include_role:
-    name: safe_yum
+    state: present
 
 - name: Start and enable Grafana service
   become: true
-  service:
+  ansible.builtin.service:
     name: grafana-server
     state: restarted
     enabled: true
 
 - name: Setup Grafana
-  include_tasks: setup_grafana.yml
+  ansible.builtin.include_tasks: setup_grafana.yml
