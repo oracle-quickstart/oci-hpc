@@ -2,7 +2,7 @@
 - name: Resolve arch/jsonnet filenames
   ansible.builtin.set_fact:
     arch_suffix: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
-    jsonnet_file: "go-jsonnet_0.21.0_Linux_{{ 'x86_64' if ansible_architecture == 'x86_64' else 'arm64' }}.tar.gz"
+    jsonnet_file: "go-jsonnet_Linux_{{ 'x86_64' if ansible_architecture == 'x86_64' else 'arm64' }}.tar.gz"
 
 - name: Download latest jb
   become: true
