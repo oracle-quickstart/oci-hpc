@@ -760,7 +760,7 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     logger.debug(f"Count after role filter: {query.count()}")
     query = query.filter(label_map["shape"].in_([
         "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
-        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8", "BM.GPU.GB200-v2.4"
+        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8", "BM.GPU.GB200-v2.4", "BM.GPU.MI300X.8"
     ]))
     logger.debug(f"Count after shape filter: {query.count()}")
     query = query.filter(label_map["slurm_state"] == "idle")
@@ -799,7 +799,7 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
     query = query.filter(label_map["shape"].in_([
         "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
         "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4",
-        "BM.GPU.B200.8", "BM.GPU.GB200-v2.4"
+        "BM.GPU.B200.8", "BM.GPU.GB200-v2.4", "BM.GPU.MI300X.8"
     ]))
     logger.debug(f"Count after shape filter: {query.count()}")
 

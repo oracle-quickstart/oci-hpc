@@ -9,9 +9,10 @@
   delegate_to: localhost
   run_once: true
   ignore_errors: true
+  failed_when: nccl_version_output.stdout | trim == ""
 
 - name: Run nccl profiler tasks
-  when: nccl_version_output is not failed
+  when: nccl_version_output.stdout | trim != ""
   block:
     - name: Set nccl version globally
       set_fact:

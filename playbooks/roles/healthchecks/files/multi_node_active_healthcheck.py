@@ -72,7 +72,13 @@ shape_mapping = {
     "BM.Optimized3.36": {
         "var_NCCL_IB_HCA": "=mlx5_2",
         "ib_write_bw": 96
-    }
+    },
+    "BM.GPU.MI300X.8": {
+        "var_UCX_NET_DEVICES": "mlx5_0:1",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_7,mlx5_8,mlx5_9",
+        "threshold": 350,
+        "ib_write_bw": 350
+    }    
 }
 
 healthy = "Healthy"
@@ -235,6 +241,87 @@ def run_multi_node_nccl_test(hostfile, shape):
         return False,"NCCL Test Failed: NCCL test timed out after 2 minutes"
     except Exception as e:
         return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
+
+def run_multi_node_rccl_test(hostfile, shape):
+
+    paths = glob.glob('/usr/mpi/gcc/openmpi-*/bin/mpivars.sh')
+    if paths:
+        mpivars_path = paths[0]
+    else:
+        return False,"RCCL Test Failed: No mpivars.sh found"
+
+    increment=1024*1024*1024*9
+    NCCL_DEBUG="WARN"
+    exec_cmd="/opt/rccl-tests/build/all_reduce_perf"
+
+    var_UCX_NET_DEVICES = shape_mapping.get(shape, {}).get('var_UCX_NET_DEVICES', '')
+    if var_UCX_NET_DEVICES == "":
+        return False,"RCCL Test Failed: Shape not found for RCCL test"
+    var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
+    if shape in ("BM.GPU.MI300X.8"):
+        mpirun_cmd = [
+            "mpirun", "--mca", "pml", "ucx",
+            "--bind-to", "numa",
+            "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
+            "-x", f"NCCL_SOCKET_IFNAME=eth0",
+            "-x", "NCCL_IB_SL=0", 
+            "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
+            "-x", "coll_hcoll_enable=0",
+            "-x", "HCOLL_ENABLE_MCAST_ALL=0",
+            "-x", "NCCL_IGNORE_CPU_AFFINITY=1",
+            "-x", "NCCL_IB_QPS_PER_CONNECTION=4",
+            "-x", "RX_QUEUE_LEN=8192",
+            "-x", "IB_RX_QUEUE_LEN=8192",
+            "--np", "16",
+            "--hostfile", hostfile,
+            exec_cmd, "-b", "1G", "-e", "16G", "-f", "2", "-g", "1", "-n", "50"
+        ]
+
+    else:
+        return False,"RCCL Test Failed: No suitable shape found for RCCL test"
+
+    # Prepare the mpirun command as a string with proper quotations
+    mpirun_str = custom_join(mpirun_cmd)
+    cmd = f"source {mpivars_path} && {mpirun_str}"
+
+    try:
+        result = subprocess.run(
+            cmd,
+            text=True,
+            timeout=120,
+            shell=True,
+            executable='/bin/bash',  # Needed to use 'source mpivars.sh'
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        if result.returncode == 0:
+            output = result.stdout
+            bw=None
+            threshold = shape_mapping.get(shape, {}).get("threshold")
+            if threshold == "":
+                return False,"RCCL Test Failed: Shape not found for RCCL test"
+            for line in output.splitlines():
+                if "Avg bus bandwidth" in line:
+                    try:
+                        bw=float(line.split()[5])
+                    except:
+                        return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
+                    if bw < threshold:
+                        return False,f"RCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
+            if not bw is None:
+                return True,"RCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
+            else:
+                return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
+        else:
+            logger.error(f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}")
+            logger.info(f"result: {potentially_bad}")
+            return False,f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}"
+    except subprocess.TimeoutExpired:
+        return False,"RCCL Test Failed: NCCL test timed out after 2 minutes"
+    except Exception as e:
+        return False, f"RCCL Test Failed: Failed to run nccl test. {e}"
+
 
 def run_ib_write_bw(shape, server, client='localhost'):    
     ib_write_bw = shape_mapping.get(shape, {}).get('ib_write_bw', '')
@@ -473,12 +560,19 @@ if __name__ == '__main__':
         
         datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logger.info(f"Started multi-node active healthcheck at: {datetime_str}")
-    
-        nccl_state,nccl_output = run_multi_node_nccl_test(args.hostfile, shape)
-        if not nccl_state:
-            logger.error(nccl_output)
+
+        if "BM.GPU.MI" not in shape:
+            nccl_state,nccl_output = run_multi_node_nccl_test(args.hostfile, shape)
+            if not nccl_state:
+                logger.error(nccl_output)
+            else:
+                logger.info(nccl_output)
         else:
-            logger.info(nccl_output)
+            rccl_state,rccl_output = run_multi_node_rccl_test(args.hostfile, shape)
+            if not rccl_state:
+                logger.error(rccl_output)
+            else:
+                logger.info(rccl_output)                   
 
         ib_write_bw_state,ib_write_bw_output = run_ib_write_bw(shape, server_host, client_host)
         if not ib_write_bw_state:

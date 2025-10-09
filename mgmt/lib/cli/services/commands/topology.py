@@ -7,7 +7,7 @@ from lib.functions import run_ansible_slurm_init
 def init():
     """Reconfigure the Slurm Config files on the controller. topology.conf and gres.conf."""
 
-    nodes=get_nodes_by_filters(filters={"role": "compute"})
+    nodes=get_nodes_by_filters({"role": "compute"})
     for node in nodes:
         db_update_node(node, controller_status="reconfiguring")
     controller = get_controller_node()

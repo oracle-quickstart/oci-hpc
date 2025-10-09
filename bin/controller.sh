@@ -36,14 +36,11 @@ elif [ $ID == "centos" ] ; then
   repo="epel"
 fi
 
-
-
 export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
 export UV_CACHE_DIR=${UV_INSTALL_DIR}/cache
 export UV_PYTHON_INSTALL_DIR=${UV_INSTALL_DIR}/python
 export UV_LOCAL_CACHE_DIR=/opt/uv_local/cache/
 export UV_LOCAL_PYTHON_INSTALL_DIR=${UV_LOCAL_CACHE_DIR}/python
-
 
 sudo mkdir -p ${UV_LOCAL_CACHE_DIR}
 sudo mkdir -p ${UV_CACHE_DIR}:${UV_LOCAL_CACHE_DIR}
@@ -62,12 +59,12 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python-netaddr python-dnf
-elif [ $vid == 8 ] ; then
+  elif [ $vid == 8 ] ; then
     sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf
+    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser
     sudo python3.8 -m pip install --upgrade pip
   elif [ $vid == 9 ] ; then
-    sudo dnf install -y python3 python3-pip python3-dnf
+    sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
     sudo python3 -m pip install --upgrade pip
   fi
 
@@ -112,7 +109,7 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fix_apt
   sudo apt update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   else
     sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
     apt_success=1
@@ -120,20 +117,20 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       do
         echo "wait until apt update is done"
         sleep 10s
-        sudo apt-get -y install python3 python3-pip jq
+        sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
         apt_success=$?
         echo $apt_success
       done
   fi
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   else
     fix_apt
-    sudo apt-get -y install python3 python3-pip jq
+    sudo apt-get -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   fi
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp
@@ -197,7 +194,23 @@ uv pip install orjson
 uv pip install watchdog
 uv pip install opentelemetry-sdk
 uv pip install opentelemetry-exporter-otlp
-uv pip install wheel
+
+# --- Python build toolchain packages for Slurm SDK ---
+echo "Installing Python build toolchain and SDK dependencies..."
+uv pip install "packaging>=24.1"
+uv pip install "setuptools>=68"
+uv pip install "wheel>=0.41"
+uv pip install "build>=1.2.1"
+
+# --- Slurm SDK runtime dependencies ---
+echo "Installing Slurm SDK runtime dependencies..."
+uv pip install "typing_extensions>=4.12.2"
+uv pip install "annotated_types>=0.6.0"
+uv pip install "typing-inspect>=0.4.0"
+uv pip install "pydantic>=2"
+
+# Other packages
+uv pip install ujson
 
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 
@@ -236,3 +249,4 @@ sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
 
+echo "Controller setup complete. VENV_PATH=${VENV_PATH}"
