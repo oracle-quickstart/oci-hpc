@@ -2,7 +2,8 @@
 - name: Resolve arch/jsonnet filenames
   ansible.builtin.set_fact:
     arch_suffix: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
-    jsonnet_file: "go-jsonnet_Linux_{{ 'x86_64' if ansible_architecture == 'x86_64' else 'arm64' }}.tar.gz"
+    jsonnet_arch: "{{ 'x86_64' if ansible_architecture == 'x86_64' else 'arm64' }}"
+    jsonnet_file: "go-jsonnet_Linux_{{ jsonnet_arch }}.tar.gz"
 
 - name: Download latest jb
   become: true
@@ -17,7 +18,7 @@
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{ jsonnet_file }}
-    dest: /tmp
+    dest: /tmp/{{ jsonnet_file }}
 
 - name: Extract jsonnet
   become: true
