@@ -27,7 +27,6 @@
     dest: /usr/local/bin
     remote_src: true
     mode: '0755'
-    extra_opts: ["--strip-components=1"]
     creates: /usr/local/bin/jsonnet
 
 - name: Delete existing build directory
