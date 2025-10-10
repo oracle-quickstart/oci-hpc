@@ -10,8 +10,16 @@
   become: true
   ansible.builtin.get_url:
     url: https://apt.grafana.com/gpg.key
-    dest: /etc/apt/keyrings/grafana.gpg
+    dest: /tmp/grafana.gpg.key
     mode: '0644'
+
+- name: Convert Grafana key to dearmored keyring
+  become: true
+  ansible.builtin.shell: |
+    gpg --dearmor -o /etc/apt/keyrings/grafana.gpg /tmp/grafana.gpg.key
+    chmod 0644 /etc/apt/keyrings/grafana.gpg
+  args:
+    creates: /etc/apt/keyrings/grafana.gpg
 
 - name: Add Grafana APT repository
   become: true
