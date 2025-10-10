@@ -1,37 +1,45 @@
 ---
-- name: Resolve arch/jsonnet filenames
+# 1) Derive arch values in two steps so we don't reference an undefined fact
+- name: Resolve arch suffixes
   ansible.builtin.set_fact:
     arch_suffix: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
     jsonnet_arch: "{{ 'x86_64' if ansible_architecture == 'x86_64' else 'arm64' }}"
+
+- name: Build jsonnet filename
+  ansible.builtin.set_fact:
     jsonnet_file: "go-jsonnet_Linux_{{ jsonnet_arch }}.tar.gz"
 
+# 2) Install jb (jsonnet-bundler)
 - name: Download latest jb
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
+    url: "https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{ arch_suffix }}"
     dest: /usr/local/bin/jb
     mode: '0755'
 
+# 3) Install Jsonnet CLI
 - name: Download latest jsonnet
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{ jsonnet_file }}
-    dest: /tmp/{{ jsonnet_file }}
+    url: "https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{ jsonnet_file }}"
+    dest: "/tmp/{{ jsonnet_file }}"
 
-- name: Extract jsonnet
+- name: Extract jsonnet to /usr/local/bin (flatten one directory level)
   become: true
   ansible.builtin.unarchive:
     src: "/tmp/{{ jsonnet_file }}"
     dest: /usr/local/bin
     remote_src: true
     mode: '0755'
+    extra_opts: ["--strip-components=1"]
     creates: /usr/local/bin/jsonnet
 
+# 4) Prepare build dir
 - name: Delete existing build directory
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ dashboard_build_dir }}"
     state: absent
 
@@ -43,8 +51,9 @@
     owner: "{{ user }}"
     group: "{{ user }}"
 
+# 5) Copy sources
 - name: Copy dashboard source files to build directory
-  copy:
+  ansible.builtin.copy:
     src: "{{ item }}"
     dest: "{{ dashboard_build_dir }}"
     owner: "{{ user }}"
@@ -94,9 +103,9 @@
     - table-panel.libsonnet
     - timeseries-panel.libsonnet
 
-
+# 6) Build
 - name: Build dashboards with Jsonnet
-  become: true  
+  become: true
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
@@ -119,21 +128,22 @@
     /usr/local/bin/jsonnet -J vendor oci-vcn.jsonnet -o oci-vcn.json
     /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
     /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
-  environment:
-    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
   args:
     chdir: "{{ dashboard_build_dir }}"
+  environment:
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
 
+# 7) Persist & import
 - name: Ensure /opt/oci-hpc/monitoring exists
   become: true
-  file:
+  ansible.builtin.file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
 
 - name: Save generated dashboard
-  copy:
+  ansible.builtin.copy:
     src: "{{ dashboard_build_dir }}/{{ item }}"
     dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
@@ -153,7 +163,7 @@
     - oci-lustre.json
     - oci-natgw.json
     - oci-sgw.json
-    - oci-vcn.json    
+    - oci-vcn.json
     - slurm-dashboard.json
     - storage-metrics.json
 
