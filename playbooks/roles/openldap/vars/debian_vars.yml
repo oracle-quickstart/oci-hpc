@@ -10,9 +10,7 @@ openldap_packages:
   - libssl-dev
   - python3-pexpect
   - rpcbind
-  - nscd
   - libpam-ldap
-  - libnss-ldapd
 
 openldap_default_user: openldap
 openldap_default_group: openldap
