@@ -1,45 +1,55 @@
 ---
-# 1) Derive arch values in two steps so we don't reference an undefined fact
-- name: Resolve arch suffixes
-  ansible.builtin.set_fact:
-    arch_suffix: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
-    jsonnet_arch: "{{ 'x86_64' if ansible_architecture == 'x86_64' else 'arm64' }}"
+- name: Get DEB architecture # noqa no-changed-when
+  ansible.builtin.command: dpkg --print-architecture
+  register: deb_architecture
+  when: ansible_os_family == 'Debian'
 
-- name: Build jsonnet filename
-  ansible.builtin.set_fact:
-    jsonnet_file: "go-jsonnet_Linux_{{ jsonnet_arch }}.tar.gz"
+- name: Set DPKG architecture
+  set_fact:
+    arch_suffix: "{{ deb_architecture.stdout }}"
+  when: ansible_os_family == 'Debian'
 
-# 2) Install jb (jsonnet-bundler)
-- name: Download latest jb
+- name: Map system architecture to suffix
+  set_fact:
+    arch_suffix: "{{ arch_map[ansible_architecture] }}"
+  vars:
+    arch_map:
+      x86_64: amd64
+      aarch64: arm64
+
+- name: Map system architecture to suffix
+  set_fact:
+    jsonnet_file: "go-jsonnet_Linux_{{arch_map[ansible_architecture]}}.tar.gz"
+  vars:
+    arch_map:
+      x86_64: x86_64
+      aarch64: arm64
+
+- name: Download jb
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: "https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{ arch_suffix }}"
+    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
     dest: /usr/local/bin/jb
-    mode: '0755'
+    mode: "0755"
 
-# 3) Install Jsonnet CLI
-- name: Download latest jsonnet
+- name: Download jsonnet
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: "https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{ jsonnet_file }}"
-    dest: "/tmp/{{ jsonnet_file }}"
+    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{jsonnet_file}}
+    dest: /tmp
 
-- name: Extract jsonnet to /usr/local/bin (flatten one directory level)
+- name: Extract jsonnet
   become: true
-  ansible.builtin.unarchive:
-    src: "/tmp/{{ jsonnet_file }}"
+  unarchive:
+    src: /tmp/{{jsonnet_file}}
     dest: /usr/local/bin
+    mode: "0755"
     remote_src: true
-    mode: '0755'
-    extra_opts: ["--strip-components=1"]
-    creates: /usr/local/bin/jsonnet
 
-# 4) Prepare build dir
 - name: Delete existing build directory
-  become: true
-  ansible.builtin.file:
+  file:
     path: "{{ dashboard_build_dir }}"
     state: absent
 
@@ -47,13 +57,12 @@
   ansible.builtin.file:
     path: "{{ dashboard_build_dir }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: "{{ user }}"
     group: "{{ user }}"
 
-# 5) Copy sources
 - name: Copy dashboard source files to build directory
-  ansible.builtin.copy:
+  copy:
     src: "{{ item }}"
     dest: "{{ dashboard_build_dir }}"
     owner: "{{ user }}"
@@ -74,24 +83,8 @@
     - multi-node-variables.libsonnet
     - multi-node.jsonnet
     - nccl-traces.jsonnet
-    - oci-block-variables.libsonnet
-    - oci-block.jsonnet
-    - oci-drg-variables.libsonnet
-    - oci-drg.jsonnet
-    - oci-fastconnect-variables.libsonnet
-    - oci-fastconnect.jsonnet
-    - oci-fss-variables.libsonnet
-    - oci-fss.jsonnet
-    - oci-igw-variables.libsonnet
-    - oci-igw.jsonnet
-    - oci-lustre-variables.libsonnet
-    - oci-lustre.jsonnet
-    - oci-natgw-variables.libsonnet
-    - oci-natgw.jsonnet
-    - oci-sgw-variables.libsonnet
-    - oci-sgw.jsonnet
-    - oci-vcn-variables.libsonnet
-    - oci-vcn.jsonnet
+    - oci-variables.libsonnet
+    - oci-dashboard.jsonnet
     - slurm-dashboard.jsonnet
     - slurm-variables.libsonnet
     - stat-health-panel.libsonnet
@@ -102,10 +95,12 @@
     - storage-metrics-variables.libsonnet
     - table-panel.libsonnet
     - timeseries-panel.libsonnet
+  retries: 3
+  delay: 10
+  until: copy_result is not failed
+  register: copy_result
 
-# 6) Build
-- name: Build dashboards with Jsonnet
-  become: true
+- name: Build dashboard with Jsonnet
   ansible.builtin.shell: |
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
@@ -117,33 +112,22 @@
     /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
     /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
     /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
-    /usr/local/bin/jsonnet -J vendor oci-block.jsonnet -o oci-block.json
-    /usr/local/bin/jsonnet -J vendor oci-drg.jsonnet -o oci-drg.json
-    /usr/local/bin/jsonnet -J vendor oci-fastconnect.jsonnet -o oci-fastconnect.json
-    /usr/local/bin/jsonnet -J vendor oci-fss.jsonnet -o oci-fss.json
-    /usr/local/bin/jsonnet -J vendor oci-igw.jsonnet -o oci-igw.json
-    /usr/local/bin/jsonnet -J vendor oci-lustre.jsonnet -o oci-lustre.json
-    /usr/local/bin/jsonnet -J vendor oci-natgw.jsonnet -o oci-natgw.json
-    /usr/local/bin/jsonnet -J vendor oci-sgw.jsonnet -o oci-sgw.json
-    /usr/local/bin/jsonnet -J vendor oci-vcn.jsonnet -o oci-vcn.json
+    /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
     /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
     /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
   args:
     chdir: "{{ dashboard_build_dir }}"
-  environment:
-    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
 
-# 7) Persist & import
 - name: Ensure /opt/oci-hpc/monitoring exists
   become: true
-  ansible.builtin.file:
+  file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
 
 - name: Save generated dashboard
-  ansible.builtin.copy:
+  copy:
     src: "{{ dashboard_build_dir }}/{{ item }}"
     dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
@@ -155,15 +139,7 @@
     - host-metrics-single.json
     - multi-node.json
     - nccl-traces.json
-    - oci-block.json
-    - oci-drg.json
-    - oci-fastconnect.json
-    - oci-fss.json
-    - oci-igw.json
-    - oci-lustre.json
-    - oci-natgw.json
-    - oci-sgw.json
-    - oci-vcn.json
+    - oci-dashboard.json
     - slurm-dashboard.json
     - storage-metrics.json
 
@@ -183,14 +159,6 @@
     - host-metrics-single.json
     - multi-node.json
     - nccl-traces.json
-    - oci-block.json
-    - oci-drg.json
-    - oci-fastconnect.json
-    - oci-fss.json
-    - oci-igw.json
-    - oci-lustre.json
-    - oci-natgw.json
-    - oci-sgw.json
-    - oci-vcn.json
+    - oci-dashboard.json
     - slurm-dashboard.json
     - storage-metrics.json
