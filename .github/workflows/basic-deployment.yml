@@ -4,9 +4,9 @@ name: basic_deployment_slurm
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "3.0.0_arnaud" ]
+    branches: [ "3.0.0_arnaud_venv" ]
   pull_request:
-    branches: [ "3.0.0_arnaud" ]
+    branches: [ "3.0.0_arnaud_venv" ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
