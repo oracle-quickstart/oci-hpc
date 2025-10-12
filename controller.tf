@@ -392,6 +392,25 @@ resource "null_resource" "cluster" {
     }
   }
 
+    provisioner "file" {
+    content = templatefile("${path.module}/conf/marketplace.conf", {
+      hpc_option1 = var.marketplace_version_id["HPC_OL8"]
+      gpu_option1 = var.marketplace_version_id["GPU_OL8_NV550"]
+      gpu_option2 = var.marketplace_version_id["GPU_OL8_NV570"]
+      gpu_option3 = var.marketplace_version_id["GPU_OL8_AMD632"]
+      listing_id_HPC = var.marketplace_listing_id_HPC
+      listing_id_GPU = var.marketplace_listing_id_GPU
+    })
+
+    destination = "/config/conf/marketplace.conf"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
