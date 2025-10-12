@@ -100,7 +100,7 @@ groups:
                 uid: DATASOURCE_UID
               editorMode: code
               expr: node_systemd_unit_state{state="failed",
-                name=~"mariadb.service|nscd.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
+                name=~"mariadb.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
               hide: false
               instant: true
               intervalMs: 60000
@@ -159,7 +159,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: node_systemd_unit_state{state="failed", name=~"nscd.service|ssh.service|sssd.service|node_exporter.service"}
+              expr: node_systemd_unit_state{state="failed", name=~"ssh.service|sssd.service|node_exporter.service"}
               hide: false
               instant: true
               intervalMs: 60000
@@ -219,7 +219,7 @@ groups:
                 uid: DATASOURCE_UID
               editorMode: code
               expr: (node_systemd_unit_state{state="failed",
-                name=~"nscd.service|ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|wpa_supplicant-wired@rdma.*.service"}
+                name=~"ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|wpa_supplicant-wired@rdma.*.service"}
                 or node_systemd_unit_state{state="failed", name="nvidia-fabricmanager.service", shape!~".*A10.*"})
               hide: false
               instant: true
