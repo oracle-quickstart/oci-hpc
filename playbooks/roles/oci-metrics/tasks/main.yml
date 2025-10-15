@@ -1,9 +1,9 @@
 ---
-- name: Install prometheus_client python package
-  ansible.builtin.pip:
-    name: prometheus_client 
-    executable: /usr/bin/pip3  
-  become: true
+#- name: Install prometheus_client python package
+#  ansible.builtin.pip:
+#    name: prometheus_client 
+#    executable: /usr/bin/pip3  
+#  become: true
   
 # - name: Copy OCI FSS exporter file to scripts directory
 #   copy:
