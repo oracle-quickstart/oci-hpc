@@ -8,6 +8,10 @@ resource "oci_core_volume_backup_policy" "controller_boot_volume_backup_policy" 
     retention_seconds = var.controller_boot_volume_backup_retention_seconds
     time_zone         = var.controller_boot_volume_backup_time_zone
   }
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }    
 }
 
 resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
@@ -31,6 +35,10 @@ resource "oci_ons_notification_topic" "grafana_alerts" {
   compartment_id = var.targetCompartment
   name           = "grafana-alerts-${random_pet.name.id}"
   description    = "Topic for Grafana Alerts"
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }  
 }
 
 resource "null_resource" "boot_volume_backup_policy" {

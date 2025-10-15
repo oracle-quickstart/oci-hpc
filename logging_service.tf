@@ -1,6 +1,10 @@
 resource "oci_logging_log_group" "log_group" {
   compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}_log_group"
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }  
 }
 
 resource "oci_logging_log" "node_starting_event_log" {
