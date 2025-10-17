@@ -1,4 +1,12 @@
 ---
+- name: Install git
+  vars:
+    package_name:
+      - git
+    package_state: present
+  include_role:
+    name: safe_yum
+
 - name: Get DEB architecture # noqa no-changed-when
   ansible.builtin.command: dpkg --print-architecture
   register: deb_architecture
