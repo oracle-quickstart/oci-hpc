@@ -5,6 +5,7 @@ import re
 import string
 import sys
 import time
+import json
 
 from functools import cached_property
 from datetime import datetime, timedelta, timezone
@@ -442,6 +443,72 @@ def get_host_api_dict(compartment,tenancy):
         tenancy_host_api=[]
     return compartment_host_api + tenancy_host_api
 
+def get_marketplace_image(marketplace_listing, compartment_id):
+    config_path = "/config/conf/marketplace.conf"
+    try:
+        # Read & parse config file
+        with open(config_path, "r") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        logger.error(f"Config file not found: {config_path}")
+        return None
+    except json.JSONDecodeError:
+        logger.error(f"Invalid JSON in {config_path}")
+        return None
+
+    # Determine listing_id by prefix
+    prefix = (marketplace_listing or "")[:3]
+    try:
+        if prefix == "HPC":
+            marketplace_listing_id = config["marketplace_listing_id_HPC"]
+        elif prefix == "GPU":
+            marketplace_listing_id = config["marketplace_listing_id_GPU"]
+        else:
+            logger.error(f"marketplace_listing '{marketplace_listing}' does not start with 'HPC' or 'GPU'.")
+            return None
+        marketplace_version_id = config["marketplace_version_id"][marketplace_listing]
+    except KeyError as ke:
+        logger.error(f"Missing expected key in config: {ke}")
+        return None
+
+    # Get app catalog listing agreement
+    try:
+        get_agreement_response = CLIENTS.compute_client.get_app_catalog_listing_agreements(
+            listing_id=marketplace_listing_id,
+            resource_version=marketplace_version_id
+        )
+        agreement = get_agreement_response.data
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error retrieving agreement for listing: {marketplace_listing_id} version: {marketplace_version_id} — {e.message}")
+        return None
+
+    # Create app catalog subscription (ignore if already exists)
+    subscription_details = oci.core.models.CreateAppCatalogSubscriptionDetails(
+        compartment_id=compartment_id,
+        listing_id=agreement.listing_id,
+        listing_resource_version=agreement.listing_resource_version,
+        oracle_terms_of_use_link=agreement.oracle_terms_of_use_link,
+        signature=agreement.signature,
+        time_retrieved=agreement.time_retrieved
+    )
+    try:
+        CLIENTS.compute_client.create_app_catalog_subscription(subscription_details)
+    except oci.exceptions.ServiceError as e:
+        if e.status != 409:  # 409 = already exists ("Conflict"), can safely ignore
+            logger.error(f"Error creating app catalog subscription: {e.message}")
+            return None
+
+    # Get the image OCID
+    try:
+        get_app_catalog_listing_response = CLIENTS.compute_client.get_app_catalog_listing_resource_version(
+            listing_id=marketplace_listing_id,
+            resource_version=marketplace_version_id
+        )
+        return get_app_catalog_listing_response.data.listing_resource_id
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error retrieving image OCID: {e.message}")
+        return None
+
 def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_ocid, cluster_name, hostname=None, memory_cluster_name=None):
 
     subnet_id=config.private_subnet_id
@@ -454,9 +521,11 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
     memory=config.instance_pool_memory
     hostname_convention=config.hostname_convention
     RDMA=config.rdma_enabled
-    ### Not working yet
     mkplace=config.use_marketplace_image
     marketplace_listing=config.marketplace_listing
+
+    if mkplace:
+        image_id = get_marketplace_image(marketplace_listing, target_compartment_id)
 
     with open("/config/key/public", "r") as file:
         public_key = file.read()
@@ -667,9 +736,11 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
     memory=config.instance_pool_memory
     hostname_convention=config.hostname_convention
     RDMA=config.rdma_enabled
-    ### Not working yet
     mkplace=config.use_marketplace_image
     marketplace_listing=config.marketplace_listing
+
+    if mkplace:
+        image_id = get_marketplace_image(marketplace_listing, target_compartment_id)
 
     with open("/config/key/public", "r") as file:
         public_key = file.read()

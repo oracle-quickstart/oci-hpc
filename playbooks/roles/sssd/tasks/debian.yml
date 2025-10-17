@@ -80,17 +80,5 @@
     regexp: "^PasswordAuthentication"
     line: PasswordAuthentication no
   notify:
-    - Restart ns daemons
     - Restart login services
 
-- name: Set enable-cache to no for passwd and group in nscd.conf
-  lineinfile:
-    path: /etc/nscd.conf
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-    backrefs: true
-  loop:
-    - { regexp: "^(\\s*enable-cache\\s+passwd\\s+)\\S+", line: "\\1no" }
-    - { regexp: "^(\\s*enable-cache\\s+group\\s+)\\S+", line: "\\1no" }
-  notify:
-    - Restart nscd
