@@ -103,7 +103,7 @@
     - storage-metrics-variables.libsonnet
     - table-panel.libsonnet
     - timeseries-panel.libsonnet
-  retries: 3
+  retries: 10
   delay: 10
   until: copy_result is not failed
   register: copy_result
