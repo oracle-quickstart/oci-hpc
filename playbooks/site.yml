@@ -84,7 +84,6 @@
 
 - hosts: controller
   become: true
-  vars:
   tasks:
     - include_role:
         name: ssl
@@ -175,6 +174,8 @@
   tasks:
     - include_role:
         name: metrics-exporter
+    - include_role:
+        name: oci-metrics
       when: cluster_monitoring|default(false)|bool
 
 - hosts: controller, slurm_backup

@@ -191,9 +191,6 @@ uv pip install pssh
 uv pip install parallel-ssh
 uv pip install ldap3
 uv pip install orjson
-uv pip install watchdog
-uv pip install opentelemetry-sdk
-uv pip install opentelemetry-exporter-otlp
 
 # --- Python build toolchain packages for Slurm SDK ---
 echo "Installing Python build toolchain and SDK dependencies..."
@@ -211,6 +208,8 @@ uv pip install "pydantic>=2"
 
 # Other packages
 uv pip install ujson
+uv pip install "fastapi[standard-no-fastapi-cloud-cli]"
+uv pip install uvicorn
 
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 

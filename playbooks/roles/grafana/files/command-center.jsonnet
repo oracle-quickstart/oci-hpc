@@ -130,10 +130,28 @@ g.dashboard.new('Command Center')
       + g.panel.stateTimeline.gridPos.withH(10)
       + g.panel.stat.gridPos.withX(0)
       + g.panel.stat.gridPos.withY(9),
+    g.panel.stateTimeline.new('Historical LFS Health')
+      + g.panel.stateTimeline.queryOptions.withTargets([
+          g.query.prometheus.new(
+              '$PROMETHEUS_DS',
+              'lfs_health_status',
+          )
+          + g.query.prometheus.withLegendFormat('{{object_name}}')
+      ])
+      + g.panel.stateTimeline.options.withShowValue('never')
+      + g.panel.stateTimeline.options.withPerPage(value=20)
+      + g.panel.stat.standardOptions.withMappings(
+            g.panel.stat.standardOptions.mapping.ValueMap.withType() +  
+            g.panel.stat.standardOptions.mapping.ValueMap.withOptions({'0': { text: 'down', color: 'red' },'1': { text: 'up', color: 'green' }})
+      )       
+      + g.panel.stateTimeline.gridPos.withW(24)
+      + g.panel.stateTimeline.gridPos.withH(10)
+      + g.panel.stat.gridPos.withX(0)
+      + g.panel.stat.gridPos.withY(19),      
     g.panel.alertList.new('Cluster Alerts')
       + g.panel.alertList.options.UnifiedAlertListOptions.withAlertInstanceLabelFilter('{cluster_name=~"$cluster_name"}')
       + g.panel.alertList.gridPos.withW(24)
       + g.panel.alertList.gridPos.withH(5)
       + g.panel.stat.gridPos.withX(0)
-      + g.panel.stat.gridPos.withY(19),      
+      + g.panel.stat.gridPos.withY(24),      
 ])
