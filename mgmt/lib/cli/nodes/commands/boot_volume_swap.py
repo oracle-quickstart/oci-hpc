@@ -45,11 +45,15 @@ def boot_volume_swap(ctx, nodes, fields, image, size):
     
     You must specify either --nodes or --fields to identify which nodes to reboot.
     
-    Examples:
-      Boot Volume Swap by node names: --nodes=node1,node2
-      Boot Volume Swap by fields: --fields=role=compute,status=running
-      Boot Volume Swap image: --image=ocid1.image.oc1..exampleuniqueid
-      Boot Volume Swap BV size: --size=100
+    Example:\n
+     #Boot Volume Swap by node names\n
+     --nodes=node1,node2\n
+     #Boot Volume Swap by fields\n
+     --fields=role=compute,status=running\n
+     #Boot Volume Swap image\n
+     --image=ocid1.image.oc1..exampleuniqueid\n
+     #Boot Volume Swap BV size\n 
+     --size=100\n
     """
 
     nodes_list = filter_cmd(ctx, nodes, fields)

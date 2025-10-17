@@ -17,7 +17,7 @@ http_port=9876
 @click.command()
 @click.argument('cidr')
 def scan_vcn(cidr):
-    """List all fabrics for nodes."""
+    """Scan the specified VCN CIDR to list nodes"""
     if not is_valid_cidr(cidr):
         logger.error(f"Invalid CIDR: {cidr}")
         exit()
