@@ -448,7 +448,7 @@ def check_gpu_count():
             logger.error("GPU Count Test: Failed - No devices found using nvidia-smi")
             return ["No GPUs detected"]
 
-      if "Unable to determine the device handle" in output:
+        if "Unable to determine the device handle" in output:
             logger.error("GPU Count Test: Failed - Unable to determine the device handle for one or more devices")
             return ["GPU device handle problem"]
       
