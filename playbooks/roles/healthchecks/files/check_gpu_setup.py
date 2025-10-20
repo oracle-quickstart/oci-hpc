@@ -20,6 +20,9 @@ This is a Health Check script which covered below in order:
 14. Fabric Manager Status Check
 15. CPU Performance Profile Check
 16. Pending Bad Pages Check (AMD GPUs)
+17. Check if all interfaces have an IP address
+18. Get Reboot Counts
+19. Run dcgmi healthcheck
 
 ===========================================================================================
 Usage:
@@ -938,7 +941,48 @@ def get_reboots_count():
             last_reboot_within_2hour += 1
 
     return reboot_count_last_day, last_reboot_within_2hour
-#Section 2: Main function and args to run all checks (1.2 - 16.2)
+
+# 19.1 Run dcgmi healthcheck
+def run_dcgmi_health():
+    # Run the 'dcgmi health -s a' command which sets all the watches to be monitored
+                            # a - all watches
+                            # p - PCIe watches (*)
+                            # m - memory watches (*)
+                            # i - infoROM watches
+                            # t - thermal and power watches (*)
+                            # n - NVLink watches (*)
+                            # (*) watch requires 60 sec before first query
+    try:
+        result_set = subprocess.run(
+            ["dcgmi", "health", "-s", "a"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        return f"Error running 'dcgmi health -s a': {e.stderr or e.stdout}"
+    
+    # Wait for 65 seconds
+    time.sleep(65)
+    
+    # Run the 'dcgmi health -c' command that checks to see if any errors or warnings have occurred in the currently monitored watches.
+    try:
+        result_check = subprocess.run(
+            ["dcgmi", "health", "-c"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        return f"Error running 'dcgmi health -c': {e.stderr or e.stdout}"
+
+    # Return both outputs as a tuple or formatted string
+    return f"[health -s a]\n{result_set.stdout}\n[health -c]\n{result_check.stdout}"
+
+
+#Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
 
 if __name__ == '__main__':
@@ -966,6 +1010,7 @@ if __name__ == '__main__':
     parser.add_argument('--cpu-profile', action='store_true', help='Run CPU profile check')
     parser.add_argument('--bad-page', action='store_true', help='Run bad pages check')
     parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have an IP address')
+    parser.add_argument('--run-dcgmi', action='store_true', help='Run dcgmi healthcheck')
 
     args = parser.parse_args()
     metadata = get_metadata()
@@ -1325,7 +1370,7 @@ if __name__ == '__main__':
             slurm_reason("GPU Bad page error")
             action = recommended_action(action, "Reboot")
 
-    # 17.4 Summarize pending bad pages check for AMD
+    # 17.4 Summarize all interfaces have an IP address check
     if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
         if len(missing_ips) > 0:
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")

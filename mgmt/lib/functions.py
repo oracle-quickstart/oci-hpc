@@ -359,7 +359,7 @@ def run_multi_node_active_hc(node,exclude_node=None):
         if exclude_node is None:
             cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"]       
         else:
-            cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"-x",exclude_node,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_HC.sbatch"] 
+            cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",node.hostname,"-x",exclude_node,"--deadline=now+5minutes","--time=00:02:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"] 
         logger.debug(f"Running command: {' '.join(cmd)}")
         results = subprocess.run(cmd)
         if results.returncode != 0:
