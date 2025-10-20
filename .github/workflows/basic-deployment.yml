@@ -4,7 +4,7 @@ name: basic_deployment_slurm
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "3.0.0" ]
+    branches: [ "3.0.0_oci_dashboards" ]
   pull_request:
     branches: [ "3.0.0" ]
 
