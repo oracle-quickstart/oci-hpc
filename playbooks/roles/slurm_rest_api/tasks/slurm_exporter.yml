@@ -1,11 +1,3 @@
-- name: Set OS ID
-  set_fact:
-    os_id: "{{ 'ol' if ansible_distribution == 'OracleLinux' else 'centos' if ansible_distribution == 'CentOS' else ansible_distribution | lower }}"
-
-- name: Set unified venv paths
-  set_fact:
-    venv_dir: "/config/venv/{{ os_id | capitalize }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}/oci"
-
 - name: Render slurm-exporter python script
   template:
     src: slurm-exporter.py.j2
