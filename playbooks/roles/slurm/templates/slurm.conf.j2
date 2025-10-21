@@ -1,4 +1,7 @@
 SlurmctldHost={{ controller_hostname }}
+{% if slurm_backup_hostname and slurm_backup_hostname != "" %}
+SlurmctldHost={{ slurm_backup_hostname }}
+{% endif %}
 MpiDefault=none
 ProctrackType=proctrack/cgroup
 ReturnToService=1

@@ -20,8 +20,8 @@ access_provider = ldap
 chpass_provider = ldap
 cache_credentials = true
 entry_cache_timeout = 600
-ldap_uri = ldaps://{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}
-{% if groups['slurm_backup'] is defined and groups['slurm_backup'] | length > 0 %}ldap_backup_uri =  ldaps://{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'] }}
+ldap_uri = ldaps://{{ controller_hostname }}
+{% if slurm_backup_hostname and slurm_backup_hostname != "" %}ldap_backup_uri =  ldaps://{{ slurm_backup_hostname }}
 {% endif %}
 ldap_search_base = dc=local
 ldap_network_timeout = 30

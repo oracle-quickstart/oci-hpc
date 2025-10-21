@@ -451,15 +451,26 @@ resource "null_resource" "cluster" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-}
-
-resource "null_resource" "configure" {
-  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller]
-
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
+    ]
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+}
+
+resource "null_resource" "configure" {
+  depends_on = [null_resource.cluster, null_resource.setup_backup, oci_core_instance.controller]
+
+  provisioner "remote-exec" {
+    inline = [
+      "#!/bin/bash",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",

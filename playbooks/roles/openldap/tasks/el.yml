@@ -68,7 +68,7 @@
     copy:
       content: "{{ openldap_root_pwd }}"
       dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
-    delegate_to: "{{ groups['slurm_backup'][0] }}"
+    delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
   when:
   - groups['slurm_backup'] is defined
   - groups['slurm_backup'] | length > 0
