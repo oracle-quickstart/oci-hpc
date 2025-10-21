@@ -1,23 +1,4 @@
 ---
-- name: Install Python dependencies
-  become: true
-  ansible.builtin.pip:
-    name:
-      - fastapi[standard-no-fastapi-cloud-cli]
-      - uvicorn
-      - oci
-    executable: "{{ venv_path }}/bin/pip3"
-
-- name: Install Python dependencies
-  become: true
-  ansible.builtin.pip:
-    name:
-      - fastapi[standard-no-fastapi-cloud-cli]
-      - uvicorn
-      - oci
-    executable: /usr/bin/pip3
-  ignore_errors: true
-
 - name: Create ons_webhook DB directory
   become: true
   file:

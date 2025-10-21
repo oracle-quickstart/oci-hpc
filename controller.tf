@@ -8,6 +8,10 @@ resource "oci_core_volume_backup_policy" "controller_boot_volume_backup_policy" 
     retention_seconds = var.controller_boot_volume_backup_retention_seconds
     time_zone         = var.controller_boot_volume_backup_time_zone
   }
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }    
 }
 
 resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
@@ -31,6 +35,10 @@ resource "oci_ons_notification_topic" "grafana_alerts" {
   compartment_id = var.targetCompartment
   name           = "grafana-alerts-${random_pet.name.id}"
   description    = "Topic for Grafana Alerts"
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }  
 }
 
 resource "null_resource" "boot_volume_backup_policy" {
@@ -392,6 +400,25 @@ resource "null_resource" "cluster" {
     }
   }
 
+    provisioner "file" {
+    content = templatefile("${path.module}/conf/marketplace.conf", {
+      hpc_option1 = var.marketplace_version_id["HPC_OL8"]
+      gpu_option1 = var.marketplace_version_id["GPU_OL8_NV550"]
+      gpu_option2 = var.marketplace_version_id["GPU_OL8_NV570"]
+      gpu_option3 = var.marketplace_version_id["GPU_OL8_AMD632"]
+      listing_id_HPC = var.marketplace_listing_id_HPC
+      listing_id_GPU = var.marketplace_listing_id_GPU
+    })
+
+    destination = "/config/conf/marketplace.conf"
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
@@ -424,15 +451,26 @@ resource "null_resource" "cluster" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-}
-
-resource "null_resource" "configure" {
-  depends_on = [null_resource.cluster, null_resource.backup, oci_core_instance.controller]
-
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
       "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
+    ]
+    connection {
+      host        = local.host
+      type        = "ssh"
+      user        = var.controller_username
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+}
+
+resource "null_resource" "configure" {
+  depends_on = [null_resource.cluster, null_resource.setup_backup, oci_core_instance.controller]
+
+  provisioner "remote-exec" {
+    inline = [
+      "#!/bin/bash",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
       "echo ${var.configure} > /tmp/configure.conf",
       "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",

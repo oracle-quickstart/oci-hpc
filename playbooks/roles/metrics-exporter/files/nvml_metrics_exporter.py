@@ -18,7 +18,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 cluster_name = "none"
 
-SCONTROL_PATH = "/usr/local/bin/scontrol"
+SCONTROL_PATH = os.getenv("SCONTROL_PATH")
+logger.info("SCONTROL_PATH " + SCONTROL_PATH)
 
 def signal_handler(signum, frame):
     logger.info("Shutting down NVML...")
@@ -189,3 +190,4 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Error occurred: {e}")
         signal_handler(None, None)
+

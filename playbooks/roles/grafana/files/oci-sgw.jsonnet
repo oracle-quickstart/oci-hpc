@@ -5,7 +5,7 @@ local timeseriesPanel = import './timeseries-panel.libsonnet';
 g.dashboard.new('Service Gateway')
 + g.dashboard.withUid('oci-sgw')
 + g.dashboard.withDescription(|||
-  OCI Service Gateway Metrics
+  Service Gateway
 |||)
 + g.dashboard.withTimezone('browser')
 + g.dashboard.withRefresh('30s')

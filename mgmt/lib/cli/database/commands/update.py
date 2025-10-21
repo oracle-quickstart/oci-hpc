@@ -8,7 +8,7 @@ from ClusterShell.NodeSet import NodeSet
 @click.option(
     '--fields',
     required=True,
-    help='Add a list of update to do, Example shape="VM.Standard.E5.Flex,instance_pool_ocpus=4"'
+    help='Add a list of update to do, Example shape=VM.Standard.E5.Flex,instance_pool_ocpus=4'
 )
 
 def update(identifiers, fields):

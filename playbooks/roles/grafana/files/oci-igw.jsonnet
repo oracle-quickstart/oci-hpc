@@ -5,7 +5,7 @@ local timeseriesPanel = import './timeseries-panel.libsonnet';
 g.dashboard.new('Internet Gateway')
 + g.dashboard.withUid('oci-igw')
 + g.dashboard.withDescription(|||
-  OCI Service Gateway Metrics
+  Internet Gateway
 |||)
 + g.dashboard.withTimezone('browser')
 + g.dashboard.withRefresh('30s')
@@ -44,6 +44,20 @@ g.dashboard.new('Internet Gateway')
       '{{cluster_name}}',
       'pps',
       {w:12, h:8, x:12, y:8}
+    ),   
+    timeseriesPanel(
+      'Packet Drops From Internet Gateway',
+      'rate(oci_internet_gateway:packet_drops_from_igw_count[5m])',
+      '{{cluster_name}}',
+      'pps',
+      {w:12, h:8, x:0, y:16}
+    ),    
+    timeseriesPanel(
+      'Packet Drops To Internet Gateway',
+      'rate(oci_internet_gateway:packet_drop_to_igw_count[5m])',
+      '{{cluster_name}}',
+      'pps',
+      {w:12, h:8, x:12, y:16}
     ),   
 ])
 

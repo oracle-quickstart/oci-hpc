@@ -191,9 +191,6 @@ uv pip install pssh
 uv pip install parallel-ssh
 uv pip install ldap3
 uv pip install orjson
-uv pip install watchdog
-uv pip install opentelemetry-sdk
-uv pip install opentelemetry-exporter-otlp
 
 # --- Python build toolchain packages for Slurm SDK ---
 echo "Installing Python build toolchain and SDK dependencies..."
@@ -211,6 +208,8 @@ uv pip install "pydantic>=2"
 
 # Other packages
 uv pip install ujson
+uv pip install "fastapi[standard-no-fastapi-cloud-cli]"
+uv pip install uvicorn
 
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 
@@ -221,7 +220,7 @@ $VENV_PATH/bin/ansible-galaxy collection install community.crypto --force > /dev
 $VENV_PATH/bin/ansible-galaxy collection install ansible.utils --force > /dev/null
 if ( [ $ID == "ol" ] || [ $ID == "centos" ] ) && [ $vid == 8 ] ; then 
     export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
-    export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt 
+    export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt
     $VENV_PATH/bin/ansible-galaxy collection install git+https://github.com/oracle/oci-ansible-collection.git > /dev/null
 else
     $VENV_PATH/bin/ansible-galaxy collection install oracle.oci --force > /dev/null

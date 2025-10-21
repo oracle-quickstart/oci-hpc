@@ -68,6 +68,5 @@ g.dashboard.new('File Storage Service')
       'percent',
       {w:12, h:8, x:0, y:24}
     ),    
-   
 ])
 

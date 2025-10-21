@@ -1,24 +1,23 @@
----
 apiVersion: 1
 contactPoints:
   - orgId: 1
     name: ons-webhook
     receivers:
-      - uid: ons
-        type: webhook
-        settings:
-          url: http://localhost:5000/grafana-webhook
-          httpMethod: POST
+    - uid: ons
+      type: webhook
+      settings:
+        url: http://localhost:5000/grafana-webhook
+        httpMethod: POST
 policies:
-  - orgId: 1
-    receiver: ons-webhook
-    group_by:
-      - grafana_folder
-      - alertname
-      - hostname
-    group_wait: 30s
-    group_interval: 5m
-    repeat_interval: 12h
+    - orgId: 1
+      receiver: ons-webhook
+      group_by:
+        - grafana_folder
+        - alertname
+        - hostname
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
 groups:
   - orgId: 1
     name: Host Related Warnings or Events (non-GPU and non-RDMA) which may cause cluster instability
@@ -76,8 +75,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Investigate and free up CPU on controller or login node.
@@ -99,8 +98,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: node_systemd_unit_state{state="failed",
-                name=~"mariadb.service|nscd.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
+              expr: node_systemd_unit_state{hostname=~".*controller*|.*backup*", state="failed", name=~"mariadb.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
               hide: false
               instant: true
               intervalMs: 60000
@@ -136,8 +134,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Check and restart failed critical services on controller.
@@ -159,7 +157,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: node_systemd_unit_state{state="failed", name=~"nscd.service|ssh.service|sssd.service|node_exporter.service"}
+              expr: node_systemd_unit_state{hostname=~".*login*", state="failed", name=~"ssh.service|sssd.service|node_exporter.service"}
               hide: false
               instant: true
               intervalMs: 60000
@@ -195,8 +193,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Check and restart failed critical services on login node.
@@ -218,9 +216,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: (node_systemd_unit_state{state="failed",
-                name=~"nscd.service|ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|wpa_supplicant-wired@rdma.*.service"}
-                or node_systemd_unit_state{state="failed", name="nvidia-fabricmanager.service", shape!~".*A10.*"})
+              expr: (node_systemd_unit_state{hostname!~".*controller*|.*login*|.*backup*", state="failed",  name=~"ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|wpa_supplicant-wired@rdma.*.service"} or node_systemd_unit_state{state="failed", name="nvidia-fabricmanager.service", shape!~".*A10.*"})
               hide: false
               instant: true
               intervalMs: 60000
@@ -256,8 +252,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Check and restart failed critical services on compute node.
@@ -321,8 +317,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Free up disk space or expand boot volume.
@@ -382,11 +378,11 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
-          summary: Investigate memory usage and free up memory.
+          summary: Check and free up memory.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -442,11 +438,11 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
-          summary: Reboot may help. if not, Terminate.
+          summary: Reboot, if persistent, Tag and Terminate.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -502,11 +498,11 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
-          summary: Consider reboot if persistent.
+          summary: Reboot, if persistent.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -565,7 +561,7 @@ groups:
         execErrState: OK
         for: 15m
         annotations:
-          summary: Consider reboot if persistent.
+          summary: Reboot, if persistent.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -620,11 +616,11 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
-          summary: Tag and Terminate the node.
+          summary: Tag and Terminate.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -679,8 +675,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Early warning. May lead to failure.
@@ -738,8 +734,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Early Warning. May be lead to failure.
@@ -797,8 +793,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Early Warning. May be lead to failure.
@@ -856,11 +852,11 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
-          summary: Tag and Terminate the node.
+          summary: Tag and Terminate.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -915,11 +911,11 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
-          summary: Tag and Terminate the node.
+          summary: Tag and Terminate.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -938,7 +934,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_POWER_VIOLATION[5m])
+              expr: increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) / 300000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -952,7 +948,7 @@ groups:
               conditions:
                 - evaluator:
                     params:
-                      - 0
+                      - 0.20
                     type: gt
                   operator:
                     type: and
@@ -974,8 +970,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1033,8 +1029,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1056,7 +1052,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m])
+              expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000 
               hide: false
               instant: true
               intervalMs: 60000
@@ -1070,7 +1066,7 @@ groups:
               conditions:
                 - evaluator:
                     params:
-                      - 0
+                      - 0.20
                     type: gt
                   operator:
                     type: and
@@ -1092,8 +1088,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1115,7 +1111,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_LOW_UTIL_VIOLATION[5m])
+              expr: increase(DCGM_FI_DEV_LOW_UTIL_VIOLATION[5m]) / 300000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -1129,7 +1125,7 @@ groups:
               conditions:
                 - evaluator:
                     params:
-                      - 0
+                      - 0.20
                     type: gt
                   operator:
                     type: and
@@ -1151,11 +1147,11 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
-          summary: Warning. May result in workload throttling.
+          summary: Warning. May impact workload startup time.
         isPaused: false
         notification_settings:
           receiver: ons-webhook
@@ -1210,8 +1206,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1269,8 +1265,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1328,8 +1324,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1387,8 +1383,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1446,8 +1442,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1505,8 +1501,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Warning. May result in workload throttling.
@@ -1565,8 +1561,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate.
@@ -1624,8 +1620,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate.
@@ -1683,8 +1679,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Reboot, if persistent.
@@ -1742,8 +1738,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate.
@@ -1801,8 +1797,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate
@@ -1860,8 +1856,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate.
@@ -1919,8 +1915,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate.
@@ -1978,8 +1974,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate.
@@ -2037,8 +2033,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Tag and Terminate.

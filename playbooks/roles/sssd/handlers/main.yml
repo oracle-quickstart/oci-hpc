@@ -14,21 +14,6 @@
     state: restarted
     enabled: true
 
-- name: Restart nscd
-  listen: Restart ns daemons
-  systemd:
-    name: nscd
-    state: restarted
-    daemon_reload: true
-    enabled: true
-
-- name: restart_nslcd
-  listen: Restart ns daemons
-  service:
-    name: nslcd
-    state: restarted
-    enabled: true
-
 - name: restart_systemd_logind
   listen: Restart login services
   service:

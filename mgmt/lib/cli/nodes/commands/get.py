@@ -67,12 +67,6 @@ def names(names, format):
     default="node", show_default=True,
     help="Output format"
 )
-@click.option(
-    "--format",
-    type=click.Choice(["node", "csv", "json"]),
-    default="node", show_default=True,
-    help="Output format"
-)
 def ids(ids, format):
     """Get information about a node by ID."""
     nodes = get_nodes_by_id(ids)

@@ -5,7 +5,7 @@ local timeseriesPanel = import './timeseries-panel.libsonnet';
 g.dashboard.new('Block Volumes')
 + g.dashboard.withUid('oci-block')
 + g.dashboard.withDescription(|||
-  OCI VCN Metrics
+  Block Volumes
 |||)
 + g.dashboard.withTimezone('browser')
 + g.dashboard.withRefresh('30s')
