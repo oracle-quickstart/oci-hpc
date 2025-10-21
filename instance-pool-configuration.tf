@@ -82,5 +82,9 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
   }
 
   source = "NONE"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 

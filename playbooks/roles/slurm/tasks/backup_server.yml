@@ -5,7 +5,6 @@
     disable_gpg_check_var: true
   ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
 
 - name: Render systemd units for slurmd and slurmdbd
   become: true

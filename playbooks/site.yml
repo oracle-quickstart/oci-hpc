@@ -82,7 +82,7 @@
     - include_role:
         name: passwords
 
-- hosts: controller
+- hosts: controller, slurm_backup
   become: true
   tasks:
     - include_role:

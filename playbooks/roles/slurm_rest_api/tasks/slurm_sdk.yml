@@ -145,6 +145,8 @@
   args:
     chdir: "{{ sdk_output_dir }}"
     executable: /bin/bash
+  run_once: true
+  delegate_to: 127.0.0.1
   become: true
 
 - name: Verify SDK installation

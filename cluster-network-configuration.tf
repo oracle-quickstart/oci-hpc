@@ -87,5 +87,9 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
   }
 
   source = "NONE"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 

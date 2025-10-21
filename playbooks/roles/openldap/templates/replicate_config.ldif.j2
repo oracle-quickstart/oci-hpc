@@ -1,0 +1,5 @@
+dn: cn=config
+changetype: modify
+replace: olcServerID
+olcServerID: 1 ldaps://{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}:636
+olcServerID: 2 ldaps://{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'] }}:636
