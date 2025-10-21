@@ -158,11 +158,12 @@ uv pip install pip
 uv pip install ansible
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
   if [ $vid == 8 ]; then
-    uv pip install ansible-core==2.12
+    uv pip install ansible-core==2.12.8
   fi
 fi
 uv pip install oci-cli
 uv pip install oci
+uv pip install certifi
 uv pip install cryptography
 uv pip install netaddr
 uv pip install setuptools_rust

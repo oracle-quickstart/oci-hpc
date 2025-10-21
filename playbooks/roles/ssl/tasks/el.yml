@@ -32,7 +32,47 @@
           -keyout '{{ ssl_cert_path }}/cluster-ca.key'
       args:
         creates: "{{ ssl_cert_path }}/cluster-ca.crt"
+      delegate_to: 127.0.0.1
+      run_once: true
 
+- name: Copy ca.crt and ca.key to slurm_backup node
+  block:
+  - name: Get the ca.crt value
+    become: true
+    slurp:
+      src: "{{ ssl_cert_path }}/cluster-ca.crt"
+    register: cluster_ca_crt_raw
+    delegate_to: 127.0.0.1
+
+  - name: Get the ca.key value
+    become: true
+    slurp:
+      src: "{{ ssl_cert_path }}/cluster-ca.key"
+    register: cluster_ca_key_raw
+    delegate_to: 127.0.0.1
+
+  - name: Create ca.crt file on slurm_backup node
+    copy:
+      content: "{{ cluster_ca_crt_raw.content | b64decode }}"
+      dest: "{{ ssl_cert_path }}/cluster-ca.crt"
+      owner: root
+      group: ssl
+      mode: 0644
+    delegate_to: "{{ groups['slurm_backup'][0] }}"
+
+  - name: Create ca.key file on slurm_backup node
+    copy:
+      content: "{{ cluster_ca_key_raw.content | b64decode }}"
+      dest: "{{ ssl_cert_path }}/cluster-ca.key"
+      owner: root
+      group: ssl
+      mode: 0640
+    delegate_to: "{{ groups['slurm_backup'][0] }}"
+  when: 
+  - groups['slurm_backup'] is defined
+  - groups['slurm_backup'] | length > 0  
+
+- block:
     - name: Copy cluster-ca.crt to /config/key
       ansible.builtin.copy:
         src: "{{ ssl_cert_path }}/cluster-ca.crt"
@@ -40,7 +80,9 @@
         owner: root
         group: root
         mode: "0644"
-
+      delegate_to: 127.0.0.1
+      run_once: true
+      
     - name: Render subjectAltName configuration
       template:
         src: "san.conf.j2"
@@ -71,12 +113,18 @@
       args:
         creates: "{{ ssl_cert_path }}/{{ ansible_fqdn }}.crt"
 
+    - name: Find all .key files on remote host
+      find:
+        paths: "{{ ssl_cert_path }}"
+        patterns: "*.key"
+        file_type: file
+      register: key_files
+
     - name: Restrict access permissions to the private keys
       file:
-        path: "{{ item }}"
+        path: "{{ item.path }}"
         mode: "0640"
-      with_fileglob:
-        - "{{ ssl_cert_path }}/*.key"
+      loop: "{{ key_files.files }}"
 
     - name: Update ownership of the certificates
       file:
