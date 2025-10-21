@@ -909,8 +909,45 @@ def check_ip_addresses(metadata):
         }
     return missing_ips,interface_map
 
-# 18.1 Check the reboot counts
+# 18.1 Check NVLinks speeds
+def get_nvlink_speed():
+    shape = metadata.get('shape')
 
+    if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4"]:
+        expected_gpus = 4
+    elif shape in ["VM.GPU.A10.1", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1"]:
+        expected_gpus = 1
+    elif shape == "VM.GPU.A10.2":
+        expected_gpus = 2
+    else:
+        expected_gpus = 8
+    
+    NVlink_speed={}
+    for i in range(expected_gpus):
+        result = subprocess.run(["nvidia-smi","nvlink","-s","-i","1"],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if result.returncode != 0:
+            if i in NVlink_speed.keys():
+                NVlink_speed[i]["error"]=result.stdout.decode('utf-8')
+            else:
+                NVlink_speed[i]={"error":result.stdout.decode('utf-8'),'link_speeds':[]}
+        else:
+            for link in result.stdout.decode('utf-8').split('\n')[1:]:
+                if len(link.split())>3:
+                    link_id=link.split()[1]
+                    try:
+                        link_speed=int(link.split()[2])
+                        error=None
+                    except ValueError:
+                        error="Some speeds are not integers"
+                    if i in NVlink_speed.keys():
+                        NVlink_speed[i]["link_speeds"].append({"ID":link_id,"speed":link_speed})
+                        if NVlink_speed[i]["error"] is None:
+                            NVlink_speed[i]["error"]=error
+                    else:
+                        NVlink_speed[i]={"link_speeds":[{"ID":link_id,"speed":link_speed}],"error":error}
+    return NVlink_speed
+
+# 19.1 Check the reboot counts
 def get_reboots_count():
     result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
     # Decode the output from bytes to string
@@ -970,6 +1007,7 @@ if __name__ == '__main__':
     parser.add_argument('--cpu-profile', action='store_true', help='Run CPU profile check')
     parser.add_argument('--bad-page', action='store_true', help='Run bad pages check')
     parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have an IP address')
+    parser.add_argument('--nvlink_speed', action='store_true', help='Check NVLinks speeds')
 
     args = parser.parse_args()
     metadata = get_metadata()
@@ -1176,6 +1214,30 @@ if __name__ == '__main__':
         else:
             missing_ips = []
 
+    # 18.3 Check if NVLink speed is correct
+    if (run_all or args.nvlink_speed) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):  
+        nvlink_speed_error = None
+        nvlink_speed = get_nvlink_speed()
+        ref_speed= nvlink_speed[0]['link_speeds'][0]['speed']
+        ref_num_links= len(nvlink_speed[0]['link_speeds'])
+        for gpu_index in nvlink_speed.keys():
+            gpu=nvlink_speed[gpu_index]
+            if not gpu['error'] is None:
+                nvlink_speed_error = gpu['error']
+                logger.error(f"NVLink speed error: {gpu['error']}")
+            else:
+                if len(gpu['link_speeds']) != ref_num_links:
+                    nvlink_speed_error = "NVLink Number of links is not consistent accross GPUs"
+                    logger.error("NVLink Number of links is not consistent accross GPUs")
+                    logger.error(f"{nvlink_speed}")
+                else:
+                    for nvlink in gpu['link_speeds']:
+                        if nvlink['speed'] != ref_speed:
+                            nvlink_speed_error = "NVLink speed is not consistent"
+                            logger.error(f"NVLink speed is not consistent")
+                            logger.error(f"{nvlink_speed}")
+        if nvlink_speed_error is None:
+            logger.info("NVLink speed is correct")
 #Section 4: Summarize the results and recommend actions.
 ########################################################
 
@@ -1335,6 +1397,12 @@ if __name__ == '__main__':
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
             slurm_reason("Missing IPs")
             action = recommended_action(action, "Reboot")
+    # 18.4 Summarize NVLink speed check
+    if (run_all or args.nvlink_speed) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
+        if nvlink_speed_error:
+            logger.error(nvlink_speed_error)
+            slurm_reason("NVLink speed Error")
+            action = recommended_action(action, "Reboot")
     # Print recommended action and slurm message
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()
@@ -1344,7 +1412,7 @@ if __name__ == '__main__':
         else:
             logger.error("Recommended Action is to Force Reboot from the console or API")
     if action == "Terminate":
-        logger.error("Recommended Action is to Terminate the node and Create a SR")
+        logger.error("Recommended Action is to Tag the node Unhealthy and Terminate the node")
     if action == "Wait_For_OCA":
         logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
