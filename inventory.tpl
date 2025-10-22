@@ -80,3 +80,6 @@ lfs_source_IP=${lfs_source_IP}
 lfs_source_path=${lfs_source_path}
 lfs_options=${lfs_options}
 metrics_stream_ocid=${metrics_stream_ocid}
+mysql_admin_username=${mysql_admin_username}
+mysql_admin_password=${mysql_admin_password}
+mysql_service_host=${mysql_service_host}
