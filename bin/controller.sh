@@ -183,7 +183,7 @@ uv pip install rich
 uv pip install click
 uv pip install ansible_runner
 uv pip install pymysql
-uv pip install memoization
+uv pip install cachetools
 uv pip install line-protocol-parser
 uv pip install influx-line-protocol
 uv pip install flatdict

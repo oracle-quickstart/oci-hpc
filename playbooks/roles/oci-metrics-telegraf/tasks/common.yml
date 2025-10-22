@@ -88,18 +88,6 @@
     - oci_metrics_telegraf_filter.py
     - oci_metrics_telegraf_utils.py
 
-- name: Install required python packages
-  become: true
-  ansible.builtin.pip:
-    name:
-      - memoization
-      - line-protocol-parser
-      - influx-line-protocol
-      - flatdict
-      - oci
-    executable: /usr/bin/pip3
-  ignore_errors: true
-
 - name: Add environment variable to file
   become: true
   ansible.builtin.lineinfile:
@@ -108,24 +96,6 @@
     owner: root
     group: root
     mode: "0644"
-
-# - name: Ensure systemd override directory for Telegraf exists
-#   ansible.builtin.file:
-#     path: /etc/systemd/system/telegraf.service.d
-#     state: directory
-#     owner: root
-#     group: root
-#     mode: '0755'
-
-# - name: Add environment variables to Telegraf via systemd override
-#   ansible.builtin.copy:
-#     dest: /etc/systemd/system/telegraf.service.d/override.conf
-#     content: |
-#       [Service]
-#       Environment=PATH=/usr/local/bin:/usr/bin:/bin:$PATH
-#     owner: root
-#     group: root
-#     mode: '0644'
 
 - name: Restart Telegraf
   become: true
