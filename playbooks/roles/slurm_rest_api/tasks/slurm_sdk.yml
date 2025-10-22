@@ -2,7 +2,7 @@
 - name: Set Python/UV facts from venv
   set_fact:
     python_executable: "{{ venv_path }}/bin/python3"
-    uv_cmd: "{{ (venv_path | regex_replace('/oci$', '')) ~ '/bin/uv' }}"
+    uv_cmd: "{{ (venv_path | regex_replace('/oci$', '')) ~ '/uv' }}"
 
 - name: Verify venv Python exists
   stat:
