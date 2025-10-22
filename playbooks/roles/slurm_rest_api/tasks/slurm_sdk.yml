@@ -129,9 +129,13 @@
 
 - name: Install slurm sdk wheel into venv with uv
   ansible.builtin.shell: |
-    {{ uv_cmd }} pip install --force-reinstall --upgrade {{ sdk_output_dir }}/dist/*.whl
+    {{ uv_cmd }} pip install \
+      -p {{ python_executable }} \
+      --force-reinstall --upgrade {{ sdk_output_dir }}/dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
+  environment:
+    UV_PYTHON: "{{ python_executable }}"
   become: true
 
 - name: Verify SDK installation
