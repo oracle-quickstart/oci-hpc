@@ -673,3 +673,13 @@ variable "ingest_oci_metrics" {
   default = false
   type    = bool
 }
+
+variable "mysql_admin_password" {
+  default = ""
+  type = string
+}
+
+variable "mysql_admin_username" {
+  default = ""
+  type = string
+}

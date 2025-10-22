@@ -340,8 +340,11 @@ resource "null_resource" "cluster" {
       lfs_target_path          = var.lfs_target_path,
       lfs_source_IP            = local.lustre_IP,
       lfs_source_path          = var.lfs_source_path,
-      lfs_options              = var.lfs_options
-      metrics_stream_ocid      = local.metrics_stream_ocid
+      lfs_options              = var.lfs_options,
+      metrics_stream_ocid      = local.metrics_stream_ocid,
+      mysql_admin_password     = var.mysql_admin_password,
+      mysql_admin_username     = var.mysql_admin_username,
+      mysql_service_host       = local.mysql_service_host
     })
 
     destination = "/config/playbooks/inventory"
@@ -484,8 +487,6 @@ resource "null_resource" "configure" {
     }
   }
 }
-
-
 
 
 

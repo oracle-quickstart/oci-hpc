@@ -86,10 +86,10 @@
     - slurmctld
 
 - block:
-    - name: Create {{ slurm_nfs_path }}/spool/slurm
+    - name: Create {{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm
       become: true
       ansible.builtin.file:
-        name: "{{ slurm_nfs_path }}/spool/slurm"
+        name: "{{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm"
         state: directory
         owner: "slurm"
         group: "slurm"
@@ -140,6 +140,7 @@
     config_file: "/root/.my.cnf"
     name: "{{ slurm_db_name }}"
     state: present
+  when: groups['slurm_backup'] | length == 0   
 
 - name: Create DB user for accounting
   become: true
@@ -149,6 +150,30 @@
     password: "{{ slurmdbd_sql_pwd }}"
     priv: "{{ slurm_db_name }}.*:ALL"
     state: present
+  when: groups['slurm_backup'] | length == 0     
+
+- name: Create DB for accounting on mysql service
+  mysql_db:
+    login_user: "{{mysql_admin_username}}"
+    login_password: "{{mysql_admin_password}}"
+    login_host: "{{mysql_service_host}}"
+    name: "{{ slurm_db_name }}"
+    state: present  
+  when: groups['slurm_backup'] | length > 0   
+
+- name: Create DB user for accounting on mysql service
+  mysql_user:
+    login_user: "{{mysql_admin_username}}"
+    login_password: "{{mysql_admin_password}}"
+    login_host: "{{mysql_service_host}}"  
+    host: "%"  
+    name: "{{ slurm_db_user }}"
+    priv: "{{ slurm_db_name }}.*:ALL"
+    plugin: caching_sha2_password
+    plugin_auth_string: "{{ slurmdbd_sql_pwd }}"
+    salt: 1234567890abcdefghij
+    state: present  
+  when: groups['slurm_backup'] | length > 0    
 
 - name: Copy cgroup file
   become: true

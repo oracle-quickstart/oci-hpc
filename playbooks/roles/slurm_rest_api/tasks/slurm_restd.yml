@@ -52,7 +52,17 @@
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
-  when: not nvm_exists.stat.exists
+  when: (not nvm_exists.stat.exists) and (not home_fss|bool)
+
+- name: Execute NVM install script
+  shell: "/tmp/nvm_install.sh"
+  args:
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  when: (not nvm_exists.stat.exists) and home_fss|bool
+  delegate_to: 127.0.0.1
+  run_once: true
 
 - name: Check if Node.js is already installed via NVM
   shell: |

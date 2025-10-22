@@ -13,7 +13,7 @@ Environment="PATH={{ venv_dir }}/bin:/usr/local/bin:/usr/bin"
 Environment="PYTHONPATH={{ venv_dir }}/lib/python{{ python_version }}/site-packages"
 
 # Run exporter from virtual environment
-ExecStart={{ venv_dir }}/bin/python {{ venv_dir }}/bin/slurm-exporter.py
+ExecStart={{ venv_dir }}/bin/python /usr/local/bin/slurm-exporter.py
 
 Restart=always
 RestartSec=5

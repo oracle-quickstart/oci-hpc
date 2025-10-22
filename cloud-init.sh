@@ -74,8 +74,15 @@ fi
 
 while true; do
     if mountpoint -q /config; then
-        echo "/config is already mounted. Exiting loop."
-        break
+        echo "/config is already mounted. Checking if files are present"
+        ls /config/bin/compute.sh
+        if [ $? -eq 0 ]; then 
+            echo "/config/bin/compute.sh is present"
+            break
+        else
+            echo "/config/bin/compute.sh is not present. Retrying in 2 minutes..."
+            sleep 120  # Sleep for 2 minutes (120 seconds)
+        fi     
     fi
     echo "Attempting to mount /config"
     # Run the mount command and check if it succeeds
