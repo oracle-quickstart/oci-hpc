@@ -163,4 +163,4 @@ sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
 
-echo "Controller setup complete. VENV_PATH=${VENV_PATH}"
+echo "Backup setup complete. VENV_PATH=${VENV_PATH}"

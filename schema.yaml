@@ -224,6 +224,8 @@ variableGroups:
       - ${slurm}
       - ${slurm_version}
       - ${slurm_ha}
+      - ${mysql_admin_username}
+      - ${mysql_admin_password}
       - ${rack_aware}
       - ${queue}
       - ${spack}
@@ -1222,9 +1224,23 @@ variables:
     title: "Create a back-up Slurm Controller"
     default: false
     required: true
-    description: "Add a second master of the same shape as the controller as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
+    description: "Add a second master of the same shape as the controller as a back-up controller node and MySQL service hosted on OCI. We recommend using a FSS to save the state and share between masters" 
     visible: ${slurm}
+  
+  mysql_admin_username:
+    type: string
+    title: "Admin username for MySQL service"
+    required: true
+    description: "Admin username for MySQL service" 
+    visible: ${slurm_ha}
 
+  mysql_admin_password:
+    type: string
+    title: "Admin password for MySQL service. Administrator password must be between 8 and 32 characters, and contain at least 1 uppercase, 1 lowercase, 1 numeric, and 1 special characters."
+    required: true
+    pattern: "^(?=.*[!@#%^*_+\\-:?.,\\[\\]\\{\\}])(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?!.*[$\\(\\)]).{8,32}$"
+    description: "Admin password for MySQL service" 
+    visible: ${slurm_ha}
   pyxis:
     type: boolean
     title: "Install Nvidia Pyxis plugin for Slurm"
