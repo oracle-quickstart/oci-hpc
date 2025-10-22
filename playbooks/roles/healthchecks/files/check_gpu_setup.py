@@ -21,8 +21,9 @@ This is a Health Check script which covered below in order:
 15. CPU Performance Profile Check
 16. Pending Bad Pages Check (AMD GPUs)
 17. Check if all interfaces have an IP address
-18. Get Reboot Counts
-19. Run dcgmi healthcheck
+18. Check NVLinks speeds
+19. Check the reboot counts
+20. Run dcgmi health check
 
 ===========================================================================================
 Usage:
@@ -132,10 +133,10 @@ def slurm_reason(message):
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in [None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"]:
+    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Run `dcgmi health -c` for details"):
         logger.error("No action was found")
         return 0
-    if action == "Reboot" or action == "FabricManagerRestart" or action == "Wait_For_OCA":
+    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Run `dcgmi health -c` for details"):
         if current == "Terminate":
             return current
         else:
@@ -144,8 +145,8 @@ def recommended_action(current, action):
         return current
     if action == "Terminate":
         return action
-    if action == "Wait_For_OCA":
-        if current in ["FabricManagerRestart","Reboot","Terminate"]:
+    if action in ("Wait_For_OCA", "Run `dcgmi health -c` for details"):
+        if current in ("FabricManagerRestart","Reboot","Terminate"):
             return current
         else:
             return action
@@ -880,7 +881,7 @@ def check_bad_pages():
         logger.info("GPU Pending Bad Pages Check: Passed")
 
 # 17.1 Check if all interfaces have an IP address
-def check_ip_addresses(metadata):
+def check_ip_addresses():
     devices = get_devices()    
     devices_per_interface={}
     infiniband_dir="/sys/class/infiniband"
@@ -914,41 +915,59 @@ def check_ip_addresses(metadata):
 
 # 18.1 Check NVLinks speeds
 def get_nvlink_speed():
-    shape = metadata.get('shape')
+    gpu_nvlink_info = {
+        "BM.GPU4.8":         {"count": 12, "speed": 25,      "gpu": 8},
+        "BM.GPU.B4.8":       {"count": 12, "speed": 25,      "gpu": 8},
+        "BM.GPU.A100-v2.8":  {"count": 12, "speed": 25,      "gpu": 8},
+        "BM.GPU.H100.8":     {"count": 18, "speed": 26.562,  "gpu": 8},
+        "BM.GPU.H200.8":     {"count": 18, "speed": 26.562,  "gpu": 8},
+        "BM.GPU.B200.8":     {"count": 18, "speed": 50,      "gpu": 8},
+        "VM.GPU.A100.40G.1": {"count": 12, "speed": 25,      "gpu": 1},
+        "VM.GPU.A100.80G.1": {"count": 12, "speed": 25,      "gpu": 1}
+    }
 
-    if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4"]:
-        expected_gpus = 4
-    elif shape in ["VM.GPU.A10.1", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1"]:
-        expected_gpus = 1
-    elif shape == "VM.GPU.A10.2":
-        expected_gpus = 2
+    shape = metadata.get('shape')
+    info = gpu_nvlink_info[shape]
+    count_expected = info['count']
+    speed_expected = info['speed']
+    expected_gpu = info['gpu']
+
+    error = False
+    for gpu_index in range(expected_gpu):
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "nvlink", "-s", "-i", str(gpu_index)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=10,
+                check=True
+            )
+            gpu_output = result.stdout.decode()
+            
+            link_speeds = re.findall(r'Link \d+: ([\d.]+) GB/s', gpu_output)
+            speeds_float = [float(s) for s in link_speeds]
+
+            count = len(speeds_float)
+            speeds_match = all(speed == speed_expected for speed in speeds_float)
+
+            if count != count_expected:
+                logger.error(f"GPU {gpu_index}: ERROR: NVLink count mismatch!")
+                error = True
+            if not speeds_match:
+                logger.error(f"GPU {gpu_index}: ERROR: One or more link speeds do not match expected ({speed_expected} GB/s)")
+                error = True
+        except subprocess.TimeoutExpired:
+            logger.warning(f"GPU {gpu_index}: NVLink speed check command timed out.")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"GPU {gpu_index}: NVLink speed check command failed with return code {e.returncode}.")
+        except Exception as e:
+            logger.warning(f"GPU {gpu_index}: NVLink speed check unexpected error: {e}")
+    if error:
+        return False
     else:
-        expected_gpus = 8
-    
-    NVlink_speed={}
-    for i in range(expected_gpus):
-        result = subprocess.run(["nvidia-smi","nvlink","-s","-i","1"],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            if i in NVlink_speed.keys():
-                NVlink_speed[i]["error"]=result.stdout.decode('utf-8')
-            else:
-                NVlink_speed[i]={"error":result.stdout.decode('utf-8'),'link_speeds':[]}
-        else:
-            for link in result.stdout.decode('utf-8').split('\n')[1:]:
-                if len(link.split())>3:
-                    link_id=link.split()[1]
-                    try:
-                        link_speed=int(link.split()[2])
-                        error=None
-                    except ValueError:
-                        error="Some speeds are not integers"
-                    if i in NVlink_speed.keys():
-                        NVlink_speed[i]["link_speeds"].append({"ID":link_id,"speed":link_speed})
-                        if NVlink_speed[i]["error"] is None:
-                            NVlink_speed[i]["error"]=error
-                    else:
-                        NVlink_speed[i]={"link_speeds":[{"ID":link_id,"speed":link_speed}],"error":error}
-    return NVlink_speed
+        logger.info(f"For {expected_gpu} GPUs, {count} links detected as expected and all speeds as expected {speed_expected} GB/s : Passed")
+        return True
+
 
 # 19.1 Check the reboot counts
 def get_reboots_count():
@@ -983,44 +1002,60 @@ def get_reboots_count():
 
     return reboot_count_last_day, last_reboot_within_2hour
 
-# 19.1 Run dcgmi healthcheck
+# 20.1 Run dcgmi health check
 def run_dcgmi_health():
-    # Run the 'dcgmi health -s a' command which sets all the watches to be monitored
-                            # a - all watches
-                            # p - PCIe watches (*)
-                            # m - memory watches (*)
-                            # i - infoROM watches
-                            # t - thermal and power watches (*)
-                            # n - NVLink watches (*)
-                            # (*) watch requires 60 sec before first query
+    # Check dcgmi version
     try:
-        result_set = subprocess.run(
-            ["dcgmi", "health", "-s", "a"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=True
-        )
-    except subprocess.CalledProcessError as e:
-        return f"Error running 'dcgmi health -s a': {e.stderr or e.stdout}"
-    
-    # Wait for 65 seconds
-    time.sleep(65)
-    
-    # Run the 'dcgmi health -c' command that checks to see if any errors or warnings have occurred in the currently monitored watches.
-    try:
-        result_check = subprocess.run(
-            ["dcgmi", "health", "-c"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=True
-        )
-    except subprocess.CalledProcessError as e:
-        return f"Error running 'dcgmi health -c': {e.stderr or e.stdout}"
+        version_out = subprocess.check_output(['dcgmi', '--version'], text=True, timeout=10)
+    except FileNotFoundError:
+        logger.warning("dcgmi is not installed or not in PATH.")
+        return True
 
-    # Return both outputs as a tuple or formatted string
-    return f"[health -s a]\n{result_set.stdout}\n[health -c]\n{result_check.stdout}"
+    version_check = re.search(r'version:\s*(\d+\.\d+\.\d+)', version_out)
+    if not version_check or not version_check.group(1).startswith("4."):
+        logger.warning("dcgmi version is not 4.x. Please upgrade to 4.x for best compatibility.")
+        return True
+
+    # Check if health is set up using output of `dcgmi health -c`
+    try:
+        health_output = subprocess.check_output(['dcgmi', 'health', '-c'], text=True, stderr=subprocess.STDOUT, timeout=10)
+        need_setup = "Error: Health watches not enabled. Please enable watches." in health_output
+    except subprocess.CalledProcessError as e:
+        health_output = e.output
+        need_setup = "Error: Health watches not enabled. Please enable watches." in health_output
+
+    first_time_setup = False
+    if need_setup:
+        # dcgmi health not set up, running `dcgmi health -s a`
+        try:
+            setup_output = subprocess.check_output(['dcgmi', 'health', '-s', 'a'], text=True, stderr=subprocess.STDOUT, timeout=10)
+            if "Health monitor systems set successfully." not in setup_output:
+                logger.warning("Warning: Unexpected dcgmi health setup output:\n", setup_output)
+                return True
+            first_time_setup = True
+        except subprocess.CalledProcessError as e:
+            logger.warning("Error: Could not set up dcgmi health.\nOutput:", e.output)
+            return True 
+
+    # Wait 5 seconds on first setup
+    if first_time_setup:
+        time.sleep(5)
+
+    # Run dcgmi health check and extract health with jq
+    try:
+        health_status = subprocess.check_output(
+            "dcgmi health -c -j | jq -r '.body[\"Overall Health\"].value'",
+            shell=True,
+            text=True,
+            timeout=10
+        ).strip()
+        if health_status != "Healthy":
+            logger.error(f"ERROR: Overall Health is '{health_status}' (should be 'Healthy')")
+            return False
+    except subprocess.CalledProcessError:
+        logger.warning("Error running dcgmi health check or parsing JSON (is jq installed?).")
+        return True
+    return True
 
 
 #Section 2: Main function and args to run all checks (1.2 - 19.2)
@@ -1051,8 +1086,8 @@ if __name__ == '__main__':
     parser.add_argument('--cpu-profile', action='store_true', help='Run CPU profile check')
     parser.add_argument('--bad-page', action='store_true', help='Run bad pages check')
     parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have an IP address')
-    parser.add_argument('--nvlink_speed', action='store_true', help='Check NVLinks speeds')
-    parser.add_argument('--run-dcgmi', action='store_true', help='Run dcgmi healthcheck')
+    parser.add_argument('--nvlink-speed', action='store_true', help='Check NVLinks speeds')
+    parser.add_argument('--dcgmi-health', action='store_true', help='Run dcgmi health check')
 
     args = parser.parse_args()
     metadata = get_metadata()
@@ -1079,7 +1114,7 @@ if __name__ == '__main__':
     run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool)) or args.slurm
 
     # 1.3 Check OCA Status
-    if (run_all or args.oca_stat) and (not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
+    if (run_all or args.oca_stat) and (not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -1245,12 +1280,11 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check pending bad pages: {e}")
             bad_page_issues = []
 
-    # 17.3 Check if AMD GPU has pending bad pages
+    # 17.3 Check if all interfaces have an IP address
     if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):  
         if oca_state == "COMPLETED":
             try:
-                metadata = get_metadata()
-                missing_ips,ip_list = check_ip_addresses(metadata)
+                missing_ips,ip_list = check_ip_addresses()
                 if len(missing_ips) == 0:
                     logger.info("All interfaces have an IP defined: Passed")
             except Exception as e:
@@ -1260,36 +1294,30 @@ if __name__ == '__main__':
             missing_ips = []
 
     # 18.3 Check if NVLink speed is correct
-    if (run_all or args.nvlink_speed) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):  
-        nvlink_speed_error = None
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
         nvlink_speed = get_nvlink_speed()
-        ref_speed= nvlink_speed[0]['link_speeds'][0]['speed']
-        ref_num_links= len(nvlink_speed[0]['link_speeds'])
-        for gpu_index in nvlink_speed.keys():
-            gpu=nvlink_speed[gpu_index]
-            if not gpu['error'] is None:
-                nvlink_speed_error = gpu['error']
-                logger.error(f"NVLink speed error: {gpu['error']}")
-            else:
-                if len(gpu['link_speeds']) != ref_num_links:
-                    nvlink_speed_error = "NVLink Number of links is not consistent accross GPUs"
-                    logger.error("NVLink Number of links is not consistent accross GPUs")
-                    logger.error(f"{nvlink_speed}")
-                else:
-                    for nvlink in gpu['link_speeds']:
-                        if nvlink['speed'] != ref_speed:
-                            nvlink_speed_error = "NVLink speed is not consistent"
-                            logger.error(f"NVLink speed is not consistent")
-                            logger.error(f"{nvlink_speed}")
-        if nvlink_speed_error is None:
-            logger.info("NVLink speed is correct")
+    
+    # 20.3 Check the node health using dcgmi health check
+    if run_all or args.dcgmi_health:
+        if shape != "BM.GPU.MI300X.8":
+            try:
+                dcgmi_health_check = run_dcgmi_health()
+            except Exception as e:
+                logger.warning(f"Failed to run dcgmi health check with error: {e}")
+                dcgmi_health_check = True
+
+            if dcgmi_health_check:
+                logger.info("dcgmi health check: Passed")
+        else:
+            dcgmi_health_check = True
+
 #Section 4: Summarize the results and recommend actions.
 ########################################################
 
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if (run_all or args.oca_stat) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
+    if (run_all or args.oca_stat) and ( not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
@@ -1442,12 +1470,21 @@ if __name__ == '__main__':
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
             slurm_reason("Missing IPs")
             action = recommended_action(action, "Reboot")
+    
     # 18.4 Summarize NVLink speed check
-    if (run_all or args.nvlink_speed) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
-        if nvlink_speed_error:
-            logger.error(nvlink_speed_error)
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
+        if not nvlink_speed:
+            logger.error(f"NVLink speed Error for one or more GPUs")
             slurm_reason("NVLink speed Error")
             action = recommended_action(action, "Reboot")
+
+    # 20.4 Summarize dcgmi health check
+    if run_all or args.dcgmi_health:
+        if not dcgmi_health_check:
+            logger.error(f"{host_serial} - dcgmi health check failed. Run `dcgmi health -c` to get full output.")
+            slurm_reason("dcgmi health check failed")
+            action = recommended_action(action, "Run `dcgmi health -c` for details")
+
     # Print recommended action and slurm message
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()
