@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import hashlib
 import json
 import logging
 import os
@@ -10,19 +11,19 @@ import time
 import traceback
 import uuid
 
-from threading import Thread
-
 from base64 import b64decode
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Lock, Event
 from urllib.request import Request, urlopen
+from cachetools import TTLCache, cached
 
 from influx_line_protocol import Metric
 
 os.environ["OCI_PYTHON_SDK_NO_SERVICE_IMPORTS"] = "1"
-from oci.streaming import StreamClient
+from oci.streaming import StreamClient, StreamAdminClient
 from oci.streaming.models import CreateGroupCursorDetails, UpdateGroupDetails
 from oci.exceptions import ServiceError
+from oci.retry import DEFAULT_RETRY_STRATEGY
 
 OCI_CONFIG_PATH = os.environ.get("OCI_CONFIG_PATH", "")
 OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
@@ -30,12 +31,13 @@ GROUP_NAME = os.environ.get("GROUP_NAME", "telegraf")
 MESSAGES_ENDPOINT = os.environ.get("MESSAGES_ENDPOINT", None)
 STREAM_OCID = os.environ.get("STREAM_OCID", "{{ metrics_stream_ocid }}")
 OCI_REGION = os.environ.get("OCI_REGION", None)
-# Scale to be able to pull ~100k metrics per minute
-STREAM_READER_THREADS = int(os.environ.get("STREAM_READER_THREADS", 10))
-STREAM_READ_INTERVAL = int(os.environ.get("STREAM_READ_INTERVAL", 6))
-STREAM_READ_LIMIT = int(os.environ.get("STREAM_READ_LIMIT", 1000))
+
+STREAM_READ_INTERVAL = int(os.environ.get("STREAM_READ_INTERVAL", 0.5))
 
 logger = logging.getLogger(__name__)
+
+metric_timestamp_cache = TTLCache(maxsize=10240, ttl=60)
+metric_cache_lock = Lock()
 
 class TelegrafFormatter(logging.Formatter):
     def __init__(self, **kwargs):
@@ -53,15 +55,18 @@ class TelegrafFormatter(logging.Formatter):
         else:
             return super().formatMessage(record)
 
-
 class Consumer:
 
-    def __init__(self, signer):
-        config = {}
+    def __init__(self, config, signer):
+        self.config = config
         self.signer = signer
+        self._stop_event = Event()
         self.stream_client = StreamClient(config, signer=signer, service_endpoint=MESSAGES_ENDPOINT)
-        self.instance_name = GROUP_NAME + "-instance-" + uuid.uuid4().hex
+        self.instance_name = "instance-" + uuid.uuid4().hex
         self.cursor = self.__get_cursor__(cursor_type=CreateGroupCursorDetails.TYPE_LATEST)
+
+    def stop(self):
+        self._stop_event.set()
 
     def get_messages(self):
         messages = []
@@ -69,7 +74,7 @@ class Consumer:
             # Read the messages from the stream
             get_response = None
             try:
-                get_response = self.stream_client.get_messages(STREAM_OCID, self.cursor, limit=STREAM_READ_LIMIT)
+                get_response = self.stream_client.get_messages(STREAM_OCID, self.cursor)
             except ServiceError as err:
                 if err.status == 400:
                     logger.debug("The cursor has expired, will create a new one.")
@@ -105,10 +110,10 @@ class Consumer:
             response = self.stream_client.create_group_cursor(STREAM_OCID, cursor_details)
             return response.data.value
 
-    def run(self, interval=5):
+    def run(self, interval=1):
         """Main consumer loop that reads messages from OCI Streaming and outputs InfluxDB line protocol"""
         logger.info(f"{self.instance_name} thread started to read from OCI streaming.")
-        while True:
+        while not self._stop_event.is_set():
             try:
                 messages = self.get_messages()
                 for message in messages:
@@ -149,12 +154,31 @@ def to_influxdb_line_protocol(message):
         metric_name = f'{namespace}:{metric_json["name"]}'
 
         results = []
+        pickeled_dimensions = json.dumps(metric_json.get("dimensions", {}))
+
         for entry in metric_json['datapoints']:
             if 'timestamp' not in entry or 'value' not in entry:
                 continue
             
+            timestamp = int(entry["timestamp"])
+
             influx_metric = Metric(metric_name)
-            influx_metric.with_timestamp(int(entry["timestamp"])*pow(10, 6))
+
+            # Create a hashed for the metric timestamp
+            hashed_key = hashlib.md5(f"{metric_name}:{pickeled_dimensions}:{timestamp}".encode('utf-8')).hexdigest()
+
+            with metric_cache_lock:
+                if hashed_key not in metric_timestamp_cache:
+                    metric_timestamp_cache[hashed_key] = (1, entry["value"])
+                else:
+                    old_increment, old_value = metric_timestamp_cache[hashed_key]
+                    if old_value != entry["value"]:
+                        logger.debug(f"Duplicate timestamp {timestamp} for metric {metric_name} with different values: {old_value} and {entry['value']} | {metric_json}")
+                    metric_timestamp_cache.update({hashed_key: (old_increment + 1, entry["value"])})
+                    timestamp += old_increment*100
+            
+            # convert ms to ns
+            influx_metric.with_timestamp(int(entry["timestamp"])*1_000_000)
 
             influx_metric.add_tag("namespace", namespace)
             
@@ -177,6 +201,11 @@ def handle_sighup(signum, frame):
     """Handles SIGHUP signal for graceful shutdown"""
     logger.info("Received SIGHUP, exiting...")
     sys.exit(0)
+
+def cache_status():
+    while True:
+        logger.info(f"Metric deduplication ttl_cache utilization: {metric_timestamp_cache.currsize}/{metric_timestamp_cache.maxsize}")
+        time.sleep(300)
 
 if __name__ == "__main__":
     # Setup logging
@@ -219,32 +248,51 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Failed to load instance principal signer. No supported signer found: {traceback.format_exc()}")
             sys.exit(1)
-       
+    
     # Get the messages endpoint for the stream
     # If it's not set, we'll try to get it from the Stream Admin Client
     # If that fails, we'll use a default endpoint
-    if not MESSAGES_ENDPOINT:
-        from oci.retry import DEFAULT_RETRY_STRATEGY
-        from oci.streaming import StreamAdminClient
-        streaming_client = StreamAdminClient(config=config, signer=signer, retry_strategy=DEFAULT_RETRY_STRATEGY)
-        get_stream_response = streaming_client.get_stream(
-            stream_id=STREAM_OCID,
-        )
-        if get_stream_response.status == 200:
+    partitions = 1
+
+    logger.info(f'Getting stream details: {STREAM_OCID}')
+
+    streaming_client = StreamAdminClient(config=config, signer=signer, retry_strategy=DEFAULT_RETRY_STRATEGY)
+    get_stream_response = streaming_client.get_stream(
+        stream_id=STREAM_OCID,
+    )
+    
+    if get_stream_response.status == 200:
+        if not MESSAGES_ENDPOINT:
             MESSAGES_ENDPOINT = get_stream_response.data.messages_endpoint
         else:
             MESSAGES_ENDPOINT = f"https://cell-1.streaming.{OCI_REGION}.oci.oraclecloud.com"
-
+        partitions = get_stream_response.data.partitions
+    else:
+        logger.error("Failed to get stream {STREAM_OCID} details.")
+        sys.exit(1)
+    
     threads = {}
     consumers = {}
-    for i in range(STREAM_READER_THREADS):
-        consumers[i] = Consumer(signer)
-        threads[i] = Thread(target=consumers[i].run, args=(STREAM_READ_INTERVAL,), daemon=True)
+    for i in range(partitions):
+        consumers[i] = Consumer(config, signer)
+        threads[i] = Thread(target=consumers[i].run, args=(STREAM_READ_INTERVAL,))
         threads[i].start()
     
     # Keep main thread alive
     try:
-        for i in range(STREAM_READER_THREADS):
+        threads['stats'] = Thread(target=cache_status, daemon=True)
+        threads['stats'].start()
+        for i in range(partitions):
             threads[i].join()
+        
     except KeyboardInterrupt:
-        logger.info("Interrupted by user, exiting...")        
+        logger.info("Interrupted by user, exiting...") 
+        for consumer in consumers:
+            consumer.stop()
+
+        for i in range(partitions):
+            threads[i].join(timeout=5)
+            if threads[i].is_alive():
+                logger.warning(f"Thread {i} did not stop gracefully")
+        
+        logger.info("Shutdown complete")

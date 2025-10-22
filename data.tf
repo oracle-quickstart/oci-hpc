@@ -20,6 +20,12 @@ data "oci_core_cluster_network_instances" "cluster_network_instances" {
   compartment_id     = var.targetCompartment
 }
 
+data "oci_mysql_mysql_db_system" "slurm_mysql" {
+    count               = var.slurm_ha ? 1 : 0
+    #Required
+    db_system_id = oci_mysql_mysql_db_system.slurm_mysql[0].id
+}
+
 data "oci_core_compute_gpu_memory_cluster_instances" "memory_cluster_network_instances" {
   count                         = var.node_count > 0 && (var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4") ? 1 : 0
   compute_gpu_memory_cluster_id = oci_core_compute_gpu_memory_cluster.compute_gpu_memory_cluster[0].id

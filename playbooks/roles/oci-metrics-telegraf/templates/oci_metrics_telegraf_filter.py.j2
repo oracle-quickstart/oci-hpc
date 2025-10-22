@@ -6,12 +6,14 @@ import os
 import re
 import signal
 import sys
+import time
 import traceback
 
 from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
 
 import flatdict
-from memoization import cached, CachingAlgorithmFlag
+from cachetools.func import lfu_cache
 from line_protocol_parser import parse_line
 from influx_line_protocol import Metric
 from urllib.request import Request, urlopen
@@ -58,8 +60,7 @@ def camelCase_to_snake_case(camel_case_str):
     return re.sub(r'([a-z])([A-Z])', r'\1_\2', camel_case_str).lower()
 
 
-
-@cached(max_size=10240, algorithm=CachingAlgorithmFlag.LFU)  # the cache overwrites items using the LFU algorithm
+@lfu_cache(maxsize=10240)
 def fetch_resource_tags(namespace, tags):
     """Fetch resource tags from OCI API."""
     api_resource_tags = {}
@@ -164,7 +165,7 @@ def fetch_resource_tags(namespace, tags):
     return api_resource_tags
 
 
-@cached(max_size=1024, algorithm=CachingAlgorithmFlag.LFU)
+@lfu_cache(maxsize=5192)
 def _resolve_slurm_hostname(instance_display_name):
     """Resolve slurm hostname from /etc/hosts."""
     try:
@@ -261,30 +262,39 @@ def main(oci_config, oci_signer):
 
     logger.info("Entering the main loop with metric tag enrichment.")
     
-    while True:
-        try:
-            for entry in sys.stdin:
-                try:
-                    metric = parse_line(entry)
-                    namespace = metric.get("tags", {}).get("namespace", "")
+    stat_thread = Thread(target=cache_status, daemon=True)
+    stat_thread.start()
+    
+    try:
+        while True:
+            try:
+                for entry in sys.stdin:
+                    try:
+                        metric = parse_line(entry)
+                        namespace = metric.get("tags", {}).get("namespace", "")
 
-                    if not namespace:
-                        logger.warning("Namespace is null, skipping metric")
-                        continue
+                        if not namespace:
+                            logger.warning("Namespace is null, skipping metric")
+                            continue
 
-                    job = executor.submit(fetch_resource, namespace, metric)
-                    job.add_done_callback(metric_to_stdout)
-                    logger.debug(f"Fetch_resource_tags cache stats: {fetch_resource_tags.cache_info()}")
-                except Exception as e:
-                    logger.error(f"Couldn't process the input {entry}: {traceback.format_exc()}")
-        except KeyboardInterrupt:
-            logger.info("Received keyboard interrupt, exiting...")
-            break
-
+                        job = executor.submit(fetch_resource, namespace, metric)
+                        job.add_done_callback(metric_to_stdout)
+                    except Exception as e:
+                        logger.error(f"Couldn't process the input {entry}: {traceback.format_exc()}")
+                
+                break
+            except KeyboardInterrupt:
+                logger.info("Received keyboard interrupt, exiting...")
+                break
+    finally:
+        logger.info("Shutting down executor...")
+        executor.shutdown(wait=True, cancel_futures=False)
+        logger.info("Shutdown complete.")
 
 def main_no_tags():
     """Main function without tag enrichment. Useful for debugging."""
     logger.info("Entering the main loop without metric tag enrichment.")
+    
     while True:
         try:
             for entry in sys.stdin:
@@ -333,6 +343,12 @@ def fetch_instance_freeform_tags():
         logger.error(f"Failed to get instance freeform tags: {traceback.format_exc()}")
         return None
 
+def cache_status():
+    while True:
+        logger.info(f"OCI resource tags lru_cache utilization: {fetch_resource_tags.cache.currsize}/{fetch_resource_tags.cache.maxsize}")
+        logger.info(f"OCI instance info lru_cache utilization: {_resolve_slurm_hostname.cache.currsize}/{_resolve_slurm_hostname.cache.maxsize}")
+        time.sleep(300)
+
 if __name__ == "__main__":
     # Setup logging
     logger.setLevel(logging.INFO)
@@ -376,12 +392,12 @@ if __name__ == "__main__":
             for key in FREEFORM_TAGS_FILTERS.keys():
                 if key in node_tags.keys():
                     FREEFORM_TAGS_FILTERS[key] = node_tags[key]
-        
+
         # Remove keys with no value from the FREEFORM_TAGS_FILTERS dict
         for key, value in tuple(FREEFORM_TAGS_FILTERS.items()):
             if value == "":
                 FREEFORM_TAGS_FILTERS.pop(key)
-
+        
         main(config, signer)
     else:
         main_no_tags()

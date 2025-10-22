@@ -1,0 +1,45 @@
+dn: olcOverlay=syncprov,olcDatabase={2}mdb,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+add: olcSyncRepl
+{% if 'slurm_backup' in group_names %}
+olcSyncRepl: rid=003
+    provider=ldaps://{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}:636
+    binddn="cn=manager,dc=local"
+    bindmethod=simple
+    credentials={{ openldap_root_pwd }}
+    searchbase="dc=local"
+    type=refreshAndPersist
+    interval=00:00:00:10
+    retry="5 10 60 +"
+    timeout=1
+    tls_reqcert=demand
+    tls_cacert={{ ssl_cert_path }}/cluster-ca.crt
+{% else %}
+olcSyncRepl: rid=004 
+    provider=ldaps://{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'] }}:636
+    binddn="cn=manager,dc=local"
+    bindmethod=simple
+    credentials={{ openldap_root_pwd }}
+    searchbase="dc=local"
+    type=refreshAndPersist
+    interval=00:00:00:10
+    retry="5 10 60 +"
+    timeout=1
+    tls_reqcert=demand
+    tls_cacert={{ ssl_cert_path }}/cluster-ca.crt
+{% endif %}
+-
+add: olcMirrorMode
+olcMirrorMode: TRUE
+
+dn: olcDatabase={2}mdb,cn=config
+changetype:  modify
+add: olcDbIndex
+olcDbIndex: entryCSN eq
+olcDbIndex: entryUUID eq

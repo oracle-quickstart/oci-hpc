@@ -6,7 +6,15 @@ import grp
 import pwd
 import os
 
-host = 'localhost'
+{% if groups['slurm_backup'] is defined and groups['slurm_backup'] | length > 0 %}
+controller = ldap3.Server('{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}', use_ssl=True)
+backup = ldap3.Server('{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'] }}', use_ssl=True)
+ldap3_servers = [controller, backup]
+{% else %}
+controller = ldap3.Server('{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}', use_ssl=True)
+ldap3_servers = [controller, ]
+{% endif %}
+
 bind_dn = 'cn=manager,dc=local'
 groups_dn = 'ou=Group,dc=local'
 people_dn = 'ou=People,dc=local'
@@ -36,7 +44,7 @@ def find_next_gid():
   search_filter = '(gidNumber=*)'
   attrs = ['*']
 
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
     for entry in conn.entries:
@@ -51,7 +59,7 @@ def find_next_uid():
   search_filter = '(uidNumber=*)'
   attrs = ['*']
 
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
     if len(conn.entries) == 0: 
@@ -80,7 +88,7 @@ def add(group,user):
   search_filter = '(cn=*)'
   attrs = ['*']
   
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.modify("cn={},{}".format(group,search_base), {'member': [(MODIFY_ADD, ["cn={},{}".format(user, people_dn)])]})
 # conn.add('cn={},{}'.format(group,search_base), {'memberUid': user })
@@ -94,7 +102,7 @@ def list():
   search_filter = '(cn=*)'
   attrs = ['*']
 
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
     if len(conn.entries) == 0: 
@@ -120,7 +128,7 @@ def create(group, gid):
 
   search_base = groups_dn
 
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.add("cn={},{}".format(group, search_base), ['top', 'groupOfMembers', 'posixgroup'], { 'cn': [group], 'gidNumber': [gidNumber] } )
     print(conn.result)
@@ -130,7 +138,7 @@ def create(group, gid):
 def delete(group):
   """ delete group """
   search_base = groups_dn
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.delete("cn={},{}".format(group, search_base))
 
@@ -146,7 +154,7 @@ def list():
   search_filter = '(uid=*)'
   attrs = ['cn', 'uid', 'uidNumber', 'gidNumber', 'homeDirectory', 'sn', 'gecos', 'loginShell', 'displayName']
 
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
     if len(conn.entries) == 0: 
@@ -178,7 +186,7 @@ def edit(user, password, uid, gid, name, shell):
   if not shell is None: 
     dict_to_edit['loginShell']= [(MODIFY_REPLACE, [shell])]
 
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.modify("cn={},{}".format(user,search_base), dict_to_edit)
   if(conn.result['result'] != 0): 
@@ -208,7 +216,7 @@ def add(user, password, uid, gid, name, nossh, shell):
   if gid is None: 
     gid = find_next_gid()
 
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.add("cn={},{}".format(user, search_base), ['inetOrgPerson', 'posixAccount', 'top', 'shadowAccount'], { 'sn': user, 'uid': user, 'uidNumber': uid, 'gidNumber': gid, 'userPassword': password, 'gecos': name, 'homeDirectory': '/home/{}'.format(user), 'displayName': name, 'loginShell': shell } )
   if(conn.result['result'] != 0): 
@@ -232,7 +240,7 @@ def add(user, password, uid, gid, name, nossh, shell):
 def delete(user):
   """ delete user """
   search_base = people_dn
-  server = ldap3.Server(host, use_ssl=True)
+  server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.delete("cn={},{}".format(user, search_base))
 

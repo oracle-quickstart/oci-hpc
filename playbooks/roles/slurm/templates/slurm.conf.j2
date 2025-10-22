@@ -1,4 +1,7 @@
 SlurmctldHost={{ controller_hostname }}
+{% if groups['slurm_backup'] | length > 0 %}
+SlurmctldHost={{ slurm_backup_hostname }}
+{% endif %}
 MpiDefault=none
 ProctrackType=proctrack/cgroup
 ReturnToService=1
@@ -6,7 +9,7 @@ SlurmctldPidFile=/run/slurmctld.pid
 SlurmctldPort=6817
 SlurmdPidFile=/run/slurmd.pid
 SlurmdPort=6818
-SlurmdSpoolDir=/var/spool/slurmd
+SlurmdSpoolDir=/var/spool_{{ cluster_name }}/slurmd
 SlurmUser=slurm
 Prolog={{slurm_conf_path}}/prolog.d/*
 Epilog={{slurm_conf_path}}/epilog.d/*
@@ -15,7 +18,7 @@ MessageTimeout=20
 UnkillableStepTimeout=128
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log
-StateSaveLocation={{ slurm_nfs_path }}/spool/slurm
+StateSaveLocation={{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm
 SwitchType=switch/none
 TaskPlugin=task/affinity,task/cgroup
 
@@ -35,6 +38,9 @@ SchedulerType=sched/backfill
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core
 AccountingStorageHost={{ controller_hostname }}
+{% if groups['slurm_backup'] | length > 0 %}
+AccountingStorageBackupHost={{ slurm_backup_hostname }}
+{% endif %}
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStoreFlags=job_comment
 ClusterName=cluster

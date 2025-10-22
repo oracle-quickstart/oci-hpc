@@ -36,23 +36,6 @@ elif [ $ID == "centos" ] ; then
   repo="epel"
 fi
 
-export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
-export UV_CACHE_DIR=${UV_INSTALL_DIR}/cache
-export UV_PYTHON_INSTALL_DIR=${UV_INSTALL_DIR}/python
-export UV_LOCAL_CACHE_DIR=/opt/uv_local/cache/
-export UV_LOCAL_PYTHON_INSTALL_DIR=${UV_LOCAL_CACHE_DIR}/python
-
-sudo mkdir -p ${UV_LOCAL_CACHE_DIR}
-sudo mkdir -p ${UV_CACHE_DIR}:${UV_LOCAL_CACHE_DIR}
-sudo mkdir -p ${UV_PYTHON_INSTALL_DIR}:${UV_LOCAL_PYTHON_INSTALL_DIR}
-if [ $ID == "ubuntu" ] ; then
-  sudo chown -R ubuntu:ubuntu ${UV_LOCAL_CACHE_DIR}
-  sudo chown -R ubuntu:ubuntu ${UV_INSTALL_DIR}
-else
-  sudo chown -R opc:opc ${UV_LOCAL_CACHE_DIR}
-  sudo chown -R opc:opc ${UV_INSTALL_DIR}
-fi
-
 # Install ansible and other required packages
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
   if [ $vid == 7 ]; then
@@ -141,76 +124,8 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
 fi 
 
-curl -LsSf https://astral.sh/uv/install.sh > ${UV_INSTALL_DIR}/install.sh
-chmod +x ${UV_INSTALL_DIR}/install.sh
-${UV_INSTALL_DIR}/install.sh
-
+export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
 source ${UV_INSTALL_DIR}/env
-
-if ( [ $ID == "ol" ] || [ $ID == "centos" ] ) && [ $vid == 8 ] ; then 
-    uv python install 3.10
-else
-    uv python install 3.12
-fi
-uv venv ${UV_INSTALL_DIR}/oci --clear
-source ${UV_INSTALL_DIR}/oci/bin/activate
-uv pip install pip
-uv pip install ansible
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
-  if [ $vid == 8 ]; then
-    uv pip install ansible-core==2.12
-  fi
-fi
-uv pip install oci-cli
-uv pip install oci
-uv pip install cryptography
-uv pip install netaddr
-uv pip install setuptools_rust
-uv pip install requests
-uv pip install urllib3
-uv pip install pyopenssl
-uv pip install psutil
-uv pip install distro
-uv pip install prometheus_client
-uv pip install watchdog
-uv pip install opentelemetry-sdk
-uv pip install opentelemetry-exporter-otlp
-uv pip install pynvml
-uv pip install pyudev
-uv pip install clustershell
-uv pip install sqlalchemy
-uv pip install rich
-uv pip install click
-uv pip install ansible_runner
-uv pip install pymysql
-uv pip install cachetools
-uv pip install line-protocol-parser
-uv pip install influx-line-protocol
-uv pip install flatdict
-uv pip install pssh
-uv pip install parallel-ssh
-uv pip install ldap3
-uv pip install orjson
-
-# --- Python build toolchain packages for Slurm SDK ---
-echo "Installing Python build toolchain and SDK dependencies..."
-uv pip install "packaging>=24.1"
-uv pip install "setuptools>=68"
-uv pip install "wheel>=0.41"
-uv pip install "build>=1.2.1"
-
-# --- Slurm SDK runtime dependencies ---
-echo "Installing Slurm SDK runtime dependencies..."
-uv pip install "typing_extensions>=4.12.2"
-uv pip install "annotated_types>=0.6.0"
-uv pip install "typing-inspect>=0.4.0"
-uv pip install "pydantic>=2"
-
-# Other packages
-uv pip install ujson
-uv pip install "fastapi[standard-no-fastapi-cloud-cli]"
-uv pip install uvicorn
-
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 
 $VENV_PATH/bin/ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
@@ -248,4 +163,4 @@ sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
 
-echo "Controller setup complete. VENV_PATH=${VENV_PATH}"
+echo "Backup setup complete. VENV_PATH=${VENV_PATH}"

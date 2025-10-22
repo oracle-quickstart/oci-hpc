@@ -49,13 +49,14 @@ resource "null_resource" "backup" {
   }
 
   provisioner "remote-exec" {
-    inline = [
+    inline = concat([
       "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",
       "sudo chown -R ${var.controller_username}:${var.controller_username} /opt/",
       "mkdir -p /opt/oci-hpc/bin",
       "mkdir -p /opt/oci-hpc/playbooks"
-    ]
+      ]
+    )
     connection {
       host        = local.host_backup
       type        = "ssh"
@@ -139,15 +140,28 @@ resource "null_resource" "backup" {
     }
   }
 
+}
 
+resource "null_resource" "setup_backup" {
+  count      = var.slurm_ha ? 1 : 0
+  depends_on = [null_resource.cluster, null_resource.backup]
+  
   provisioner "remote-exec" {
-    inline = [
+    inline = concat([
       "#!/bin/bash",
+      "sudo mkdir -p /config",
+      "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
+      ],
+      var.create_fss ? [
+        "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+        "sudo mount /config",
+      ] : [],
+      [
       "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
       "cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
-      "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh"
-    ]
+      "timeout --foreground 60m /opt/oci-hpc/bin/backup.sh"]
+    )
     connection {
       host        = local.host_backup
       type        = "ssh"
@@ -156,9 +170,10 @@ resource "null_resource" "backup" {
     }
   }
 }
+
 resource "null_resource" "cluster_backup" {
   count      = var.slurm_ha ? 1 : 0
-  depends_on = [null_resource.backup, oci_core_instance.backup]
+  depends_on = [null_resource.setup_backup]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
@@ -226,7 +241,10 @@ resource "null_resource" "cluster_backup" {
       lfs_source_IP            = local.lustre_IP,
       lfs_source_path          = var.lfs_source_path,
       lfs_options              = var.lfs_options,
-      metrics_stream_ocid      = local.metrics_stream_ocid
+      metrics_stream_ocid      = local.metrics_stream_ocid,
+      mysql_admin_password     = var.mysql_admin_password,
+      mysql_admin_username     = var.mysql_admin_username,
+      mysql_service_host       = local.mysql_service_host      
     })
 
 

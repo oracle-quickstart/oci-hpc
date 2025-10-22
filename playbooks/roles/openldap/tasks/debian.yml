@@ -34,12 +34,30 @@
 
 - name: Generate openldap root password
   set_fact:
-    tmp_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/openldap/root.txt chars=ascii_letters,digits,hexdigits') }}"
+    tmp_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/openldap/root.txt',
+                          chars=['ascii_letters','digits','hexdigits']) }}"
+  run_once: true
+  delegate_to: 127.0.0.1
 
 - name: Get openldap root password
   set_fact:
-    openldap_root_pwd: "{{ lookup('password', '/etc/opt/oci-hpc//passwords/openldap/root.txt chars=ascii_letters,digits,hexdigits') }}"
+    openldap_root_pwd: "{{ lookup('password',
+                          '/etc/opt/oci-hpc/passwords/openldap/root.txt',
+                          chars=['ascii_letters','digits','hexdigits']) }}"
+  run_once: true
+  delegate_to: 127.0.0.1
 
+- block:
+  - name: Write openldap root password to backup
+    copy:
+      content: "{{ openldap_root_pwd }}"
+      dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
+    delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
+  when:
+  - groups['slurm_backup'] is defined
+  - groups['slurm_backup'] | length > 0
+  
 - name: Install the openldap and required Packages for Ubuntu
   vars:
     package_name: "{{ openldap_packages }}"
@@ -70,11 +88,6 @@
     path: "/etc/ldap/ldap.conf"
     line: "TLS_CACERT   /etc/ssl/certs/cluster-ca.crt"
 
-- name: Enable OpenLDAP service
-  systemd:
-    name: slapd
-    enabled: true
-
 - name: Get /etc/ldap/slapd.d status
   stat:
     path: "/etc/ldap/slapd.d"
@@ -89,6 +102,11 @@
   user:
     name: "{{ openldap_default_user }}"
     groups: "{{ ssl_cert_group }}"
+
+- name: Enable OpenLDAP service
+  systemd:
+    name: slapd
+    enabled: true
 
 - block:
     - name: Ensure OpenLDAP data directory exists
@@ -115,6 +133,7 @@
         mode: "0644"
       with_items:
         - rfc2307bis.ldif
+        - sudo.ldif
         - autoinc.ldif
         - local_schema.ldif
 
@@ -221,5 +240,40 @@
                              -f /etc/ldap/schema/local_schema.ldif
       ignore_errors: true
       when: ldapsearch.rc == 32
+
+- name: Enable replication
+  when:
+  - groups['slurm_backup'] is defined
+  - groups['slurm_backup'] | length > 0
+  block:
+    - name: Copy OpenLDAP schemas
+      template:
+        src: '{{ item }}.j2'
+        dest: '/tmp/{{ item }}'
+        owner: '{{ openldap_default_user }}'
+        group: '{{ openldap_default_group }}'
+        mode: '0640'
+      become: true
+      with_items:
+        - mod_syncprov_debian.ldif
+        - replicate_config.ldif
+        - replicate_database_debian.ldif
+  
+    - name: Add syncprov module to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/mod_syncprov_debian.ldif'
+      ignore_errors: true  #set to get around erroring out that items already exist
+      become: true
+
+    - name: Add replicate configuration to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_config.ldif'
+      ignore_errors: true  #set to get around erroring out that items already exist
+      become: true
+
+    - name: Add replicate database to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_debian.ldif'
+      ignore_errors: true  #set to get around erroring out that items already exist
+      become: true
+      notify: Restart openldap
+
 
 - meta: flush_handlers
