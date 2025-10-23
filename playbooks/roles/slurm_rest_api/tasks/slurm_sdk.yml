@@ -1,20 +1,8 @@
 ---
-# ----------------- Detect venv Python -----------------
-- name: Detect UV venv Python executable
-  shell: |
-    source /etc/os-release
-    vid=$(echo $VERSION | awk -F. '{print $1}')
-    export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
-    echo "${UV_INSTALL_DIR}/oci/bin/python"
-  args:
-    executable: /bin/bash
-  register: venv_python_detect
-  changed_when: false
-
-- name: Set Python facts from venv
+- name: Set Python/UV facts from venv
   set_fact:
-    python_executable: "{{ venv_python_detect.stdout | trim }}"
-    pip_cmd: "{{ venv_python_detect.stdout | trim }} -m pip"
+    python_executable: "{{ venv_path }}/bin/python3"
+    uv_cmd: "{{ (venv_path | regex_replace('/oci$', '')) ~ '/uv' }}"
 
 - name: Verify venv Python exists
   stat:
@@ -121,36 +109,37 @@
   become: true
 
 - name: Generate Slurm python SDK from OpenAPI
-  shell: |
-    java -jar {{ openapi_download_path }}/openapi-generator.jar generate \
-      -g python \
-      -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
+  command:
+    cmd: >
+      java -jar {{ openapi_download_path }}/openapi-generator.jar generate
+      -g python
+      -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }}
       -o {{ sdk_output_dir }}/
-  args:
     chdir: "{{ openapi_download_path }}"
   become: true
 
 # ----------------- Build & install SDK wheel using venv -----------------
 - name: Build slurm sdk python wheel using venv
-  shell: |
-    {{ python_executable }} setup.py bdist_wheel
-  args:
+  command:
+    cmd: "{{ python_executable }} setup.py bdist_wheel"
     chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
   become: true
+  register: build_sdk_wheel
+  changed_when: "'Building' in build_sdk_wheel.stdout or 'Wrote' in build_sdk_wheel.stdout"
 
-- name: Install slurm sdk wheel into venv
-  shell: |
-    {{ pip_cmd }} install --force-reinstall --upgrade dist/*.whl
+- name: Install slurm sdk wheel into venv with uv
+  ansible.builtin.shell: |
+    {{ uv_cmd }} pip install \
+      -p {{ python_executable }} \
+      --force-reinstall --upgrade {{ sdk_output_dir }}/dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  run_once: true
-  delegate_to: 127.0.0.1
+  environment:
+    UV_PYTHON: "{{ python_executable }}"
   become: true
 
 - name: Verify SDK installation
-  command: "{{ pip_cmd }} show openapi-client"
+  command: "{{ python_executable }} -c \"import importlib; importlib.import_module('openapi_client')\""
   register: sdk_verify
   changed_when: false
   failed_when: sdk_verify.rc != 0
