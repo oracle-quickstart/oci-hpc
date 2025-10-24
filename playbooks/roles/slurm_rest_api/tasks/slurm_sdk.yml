@@ -50,7 +50,7 @@
 
 # ----------------- JWT + OpenAPI Spec -----------------
 - name: Generate JWT token
-  command: "scontrol token lifespan=31556926"
+  command: "scontrol token lifespan=infinite"
   become_user: "{{ slurm_user }}"
   register: jwt_token_result
 
