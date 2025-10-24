@@ -83,3 +83,5 @@ metrics_stream_ocid=${metrics_stream_ocid}
 mysql_admin_username=${mysql_admin_username}
 mysql_admin_password=${mysql_admin_password}
 mysql_service_host=${mysql_service_host}
+wildcard_dns_domain=${wildcard_dns_domain}
+use_lets_encrypt_prod_ep=${use_lets_encrypt_prod_ep}

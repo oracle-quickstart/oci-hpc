@@ -683,3 +683,13 @@ variable "mysql_admin_username" {
   default = ""
   type = string
 }
+
+variable "wildcard_dns_domain" {
+  default = "endpoint.oci-hpc.ai"
+  type    = string
+}
+
+variable "use_lets_encrypt_prod_ep" {
+  default = true
+  type    = bool
+}

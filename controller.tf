@@ -344,7 +344,9 @@ resource "null_resource" "cluster" {
       metrics_stream_ocid      = local.metrics_stream_ocid,
       mysql_admin_password     = var.mysql_admin_password,
       mysql_admin_username     = var.mysql_admin_username,
-      mysql_service_host       = local.mysql_service_host
+      mysql_service_host       = local.mysql_service_host,
+      wildcard_dns_domain      = var.wildcard_dns_domain,
+      use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep
     })
 
     destination = "/config/playbooks/inventory"
