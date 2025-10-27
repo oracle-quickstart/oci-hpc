@@ -22,8 +22,7 @@ This is a Health Check script which covered below in order:
 16. Pending Bad Pages Check (AMD GPUs)
 17. Check if all interfaces have an IP address
 18. Check NVLinks speeds
-19. Check the reboot counts
-20. Run dcgmi health check
+19. Run dcgmi health check
 
 ===========================================================================================
 Usage:
@@ -150,6 +149,39 @@ def recommended_action(current, action):
             return current
         else:
             return action
+
+# Check the reboot counts
+def get_reboots_count():
+    result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+    now = datetime.now()
+    one_day_ago = now - timedelta(hours=24)
+    two_hours_ago = now - timedelta(hours=2)
+
+    reboot_count_last_day = 0
+    last_reboot_within_2hour = 0
+    reboot_lines=[]
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) < 6 or parts[0] != "reboot":
+            continue  # Ignore invalid lines
+        reboot_lines.append(line)
+    for line in reboot_lines[:-1]:
+        parts = line.split()
+        # Extract timestamp (format: "Mon Jan  1 12:34")
+        date_str = " ".join(parts[4:8])  # Extract date/time part
+        reboot_time = datetime.strptime(date_str, "%a %b %d %H:%M")
+        reboot_time = reboot_time.replace(year=now.year)  # Assume current year
+        # Count reboots in the last 12 hours
+        if reboot_time >= one_day_ago:
+            reboot_count_last_day += 1
+
+        # Check if the last reboot was within the last hour
+        if reboot_time >= two_hours_ago:
+            last_reboot_within_2hour += 1
+
+    return reboot_count_last_day, last_reboot_within_2hour
 
 #Section 1: All Health Check functions.
 ########################################
@@ -968,41 +1000,7 @@ def get_nvlink_speed():
         logger.info(f"For {expected_gpu} GPUs, {count} links detected as expected and all speeds as expected {speed_expected} GB/s : Passed")
         return True
 
-
-# 19.1 Check the reboot counts
-def get_reboots_count():
-    result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
-    # Decode the output from bytes to string
-    output = result.stdout.decode('utf-8')
-    now = datetime.now()
-    one_day_ago = now - timedelta(hours=24)
-    two_hours_ago = now - timedelta(hours=2)
-
-    reboot_count_last_day = 0
-    last_reboot_within_2hour = 0
-    reboot_lines=[]
-    for line in output.splitlines():
-        parts = line.split()
-        if len(parts) < 6 or parts[0] != "reboot":
-            continue  # Ignore invalid lines
-        reboot_lines.append(line)
-    for line in reboot_lines[:-1]:
-        parts = line.split()
-        # Extract timestamp (format: "Mon Jan  1 12:34")
-        date_str = " ".join(parts[4:8])  # Extract date/time part
-        reboot_time = datetime.strptime(date_str, "%a %b %d %H:%M")
-        reboot_time = reboot_time.replace(year=now.year)  # Assume current year
-        # Count reboots in the last 12 hours
-        if reboot_time >= one_day_ago:
-            reboot_count_last_day += 1
-
-        # Check if the last reboot was within the last hour
-        if reboot_time >= two_hours_ago:
-            last_reboot_within_2hour += 1
-
-    return reboot_count_last_day, last_reboot_within_2hour
-
-# 20.1 Run dcgmi health check
+# 19.1 Run dcgmi health check
 def run_dcgmi_health():
     # Check dcgmi version
     try:
@@ -1056,7 +1054,6 @@ def run_dcgmi_health():
         logger.warning("Error running dcgmi health check or parsing JSON (is jq installed?).")
         return True
     return True
-
 
 #Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
@@ -1297,7 +1294,7 @@ if __name__ == '__main__':
     if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
         nvlink_speed = get_nvlink_speed()
     
-    # 20.3 Check the node health using dcgmi health check
+    # 19.3 Check the node health using dcgmi health check
     if run_all or args.dcgmi_health:
         if shape != "BM.GPU.MI300X.8":
             try:
@@ -1478,7 +1475,7 @@ if __name__ == '__main__':
             slurm_reason("NVLink speed Error")
             action = recommended_action(action, "Reboot")
 
-    # 20.4 Summarize dcgmi health check
+    # 19.4 Summarize dcgmi health check
     if run_all or args.dcgmi_health:
         if not dcgmi_health_check:
             logger.error(f"{host_serial} - dcgmi health check failed. Run `dcgmi health -c` to get full output.")
