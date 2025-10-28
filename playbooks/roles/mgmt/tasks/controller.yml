@@ -114,6 +114,8 @@
     name: logrotate
     state: present
 
+# Log rotation setup for mgmt.log
+
 - name: Create logrotate configuration for mgmt.log
   become: true
   ansible.builtin.copy:
