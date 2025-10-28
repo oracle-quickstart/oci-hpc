@@ -49,10 +49,13 @@ def reboot(ctx, nodes, fields, soft):
     
     You must specify either --nodes or --fields to identify which nodes to reboot.
     
-    Examples:
-      Reboot by node names: --nodes=node1,node2
-      Reboot by fields: --fields=role=compute,status=running
-      Soft reboot: --nodes=node1 --soft
+    Example:\n
+      #Reboot by node names\n
+      --nodes=node1,node2\n
+      #Reboot by fields\n
+      --fields=role=compute,status=running\n
+      #Soft reboot\n
+      --nodes=node1 --soft
     """
 
     nodes_list = filter_cmd(ctx, nodes, fields)

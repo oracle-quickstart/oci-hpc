@@ -14,6 +14,7 @@ def list():
 )
 @list.command()
 def list(format):
+    """List all login nodes."""
     logins = get_all_login_nodes()
     logins_string=", ".join([login.hostname for login in logins])
     

@@ -17,7 +17,16 @@ import socket
 @click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes in for BM.GPU.GB200.4 nodes')
 @click.option('--memorycluster', required=False, help='Name used for the memory cluster fabric, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid')
 def create(count,cluster,instancetype,names,fabric,memorycluster):
-    """Create a new cluster."""
+    """Create a new cluster.\n
+    Example:\n
+    # Create a standard compute cluster\n
+
+    mgmt clusters create --count 3 --cluster mycluster --instancetype BM.Standard.E3.128\n
+
+    # Create a GPU cluster with memory fabric\n
+
+    mgmt clusters create --count 2 --cluster mycluster --instancetype BM.GPU.GB200.4 --fabric ocid1.fabric.oc1..xxxx
+    --names node01,node02\n"""
     if names:
         name_list=names.split(',')
         if count != len(name_list):

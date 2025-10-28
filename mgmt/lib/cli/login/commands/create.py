@@ -12,9 +12,9 @@ import socket
 @click.command()
 @click.option('--count', type=int, required=True, help='Number of login nodes to add')
 @click.option('--configuration', required=True, help='Specify the name of the login configuration')
-@click.option('--names', required=True, help='comma separated list of host names')
+@click.option('--names', required=True, help='Comma separated list of host names')
 def create(count,configuration,names):
-    """Create a new cluster."""
+    """Add login node to the cluster."""
     if names:
         name_list=names.split(',')
         if count != len(name_list):

@@ -78,7 +78,14 @@ def callback_fields(ctx, param, value):
 )
 
 def list_cmd(columns, format, **options):
-    """List nodes with various filters and formats"""
+    """List nodes with various filters and formats
+    Example:
+
+  # List all nodes in a cluster\n
+  mgmt nodes list --cluster mycluster
+
+  # Lists all node hostnames in a boxed table format without headers, using a fixed width of 30\n
+  mgmt nodes list --columns hostname --style box --no-header --width 30 """
 
     field_dict = {}
     if not options["fields"] is None:
