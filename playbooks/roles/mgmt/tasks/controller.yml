@@ -107,3 +107,43 @@
 
 - name: import the initial_configs into the DB
   shell: "{{venv_path}}/bin/python3 /config/mgmt/manage.py configurations create from-file --file /config/conf/initial_configs.conf"
+
+- name: Ensure logrotate package is installed
+  become: true
+  ansible.builtin.package:
+    name: logrotate
+    state: present
+  # Ensures logrotate utility is available on the system
+
+- name: Create logrotate configuration for mgmt.log
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/mgmt
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      /config/logs/mgmt.log {
+          weekly               # Rotate logs once per week
+          rotate 3              # Keep 3 old log files
+          compress              # Compress old log files to save space
+          missingok             # Skip rotation if the log file is missing
+          notifempty            # Do not rotate empty log files
+          create 0644 root root # Set permissions and ownership for new logs
+          su ubuntu ubuntu      # Rotate logs as ubuntu user/group
+          dateext               # Append date extension to rotated logs
+      }
+  # Creates a dedicated logrotate configuration file for mgmt.log
+
+- name: Validate logrotate configuration for mgmt.log (dry run)
+  become: true
+  ansible.builtin.command:
+    cmd: logrotate -d /etc/logrotate.d/mgmt
+  register: logrotate_test
+  changed_when: false
+  # Runs logrotate in debug mode (-d) to validate syntax and logic
+
+- name: Display logrotate dry-run output
+  ansible.builtin.debug:
+    var: logrotate_test.stdout_lines
+  # Displays the dry-run results for visibility during Ansible run
