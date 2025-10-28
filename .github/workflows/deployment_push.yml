@@ -4,9 +4,9 @@ name: slurm_deployment_on_push
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "3.0.0" ]
+    branches: [ "3.0.0", "3.0.0_workflow_validations_BG" ]
   pull_request:
-    branches: [ "3.0.0" ]
+    branches: [ "3.0.0", "3.0.0_workflow_validations_BG"  ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
