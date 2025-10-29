@@ -134,6 +134,7 @@
     group: "slurm"
     mode: 0700
   become: true
+
 - name: Create DB for accounting
   become: true
   mysql_db:
@@ -220,6 +221,17 @@
   ansible.builtin.template:
     src: "{{ slurm_conf_file }}"
     dest: "{{ slurm_conf_path }}/slurm.conf"
+    mode: "0644"
+    backup: true
+    owner: slurm
+    group: slurm
+  notify: Restart slurm server
+
+- name: Generate job_container.conf
+  become: true
+  ansible.builtin.template:
+    src: "{{ slurm_job_container_conf_file }}"
+    dest: "{{ slurm_conf_path }}/job_container.conf"
     mode: "0644"
     backup: true
     owner: slurm

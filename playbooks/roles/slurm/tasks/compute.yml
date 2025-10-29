@@ -137,3 +137,12 @@
   until: result is not failed
   retries: 5
   delay: 5
+
+- name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
+  become: true
+  ansible.builtin.file:
+    path: /mnt/localdisk/slurm-tmp
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: "01777"
