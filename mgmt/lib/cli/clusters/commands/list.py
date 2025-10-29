@@ -12,7 +12,17 @@ def list():
     default="tabular", show_default=True,
     help="Output format"
 )
-@list.command()
+@list.command(help="""
+List all clusters in tabular or JSON format.
+
+Example:
+
+  # List all clusters\n
+  mgmt clusters list
+
+  # List all clusters in JSON format\n
+  mgmt clusters list --format json
+""")
 def list(format):
     clusters = get_clusters()
     cluster_string=", ".join(clusters)

@@ -3,11 +3,11 @@ from lib.database import db_update_configuration
 
 
 @click.command()
-@click.option('--name', required=True, help='Share the hostnames list in one line')
+@click.option('--name', required=True, help='Name of the configuration to update')
 @click.option(
     '--fields',
     required=True,
-    help='Add a list of update to do, Example shape="VM.Standard.E5.Flex,instance_pool_ocpus=4"'
+    help='Comma-separated list of updates to apply, Example: shape="VM.Standard.E5.Flex,instance_pool_ocpus=4"'
 )
 def update(name, fields):
     """Update Configuration"""
