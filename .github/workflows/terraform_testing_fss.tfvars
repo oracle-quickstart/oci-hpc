@@ -3,6 +3,9 @@
 add_nfs=true
 home_fss=true
 create_fss=true
+slurm_ha=true
+mysql_admin_username="admin"
+mysql_admin_password="Admin1234!"
 
 current_user_ocid="ocid1.user.oc1..aaaaaaaakvxvxu4xxtwjtkxicqkmcr6u635yq33erb6vqr64mcdsayjxr2eq"
 

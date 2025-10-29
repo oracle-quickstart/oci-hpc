@@ -1,12 +1,12 @@
-name: slurm_deployment_on_push
+name: basic_deployment_slurm
 
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "3.0.0", "3.0.0_workflow_validations_BG" ]
+    branches: [ "3.0.0" ]
   pull_request:
-    branches: [ "3.0.0", "3.0.0_workflow_validations_BG"  ]
+    branches: [ "3.0.0" ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -207,8 +207,8 @@ jobs:
         run: |
           cd ..     
 
-  # This job deploys with a custom Ubuntu image and a ubuntu user with FSS
-  deploy_ubuntu_fss:
+  # This job deploys with a custom Ubuntu image and a ubuntu user with FSS, slurm backup, mysql service
+  deploy_ubuntu_fss_backup:
     # The type of runner that the job will run on
     runs-on: ubuntu_fss
     env:
