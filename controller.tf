@@ -105,7 +105,7 @@ resource "null_resource" "controller" {
       "sudo mkdir -p /config",
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/"
       ],
-      var.create_fss ? [
+      var.add_nfs ? [
         "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],

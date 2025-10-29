@@ -52,6 +52,15 @@ This implementation uses Private DNS view. When using an existing VCN, make sure
 > [!WARNING]
 > If the DHCP options and the private zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
 
+**Existing FSS in an existing VCN**
+When using an existing VCN, it is possible to point to an existing NFS/FSS instead of creating one. If so, the name of the cluster should not be random and `Use custom cluster name` must be enabled to set `Name of the cluster`. In case of an existing FSS, a record of type A with the mount target IP address as RDATA should be added to the newly created private zone prior to the stack deployment and respect the following syntax:
+```
+fss-<cluster_name>-controller.<cluster_name>.local
+```
+`Existing NFS server IP` should be set to `fss-<cluster_name>-controller.<cluster_name>.local`
+
+Finally, a reserved export path called `/config` should be created (`File storage > File System > Your File system > Create Export`)
+
 ## Policies
 ### Policies to deploy the stack: 
 ```

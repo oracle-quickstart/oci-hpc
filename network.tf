@@ -294,7 +294,7 @@ resource "oci_dns_rrset" "fss-dns-round-robin" {
 }
 
 resource "oci_dns_rrset" "controller" {
-  count           = (!var.create_fss) ? 1 : 0
+  count           = (!var.create_fss && !var.add_nfs) ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "fss-${local.cluster_name}-controller.${local.zone_name}"
   rtype           = "A"
