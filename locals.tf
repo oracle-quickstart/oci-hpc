@@ -80,7 +80,7 @@ locals {
   ocir_image = var.use_OCI_generated_container ? "${local.region_key}.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
 
   # Pick the right IP based on flags
-  config_target_name = var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : oci_dns_rrset.controller[0].domain
+  config_target_name = var.add_nfs ? var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : var.nfs_source_IP : oci_dns_rrset.controller[0].domain
 
   lustre_IP = var.create_lfs ? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
   mysql_service_host = var.slurm_ha ? data.oci_mysql_mysql_db_system.slurm_mysql[0].endpoints[0].ip_address : ""
