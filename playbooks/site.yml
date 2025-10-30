@@ -37,6 +37,13 @@
     - include_role:
         name: healthchecks
 
+# New role to clean old tmp dir files
+- hosts: all
+  become: true
+  tasks:
+    - include_role:
+        name: clean_tmp
+
 - hosts: controller
   become: true
   vars:
