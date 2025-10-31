@@ -8,6 +8,7 @@ import subprocess
 import logging
 import getpass
 import time
+from gpu_sdc_checker import MultiGPUSDCChecker
 
 # Configure logger for active_healthcheck
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -265,6 +266,38 @@ def run_gpu_fryer(run_time):
         print(output)
         return False, str(e)
 
+def run_gpu_sdc_check(gpu_ids=None):
+    try:
+        # MultiGPUSDCChecker - runs all tests on all GPUs in parallel
+        checker = MultiGPUSDCChecker(gpu_ids=gpu_ids)
+        logger.info(f"Running GPU SDC checks on {len(checker.checkers)} GPU(s): {list(checker.checkers.keys())}")
+
+        # Run all tests on all GPUs
+        results = checker.run_all_tests()
+
+        # Get summary
+        summary = checker.get_summary(results)
+
+        # Check for failures
+        failed_gpus = summary['aggregate_stats']['failed_gpus']
+        total_errors = summary['aggregate_stats']['total_errors']
+
+        if failed_gpus:
+            message = f"GPU SDC Test Failed: {len(failed_gpus)} GPU(s) failed with {total_errors} total errors - Failed GPUs: {failed_gpus}"
+            logger.error(message)
+            return False, message, summary
+        else:
+            message = f"GPU SDC Test Succeeded: All {len(checker.checkers)} GPU(s) passed all tests"
+            logger.info(message)
+            return True, message, summary
+
+    except Exception as e:
+        message = f"GPU SDC Test crashed: {str(e)}"
+        logger.error(message)
+        import traceback
+        traceback.print_exc()
+        return False, message, {}
+
 def recommended_action(current, action):
     if action not in [None,"FabricManagerRestart","Reboot","Tag_and_Terminate"]:
         print("No action was found")
@@ -359,6 +392,16 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
+
+        # Run SDC checks
+        sdc_state, sdc_output, sdc_details = run_gpu_sdc_check()
+        if not sdc_state:
+            logger.error(f"{hostname} - GPU SDC Test Failed: {sdc_output}")
+            slurm_reason("GPU SDC Test Failed")
+            action = recommended_action(action, "Reboot")
+        else:
+            logger.info(f"{hostname} - GPU SDC Test Succeeded: {sdc_output}")
+
     else:
         #AMD GPU's: 
         rccl_state,rccl_output = run_local_rccl_test(shape)
@@ -368,7 +411,6 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - RCCL Test Succeeded: {rccl_output}")
-
 
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()
