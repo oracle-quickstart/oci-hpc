@@ -10,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import cupy as cp
 
-
 class TestResult:
     def __init__(self, test_name: str, passed: bool, error_count: int = 0,
                  elapsed_time: float = 0.0, message: str = ""):
@@ -38,6 +37,8 @@ class TestResult:
 
 
 class GPUSDCChecker:
+    # Max duration per test in seconds
+    MAX_DURATION = 15 
     # Available test definitions
     AVAILABLE_TESTS = {
         "memory_patterns": "Test GPU memory with various bit patterns",
@@ -96,6 +97,7 @@ class GPUSDCChecker:
     def test_memory_patterns(self) -> TestResult:
         start_time = time.time()
         errors = 0
+        target_duration = MAX_DURATION
         patterns = [
             (0x00000000, "All zeros"),
             (0xFFFFFFFF, "All ones"),
@@ -113,20 +115,27 @@ class GPUSDCChecker:
             with self.device:
                 gpu_array = cp.zeros(self.array_size, dtype=cp.uint32)
 
-                for pattern_value, pattern_name in patterns:
-                    gpu_array.fill(pattern_value)
-                    cp.cuda.Stream.null.synchronize()
+                # Run patterns repeatedly for ~5 minutes
+                iteration = 0
+                while (time.time() - start_time) < target_duration:
+                    for pattern_value, pattern_name in patterns:
+                        gpu_array.fill(pattern_value)
+                        cp.cuda.Stream.null.synchronize()
 
-                    mismatches = gpu_array != pattern_value
-                    error_count = cp.sum(mismatches).get()
+                        mismatches = gpu_array != pattern_value
+                        error_count = cp.sum(mismatches).get()
 
-                    if error_count > 0:
-                        errors += error_count
-                        pass
+                        if error_count > 0:
+                            errors += error_count
+
+                        # Check if we've reached target duration
+                        if (time.time() - start_time) >= target_duration:
+                            break
+                    iteration += 1
 
             elapsed = time.time() - start_time
             passed = errors == 0
-            message = f"All patterns passed" if passed else f"{errors} pattern errors detected"
+            message = f"All patterns passed ({iteration} iterations)" if passed else f"{errors} pattern errors detected ({iteration} iterations)"
 
             return TestResult("memory_patterns", passed, errors, elapsed, message)
 
@@ -137,12 +146,11 @@ class GPUSDCChecker:
     def test_arithmetic_operations(self) -> TestResult:
         start_time = time.time()
         errors = 0
+        target_duration = MAX_DURATION
 
         try:
             with self.device:
                 size = self.array_size
-                a = cp.arange(size, dtype=cp.float32) * 0.001
-                b = cp.ones(size, dtype=cp.float32) * 3.14159
 
                 operations = [
                     ("Addition", lambda x, y: x + y),
@@ -155,21 +163,35 @@ class GPUSDCChecker:
                     ("Exp", lambda x, y: cp.exp(-cp.abs(x) / 1000)),
                 ]
 
-                for op_name, op_func in operations:
-                    result1 = op_func(a, b)
-                    result2 = op_func(a, b)
+                iteration = 0
+                while (time.time() - start_time) < target_duration:
+                    # Create new data each iteration
+                    a = cp.arange(size, dtype=cp.float32) * 0.001 + iteration * 0.0001
+                    b = cp.ones(size, dtype=cp.float32) * 3.14159
 
-                    diff = cp.abs(result1 - result2)
-                    tolerance = cp.max(cp.abs(result1)) * 1e-6
-                    inconsistent = diff > tolerance
-                    error_count = cp.sum(inconsistent).get()
+                    for op_name, op_func in operations:
+                        result1 = op_func(a, b)
+                        result2 = op_func(a, b)
 
-                    if error_count > 0:
-                        errors += error_count
+                        diff = cp.abs(result1 - result2)
+                        tolerance = cp.max(cp.abs(result1)) * 1e-6
+                        inconsistent = diff > tolerance
+                        error_count = cp.sum(inconsistent).get()
+
+                        if error_count > 0:
+                            errors += error_count
+
+                        # Check if we've reached target duration
+                        if (time.time() - start_time) >= target_duration:
+                            break
+
+                    if (time.time() - start_time) >= target_duration:
+                        break
+                    iteration += 1
 
             elapsed = time.time() - start_time
             passed = errors == 0
-            message = f"All arithmetic operations passed" if passed else f"{errors} arithmetic errors detected"
+            message = f"All arithmetic operations passed ({iteration} iterations)" if passed else f"{errors} arithmetic errors detected ({iteration} iterations)"
 
             return TestResult("arithmetic_operations", passed, errors, elapsed, message)
 
@@ -180,31 +202,40 @@ class GPUSDCChecker:
     def test_memory_integrity(self) -> TestResult:
         start_time = time.time()
         errors = 0
+        target_duration = MAX_DURATION
 
         try:
             with self.device:
-                rng = cp.random.RandomState(seed=42)
-                original = rng.randint(0, 2**30, size=self.array_size, dtype=cp.int32)
-                original_sum = cp.sum(original, dtype=cp.int64).get()
+                iteration = 0
+                while (time.time() - start_time) < target_duration:
+                    rng = cp.random.RandomState(seed=42 + iteration)
+                    original = rng.randint(0, 2**30, size=self.array_size, dtype=cp.int32)
+                    original_sum = cp.sum(original, dtype=cp.int64).get()
 
-                data = cp.copy(original)
-                for cycle in range(20):
-                    temp = cp.copy(data)
-                    data = temp
+                    data = cp.copy(original)
+                    for cycle in range(20):
+                        temp = cp.copy(data)
+                        data = temp
 
-                    if cycle % 5 == 4:
-                        current_sum = cp.sum(data, dtype=cp.int64).get()
-                        if current_sum != original_sum:
-                            errors += 1
+                        if cycle % 5 == 4:
+                            current_sum = cp.sum(data, dtype=cp.int64).get()
+                            if current_sum != original_sum:
+                                errors += 1
 
-                        differences = data != original
-                        diff_count = cp.sum(differences).get()
-                        if diff_count > 0:
-                            errors += diff_count
+                            differences = data != original
+                            diff_count = cp.sum(differences).get()
+                            if diff_count > 0:
+                                errors += diff_count
+
+                    iteration += 1
+
+                    # Check if we've reached target duration
+                    if (time.time() - start_time) >= target_duration:
+                        break
 
             elapsed = time.time() - start_time
             passed = errors == 0
-            message = f"Memory integrity maintained" if passed else f"{errors} memory corruption events"
+            message = f"Memory integrity maintained ({iteration} iterations)" if passed else f"{errors} memory corruption events ({iteration} iterations)"
 
             return TestResult("memory_integrity", passed, errors, elapsed, message)
 
@@ -215,23 +246,32 @@ class GPUSDCChecker:
     def test_data_transfer(self) -> TestResult:
         start_time = time.time()
         errors = 0
+        target_duration = MAX_DURATION
         transfer_size = min(self.array_size, 10 * 1024 * 1024)
 
         try:
-            host_data = np.random.randint(0, 2**31, size=transfer_size, dtype=np.int32)
+            iteration = 0
+            while (time.time() - start_time) < target_duration:
+                host_data = np.random.randint(0, 2**31, size=transfer_size, dtype=np.int32)
 
-            for cycle in range(10):
-                device_data = cp.asarray(host_data)
-                result = cp.asnumpy(device_data)
+                for cycle in range(10):
+                    device_data = cp.asarray(host_data)
+                    result = cp.asnumpy(device_data)
 
-                if not np.array_equal(host_data, result):
-                    differences = host_data != result
-                    diff_count = np.sum(differences)
-                    errors += diff_count
+                    if not np.array_equal(host_data, result):
+                        differences = host_data != result
+                        diff_count = np.sum(differences)
+                        errors += diff_count
+
+                iteration += 1
+
+                # Check if we've reached target duration
+                if (time.time() - start_time) >= target_duration:
+                    break
 
             elapsed = time.time() - start_time
             passed = errors == 0
-            message = f"All transfers successful" if passed else f"{errors} transfer errors detected"
+            message = f"All transfers successful ({iteration} iterations)" if passed else f"{errors} transfer errors detected ({iteration} iterations)"
 
             return TestResult("data_transfer", passed, errors, elapsed, message)
 
@@ -240,34 +280,51 @@ class GPUSDCChecker:
             return TestResult("data_transfer", False, -1, elapsed, f"Test crashed: {str(e)}")
 
     def test_concurrent_operations(self) -> TestResult:
+        """
+        Test concurrent kernel execution and stream operations.
+        Runs for ~5 minutes. Detects synchronization issues and race conditions.
+
+        Returns:
+            TestResult object with test outcome
+        """
         start_time = time.time()
         errors = 0
+        target_duration = MAX_DURATION
 
         try:
             with self.device:
                 num_streams = 4
-                streams = [cp.cuda.Stream() for _ in range(num_streams)]
-                arrays = []
+                iteration = 0
 
-                for i, stream in enumerate(streams):
-                    with stream:
-                        arr = cp.full(self.array_size // num_streams, i, dtype=cp.int32)
-                        arrays.append(arr)
-                        arr *= 2
-                        arr += 10
+                while (time.time() - start_time) < target_duration:
+                    streams = [cp.cuda.Stream() for _ in range(num_streams)]
+                    arrays = []
 
-                for stream in streams:
-                    stream.synchronize()
+                    for i, stream in enumerate(streams):
+                        with stream:
+                            arr = cp.full(self.array_size // num_streams, i + iteration, dtype=cp.int32)
+                            arrays.append(arr)
+                            arr *= 2
+                            arr += 10
 
-                for i, arr in enumerate(arrays):
-                    expected_value = i * 2 + 10
-                    if not cp.all(arr == expected_value):
-                        error_count = cp.sum(arr != expected_value).get()
-                        errors += error_count
+                    for stream in streams:
+                        stream.synchronize()
+
+                    for i, arr in enumerate(arrays):
+                        expected_value = (i + iteration) * 2 + 10
+                        if not cp.all(arr == expected_value):
+                            error_count = cp.sum(arr != expected_value).get()
+                            errors += error_count
+
+                    iteration += 1
+
+                    # Check if we've reached target duration
+                    if (time.time() - start_time) >= target_duration:
+                        break
 
             elapsed = time.time() - start_time
             passed = errors == 0
-            message = f"Concurrent operations stable" if passed else f"{errors} concurrency errors detected"
+            message = f"Concurrent operations stable ({iteration} iterations)" if passed else f"{errors} concurrency errors detected ({iteration} iterations)"
 
             return TestResult("concurrent_operations", passed, errors, elapsed, message)
 
@@ -278,33 +335,44 @@ class GPUSDCChecker:
     def test_random_stress(self) -> TestResult:
         start_time = time.time()
         errors = 0
+        target_duration = MAX_DURATION
 
         try:
             with self.device:
-                for iteration in range(5):
-                    size = self.array_size // 4
-                    data = cp.random.random(size, dtype=cp.float32)
+                iteration = 0
+                while (time.time() - start_time) < target_duration:
+                    for sub_iter in range(5):
+                        size = self.array_size // 4
+                        data = cp.random.random(size, dtype=cp.float32)
 
-                    result = data
-                    result = cp.sin(result * cp.pi)
-                    result = cp.sqrt(cp.abs(result))
-                    result = result * 1000
-                    result = cp.floor(result)
+                        result = data
+                        result = cp.sin(result * cp.pi)
+                        result = cp.sqrt(cp.abs(result))
+                        result = result * 1000
+                        result = cp.floor(result)
 
-                    data2 = cp.copy(data)
-                    result2 = data2
-                    result2 = cp.sin(result2 * cp.pi)
-                    result2 = cp.sqrt(cp.abs(result2))
-                    result2 = result2 * 1000
-                    result2 = cp.floor(result2)
+                        data2 = cp.copy(data)
+                        result2 = data2
+                        result2 = cp.sin(result2 * cp.pi)
+                        result2 = cp.sqrt(cp.abs(result2))
+                        result2 = result2 * 1000
+                        result2 = cp.floor(result2)
 
-                    if not cp.allclose(result, result2, rtol=1e-5):
-                        diff_count = cp.sum(cp.abs(result - result2) > 1e-3).get()
-                        errors += diff_count
+                        if not cp.allclose(result, result2, rtol=1e-5):
+                            diff_count = cp.sum(cp.abs(result - result2) > 1e-3).get()
+                            errors += diff_count
+
+                        # Check if we've reached target duration
+                        if (time.time() - start_time) >= target_duration:
+                            break
+
+                    if (time.time() - start_time) >= target_duration:
+                        break
+                    iteration += 1
 
             elapsed = time.time() - start_time
             passed = errors == 0
-            message = f"Stress test passed" if passed else f"{errors} stress test errors detected"
+            message = f"Stress test passed ({iteration * 5} iterations)" if passed else f"{errors} stress test errors detected ({iteration * 5} iterations)"
 
             return TestResult("random_stress", passed, errors, elapsed, message)
 
@@ -461,13 +529,16 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='GPU Silent Data Corruption (SDC) Checker - Runs all tests on all GPUs',
+        description='GPU Silent Data Corruption (SDC) Checker',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   %(prog)s                      # Test all available GPUs
   %(prog)s --gpus 0 1           # Test specific GPUs (0 and 1)
   %(prog)s --output results.json # Save results to specific file
+
+Note: Each test runs for approximately 5 minutes. Total runtime will be ~30 minutes
+      for all 6 tests running in parallel across all GPUs.
         """
     )
 

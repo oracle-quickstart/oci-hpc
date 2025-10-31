@@ -25,6 +25,7 @@
     - shared_logging.py
     - multi_node_active_HC.sbatch
     - multi_node_active_healthcheck.py
+    - gpu_sdc_checker.py
 
 - name: Download oci-mesh-pinger
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
@@ -79,3 +80,49 @@
   ansible.builtin.include_role:
     name: safe_yum
   ignore_errors: true
+
+- name: Check for nvcc
+  ansible.builtin.command: "nvcc --version"
+  register: nvcc_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Parse CUDA major version from nvcc
+  ansible.builtin.set_fact:
+    cuda_major: "{{ (nvcc_cmd.stdout | regex_search('release ([0-9]+)\\.[0-9]+', '\\1')) | default(omit) }}"
+  when: nvcc_cmd.rc == 0
+
+- name: Fallback - check for nvidia-smi
+  ansible.builtin.command: "nvidia-smi"
+  register: smi_cmd
+  changed_when: false
+  failed_when: false
+  when: cuda_major is not defined
+
+- name: Parse CUDA major version from nvidia-smi
+  ansible.builtin.set_fact:
+    cuda_major: "{{ (smi_cmd.stdout | regex_search('CUDA Version: ([0-9]+)\\.[0-9]+', '\\1')) | default(omit) }}"
+  when: cuda_major is not defined and smi_cmd.rc == 0
+
+- name: Determine CuPy package name
+  ansible.builtin.set_fact:
+    cupy_pkg: >-
+      {{
+        ('cupy-cuda12x' + cupy_version_suffix) if (cuda_major | default('') | string) == '12' else
+        ('cupy-cuda11x' + cupy_version_suffix) if (cuda_major | default('') | string) == '11' else
+        ('cupy' + cupy_version_suffix)
+      }}
+
+- name: Show detected CUDA and chosen package
+  ansible.builtin.debug:
+    msg:
+      - "Detected CUDA major: {{ cuda_major | default('unknown') }}"
+      - "Installing package: {{ cupy_pkg }}"
+
+- name: Install CuPy with pip
+  ansible.builtin.pip:
+    name:
+      - "{{ cupy_pkg }}"
+      - numpy
+    state: latest
+
