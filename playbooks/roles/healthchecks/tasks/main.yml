@@ -104,13 +104,13 @@
     cuda_major: "{{ (smi_cmd.stdout | regex_search('CUDA Version: ([0-9]+)\\.[0-9]+', '\\1')) | default(omit) }}"
   when: cuda_major is not defined and smi_cmd.rc == 0
 
-- name: Determine CuPy package name
+- name: Determine CuPy package name (no suffix)
   ansible.builtin.set_fact:
     cupy_pkg: >-
       {{
-        ('cupy-cuda12x' + cupy_version_suffix) if (cuda_major | default('') | string) == '12' else
-        ('cupy-cuda11x' + cupy_version_suffix) if (cuda_major | default('') | string) == '11' else
-        ('cupy' + cupy_version_suffix)
+        'cupy-cuda12x' if (cuda_major | default('') | string) == '12' else
+        'cupy-cuda11x' if (cuda_major | default('') | string) == '11' else
+        'cupy'
       }}
 
 - name: Show detected CUDA and chosen package

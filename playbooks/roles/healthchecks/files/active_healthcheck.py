@@ -396,11 +396,11 @@ if __name__ == '__main__':
         # Run SDC checks
         sdc_state, sdc_output, sdc_details = run_gpu_sdc_check()
         if not sdc_state:
-            logger.error(f"{hostname} - GPU SDC Test Failed: {sdc_output}")
+            logger.error(f"{hostname} - GPU Silent Data Corruption Test Failed: {sdc_output}")
             slurm_reason("GPU SDC Test Failed")
             action = recommended_action(action, "Reboot")
         else:
-            logger.info(f"{hostname} - GPU SDC Test Succeeded: {sdc_output}")
+            logger.info(f"{hostname} - GPU Silent Data Corruption Test Succeeded: {sdc_output}")
 
     else:
         #AMD GPU's: 
