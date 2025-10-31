@@ -21,11 +21,11 @@ SlurmdLogFile=/var/log/slurm/slurmd.log
 StateSaveLocation={{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm
 SwitchType=switch/none
 TaskPlugin=task/affinity,task/cgroup
-
+JobContainerType=job_container/tmpfs
 {% if pam|bool %}
 PrologFlags=contain
 {% else %}
-PrologFlags=alloc,nohold
+PrologFlags=alloc,contain
 {% endif %}
 InactiveLimit=0
 KillWait=30

@@ -5,6 +5,7 @@ slurm_conf_path: "/etc/slurm"
 slurm_log_path: "/var/log/slurm"
 slurm_exec: "/usr"
 slurm_conf_file: slurm.conf.j2
+slurm_job_container_conf_file: job_container.conf.j2
 munge_log_path: "/var/log/munge"
 munge_run_path: "/var/run/munge"
 slurm_db_user: "slurm_accounting"
