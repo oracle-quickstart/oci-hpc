@@ -211,6 +211,13 @@ uv pip install ujson
 uv pip install "fastapi[standard-no-fastapi-cloud-cli]"
 uv pip install uvicorn
 
+# Silent Data Corruption checks
+uv pip install numpy
+uv pip install setuptools
+uv pip install wheel
+uv pip install cupy-cuda12x
+uv pip install cupy-cuda13x
+
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 
 $VENV_PATH/bin/ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
