@@ -215,8 +215,26 @@ uv pip install uvicorn
 uv pip install numpy
 uv pip install setuptools
 uv pip install wheel
-uv pip install cupy-cuda12x
-uv pip install cupy-cuda13x
+
+# Detect CUDA version and install matching CuPy wheel
+CUDA_JSON="/usr/local/cuda/version.json"
+CUDA_MAJOR="$(jq -r '.cuda.version' "${CUDA_JSON}" | cut -d. -f1)"
+
+case "${CUDA_MAJOR}" in
+  12)
+    PKG="cupy-cuda12x"
+    ;;
+  13)
+    PKG="cupy-cuda13x"
+    ;;
+  *)
+    echo "Unsupported CUDA major: ${CUDA_MAJOR}" >&2
+    exit 1
+    ;;
+esac
+
+# Install the selected CuPy wheel
+uv pip install "${PKG}" 
 
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 

@@ -97,7 +97,7 @@ class GPUSDCChecker:
     def test_memory_patterns(self) -> TestResult:
         start_time = time.time()
         errors = 0
-        target_duration = MAX_DURATION
+        target_duration = self.MAX_DURATION
         patterns = [
             (0x00000000, "All zeros"),
             (0xFFFFFFFF, "All ones"),
@@ -146,7 +146,7 @@ class GPUSDCChecker:
     def test_arithmetic_operations(self) -> TestResult:
         start_time = time.time()
         errors = 0
-        target_duration = MAX_DURATION
+        target_duration = self.MAX_DURATION
 
         try:
             with self.device:
@@ -202,7 +202,7 @@ class GPUSDCChecker:
     def test_memory_integrity(self) -> TestResult:
         start_time = time.time()
         errors = 0
-        target_duration = MAX_DURATION
+        target_duration = self.MAX_DURATION
 
         try:
             with self.device:
@@ -246,7 +246,7 @@ class GPUSDCChecker:
     def test_data_transfer(self) -> TestResult:
         start_time = time.time()
         errors = 0
-        target_duration = MAX_DURATION
+        target_duration = self.MAX_DURATION
         transfer_size = min(self.array_size, 10 * 1024 * 1024)
 
         try:
@@ -289,7 +289,7 @@ class GPUSDCChecker:
         """
         start_time = time.time()
         errors = 0
-        target_duration = MAX_DURATION
+        target_duration = self.MAX_DURATION
 
         try:
             with self.device:
@@ -335,7 +335,7 @@ class GPUSDCChecker:
     def test_random_stress(self) -> TestResult:
         start_time = time.time()
         errors = 0
-        target_duration = MAX_DURATION
+        target_duration = self.MAX_DURATION
 
         try:
             with self.device:
