@@ -4,9 +4,8 @@
   ansible.builtin.blockinfile:
     block: "{{ lookup('template', 'gres.conf.j2') }}"
     path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {mark} {{ item.value.hostname }}"
+  delegate_to: 127.0.0.1
   when: "'GPU' in item.value.shape"
-  with_items: "{{ new_compute_info | dict2items }}"
 
 - name: Populate nodes_to_add with cluster_name as key and list of hostnames as value
   ansible.builtin.set_fact:
