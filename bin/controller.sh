@@ -217,8 +217,15 @@ uv pip install setuptools
 uv pip install wheel
 
 # Detect CUDA version and install matching CuPy wheel
-CUDA_JSON="/usr/local/cuda/version.json"
-CUDA_MAJOR="$(jq -r '.cuda.version' "${CUDA_JSON}" | cut -d. -f1)"
+shopt -s nullglob
+CUDA_MAJOR=""
+if compgen -G "/usr/local/cuda-13*" >/dev/null; then
+  CUDA_MAJOR="13"
+elif compgen -G "/usr/local/cuda-12*" >/dev/null; then
+  CUDA_MAJOR="12"
+else
+  echo "Unsupported or missing CUDA installation under /usr/local (no cuda-12* or cuda-13* found)" >&2
+fi
 
 case "${CUDA_MAJOR}" in
   12)
@@ -229,7 +236,6 @@ case "${CUDA_MAJOR}" in
     ;;
   *)
     echo "Unsupported CUDA major: ${CUDA_MAJOR}" >&2
-    exit 1
     ;;
 esac
 
