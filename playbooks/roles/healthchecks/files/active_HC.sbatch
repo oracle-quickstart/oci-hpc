@@ -29,9 +29,12 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
     TIME_DIFF=9999   # Force healthcheck to run if file doesn’t exist
   fi
 
+  source /etc/os-release
+  export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
+  export VENV_PATH=${UV_INSTALL_DIR}/oci
   # Run healthcheck if file is older than 60s or missing
   if [ "$TIME_DIFF" -gt 60 ]; then
-    sudo python3 /opt/oci-hpc/healthchecks/active_healthcheck.py --slurm 2>&1
+    sudo $VENV_PATH/bin/python3 /opt/oci-hpc/healthchecks/active_healthcheck.py --slurm 2>&1
   fi
 
   # Only check for drain messages if log file exists

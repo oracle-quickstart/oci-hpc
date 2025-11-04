@@ -224,7 +224,8 @@ if compgen -G "/usr/local/cuda-13*" >/dev/null; then
 elif compgen -G "/usr/local/cuda-12*" >/dev/null; then
   CUDA_MAJOR="12"
 else
-  echo "Unsupported or missing CUDA installation under /usr/local (no cuda-12* or cuda-13* found)" >&2
+  CUDA_MAJOR="12"
+  echo "/usr/local/cuda not found. Defaulting to CUDA 12" >&2
 fi
 
 case "${CUDA_MAJOR}" in
@@ -235,7 +236,7 @@ case "${CUDA_MAJOR}" in
     PKG="cupy-cuda13x"
     ;;
   *)
-    echo "Unsupported CUDA major: ${CUDA_MAJOR}" >&2
+    PKG="cupy-cuda12x"
     ;;
 esac
 
