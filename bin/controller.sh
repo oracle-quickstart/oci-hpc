@@ -218,27 +218,15 @@ uv pip install wheel
 
 # Detect CUDA version and install matching CuPy wheel
 shopt -s nullglob
-CUDA_MAJOR=""
+CUDA_MAJOR=12
 if compgen -G "/usr/local/cuda-13*" >/dev/null; then
-  CUDA_MAJOR="13"
-elif compgen -G "/usr/local/cuda-12*" >/dev/null; then
-  CUDA_MAJOR="12"
-else
-  CUDA_MAJOR="12"
+  CUDA_MAJOR=13
+elif ! compgen -G "/usr/local/cuda-12*" >/dev/null; then
   echo "/usr/local/cuda not found. Defaulting to CUDA 12" >&2
 fi
 
-case "${CUDA_MAJOR}" in
-  12)
-    PKG="cupy-cuda12x"
-    ;;
-  13)
-    PKG="cupy-cuda13x"
-    ;;
-  *)
-    PKG="cupy-cuda12x"
-    ;;
-esac
+# Select CuPy wheel
+PKG="cupy-cuda${CUDA_MAJOR}x"
 
 # Install the selected CuPy wheel
 uv pip install "${PKG}" 
