@@ -175,7 +175,7 @@ uv pip install prometheus_client
 uv pip install watchdog
 uv pip install opentelemetry-sdk
 uv pip install opentelemetry-exporter-otlp
-uv pip install pynvml
+uv pip install nvidia-ml-py
 uv pip install pyudev
 uv pip install clustershell
 uv pip install sqlalchemy
