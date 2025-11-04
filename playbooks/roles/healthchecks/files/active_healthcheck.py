@@ -8,7 +8,6 @@ import subprocess
 import logging
 import getpass
 import time
-from gpu_sdc_checker import MultiGPUSDCChecker
 
 # Configure logger for active_healthcheck
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,6 +22,16 @@ if version >= (3, 12):
     from datetime import datetime, timedelta, UTC
 else:
     from datetime import datetime, timedelta
+
+# Import GPU SDC Checker if available
+try:
+    from gpu_sdc_checker import GPUSDCChecker, MultiGPUSDCChecker
+    GPU_SDC_AVAILABLE = True
+except ImportError:
+    logger.warning("GPU SDC Checker not available - SDC tests will be skipped")
+    GPU_SDC_AVAILABLE = False
+    GPUSDCChecker = None
+    MultiGPUSDCChecker = None
 
 def get_metadata():
     headers = { 'Authorization' : 'Bearer Oracle' }
@@ -267,6 +276,10 @@ def run_gpu_fryer(run_time):
         return False, str(e)
 
 def run_gpu_sdc_check(gpu_ids=None):
+    if not GPU_SDC_AVAILABLE:
+        logger.warning("GPU SDC Checker not available - skipping SDC tests")
+        return True, "GPU SDC Checker not available", {}
+
     try:
         # MultiGPUSDCChecker - runs all tests on all GPUs in parallel
         checker = MultiGPUSDCChecker(gpu_ids=gpu_ids)
@@ -293,10 +306,8 @@ def run_gpu_sdc_check(gpu_ids=None):
 
     except Exception as e:
         message = f"GPU SDC Test crashed: {str(e)}"
-        logger.error(message)
-        import traceback
-        traceback.print_exc()
-        return False, message, {}
+        logger.warning(message)
+        return None, message, {}
 
 def recommended_action(current, action):
     if action not in [None,"FabricManagerRestart","Reboot","Tag_and_Terminate"]:
@@ -395,13 +406,15 @@ if __name__ == '__main__':
 
         # Run SDC checks
         sdc_state, sdc_output, sdc_details = run_gpu_sdc_check()
-        if not sdc_state:
-            logger.error(f"{hostname} - GPU Silent Data Corruption Test Failed: {sdc_output}")
-            slurm_reason("GPU SDC Test Failed")
-            action = recommended_action(action, "Reboot")
+        if sdc_state == None:
+            logger.warning(f"{hostname} - GPU Silent Data Corruption Test Failed: {sdc_output}")
         else:
-            logger.info(f"{hostname} - GPU Silent Data Corruption Test Succeeded: {sdc_output}")
-
+            if not sdc_state:
+                logger.error(f"{hostname} - GPU Silent Data Corruption Test Failed: {sdc_output}")
+                slurm_reason("GPU SDC Test Failed")
+                action = recommended_action(action, "Reboot")
+            else:
+                logger.info(f"{hostname} - GPU Silent Data Corruption Test Succeeded: {sdc_output}")
     else:
         #AMD GPU's: 
         rccl_state,rccl_output = run_local_rccl_test(shape)

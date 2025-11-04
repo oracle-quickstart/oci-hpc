@@ -7,8 +7,19 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import numpy as np
-import cupy as cp
+# Check for required packages
+try:
+    import numpy as np
+    import cupy as cp
+    DEPENDENCIES_AVAILABLE = True
+except ImportError as e:
+    # Allow import to succeed even without dependencies
+    # This enables active_healthcheck.py to import without errors
+    DEPENDENCIES_AVAILABLE = False
+    np = None
+    cp = None
+    _import_error = e
+
 
 class TestResult:
     def __init__(self, test_name: str, passed: bool, error_count: int = 0,
@@ -50,6 +61,10 @@ class GPUSDCChecker:
     }
 
     def __init__(self, gpu_id: int = 0, array_size: Optional[int] = None):
+
+        if not DEPENDENCIES_AVAILABLE:
+            raise RuntimeWarning(f"Required dependencies not available: {_import_error}")
+
         self.gpu_id = gpu_id
 
         # Setup GPU
@@ -390,6 +405,10 @@ class GPUSDCChecker:
 
 class MultiGPUSDCChecker:
     def __init__(self, gpu_ids: Optional[List[int]] = None):
+
+        if not DEPENDENCIES_AVAILABLE:
+            raise RuntimeWarning(f"Required dependencies not available: {_import_error}")        
+
         # Detect available GPUs
         try:
             self.num_gpus = cp.cuda.runtime.getDeviceCount()
