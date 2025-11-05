@@ -34,6 +34,7 @@
     - shared_logging.py
     - multi_node_active_HC.sbatch
     - multi_node_active_healthcheck.py
+    - gpu_sdc_checker.py
 
 - name: Download oci-mesh-pinger
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"

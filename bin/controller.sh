@@ -211,6 +211,27 @@ if [ $creating_python_install_dir ]; then
   uv pip install "typing-inspect>=0.4.0"
   uv pip install "pydantic>=2"
 
+# Silent Data Corruption checks
+uv pip install numpy
+uv pip install setuptools
+uv pip install wheel
+
+# Detect CUDA version and install matching CuPy wheel
+shopt -s nullglob
+CUDA_MAJOR=12
+if compgen -G "/usr/local/cuda-13*" >/dev/null; then
+  CUDA_MAJOR=13
+elif ! compgen -G "/usr/local/cuda-12*" >/dev/null; then
+  echo "/usr/local/cuda not found. Defaulting to CUDA 12" >&2
+fi
+
+# Select CuPy wheel
+PKG="cupy-cuda${CUDA_MAJOR}x"
+
+# Install the selected CuPy wheel
+uv pip install "${PKG}" 
+
+export VENV_PATH=${UV_INSTALL_DIR}/oci
   # Other packages
   uv pip install ujson
   uv pip install "fastapi[standard-no-fastapi-cloud-cli]"

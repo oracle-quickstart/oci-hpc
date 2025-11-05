@@ -27,6 +27,16 @@ if version >= (3, 12):
 else:
     from datetime import datetime, timedelta
 
+# Import GPU SDC Checker if available
+try:
+    from gpu_sdc_checker import GPUSDCChecker, MultiGPUSDCChecker
+    GPU_SDC_AVAILABLE = True
+except ImportError:
+    logger.warning("GPU SDC Checker not available - SDC tests will be skipped")
+    GPU_SDC_AVAILABLE = False
+    GPUSDCChecker = None
+    MultiGPUSDCChecker = None
+
 def get_metadata():
     headers = { 'Authorization' : 'Bearer Oracle' }
     metadata_url = "http://169.254.169.254/opc/"
@@ -291,6 +301,40 @@ cargo install gpu-fryer --root /opt/gpu-fryer
         print('\n'.join(output.splitlines()[-20:]))
         return False, str(e)
 
+def run_gpu_sdc_check(gpu_ids=None):
+    if not GPU_SDC_AVAILABLE:
+        logger.warning("GPU SDC Checker not available - skipping SDC tests")
+        return True, "GPU SDC Checker not available", {}
+
+    try:
+        # MultiGPUSDCChecker - runs all tests on all GPUs in parallel
+        checker = MultiGPUSDCChecker(gpu_ids=gpu_ids)
+        logger.info(f"Running GPU SDC checks on {len(checker.checkers)} GPU(s): {list(checker.checkers.keys())}")
+
+        # Run all tests on all GPUs
+        results = checker.run_all_tests()
+
+        # Get summary
+        summary = checker.get_summary(results)
+
+        # Check for failures
+        failed_gpus = summary['aggregate_stats']['failed_gpus']
+        total_errors = summary['aggregate_stats']['total_errors']
+
+        if failed_gpus:
+            message = f"GPU SDC Test Failed: {len(failed_gpus)} GPU(s) failed with {total_errors} total errors - Failed GPUs: {failed_gpus}"
+            logger.error(message)
+            return False, message, summary
+        else:
+            message = f"GPU SDC Test Succeeded: All {len(checker.checkers)} GPU(s) passed all tests"
+            logger.info(message)
+            return True, message, summary
+
+    except Exception as e:
+        message = f"GPU SDC Test crashed: {str(e)}"
+        logger.warning(message)
+        return None, message, {}
+
 def recommended_action(current, action):
     if action not in [None,"FabricManagerRestart","Reboot","Tag_and_Terminate"]:
         print("No action was found")
@@ -385,6 +429,18 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
+
+        # Run SDC checks
+        sdc_state, sdc_output, sdc_details = run_gpu_sdc_check()
+        if sdc_state == None:
+            logger.warning(f"{hostname} - GPU Silent Data Corruption Test Failed: {sdc_output}")
+        else:
+            if not sdc_state:
+                logger.error(f"{hostname} - GPU Silent Data Corruption Test Failed: {sdc_output}")
+                slurm_reason("GPU SDC Test Failed")
+                action = recommended_action(action, "Reboot")
+            else:
+                logger.info(f"{hostname} - GPU Silent Data Corruption Test Succeeded: {sdc_output}")
     else:
         #AMD GPU's: 
         rccl_state,rccl_output = run_local_rccl_test(shape)
@@ -394,7 +450,6 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - RCCL Test Succeeded: {rccl_output}")
-
 
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()
