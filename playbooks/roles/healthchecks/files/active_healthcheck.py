@@ -8,13 +8,17 @@ import subprocess
 import logging
 import getpass
 import time
+import stat
 
 # Configure logger for active_healthcheck
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('active_healthcheck')
 
+if os.geteuid() == 0:
+    os.makedirs("/var/log/healthchecks", exist_ok=True)
+    os.chmod("/var/log/healthchecks", stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
-file_handler = logging.FileHandler("/tmp/latest_active_healthcheck.log", mode='w')
+file_handler = logging.FileHandler("/var/log/healthchecks/latest_active_healthcheck.log", mode='w')
 logger.addHandler(file_handler)
 
 version = sys.version_info
@@ -203,28 +207,50 @@ def run_local_rccl_test(shape):
     except subprocess.TimeoutExpired:
         logger.error("RCCL test timed out after 2 minutes")
         output = result.stdout.decode('utf-8')
-        print(output)
+        print('\n'.join(output.splitlines()[-20:]))
         return False, "Timeout after 2 minutes"
     except Exception as e:
         logger.error(f"Failed to run local rccl test: {e}")
         output = result.stdout.decode('utf-8')
-        print(output)
+        print('\n'.join(output.splitlines()[-20:]))
         return False, str(e)
 
 def run_gpu_fryer(run_time):
     try:
-        #check if it is installed: 
-        cmd_install_check="which gpu-fryer"
+        cmd_install_check = "ls /opt/gpu-fryer/bin/gpu-fryer"
         install_check = run_as_default_user(cmd_install_check)
         if install_check.returncode != 0:
+            script_content = r"""#!/bin/bash
+set -e
 
-            cmd_install = """
-                curl -sSf https://sh.rustup.rs | sh -s -- -y && \
-                source "$HOME/.cargo/env" && \
-                cargo install gpu-fryer
-                """
+sudo mkdir -p /opt/rust/{rustup,cargo}
+sudo chmod -R a+rwx /opt/rust
+
+export RUSTUP_HOME=/opt/rust/rustup
+export CARGO_HOME=/opt/rust/cargo
+
+# Install rust toolchain without modifying PATH
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --no-modify-path
+
+# Load Cargo environment
+if [ -f /opt/rust/cargo/env ]; then
+    source /opt/rust/cargo/env
+else
+    echo "Cargo env file not found at /opt/rust/cargo/env"
+    exit 1
+fi
+
+# Install gpu-fryer under /opt/gpu-fryer
+cargo install gpu-fryer --root /opt/gpu-fryer
+"""
+
+            tmp_script = "/tmp/install_gpu_fryer.sh"
+            with open(tmp_script, "w") as f:
+                f.write(script_content)
+            os.chmod(tmp_script, 0o777)
             for i in range(3):
-                install = run_as_default_user(cmd_install)
+                install = run_as_default_user(f"bash {tmp_script}")
                 if install.returncode == 0:
                     break
                 else:
@@ -235,34 +261,34 @@ def run_gpu_fryer(run_time):
                         time.sleep(20)
         default_user = get_default_user()
         if default_user == "opc":
-            cmd_gpu_fryer = f"gpu-fryer --nvml-lib-path /lib64/libnvidia-ml.so.1 {run_time}"
+            cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer --nvml-lib-path /lib64/libnvidia-ml.so.1 {run_time}"
         else:
-            cmd_gpu_fryer = f"gpu-fryer {run_time}"
+            cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer {run_time}"
         result = run_as_default_user(cmd_gpu_fryer, timeout=run_time+20)
         if result.returncode != 0:
-            logger.error(f"Failed to run gpu-fryer: {result.stdout.decode('utf-8')}")
-            return False, result.stdout.decode('utf-8')
+            logger.error(f"Failed to run gpu-fryer: {'\n'.join(result.stdout.decode('utf-8').splitlines()[-20:])}")
+            return False, '\n'.join(result.stdout.decode('utf-8').splitlines()[-20:])
         output = result.stdout.decode('utf-8')
         if result.returncode == 0:
             for line in output.splitlines():
                 if "All GPUs seem healthy" in line:
                     return True,"GPU Fryer test succeeded"
             logger.error(f"GPU Fryer failed")
-            print(output)
+            print('\n'.join(output.splitlines()[-20:]))
             return False,"GPU Fryer failed"
         else:
             logger.error(f"GPU Fryer failed")
-            print(output)
+            print('\n'.join(output.splitlines()[-20:]))
             return False,"GPU Fryer failed"
     except subprocess.TimeoutExpired:
         logger.error(f"GPU Fryer test timed out after {run_time+20} seconds")
         output = result.stdout.decode('utf-8')
-        print(output)
+        print('\n'.join(output.splitlines()[-20:]))
         return False, f"Timeout after {run_time+20} seconds"
     except Exception as e:
         logger.error(f"Failed to run local GPU Fryer test: {e}")
         output = result.stdout.decode('utf-8')
-        print(output)
+        print('\n'.join(output.splitlines()[-20:]))
         return False, str(e)
 
 def recommended_action(current, action):
@@ -402,7 +428,7 @@ if __name__ == '__main__':
     data["active_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     # Read the healthcheck.log file content
     try:
-        with open("/tmp/latest_active_healthcheck.log", 'r') as log_file:
+        with open("/var/log/healthchecks/latest_active_healthcheck.log", 'r') as log_file:
             data["active_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")

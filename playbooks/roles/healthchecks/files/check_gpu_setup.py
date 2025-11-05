@@ -38,7 +38,6 @@ Usage:
 import subprocess
 import re
 import argparse
-from shared_logging import logger
 from gpu_bw_test import BandwidthTest
 from rdma_link_flapping import LinkFlappingTest
 from xid_checker import XidChecker
@@ -56,6 +55,9 @@ if version >= (3, 12):
     from datetime import datetime, timedelta, UTC
 else:
     from datetime import datetime, timedelta
+
+
+from shared_logging import logger
 
 #Section 0: Common Functions for all Health Checks.
 ###################################################
@@ -1047,7 +1049,10 @@ def run_dcgmi_health():
             text=True,
             timeout=10
         ).strip()
-        if health_status != "Healthy":
+        if health_status == "Warning":
+            logger.warning(f"WARNING: Overall Health is '{health_status}' (Run dcgmi health -c for details)")
+            return True
+        elif health_status != "Healthy":
             logger.error(f"ERROR: Overall Health is '{health_status}' (should be 'Healthy')")
             return False
     except subprocess.CalledProcessError:
@@ -1517,7 +1522,7 @@ if __name__ == '__main__':
     data["passive_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     # Read the healthcheck.log file content
     try:
-        with open("/tmp/latest_healthcheck.log", 'r') as log_file:
+        with open("/var/log/healthchecks/latest_healthcheck.log", 'r') as log_file:
             data["passive_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")

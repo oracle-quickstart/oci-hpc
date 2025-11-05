@@ -111,6 +111,7 @@
 
 - name: Run handlers
   ansible.builtin.meta: flush_handlers
+
 - name: Start slurmd
   become: true
   ansible.builtin.service:
@@ -118,25 +119,15 @@
     state: restarted
     enabled: true
 
-- name: Reconfigure slurm
-  become: true
-  ansible.builtin.command: "scontrol reconfigure"
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
-
-- name: test the node
-  ansible.builtin.shell: "timeout 60s srun -N 1 -w `hostname` hostname"
+- name: Run the reconfigure playbook
+  vars:
+    max_retries: 5
+  include_tasks: create_reservation.yml
+  loop:  "{{ range(0, max_retries) | list }}"
+  loop_control:
+    loop_var: attempt
   ignore_errors: true
-
-- name: Reconfigure slurm
-  become: true
-  ansible.builtin.command: "scontrol reconfigure"
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
+  when: stop_loop is not defined or not stop_loop
 
 - name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
   become: true

@@ -2,8 +2,8 @@
 #SBATCH --job-name=active_HealthCheck
 #SBATCH --nodes=1
 #SBATCH --exclusive
-#SBATCH --output=/tmp/active_HealthCheck/%x-%j.out  # %x = job name, %j = job ID
-#SBATCH --error=/tmp/active_HealthCheck/%x-%j.out
+#SBATCH --output=/var/log/healthchecks/active_HealthCheck/%x-%j.out  # %x = job name, %j = job ID
+#SBATCH --error=/var/log/healthchecks/active_HealthCheck/%x-%j.out
 
 # Fetch the instance shape
 shape=$(curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .shape)
@@ -19,7 +19,7 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
    [ "$shape" = "BM.GPU.B200.8" ] || \
    [ "$shape" = "BM.GPU.MI300X.8" ]; then
 
-  FILE="/tmp/latest_active_healthcheck.log"
+  FILE="/var/log/healthchecks/latest_active_healthcheck.log"
 
   if [ -f "$FILE" ]; then
     FILE_TIME=$(stat -c %Y "$FILE")
@@ -36,7 +36,7 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
 
   # Only check for drain messages if log file exists
   if [ -f "$FILE" ]; then
-    DRAIN_MSG=$(grep "Healthcheck::" "$FILE")
+    DRAIN_MSG=$(grep "Healthcheck_Active::" "$FILE")
     if [ -n "$DRAIN_MSG" ]; then
       if [ -n "$SLURM_JOB_ID" ]; then
         echo "${DRAIN_MSG}"
