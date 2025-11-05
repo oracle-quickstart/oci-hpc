@@ -335,6 +335,65 @@ def run_gpu_sdc_check(gpu_ids=None):
         logger.warning(message)
         return None, message, {}
 
+def run_local_rvs_test(shape):
+    """
+    Run ROCm Validation Suite (RVS) test locally for AMD GPU nodes.
+    """
+    try:
+        # Detect number of GPUs using rocm-smi
+        cmd_gpu_count = "rocm-smi --showproductname --json | jq 'length'"
+        result_gpu = run_as_default_user(cmd_gpu_count)
+        gpu_count = result_gpu.stdout.decode('utf-8').strip()[0] if result_gpu.stdout else "?"
+
+        logger.info(f"Detected {gpu_count} GPU(s) on shape {shape}. Starting RVS healthcheck...")
+
+        # Create temporary RVS config
+        config_path = "/tmp/rvs_config.json"
+        config_json = """{
+          "TestConfig": {
+            "GPU_HEALTH_CHECK": {
+              "TestLocationTrigger": {
+                "global": {
+                  "TestParameters": {
+                    "MANUAL": {
+                      "TestCases": [
+                        {
+                          "Recipe": "gst_single",
+                          "Iterations": 1,
+                          "StopOnFailure": true,
+                          "TimeoutSeconds": 600,
+                          "Arguments": "--parallel"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }"""
+        with open(config_path, "w") as f:
+            f.write(config_json)
+
+        # Run RVS command
+        cmd_rvs = f"sudo rvs -c {config_path}"
+        result = run_as_default_user(cmd_rvs, timeout=600)
+
+        output = result.stdout.decode('utf-8') if result.stdout else ""
+        if result.returncode == 0 and "completed successfully" in output:
+            logger.info(f"RVS Test Succeeded on shape {shape}")
+            return True, "RVS Test Succeeded"
+        else:
+            logger.error(f"RVS Test Failed on shape {shape}: {output}")
+            return False, "RVS Test Failed"
+
+    except subprocess.TimeoutExpired:
+        logger.error("RVS test timed out after 10 minutes")
+        return False, "Timeout after 10 minutes"
+    except Exception as e:
+        logger.error(f"Failed to run RVS test: {e}")
+        return False, str(e)
+
 def recommended_action(current, action):
     if action not in [None,"FabricManagerRestart","Reboot","Tag_and_Terminate"]:
         print("No action was found")
@@ -450,6 +509,15 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - RCCL Test Succeeded: {rccl_output}")
+
+        # --- Run RVS active healthcheck ---
+    rvs_state, rvs_output = run_local_rvs_test(shape)
+    if not rvs_state:
+        logger.error(f"{hostname} - RVS Test Failed: {rvs_output}")
+        slurm_reason("Single node RVS Test Failed")
+        action = recommended_action(action, "Tag_and_Terminate")
+    else:
+        logger.info(f"{hostname} - RVS Test Succeeded: {rvs_output}")
 
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()
