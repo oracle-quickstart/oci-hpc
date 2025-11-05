@@ -11,7 +11,7 @@ NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[0-1] Type=V100 Cores=
 NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-23]
 {% elif item.value.shape == "BM.GPU3.8"%}
 NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[0-3] Type=V100 Cores=[0-25]
-NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[4-7] Type=V100 Cores=[26-51] 
+NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[4-7] Type=V100 Cores=[26-51]
 {% elif item.value.shape == "BM.GPU4.8"%}
 NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[0-1] Type=A100 Cores=[24-31]
 NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[2-3] Type=A100 Cores=[8-15]
@@ -44,6 +44,12 @@ NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[0-1] Type=B200 Cores=
 NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[2-3] Type=B200 Cores=[72-143]
 {% elif item.value.shape == "BM.GPU.MI300X.8"%}
 NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[128,136,144,152,160,168,176,184] Type=MI300X
+{% elif item.value.shape == "BM.GPU.MI355X.8"%}
+NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[136,152,144,128,168,184,176,160] Type=MI355X
+{% elif item.value.shape == "BM.GPU.MI355X-v.08"%}
+NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[136,152,144,128,168,184,176,160] Type=MI355X
+{% elif item.value.shape == "BM.GPU.MI355X-v1.8"%}
+NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[136,152,144,128,168,184,176,160] Type=MI355X
 {% elif item.value.shape == "BM.GPU.L40S.4"%}
 NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[0-1] Type=L40S Cores=[0-55]
 NodeName={{item.value.hostname}} Name=gpu File=/dev/nvidia[2-3] Type=L40S Cores=[56-111]
