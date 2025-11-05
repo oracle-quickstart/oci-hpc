@@ -40,19 +40,6 @@ if [ -f /config/playbooks/inventory ] ; then
   sudo chown $username:$username /config/playbooks/inventory_${clustername}
 fi 
 
-
-
-if [ -f /tmp/configure.conf ] ; then
-        configure=$(cat /tmp/configure.conf)
-else
-        configure=true
-fi
-
-if [[ $configure != true ]] ; then
-        echo "Do not configure is set. Exiting"
-        exit
-fi
-
 # Update the forks to a 8 * threads
 
 
