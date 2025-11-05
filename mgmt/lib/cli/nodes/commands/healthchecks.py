@@ -51,8 +51,13 @@ def filter_cmd(ctx, nodes, fields):
     required=False,
     help="Node to exclude from multi_node healthcheck"
 )
+@click.option(
+    "--reservation",
+    required=False,
+    help="Include a Reservation Name for the healthcheck in case the nodes are in a reservation, InitialValidation is the reservation created for all new nodes. "
+)
 @click.pass_context
-def healthchecks(ctx, nodes, fields,type,exclude_node):
+def healthchecks(ctx, nodes, fields,type,exclude_node,reservation):
     """Tag nodes as unhealthy."""
     nodes_list = filter_cmd(ctx, nodes, fields)
 
@@ -64,6 +69,6 @@ def healthchecks(ctx, nodes, fields,type,exclude_node):
         run_command(nodes_list,"sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py",print_output=True)
     for node in nodes_list:
         if type=="active" or type == "all":
-            run_active_hc(node)
+            run_active_hc(node,reservation_id=reservation)
         elif type=="multi-node" or type == "all":
-            run_multi_node_active_hc(node,exclude_node=exclude_node)
+            run_multi_node_active_hc([node],exclude_node=exclude_node,reservation_id=reservation)

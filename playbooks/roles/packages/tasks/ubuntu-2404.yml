@@ -21,10 +21,3 @@
       ansible.builtin.include_role:
         name: safe_yum
       ignore_errors: true
-
-    - name: Install oci
-      become: true
-      ansible.builtin.pip:
-        name: oci
-        executable: /usr/bin/pip3
-      ignore_errors: true

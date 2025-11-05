@@ -1,0 +1,33 @@
+---
+- name: Reconfigure slurm
+  become: true
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+
+- name: Check if reservation exists
+  become: true
+  ansible.builtin.command: "scontrol show reservation InitialValidation"
+  register: reservation
+  ignore_errors: true
+
+- name: Create Reservation
+  become: true
+  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ansible_hostname}} user=ubuntu reservation=InitialValidation"
+  when: reservation is failed
+
+- name: Append to reservation
+  become: true
+  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_hostname}}"
+  when: reservation is not failed
+
+- name: test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
+  ignore_errors: true
+  register: test_result
+
+- name: Stop loop if succeeded
+  set_fact:
+    stop_loop: "{{ test_result is succeeded }}"
