@@ -12,22 +12,42 @@
   ansible.builtin.command: "scontrol show reservation InitialValidation"
   register: reservation
   ignore_errors: true
+  when: shape is defined and 'GPU' in shape
 
 - name: Create Reservation
   become: true
   ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ansible_hostname}} user=ubuntu reservation=InitialValidation"
-  when: reservation is failed
+  when:
+    - shape is defined and 'GPU' in shape
+    - reservation is defined
+    - reservation.rc != 0
+
 
 - name: Append to reservation
   become: true
   ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_hostname}}"
-  when: reservation is not failed
+  when: 
+    - shape is defined and 'GPU' in shape
+    - reservation is defined 
+    - reservation.rc != 0
 
 - name: test the node
   ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
   ignore_errors: true
   register: test_result
+  when: 
+    - shape is defined and 'GPU' in shape
+    - reservation is defined 
+    - reservation.rc != 0
+
+- name: test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ansible_hostname}} hostname"
+  ignore_errors: true
+  register: test_result
+  when: 
+    - shape is defined and not 'GPU' in shape
 
 - name: Stop loop if succeeded
   set_fact:
     stop_loop: "{{ test_result is succeeded }}"
+  when: test_result is defined
