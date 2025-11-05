@@ -116,18 +116,6 @@ resource "null_resource" "backup" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-  provisioner "file" {
-    content = templatefile("${path.module}/configure.tpl", {
-      configure = var.configure
-    })
-    destination = "/tmp/configure.conf"
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_pem
@@ -153,7 +141,7 @@ resource "null_resource" "setup_backup" {
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
       ],
       var.add_nfs ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],
       [

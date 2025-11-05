@@ -106,7 +106,7 @@ resource "null_resource" "controller" {
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/"
       ],
       var.add_nfs ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],
       [
@@ -191,19 +191,6 @@ resource "null_resource" "controller" {
   provisioner "file" {
     source      = "scripts"
     destination = "/opt/oci-hpc/"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-      timeout     = "10m"
-    }
-  }
-  provisioner "file" {
-    content = templatefile("${path.module}/configure.tpl", {
-      configure = var.configure
-    })
-    destination = "/tmp/configure.conf"
     connection {
       host        = local.host
       type        = "ssh"
@@ -477,7 +464,6 @@ resource "null_resource" "configure" {
     inline = [
       "#!/bin/bash",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
-      "echo ${var.configure} > /tmp/configure.conf",
       "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
     "exit $exit_code"]
