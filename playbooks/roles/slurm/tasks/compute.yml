@@ -84,6 +84,15 @@
     group: munge
     mode: "0700"
 
+- name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
+  become: true
+  ansible.builtin.file:
+    path: /mnt/localdisk/slurm-tmp
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: "01777"
+
 - name: Copy munge key
   become: true
   ansible.builtin.copy:
@@ -127,13 +136,22 @@
   loop_control:
     loop_var: attempt
   ignore_errors: true
-  when: stop_loop is not defined or not stop_loop
+  when: 
+    - stop_loop is not defined or not stop_loop
+    - "'GPU' in shape"
+    - rdma_enabled|bool
 
-- name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
+- name: Reconfigure slurm
   become: true
-  ansible.builtin.file:
-    path: /mnt/localdisk/slurm-tmp
-    state: directory
-    owner: slurm
-    group: slurm
-    mode: "01777"
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+  when: not ( 'GPU' in shape and rdma_enabled|bool)
+
+- name: test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ansible_hostname}} hostname"
+  ignore_errors: true
+  register: test_result
+  when: not ( 'GPU' in shape and rdma_enabled|bool)
