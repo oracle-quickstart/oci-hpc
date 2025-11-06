@@ -171,7 +171,7 @@ def run_multi_node_nccl_test(hostfile, shape):
             "--np", "16",
             "--rankfile", hostfile,
             "bash","-c",
-            f"sleep $((RANDOM % 5));{exec_cmd} -b 1G -e 10G -i{increment} -n 50"
+            f"{exec_cmd} -b 1G -e 10G -i{increment} -n 50"
         ]
         print(' '.join(mpirun_cmd))
     elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8"):
@@ -201,7 +201,7 @@ def run_multi_node_nccl_test(hostfile, shape):
             "--np", "16",
             "--rankfile", hostfile,
             "bash","-c",
-            f"sleep $((RANDOM % 5));{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
+            f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
         ]
 
     else:
@@ -216,6 +216,7 @@ def run_multi_node_nccl_test(hostfile, shape):
     os.chmod(tmp_script, 0o777)
     i = 0
     while i < 5:
+        logger.info(f"NCCL Test {i+1}/5")
         i += 1
         try:
             result = subprocess.run(
@@ -230,8 +231,6 @@ def run_multi_node_nccl_test(hostfile, shape):
 
             if result.returncode == 0:
                 output = result.stdout
-                if "Invalid number of GPUs" in output:
-                    continue
                 bw=None
                 threshold = shape_mapping.get(shape, {}).get("threshold")
                 if threshold == "":
@@ -249,11 +248,16 @@ def run_multi_node_nccl_test(hostfile, shape):
                 else:
                     return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
             else:
-                return False,f"NCCL Test Failed: Failed to run nccl test. {result.stderr}"
+                if "Invalid number of GPUs" in result.stdout or "Invalid number of GPUs" in result.stderr:
+                    continue
+                return False,f"NCCL Test Failed: Failed to run nccl test. {result.stdout},{result.stderr}"
         except subprocess.TimeoutExpired:
             return False,"NCCL Test Failed: NCCL test timed out after 2 minutes"
         except Exception as e:
-            return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
+            if "Invalid number of GPUs" in e:
+                continue
+            else:
+                return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
 
 def run_multi_node_rccl_test(hostfile, shape):
 
