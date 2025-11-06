@@ -8,8 +8,8 @@ from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory
 def add():
     """Add nodes to clusters or memory fabrics.
     
-    Available subcommands:
-      - node: Add compute nodes to a cluster
+    Available subcommands:\n
+      - node: Add compute nodes to a cluster\n
       - memory-fabric: Add nodes to a memory fabric
     """
     pass
@@ -20,7 +20,11 @@ def add():
 @click.option('--names', required=False, help='Comma-separated list of host names')
 @click.option('--memorycluster', required=False, help='Name of the memory cluster (alternative to --cluster)')
 def node(count, cluster, names, memorycluster):
-    """Add compute nodes to a cluster."""
+    """Add compute nodes to a cluster.\n
+    Example:\n
+  
+    mgmt clusters add node --count 2 --cluster mycluster
+    """
     if names:
         name_list = names.split(',')
         if count != len(name_list):
@@ -58,7 +62,12 @@ def node(count, cluster, names, memorycluster):
 @click.option('--memorycluster', required=False, help='Name for the memory cluster')
 @click.option('--instancetype', required=True, help='Instance type for the nodes')
 def memory_fabric(count, cluster, fabric, memorycluster, instancetype):
-    """Add nodes to a memory fabric."""
+    """Add nodes to a memory fabric.\n
+  Example:\n
+  
+  mgmt clusters add memory-fabric --count 1 --cluster mycluster --fabric
+  ocid1.fabric.oc1..xxxx --instancetype BM.GPU.GB200.4
+    """
     if cluster is None:
         clusters = get_clusters()
         if len(clusters) == 1:

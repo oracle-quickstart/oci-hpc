@@ -349,10 +349,6 @@ variable "home_fss" {
   default = false
   type    = bool
 }
-variable "configure" {
-  default = true
-  type    = bool
-}
 
 variable "hyperthreading" {
   default = true
@@ -682,4 +678,14 @@ variable "mysql_admin_password" {
 variable "mysql_admin_username" {
   default = ""
   type = string
+}
+
+variable "wildcard_dns_domain" {
+  default = "endpoint.oci-hpc.ai"
+  type    = string
+}
+
+variable "use_lets_encrypt_prod_ep" {
+  default = true
+  type    = bool
 }

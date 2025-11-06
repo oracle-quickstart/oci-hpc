@@ -30,7 +30,8 @@ resource "oci_mysql_mysql_db_system" "slurm_mysql" {
 		key_generation_type = "SYSTEM"
 	}
 	freeform_tags = {
-		"Template" = "Production"
+		"cluster_name"    = local.cluster_name
+		"controller_name" = oci_core_instance.controller.display_name
 	}
 	port = "3306"
 	port_x = "33060"

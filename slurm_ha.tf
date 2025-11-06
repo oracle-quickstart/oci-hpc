@@ -25,7 +25,9 @@ resource "oci_core_instance" "backup" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
-    user_data           = base64encode(data.template_file.controller_config.rendered)
+    user_data           = base64encode(templatefile("${path.module}/config.controller", {
+      key = tls_private_key.ssh.private_key_pem
+    }))
   }
   source_details {
     //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
@@ -116,18 +118,6 @@ resource "null_resource" "backup" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-  provisioner "file" {
-    content = templatefile("${path.module}/configure.tpl", {
-      configure = var.configure
-    })
-    destination = "/tmp/configure.conf"
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_pem
@@ -152,8 +142,8 @@ resource "null_resource" "setup_backup" {
       "sudo mkdir -p /config",
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
       ],
-      var.create_fss ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+      var.add_nfs ? [
+        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],
       [
@@ -244,7 +234,9 @@ resource "null_resource" "cluster_backup" {
       metrics_stream_ocid      = local.metrics_stream_ocid,
       mysql_admin_password     = var.mysql_admin_password,
       mysql_admin_username     = var.mysql_admin_username,
-      mysql_service_host       = local.mysql_service_host      
+      mysql_service_host       = local.mysql_service_host,
+      wildcard_dns_domain      = var.wildcard_dns_domain,
+      use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep
     })
 
 

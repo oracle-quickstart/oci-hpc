@@ -10,7 +10,7 @@
         name: privilege_group
     - include_role:
         name: nfs-server
-      when: not create_fss|bool
+      when: not add_nfs|bool
 
 - hosts: controller, slurm_backup
   become: true
@@ -36,6 +36,13 @@
       when: localdisk | default(true) | bool
     - include_role:
         name: healthchecks
+
+# New role to clean old tmp dir files
+- hosts: all
+  become: true
+  tasks:
+    - include_role:
+        name: clean_tmp
 
 - hosts: controller
   become: true

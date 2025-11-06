@@ -155,7 +155,7 @@
 
 - name: Set grafana domain if public IP exists and is not empty
   set_fact:
-    grafana_domain: "grafana.{{ vnic_details.vnic.public_ip }}.sslip.io"
+    grafana_domain: "grafana.{{ vnic_details.vnic.public_ip }}.{{ wildcard_dns_domain }}"
   when: (vnic_details.vnic.public_ip | default('', true) | length) > 0
 
 - name: Set grafana domain if no public IP exists

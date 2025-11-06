@@ -16,7 +16,7 @@ from ClusterShell.NodeSet import NodeSet
 @click.option('--role', type=click.Choice(["compute", "login", "all"]), help='Get all configurations for compute or login.', default="all", show_default=True)
 @click.option('--shape',  help='Get all configurations with a particular shape.')
 def list(format, output_file, partition, role, shape):
-    """List commands for nodes."""
+    """List Configuration based on role, partition, or shape."""
     if partition:
         if shape:
             configurations = get_config_by_shape_and_partition(shape,partition, role)

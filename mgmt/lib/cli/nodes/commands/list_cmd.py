@@ -78,7 +78,18 @@ def callback_fields(ctx, param, value):
 )
 
 def list_cmd(columns, format, **options):
-    """List nodes with various filters and formats"""
+    """List nodes with various filters and formats
+    Example:
+
+  # List all nodes in a cluster\n
+  mgmt nodes list --cluster mycluster
+
+  # Lists all node hostnames in a boxed table format without headers, using a fixed width of 30\n
+  mgmt nodes list --columns hostname --style box --no-header --width 30 
+  
+  # Lists all compute nodes in a json format with all fields\n
+  mgmt nodes list --format json --columns all --fields role=compute
+  """
 
     field_dict = {}
     if not options["fields"] is None:
@@ -96,14 +107,13 @@ def list_cmd(columns, format, **options):
                 new_value = value
 
             field_dict[key] = new_value
-
+    if options["cluster"] is not None:
+        field_dict["cluster_name"] = options["cluster"]
+    
+    if options["memory_cluster"] is not None:
+        field_dict["memory_cluster_name"] = options["memory_cluster"]
+    
     query = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict)
-    query = db.filter_nodes_by_cluster(
-        query,
-        cluster_name=options["cluster"],
-        memory_cluster_name=options["memory_cluster"],
-        )
-
     nodes = query.all()
     if not nodes:
         click.echo("No nodes found.")

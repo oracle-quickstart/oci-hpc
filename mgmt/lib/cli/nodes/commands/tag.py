@@ -40,7 +40,6 @@ def filter_cmd(ctx, nodes, fields):
     required=False,
     help='Fields to filter nodes (e.g., role=compute,status=running)'
 )
-@click.pass_context
 def tag(ctx, nodes, fields):
     """Tag nodes as unhealthy."""
     nodes_list = filter_cmd(ctx, nodes, fields)

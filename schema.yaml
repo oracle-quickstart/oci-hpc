@@ -146,6 +146,7 @@ variableGroups:
   - title: "Cluster Monitoring"
     variables:
       - ${cluster_monitoring}
+      - ${use_lets_encrypt_prod_ep}
       - ${alerting}
       - ${ingest_oci_metrics}
       - ${monitoring_node}
@@ -255,11 +256,10 @@ variableGroups:
       - ${nfs_list_of_mount_target_IPs}
       - ${OCI_generated_container_namespace}
       - ${OCI_generated_container_name}
+      - ${wildcard_dns_domain}
 
     visible: false
-  - title: "Debug"
-    variables: 
-      - ${configure}
+
 variables:
   targetCompartment:
     title: "Target compartment"
@@ -1287,6 +1287,17 @@ variables:
     default: true
     description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
 
+  use_lets_encrypt_prod_ep:
+    title: "Use Let's Encrypt Production Endpoint"
+    description: "Use Let's Encrypt Production Endpoint to generate TLS certificate for Grafana"
+    type: boolean
+    default: true
+    visible: 
+     and:
+      - ${cluster_monitoring}
+      - not:
+        - ${private_deployment}
+
   alerting:
     type: boolean
     title: "Install HPC Cluster alerting tools"
@@ -1333,12 +1344,6 @@ variables:
     title: "RDMA Latency check"
     default: true
     description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shapes during autoscaling"
-
-  configure: 
-    type: boolean
-    title: "Configure system"
-    default: true
-    description: "If unchecked, cluster will be launched but left unconfigured"
 
   add_nfs:
     type: boolean
