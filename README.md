@@ -1,88 +1,31 @@
-<!-- 
-INTRODUCTION
-PREREQUISITES
-  Limits + Capacity
-  Policies
-CONFIGURATION
-  Cluster
-  Controller
-  Compute
-  Login
-  Storage
-  Monitoring
-  Network
-  Software
-USAGE
-  mgmt
--->
-
-# Stack to create an HPC cluster. 
+# HPC Cluster Stack
 
 [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/oracle-quickstart/oci-hpc/archive/refs/heads/master.zip)
 
+
 ## Introduction
 
-This Terraform stack is intended to be used in [Oracle Resource Manager](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Concepts/resourcemanager.htm). It makes use of different OCI services described in the section [cloud services used](#cloud-services-used). It configures and deploys a HPC cluster, of either CPU or GPU nodes, with at least a controller node and compute nodes residing in a [Virtual Cloud Network](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm) (VCN). Different storage solutions can also be added.
+This Terraform stack deploys a high-performance computing cluster with compute nodes, either CPU or GPU, and management nodes residing in a [Virtual Cloud Network](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm) (VCN).
+It makes use of different OCI services described in the section [cloud services used](#cloud-services-used).
+Different storage solutions can also be added.
+It is configured and deployed using the [Oracle Resource Manager](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Concepts/resourcemanager.htm) managed service.
 
 The following diagram shows the target architecture:
 
 ![Target architecture deployed via this Terraform stack.](/images/architecture_diagram.png)
 
-## Services and Considerations
+## Prerequisites and Consideration
 
-### Cloud services used
-
-This stack uses the following OCI services:
-
-* Compute 
-  * [Instance](https://docs.oracle.com/en-us/iaas/Content/Compute/Concepts/computeoverview.htm)
-  * [Instance Configuration](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/creatinginstanceconfig.htm)
-  * [Compute Cluster](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/compute-clusters.htm) (if checked)
-  * [Cluster Network](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/managingclusternetworks.htm) (if checked)
-* [Networking](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm)
-  * [VCN and subnet](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/Overview_of_VCNs_and_Subnets.htm)
-  * [Route Tables](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/managingroutetables.htm)
-  * [Security Lists](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/securitylists.htm)
-  * [Service Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm)
-  * [NAT Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/NATgateway.htm)
-  * [Internet Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/managingIGs.htm) (if using a Public Subnet)
-  * [Private DNS view](https://docs.oracle.com/en-us/iaas/Content/DNS/Tasks/privatedns.htm)
-* [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm)
-* [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm)
-* [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm)  
-* [Oracle registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm)
-* [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm)
-* Storage
-  * [Block Volume](https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/overview.htm)
-  * [File System Service](https://docs.oracle.com/en-us/iaas/Content/File/Concepts/filestorageoverview.htm) (if checked)
-* [Private Endpoint](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Tasks/private-endpoints.htm) (if controller in a private subnet)
-* [MySQL Database](https://docs.oracle.com/en-us/iaas/mysql-database/home.htm) (if `Create a back-up Slurm Controller` is checked)   
+### Service Limits
 
 > [!WARNING]
 > Be sure to have the appropriate Limits for each service that is used. In case you reach *limit exceeded*, you can create a [Service Limit Increase Request](https://docs.oracle.com/en-us/iaas/Content/GSG/support/create-incident-limit.htm).
 
-### Considerations
-
-#### Serverless part
-
-This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle Registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth Tokens are limited and an existing one can be specified during the configuration.
-
-> [!WARNING]
-> By default, a user is limited are limited to 2 Auth Tokens. It is recommended to use an existing Auth Token that can be created in your home region prior to the stack deployment. In case you do not select *"Use existing auth token"*, a Auth Token will be created.
-> Please note that after the creation, some time (up to 5 minutes) is needed for the Auth Token to be valid to authenticate with `docker login`. This is why a `time_sleep` resource is executed in Terraform.
-
-#### Using an existing VCN
-
-This implementation uses Private DNS view. When using an existing VCN, make sure you have a Private Zone with `<cluster-name>.local`. You also must create the correct DCHP Options set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP Options of the different subnets must be set to the newly created DCHP Options and not "Default DHCP Options..."
-
-> [!WARNING]
-> If the DHCP Options and the Private Zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
-
-## Policies
+### Policies
 
 Different sets of Policies must be set to create the required authorizations.
 
-### Policies to deploy the stack
+#### Policies to deploy the stack
 
 ```
 allow service compute_management to use tag-namespace in tenancy
@@ -91,7 +34,7 @@ allow service compute_management to read app-catalog-listing in tenancy
 allow group user to manage all-resources in compartment compartmentName
 ```
 
-### Policies for Functions
+#### Policies for Functions
 
 The Function uses [Resource Principals](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionsaccessingociresources.htm) to manage different resources in the Compartment. For the Function to work, the user must create a [Dynamic Group](https://docs.oracle.com/en-us/iaas/Content/Identity/dynamicgroups/To_create_a_dynamic_group.htm) and grant it resource management authorization in this Compartment.
 
@@ -106,7 +49,7 @@ ALL {resource.type = 'fnfunc', resource.compartment.id = 'ocid1.compartment.oc1.
 Allow dynamic-group fn_dg to manage all-resources in compartment compartmentName
 ```
 
-### Policies for Queue
+#### Policies for Queue
 
 In order to read messages from the OCI Queue service, the management and compute nodes must be part of a Dynamic Group with the necessary Policies (see [Instance Principals](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm)).
 
@@ -124,7 +67,7 @@ allow dynamic-group instance_principal to manage queues in compartment Compartme
 ```
 If the Dynamic Group is created in a different Identity Domain, user must use `IdentityDomainName/DynamicGroupName` instead of `DynamicGroupName` in the Policies definition.
 
-### Policies for resizing or adding clusters
+#### Policies for resizing or adding clusters
 
 As described when variables are specified, selecting Instance Principals as a way of authenticating nodes, user must generate a Dynamic Group that includes one or more Instances in a Compartment and all the Functions of the Compartment.
 
@@ -135,11 +78,13 @@ Example:
 All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
 ```
 If the Dynamic Group is created in a different Identity Domain, user must use `IdentityDomainName/DynamicGroupName` instead of `DynamicGroupName` in the Policies definition.
+
 2. Create the Policies for this Dynamic Group:
 ```
 Allow dynamic-group instance_principal to read app-catalog-listing in tenancy
 Allow dynamic-group instance_principal to use tag-namespace in tenancy
 ```
+
 3. Create additional Policies, either:
 ```
 Allow dynamic-group instance_principal to manage compute-management-family in compartment compartmentName
@@ -153,14 +98,14 @@ or:
 Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName
 ```
 
-### Policies for Host API
+#### Policies for Host API
 
 The Capacity Topology is created by default in the root Compartment. The folowing Policy must be created to access it: 
 ```
 Allow dynamic-group instance_principal to manage compute-bare-metal-hosts in tenancy
 ```
 
-## Supported operating systems
+### Supported operating systems
 
 This stack supports several operating systems and operating system combinations listed below. We can't guarantee any other combination.
 
@@ -173,11 +118,19 @@ This stack supports several operating systems and operating system combinations 
 
 When switching to Ubuntu, user must ensure that the username is changed from `opc` to `ubuntu` in Oracle Resource Manager for both the management nodes and the compute nodes. 
 
-## Workflow
+### Serverless Part
+
+This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle Registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth Tokens are limited and an existing one can be specified during the configuration.
+
+> [!WARNING]
+> By default, a user is limited are limited to 2 Auth Tokens. It is recommended to use an existing Auth Token that can be created in your home region prior to the stack deployment. In case you do not select *"Use existing auth token"*, a Auth Token will be created.
+> Please note that after the creation, some time (up to 5 minutes) is needed for the Auth Token to be valid to authenticate with `docker login`. This is why a `time_sleep` resource is executed in Terraform.
+
+### Workflow
 
 ![Workflow for node configuration](/images/workflow.png)
 
-### Serverless function
+#### Serverless function
 
 When nodes are added or removed, an Event triggers an OCI Function. This serverless function will register nodes in the DNS and change their OCI display name to the slurm name if `Change hostname` is set to `true` in the configuration. The current approach is using the Oracle DNS service instead of the `/etc/hosts` file.
 
@@ -190,11 +143,11 @@ When a node is deleted:
   * Sends a message to the Queue with the IP of the node and status `Terminating`
   * Removes DNS entry 
 
-### Node configuration
+#### Node configuration
 
 Each compute node will run an Ansible script locally. The nodes will be tagged with the name of the controller node they belong to. That node will mount a network filesystem `/config` folder to store the Ansible playbooks and the keys. The Ansible playbook will run all the tasks that can be run on the host including a task that creates a HTTP server boradcasting node information on port 9876.
 
-HExample of the information:
+Example of the information:
 ```
 ip_address: '172.16.0.66',
 AD: 'xXXX:CA-TORONTO-1-AD-1',
@@ -215,7 +168,7 @@ shape: 'VM.Standard.E4.Flex',
 status: 'configured',
 ```
 
-### Controller service and actions for configuration
+#### Controller service and actions for configuration
 
 The controller node:
 * runs a service that reads messages in the Queue and stores the information in the MySQL database,
@@ -225,39 +178,83 @@ The controller node:
   * Adds/removes the node to `prometheus.yml`
   * Adds/removes the node in the slurm configuration, i.e. `topology.conf` and `gres.conf`
 
-## Notes on Nvidia GB200 Deployments
 
-Currently, the TerraForm connector is not working with GB200 based shapes due to the requirements around GPU memory cluster constructs. When deploying this shape, user must configure and deploy the stack as usual **EXCEPT** that the initial size of the cluster must be set to 0. Otherwise, user fully defines the compute nodes options during the stack configuration. Once logged in to the cluster controller node, user creates the initial `gpumemorycluster` as explained below.
 
-1. Check that the `lifecycle_state` is `AVAILABLE`, the `fabric_health` must be `HEALTHY`, and check `AVAILABLE` nodes:
-```
-mgmt fabrics list
-```
-2. Use the OCID from above for `--fabric`, as well as the number of `AVAILABLE` hosts for `--count`:
-```
-mgmt clusters create --count 16 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
-```
-This creates a `computegpumemorycluster` with a name `cluster_xxxxx` and spins up the number of instances given in `--count`.  This is reflected in the `mgmt fabrics list` command output after a few minutes.
+## Stack Configuration
+
+Add zip, folder or create from Marketplace. Be careful, select the right compartment.
+
+### Cluster Configuration
+
+#### SSH Keys
+
+#### LDAP
+
+If the LDAP option is selected during the stack configuration, the controller node will act as an LDAP server for the cluster. In this case, it is strongly recommended to leave the default value for the shared home directory. User management can be performed from the controller using the `cluster` command. 
+
+Example:
+* Adding a new user: 
+```cluster user add name```
+By default, a `privilege` group that has access to the NFS and can have sudo access on all nodes (defined at the stack creation step) is created with the ID 9876.
+* The group name can be modified:
+```cluster user add name --gid 9876```
+* To avoid generating a user-specific key for passwordless ssh between nodes, use the `--nossh` option: 
+```cluster user add name --nossh --gid 9876```
+
+### Functions and Events Configuration
+### Controller Node Options
+### Management Nodes Image Options
+### Compute Nodes Options
+### Login Node Options
+### Cluster Monitoring
+### Storage Options
+#### Lustre Filesystem
+#### File Storage Service
+#### Local Storage (NVMe)
+#### General
+
+##### Shared home folder
+
+By default, the home folder is located on the NFS shared between all nodes from the controller node. User has the possibility to use a Filesystem Service (FSS) to share the home directory as well to keep working if the controller node goes down.
+User can either create a new FSS (be aware that it will be destroyed with the stack) or use an existing one (Mount Target, path, etc. will be required). If an existing FSS is used, /home should not be used as a mount point. The stack will take care of creating a `$nfsshare/home` directory and mounting it at `/home` after copying all the appropriate files. 
+
+### Network Options
+
+#### Using an existing VCN
+
+This implementation uses Private DNS view. When using an existing VCN, make sure you have a Private Zone with `<cluster-name>.local`. You also must create the correct DCHP Options set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP Options of the different subnets must be set to the newly created DCHP Options and not "Default DHCP Options..."
 
 > [!WARNING]
-> Use the above command **ONLY** to add the first set of instances (see below how to add `gpumemoryfabrics` to the compute cluster named `gb200` that has been created above), otherwise inter-rack communication will not work.
+> If the DHCP Options and the Private Zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
 
-To add more nodes from the same `computegpumemoryfabric` to this cluster, use the corresponding `cluster_xxxxx` name for these nodes as shown as `memory_cluster_name` in `mgmt fabrics list`:
-```
-mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
-```
-To add nodes from other `computegpumemoryfabrics` to the cluster:
-```
-mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
-```
-To delete a `computegpumemorycluster` and terminate all of the instances:
-```
-mgmt clusters delete --memory_cluster cluster_xxxxx
-```
+#### Private deployment
 
-## Resizing and autoscaling
+If `true`, this will create a private endpoint in order for Oracle Resource Manager to create the management nodes (controller, backup controller, login and monitoring) and the future nodes in private subnet(s). 
+* If "Use Existing Network" is `false`, Terraform will create two private subnets, one for the management nodes and one for the compute nodes.  
+* If "Use Existing Network" is `true`, the user must indicate a private subnet for the management nodes. For the compute nodes, they can reside either in the same private subent as the management nodes or in another one. 
 
-### What are the differences?
+> [!IMPORTANT]
+> The management nodes will reside in a private subnet. Therefore, the creation of a [bastion service](https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or a FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host also works. Finally, a peering connection can also be established between the private subnet and another VCN that is reachable by the user.
+
+### Software
+
+#### Create a slurm backup controller
+
+> [!IMPORTANT]
+> A FSS must be used to have a shared directory for the state.
+
+If checked, a managed MySQL database is created via [MySQL Heatwave](https://docs.oracle.com/en-us/iaas/mysql-database/home.htm). 
+In the slurm configuration, the controller and its backup each have the following slurm services running:
+* the `slurmctld` service (with [SlurmctldHost](https://slurm.schedmd.com/slurm.conf.html#OPT_SlurmctldHost) defined twice as controller and backup, [AccountingStorageHost](https://slurm.schedmd.com/slurm.conf.html#OPT_AccountingStorageHost) pointing to the controller and [AccountingStorageBackupHost](https://slurm.schedmd.com/slurm.conf.html#OPT_AccountingStorageBackupHost) pointing to the backup in `slurm.conf`),
+* the `slurmdbd` service (with [DbdHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdHost) pointing to the controller, [DbdBackupHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdBackupHost) pointing to the backup and [StorageHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_StorageHost) pointing to the database in `slurmdbd.conf`).
+
+Both the controller and its backup can query the database if one of them is down.
+
+### Debug
+
+## Stack Usage
+
+### Resizing and autoscaling
 
 * Autoscaling creates a cluster when a job in the slurm queue does not have the required infrastructure and destroys it when the job is finished (after a surviving period of time) if no other job in the slurm queue can use it.
 * Resizing modifies the size (the number of nodes) of a cluster.
@@ -372,7 +369,14 @@ To turn on autoscaling:
 ```
 2. Set `autoscaling = true` in `/etc/ansible/hosts`.
 
-## Submiting jobs
+##### Clusters folders
+
+For each cluster, except the permanent one, a cluster folder is created in:
+```
+/opt/oci-hpc/autoscaling/clusters/clustername
+```
+
+### Submiting jobs
 
 Slurm jobs can be submitted as always but a few more constraints can be set: 
 
@@ -407,27 +411,11 @@ sleep 1000
 
 - `cpu-bind`: on Ubuntu 22.04, the stack uses Cgroup v2. It has been found that the default `cpu-bind` may give some issues when hyperthreading is turned off. If an error similar to `error: task_g_set_affinity: Invalid argument` occurs, user can try running the job with the `--cpu-bind=none` or `--cpu-bind=sockets` options.
 
-## Clusters folders
-
-For each cluster, except the permanent one, a cluster folder is created in:
-```
-/opt/oci-hpc/autoscaling/clusters/clustername
-```
-
-## Logs
-
-The infrastructure logs are stored in:
-```
-/config/logs
-```
-
-Each cluster has its own log file with named `create_clustername_date.log` and `delete_clustername_date.log` for its creation and deletion processes. The logs of the crontab is stored in `crontab_slurm.log`.
-
-## Manual clusters
+### Manual Cluster Management
 
 Clusters can be created and deleted manually (for example when autoscaling is not activated).
 
-### Cluster Creation
+#### Cluster Creation
 
 To create a cluster manually, run:
 ```
@@ -440,7 +428,7 @@ The command:
 ```
 creates a 4 HPC_instance node cluster named compute2-1-hpc in the compute2 queue.
 
-### Cluster Deletion
+#### Cluster Deletion
 
 To delete a cluster manually, run:
 ```
@@ -452,132 +440,46 @@ If something goes wrong during the deletion process, the deletion can be forced 
 ```
 If the cluster is already being destroyed, there will be a `currently_destroying` file in the cluster folder (`/opt/oci-hpc/autoscaling/clusters/clustername`).
 
-## LDAP
+### Logs
 
-If the LDAP option is selected during the stack configuration, the controller node will act as an LDAP server for the cluster. In this case, it is strongly recommended to leave the default value for the shared home directory. 
-User management can be performed from the controller using the `cluster` command. 
+The infrastructure logs are stored in:
+```
+/config/logs
+```
 
-Example:
-* Adding a new user: 
-```cluster user add name```
-By default, a `privilege` group that has access to the NFS and can have sudo access on all nodes (defined at the stack creation step) is created with the ID 9876.
-* The group name can be modified:
-```cluster user add name --gid 9876```
-* To avoid generating a user-specific key for passwordless ssh between nodes, use the `--nossh` option: 
-```cluster user add name --nossh --gid 9876```
+Each cluster has its own log file with named `create_clustername_date.log` and `delete_clustername_date.log` for its creation and deletion processes. The logs of the crontab is stored in `crontab_slurm.log`.
 
-## Shared home folder
+## Useful Information
 
-By default, the home folder is located on the NFS shared between all nodes from the controller node. User has the possibility to use a Filesystem Service (FSS) to share the home directory as well to keep working if the controller node goes down.
-User can either create a new FSS (be aware that it will be destroyed with the stack) or use an existing one (Mount Target, path, etc. will be required). If an existing FSS is used, /home should not be used as a mount point. The stack will take care of creating a `$nfsshare/home` directory and mounting it at `/home` after copying all the appropriate files. 
+### Cloud Services Used
 
-## Private deployment
+This stack uses the following OCI services:
 
-If `true`, this will create a private endpoint in order for Oracle Resource Manager to create the management nodes (controller, backup controller, login and monitoring) and the future nodes in private subnet(s). 
-* If "Use Existing Network" is `false`, Terraform will create two private subnets, one for the management nodes and one for the compute nodes.  
-* If "Use Existing Network" is `true`, the user must indicate a private subnet for the management nodes. For the compute nodes, they can reside either in the same private subent as the management nodes or in another one. 
+* Compute 
+  * [Instance](https://docs.oracle.com/en-us/iaas/Content/Compute/Concepts/computeoverview.htm)
+  * [Instance Configuration](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/creatinginstanceconfig.htm)
+  * [Compute Cluster](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/compute-clusters.htm) (if checked)
+  * [Cluster Network](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/managingclusternetworks.htm) (if checked)
+* [Networking](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm)
+  * [VCN and subnet](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/Overview_of_VCNs_and_Subnets.htm)
+  * [Route Tables](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/managingroutetables.htm)
+  * [Security Lists](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/securitylists.htm)
+  * [Service Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm)
+  * [NAT Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/NATgateway.htm)
+  * [Internet Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/managingIGs.htm) (if using a Public Subnet)
+  * [Private DNS view](https://docs.oracle.com/en-us/iaas/Content/DNS/Tasks/privatedns.htm)
+* [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm)
+* [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm)
+* [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm)  
+* [Oracle registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm)
+* [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm)
+* Storage
+  * [Block Volume](https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/overview.htm)
+  * [File System Service](https://docs.oracle.com/en-us/iaas/Content/File/Concepts/filestorageoverview.htm) (if checked)
+* [Private Endpoint](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Tasks/private-endpoints.htm) (if controller in a private subnet)
+* [MySQL Database](https://docs.oracle.com/en-us/iaas/mysql-database/home.htm) (if `Create a back-up Slurm Controller` is checked)
 
-> [!IMPORTANT]
-> The management nodes will reside in a private subnet. Therefore, the creation of a [bastion service](https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or a FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host also works. Finally, a peering connection can also be established between the private subnet and another VCN that is reachable by the user.
-
-## Create a slurm backup controller
-
-> [!IMPORTANT]
-> A FSS must be used to have a shared directory for the state.
-
-If checked, a managed MySQL database is created via [MySQL Heatwave](https://docs.oracle.com/en-us/iaas/mysql-database/home.htm). 
-In the slurm configuration, the controller and its backup each have the following slurm services running:
-* the `slurmctld` service (with [SlurmctldHost](https://slurm.schedmd.com/slurm.conf.html#OPT_SlurmctldHost) defined twice as controller and backup, [AccountingStorageHost](https://slurm.schedmd.com/slurm.conf.html#OPT_AccountingStorageHost) pointing to the controller and [AccountingStorageBackupHost](https://slurm.schedmd.com/slurm.conf.html#OPT_AccountingStorageBackupHost) pointing to the backup in `slurm.conf`),
-* the `slurmdbd` service (with [DbdHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdHost) pointing to the controller, [DbdBackupHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdBackupHost) pointing to the backup and [StorageHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_StorageHost) pointing to the database in `slurmdbd.conf`).
-
-Both the controller and its backup can query the database if one of them is down.
-
-
-<!-- ## max_nodes_partition.py usage
-
-Use the alias "max_nodes" to run the python script max_nodes_partition.py. You can run this script only from controller.
-
-$ max_nodes &rarr Information about all the partitions and their respective clusters, and maximum number of nodes distributed evenly per partition.
-
-$ max_nodes --include_cluster_names xxx yyy zzz &rarr where xxx, yyy, zzz are cluster names. Provide a space separated list of cluster names to be considered for displaying the information about clusters and maximum number of nodes distributed evenly per partition. -->
-
-
-<!-- ## validation.py usage
-
-Use the alias "validate" to run the python script validation.py. You can run this script only from controller. 
-
-The script performs these checks:
-* Check the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files
-* PCIe bandwidth check 
-* GPU Throttle check 
-* Check whether md5 sum of /etc/hosts file on nodes matches that on controller
-
-Provide at least one argument: [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]
-
-Optional argument with [-n NUM_NODES] [-p PCIE] [-g GPU_THROTTLE] [-e ETC_HOSTS]: [-cn CLUSTER_NAMES]
-Provide a file that lists each cluster on a separate line for which you want to validate the number of nodes and/or pcie check and/or gpu throttle check and/or /etc/hosts md5 sum. 
-
-For pcie, gpu throttle, and /etc/hosts md5 sum check, you can either provide y or Y along with -cn or you can give the hostfile path (each host on a separate line) for each argument. For number of nodes check, either provide y or give y along with -cn.
-
-Below are some examples for running this script.
-
-validate -n y &rarr This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. The clusters considered will be the default cluster if any and cluster(s) found in /opt/oci-hpc/autoscaling/clusters directory. The number of nodes considered will be from the resize script using the clusters we got before. 
-
-validate -n y -cn <cluster name file> &rarr This will validate that the number of nodes is consistent across resize, /etc/hosts, slurm, topology.conf, OCI console, inventory files. It will also check whether md5 sum of /etc/hosts file on all nodes matches that on controller. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
-
-validate -p y -cn <cluster name file> &rarr This will run the pcie bandwidth check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
-
-validate -p <pcie host file> &rarr This will run the pcie bandwidth check on the hosts provided in the file given. The pcie host file should have a host name on each line.
-
-validate -g y -cn <cluster name file> &rarr This will run the GPU throttle check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
-
-validate -g <gpu check host file> &rarr This will run the GPU throttle check on the hosts provided in the file given. The gpu check host file should have a host name on each line.
-
-validate -e y -cn <cluster name file> &rarr This will run the /etc/hosts md5 sum check. The clusters considered will be from the file specified by -cn option. The number of nodes considered will be from the resize script using the clusters from the file. 
-
-validate -e <md5 sum check host file> &rarr This will run the /etc/hosts md5 sum check on the hosts provided in the file given. The md5 sum check host file should have a host name on each line.
-
-You can combine all the options together such as:
-validate -n y -p y -g y -e y -cn <cluster name file> -->
-
-
-<!-- ## /opt/oci-hpc/scripts/collect_logs.py
-
-This is a script to collect nvidia bug report, sosreport, console history logs. 
-
-The script needs to be run from the controller. In the case where the host is not ssh-able, it will get only  console history logs for the same.
-
-It requires the below argument.
---hostname <HOSTNAME>
-
-And --compartment-id <COMPARTMENT_ID> is optional (i.e. assumption is the host is in the same compartment as the controller). 
-
-Where HOSTNAME is the node name for which you need the above logs and COMPARTMENT_ID is the OCID of the compartment where the node is.
-
-The script will get all the above logs and put them in a folder specific to each node in /home/{user}. It will give the folder name as the output.
-
-Assumption: For getting the console history logs, the script expects to have the node name in /etc/hosts file.
-
-Examples:
-
-python3 collect_logs.py --hostname compute-permanent-node-467
-The nvidia bug report, sosreport, and console history logs for compute-permanent-node-467 are at /home/ubuntu/compute-permanent-node-467_06132023191024
-
-python3 collect_logs.py --hostname inst-jxwf6-keen-drake
-The nvidia bug report, sosreport, and console history logs for inst-jxwf6-keen-drake are at /home/ubuntu/inst-jxwf6-keen-drake_11112022001138
-
-for x in `less /home/opc/hostlist` ; do echo $x ; python3 collect_logs.py --hostname $x; done ;
-compute-permanent-node-467
-The nvidia bug report, sosreport, and console history logs for compute-permanent-node-467 are at /home/ubuntu/compute-permanent-node-467_11112022011318
-compute-permanent-node-787
-The nvidia bug report, sosreport, and console history logs for compute-permanent-node-787 are at /home/ubuntu/compute-permanent-node-787_11112022011835
-
-Where hostlist had the below contents
-compute-permanent-node-467
-compute-permanent-node-787 -->
-
-
-## Collect RDMA NIC Metrics and Upload to Object Storage
+### Collect RDMA NIC Metrics and Upload to Object Storage
 
 OCI-HPC is deployed in customer tenancy. So, OCI service teams cannot access metrics from these OCI-HPC stack clusters. Due to overcome this issue, in release,
 we introduce a feature to collect RDMA NIC Metrics and upload those metrics to Object Storage. Later on, that Object Storage URL could be shared with OCI service
@@ -588,7 +490,7 @@ To collect RDMA NIC Metrics and upload those to Object Storage, user needs to fo
 1. Create a PAR (PreAuthenticated Request) by making sure that the "Create Object Storage PAR" checkbox is ticked (it is by default) at the stack configuration step in the Resource Manager.
 2. Use shell script `upload_rdma_nic_metrics.sh` to collect and upload metrics to object storage. User can configure metrics collection limits and intervals using the `rdma_metrics_collection_config.conf` config file.
 
-## Meshpinger
+### Meshpinger
 
 Meshpinger is a tool for validating network layer connectivity between RDMA NICs on a cluster network in OCI. The tool is capable of initiating ICMP ping from every RDMA NIC port on the cluster network to every other RDMA NIC port on the same cluster network and reporting back the success/failure status of the pings performed in the form of logs.
 
@@ -596,3 +498,35 @@ Running the tool before starting workload on a cluster network should serve as a
 1. Link down on the RDMA NIC
 2. RDMA interface initialization or configuration issues including IP address assignment to the interface
 3. Insufficient ARP table size on the node to store all needed peer mac addresses
+
+### Notes on Nvidia GB200 Deployments
+
+Currently, the TerraForm connector is not working with GB200 based shapes due to the requirements around GPU memory cluster constructs. When deploying this shape, user must configure and deploy the stack as usual **EXCEPT** that the initial size of the cluster must be set to 0. Otherwise, user fully defines the compute nodes options during the stack configuration. Once logged in to the cluster controller node, user creates the initial `gpumemorycluster` as explained below.
+
+1. Check that the `lifecycle_state` is `AVAILABLE`, the `fabric_health` must be `HEALTHY`, and check `AVAILABLE` nodes:
+```
+mgmt fabrics list
+```
+2. Use the OCID from above for `--fabric`, as well as the number of `AVAILABLE` hosts for `--count`:
+```
+mgmt clusters create --count 16 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
+```
+This creates a `computegpumemorycluster` with a name `cluster_xxxxx` and spins up the number of instances given in `--count`.  This is reflected in the `mgmt fabrics list` command output after a few minutes.
+
+> [!WARNING]
+> Use the above command **ONLY** to add the first set of instances (see below how to add `gpumemoryfabrics` to the compute cluster named `gb200` that has been created above), otherwise inter-rack communication will not work.
+
+To add more nodes from the same `computegpumemoryfabric` to this cluster, use the corresponding `cluster_xxxxx` name for these nodes as shown as `memory_cluster_name` in `mgmt fabrics list`:
+```
+mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
+```
+To add nodes from other `computegpumemoryfabrics` to the cluster:
+```
+mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
+```
+To delete a `computegpumemorycluster` and terminate all of the instances:
+```
+mgmt clusters delete --memory_cluster cluster_xxxxx
+```
+
+### Blogs
