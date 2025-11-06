@@ -349,10 +349,6 @@ variable "home_fss" {
   default = false
   type    = bool
 }
-variable "configure" {
-  default = true
-  type    = bool
-}
 
 variable "hyperthreading" {
   default = true

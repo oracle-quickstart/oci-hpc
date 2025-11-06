@@ -156,6 +156,7 @@ def run_multi_node_nccl_test(hostfile, shape):
             "mpirun", "--mca", "pml", "ucx",
             "--bind-to", "numa",
             "--mca", "coll", "^hcoll",
+            "--mca", "plm_rsh_no_tree_spawn", "1",
             "-x", "UCX_TLS=ud,self,sm",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
             "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
@@ -168,14 +169,17 @@ def run_multi_node_nccl_test(hostfile, shape):
             "-x", "NCCL_IB_QPS_PER_CONNECTION=4",
             "-x", "NCCL_IB_GID_INDEX=3",
             "--np", "16",
-            "--hostfile", hostfile,
-            exec_cmd, "-b1G", "-e10G", f"-i{increment}", "-n", "100"
+            "--rankfile", hostfile,
+            "bash","-c",
+            f"sleep $((RANDOM % 5));{exec_cmd} -b 1G -e 10G -i{increment} -n 50"
         ]
+        print(' '.join(mpirun_cmd))
     elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8"):
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
             "--bind-to", "numa",
             "--mca", "coll", "^hcoll",
+            "--mca", "plm_rsh_no_tree_spawn", "1",
             "-x", "HCOLL_ENABLE_MCAST_ALL=0",
             "-x", "NCCL_CUMEM_ENABLE=0",
             "-x", "NCCL_IB_SPLIT_DATA_ON_QPS=0",
@@ -195,8 +199,9 @@ def run_multi_node_nccl_test(hostfile, shape):
             "-x", "NCCL_IGNORE_CPU_AFFINITY=1",
             "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
             "--np", "16",
-            "--hostfile", hostfile,
-            exec_cmd, "-b", "1G", "-e", "16G", "-f", "2", "-g", "1", "-n", "50"
+            "--rankfile", hostfile,
+            "bash","-c",
+            f"sleep $((RANDOM % 5));{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
         ]
 
     else:
@@ -205,42 +210,50 @@ def run_multi_node_nccl_test(hostfile, shape):
     # Prepare the mpirun command as a string with proper quotations
     mpirun_str = custom_join(mpirun_cmd)
     cmd = f"source {mpivars_path} && {mpirun_str}"
+    tmp_script = "/tmp/run_nccl.sh"
+    with open(tmp_script, "w") as f:
+        f.write(cmd)
+    os.chmod(tmp_script, 0o777)
+    i = 0
+    while i < 5:
+        i += 1
+        try:
+            result = subprocess.run(
+                f"bash {tmp_script}",
+                text=True,
+                timeout=120,
+                shell=True,
+                executable='/bin/bash',  # Needed to use 'source mpivars.sh'
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
 
-    try:
-        result = subprocess.run(
-            cmd,
-            text=True,
-            timeout=120,
-            shell=True,
-            executable='/bin/bash',  # Needed to use 'source mpivars.sh'
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-
-        if result.returncode == 0:
-            output = result.stdout
-            bw=None
-            threshold = shape_mapping.get(shape, {}).get("threshold")
-            if threshold == "":
-                return False,"NCCL Test Failed: Shape not found for NCCL test"
-            for line in output.splitlines():
-                if "Avg bus bandwidth" in line:
-                    try:
-                        bw=float(line.split()[5])
-                    except:
-                        return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
-                    if bw < threshold:
-                        return False,f"NCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
-            if not bw is None:
-                return True,"NCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
+            if result.returncode == 0:
+                output = result.stdout
+                if "Invalid number of GPUs" in output:
+                    continue
+                bw=None
+                threshold = shape_mapping.get(shape, {}).get("threshold")
+                if threshold == "":
+                    return False,"NCCL Test Failed: Shape not found for NCCL test"
+                for line in output.splitlines():
+                    if "Avg bus bandwidth" in line:
+                        try:
+                            bw=float(line.split()[5])
+                        except:
+                            return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
+                        if bw < threshold:
+                            return False,f"NCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
+                if not bw is None:
+                    return True,"NCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
+                else:
+                    return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
             else:
-                return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
-        else:
-            return False,f"NCCL Test Failed: Failed to run nccl test. {result.stderr}"
-    except subprocess.TimeoutExpired:
-        return False,"NCCL Test Failed: NCCL test timed out after 2 minutes"
-    except Exception as e:
-        return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
+                return False,f"NCCL Test Failed: Failed to run nccl test. {result.stderr}"
+        except subprocess.TimeoutExpired:
+            return False,"NCCL Test Failed: NCCL test timed out after 2 minutes"
+        except Exception as e:
+            return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
 
 def run_multi_node_rccl_test(hostfile, shape):
 
@@ -262,6 +275,7 @@ def run_multi_node_rccl_test(hostfile, shape):
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
             "--bind-to", "numa",
+            "--mca", "plm_rsh_no_tree_spawn", "1",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
             "-x", f"NCCL_SOCKET_IFNAME=eth0",
             "-x", "NCCL_IB_SL=0", 
@@ -274,7 +288,8 @@ def run_multi_node_rccl_test(hostfile, shape):
             "-x", "IB_RX_QUEUE_LEN=8192",
             "--np", "16",
             "--hostfile", hostfile,
-            exec_cmd, "-b", "1G", "-e", "16G", "-f", "2", "-g", "1", "-n", "50"
+            "bash","-c",
+            f"sleep $((RANDOM % 5));{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
         ]
 
     else:
@@ -478,7 +493,7 @@ def write_hc_http_server_file(node1, node2):
     healthcheck = healthy
     # Read the latest_multi_node_active_healthcheck.log file content
     try:
-        with open("/tmp/latest_multi_node_active_healthcheck.log", 'r') as log_file:
+        with open("/var/log/healthchecks/latest_multi_node_active_healthcheck.log", 'r') as log_file:
             content = log_file.read()
             data["multi_node_healthcheck_logs"] = content  # Store log content in JSON
             for line in content.splitlines():
@@ -509,8 +524,8 @@ def write_hc_http_server_file(node1, node2):
 
     slurm_reason = "Healthcheck, multi-node active healthcheck test failed"
     if slurm_error and args.slurm:
-        logger.info(f"{hostname}: Healthcheck:: {slurm_reason}")
-        logger.info(f"{hostname}: Healthcheck:: Recommended Action: Tag and Terminate")
+        logger.info(f"{hostname}: Healthcheck_Multi:: {slurm_reason}")
+        logger.info(f"{hostname}: Healthcheck_Multi:: Recommended Action: Tag and Terminate")
         cmd = [
             'sudo', 'scontrol', 'update',
             f'nodename={hostname}',
@@ -551,11 +566,15 @@ if __name__ == '__main__':
         if not args.hostfile.strip():
             logger.error("Error: --hostfile argument cannot be empty", flush=True)
             sys.exit(1)
+        nodes=[]
         with open(args.hostfile, 'r') as f:
-            nodes = [line.strip() for line in f if line.strip()]
+            for line in f:
+                node=line.split('=')[1].split()[0]
+                if node not in nodes:
+                    nodes.append(node)
         client_host, server_host = nodes
 
-        file_handler = logging.FileHandler("/tmp/latest_multi_node_active_healthcheck.log", mode='w')
+        file_handler = logging.FileHandler("/var/log/healthchecks/latest_multi_node_active_healthcheck.log", mode='w')
         logger.addHandler(file_handler)
         
         datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

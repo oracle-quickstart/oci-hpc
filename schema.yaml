@@ -259,9 +259,7 @@ variableGroups:
       - ${wildcard_dns_domain}
 
     visible: false
-  - title: "Debug"
-    variables: 
-      - ${configure}
+
 variables:
   targetCompartment:
     title: "Target compartment"
@@ -1346,12 +1344,6 @@ variables:
     title: "RDMA Latency check"
     default: true
     description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shapes during autoscaling"
-
-  configure: 
-    type: boolean
-    title: "Configure system"
-    default: true
-    description: "If unchecked, cluster will be launched but left unconfigured"
 
   add_nfs:
     type: boolean
