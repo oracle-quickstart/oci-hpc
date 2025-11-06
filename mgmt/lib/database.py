@@ -748,6 +748,8 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     logger.debug(f"Count after slurm state filter: {idle_query.count()}")
     idle_query = idle_query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
     logger.debug(f"Count after passive healthcheck filter: {idle_query.count()}")
+    idle_query= idle_query.filter(label_map.get("slurm_up_time") > 300)
+    logger.debug(f"Count after slurm uptime check ( > 5minutes): {idle_query.count()}")
     # Add having for expired active healthcheck
     col = label_map.get("active_healthcheck_last_time")
     if col is not None:
@@ -773,8 +775,6 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
             )
         )
     logger.debug(f"Count after slurm initial validation timeout check: {starting_nodes_query.count()}")
-    starting_nodes_query= starting_nodes_query.filter(label_map.get("slurm_up_time") > 300)
-    logger.debug(f"Count after slurm uptime check ( > 5minutes): {starting_nodes_query.count()}")
     starting_nodes_results = starting_nodes_query.all()
     return idle_result,starting_nodes_results
 
