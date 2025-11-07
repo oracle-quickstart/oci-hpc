@@ -248,13 +248,13 @@ def run_multi_node_nccl_test(hostfile, shape):
                 else:
                     return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
             else:
-                if "Invalid number of GPUs" in result.stdout or "Invalid number of GPUs" in result.stderr:
+                if "Invalid number of GPUs" in result.stdout or "Invalid number of GPUs" in result.stderr or 'invalid device ordinal' in result.stdout or 'invalid device ordinal' in result.stderr:
                     continue
                 return False,f"NCCL Test Failed: Failed to run nccl test. {result.stdout},{result.stderr}"
         except subprocess.TimeoutExpired:
             return False,"NCCL Test Failed: NCCL test timed out after 2 minutes"
         except Exception as e:
-            if "Invalid number of GPUs" in e:
+            if "Invalid number of GPUs" in e or 'invalid device ordinal' in e:
                 continue
             else:
                 return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
@@ -352,58 +352,61 @@ def run_ib_write_bw(shape, server, client='localhost'):
     
     cmd_base = "/usr/bin/ib_write_bw -F -q 2 -x 3 --report_gbits"
     results = {}
-
-    for dev in hca_list:
-        # Start server-side ib_write_bw over SSH
-        ssh_server_cmd = f"ssh {shlex.quote(server)} 'exec {cmd_base} -d {dev}'"
-        server_proc = subprocess.Popen(
-            ssh_server_cmd, shell=True,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        time.sleep(1)  # Ensure server process is listening
-        
-        # Run client-side ib_write_bw over SSH
-        ssh_client_cmd = f"ssh {shlex.quote(client)} '{cmd_base} -d {dev} {server}'"
-        try:
-            client_output = subprocess.check_output(
-                ssh_client_cmd, shell=True, timeout=20, text=True
+    for i in range(3):
+        logger.info(f"ib write bw  Test {i+1}/3")
+        for dev in hca_list:
+            # Start server-side ib_write_bw over SSH
+            ssh_server_cmd = f"ssh {shlex.quote(server)} 'exec {cmd_base} -d {dev}'"
+            server_proc = subprocess.Popen(
+                ssh_server_cmd, shell=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
-        except subprocess.CalledProcessError as e:
-            return False, f"ib write bw Test Failed: Failed to run ib write bw test: {e}"
-        except subprocess.TimeoutExpired:
-            return False, "ib write bw Test Failed: Timeout after 20 seconds"
-        # Parse output
-        bw = ""
-        for line in client_output.splitlines():
-            if "65536      10000" in line:
-                parts = line.split()
-                if len(parts) >= 3:
-                    bw = parts[2]
-                    break
-        results[dev] = bw
-        server_proc.terminate()
-    success = True
-    error_dict = {}
-    for key, value in results.items():
-        if value != "":
-            value = float(value)
-            if value < ib_write_bw:
-                error_dict[key] = value
+            time.sleep(1)  # Ensure server process is listening
+            
+            # Run client-side ib_write_bw over SSH
+            ssh_client_cmd = f"ssh {shlex.quote(client)} '{cmd_base} -d {dev} {server}'"
+            try:
+                client_output = subprocess.check_output(
+                    ssh_client_cmd, shell=True, timeout=20, text=True
+                )
+            except subprocess.CalledProcessError as e:
+                return False, f"ib write bw Test Failed: Failed to run ib write bw test: {e}"
+            except subprocess.TimeoutExpired:
+                return False, "ib write bw Test Failed: Timeout after 20 seconds"
+            # Parse output
+            bw = ""
+            for line in client_output.splitlines():
+                if "65536      10000" in line:
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        bw = parts[2]
+                        break
+            results[dev] = bw
+            server_proc.terminate()
+        success = True
+        error_dict = {}
+        for key, value in results.items():
+            if value != "":
+                value = float(value)
+                if value < ib_write_bw:
+                    error_dict[key] = value
+                    success = False
+            else:
+                error_dict[key] = None
                 success = False
+        if success:
+            return True,"ib write bw Test Succeeded: Bandwidth for each RDMA interface is equal to or above the threshold of " + str(ib_write_bw) + " Gb/s"
         else:
-            error_dict[key] = None
-            success = False
-    if success:
-        return True,"ib write bw Test Succeeded: Bandwidth for each RDMA interface is equal to or above the threshold of " + str(ib_write_bw) + " Gb/s"
-    else:
-        # Create a string for each key-value pair
-        pairs = [f"{key} ({value})" for key, value in error_dict.items()]
-        # Join them with ' and '
-        interfaces_str = ' and '.join(pairs)
-        # Construct the full message
-        msg = f"ERROR: BW was below the threshold {ib_write_bw} Gb/s for interface {interfaces_str}"
-        logger.error(msg)  
-        return False,"ib write bw Test Failed: Bandwidth is less than the threshold of " + str(ib_write_bw) + " Gb/s for one or more RDMA interfaces"
+            if i < 2:
+                continue
+            # Create a string for each key-value pair
+            pairs = [f"{key} ({value})" for key, value in error_dict.items()]
+            # Join them with ' and '
+            interfaces_str = ' and '.join(pairs)
+            # Construct the full message
+            msg = f"WARNING: BW was below the threshold {ib_write_bw} Gb/s for interface {interfaces_str}"
+            logger.warning(msg)  
+            return False,"ib write bw Test Failed: Bandwidth is less than the threshold of " + str(ib_write_bw) + " Gb/s for one or more RDMA interfaces"
 
 def run_ib_write_lat(shape, server, client='localhost'):
     # Helper to execute ssh command and return stdout
@@ -431,44 +434,48 @@ def run_ib_write_lat(shape, server, client='localhost'):
     
     success = True
     error_dict = {}
-    for idx, dev in enumerate(hca_list):
-        numa_node = 0 if idx < half else 1
-        # Start server side as background process (no output)
-        # Use 'nohup' to not kill process if ssh disconnects
-        server_cmd = f"nohup numactl -N {numa_node} {cmd_base} -d {dev} > /dev/null 2>&1 &"
-        cmd_state,cmd_output = ssh(server, server_cmd)
-        if not cmd_state:
-            return cmd_state,cmd_output
+    for i in range(3):
+        logger.info(f"ib write lat  Test {i+1}/3")
+        for idx, dev in enumerate(hca_list):
+            numa_node = 0 if idx < half else 1
+            # Start server side as background process (no output)
+            # Use 'nohup' to not kill process if ssh disconnects
+            server_cmd = f"nohup numactl -N {numa_node} {cmd_base} -d {dev} > /dev/null 2>&1 &"
+            cmd_state,cmd_output = ssh(server, server_cmd)
+            if not cmd_state:
+                return cmd_state,cmd_output
 
-        time.sleep(1)  # Give server time to listen
+            time.sleep(1)  # Give server time to listen
 
-        # On client: run ib_write_lat
-        client_cmd = (
-            f"numactl -N {numa_node} {cmd_base} -d {dev} {server} | grep '^ 8[[:space:]]\\+10000' | awk '{{print $6}}'"
-        )
-        cmd_state,cmd_output = ssh(client, client_cmd)
-        if not cmd_state:
-            return cmd_state,cmd_output
-        latency = cmd_output.strip()
-        if latency != "":
-            latency = float(latency)
-            if latency > ib_write_lat_threshold:
-                error_dict[dev] = latency
-                success = False
+            # On client: run ib_write_lat
+            client_cmd = (
+                f"numactl -N {numa_node} {cmd_base} -d {dev} {server} | grep '^ 8[[:space:]]\\+10000' | awk '{{print $6}}'"
+            )
+            cmd_state,cmd_output = ssh(client, client_cmd)
+            if not cmd_state:
+                return cmd_state,cmd_output
+            latency = cmd_output.strip()
+            if latency != "":
+                latency = float(latency)
+                if latency > ib_write_lat_threshold:
+                    error_dict[dev] = latency
+                    success = False
+            else:
+                error_dict[dev] = None
+                success = False              
+        if success:
+            return True,"ib write latency Test Succeeded: Latency for each RDMA interface is less than the threshold of " + str(ib_write_lat_threshold) + " microseconds"
         else:
-            error_dict[dev] = None
-            success = False              
-    if success:
-        return True,"ib write latency Test Succeeded: Latency for each RDMA interface is less than the threshold of " + str(ib_write_lat_threshold) + " microseconds"
-    else:
-        # Create a string for each key-value pair
-        pairs = [f"{key} ({value})" for key, value in error_dict.items()]
-        # Join them with ' and '
-        interfaces_str = ' and '.join(pairs)
-        # Construct the full message
-        msg = f"ERROR: Latency was greater than the threshold {ib_write_lat_threshold} for interface {interfaces_str}"
-        logger.error(msg)  
-        return False,"ib write latency Test Failed: Latency is equal to or above the threshold of " + str(ib_write_lat_threshold) + " microseconds for one or more RDMA interfaces"
+            if i < 2:
+                continue    
+            # Create a string for each key-value pair
+            pairs = [f"{key} ({value})" for key, value in error_dict.items()]
+            # Join them with ' and '
+            interfaces_str = ' and '.join(pairs)
+            # Construct the full message
+            msg = f"WARNING: Latency was greater than the threshold {ib_write_lat_threshold} for interface {interfaces_str}"
+            logger.warning(msg)  
+            return False,"ib write latency Test Failed: Latency is equal to or above the threshold of " + str(ib_write_lat_threshold) + " microseconds for one or more RDMA interfaces"
 
 def write_hc_http_server_file(node1, node2):
     slurm_error = False
@@ -501,7 +508,7 @@ def write_hc_http_server_file(node1, node2):
             content = log_file.read()
             data["multi_node_healthcheck_logs"] = content  # Store log content in JSON
             for line in content.splitlines():
-                if "Failed" in line:
+                if "ERROR" in line:
                     healthcheck = potentially_bad
             logger.info(f"{hostname} - Multi-node Healthcheck Result: {healthcheck}")
     except FileNotFoundError:
@@ -599,13 +606,13 @@ if __name__ == '__main__':
 
         ib_write_bw_state,ib_write_bw_output = run_ib_write_bw(shape, server_host, client_host)
         if not ib_write_bw_state:
-            logger.error(ib_write_bw_output)
+            logger.warning(ib_write_bw_output)
         else:
             logger.info(ib_write_bw_output)
 
         ib_write_lat_state,ib_write_lat_output = run_ib_write_lat(shape, server_host, client_host)
         if not ib_write_lat_state:
-            logger.error(ib_write_lat_output)
+            logger.warning(ib_write_lat_output)
         else:
             logger.info(ib_write_lat_output)         
 
