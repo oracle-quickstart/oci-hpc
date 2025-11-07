@@ -297,7 +297,7 @@ while [ $attempt -le $max_attempts_ansible_install ]; do
 done 
 
 attempt=1
-wait_time=10
+wait_time=1
 while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
     $VENV_PATH/bin/ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log
