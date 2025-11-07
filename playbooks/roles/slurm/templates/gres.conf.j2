@@ -1,3 +1,9 @@
 {% if item.value.shape == "BM.GPU.MI300X.8"%}
 NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[128,136,144,152,160,168,176,184] Type=MI300X
+{% elif item.value.shape == "BM.GPU.MI355X.8"%}
+NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[136,152,144,128,168,184,176,160] Type=MI355X
+{% elif item.value.shape == "BM.GPU.MI355X-v0.8"%}
+NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[136,152,144,128,168,184,176,160] Type=MI355X
+{% elif item.value.shape == "BM.GPU.MI355X-v1.8"%}
+NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[136,152,144,128,168,184,176,160] Type=MI355X
 {% endif %}
