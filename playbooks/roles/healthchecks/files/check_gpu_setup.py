@@ -1011,11 +1011,6 @@ def run_dcgmi_health():
         logger.warning("dcgmi is not installed or not in PATH.")
         return True
 
-    version_check = re.search(r'version:\s*(\d+\.\d+\.\d+)', version_out)
-    if not version_check or not version_check.group(1).startswith("4."):
-        logger.warning("dcgmi version is not 4.x. Please upgrade to 4.x for best compatibility.")
-        return True
-
     # Check if health is set up using output of `dcgmi health -c`
     try:
         health_output = subprocess.check_output(['dcgmi', 'health', '-c'], text=True, stderr=subprocess.STDOUT, timeout=10)
@@ -1030,7 +1025,7 @@ def run_dcgmi_health():
         try:
             setup_output = subprocess.check_output(['dcgmi', 'health', '-s', 'a'], text=True, stderr=subprocess.STDOUT, timeout=10)
             if "Health monitor systems set successfully." not in setup_output:
-                logger.warning("Warning: Unexpected dcgmi health setup output:\n", setup_output)
+                logger.warning("Unexpected dcgmi health setup output:\n", setup_output)
                 return True
             first_time_setup = True
         except subprocess.CalledProcessError as e:
@@ -1049,16 +1044,19 @@ def run_dcgmi_health():
             text=True,
             timeout=10
         ).strip()
-        if health_status == "Warning":
-            logger.warning(f"WARNING: Overall Health is '{health_status}' (Run dcgmi health -c for details)")
+        status_norm = health_status.lower()
+
+        if status_norm == "healthy":
             return True
-        elif health_status != "Healthy":
-            logger.error(f"ERROR: Overall Health is '{health_status}' (should be 'Healthy')")
+        elif status_norm == "warning":
+            logger.warning("Overall dcgmi Health is 'Warning'")
+            return True
+        else:
+            logger.error(f"Overall Health is '{health_status}' (expected 'Healthy' or 'Warning')")
             return False
     except subprocess.CalledProcessError:
         logger.warning("Error running dcgmi health check or parsing JSON (is jq installed?).")
         return True
-    return True
 
 #Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
