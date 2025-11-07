@@ -29,17 +29,17 @@ g.dashboard.new('AMD GPU Metrics')
     tempGuagePanel(
       'Max GPU Temp',
       'ceil(max by (hostname) (amd_gpu_junction_temperature{hostname=~"$hostname", oci_name=~"$oci_name"}))',
-      {w:6, h:4, x:4, y:0}
+      {w:6, h:4, x:6, y:0}
     ),
     tempGuagePanel(
       'Max Mem Temp',
       'ceil(max by (hostname) (amd_gpu_memory_temperature{hostname=~"$hostname", oci_name=~"$oci_name"}))',
-      {w:6, h:4, x:8, y:0}
+      {w:6, h:4, x:12, y:0}
     ),
     utilGaugePanel(
       'Avg GPU Util',
       'avg by (hostname) (amd_gpu_gfx_activity{hostname=~"$hostname", oci_name=~"$oci_name"})',
-      {w:6, h:4, x:12, y:0}
+      {w:6, h:4, x:18, y:0}
     ),    
     timeseriesPanel(
       'GPU Temperature',
