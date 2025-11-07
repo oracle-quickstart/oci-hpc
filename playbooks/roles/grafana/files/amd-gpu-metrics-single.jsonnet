@@ -1,15 +1,15 @@
 local g = import './g.libsonnet';
-local variables = import './gpu-metrics-single-variables.libsonnet';
+local variables = import './amd-gpu-metrics-single-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 local statPanel = import './stat-panel-single.libsonnet';
 local tempGuagePanel = import './gauge-panel.libsonnet';
 local statPanelXid = import './stat-panel.libsonnet';
 local utilGaugePanel = import './gauge-panel-util.libsonnet';
 
-g.dashboard.new('GPU Metrics')
-+ g.dashboard.withUid('gpu-metrics-single')
+g.dashboard.new('AMD GPU Metrics')
++ g.dashboard.withUid('amd-gpu-metrics-single')
 + g.dashboard.withDescription(|||
-  GPU Metrics Dashboard for a single cluster node.
+  AMD GPU Metrics Dashboard for a single cluster node.
 |||)
 + g.dashboard.withTimezone('browser')
 + g.dashboard.withRefresh('30s')
@@ -28,17 +28,17 @@ g.dashboard.new('GPU Metrics')
     ),
     tempGuagePanel(
       'Max GPU Temp',
-      'ceil(max by (Hostname) (DCGM_FI_DEV_GPU_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"}) / max by (Hostname) (DCGM_FI_DEV_SLOWDOWN_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"}) * 100)',
+      'ceil(max by (hostname) (amd_gpu_junction_temperature{Hostname=~"$hostname", oci_name=~"$oci_name"}) / 85) * 100)',
       {w:4, h:4, x:4, y:0}
     ),
     tempGuagePanel(
       'Max Temp / Shutdown',
-      'ceil(max by (Hostname) (DCGM_FI_DEV_GPU_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"}) / max by (Hostname) (DCGM_FI_DEV_SHUTDOWN_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"}) * 100)',
+      'ceil(max by (hostname) (amd_gpu_junction_temperature{Hostname=~"$hostname", oci_name=~"$oci_name"}) / 92) * 100)',
       {w:4, h:4, x:8, y:0}
     ),
     utilGaugePanel(
       'Avg GPU Util',
-      'avg by (Hostname) (DCGM_FI_DEV_GPU_UTIL{Hostname=~"$hostname", oci_name=~"$oci_name"})',
+      'avg by (hostname) (amd_gpu_gfx_activity{hostname=~"$hostname", oci_name=~"$oci_name"})',
       {w:4, h:4, x:12, y:0}
     ),
     statPanelXid(
@@ -48,22 +48,22 @@ g.dashboard.new('GPU Metrics')
     ),    
     timeseriesPanel(
       'GPU Temperature',
-      'DCGM_FI_DEV_GPU_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
+      'amd_gpu_junction_temperature{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
       'celsius',
       {w:8, h:8, x:0, y:4}
     ),
     timeseriesPanel(
       'GPU Powerdraw',
-      'DCGM_FI_DEV_POWER_USAGE{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
+      'amd_gpu_power_usage{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
       'watts',
       {w:8, h:8, x:8, y:4}
     ),
     timeseriesPanel(
       'GPU Utilization',
-      'DCGM_FI_DEV_GPU_UTIL{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
+      'amd_gpu_gfx_activity{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
       'percent',
       {w:8, h:8, x:16, y:4}
     ),
@@ -133,21 +133,21 @@ g.dashboard.new('GPU Metrics')
     timeseriesPanel(
       'XGMI Rx + Tx Combined B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_tx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(amd_gpu_xgmi_link_rx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
-      '{{ gpu }}',
+      '{{ gpu_id }}',
       'Bps',
       {w:8, h:8, x:0, y:36}
     ),
     timeseriesPanel(
       'XGMI Tx B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_tx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
-      '{{ gpu }}',
+      '{{ gpu_id }}',
       'Bps',
       {w:8, h:8, x:8, y:36}
     ),
     timeseriesPanel(
       'XGMI Rx B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_rx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
-      '{{ gpu }}',
+      '{{ gpu_id }}',
       'Bps',
       {w:8, h:8, x:16, y:36}
     ),

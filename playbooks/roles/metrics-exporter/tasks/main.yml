@@ -28,7 +28,7 @@
 # - ansible.builtin.include_tasks: critical_process_monitor.yml
 
 - ansible.builtin.include_tasks: amd_metrics_exporter_el.yml
-  when: ansible_os_family == 'RedHat' and 'BM.GPU.MI' in shape
+  when: compute_node|bool and ansible_os_family == 'RedHat' and 'BM.GPU.MI' in shape
 
 - ansible.builtin.include_tasks: amd_metrics_exporter_ubuntu.yml
-  when: ansible_distribution == 'Ubuntu' and 'BM.GPU.MI' in shape
+  when: compute_node|bool and ansible_distribution == 'Ubuntu' and 'BM.GPU.MI' in shape

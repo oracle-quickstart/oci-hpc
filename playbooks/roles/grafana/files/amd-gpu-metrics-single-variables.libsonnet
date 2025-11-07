@@ -23,9 +23,9 @@ local var = g.dashboard.variable;
     + var.query.withRefresh(1),
 
   gpu:
-    var.query.new('gpu')
+    var.query.new('gpu_id')
     + var.query.withDatasourceFromVariable(self.prometheus)
-    + var.query.queryTypes.withLabelValues('gpu', 'DCGM_FI_DEV_GPU_UTIL')
+    + var.query.queryTypes.withLabelValues('gpu', 'amd_gpu_nodes_total')
     + var.query.selectionOptions.withMulti()
     + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),

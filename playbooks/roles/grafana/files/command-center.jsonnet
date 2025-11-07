@@ -37,12 +37,12 @@ g.dashboard.new('Command Center')
     ),
     statPanel(
       'Total GPUs',
-      'sum(max by (instance) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}))',
+      'sum(max by (Hostname) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}) or max by (hostname) (amd_gpu_nodes_total{cluster_name=~"$cluster_name"}) )',
       {w:4, h:4, x:16, y:0}
     ),    
     statPanel(
       'Healthy GPUs',
-      'sum(available_gpu_count{cluster_name=~"$cluster_name"})',
+      'sum(available_gpu_count{cluster_name=~"$cluster_name"}) or sum(amd_gpu_nodes_total{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:20, y:0}
     ),
     /*
@@ -103,12 +103,12 @@ g.dashboard.new('Command Center')
             },
             {
               title: 'GPU Metrics',
-              url: '/d/gpu-metrics-single/gpu-metrics?var-hostname=${__field.labels.hostname}',
+              url: '/d/${__field.labels.vendor}-gpu-metrics-single/gpu-metrics?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             },
             {
               title: 'GPU Health',
-              url: '/d/gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
+              url: '/d/${__field.labels.vendor}-gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             }
         ]),
