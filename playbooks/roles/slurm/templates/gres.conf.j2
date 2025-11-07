@@ -1,1 +1,3 @@
-AutoDetect=nvml
+{% if item.value.shape == "BM.GPU.MI300X.8"%}
+NodeName={{item.value.hostname}} Name=gpu File=/dev/dri/renderD[128,136,144,152,160,168,176,184] Type=MI300X
+{% endif %}
