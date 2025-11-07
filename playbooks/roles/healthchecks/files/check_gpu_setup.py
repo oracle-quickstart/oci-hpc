@@ -950,20 +950,20 @@ def check_ip_addresses():
 # 18.1 Check NVLinks speeds
 def get_nvlink_speed():
     gpu_nvlink_info = {
-        "BM.GPU4.8":         {"count": 12, "speed": 25,      "gpu": 8},
-        "BM.GPU.B4.8":       {"count": 12, "speed": 25,      "gpu": 8},
-        "BM.GPU.A100-v2.8":  {"count": 12, "speed": 25,      "gpu": 8},
-        "BM.GPU.H100.8":     {"count": 18, "speed": 26.562,  "gpu": 8},
-        "BM.GPU.H200.8":     {"count": 18, "speed": 26.562,  "gpu": 8},
-        "BM.GPU.B200.8":     {"count": 18, "speed": 50,      "gpu": 8},
-        "VM.GPU.A100.40G.1": {"count": 12, "speed": 25,      "gpu": 1},
-        "VM.GPU.A100.80G.1": {"count": 12, "speed": 25,      "gpu": 1}
+        "BM.GPU4.8":         {"count": 12, "speeds": [25],      "gpu": 8},
+        "BM.GPU.B4.8":       {"count": 12, "speeds": [25],      "gpu": 8},
+        "BM.GPU.A100-v2.8":  {"count": 12, "speeds": [25],      "gpu": 8},
+        "BM.GPU.H100.8":     {"count": 18, "speeds": [26.562],  "gpu": 8},
+        "BM.GPU.H200.8":     {"count": 18, "speeds": [26.562],  "gpu": 8},
+        "BM.GPU.B200.8":     {"count": 18, "speeds": [50,53.125],  "gpu": 8},
+        "VM.GPU.A100.40G.1": {"count": 12, "speeds": [25],      "gpu": 1},
+        "VM.GPU.A100.80G.1": {"count": 12, "speeds": [25],      "gpu": 1}
     }
 
     shape = metadata.get('shape')
     info = gpu_nvlink_info[shape]
     count_expected = info['count']
-    speed_expected = info['speed']
+    speed_expected = info['speeds']
     expected_gpu = info['gpu']
 
     error = False
@@ -982,7 +982,7 @@ def get_nvlink_speed():
             speeds_float = [float(s) for s in link_speeds]
 
             count = len(speeds_float)
-            speeds_match = all(speed == speed_expected for speed in speeds_float)
+            speeds_match = all(speed in speed_expected for speed in speeds_float)
 
             if count != count_expected:
                 logger.error(f"GPU {gpu_index}: ERROR: NVLink count mismatch!")
