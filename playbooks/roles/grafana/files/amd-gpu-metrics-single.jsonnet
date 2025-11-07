@@ -88,7 +88,7 @@ g.dashboard.new('AMD GPU Metrics')
       'amd_gpu_clock{clock_type="GPU_CLOCK_TYPE_SYSTEM", hostname=~"$hostname", oci_name=~"$oci_name"}',
       '{{ gpu_id }}',
       'rotkhz',
-      {w:8, h:8, x:8, y:20}
+      {w:8, h:8, x:0, y:20}
     ),
     timeseriesPanel(
       'Memory Clock',
@@ -102,7 +102,7 @@ g.dashboard.new('AMD GPU Metrics')
       'amd_gpu_clock{clock_type="GPU_CLOCK_TYPE_FABRIC", hostname=~"$hostname", oci_name=~"$oci_name"}',
       '{{ gpu_id }}',
       'rotkhz',
-      {w:8, h:8, x:8, y:20}
+      {w:8, h:8, x:16, y:20}
     ),
     timeseriesPanel(
       'XGMI Rx + Tx Combined B/W',
