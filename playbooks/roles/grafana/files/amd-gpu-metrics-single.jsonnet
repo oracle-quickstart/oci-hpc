@@ -24,27 +24,22 @@ g.dashboard.new('AMD GPU Metrics')
     statPanel(
       'Avail GPU',
       'amd_gpu_nodes_total{hostname=~"$hostname", oci_name=~"$oci_name"}',
-      {w:4, h:4, x:0, y:0}
+      {w:6, h:4, x:0, y:0}
     ),
     tempGuagePanel(
       'Max GPU Temp',
-      'ceil(max by (hostname) (amd_gpu_junction_temperature{Hostname=~"$hostname", oci_name=~"$oci_name"}) / 85) * 100)',
-      {w:4, h:4, x:4, y:0}
+      'ceil(max by (hostname) (amd_gpu_junction_temperature{hostname=~"$hostname", oci_name=~"$oci_name"}))',
+      {w:6, h:4, x:4, y:0}
     ),
     tempGuagePanel(
-      'Max Temp / Shutdown',
-      'ceil(max by (hostname) (amd_gpu_junction_temperature{Hostname=~"$hostname", oci_name=~"$oci_name"}) / 92) * 100)',
-      {w:4, h:4, x:8, y:0}
+      'Max Mem Temp',
+      'ceil(max by (hostname) (amd_gpu_memory_temperature{hostname=~"$hostname", oci_name=~"$oci_name"}))',
+      {w:6, h:4, x:8, y:0}
     ),
     utilGaugePanel(
       'Avg GPU Util',
       'avg by (hostname) (amd_gpu_gfx_activity{hostname=~"$hostname", oci_name=~"$oci_name"})',
-      {w:4, h:4, x:12, y:0}
-    ),
-    statPanelXid(
-      'Last Xid by GPU',
-      'max by(Hostname, gpu) (DCGM_FI_DEV_XID_ERRORS{Hostname=~"$hostname", oci_name=~"$oci_name"})',
-      {w:8, h:4, x:16, y:0}
+      {w:6, h:4, x:12, y:0}
     ),    
     timeseriesPanel(
       'GPU Temperature',
@@ -69,16 +64,16 @@ g.dashboard.new('AMD GPU Metrics')
     ),
     timeseriesPanel(
       'GPU Memory Temperature',
-      'DCGM_FI_DEV_MEMORY_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
+      'amd_gpu_memory_temperature{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
       'celsius',
       {w:8, h:8, x:0, y:12}
     ),
     timeseriesPanel(
-      'SM Clock',
-      'DCGM_FI_DEV_SM_CLOCK{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
-      'rotkhz',
+      'Package Powerdraw',
+      'amd_gpu_package_power{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
+      'watts',
       {w:8, h:8, x:8, y:12}
     ),
     timeseriesPanel(
@@ -89,74 +84,53 @@ g.dashboard.new('AMD GPU Metrics')
       {w:8, h:8, x:16, y:12}
     ),
     timeseriesPanel(
-      'SM Active',
-      'DCGM_FI_PROF_SM_ACTIVE{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
-      'percentunit',
-      {w:8, h:8, x:0, y:20}
-    ),
-    timeseriesPanel(
-      'SM Occupancy',
-      'DCGM_FI_PROF_SM_OCCUPANCY{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
-      'percentunit',
+      'System Clock',
+      'amd_gpu_clock{clock_type="GPU_CLOCK_TYPE_SYSTEM", hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
+      'rotkhz',
       {w:8, h:8, x:8, y:20}
     ),
     timeseriesPanel(
-      'DRAM Active',
-      'DCGM_FI_PROF_DRAM_ACTIVE{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
-      'percent',
-      {w:8, h:8, x:16, y:20}
+      'Memory Clock',
+      'amd_gpu_clock{clock_type="GPU_CLOCK_TYPE_MEMORY", hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
+      'rotkhz',
+      {w:8, h:8, x:8, y:20}
     ),
     timeseriesPanel(
-      'FP16 Pipe Active',
-      'DCGM_FI_PROF_PIPE_FP16_ACTIVE{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
-      'percentunit',
-      {w:8, h:8, x:0, y:28}
-    ),
-    timeseriesPanel(
-      'FP32 Pipe Active',
-      'DCGM_FI_PROF_PIPE_FP32_ACTIVE{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
-      'percentunit',
-      {w:8, h:8, x:8, y:28}
-    ),
-    timeseriesPanel(
-      'FP64 Pipe Active',
-      'DCGM_FI_PROF_PIPE_FP64_ACTIVE{Hostname=~"$hostname", oci_name=~"$oci_name"}',
-      '{{ gpu }} {{GPU_I_PROFILE}}',
-      'percentunit',
-      {w:8, h:8, x:16, y:28}
+      'Fabric Clock',
+      'amd_gpu_clock{clock_type="GPU_CLOCK_TYPE_FABRIC", hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
+      'rotkhz',
+      {w:8, h:8, x:8, y:20}
     ),
     timeseriesPanel(
       'XGMI Rx + Tx Combined B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_tx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(amd_gpu_xgmi_link_rx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ gpu_id }}',
       'Bps',
-      {w:8, h:8, x:0, y:36}
+      {w:8, h:8, x:0, y:28}
     ),
     timeseriesPanel(
       'XGMI Tx B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_tx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ gpu_id }}',
       'Bps',
-      {w:8, h:8, x:8, y:36}
+      {w:8, h:8, x:8, y:28}
     ),
     timeseriesPanel(
       'XGMI Rx B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_rx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ gpu_id }}',
       'Bps',
-      {w:8, h:8, x:16, y:36}
+      {w:8, h:8, x:16, y:28}
     ),
     timeseriesPanel(
       'ROCEv2 Rx + Tx Combined B/W',
       '(rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:0, y:44},
+      {w:8, h:10, x:0, y:36},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
     timeseriesPanel(
@@ -164,7 +138,7 @@ g.dashboard.new('AMD GPU Metrics')
       'rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:8, y:44},
+      {w:8, h:10, x:8, y:36},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
     timeseriesPanel(
@@ -172,7 +146,7 @@ g.dashboard.new('AMD GPU Metrics')
       'rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:16, y:44},
+      {w:8, h:10, x:16, y:36},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
 ])
