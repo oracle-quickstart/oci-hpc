@@ -1,12 +1,18 @@
 ---
-- name: Add to the gres.conf file on the controller.
+- name: Ensure AutoDetect=nvml is present after "#GRES.conf" in gres.conf
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/gres.conf"
+    line: "AutoDetect=nvml"
+    insertafter: '^#GRES\.conf'
+
+- name: Add explicit AMD GPU node blocks to gres.conf (with markers)
   become: true
   ansible.builtin.blockinfile:
     block: "{{ lookup('template', 'gres.conf.j2') }}"
     path: "{{ slurm_conf_path }}/gres.conf"
     marker: "### {mark} {{ item.value.hostname }}"
-  delegate_to: 127.0.0.1
-  when: "'GPU' in item.value.shape"
+  when: item.value.shape in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"]
   with_items: "{{ new_compute_info | dict2items }}"
 
 - name: Remove nodes from current topology before adding them
