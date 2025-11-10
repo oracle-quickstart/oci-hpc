@@ -122,7 +122,7 @@
   ansible.builtin.set_fact:
     rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None', 'customerLocalBlock': 'None', 'customerNetworkBlock': 'None',
       'customerGpuMemoryFabric': 'None'}}) }}"
-  when: "not 'customerLocalBlock' in rdma_metadata['rdmaTopologyData']"
+  when: "not 'rdmaTopologyData' in rdma_metadata"
 
 - name: Add empty customerGpuMemoryFabric
   ansible.builtin.set_fact:
