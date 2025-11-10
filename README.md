@@ -2,6 +2,9 @@
 
 [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/oracle-quickstart/oci-hpc/archive/refs/heads/master.zip)
 
+## Table of Content
+
+Use the top-right button to display.
 
 ## Introduction
 
@@ -188,6 +191,8 @@ Add zip, folder or create from Marketplace. Be careful, select the right compart
 
 #### SSH Keys
 
+User must provide a public ssh key to allow ssh connection to the management nodes (controller, controller backup, login and monitoring).
+
 #### LDAP
 
 If the LDAP option is selected during the stack configuration, the controller node will act as an LDAP server for the cluster. In this case, it is strongly recommended to leave the default value for the shared home directory. User management can be performed from the controller using the `cluster` command. 
@@ -202,20 +207,74 @@ By default, a `privilege` group that has access to the NFS and can have sudo acc
 ```cluster user add name --nossh --gid 9876```
 
 ### Functions and Events Configuration
+
+#### Use an existing OCI Registry
+
+Select this option to use existing Function container registry.
+
 ### Controller Node Options
+
+In this section, define controller node Availability Domain, shape, cores and memory (for Flex virtual machines) and size of the boot volume. Image is defined in the next section.
+
 ### Management Nodes Image Options
+
+Marketplace images are based on Oracle Linux 8. They are HPC specific versions with NVIDIA or AMD GPU drivers (except HPC_OL8) and RDMA drivers preinstalled.
+
+Other images such as Ubuntu or CentOS can be used. Username must be changed accordingly (default is `opc` for OL8, `ubuntu` for Ubuntu).
+
+If a non-listed image must be used, provide the image ocid. The image must have been previously imported as a Custom Image.
+
 ### Compute Nodes Options
+
+For the compute nodes, first define the Availability Domain and the node shape. If RoCE V2 cluster network is enabled, only Bare Metal shapes that support RDMA are available. If not, any shape, VM or BM, can be used as compute nodes.
+
+The initial cluster size corresponds to the number of nodes of the permanent cluster.
+
+Boot volume size can be set at this stage.
+
+Image options are the same as for the management nodes. Management node and compute node images do not have to be identical but they must be compatible. Example: Canonical-Ubuntu-22.04 for the management nodes and Canonical-Ubuntu-22.04-OFED-GPU-570-OPEN-CUDA-12.8 for the compute nodes (GPU Bare Metal).
+
 ### Login Node Options
+
+In this section, define login node Availability Domain, shape, cores and memory (for Flex virtual machines) and size of the boot volume. Image is defined in the [Management Nodes Image Options section](#management-nodes-image-options).
+
 ### Cluster Monitoring
+
+HPC cluster monitoring tools can be installed. This includes alerting tools, and a monitoring node to host the tools with the same options as the controller and the login nodes.
+
 ### Storage Options
+
+Depending on the requirements, different storage options can be selected.
+
 #### Lustre Filesystem
+
+The OCI File Storage with Lustre managed service...
+
 #### File Storage Service
+
+The OCI File Storage managed service is a highly available network file system (NFS) that enables multiple servers to access data. It is elastic up to 8 exabytes with asynchronous replication, snapshot and clone capabilities.
+
+The cluster can connect to an exising File Storage service or create a new one.
+For an exisintg, simply provide the information (address, mounting path, credentials).
+For a new one, specify the number of mount targets. Mount target performance is 1 Gbps per default but can be upgraded to 20, 40 or 80 Gbps with High Performance Mount Targets (HPMT). HPMT-20, -40 and -80 respectively include 20, 40 and 80 TB of storage capacity.
+
+Other options include the NFS mounting path, the NFS server path, Compartment and Availability Domain.
+
 #### Local Storage (NVMe)
+
+Compute bare metal nodes feature one or more NVMe local disks.
+The `Mount localdisk` option automatically mount all the disks on all the nodes (compute nodes and management nodes if applicable).
+The `One Logical Volume` unifies all the disks to create one local storage point (RAID 0).
+The `Redundancy` sets the disks configuration to RAID 1.
+
+> [!WARNING]
+> Local storage can be subject to hardware failure and does not benefit from any built-in replication, cloning or snapshot capabilities. Therefore, this storage solution must not be used for any valuable data. Prefer File Storage or File Storage with Lustre instead.
+
 #### General
 
 ##### Shared home folder
 
-By default, the home folder is located on the NFS shared between all nodes from the controller node. User has the possibility to use a Filesystem Service (FSS) to share the home directory as well to keep working if the controller node goes down.
+By default, the `home` folder is located on the NFS shared between all nodes from the controller node. User has the possibility to use a Filesystem Service (FSS) to share the home directory as well to keep working if the controller node goes down.
 User can either create a new FSS (be aware that it will be destroyed with the stack) or use an existing one (Mount Target, path, etc. will be required). If an existing FSS is used, /home should not be used as a mount point. The stack will take care of creating a `$nfsshare/home` directory and mounting it at `/home` after copying all the appropriate files. 
 
 ### Network Options
