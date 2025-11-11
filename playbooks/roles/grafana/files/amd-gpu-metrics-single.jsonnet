@@ -105,32 +105,74 @@ g.dashboard.new('AMD GPU Metrics')
       {w:8, h:8, x:16, y:20}
     ),
     timeseriesPanel(
+      'SM Active',
+      'amd_gpu_prof_sm_active{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
+      'percentunit',
+      {w:8, h:8, x:0, y:28}
+    ),
+    timeseriesPanel(
+      'SM Occupancy',
+      'amd_gpu_prof_occupancy_percent{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
+      'percentunit',
+      {w:8, h:8, x:8, y:28}
+    ),
+    timeseriesPanel(
+      'Tensor Active',
+      'amd_gpu_prof_tensor_active_percent{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu_id }}',
+      'percentunit',
+      {w:8, h:8, x:16, y:28}
+    ),
+    timeseriesPanel(
+      'FP16 Ops Rate',
+      'rate(amd_gpu_prof_total_16_ops{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
+      '{{ gpu_id }}',
+      'ops',
+      {w:8, h:8, x:0, y:36}
+    ),
+    timeseriesPanel(
+      'FP32 Ops Rate',
+      'rate(amd_gpu_prof_total_32_ops{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
+      '{{ gpu_id }}',
+      'ops',
+      {w:8, h:8, x:8, y:36}
+    ),
+    timeseriesPanel(
+      'FP64 Ops Rate',
+      'rate(amd_gpu_prof_total_64_ops{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
+      '{{ gpu_id }}',
+      'ops',
+      {w:8, h:8, x:16, y:36}
+    ),
+    timeseriesPanel(
       'XGMI Rx + Tx Combined B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_tx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(amd_gpu_xgmi_link_rx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ gpu_id }}',
       'Bps',
-      {w:8, h:8, x:0, y:28}
+      {w:8, h:8, x:0, y:44}
     ),
     timeseriesPanel(
       'XGMI Tx B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_tx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ gpu_id }}',
       'Bps',
-      {w:8, h:8, x:8, y:28}
+      {w:8, h:8, x:8, y:44}
     ),
     timeseriesPanel(
       'XGMI Rx B/W',
       'sum by (hostname, gpu_id) (rate(amd_gpu_xgmi_link_rx{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ gpu_id }}',
       'Bps',
-      {w:8, h:8, x:16, y:28}
+      {w:8, h:8, x:16, y:44}
     ),
     timeseriesPanel(
       'ROCEv2 Rx + Tx Combined B/W',
       '(rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:0, y:36},
+      {w:8, h:10, x:0, y:52},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
     timeseriesPanel(
@@ -138,7 +180,7 @@ g.dashboard.new('AMD GPU Metrics')
       'rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:8, y:36},
+      {w:8, h:10, x:8, y:52},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
     timeseriesPanel(
@@ -146,7 +188,7 @@ g.dashboard.new('AMD GPU Metrics')
       'rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:16, y:36},
+      {w:8, h:10, x:16, y:52},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
 ])

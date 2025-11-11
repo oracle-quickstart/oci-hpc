@@ -74,6 +74,84 @@ groups:
 
       - record: active_nodes
         expr: group by (hostname, cluster_name) (up{instance=~".*:9100$"} == 1 and (time() - timestamp(up{instance=~".*:9100$"}) < 300))
+  
+      # AMD GPU ECC checks
+      - record: node_amd_ecc_correctable_ok
+        expr: |
+          (
+            (max by (hostname, cluster_name) (amd_gpu_ecc_correct_umc) < bool 100)
+            *
+            (max by (hostname, cluster_name) (amd_gpu_ecc_correct_gfx) < bool 50)
+            *
+            (max by (hostname, cluster_name) (amd_gpu_ecc_correct_xgmi_wafl) < bool 10)
+          ) or on(hostname, cluster_name) (amd_gpu_ecc_correct_total * 0 + 1)
+
+      - record: node_amd_ecc_uncorrectable_ok
+        expr: |
+          (
+            (max by (hostname, cluster_name) (amd_gpu_ecc_uncorrect_umc) == bool 0)
+            *
+            (max by (hostname, cluster_name) (amd_gpu_ecc_uncorrect_gfx) == bool 0)
+            *
+            (max by (hostname, cluster_name) (amd_gpu_ecc_uncorrect_xgmi_wafl) == bool 0)
+          ) or on(hostname, cluster_name) (amd_gpu_ecc_uncorrect_total * 0 + 1)
+
+      # AMD GPU health check
+      - record: node_amd_gpu_health_ok
+        expr: (min by (hostname, cluster_name) (amd_gpu_health) == bool 1) or on (hostname, cluster_name) (amd_gpu_health * 0 + 1)
+
+      - record: node_amd_gpu_power_violation_percentage
+        expr: avg by (hostname, cluster_name) (increase(amd_gpu_violation_ppt_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_power_violation_ok
+        expr: min by (hostname, cluster_name) (node_amd_gpu_power_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name) (increase(amd_gpu_violation_socket_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_thermal_violation_ok
+        expr: min by (hostname, cluster_name) (node_amd_gpu_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_hbm_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name) (increase(amd_gpu_violation_hbm_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_hbm_thermal_violation_ok
+        expr: min by (hostname, cluster_name) (node_amd_gpu_hbm_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_processor_hot_violation_percentage
+        expr: avg by (hostname, cluster_name) (increase(amd_gpu_violation_processor_hot_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_processor_hot_violation_ok
+        expr: min by (hostname, cluster_name) (node_amd_gpu_processor_hot_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_vr_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name) (increase(amd_gpu_violation_vr_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_vr_thermal_violation_ok
+        expr: min by (hostname, cluster_name) (node_amd_gpu_vr_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_current_violation_percentage
+        expr: avg by (hostname, cluster_name) (increase(amd_gpu_violation_current_accumulated_counter[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_current_violation_ok
+        expr: min by (hostname, cluster_name) (node_amd_gpu_current_violation_percentage) < bool 50
+
+      # AMD PCIe health checks
+      - record: node_amd_pcie_link_speed_ok
+        expr: (min by (hostname, cluster_name) (amd_pcie_speed) >= bool 32) or on(hostname, cluster_name) (amd_pcie_speed * 0 + 1)
+
+      - record: node_amd_pcie_link_width_ok
+        expr: (min by (hostname, cluster_name) (amd_pcie_bandwidth) >= bool 16) or on(hostname, cluster_name) (amd_pcie_bandwidth * 0 + 1)
+
+      - record: node_amd_pcie_replay_ok
+        expr: (min by (hostname, cluster_name) (increase(amd_pcie_replay_count[5m])) == bool 0) or on(hostname, cluster_name) (amd_pcie_replay_count * 0 + 1)
+
+      - record: node_amd_pcie_nack_ok
+        expr: (min by (hostname, cluster_name) (increase(amd_pcie_nack_sent_count[5m])) == bool 0) or on(hostname, cluster_name) (amd_pcie_nack_sent_count * 0 + 1)
+
+      - record: node_amd_pcie_recovery_ok
+        expr: (min by (hostname, cluster_name) (increase(amd_pcie_recovery_count[5m])) < bool 5) or on(hostname, cluster_name) (amd_pcie_recovery_count * 0 + 1)
+
 
       # combine them: this will be 1 only if *all* success‑flags are 1
       - record: node_health_status
@@ -137,6 +215,18 @@ groups:
           *
           (
             node_memory_availability_ok or node_up_check
+          )
+          *
+          (
+            node_amd_gpu_health_ok or node_up_check
+          )
+          *
+          (
+            node_amd_ecc_correctable_ok or node_up_check
+          )
+          *
+          (
+            node_amd_ecc_uncorrectable_ok or node_up_check
           )
           *
           (
