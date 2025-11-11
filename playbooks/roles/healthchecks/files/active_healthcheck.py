@@ -276,7 +276,9 @@ cargo install gpu-fryer --root /opt/gpu-fryer
             cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer {run_time}"
         result = run_as_default_user(cmd_gpu_fryer, timeout=run_time+20)
         if result.returncode != 0:
-            logger.error(f"Failed to run gpu-fryer: {'\n'.join(result.stdout.decode('utf-8').splitlines()[-20:])}")
+            output_text = result.stdout.decode("utf-8")
+            error_tail = "\n".join(output_text.splitlines()[-20:])
+            logger.error(f"Failed to run gpu-fryer:\n{error_tail}")
             return False, '\n'.join(result.stdout.decode('utf-8').splitlines()[-20:])
         output = result.stdout.decode('utf-8')
         if result.returncode == 0:
