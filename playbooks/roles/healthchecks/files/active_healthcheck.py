@@ -182,55 +182,64 @@ def run_local_nccl_test(shape):
 
     
 def run_local_rccl_test(shape):
-    # from https://rocm.blogs.amd.com/software-tools-optimization/mi300x-rccl-xgmi/README.html
     shape_mapping = {
-        "BM.GPU.MI300X.8": {
-            "threshold": 310
-        }
-    } 
+        "BM.GPU.MI300X.8": {"threshold": 310}
+    }
+
+    result = None  # ✅ ensure defined
     try:
-        cmd_gpu_count="rocm-smi --showproductname --json | jq 'length'"
-        gpu_count=run_as_default_user(cmd_gpu_count).stdout.decode('utf-8').strip()[0]
-        cmd_rccl_test="source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && /opt/rccl-tests/build/all_reduce_perf -b 1G -e 16G -f 2 -g " + gpu_count + " -n 50 -f 2"
+        cmd_gpu_count = "rocm-smi --showproductname --json | jq 'length'"
+        gpu_count_proc = run_as_default_user(cmd_gpu_count)
+        gpu_count_output = gpu_count_proc.stdout.decode('utf-8').strip() if gpu_count_proc.stdout else ""
+
+        if not gpu_count_output:
+            logger.error("rocm-smi returned no output; cannot detect GPU count")
+            return False, "rocm-smi returned no output; RCCL test skipped"
+
+        try:
+            gpu_count = int(gpu_count_output.split()[0])
+        except Exception:
+            logger.error(f"Could not parse GPU count from: {gpu_count_output}")
+            return False, f"Could not parse GPU count from: {gpu_count_output}"
+
+        cmd_rccl_test = (
+            f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && "
+            f"/opt/rccl-tests/build/all_reduce_perf -b 1G -e 16G -g {gpu_count} -n 50 -f 2"
+        )
         result = run_as_default_user(cmd_rccl_test, timeout=120)
+
         if result.returncode == 0:
-            output = result.stdout.decode('utf-8')
-            bw=None
+            output = result.stdout.decode('utf-8') if result.stdout else ""
+            bw = None
             for line in output.splitlines():
                 if "Avg bus bandwidth" in line:
                     try:
-                        bw=float(line.split()[5])
-                    except:
-                        logger.error(f"RCCL Test Failed: Avg bus bandwidth could not be found")
-                        return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
-                    if bw < shape_mapping[shape]["threshold"]:
+                        bw = float(line.split()[5])
+                    except Exception:
+                        logger.error("RCCL Test Failed: Avg bus bandwidth could not be parsed")
+                        return False, "RCCL Test Failed: Avg bus bandwidth parse error"
+                    if bw < shape_mapping.get(shape, {}).get("threshold", 0):
                         logger.error(f"RCCL Test Failed: Avg bus bandwidth is {bw}")
-                        return False,f"RCCL Test Failed: Avg bus bandwidth is less than {shape_mapping[shape]['threshold']}"
-            if not bw is None:
-                return True,"RCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
+                        return False, f"RCCL Test Failed: below threshold {shape_mapping[shape]['threshold']}"
+            if bw is not None:
+                return True, f"RCCL Test Succeeded: Avg bus bandwidth is {bw}"
             else:
-                logger.error(f"RCCL Test Failed: Avg bus bandwidth could not be found")
-                return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
+                logger.error("RCCL Test Failed: Avg bus bandwidth not found in output")
+                return False, "RCCL Test Failed: no bandwidth found"
         else:
-            print(result)
-            if result.stdout is None:
-                if result.stderr is None:
-                    output=""
-                else:
-                    output=result.stderr.decode('utf-8')
-            else:
-                output=result.stdout.decode('utf-8')
-            logger.error(f"Failed to run local Rccl test: {output}")
+            output = result.stdout.decode('utf-8') if result.stdout else result.stderr.decode('utf-8')
+            logger.error(f"Failed to run local RCCL test: {output}")
             return False, output
+
     except subprocess.TimeoutExpired:
         logger.error("RCCL test timed out after 2 minutes")
-        output = result.stdout.decode('utf-8')
-        print('\n'.join(output.splitlines()[-20:]))
+        if result and result.stdout:
+            logger.error('\n'.join(result.stdout.decode('utf-8').splitlines()[-20:]))
         return False, "Timeout after 2 minutes"
     except Exception as e:
-        logger.error(f"Failed to run local rccl test: {e}")
-        output = result.stdout.decode('utf-8')
-        print('\n'.join(output.splitlines()[-20:]))
+        logger.error(f"Failed to run local RCCL test: {e}")
+        if result and result.stdout:
+            logger.error('\n'.join(result.stdout.decode('utf-8').splitlines()[-20:]))
         return False, str(e)
 
 def run_gpu_fryer(run_time):
