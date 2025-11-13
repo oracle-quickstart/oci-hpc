@@ -28,7 +28,9 @@ if [ $ID == "ol" ] ; then
     sudo osms unregister 
   elif [ $vid == 8 ] ; then
     repo="ol8_developer_EPEL"
-    sudo osms unregister 
+    if command -v osms >/dev/null 2>&1; then
+      sudo osms unregister 
+    fi
   elif [ $vid == 9 ] ; then
     repo="ol9_developer_EPEL"
   fi
@@ -63,13 +65,8 @@ if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
     sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y ansible python-netaddr python-dnf
-  elif [ $vid == 8 ] ; then
-    sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser
-    sudo python3.8 -m pip install --upgrade pip
-  elif [ $vid == 9 ] ; then
+  elif [ $vid == 8 ] || [ $vid == 9 ] ; then
     sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
-    sudo python3 -m pip install --upgrade pip
   fi
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
@@ -271,7 +268,7 @@ sudo sed -i "s/^\(#\|;\)bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /et
 sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^\(#\|;\)remote_tmp.*/remote_tmp=\/tmp\/.ansible-tmp/" /etc/ansible/ansible.cfg
+sudo sed -i "/^\[defaults\]/,/^\[/ s/^\(#\|;\)remote_tmp.*/remote_tmp=\/tmp\/.ansible-tmp/" /etc/ansible/ansible.cfg
 
 # Replace the legacy yaml callback with the built-in default and enable YAML output
 sudo sed -i 's/^\([#;]\s*\)\?stdout_callback.*/stdout_callback = default/' /etc/ansible/ansible.cfg
