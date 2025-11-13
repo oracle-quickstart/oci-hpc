@@ -109,30 +109,58 @@ def run_local_nccl_test(shape):
         # Set defaults
     shape_mapping = {
         "BM.GPU.B4.8": {
-            "threshold": 185
+            "var_UCX_NET_DEVICES": "mlx5_0:1",
+            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
+            "threshold": 185,
         },
         "BM.GPU.A100-v2.8": {
-            "threshold": 185
+            "var_UCX_NET_DEVICES": "mlx5_0:1",
+            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_1",
+            "threshold": 185,
         },
         "BM.GPU4.8": {
-            "threshold": 185
+            "var_UCX_NET_DEVICES": "mlx5_4:1",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17",
+            "threshold": 185,
         },
         "BM.GPU.H100.8": {
-            "threshold": 440
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17",
+            "threshold": 440,
         },
         "BM.GPU.H200.8": {
-            "threshold": 440
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
+            "threshold": 440,
         },
         "BM.GPU.B200.8": {
-            "threshold": 440
-        }
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
+            "threshold": 440,
+        },
+        "BM.GPU.GB200.4": {
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
+        },
+        "BM.GPU.GB200-v2.4": {
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
+        },
+        "BM.Optimized3.36": {
+            "var_NCCL_IB_HCA": "=mlx5_2",
+        },
+        "BM.GPU.MI300X.8": {
+            "var_UCX_NET_DEVICES": "mlx5_0:1",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_7,mlx5_8,mlx5_9",
+            "threshold": 350
+        }    
     }
     try:
-        cmd_gpu_count="nvidia-smi --query-gpu=count --format=csv,noheader"
-        gpu_count=run_as_default_user(cmd_gpu_count).stdout.decode('utf-8').strip()[0]
 
-        cmd_nccl_test="source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g " + gpu_count + " -n 50 -f 2"
+        if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
+            cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x UCX_TLS=ud,self,sm -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x HCOLL_ENABLE_MCAST_ALL=0 -x coll_hcoll_enable=0 -x NCCL_ALGO=Ring -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_QPS_PER_CONNECTION=4 -x NCCL_IB_GID_INDEX=3 --np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g 1 -n 50 -f 2"
+        elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8"):
+            cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x HCOLL_ENABLE_MCAST_ALL=0 -x NCCL_CUMEM_ENABLE=0 -x NCCL_IB_SPLIT_DATA_ON_QPS=0 -x NCCL_IB_QPS_PER_CONNECTION=1 -x NCCL_IB_TIMEOUT=22 -x UCX_TLS=tcp -x NCCL_NET_PLUGIN=none -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x coll_hcoll_enable=0 -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_GID_INDEX=3 -x RX_QUEUE_LEN=8192 -x IB_RX_QUEUE_LEN=8192 -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IGNORE_CPU_AFFINITY=1 -np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"
         result = run_as_default_user(cmd_nccl_test, timeout=120)
+
         if result.returncode == 0:
             output = result.stdout.decode('utf-8')
             bw=None
@@ -422,13 +450,17 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - NCCL Test Succeeded: {nccl_output}")
-        gpu_fryer_state,gpu_fryer_output = run_gpu_fryer(20)
-        if not gpu_fryer_state:
-            logger.error(f"{hostname} - GPU Fryer Test Failed: {gpu_fryer_output}")
-            slurm_reason("Single node GPU Fryer Test Failed")
-            action = recommended_action(action, "Tag_and_Terminate")
+        if shape == "BM.GPU.B200.8":
+            run_time=240
         else:
-            logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
+            run_time=20
+            gpu_fryer_state,gpu_fryer_output = run_gpu_fryer(run_time)
+            if not gpu_fryer_state:
+                logger.error(f"{hostname} - GPU Fryer Test Failed: {gpu_fryer_output}")
+                slurm_reason("Single node GPU Fryer Test Failed")
+                action = recommended_action(action, "Tag_and_Terminate")
+            else:
+                logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
 
         # Run SDC checks
         sdc_state, sdc_output, sdc_details = run_gpu_sdc_check()

@@ -26,17 +26,14 @@
   ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_hostname}}"
   when: 
     - reservation is defined 
-    - reservation.rc != 0
+    - reservation.rc == 0
 
 - name: test the node
   ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
   ignore_errors: true
   register: test_result
-  when: 
-    - reservation is defined 
-    - reservation.rc != 0
 
 - name: Stop loop if succeeded
   set_fact:
     stop_loop: "{{ test_result is succeeded }}"
-  when: test_result is defined
+  when: test_result is defined and test_result.rc == 0
