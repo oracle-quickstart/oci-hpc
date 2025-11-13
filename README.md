@@ -6,6 +6,81 @@
 
 Use the top-right button to display.
 
+- [HPC Cluster Stack](#hpc-cluster-stack)
+  - [Table of Content](#table-of-content)
+  - [Introduction](#introduction)
+  - [Prerequisites and Consideration](#prerequisites-and-consideration)
+    - [Service Limits](#service-limits)
+    - [Policies](#policies)
+      - [Policies to deploy the stack](#policies-to-deploy-the-stack)
+      - [Policies for Functions](#policies-for-functions)
+      - [Policies for Queue](#policies-for-queue)
+      - [Policies for resizing or adding clusters](#policies-for-resizing-or-adding-clusters)
+      - [Policies for Host API](#policies-for-host-api)
+    - [Supported operating systems](#supported-operating-systems)
+    - [Serverless Part](#serverless-part)
+    - [Workflow](#workflow)
+      - [Serverless function](#serverless-function)
+      - [Node configuration](#node-configuration)
+      - [Controller service and actions for configuration](#controller-service-and-actions-for-configuration)
+  - [Stack Configuration](#stack-configuration)
+    - [Cluster Configuration](#cluster-configuration)
+      - [SSH Keys](#ssh-keys)
+      - [LDAP](#ldap)
+    - [Functions and Events Configuration](#functions-and-events-configuration)
+      - [Use an existing OCI Registry](#use-an-existing-oci-registry)
+    - [Controller Node Options](#controller-node-options)
+    - [Management Nodes Image Options](#management-nodes-image-options)
+    - [Compute Nodes Options](#compute-nodes-options)
+    - [Login Node Options](#login-node-options)
+    - [Cluster Monitoring](#cluster-monitoring)
+    - [Storage Options](#storage-options)
+      - [Lustre Filesystem](#lustre-filesystem)
+      - [File Storage Service](#file-storage-service)
+      - [Local Storage (NVMe)](#local-storage-nvme)
+      - [General](#general)
+        - [Shared home folder](#shared-home-folder)
+    - [Network Options](#network-options)
+      - [Using an existing VCN](#using-an-existing-vcn)
+      - [Private deployment](#private-deployment)
+    - [Software](#software)
+      - [Create a slurm backup controller](#create-a-slurm-backup-controller)
+    - [Debug](#debug)
+  - [Stack Usage](#stack-usage)
+    - [Resizing and autoscaling](#resizing-and-autoscaling)
+    - [Resizing](#resizing)
+      - [Resizing with resize.sh](#resizing-with-resizesh)
+      - [Resizing with mgmt](#resizing-with-mgmt)
+        - [Adding nodes](#adding-nodes)
+        - [Removing nodes](#removing-nodes)
+        - [Reconfiguring nodes](#reconfiguring-nodes)
+    - [Autoscaling](#autoscaling)
+      - [Clusters and queues configuration](#clusters-and-queues-configuration)
+        - [Specifying node type and queue](#specifying-node-type-and-queue)
+        - [Permanent clusters](#permanent-clusters)
+        - [Autoscaling activation](#autoscaling-activation)
+        - [Clusters folders](#clusters-folders)
+    - [Submiting jobs](#submiting-jobs)
+    - [Manual Cluster Management](#manual-cluster-management)
+      - [Cluster Creation](#cluster-creation)
+      - [Cluster Deletion](#cluster-deletion)
+    - [Logs](#logs)
+  - [Troubleshooting](#troubleshooting)
+    - [Where are my logs?](#where-are-my-logs)
+      - [slurm (jobs) logs](#slurm-jobs-logs)
+      - [cluster logs](#cluster-logs)
+    - [How do I reconfigure my stack?](#how-do-i-reconfigure-my-stack)
+    - [Healthchecks](#healthchecks)
+      - [In-node healthcheck](#in-node-healthcheck)
+      - [Monitoring](#monitoring)
+  - [Useful Information](#useful-information)
+    - [Cloud Services Used](#cloud-services-used)
+    - [Collect RDMA NIC Metrics and Upload to Object Storage](#collect-rdma-nic-metrics-and-upload-to-object-storage)
+    - [Meshpinger](#meshpinger)
+    - [Notes on Nvidia GB200 Deployments](#notes-on-nvidia-gb200-deployments)
+    - [Blogs](#blogs)
+
+
 ## Introduction
 
 This Terraform stack deploys a high-performance computing cluster with compute nodes, either CPU or GPU, and management nodes residing in a [Virtual Cloud Network](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm) (VCN).
@@ -507,6 +582,26 @@ The infrastructure logs are stored in:
 ```
 
 Each cluster has its own log file with named `create_clustername_date.log` and `delete_clustername_date.log` for its creation and deletion processes. The logs of the crontab is stored in `crontab_slurm.log`.
+
+## Troubleshooting
+
+### Where are my logs?
+
+#### slurm (jobs) logs
+
+#### cluster logs
+
+### How do I reconfigure my stack?
+
+### Healthchecks
+
+#### In-node healthcheck
+
+```
+sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py
+```
+
+#### Monitoring
 
 ## Useful Information
 
