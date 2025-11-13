@@ -106,72 +106,80 @@ def run_as_default_user(cmd, timeout=None):
     return subprocess.run(cmd_user, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
 
 def run_local_nccl_test(shape):
-        # Set defaults
+    # Set defaults
     shape_mapping = {
-        "BM.GPU.B4.8": {
-            "threshold": 185
-        },
-        "BM.GPU.A100-v2.8": {
-            "threshold": 185
-        },
-        "BM.GPU4.8": {
-            "threshold": 185
-        },
-        "BM.GPU.H100.8": {
-            "threshold": 440
-        },
-        "BM.GPU.H200.8": {
-            "threshold": 440
-        },
-        "BM.GPU.B200.8": {
-            "threshold": 440
-        }
+        "BM.GPU.B4.8": {"threshold": 185},
+        "BM.GPU.A100-v2.8": {"threshold": 185},
+        "BM.GPU4.8": {"threshold": 185},
+        "BM.GPU.H100.8": {"threshold": 440},
+        "BM.GPU.H200.8": {"threshold": 440},
+        "BM.GPU.B200.8": {"threshold": 440}
     }
-    try:
-        cmd_gpu_count="nvidia-smi --query-gpu=count --format=csv,noheader"
-        gpu_count=run_as_default_user(cmd_gpu_count).stdout.decode('utf-8').strip()[0]
 
-        cmd_nccl_test="source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g " + gpu_count + " -n 50 -f 2"
+    result = None
+    try:
+        # Get GPU count safely
+        cmd_gpu_count = "nvidia-smi --query-gpu=count --format=csv,noheader"
+        gpu_count_proc = run_as_default_user(cmd_gpu_count)
+        gpu_count_output = gpu_count_proc.stdout.decode('utf-8').strip() if gpu_count_proc.stdout else ""
+
+        if not gpu_count_output:
+            # No output - either nvidia-smi missing or no NVIDIA GPUs present
+            logger.error("nvidia-smi returned no output; skipping NCCL test")
+            return False, "nvidia-smi returned no output; no NVIDIA GPUs detected or tool missing"
+
+        # parse first token as integer (safe)
+        try:
+            gpu_count_int = int(gpu_count_output.split()[0])
+        except Exception:
+            logger.error(f"Could not parse GPU count from: {gpu_count_output}")
+            return False, f"Could not parse GPU count from: {gpu_count_output}"
+
+        cmd_nccl_test = f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g {gpu_count_int} -n 50 -f 2"
         result = run_as_default_user(cmd_nccl_test, timeout=120)
+
         if result.returncode == 0:
-            output = result.stdout.decode('utf-8')
-            bw=None
+            output = result.stdout.decode('utf-8') if result.stdout else ""
+            bw = None
             for line in output.splitlines():
                 if "Avg bus bandwidth" in line:
                     try:
-                        bw=float(line.split()[5])
-                    except:
-                        logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
-                        return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
-                    if bw < shape_mapping[shape]["threshold"]:
+                        bw = float(line.split()[5])
+                    except Exception:
+                        logger.error("NCCL Test Failed: Avg bus bandwidth could not be parsed")
+                        return False, "NCCL Test Failed: Avg bus bandwidth could not be parsed"
+                    if bw < shape_mapping.get(shape, {}).get("threshold", 0):
                         logger.error(f"NCCL Test Failed: Avg bus bandwidth is {bw}")
-                        return False,f"NCCL Test Failed: Avg bus bandwidth is less than {shape_mapping[shape]['threshold']}"
-            if not bw is None:
-                return True,"NCCL Test Succeeded: Avg bus bandwidth is "+str(bw)
+                        return False, f"NCCL Test Failed: Avg bus bandwidth is less than {shape_mapping.get(shape, {}).get('threshold', 0)}"
+            if bw is not None:
+                return True, "NCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
             else:
-                logger.error(f"NCCL Test Failed: Avg bus bandwidth could not be found")
-                return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
+                logger.error("NCCL Test Failed: Avg bus bandwidth could not be found")
+                return False, "NCCL Test Failed: Avg bus bandwidth could not be found"
         else:
-            print(result)
-            if result.stdout is None:
-                if result.stderr is None:
-                    output=""
-                else:
-                    output=result.stderr.decode('utf-8')
-            else:
-                output=result.stdout.decode('utf-8')
+            # gather output from stdout/stderr safely
+            output = ""
+            if result.stdout:
+                output = result.stdout.decode('utf-8')
+            elif result.stderr:
+                output = result.stderr.decode('utf-8')
             logger.error(f"Failed to run local nccl test: {output}")
             return False, output
+
     except subprocess.TimeoutExpired:
         logger.error("NCCL test timed out after 2 minutes")
-        output = result.stdout.decode('utf-8')
-        print(output)
+        if result and result.stdout:
+            out = result.stdout.decode('utf-8')
+            logger.error('\n'.join(out.splitlines()[-20:]))
         return False, "Timeout after 2 minutes"
     except Exception as e:
         logger.error(f"Failed to run local nccl test: {e}")
-        output = result.stdout.decode('utf-8')
-        print(output)
+        if result and result.stdout:
+            out = result.stdout.decode('utf-8')
+            logger.error('\n'.join(out.splitlines()[-20:]))
+            return False, str(e)
         return False, str(e)
+
     
 def run_local_rccl_test(shape):
     # from https://rocm.blogs.amd.com/software-tools-optimization/mi300x-rccl-xgmi/README.html
