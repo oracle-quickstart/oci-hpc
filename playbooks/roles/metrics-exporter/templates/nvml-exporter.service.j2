@@ -9,7 +9,7 @@ Group={{ ansible_user }}
 Type=simple
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:$PATH
 Environment=SCONTROL_PATH=/usr/local/bin/scontrol
-ExecStart=/usr/bin/env {{venv_path}}/bin/python3 /usr/local/bin/nvml_metrics_exporter.py
+ExecStart={{venv_path}}/bin/python3 /usr/local/bin/nvml_metrics_exporter.py
 
 [Install]
 WantedBy=multi-user.target
