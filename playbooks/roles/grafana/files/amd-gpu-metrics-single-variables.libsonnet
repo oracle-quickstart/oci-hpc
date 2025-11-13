@@ -29,4 +29,12 @@ local var = g.dashboard.variable;
     + var.query.selectionOptions.withMulti()
     + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),
+
+  job_id:
+    var.query.new('job_id')
+    + var.query.withDatasourceFromVariable(self.prometheus)
+    + var.query.queryTypes.withLabelValues('job_id', 'amd_pcie_speed')
+    + var.query.selectionOptions.withMulti()
+    + var.query.selectionOptions.withIncludeAll()
+    + var.query.withRefresh(1),
 }
