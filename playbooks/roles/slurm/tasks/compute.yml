@@ -128,20 +128,54 @@
     state: restarted
     enabled: true
 
-- name: Set stop_loop
-  ansible.builtin.set_fact:
-    stop_loop: False
+- name: Reconfigure slurm
+  become: true
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
 
-- name: Run the reconfigure playbook
-  vars:
-    max_retries: 5
-  include_tasks: create_reservation.yml
-  loop:  "{{ range(0, max_retries) | list }}"
-  loop_control:
-    loop_var: attempt
+- name: Check if reservation exists
+  become: true
+  ansible.builtin.command: "scontrol show reservation InitialValidation"
+  register: reservation
   ignore_errors: true
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+
+- name: Create Reservation
+  become: true
+  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ansible_hostname}} user=ubuntu reservation=InitialValidation"
+  register: create_reservation
+  until: create_reservation is not failed
+  retries: 5
+  delay: 5
+  when:
+    - reservation is defined
+    - reservation.rc != 0
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+
+- name: Append to reservation
+  become: true
+  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_hostname}}"
+  register: append_reservation
+  until: append_reservation is not failed
+  retries: 5
+  delay: 5
   when: 
-    - stop_loop is not defined or not stop_loop
+    - reservation is defined 
+    - reservation.rc == 0
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+
+- name: test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
+  ignore_errors: true
+  register: test_result
+  when:
     - "'GPU' in shape"
     - rdma_enabled|bool
 
