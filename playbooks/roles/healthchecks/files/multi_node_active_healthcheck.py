@@ -84,7 +84,7 @@ shape_mapping = {
 healthy = "Healthy"
 potentially_bad = "Potentially Bad"
 bad = "Bad"
-ib_write_lat_threshold = 4
+ib_write_lat_threshold = 5
 
 def get_metadata():
     headers = { 'Authorization' : 'Bearer Oracle' }
