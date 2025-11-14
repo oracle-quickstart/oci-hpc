@@ -10,7 +10,7 @@
         name: privilege_group
     - include_role:
         name: nfs-server
-      when: not add_nfs|bool
+      when: create_fss == "existing"
 
 - hosts: controller, slurm_backup
   become: true
@@ -46,13 +46,13 @@
   tasks:
     - include_role:
         name: nfs-server
-      when: home_nfs|bool and (not home_fss|bool)
+      when: shared_home == "nfs"
 
 - hosts: controller
   become: true
   vars:
     tmp_home: "/tmp/home_tmp/"
-    remote_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}{% endif %}"
+    remote_path: "{% if create_fss == 'new' %}/home{% else%}{{nfs_source_path}}{% endif %}"
   tasks:
     - include_role:
         name: nfs-client
@@ -62,10 +62,10 @@
         export_path: "{{ remote_path }}"
         options: ""
         lock: "none"
-      when: add_nfs|bool and home_fss|bool
+      when: add_nfs|bool and shared_home == "fss"
     - include_role:
         name: fss-home
-      when: add_nfs|bool and home_fss|bool
+      when: add_nfs|bool and shared_home == "fss"
 
 - hosts: controller, slurm_backup
   become: true
@@ -75,10 +75,10 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        export_path: "{% if create_fss == 'new' %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
         options: ""
         lock: "none"
-      when: add_nfs|bool and home_fss|bool
+      when: add_nfs|bool and shared_home == "fss"
     - include_role:
         name: passwords
 
@@ -137,7 +137,7 @@
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+        download_path: "{{ nfs_target_path if create_fss == 'new' else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
         local_path: "{{ lfs_target_path }}"
         export_host: "{{ lfs_source_IP }}"
         options: "{{ lfs_options }}"

@@ -59,14 +59,6 @@ variable "custom_controller_image" {
   type    = string
   default = "image.ocid"
 }
-variable "custom_login_image" {
-  type    = string
-  default = "image.ocid"
-}
-variable "custom_monitoring_image" {
-  type    = string
-  default = "image.ocid"
-}
 variable "controller_boot_volume_size" {
   type = number
 }
@@ -119,22 +111,6 @@ variable "image_ocid" {
 }
 variable "unsupported_controller_image" {
   default = ""
-  type    = string
-}
-variable "unsupported_login_image" {
-  default = ""
-  type    = string
-}
-variable "unsupported_monitoring_image" {
-  default = ""
-  type    = string
-}
-variable "use_scratch_nfs" {
-  default = false
-  type    = bool
-}
-variable "scratch_nfs_path" {
-  default = "/nfs/scratch"
   type    = string
 }
 variable "vcn_compartment" {
@@ -336,30 +312,16 @@ variable "marketplace_listing_id_GPU" {
   default = "ocid1.appcataloglisting.oc1..aaaaaaaab2hkpxsglxfbzitiiqv6djxzj5q5soxotwdem2dd2kbifgk4p55q"
   type    = string
 }
-
-variable "scratch_nfs_type" {
-  default = "nvme"
+variable "shared_home" {
+  default = "nfs"
   type    = string
 }
-variable "home_nfs" {
+
+variable "configure" {
   default = true
   type    = bool
 }
-variable "home_fss" {
-  default = false
-  type    = bool
-}
-
 variable "hyperthreading" {
-  default = true
-  type    = bool
-}
-
-variable "autoscaling" {
-  default = false
-  type    = bool
-}
-variable "latency_check" {
   default = true
   type    = bool
 }
@@ -368,8 +330,8 @@ variable "add_nfs" {
   type    = bool
 }
 variable "create_fss" {
-  default = false
-  type    = bool
+  default = "existing"
+  type    = string
 }
 variable "mount_target_count" {
   default = "1"
@@ -445,14 +407,6 @@ variable "use_marketplace_image_controller" {
   type    = bool
   default = true
 }
-variable "unsupported_login" {
-  type    = bool
-  default = false
-}
-variable "unsupported_monitoring" {
-  type    = bool
-  default = false
-}
 variable "controller_username" {
   type    = string
   default = "opc"
@@ -461,24 +415,6 @@ variable "controller_username" {
 variable "compute_username" {
   type    = string
   default = "opc"
-}
-variable "login_username" {
-  type    = string
-  default = "opc"
-}
-variable "monitoring_username" {
-  type    = string
-  default = "opc"
-}
-
-variable "scratch_nfs_mount" {
-  default = ""
-  type    = string
-}
-variable "scratch_nfs_export" {
-
-  default = ""
-  type    = string
 }
 
 variable "private_deployment" {
@@ -497,24 +433,6 @@ variable "log_vol" {
 variable "redundancy" {
   default = true
   type    = bool
-}
-
-variable "use_marketplace_image_login" {
-  default = true
-  type    = bool
-}
-variable "use_marketplace_image_monitoring" {
-  default = true
-  type    = bool
-}
-
-variable "marketplace_listing_login" {
-  default = "HPC_OL8"
-  type    = string
-}
-variable "marketplace_listing_monitoring" {
-  default = "HPC_OL8"
-  type    = string
 }
 variable "marketplace_listing_controller" {
   default = "HPC_OL8"
