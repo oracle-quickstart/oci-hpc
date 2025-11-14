@@ -1,5 +1,5 @@
 local g = import './g.libsonnet';
-local variables = import './gpu-metrics-single-variables.libsonnet';
+local variables = import './nvidia-gpu-metrics-single-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 local statPanel = import './stat-panel-single.libsonnet';
 local tempGuagePanel = import './gauge-panel.libsonnet';

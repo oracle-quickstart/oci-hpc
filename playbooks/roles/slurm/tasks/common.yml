@@ -278,7 +278,7 @@
     owner: root
     group: root
     mode: "0755"
-  when: compute_node|bool and 'BM.GPU.MI' in shape
+  when: "'BM.GPU.MI' in shape"
 
 - name: Copy AMD Slurm metrics epilog
   become: true
@@ -288,5 +288,5 @@
     owner: root
     group: root
     mode: "0755"
-  when: compute_node|bool and 'BM.GPU.MI' in shape
+  when: "'BM.GPU.MI' in shape"
   
