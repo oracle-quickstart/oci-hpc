@@ -75,7 +75,7 @@
           run_once: true
         - name: First try downloading .deb
           ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lNHqN_9ZmfXBarCmatwa_7EC67GT4AYkSRyupMSdUmG62cgxwvi6pCoIoWQo73pK/n/idxzjcdglx2s/b/slurm-packages/o/slurm/slurm-{{
+            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{
               slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
             dest: "{{ slurm_nfs_path }}/slurm_rpms"
           when: ( not slurm_dwld.stat.exists )
@@ -84,7 +84,7 @@
   rescue:
     - name: Second try downloading .deb
       ansible.builtin.get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lNHqN_9ZmfXBarCmatwa_7EC67GT4AYkSRyupMSdUmG62cgxwvi6pCoIoWQo73pK/n/idxzjcdglx2s/b/slurm-packages/o/slurm/slurm-{{
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{
           slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
         dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
@@ -105,7 +105,7 @@
         - name: First try downloading RPMs
           environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
           ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lNHqN_9ZmfXBarCmatwa_7EC67GT4AYkSRyupMSdUmG62cgxwvi6pCoIoWQo73pK/n/idxzjcdglx2s/b/slurm-packages/o/slurm/{{
+            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{
               item.item }}"
             dest: "{{ slurm_nfs_path }}/slurm_rpms"
           when: ( not item.stat.exists )
@@ -117,7 +117,7 @@
     - name: Second try downloading RPMs
       environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
       ansible.builtin.get_url:
-        url: https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lNHqN_9ZmfXBarCmatwa_7EC67GT4AYkSRyupMSdUmG62cgxwvi6pCoIoWQo73pK/n/idxzjcdglx2s/b/slurm-packages/o/slurm/{{ item
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item
           }}"
         dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
