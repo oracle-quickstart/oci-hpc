@@ -153,10 +153,10 @@
   retries: 5
   delay: 5
   when:
-    - reservation is defined
-    - reservation.rc != 0
     - "'GPU' in shape"
     - rdma_enabled|bool
+    - reservation is defined
+    - reservation.rc != 0
 
 - name: Append to reservation
   become: true
@@ -166,10 +166,10 @@
   retries: 5
   delay: 5
   when: 
-    - reservation is defined 
-    - reservation.rc == 0
     - "'GPU' in shape"
     - rdma_enabled|bool
+    - reservation is defined 
+    - reservation.rc == 0
 
 - name: test the node
   ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
