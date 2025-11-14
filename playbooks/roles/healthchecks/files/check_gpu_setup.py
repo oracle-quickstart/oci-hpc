@@ -134,10 +134,10 @@ def slurm_reason(message):
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Run `dcgmi health -c` for details"):
+    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"):
         logger.error("No action was found")
         return 0
-    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Run `dcgmi health -c` for details"):
+    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA"):
         if current == "Terminate":
             return current
         else:
@@ -146,7 +146,7 @@ def recommended_action(current, action):
         return current
     if action == "Terminate":
         return action
-    if action in ("Wait_For_OCA", "Run `dcgmi health -c` for details"):
+    if action in ("Wait_For_OCA"):
         if current in ("FabricManagerRestart","Reboot","Terminate"):
             return current
         else:
@@ -1485,7 +1485,7 @@ if __name__ == '__main__':
         if not dcgmi_health_check:
             logger.error(f"{host_serial} - dcgmi health check failed. Run `dcgmi health -c` to get full output.")
             slurm_reason("dcgmi health check failed")
-            action = recommended_action(action, "Run `dcgmi health -c` for details")
+            action = recommended_action(action, "Reboot")
 
     # Print recommended action and slurm message
     if action == "Reboot":
