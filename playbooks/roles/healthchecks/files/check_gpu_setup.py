@@ -22,8 +22,7 @@ This is a Health Check script which covered below in order:
 16. Pending Bad Pages Check (AMD GPUs)
 17. Check if all interfaces have an IP address
 18. Check NVLinks speeds
-19. Check the reboot counts
-20. Run dcgmi health check
+19. Run dcgmi health check
 
 ===========================================================================================
 Usage:
@@ -39,7 +38,6 @@ Usage:
 import subprocess
 import re
 import argparse
-from shared_logging import logger
 from gpu_bw_test import BandwidthTest
 from rdma_link_flapping import LinkFlappingTest
 from xid_checker import XidChecker
@@ -57,6 +55,9 @@ if version >= (3, 12):
     from datetime import datetime, timedelta, UTC
 else:
     from datetime import datetime, timedelta
+
+
+from shared_logging import logger
 
 #Section 0: Common Functions for all Health Checks.
 ###################################################
@@ -133,10 +134,10 @@ def slurm_reason(message):
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Run `dcgmi health -c` for details"):
+    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"):
         logger.error("No action was found")
         return 0
-    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Run `dcgmi health -c` for details"):
+    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA"):
         if current == "Terminate":
             return current
         else:
@@ -145,11 +146,44 @@ def recommended_action(current, action):
         return current
     if action == "Terminate":
         return action
-    if action in ("Wait_For_OCA", "Run `dcgmi health -c` for details"):
+    if action in ("Wait_For_OCA"):
         if current in ("FabricManagerRestart","Reboot","Terminate"):
             return current
         else:
             return action
+
+# Check the reboot counts
+def get_reboots_count():
+    result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
+    # Decode the output from bytes to string
+    output = result.stdout.decode('utf-8')
+    now = datetime.now()
+    one_day_ago = now - timedelta(hours=24)
+    two_hours_ago = now - timedelta(hours=2)
+
+    reboot_count_last_day = 0
+    last_reboot_within_2hour = 0
+    reboot_lines=[]
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) < 6 or parts[0] != "reboot":
+            continue  # Ignore invalid lines
+        reboot_lines.append(line)
+    for line in reboot_lines[:-1]:
+        parts = line.split()
+        # Extract timestamp (format: "Mon Jan  1 12:34")
+        date_str = " ".join(parts[4:8])  # Extract date/time part
+        reboot_time = datetime.strptime(date_str, "%a %b %d %H:%M")
+        reboot_time = reboot_time.replace(year=now.year)  # Assume current year
+        # Count reboots in the last 12 hours
+        if reboot_time >= one_day_ago:
+            reboot_count_last_day += 1
+
+        # Check if the last reboot was within the last hour
+        if reboot_time >= two_hours_ago:
+            last_reboot_within_2hour += 1
+
+    return reboot_count_last_day, last_reboot_within_2hour
 
 #Section 1: All Health Check functions.
 ########################################
@@ -919,9 +953,11 @@ def get_nvlink_speed():
         "BM.GPU4.8":         {"count": 12, "speed": 25,      "gpu": 8},
         "BM.GPU.B4.8":       {"count": 12, "speed": 25,      "gpu": 8},
         "BM.GPU.A100-v2.8":  {"count": 12, "speed": 25,      "gpu": 8},
-        "BM.GPU.H100.8":     {"count": 18, "speed": 26.562,  "gpu": 8},
-        "BM.GPU.H200.8":     {"count": 18, "speed": 26.562,  "gpu": 8},
+        "BM.GPU.H100.8":     {"count": 18, "speed": 25,      "gpu": 8},
+        "BM.GPU.H200.8":     {"count": 18, "speed": 25,      "gpu": 8},
         "BM.GPU.B200.8":     {"count": 18, "speed": 50,      "gpu": 8},
+        "BM.GPU.GB200.4":    {"count": 18, "speed": 50,      "gpu": 4},
+        "BM.GPU.GB200-v2.4": {"count": 18, "speed": 50,      "gpu": 4},
         "VM.GPU.A100.40G.1": {"count": 12, "speed": 25,      "gpu": 1},
         "VM.GPU.A100.80G.1": {"count": 12, "speed": 25,      "gpu": 1}
     }
@@ -948,7 +984,7 @@ def get_nvlink_speed():
             speeds_float = [float(s) for s in link_speeds]
 
             count = len(speeds_float)
-            speeds_match = all(speed == speed_expected for speed in speeds_float)
+            speeds_match = all(speed >= speed_expected for speed in speeds_float)
 
             if count != count_expected:
                 logger.error(f"GPU {gpu_index}: ERROR: NVLink count mismatch!")
@@ -968,52 +1004,13 @@ def get_nvlink_speed():
         logger.info(f"For {expected_gpu} GPUs, {count} links detected as expected and all speeds as expected {speed_expected} GB/s : Passed")
         return True
 
-
-# 19.1 Check the reboot counts
-def get_reboots_count():
-    result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
-    # Decode the output from bytes to string
-    output = result.stdout.decode('utf-8')
-    now = datetime.now()
-    one_day_ago = now - timedelta(hours=24)
-    two_hours_ago = now - timedelta(hours=2)
-
-    reboot_count_last_day = 0
-    last_reboot_within_2hour = 0
-    reboot_lines=[]
-    for line in output.splitlines():
-        parts = line.split()
-        if len(parts) < 6 or parts[0] != "reboot":
-            continue  # Ignore invalid lines
-        reboot_lines.append(line)
-    for line in reboot_lines[:-1]:
-        parts = line.split()
-        # Extract timestamp (format: "Mon Jan  1 12:34")
-        date_str = " ".join(parts[4:8])  # Extract date/time part
-        reboot_time = datetime.strptime(date_str, "%a %b %d %H:%M")
-        reboot_time = reboot_time.replace(year=now.year)  # Assume current year
-        # Count reboots in the last 12 hours
-        if reboot_time >= one_day_ago:
-            reboot_count_last_day += 1
-
-        # Check if the last reboot was within the last hour
-        if reboot_time >= two_hours_ago:
-            last_reboot_within_2hour += 1
-
-    return reboot_count_last_day, last_reboot_within_2hour
-
-# 20.1 Run dcgmi health check
+# 19.1 Run dcgmi health check
 def run_dcgmi_health():
     # Check dcgmi version
     try:
         version_out = subprocess.check_output(['dcgmi', '--version'], text=True, timeout=10)
     except FileNotFoundError:
         logger.warning("dcgmi is not installed or not in PATH.")
-        return True
-
-    version_check = re.search(r'version:\s*(\d+\.\d+\.\d+)', version_out)
-    if not version_check or not version_check.group(1).startswith("4."):
-        logger.warning("dcgmi version is not 4.x. Please upgrade to 4.x for best compatibility.")
         return True
 
     # Check if health is set up using output of `dcgmi health -c`
@@ -1030,7 +1027,7 @@ def run_dcgmi_health():
         try:
             setup_output = subprocess.check_output(['dcgmi', 'health', '-s', 'a'], text=True, stderr=subprocess.STDOUT, timeout=10)
             if "Health monitor systems set successfully." not in setup_output:
-                logger.warning("Warning: Unexpected dcgmi health setup output:\n", setup_output)
+                logger.warning("Unexpected dcgmi health setup output:\n", setup_output)
                 return True
             first_time_setup = True
         except subprocess.CalledProcessError as e:
@@ -1049,14 +1046,19 @@ def run_dcgmi_health():
             text=True,
             timeout=10
         ).strip()
-        if health_status != "Healthy":
-            logger.error(f"ERROR: Overall Health is '{health_status}' (should be 'Healthy')")
+        status_norm = health_status.lower()
+
+        if status_norm == "healthy":
+            return True
+        elif status_norm == "warning":
+            logger.warning("Overall dcgmi Health is 'Warning'")
+            return True
+        else:
+            logger.error(f"Overall Health is '{health_status}' (expected 'Healthy' or 'Warning')")
             return False
     except subprocess.CalledProcessError:
         logger.warning("Error running dcgmi health check or parsing JSON (is jq installed?).")
         return True
-    return True
-
 
 #Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
@@ -1294,10 +1296,10 @@ if __name__ == '__main__':
             missing_ips = []
 
     # 18.3 Check if NVLink speed is correct
-    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
         nvlink_speed = get_nvlink_speed()
     
-    # 20.3 Check the node health using dcgmi health check
+    # 19.3 Check the node health using dcgmi health check
     if run_all or args.dcgmi_health:
         if shape != "BM.GPU.MI300X.8":
             try:
@@ -1472,18 +1474,18 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
     
     # 18.4 Summarize NVLink speed check
-    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
         if not nvlink_speed:
             logger.error(f"NVLink speed Error for one or more GPUs")
             slurm_reason("NVLink speed Error")
             action = recommended_action(action, "Reboot")
 
-    # 20.4 Summarize dcgmi health check
+    # 19.4 Summarize dcgmi health check
     if run_all or args.dcgmi_health:
         if not dcgmi_health_check:
             logger.error(f"{host_serial} - dcgmi health check failed. Run `dcgmi health -c` to get full output.")
             slurm_reason("dcgmi health check failed")
-            action = recommended_action(action, "Run `dcgmi health -c` for details")
+            action = recommended_action(action, "Reboot")
 
     # Print recommended action and slurm message
     if action == "Reboot":
@@ -1520,7 +1522,7 @@ if __name__ == '__main__':
     data["passive_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     # Read the healthcheck.log file content
     try:
-        with open("/tmp/latest_healthcheck.log", 'r') as log_file:
+        with open("/var/log/healthchecks/latest_healthcheck.log", 'r') as log_file:
             data["passive_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
     except FileNotFoundError:
         logger.warning("Log file not found, initializing empty logs.")

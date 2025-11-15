@@ -252,7 +252,7 @@
     mode: "0755"
   when: healthchecks|bool
 
-- name: Copy imex prolog and epilog
+- name: Copy imex prolog 
   become: true
   ansible.builtin.copy:
     src: imex_prolog.sh
@@ -261,7 +261,7 @@
     group: root
     mode: "0755"
 
-- name: Copy imex prolog and epilog
+- name: Copy imex epilog
   become: true
   ansible.builtin.copy:
     src: imex_epilog.sh

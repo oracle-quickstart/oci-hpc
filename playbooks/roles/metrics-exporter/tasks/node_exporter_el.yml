@@ -37,6 +37,8 @@
   ansible.builtin.stat:
     path: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz
   register: node_exporter_file
+  delegate_to: 127.0.0.1
+  run_once: true    
 
 - name: Download node_exporter {{ node_exporter }}
   become: true
@@ -45,6 +47,8 @@
     url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz
     dest: /config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz
   when: not node_exporter_file.stat.exists | bool
+  delegate_to: 127.0.0.1
+  run_once: true    
 
 - name: Extract node_exporter {{ node_exporter }}.linux-{{arch_suffix}}.tar.gz into /var/lib/prometheus/node_exporter/
   become: true
@@ -79,14 +83,6 @@
 - name: Run command deactivate selinux for node_exporter, chcon
   become: true
   ansible.builtin.command: chcon --reference=/bin/less /usr/bin/node_exporter
-- name: Make sure the python setuptools are installed
-  vars:
-    package_name:
-      - python3-setuptools
-    package_state: latest
-  ansible.builtin.include_role:
-    name: safe_yum
-  when: ansible_os_family == 'RedHat'
 
 - name: Run command deactivate selinux for node_exporter, semanage
   become: true

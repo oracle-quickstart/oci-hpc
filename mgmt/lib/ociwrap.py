@@ -6,6 +6,7 @@ import string
 import sys
 import time
 import json
+import ipaddress
 
 from functools import cached_property
 from datetime import datetime, timedelta, timezone
@@ -118,10 +119,10 @@ def run_terminate(node):
     cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
     try:
         if cluster_type == "SA" or cluster_type == "CC":
-            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
+            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING","TERMINATED"])
         elif cluster_type == "IPA" or cluster_type == "CN":
-            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
+            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=node.ocid,is_auto_terminate=True,is_decrement_size=True)
             CLIENTS.compute_management_client_composite_operations.detach_instance_pool_instance_and_wait_for_work_request(instance_pool_ocid,instance_details)
     except oci.exceptions.ServiceError as e:
@@ -1018,3 +1019,52 @@ def delete_compute_cluster(cluster_ocid):
     cluster_name=CLIENTS.compute_client.get_compute_cluster(cluster_ocid).data.display_name
     CLIENTS.compute_client.delete_compute_cluster(cluster_ocid)
     remove_inventory(cluster_name)
+
+def update_dns(instance_ocid, zone_name, compartment_ocid, instance_launch, hostname):
+    """
+    Update DNS for instance launching and instance terminating
+    inputs: 
+        instance_ocid: Instance OCID from event paylod, type=string
+        zone_name: <cluster_name>.local coming from Terraform, type=string
+        compartment_ocid: Compartment OCID from event payload (same as var.targetCompartment in terraform), type=string
+        instance_launch: launching or terminating instance type=boolean
+        hostname: current instance name from OCI web console, type=string
+    output: 
+        hostname: new display name in web console hostname_convention+"-"+str(index), type=string if updated or corresponds to hostname if not
+        private_ip: private IP if instance is launch type=string, None otherwise
+    """
+    zone_id=CLIENTS.dns_client.list_zones(compartment_id=compartment_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
+    private_ip = None
+    if instance_launch:
+        private_ip = get_private_ip(instance_ocid,compartment_ocid)
+
+        get_rr_set_response = CLIENTS.dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600,)]))
+        logger.info(f"DNS updated for instance launch with IP {private_ip} and {hostname}")
+    else:
+        get_rr_set_response = CLIENTS.dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE") 
+        logger.info(f"DNS updated for instance terminated with hostname: {hostname}")
+
+def update_display_name(instance_ocid, new_hostname):
+    """
+    Update display name in OCI web console to match hostname convention
+    inputs:
+        instance_ocid: Instance OCID from event paylod, type=string
+        new_hostname: new display name in web console hostname_convention+"-"+str(index), type=string
+    outputs:
+        None
+    """
+
+    max_retries = 30
+    retries = 0
+    # adding a while loop because retry_strategy doesn't work as expected. Check the state and make sure it's RUNNING before changing hostname
+    while CLIENTS.compute_client.get_instance(instance_ocid).data.display_name != new_hostname and retries <= max_retries:    
+        if CLIENTS.compute_client.get_instance(instance_ocid).data.lifecycle_state != "RUNNING":
+            time.sleep(2*(1+retries))
+            retries +=1
+        else:    
+            update_instance_response = CLIENTS.compute_client.update_instance(
+                instance_id=instance_ocid,
+                update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname),
+                retry_strategy=retry_strategy_via_constructor)
+            logger.info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")    
+    return 

@@ -186,7 +186,7 @@ variable "slurm" {
   type    = bool
 }
 variable "slurm_version" {
-  default = "24.05.1-2"
+  default = "24.11.6-1"
   type    = string
 }
 variable "slurm_ha" {
@@ -347,10 +347,6 @@ variable "home_nfs" {
 }
 variable "home_fss" {
   default = false
-  type    = bool
-}
-variable "configure" {
-  default = true
   type    = bool
 }
 

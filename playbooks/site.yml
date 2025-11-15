@@ -10,7 +10,7 @@
         name: privilege_group
     - include_role:
         name: nfs-server
-      when: not create_fss|bool
+      when: not add_nfs|bool
 
 - hosts: controller, slurm_backup
   become: true
@@ -191,6 +191,13 @@
     - include_role:
         name: grafana
       when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 )
+      
+# New role to clean old tmp dir files
+- hosts: all
+  become: true
+  tasks:
+    - include_role:
+        name: clean_tmp
 
 - hosts: controller
   tasks:

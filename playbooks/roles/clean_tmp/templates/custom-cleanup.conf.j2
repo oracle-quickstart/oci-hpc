@@ -1,0 +1,15 @@
+# /etc/tmpfiles.d/custom-cleanup.conf
+
+# This file is managed by Ansible.
+# It configures systemd-tmpfiles to clean up temporary directories.
+
+# https://manpages.ubuntu.com/manpages/jammy/man5/tmpfiles.d.5.html
+# Type  Path                                     Mode User Group Age         Argument
+# d     /directory/to/create-and-clean-up        mode user group cleanup-age -
+# e     /directory/to/clean-up                   mode user group cleanup-age -
+
+# Clean up files in /tmp older than 14 days
+e /tmp 1777 root root 14d 
+
+# Clean up files in /var/tmp older than 14 days
+e /var/tmp 1777 root root 14d

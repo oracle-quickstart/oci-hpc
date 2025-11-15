@@ -207,8 +207,8 @@ jobs:
         run: |
           cd ..     
 
-  # This job deploys with a custom Ubuntu image and a ubuntu user with FSS
-  deploy_ubuntu_fss:
+  # This job deploys with a custom Ubuntu image and a ubuntu user with FSS, slurm backup, mysql service
+  deploy_ubuntu_fss_backup:
     # The type of runner that the job will run on
     runs-on: ubuntu_fss
     env:

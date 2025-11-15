@@ -8,8 +8,8 @@ def create():
     pass
 
 @create.command()       
-@click.option('--configuration', required=True, help='Name of the configuration to copy.')
-@click.option('--name', required=True, help='Name of the configuration to copy.')
+@click.option('--configuration', required=True, help='Name of the existing configuration to copy.')
+@click.option('--name', required=True, help='Name for the new configuration.')
 def from_existing(configuration,name):
     """Duplicate Configuration with new name."""
     success = db_duplicate_configuration(configuration, name)

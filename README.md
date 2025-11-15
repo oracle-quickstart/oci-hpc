@@ -30,7 +30,8 @@ This Terraform stack is intended to be used in [Oracle Resource Manager](https:/
 * Storage
   * [Block Volume](https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/overview.htm)
   * [File System Service](https://docs.oracle.com/en-us/iaas/Content/File/Concepts/filestorageoverview.htm) (if checked)
-* [Private Endpoint](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Tasks/private-endpoints.htm) (if controller in a private subnet)   
+* [Private Endpoint](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Tasks/private-endpoints.htm) (if controller in a private subnet)
+* [MySQL Database](https://docs.oracle.com/en-us/iaas/mysql-database/home.htm) (if `Create a back-up Slurm Controller` is checked)   
 
 
 > [!WARNING]
@@ -50,6 +51,15 @@ This implementation uses Private DNS view. When using an existing VCN, make sure
 
 > [!WARNING]
 > If the DHCP options and the private zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
+
+**Existing FSS in an existing VCN**
+When using an existing VCN, it is possible to point to an existing NFS/FSS instead of creating one. If so, the name of the cluster should not be random and `Use custom cluster name` must be enabled to set `Name of the cluster`. In case of an existing FSS, a record of type A with the mount target IP address as RDATA should be added to the newly created private zone prior to the stack deployment and respect the following syntax:
+```
+fss-<cluster_name>-controller.<cluster_name>.local
+```
+`Existing NFS server IP` should be set to `fss-<cluster_name>-controller.<cluster_name>.local`
+
+Finally, a reserved export path called `/config` should be created (`File storage > File System > Your File system > Create Export`)
 
 ## Policies
 ### Policies to deploy the stack: 
@@ -403,6 +413,12 @@ If `true`, this will create a private endpoint in order for Oracle Resource Mana
 > [!IMPORTANT]
 > The controller VM will reside in a private subnet. Therefore, the creation of a [bastion service](https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host can also work. Finally, a Peering can also be established betwen the private subnet and another VCN reachable by the user.
 
+## Create a back-up Slurm Controller
+> [!IMPORTANT]
+> FSS must be used to have a shared directory for the state
+
+If checked, creates a managed MySQL database via [MySQL Heatwave](https://docs.oracle.com/en-us/iaas/mysql-database/home.htm). 
+In the configuration of Slurm, the controller and the backup each have `slurmctld` (with [SlurmctldHost](https://slurm.schedmd.com/slurm.conf.html#OPT_SlurmctldHost) defined twice as controller and backup, [AccountingStorageHost](https://slurm.schedmd.com/slurm.conf.html#OPT_AccountingStorageHost) pointing to the controller and [AccountingStorageBackupHost](https://slurm.schedmd.com/slurm.conf.html#OPT_AccountingStorageBackupHost) pointing to the backup in `slurm.conf`) and `slurmdbd` (with [DbdHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdHost) pointing to the controller, [DbdBackupHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdBackupHost) pointing to the backup and [StorageHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_StorageHost) pointing to MySQL Heatwave in `slurmdbd.conf`) running. Both the controller and the backup can querry the database if one of them is down.
 
 
 ## max_nodes_partition.py usage 

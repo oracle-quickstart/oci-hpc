@@ -259,9 +259,7 @@ variableGroups:
       - ${wildcard_dns_domain}
 
     visible: false
-  - title: "Debug"
-    variables: 
-      - ${configure}
+
 variables:
   targetCompartment:
     title: "Target compartment"
@@ -1214,10 +1212,10 @@ variables:
     title: "SLURM version"
     description: "24.xx has new feature but topology plugin is broken" 
     enum:
-      - "24.05.1-2" 
-      - "23.11.8-1" 
+      - "24.11.6-1" 
+      - "23.11.11-1" 
       - "25.05.3-1" 
-    default: "24.05.1-2" 
+    default: "24.11.6-1" 
     visible: ${slurm}
     required: true
 
@@ -1346,12 +1344,6 @@ variables:
     title: "RDMA Latency check"
     default: true
     description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shapes during autoscaling"
-
-  configure: 
-    type: boolean
-    title: "Configure system"
-    default: true
-    description: "If unchecked, cluster will be launched but left unconfigured"
 
   add_nfs:
     type: boolean
