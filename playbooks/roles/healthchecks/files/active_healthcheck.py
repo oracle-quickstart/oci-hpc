@@ -186,7 +186,7 @@ def run_local_rccl_test(shape):
         "BM.GPU.MI300X.8": {"threshold": 310}
     }
 
-    result = None  # ✅ ensure defined
+    result = None  # ensure defined
     try:
         cmd_gpu_count = "rocm-smi --showproductname --json | jq 'length'"
         gpu_count_proc = run_as_default_user(cmd_gpu_count)
@@ -354,21 +354,42 @@ def run_gpu_sdc_check(gpu_ids=None):
         logger.warning(message)
         return None, message, {}
 
+import shutil
+import tempfile
+
 def run_local_rvs_test(shape):
     """
-    Run ROCm Validation Suite (RVS) test locally for AMD GPU nodes.
+    Run ROCm Validation Suite (RVS) locally on AMD nodes.
+    Safe checks:
+      - verifies 'rvs' exists before running
+      - runs as the default user via run_as_default_user()
+      - writes a temp config and removes it afterwards
+      - captures stdout/stderr and returns helpful messages
+      - returns (bool, message)
     """
+    result = None
+    config_path = None
     try:
-        # Detect number of GPUs using rocm-smi
+        # Ensure rvs binary exists
+        rvs_path = shutil.which("rvs")
+        if rvs_path is None:
+            logger.warning("RVS binary not found in PATH; skipping RVS test")
+            return None, "rvs-not-installed"
+
+        # Detect GPU count
         cmd_gpu_count = "rocm-smi --showproductname --json | jq 'length'"
-        result_gpu = run_as_default_user(cmd_gpu_count)
-        gpu_count = result_gpu.stdout.decode('utf-8').strip()[0] if result_gpu.stdout else "?"
+        gpu_count_proc = run_as_default_user(cmd_gpu_count, timeout=30)
+        gpu_count_output = gpu_count_proc.stdout.decode('utf-8').strip() if gpu_count_proc.stdout else ""
+        try:
+            gpu_count = int(gpu_count_output.split()[0]) if gpu_count_output else 1
+        except Exception:
+            logger.warning(f"Could not parse GPU count from rocm-smi output: {gpu_count_output}. Falling back to 1")
+            gpu_count = 1
 
-        logger.info(f"Detected {gpu_count} GPU(s) on shape {shape}. Starting RVS healthcheck...")
+        logger.info(f"Detected {gpu_count} GPU(s) on shape {shape}. Preparing RVS test...")
 
-        # Create temporary RVS config
-        config_path = "/tmp/rvs_config.json"
-        config_json = """{
+        # Create temporary RVS config file
+        cfg = {
           "TestConfig": {
             "GPU_HEALTH_CHECK": {
               "TestLocationTrigger": {
@@ -379,7 +400,7 @@ def run_local_rvs_test(shape):
                         {
                           "Recipe": "gst_single",
                           "Iterations": 1,
-                          "StopOnFailure": true,
+                          "StopOnFailure": True,
                           "TimeoutSeconds": 600,
                           "Arguments": "--parallel"
                         }
@@ -390,28 +411,68 @@ def run_local_rvs_test(shape):
               }
             }
           }
-        }"""
+        }
+
+        fd, config_path = tempfile.mkstemp(prefix="rvs_config_", suffix=".json", dir="/tmp")
+        os.close(fd)
         with open(config_path, "w") as f:
-            f.write(config_json)
+            json.dump(cfg, f)
 
-        # Run RVS command
-        cmd_rvs = f"sudo rvs -c {config_path}"
-        result = run_as_default_user(cmd_rvs, timeout=600)
+        logger.debug(f"Wrote RVS config to {config_path}")
 
-        output = result.stdout.decode('utf-8') if result.stdout else ""
-        if result.returncode == 0 and "completed successfully" in output:
-            logger.info(f"RVS Test Succeeded on shape {shape}")
+        # Run RVS as default user (do NOT embed sudo)
+        cmd_rvs = f"{rvs_path} -c {config_path}"
+        logger.info(f"Running RVS: {cmd_rvs}")
+        result = run_as_default_user(cmd_rvs, timeout=900)  # allow up to 15 minutes
+
+        stdout = result.stdout.decode('utf-8') if result.stdout else ""
+        stderr = result.stderr.decode('utf-8') if result.stderr else ""
+        combined = "\n".join([stdout, stderr]).strip()
+
+        # Basic success heuristics
+        success = False
+        # Look for common success patterns used by RVS test-runner logs
+        if result.returncode == 0:
+            if ("completed successfully" in combined) or ("Test Completed" in combined) or ("ALL TESTS PASSED" in combined):
+                success = True
+
+        if success:
+            logger.info("RVS Test Succeeded")
             return True, "RVS Test Succeeded"
         else:
-            logger.error(f"RVS Test Failed on shape {shape}: {output}")
-            return False, "RVS Test Failed"
+            # collect useful tail to debug
+            tail_lines = []
+            for line in combined.splitlines()[-50:]:
+                tail_lines.append(line)
+            tail = "\n".join(tail_lines)
+            logger.error(f"RVS Test Failed (rc={result.returncode}). Tail:\n{tail}")
+            return False, f"RVS Test Failed rc={result.returncode}. Tail:\n{tail}"
 
     except subprocess.TimeoutExpired:
-        logger.error("RVS test timed out after 10 minutes")
-        return False, "Timeout after 10 minutes"
+        # timeout: try to get whatever output exists
+        tail = ""
+        if result and result.stdout:
+            tail = "\n".join(result.stdout.decode('utf-8').splitlines()[-50:])
+        logger.error("RVS test timed out")
+        return False, f"Timeout after 15 minutes. Tail:\n{tail}"
     except Exception as e:
+        tail = ""
+        try:
+            if result and result.stdout:
+                tail = "\n".join(result.stdout.decode('utf-8').splitlines()[-50:])
+        except Exception:
+            tail = ""
         logger.error(f"Failed to run RVS test: {e}")
-        return False, str(e)
+        return False, f"Exception running RVS: {e}. Tail:\n{tail}"
+    finally:
+        # clean up config file
+        if config_path and os.path.exists(config_path):
+            try:
+                os.remove(config_path)
+                logger.debug(f"Removed temp config {config_path}")
+            except Exception:
+                logger.debug(f"Could not remove temp config {config_path}")
+
 
 def recommended_action(current, action):
     if action not in [None,"FabricManagerRestart","Reboot","Tag_and_Terminate"]:
