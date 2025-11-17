@@ -28,7 +28,8 @@ resource "oci_core_instance" "monitoring" {
     user_data           = base64encode(file("cloud-init.sh"))
   }
   source_details {
-    source_id               = local.monitoring_image
+    // source_id               = local.monitoring_image
+    source_id               = local.controller_image
     boot_volume_size_in_gbs = var.monitoring_boot_volume_size
     boot_volume_vpus_per_gb = 30
     source_type             = "image"

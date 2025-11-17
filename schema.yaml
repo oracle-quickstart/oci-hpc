@@ -510,8 +510,8 @@ variables:
     visible: ${use_marketplace_image_controller}
 
   controller_username: 
-    title: "Default username for controller" 
-    description: "Custom image ID for controller."
+    title: "Controller username" 
+    description: "Default username for controller."
     type: string
     default: "opc"
     required: true

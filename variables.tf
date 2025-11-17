@@ -316,11 +316,12 @@ variable "shared_home" {
   default = "nfs"
   type    = string
 }
-
+/*
 variable "configure" {
   default = true
   type    = bool
 }
+*/
 variable "hyperthreading" {
   default = true
   type    = bool
