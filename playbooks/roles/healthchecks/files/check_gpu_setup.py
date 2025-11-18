@@ -969,7 +969,29 @@ def get_nvlink_speed():
     expected_gpu = info['gpu']
 
     error = False
+    checked = 0
     for gpu_index in range(expected_gpu):
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=mig.mode.current", "--format=csv,noheader", "-i", str(gpu_index)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=10,
+                check=True
+            )
+            mig_output = result.stdout.decode()
+
+            if "enabled" in mig_output.lower():
+                logger.info(f"Skipping NVLINK check on MIG enabled GPU: {gpu_index}")
+                continue
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"GPU {gpu_index}: MIG status check command timed out.")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"GPU {gpu_index}: MIG status check command failed with return code {e.returncode}.")
+        except Exception as e:
+            logger.warning(f"GPU {gpu_index}: MIG status check unexpected error: {e}")
+
         try:
             result = subprocess.run(
                 ["nvidia-smi", "nvlink", "-s", "-i", str(gpu_index)],
@@ -998,10 +1020,12 @@ def get_nvlink_speed():
             logger.warning(f"GPU {gpu_index}: NVLink speed check command failed with return code {e.returncode}.")
         except Exception as e:
             logger.warning(f"GPU {gpu_index}: NVLink speed check unexpected error: {e}")
+        checked += 1
     if error:
         return False
     else:
-        logger.info(f"For {expected_gpu} GPUs, {count} links detected as expected and all speeds as expected {speed_expected} GB/s : Passed")
+        if checked:
+            logger.info(f"For {checked} GPUs, {count_expected} links detected as expected and all speeds as expected {speed_expected} GB/s : Passed")
         return True
 
 # 19.1 Run dcgmi health check
