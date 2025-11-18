@@ -224,7 +224,6 @@ groups:
             node_amd_ecc_uncorrectable_ok or node_up_check
           )
           *
-          *
           (
             node_amd_pcie_link_speed_ok or node_up_check
           )
