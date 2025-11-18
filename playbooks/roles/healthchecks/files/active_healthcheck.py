@@ -360,20 +360,15 @@ import tempfile
 def run_local_rvs_test(shape):
     """
     Run ROCm Validation Suite (RVS) locally on AMD nodes.
-    Safe checks:
-      - verifies 'rvs' exists before running
-      - runs as the default user via run_as_default_user()
-      - writes a temp config and removes it afterwards
-      - captures stdout/stderr and returns helpful messages
-      - returns (bool, message)
+ 
     """
     result = None
     config_path = None
     try:
-        # Ensure rvs binary exists
-        rvs_path = shutil.which("rvs")
-        if rvs_path is None:
-            logger.warning("RVS binary not found in PATH; skipping RVS test")
+        # Ensure RVS binary exists
+        rvs_path = "/opt/rocm/bin/rvs"
+        if not os.path.exists(rvs_path):
+            logger.warning("RVS binary not found at /opt/rocm/bin/rvs; skipping RVS test")
             return None, "rvs-not-installed"
 
         # Detect GPU count
@@ -420,7 +415,7 @@ def run_local_rvs_test(shape):
 
         logger.debug(f"Wrote RVS config to {config_path}")
 
-        # Run RVS as default user (do NOT embed sudo)
+        # Run RVS as default user
         cmd_rvs = f"{rvs_path} -c {config_path}"
         logger.info(f"Running RVS: {cmd_rvs}")
         result = run_as_default_user(cmd_rvs, timeout=900)  # allow up to 15 minutes
@@ -431,7 +426,6 @@ def run_local_rvs_test(shape):
 
         # Basic success heuristics
         success = False
-        # Look for common success patterns used by RVS test-runner logs
         if result.returncode == 0:
             if ("completed successfully" in combined) or ("Test Completed" in combined) or ("ALL TESTS PASSED" in combined):
                 success = True
@@ -440,21 +434,17 @@ def run_local_rvs_test(shape):
             logger.info("RVS Test Succeeded")
             return True, "RVS Test Succeeded"
         else:
-            # collect useful tail to debug
-            tail_lines = []
-            for line in combined.splitlines()[-50:]:
-                tail_lines.append(line)
-            tail = "\n".join(tail_lines)
+            tail = "\n".join(combined.splitlines()[-50:])
             logger.error(f"RVS Test Failed (rc={result.returncode}). Tail:\n{tail}")
             return False, f"RVS Test Failed rc={result.returncode}. Tail:\n{tail}"
 
     except subprocess.TimeoutExpired:
-        # timeout: try to get whatever output exists
         tail = ""
         if result and result.stdout:
             tail = "\n".join(result.stdout.decode('utf-8').splitlines()[-50:])
         logger.error("RVS test timed out")
         return False, f"Timeout after 15 minutes. Tail:\n{tail}"
+
     except Exception as e:
         tail = ""
         try:
@@ -464,8 +454,8 @@ def run_local_rvs_test(shape):
             tail = ""
         logger.error(f"Failed to run RVS test: {e}")
         return False, f"Exception running RVS: {e}. Tail:\n{tail}"
+
     finally:
-        # clean up config file
         if config_path and os.path.exists(config_path):
             try:
                 os.remove(config_path)
