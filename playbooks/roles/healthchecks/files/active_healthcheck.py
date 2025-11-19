@@ -357,93 +357,106 @@ def run_gpu_sdc_check(gpu_ids=None):
 import shutil
 import tempfile
 
+import tempfile
+
 def run_local_rvs_test(shape):
     """
     Run ROCm Validation Suite (RVS) locally on AMD nodes.
- 
     """
     result = None
     config_path = None
+    rvs_path = "/opt/rocm/bin/rvs"
+
     try:
         # Ensure RVS binary exists
-        rvs_path = "/opt/rocm/bin/rvs"
         if not os.path.exists(rvs_path):
-            logger.warning("RVS binary not found at /opt/rocm/bin/rvs; skipping RVS test")
+            logger.warning("RVS binary not found at %s; skipping RVS test", rvs_path)
             return None, "rvs-not-installed"
 
-        # Detect GPU count
-        cmd_gpu_count = "rocm-smi --showproductname --json | jq 'length'"
-        gpu_count_proc = run_as_default_user(cmd_gpu_count, timeout=30)
-        gpu_count_output = gpu_count_proc.stdout.decode('utf-8').strip() if gpu_count_proc.stdout else ""
-        try:
-            gpu_count = int(gpu_count_output.split()[0]) if gpu_count_output else 1
-        except Exception:
-            logger.warning(f"Could not parse GPU count from rocm-smi output: {gpu_count_output}. Falling back to 1")
-            gpu_count = 1
-
-        logger.info(f"Detected {gpu_count} GPU(s) on shape {shape}. Preparing RVS test...")
-
-        # Create temporary RVS config file
-        cfg = {
-          "TestConfig": {
-            "GPU_HEALTH_CHECK": {
-              "TestLocationTrigger": {
-                "global": {
-                  "TestParameters": {
-                    "MANUAL": {
-                      "TestCases": [
-                        {
-                          "Recipe": "gst_single",
-                          "Iterations": 1,
-                          "StopOnFailure": True,
-                          "TimeoutSeconds": 600,
-                          "Arguments": "--parallel"
-                        }
-                      ]
-                    }
-                  }
-                }
-              }
+        # Parameters for sanity run 
+        short_params = {
+            'gst': {
+                "target_stress": 0.6,
+                "ramp_interval": 5,
+                "tolerance": 0.2,
+                "max_violations": 0,
+                "log_interval": 5,
+                "matrix_size": 512,
+                "duration": 90
             }
-          }
         }
 
-        fd, config_path = tempfile.mkstemp(prefix="rvs_config_", suffix=".json", dir="/tmp")
-        os.close(fd)
-        with open(config_path, "w") as f:
-            json.dump(cfg, f)
+        modules_sequence = ['gst']
 
-        logger.debug(f"Wrote RVS config to {config_path}")
+        for mod in modules_sequence:
+            params = short_params.get(mod, {})
+            # build config (RVS v1.1.0 style)
+            action = {
+                "name": f"{mod}-short",
+                "module": mod,
+                "device": "all"
+            }
+            # merge params
+            action.update(params)
+            cfg = {"actions": [action]}
 
-        # Run RVS as default user
-        cmd_rvs = f"{rvs_path} -c {config_path}"
-        logger.info(f"Running RVS: {cmd_rvs}")
-        result = run_as_default_user(cmd_rvs, timeout=900)  # allow up to 15 minutes
+            # write temp config file
+            fd, config_path = tempfile.mkstemp(prefix="rvs_config_", suffix=".json", dir="/tmp")
+            os.close(fd)
+            with open(config_path, "w") as f:
+                json.dump(cfg, f)
+                f.flush()
+                os.fsync(f.fileno())
+                os.chmod(config_path, 0o644)
 
-        stdout = result.stdout.decode('utf-8') if result.stdout else ""
-        stderr = result.stderr.decode('utf-8') if result.stderr else ""
-        combined = "\n".join([stdout, stderr]).strip()
+           # logger.info("RVS configuration file saved to: %s", config_path)
+            cmd_rvs = f"{rvs_path} -c {config_path}"
+            logger.info("Running RVS: %s", cmd_rvs)
 
-        # Basic success heuristics
-        success = False
-        if result.returncode == 0:
-            if ("completed successfully" in combined) or ("Test Completed" in combined) or ("ALL TESTS PASSED" in combined):
-                success = True
+            # compute timeout; allow duration + buffer
+            timeout = int(params.get("duration", 60) + 30)
 
-        if success:
-            logger.info("RVS Test Succeeded")
-            return True, "RVS Test Succeeded"
-        else:
-            tail = "\n".join(combined.splitlines()[-50:])
-            logger.error(f"RVS Test Failed (rc={result.returncode}). Tail:\n{tail}")
-            return False, f"RVS Test Failed rc={result.returncode}. Tail:\n{tail}"
+            try:
+                result = run_as_default_user(cmd_rvs, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                tail = ""
+                try:
+                    if result and result.stdout:
+                        tail = "\n".join(result.stdout.decode('utf-8').splitlines()[-50:])
+                except Exception:
+                    tail = ""
+                logger.error("RVS module '%s' timed out (after %s seconds). Tail:\n%s", mod, timeout, tail)
+                return False, f"RVS module {mod} timeout"
 
-    except subprocess.TimeoutExpired:
-        tail = ""
-        if result and result.stdout:
-            tail = "\n".join(result.stdout.decode('utf-8').splitlines()[-50:])
-        logger.error("RVS test timed out")
-        return False, f"Timeout after 15 minutes. Tail:\n{tail}"
+            stdout = result.stdout.decode('utf-8') if result.stdout else ""
+            stderr = result.stderr.decode('utf-8') if result.stderr else ""
+            combined = "\n".join([stdout, stderr]).strip()
+
+            if result.returncode == 0:
+                logger.info("RVS module '%s' passed (rc=0)", mod)
+                # cleanup config for this module before next one
+                if config_path and os.path.exists(config_path):
+                    try:
+                        os.remove(config_path)
+                    except Exception:
+                        pass
+                config_path = None
+                # small gap before next
+                time.sleep(2)
+                continue
+            else:
+                tail = "\n".join(combined.splitlines()[-50:])
+                logger.error("RVS module '%s' FAILED (rc=%s). Tail:\n%s", mod, result.returncode, tail)
+                # cleanup and return failure
+                if config_path and os.path.exists(config_path):
+                    try:
+                        os.remove(config_path)
+                    except Exception:
+                        pass
+                return False, f"RVS module {mod} failed rc={result.returncode}. Tail:\n{tail}"
+
+        # all modules passed
+        return True, "RVS suite passed"
 
     except Exception as e:
         tail = ""
@@ -452,16 +465,16 @@ def run_local_rvs_test(shape):
                 tail = "\n".join(result.stdout.decode('utf-8').splitlines()[-50:])
         except Exception:
             tail = ""
-        logger.error(f"Failed to run RVS test: {e}")
+        logger.error("Failed to run RVS short suite: %s", e)
         return False, f"Exception running RVS: {e}. Tail:\n{tail}"
 
     finally:
-        if config_path and os.path.exists(config_path):
-            try:
+        try:
+            if config_path and os.path.exists(config_path):
                 os.remove(config_path)
-                logger.debug(f"Removed temp config {config_path}")
-            except Exception:
-                logger.debug(f"Could not remove temp config {config_path}")
+                logger.debug("Removed temp config %s", config_path)
+        except Exception:
+            logger.debug("Could not remove temp config %s", config_path)
 
 
 def recommended_action(current, action):
