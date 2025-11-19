@@ -1,10 +1,10 @@
 local g = import './g.libsonnet';
-local variables = import './gpu-metrics-single-variables.libsonnet';
+local variables = import './nvidia-gpu-metrics-single-variables.libsonnet';
 local stateTimeline = import './statetimeline-panel.libsonnet';
 local statHealth = import './stat-health-panel.libsonnet';
 local row = g.panel.row;
-g.dashboard.new('GPU Health Status')
-+ g.dashboard.withUid('gpu-health')
+g.dashboard.new('NVIDIA GPU Health')
++ g.dashboard.withUid('nvidia-gpu-health')
 + g.dashboard.withDescription(|||
   GPU Node Component Health Status
 |||)

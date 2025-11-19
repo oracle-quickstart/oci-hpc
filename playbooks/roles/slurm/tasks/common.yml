@@ -269,3 +269,24 @@
     owner: root
     group: root
     mode: "0755"
+
+- name: Copy AMD Slurm metrics prolog
+  become: true
+  ansible.builtin.copy:
+    src: amd_prolog.sh
+    dest: "{{ slurm_conf_path }}/prolog.d/amd_prolog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'BM.GPU.MI' in shape"
+
+- name: Copy AMD Slurm metrics epilog
+  become: true
+  ansible.builtin.copy:
+    src: amd_epilog.sh
+    dest: "{{ slurm_conf_path }}/epilog.d/amd_epilog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'BM.GPU.MI' in shape"
+  
