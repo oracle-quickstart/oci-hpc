@@ -37,13 +37,6 @@
     - include_role:
         name: healthchecks
 
-# New role to clean old tmp dir files
-- hosts: all
-  become: true
-  tasks:
-    - include_role:
-        name: clean_tmp
-
 - hosts: controller
   become: true
   vars:
@@ -198,6 +191,13 @@
     - include_role:
         name: grafana
       when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 )
+      
+# New role to clean old tmp dir files
+- hosts: all
+  become: true
+  tasks:
+    - include_role:
+        name: clean_tmp
 
 - hosts: controller
   tasks:

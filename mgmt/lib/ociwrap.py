@@ -119,10 +119,10 @@ def run_terminate(node):
     cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
     try:
         if cluster_type == "SA" or cluster_type == "CC":
-            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
+            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING","TERMINATED"])
         elif cluster_type == "IPA" or cluster_type == "CN":
-            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
+            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=node.ocid,is_auto_terminate=True,is_decrement_size=True)
             CLIENTS.compute_management_client_composite_operations.detach_instance_pool_instance_and_wait_for_work_request(instance_pool_ocid,instance_details)
     except oci.exceptions.ServiceError as e:
