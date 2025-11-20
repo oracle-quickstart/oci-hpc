@@ -1,4 +1,13 @@
 ---
+- hosts: monitoring, controller
+  tasks:
+   - name: Remove legacy InfluxData repo (without signed-by)
+     become: true
+     ansible.builtin.apt_repository:
+       repo: "deb https://repos.influxdata.com/debian stable main"
+       state: absent
+     when: ansible_distribution == 'Ubuntu'
+
 - hosts: controller
   become: true
   vars:
