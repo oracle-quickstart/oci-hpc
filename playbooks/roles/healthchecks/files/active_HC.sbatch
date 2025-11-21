@@ -41,12 +41,7 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
   if [ -f "$FILE" ]; then
     DRAIN_MSG=$(grep "Healthcheck_Active::" "$FILE")
     if [ -n "$DRAIN_MSG" ]; then
-      if [ -n "$SLURM_JOB_ID" ]; then
-        echo "${DRAIN_MSG}"
-        exit 1
-      else
         sudo scontrol update nodename="$(hostname)" state=drain reason="${DRAIN_MSG}"
-      fi
     fi
   fi
 fi
