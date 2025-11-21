@@ -215,8 +215,8 @@ def run_local_rccl_test(shape):
     try:
         cmd_gpu_count = "rocm-smi --showproductname --json | jq 'length'"
         gpu_count_proc = run_as_default_user(cmd_gpu_count)
-        gpu_count_output = gpu_count_proc.stdout.decode('utf-8').strip() if gpu_count_proc.stdout else ""
 
+        gpu_count_output = gpu_count_proc.stdout.decode('utf-8').strip().split('\n')[-1] if gpu_count_proc.stdout else ""
         if not gpu_count_output:
             logger.error("rocm-smi returned no output; cannot detect GPU count")
             return False, "rocm-smi returned no output; RCCL test skipped"
@@ -435,7 +435,7 @@ def run_local_rvs_test(shape):
                 os.chmod(config_path, 0o644)
 
            # logger.info("RVS configuration file saved to: %s", config_path)
-            cmd_rvs = f"{rvs_path} -c {config_path}"
+            cmd_rvs = f"{rvs_path} --parallel -c {config_path}"
             logger.info("Running RVS: %s", cmd_rvs)
 
             # compute timeout; allow duration + buffer
