@@ -152,6 +152,7 @@
   until: create_reservation is not failed
   retries: 5
   delay: 5
+  ignore_errors: true
   when:
     - "'GPU' in shape"
     - rdma_enabled|bool
@@ -165,11 +166,11 @@
   until: append_reservation is not failed
   retries: 5
   delay: 5
+  ignore_errors: true
   when: 
     - "'GPU' in shape"
     - rdma_enabled|bool
-    - reservation is defined 
-    - reservation.rc == 0
+    - (reservation is defined and reservation.rc == 0) or (create_reservation is defined and create_reservation.rc != 0)
 
 - name: test the node
   ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
