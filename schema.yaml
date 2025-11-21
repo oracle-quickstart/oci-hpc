@@ -1213,7 +1213,7 @@ variables:
     description: "24.xx has new feature but topology plugin is broken" 
     enum:
       - "24.11.7-1"
-      - "23.11.11-1"
+      - "23.11.11-2"
       - "25.11.0-1"
     default: "24.11.7-1"
     visible: ${slurm}
