@@ -57,12 +57,12 @@ slurm_login_packages:
   - "{{ slurm_nfs_path }}/slurm_rpms/slurm-sackd-{{slurm_version}}.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
 
 pmix_download_packages:
-  - "pmix-3.2.5-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
-  - "pmix-devel-3.2.5-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
+  - "pmix-4.2.9-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
+  - "pmix-devel-4.2.9-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
 
 pmix_packages:
-  - "{{ slurm_nfs_path }}/slurm_rpms/pmix-3.2.5-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
-  - "{{ slurm_nfs_path }}/slurm_rpms/pmix-devel-3.2.5-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
+  - "{{ slurm_nfs_path }}/slurm_rpms/pmix-4.2.9-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
+  - "{{ slurm_nfs_path }}/slurm_rpms/pmix-devel-4.2.9-1.el{{ansible_distribution_major_version}}.{{ansible_architecture}}.rpm"
 
 slurm_repos: "{% if ansible_distribution_major_version == '8' %}ol8_developer_EPEL,ol8_codeready_builder{% elif ansible_distribution_major_version == '9' %}ol9_developer_EPEL,ol9_codeready_builder{%
   else%}epel,ol7_developer_EPEL{% endif %}"

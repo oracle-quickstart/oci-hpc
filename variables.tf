@@ -186,7 +186,7 @@ variable "slurm" {
   type    = bool
 }
 variable "slurm_version" {
-  default = "24.11.6-1"
+  default = "24.11.7-1"
   type    = string
 }
 variable "slurm_ha" {

@@ -49,7 +49,7 @@ use_marketplace_image=false
 
 slurm=true
 
-slurm_version="24.11.6-1"
+slurm_version="25.11.0-1"
 
 login_node=true
 
