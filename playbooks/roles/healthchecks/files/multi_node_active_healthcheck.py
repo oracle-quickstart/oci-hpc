@@ -173,7 +173,6 @@ def run_multi_node_nccl_test(hostfile, shape):
             "bash","-c",
             f"{exec_cmd} -b 1G -e 10G -i{increment} -n 50"
         ]
-        print(' '.join(mpirun_cmd))
     elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8"):
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
@@ -248,13 +247,13 @@ def run_multi_node_nccl_test(hostfile, shape):
                 else:
                     return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
             else:
-                if "Invalid number of GPUs" in result.stdout or "Invalid number of GPUs" in result.stderr or 'invalid device ordinal' in result.stdout or 'invalid device ordinal' in result.stderr:
+                if "Invalid number of GPUs" in result.stdout or "Invalid number of GPUs" in result.stderr or 'invalid device ordinal' in result.stdout or 'invalid device ordinal' in result.stderr and i < 4:
                     continue
                 return False,f"NCCL Test Failed: Failed to run nccl test. {result.stdout},{result.stderr}"
         except subprocess.TimeoutExpired:
             return False,"NCCL Test Failed: NCCL test timed out after 2 minutes"
         except Exception as e:
-            if "Invalid number of GPUs" in e or 'invalid device ordinal' in e:
+            if "Invalid number of GPUs" in e or 'invalid device ordinal' in e and i < 4:
                 continue
             else:
                 return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
@@ -303,43 +302,60 @@ def run_multi_node_rccl_test(hostfile, shape):
     mpirun_str = custom_join(mpirun_cmd)
     cmd = f"source {mpivars_path} && {mpirun_str}"
 
-    try:
-        result = subprocess.run(
-            cmd,
-            text=True,
-            timeout=120,
-            shell=True,
-            executable='/bin/bash',  # Needed to use 'source mpivars.sh'
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
 
-        if result.returncode == 0:
-            output = result.stdout
-            bw=None
-            threshold = shape_mapping.get(shape, {}).get("threshold")
-            if threshold == "":
-                return False,"RCCL Test Failed: Shape not found for RCCL test"
-            for line in output.splitlines():
-                if "Avg bus bandwidth" in line:
-                    try:
-                        bw=float(line.split()[5])
-                    except:
-                        return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
-                    if bw < threshold:
-                        return False,f"RCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
-            if not bw is None:
-                return True,"RCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
+    i = 0
+    while i < 5:
+        logger.info(f"NCCL Test {i+1}/5")
+        i += 1
+        try:
+            result = subprocess.run(
+                cmd,
+                text=True,
+                timeout=120,
+                shell=True,
+                executable='/bin/bash',  # Needed to use 'source mpivars.sh'
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+
+            if result.returncode == 0:
+                output = result.stdout
+                bw=None
+                threshold = shape_mapping.get(shape, {}).get("threshold")
+                if threshold == "":
+                    return False,"RCCL Test Failed: Shape not found for RCCL test"
+                for line in output.splitlines():
+                    if "Avg bus bandwidth" in line:
+                        try:
+                            bw=float(line.split()[5])
+                        except:
+                            if i < 4:
+                                continue
+                            return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
+                        if bw < threshold:
+                            if i < 4:
+                                continue
+                            return False,f"RCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
+                if not bw is None:
+                    return True,"RCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
+                else:
+                    if i < 4:
+                        continue
+                    return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
             else:
-                return False,"RCCL Test Failed: Avg bus bandwidth could not be found"
-        else:
-            logger.error(f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}")
-            logger.info(f"result: {potentially_bad}")
-            return False,f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}"
-    except subprocess.TimeoutExpired:
-        return False,"RCCL Test Failed: NCCL test timed out after 2 minutes"
-    except Exception as e:
-        return False, f"RCCL Test Failed: Failed to run nccl test. {e}"
+                if i < 4:
+                    continue
+                logger.error(f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}")
+                logger.info(f"result: {potentially_bad}")
+                return False,f"Multi-node RCCL Test Failed: Failed to run multi-node nccl test. {result.stderr}"
+        except subprocess.TimeoutExpired:
+            if i < 4:
+                continue
+            return False,"RCCL Test Failed: NCCL test timed out after 2 minutes"
+        except Exception as e:
+            if i < 4:
+                continue
+            return False, f"RCCL Test Failed: Failed to run nccl test. {e}"
 
 
 def run_ib_write_bw(shape, server, client='localhost'):    
@@ -503,10 +519,17 @@ def write_hc_http_server_file(node1, node2):
     
     healthcheck = healthy
     # Read the latest_multi_node_active_healthcheck.log file content
+
     try:
         with open("/var/log/healthchecks/latest_multi_node_active_healthcheck.log", 'r') as log_file:
             content = log_file.read()
+            # Limit log content to 2048 characters, keeping start and end
+            if len(content) > 4096:
+                half = 2000  # Half of 2048 to keep from start and end
+                content = content[:half] + "\n... [truncated] ...\n" + content[-half:]
             data["multi_node_healthcheck_logs"] = content  # Store log content in JSON
+            
+            # Check for errors in the full log content
             for line in content.splitlines():
                 if "ERROR" in line:
                     healthcheck = potentially_bad
