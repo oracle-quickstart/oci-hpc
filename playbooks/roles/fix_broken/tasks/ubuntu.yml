@@ -9,8 +9,8 @@
 
 - name: Wait for any possibly running unattended upgrade to finish
   ansible.builtin.command: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
-  async: 240
-  poll: 5
+  async: 300
+  poll: 0
   register: yum_sleeper
 
 - name: Check on an async task
@@ -18,9 +18,10 @@
     jid: "{{ yum_sleeper.ansible_job_id }}"
   register: job_result
   until: job_result is not failed
-  retries: 22
-  delay: 5
+  retries: 30
+  delay: 10
   ignore_errors: true
+  when: yum_sleeper.ansible_job_id is defined
 
 - name: Remove unattended-upgrades
   ansible.builtin.systemd:

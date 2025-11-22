@@ -31,6 +31,21 @@
     rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}, recursive=True) }}"
   when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
 
+- name: Add empty customerHPCIslandId
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None'}}, recursive=True) }}"
+  when: "not 'customerHPCIslandId' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerLocalBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerLocalBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerLocalBlock' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerNetworkBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerNetworkBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerNetworkBlock' in rdma_metadata['rdmaTopologyData']"
+
 - name: set topology var
   ansible.builtin.set_fact:
     topology: "topo-tree:{{cluster_name}}:{{rdma_metadata['rdmaTopologyData']['customerLocalBlock'][-40:]}}"
@@ -84,6 +99,15 @@
     group: munge
     mode: "0700"
 
+- name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
+  become: true
+  ansible.builtin.file:
+    path: /mnt/localdisk/slurm-tmp
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: "01777"
+
 - name: Copy munge key
   become: true
   ansible.builtin.copy:
@@ -119,21 +143,69 @@
     state: restarted
     enabled: true
 
-- name: Run the reconfigure playbook
-  vars:
-    max_retries: 5
-  include_tasks: create_reservation.yml
-  loop:  "{{ range(0, max_retries) | list }}"
-  loop_control:
-    loop_var: attempt
-  ignore_errors: true
-  when: stop_loop is not defined or not stop_loop
-
-- name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
+- name: Reconfigure slurm
   become: true
-  ansible.builtin.file:
-    path: /mnt/localdisk/slurm-tmp
-    state: directory
-    owner: slurm
-    group: slurm
-    mode: "01777"
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+
+- name: Check if reservation exists
+  become: true
+  ansible.builtin.command: "scontrol show reservation InitialValidation"
+  register: reservation
+  ignore_errors: true
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+
+- name: Create Reservation
+  become: true
+  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ansible_hostname}} user=ubuntu reservation=InitialValidation"
+  register: create_reservation
+  until: create_reservation is not failed
+  retries: 5
+  delay: 5
+  ignore_errors: true
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+    - reservation is defined
+    - reservation.rc != 0
+
+- name: Append to reservation
+  become: true
+  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_hostname}}"
+  register: append_reservation
+  until: append_reservation is not failed
+  retries: 5
+  delay: 5
+  ignore_errors: true
+  when: 
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+    - (reservation is defined and reservation.rc == 0) or (create_reservation is defined and create_reservation.rc != 0)
+
+- name: test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
+  ignore_errors: true
+  register: test_result
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+
+- name: Reconfigure slurm
+  become: true
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+  when: not ( 'GPU' in shape and rdma_enabled|bool)
+
+- name: test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ansible_hostname}} hostname"
+  ignore_errors: true
+  register: test_result
+  when: not ( 'GPU' in shape and rdma_enabled|bool)

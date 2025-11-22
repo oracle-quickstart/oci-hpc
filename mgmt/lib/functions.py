@@ -220,7 +220,7 @@ def append_to_healthchecks(node_ocid, **kwargs):
                                 "healthcheck_status":kwargs["passive_healthcheck_status"]})
         else:
             logger.debug(f"Updating passive healthcheck for {node_ocid}")
-            db_update_healthcheck(passive_hc, {"healthcheck_last_time":kwargs["passive_healthcheck_time"]})
+            db_update_healthcheck(passive_hc, {"healthcheck_last_time":kwargs["passive_healthcheck_time"],"healthcheck_logs":kwargs["passive_healthcheck_logs"]})
 
     if "active_healthcheck_status" in kwargs:
         active_hc=None
@@ -239,7 +239,7 @@ def append_to_healthchecks(node_ocid, **kwargs):
                                         "healthcheck_status":kwargs["active_healthcheck_status"]})
         else:
                 logger.debug(f"Updating active healthcheck for {node_ocid}")
-                db_update_healthcheck(active_hc, {"healthcheck_last_time":kwargs["active_healthcheck_time"]})
+                db_update_healthcheck(active_hc, {"healthcheck_last_time":kwargs["active_healthcheck_time"],"healthcheck_logs":kwargs["active_healthcheck_logs"]})
 
     if "multi_node_healthcheck_status" in kwargs:
         active_hc=None
@@ -262,7 +262,7 @@ def append_to_healthchecks(node_ocid, **kwargs):
                 logger.error(f"Failed to create multi-node healthcheck for {node_ocid}: {e}")
         else:
             logger.debug(f"Updating multi-node healthcheck for {node_ocid}")
-            db_update_healthcheck(healthcheck, {"healthcheck_last_time":kwargs["multi_node_healthcheck_time"]})
+            db_update_healthcheck(healthcheck, {"healthcheck_last_time":kwargs["multi_node_healthcheck_time"],"healthcheck_logs":kwargs["multi_node_healthcheck_logs"]})
 
 
 def scan_host_api_logic():
@@ -369,9 +369,9 @@ def run_active_hc(node,reservation_id=None):
     if hc_partition:
         logger.debug(f"Submitting active healthcheck on {node.hostname} through partition {hc_partition[0]}")
         if reservation_id is None:
-            cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+5minutes","--time=00:04:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]        
+            cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"--deadline=now+8minutes","--time=00:07:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]        
         else:
-            cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"--reservation",reservation_id,"--deadline=now+5minutes","--time=00:04:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]
+            cmd=["sbatch","-N","1","-p",hc_partition[0],"-w",node.hostname,"--reservation",reservation_id,"--deadline=now+8minutes","--time=00:07:00","/opt/oci-hpc/healthchecks/active_HC.sbatch"]
         logger.debug(f"Running command: {' '.join(cmd)}")
         results = subprocess.run(cmd)
         if results.returncode != 0:

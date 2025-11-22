@@ -4,3 +4,7 @@ cpu_ports: 9100
 
 nccl_exporter_script: "/usr/local/bin/nccl_profiler_exporter.py"
 exporter_service_file: "/etc/systemd/system/nccl-profiler-exporter.service"
+amd_exporter_port: 9400
+amd_exporter_host: "0.0.0.0"
+amd_exporter_image: "rocm/device-metrics-exporter:latest"
+amd_exporter_version: "1.4.0"

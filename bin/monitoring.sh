@@ -256,7 +256,11 @@ sudo sed -i "s/^\(#\|;\)bin_ansible_callbacks.*/bin_ansible_callbacks=True/" /et
 sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
-sudo sed -i "s/^\(#\|;\)remote_tmp.*/remote_tmp=\/tmp\/.ansible-tmp/" /etc/ansible/ansible.cfg
+sudo sed -i "/^\[defaults\]/,/^\[/ s/^\(#\|;\)remote_tmp.*/remote_tmp=\/tmp\/.ansible-tmp/" /etc/ansible/ansible.cfg
+
+# Ensure the remote temp directory exists and is usable for any user (including become: true tasks)
+sudo mkdir -p /tmp/.ansible-tmp
+sudo chmod 1777 /tmp/.ansible-tmp
 
 # Replace the legacy yaml callback with the built-in default and enable YAML output
 sudo sed -i 's/^\([#;]\s*\)\?stdout_callback.*/stdout_callback = default/' /etc/ansible/ansible.cfg
@@ -297,7 +301,7 @@ while [ $attempt -le $max_attempts_ansible_install ]; do
 done 
 
 attempt=1
-wait_time=10
+wait_time=1
 while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
     $VENV_PATH/bin/ansible-playbook -i /config/playbooks/inventory /config/playbooks/monitoring.yml 2>&1 | tee -a $log

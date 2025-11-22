@@ -7,7 +7,7 @@ After=network-online.target
 User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple
-ExecStart=/usr/bin/env {{venv_path}}/bin/python3 /usr/local/bin/pcie_faults_exporter.py
+ExecStart={{venv_path}}/bin/python3 /usr/local/bin/pcie_faults_exporter.py
 
 [Install]
 WantedBy=multi-user.target

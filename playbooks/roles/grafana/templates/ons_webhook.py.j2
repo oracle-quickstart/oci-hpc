@@ -7,6 +7,7 @@ import queue
 import re
 import sqlite3
 import sys
+import traceback
 
 from time import sleep
 from datetime import datetime, timedelta, time
@@ -62,55 +63,60 @@ def date_to_str(date):
 
 
 def push_notifications_to_oci_topic(notification_client, notifications):
-    alert_message = "\n".join([template.render(**notification) for notification in notifications])
-    
-    message_details = oci.ons.models.MessageDetails(
-        title="GPU Cluster Alert",
-        body=alert_message
-    )
-    
-    response = notification_client.publish_message(
-        topic_id=topic_id,  # Use the dynamically fetched topic_id
-        message_details=message_details,
-        retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
-    )
+    try:
+        alert_message = "\n".join([template.render(**notification) for notification in notifications])
+        
+        message_details = oci.ons.models.MessageDetails(
+            title="GPU Cluster Alert",
+            body=alert_message
+        )
+        
+        response = notification_client.publish_message(
+            topic_id=topic_id,  # Use the dynamically fetched topic_id
+            message_details=message_details,
+            retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
+        )
 
-    logging.info(f"Message published. Message ID: {response.data.message_id}")
-
+        logging.info(f"Message published. Message ID: {response.data.message_id}")
+    except Exception as e:
+        logging.error(f"Error publishing message: {traceback.format_exc()}")
+    
 
 def shorten_url(grafana_api_url, grafana_api_key, url):
     # Shorten URL using Grafana API
+    try:
+        parsed_url = urlparse(url) 
+        path = parsed_url.geturl().replace(f'{parsed_url.scheme}://{parsed_url.netloc}/', "")
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {grafana_api_key}"
+        }
 
-    parsed_url = urlparse(url) 
-    path = parsed_url.geturl().replace(f'{parsed_url.scheme}://{parsed_url.netloc}/', "")
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {grafana_api_key}"
-    }
+        payload = {
+            "path": path
+        }
 
-    payload = {
-        "path": path
-    }
-
-    response = requests.post(f"{grafana_api_url.rstrip('/')}/api/short-urls", json=payload, headers=headers)
-    logging.debug(f'Attempt to shorten {path} returned code {response.status_code} and response: {response.json()}')
-    if response.status_code == 200:
-        return response.json().get("url") 
-    else:
+        response = requests.post(f"{grafana_api_url.rstrip('/')}/api/short-urls", json=payload, headers=headers)
+        logging.debug(f'Attempt to shorten {path} returned code {response.status_code} and response: {response.json()}')
+        if response.status_code == 200:
+            return response.json().get("url") 
+        else:
+            return url
+    except Exception as e:
+        logging.error(f"Failed attempting to shorten URL: {traceback.format_exc()}")
         return url
-
 
 def alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, last_seen_at):
     annotations = alert_dict.get("annotations", {})
     labels = alert_dict.get("labels", {})
     silence_url = annotations.get("silence_url", alert_dict.get("silenceURL", "N/A")).strip()
     panel_url =  annotations.get("panel_url", alert_dict.get("panelURL", "N/A")).strip()
-    if silence_url and silence_url != "N/A":
+    if base64_encoded_grafana_api_key and silence_url and silence_url != "N/A":
         shorten_silence_url = shorten_url(grafana_api_url, base64_decode(base64_encoded_grafana_api_key), silence_url)
     else:
         shorten_silence_url = "N/A"
-    if panel_url and panel_url != "N/A":
+    if base64_encoded_grafana_api_key and panel_url and panel_url != "N/A":
         shorten_panel_url = shorten_url(grafana_api_url, base64_decode(base64_encoded_grafana_api_key), panel_url)
     else:
         shorten_panel_url = "N/A"
@@ -141,7 +147,7 @@ def notification_processing_daemon():
         signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
         notification_client = oci.ons.NotificationDataPlaneClient({}, signer=signer)
     except Exception as e:
-        logging.error(f"Error initializing OCI client: {e}")
+        logging.error(f"Error initializing OCI client: {traceback.format_exc()}")
         sys.exit(1)
 
     notifications = []
@@ -204,15 +210,16 @@ def alert_processing_daemon():
             last_executed_at TEXT NOT NULL
         )''')
         conn.commit()
-    except Exception as e:
-        logging.error(f'Failed to create the databases for alerts {e}. Exiting..')
-        sys.exit(1)
 
-    last_reminder_execution_date_from_db = cur.execute('SELECT * FROM alert_reminder WHERE notification_id = ?', ("last",)).fetchone()
-    if last_reminder_execution_date_from_db:
-        last_reminder_execution_day = str_to_date(last_reminder_execution_date_from_db[1]).date()
-    else:
-        last_reminder_execution_day = None
+        last_reminder_execution_date_from_db = cur.execute('SELECT * FROM alert_reminder WHERE notification_id = ?', ("last",)).fetchone()
+        if last_reminder_execution_date_from_db:
+            last_reminder_execution_day = str_to_date(last_reminder_execution_date_from_db[1]).date()
+        else:
+            last_reminder_execution_day = None
+
+    except Exception as e:
+        logging.error(f'Failed to create the databases for alerts {traceback.format_exc()}. Exiting..')
+        sys.exit(1)
     
     logging.info(f'Last reminder execution day: {last_reminder_execution_day}')
     
@@ -290,56 +297,62 @@ def alert_processing_daemon():
                 pass
         except queue.Empty:
             pass
+        except Exception:
+            logging.exception(f'Error processing alerts in the queue. {traceback.format_exc()}')
 
-        # Check if is necessary to send reminder or cleanup old alarms
-        if current_time.time() >= active_alerts_reminder_time and ( last_reminder_execution_day is None or current_time.date() > last_reminder_execution_day ):
-            alerts_in_db = cur.execute('SELECT * FROM active_alerts').fetchall()
-            logging.info(f'Found {len(alerts_in_db)} active alerts in the DB.')
-            logging.debug(f'Existing alerts in DB: {alerts_in_db}')
+        try:
+            # Check if is necessary to send reminder or cleanup old alarms
+            if current_time.time() >= active_alerts_reminder_time and ( last_reminder_execution_day is None or current_time.date() > last_reminder_execution_day ):
+                alerts_in_db = cur.execute('SELECT * FROM active_alerts').fetchall()
+                logging.info(f'Found {len(alerts_in_db)} active alerts in the DB.')
+                logging.debug(f'Existing alerts in DB: {alerts_in_db}')
 
-            for alert in alerts_in_db:
-                alert_id = alert[0]
-                last_notified_at = alert[3]
-                first_seen_at = alert[1]
-                
-                # Cleanup old alarms
-                if current_time - str_to_date(first_seen_at) > timedelta(seconds=maximum_age_of_alert_in_seconds):
-                    cur.execute('''
-                            DELETE FROM active_alerts
+                for alert in alerts_in_db:
+                    alert_id = alert[0]
+                    last_notified_at = alert[3]
+                    first_seen_at = alert[1]
+                    
+                    # Cleanup old alarms
+                    if current_time - str_to_date(first_seen_at) > timedelta(seconds=maximum_age_of_alert_in_seconds):
+                        cur.execute('''
+                                DELETE FROM active_alerts
+                                WHERE alert_id = ?
+                            ''', (alert_id,))
+                        continue
+                    
+                    # Send alarm reminders
+                    if current_time - str_to_date(last_notified_at) > timedelta(seconds=minimum_age_of_active_alert_to_include_in_reminder_in_seconds):
+                        
+                        alert_dict = json.loads(alert[6])
+                        fire_count = alert[5]
+                        
+                        last_seen_at = alert[2]
+                        notification_dict = alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, last_seen_at)
+                        notification_queue.put(notification_dict)
+                        logging.info(f'Sent reminder for alert id {alert_id}/{notification_dict["alert_name"]}')
+                        
+                        cur.execute('''
+                            UPDATE active_alerts
+                            SET last_notified_at = ?
                             WHERE alert_id = ?
-                        ''', (alert_id,))
-                    continue
+                        ''', (date_to_str(current_time), alert_id))
                 
-                # Send alarm reminders
-                if current_time - str_to_date(last_notified_at) > timedelta(seconds=minimum_age_of_active_alert_to_include_in_reminder_in_seconds):
-                    
-                    alert_dict = json.loads(alert[6])
-                    fire_count = alert[5]
-                    
-                    last_seen_at = alert[2]
-                    notification_dict = alert_to_notification_dict(alert_id, alert_dict, fire_count, first_seen_at, last_seen_at)
-                    notification_queue.put(notification_dict)
-                    logging.info(f'Sent reminder for alert id {alert_id}/{notification_dict["alert_name"]}')
-                    
-                    cur.execute('''
-                        UPDATE active_alerts
-                        SET last_notified_at = ?
-                        WHERE alert_id = ?
-                    ''', (date_to_str(current_time), alert_id))
-            
-            # Update alert_reminder table with the last execution time.
-            cur.execute('''
-                INSERT INTO alert_reminder (notification_id, last_executed_at)
-                VALUES (?, ?)
-                ON CONFLICT(notification_id)
-                DO UPDATE SET last_executed_at = excluded.last_executed_at
-            ''', ("last", date_to_str(current_time)))
+                # Update alert_reminder table with the last execution time.
+                cur.execute('''
+                    INSERT INTO alert_reminder (notification_id, last_executed_at)
+                    VALUES (?, ?)
+                    ON CONFLICT(notification_id)
+                    DO UPDATE SET last_executed_at = excluded.last_executed_at
+                ''', ("last", date_to_str(current_time)))
 
-            conn.commit()
+                conn.commit()
 
-            last_reminder_execution_day = current_time.date()
-            logging.info(f'Alert reminder loop successfuly executed on: {current_time}')
+                last_reminder_execution_day = current_time.date()
+                logging.info(f'Alert reminder loop successfuly executed on: {current_time}')
 
+        except Exception as e:
+            logging.error(f'Exception in the alert reminder loop: {traceback.format_exc()}')
+            sleep(10)
 
 @app.post('/log')
 async def set_log_level(data):
@@ -389,7 +402,7 @@ async def grafana_webhook(body: Request):
         return JSONResponse(content={'status': 'success', 'message': 'Alert queued'}, status_code=fastapi_status.HTTP_200_OK)
 
     except Exception as e:
-        logging.error(f"Error processing alert: {e}")
+        logging.error(f"Error processing alert: {traceback.format_exc()}")
         return JSONResponse(content={'status': 'error', 'message': 'Error processing alert'}, status_code=fastapi_status.HTTP_400_BAD_REQUEST)
 
 

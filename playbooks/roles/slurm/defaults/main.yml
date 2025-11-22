@@ -1,6 +1,6 @@
 ---
 munge_conf_path: "/etc/munge"
-slurm_spool_path: "/var/spool_{{ cluster_name }}/slurmd"
+slurm_spool_path: "/var/spool/slurmd"
 slurm_conf_path: "/etc/slurm"
 slurm_log_path: "/var/log/slurm"
 slurm_exec: "/usr"

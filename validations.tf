@@ -8,12 +8,12 @@ data "oci_core_image" "compute_validation" {
 
 data "oci_core_image" "login_validation" {
     count               = var.login_node ? 1 : 0
-    image_id = local.login_image
+    image_id = local.controller_image
 }
 
 data "oci_core_image" "monitoring_validation" {
     count               = var.monitoring_node ? 1 : 0
-    image_id = local.monitoring_image
+    image_id = local.controller_image
 }
 
 
@@ -67,7 +67,7 @@ resource "null_resource" "validate_login_username" {
   count               = var.login_node ? 1 : 0
   lifecycle {
     precondition {
-      condition     = var.login_username == local.expected_username_login
+      condition     = var.controller_username == local.expected_username_login
       error_message = "Invalid username for the selected OS on login node. Use 'ubuntu' for Ubuntu images and 'opc' for Oracle Linux images."
     }
   }
@@ -77,7 +77,7 @@ resource "null_resource" "validate_monitoring_username" {
   count               = var.monitoring_node ? 1 : 0
   lifecycle {
     precondition {
-      condition     = var.monitoring_username == local.expected_username_monitoring
+      condition     = var.controller_username == local.expected_username_monitoring
       error_message = "Invalid username for the selected OS on monitoring node. Use 'ubuntu' for Ubuntu images and 'opc' for Oracle Linux images."
     }
   }  

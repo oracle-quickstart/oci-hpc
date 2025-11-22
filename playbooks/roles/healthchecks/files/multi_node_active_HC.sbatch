@@ -44,9 +44,9 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
   # Run healthcheck if file is older than 60s or missing
   if [ "$TIME_DIFF" -gt 60 ]; then
     # run all the multi-node active healthchecks
-    python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile /var/log/healthchecks/hostfile_$SLURM_JOB_ID --mode 2
-    sleep 2
     srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 10s python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --mode 1
+    sleep 5
+    python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile /var/log/healthchecks/hostfile_$SLURM_JOB_ID --mode 2
     sleep 2
     # Get the hostnames of the assigned nodes
     nodes=($(scontrol show hostname $SLURM_JOB_NODELIST))
