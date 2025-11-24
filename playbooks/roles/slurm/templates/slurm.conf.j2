@@ -52,7 +52,7 @@ TreeWidth=2048
 SlurmctldParameters=enable_configless
 SlurmdParameters=numa_node_as_socket
 MaxNodeCount=10000
-UnkillableStepTimeout=128
+UnkillableStepTimeout=600
 AuthAltTypes=auth/jwt
 AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}
 {% if healthchecks|bool %}
