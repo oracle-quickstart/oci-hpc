@@ -188,8 +188,8 @@ The Controller is running a service that will read messages in the queue and sto
   * Add/remove the node to prometheus.yml
   * Add/remove the node in slurm configuration i.e. topology.conf and gres.conf
 
-## Notes on Nvidia GB200 Deployments
-Currently the TerraForm connector is not working with GB200 shapes due to requirements around GPU memory cluster constructs.  When deploying this shape you should configure and deploy the stack as usual EXCEPT that the initial size of the cluster needs to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial gpumemorycluster like this.
+## Notes on Deployments for Memory Fabric Based Shapes, such as Nvidia GB200 / GB300
+When deploying this shape you should configure and deploy the stack as usual EXCEPT that the initial size of the cluster should to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial GPU Memory Cluster like this.
 
 First check that the lifecycle_state is AVAILABLE, the fabric_health needs to be HEALTHY, and check AVAILABLE nodes:
 ```
@@ -198,12 +198,12 @@ mgmt fabrics list
 
 Now use the OCID from above for --fabric, as well as the number of AVAILABLE hosts for --count:
 ```
-mgmt clusters create --count 16 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
+mgmt clusters create --count 16 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
 ```
 
 This should create a computegpumemorycluster with a name like cluster_xxxxx, as well as stand up the number of instances given in --count.  You should see this reflected in ```mgmt fabrics list``` after a few minutes.
 
-Use the above command to add ONLY THE FIRST SET OF INSTANCES.  See below on how to add additional gpumemoryfabrics to the compute cluster named gb200 that was created above (otherwise inter-rack communication will not work).
+Use the above command to add ONLY THE FIRST SET OF INSTANCES.  See below on how to add additional gpumemoryfabrics to the compute cluster named my_cluster that was created above (otherwise inter-rack communication will not work).
 
 To instantiate more hosts from this same computegpumemoryfabric to this cluster, do this with the corresponding cluster_xxxxx name for these hosts as shown as memory_cluster_name in ```mgmt fabrics list```:
 ```
@@ -212,7 +212,7 @@ mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
 
 To add hosts from other computegpumemoryfabrics to the cluster:
 ```
-mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
+mgmt clusters add memory-fabric --count 18 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
 ```
 
 To delete a computegpumemorycluster and terminate all of the instances:
@@ -240,7 +240,7 @@ Resizing of HPC cluster with Cluster Network consist of 2 major sub-steps:
 
 ### Using mgmt to resize the cluster
 > [!IMPORTANT]
-> If you are using GB200 hosts, see special notes above
+> If you are using GB200 or GB300 hosts, see special notes above
 
 The mgmt tool is deployed on the controller node as part of the HPC cluster Stack deployment. 
 

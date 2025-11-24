@@ -54,12 +54,12 @@
 - name: set topology var
   ansible.builtin.set_fact:
     topology: "topo-tree:{{cluster_name}}:{{rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'][-40:]}}"
-  when: "'GPU.GB200' in shape"
+  when: "'GPU.GB' in shape"
 
 - name: set topology var
   ansible.builtin.set_fact:
     topology: "topo-tree:{{cluster_name}}:{{rdma_metadata['rackId'][-40:]}}"
-  when: "not 'GPU.GB200' in shape and not 'GPU.H' in shape"
+  when: "not 'GPU.GB' in shape and not 'GPU.H' in shape"
 
 - name: Render systemd units for slurmd
   become: true
