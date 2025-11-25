@@ -7,16 +7,6 @@
   include_role:
     name: safe_yum
 
-- name: Get DEB architecture # noqa no-changed-when
-  ansible.builtin.command: dpkg --print-architecture
-  register: deb_architecture
-  when: ansible_os_family == 'Debian'
-
-- name: Set DPKG architecture
-  set_fact:
-    arch_suffix: "{{ deb_architecture.stdout }}"
-  when: ansible_os_family == 'Debian'
-
 - name: Map system architecture to suffix
   set_fact:
     arch_suffix: "{{ arch_map[ansible_architecture] }}"
