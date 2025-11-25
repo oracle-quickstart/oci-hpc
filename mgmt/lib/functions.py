@@ -356,9 +356,12 @@ def get_slurm_state():
             parts = line.strip().split()
             for part in parts:
                 if part.startswith("SlurmdStartTime="):
-                    start_str = part.split("=")[1]
-                    start_time = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
-                    sinfo_dict[node]["slurm_up_time"] = int((current_time - start_time).total_seconds())
+                    try:
+                        start_str = part.split("=")[1]
+                        start_time = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                        sinfo_dict[node]["slurm_up_time"] = int((current_time - start_time).total_seconds())
+                    except Exception as e:
+                        sinfo_dict[node]["slurm_up_time"] = 0
 
 
     return sinfo_dict
