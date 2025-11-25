@@ -1,7 +1,7 @@
 
 resource "oci_core_instance" "login" {
   count               = var.login_node ? 1 : 0
-  depends_on          = [oci_core_subnet.public-subnet]
+  depends_on          = [oci_core_subnet.public-subnet, null_resource.cluster]
   availability_domain = var.login_ad
   compartment_id      = var.targetCompartment
   shape               = var.login_shape
