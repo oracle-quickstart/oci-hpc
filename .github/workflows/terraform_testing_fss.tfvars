@@ -2,7 +2,7 @@
 
 add_nfs=true
 home_fss=true
-create_fss=true
+create_fss="new"
 slurm_ha=true
 mysql_admin_username="admin"
 mysql_admin_password="Admin1234!"
