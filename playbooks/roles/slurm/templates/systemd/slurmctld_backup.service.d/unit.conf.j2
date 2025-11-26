@@ -2,5 +2,5 @@
 Requires=munge.service
 
 [Service]
-Environment="SLURMCTLD_OPTIONS=-R"
+Environment="SLURMCTLD_OPTIONS=-R" "S2N_DONT_MLOCK=1"
 Restart=always

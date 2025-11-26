@@ -52,7 +52,7 @@ jobs:
           cp .github/workflows/public_ip.tf public_ip.tf
           cp .github/workflows/terraform_testing.tfvars terraform.tfvars
           terraform init
-          terraform apply --auto-approve -var="slurm_version=24.11.7-1"
+          terraform apply --auto-approve
 
       - name: Wait for nodes to be configured (max 30 minutes)
         run: |
