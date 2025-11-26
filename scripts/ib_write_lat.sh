@@ -48,7 +48,7 @@ case "$shape" in
     HCA_ARRAY=(mlx5_0  mlx5_1  mlx5_3  mlx5_4)
     ;;
   BM.GPU.GB300.4)
-    HCA_ARRAY=(mlx5_0  mlx5_1  mlx5_3  mlx5_4)
+    HCA_ARRAY=(mlx5_0 mlx5_1 mlx5_2 mlx5_3 mlx5_5 mlx5_6 mlx5_7 mlx5_8)
     ;;
   BM.GPU.B4.8)
     HCA_ARRAY=(mlx5_1  mlx5_2  mlx5_3  mlx5_4
