@@ -2,7 +2,7 @@
 - name: Get nccl version
   become: true
   ansible.builtin.shell: |
-    find -L /usr/lib /usr/lib64 /usr/local/lib /usr/lib/x86_64-linux-gnu -name "libnccl.so*" -print |
+    find -L /usr/lib /usr/lib64 /usr/local/lib /usr/lib/{{ ansible_architecture }}-linux-gnu -name "libnccl.so*" -print |
     grep -E "libnccl\.so\.[0-9]+\.[0-9]+\.[0-9]+$" |
     awk -F".so." '{print $2}' | head -n 1
   register: nccl_version_output
@@ -88,7 +88,7 @@
       become: true
       ansible.builtin.copy:
         src: "{{so_file.files[0].path}}"
-        dest: "/usr/lib/x86_64-linux-gnu/{{so_file.files[0].path | basename}}"
+        dest: "/usr/lib/{{ ansible_architecture }}-linux-gnu/{{so_file.files[0].path | basename}}"
         mode: "0644"
         remote_src: true
       when: ansible_os_family == "Debian"
