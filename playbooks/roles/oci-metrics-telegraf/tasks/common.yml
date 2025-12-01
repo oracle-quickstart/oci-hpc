@@ -10,22 +10,46 @@
     gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
   when: ansible_os_family == 'RedHat'
 
-- name: Telegraf repo setup
+- name: Ensure keyrings directory exists
   become: true
-  block:
-    - name: Remove legacy InfluxData repo (without signed-by)
-      ansible.builtin.apt_repository:
-        repo: "deb https://repos.influxdata.com/debian stable main"
-        state: absent
-    - name: Telegraf |no apt key
-      ansible.builtin.get_url:
-        url: https://repos.influxdata.com/influxdata-archive_compat.key
-        dest: /usr/share/keyrings/influxdata-archive.gpg
-    - name: Telegraf | apt source
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main"
-        state: present
-  when: ansible_os_family == "Debian"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  when: ansible_os_family == 'Debian'
+
+- name: Remove old InfluxData GPG key if exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/influxdata.gpg
+    state: absent
+  when: ansible_os_family == 'Debian'
+
+- name: Download and install InfluxData GPG key
+  become: true
+  ansible.builtin.shell: |
+    curl -fsSL https://repos.influxdata.com/influxdata-archive_compat.key | gpg --dearmor -o /etc/apt/keyrings/influxdata.gpg
+    chmod 0644 /etc/apt/keyrings/influxdata.gpg
+  when: ansible_os_family == 'Debian'
+
+- name: Manage InfluxData APT repositories - for Telegraf
+  become: true
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/influxdata.gpg] https://repos.influxdata.com/debian stable main"
+    filename: influxdata
+    state: present
+    update_cache: false
+  when: ansible_os_family == 'Debian'
+
+- name: Update apt cache for InfluxData repository only
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+  environment:
+    APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: "1"
+  when: ansible_os_family == 'Debian'
+  ignore_errors: true
 
 - name: Install Telegraf
   vars:

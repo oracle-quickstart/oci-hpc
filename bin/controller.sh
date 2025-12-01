@@ -160,7 +160,7 @@ if [ $creating_python_install_dir ]; then
   uv pip install ansible
   if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
     if [ $vid == 8 ]; then
-      uv pip install ansible-core==2.12
+      uv pip install ansible-core==2.12.9
     fi
   fi
   uv pip install oci-cli
@@ -235,16 +235,17 @@ if [ $creating_python_install_dir ]; then
   uv pip install uvicorn
 
   $VENV_PATH/bin/ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
+  $VENV_PATH/bin/ansible-galaxy collection install ansible.posix --upgrade --force > /dev/null
+  $VENV_PATH/bin/ansible-galaxy collection install community.crypto --upgrade --force > /dev/null
+  $VENV_PATH/bin/ansible-galaxy collection install ansible.utils --upgrade --force > /dev/null
   $VENV_PATH/bin/ansible-galaxy collection install community.general --upgrade --force > /dev/null
-  $VENV_PATH/bin/ansible-galaxy collection install ansible.posix --force > /dev/null
-  $VENV_PATH/bin/ansible-galaxy collection install community.crypto --force > /dev/null
-  $VENV_PATH/bin/ansible-galaxy collection install ansible.utils --force > /dev/null
   if ( [ $ID == "ol" ] || [ $ID == "centos" ] ) && [ $vid == 8 ] ; then 
       export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
       export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt
+      # $VENV_PATH/bin/ansible-galaxy collection install community.general==9.5.2 --upgrade --force > /dev/null
       $VENV_PATH/bin/ansible-galaxy collection install git+https://github.com/oracle/oci-ansible-collection.git > /dev/null
   else
-      $VENV_PATH/bin/ansible-galaxy collection install oracle.oci --force > /dev/null
+      $VENV_PATH/bin/ansible-galaxy collection install oracle.oci --upgrade --force > /dev/null
   fi
 fi
 

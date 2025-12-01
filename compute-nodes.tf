@@ -8,7 +8,7 @@ resource "random_string" "cc_name" {
 
 resource "oci_core_instance" "compute_cluster_instances" {
   count               = var.stand_alone && var.rdma_enabled ? var.node_count : 0
-  depends_on          = [oci_core_compute_cluster.compute_cluster, oci_functions_function.function]
+  depends_on          = [oci_core_compute_cluster.compute_cluster, oci_functions_function.function, null_resource.cluster]
   availability_domain = var.ad
   compartment_id      = var.targetCompartment
   shape               = var.cluster_network_shape
@@ -86,7 +86,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
 
 resource "oci_core_instance" "compute_instances" {
   count               = var.stand_alone && (!var.rdma_enabled) ? var.node_count : 0
-  depends_on          = [oci_functions_function.function]
+  depends_on          = [oci_functions_function.function, null_resource.cluster]
   availability_domain = var.ad
   compartment_id      = var.targetCompartment
   shape               = var.instance_pool_shape

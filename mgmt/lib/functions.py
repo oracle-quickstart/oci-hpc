@@ -133,10 +133,10 @@ def get_updates_based_on_url(nodes,HTTP_SERVER_PORT,filename):
 
     if version >= (3, 12):
         current_time = datetime.now(UTC)
-        time_threshold = (current_time.now(UTC) - unreachable_timeout).replace(tzinfo=timezone.utc)
+        time_threshold = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
     else:
-        current_time = datetime.utcnow()
-        time_threshold = (current_time.utcnow() - unreachable_timeout).replace(tzinfo=timezone.utc)
+        current_time = datetime.now().astimezone(timezone.utc)
+        time_threshold = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
     current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
     ip_addresses = [node.ip_address for node in nodes]
@@ -319,10 +319,10 @@ def get_slurm_state():
     # Run sinfo -N -h and capture output
     if version >= (3, 12):
         current_time = datetime.now(UTC)
-        time_threshold = (current_time.now(UTC) - timedelta(minutes=10))
+        time_threshold = (current_time - timedelta(minutes=10))
     else:
-        current_time = datetime.utcnow()
-        time_threshold = (current_time.utcnow() - timedelta(minutes=10))
+        current_time = datetime.now().astimezone(timezone.utc)
+        time_threshold = (current_time - timedelta(minutes=10))
         
     try:
         result = subprocess.run(
@@ -356,9 +356,12 @@ def get_slurm_state():
             parts = line.strip().split()
             for part in parts:
                 if part.startswith("SlurmdStartTime="):
-                    start_str = part.split("=")[1]
-                    start_time = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
-                    sinfo_dict[node]["slurm_up_time"] = int((current_time - start_time).total_seconds())
+                    try:
+                        start_str = part.split("=")[1]
+                        start_time = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                        sinfo_dict[node]["slurm_up_time"] = int((current_time - start_time).total_seconds())
+                    except Exception as e:
+                        sinfo_dict[node]["slurm_up_time"] = 0
 
 
     return sinfo_dict

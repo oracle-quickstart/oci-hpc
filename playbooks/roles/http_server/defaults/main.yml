@@ -1,2 +1,2 @@
 ---
-http_server_directory: "/opt/oci-hpc/http_server/"
+http_server_directory: "/opt/oci-hpc/http_server"

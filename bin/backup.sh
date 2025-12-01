@@ -128,17 +128,17 @@ export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
 source ${UV_INSTALL_DIR}/env
 export VENV_PATH=${UV_INSTALL_DIR}/oci
 
-$VENV_PATH/bin/ansible-galaxy collection install ansible.netcommon --upgrade --force > /dev/null
-$VENV_PATH/bin/ansible-galaxy collection install community.general --upgrade --force > /dev/null
-$VENV_PATH/bin/ansible-galaxy collection install ansible.posix --force > /dev/null
-$VENV_PATH/bin/ansible-galaxy collection install community.crypto --force > /dev/null
-$VENV_PATH/bin/ansible-galaxy collection install ansible.utils --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install -c ansible.netcommon --upgrade --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install -c community.general --upgrade --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install -c ansible.posix --upgrade --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install -c community.crypto --upgrade --force > /dev/null
+$VENV_PATH/bin/ansible-galaxy collection install -c ansible.utils --upgrade --force > /dev/null
 if ( [ $ID == "ol" ] || [ $ID == "centos" ] ) && [ $vid == 8 ] ; then 
     export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
     export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt
-    $VENV_PATH/bin/ansible-galaxy collection install git+https://github.com/oracle/oci-ansible-collection.git > /dev/null
+    $VENV_PATH/bin/ansible-galaxy collection install -c git+https://github.com/oracle/oci-ansible-collection.git > /dev/null
 else
-    $VENV_PATH/bin/ansible-galaxy collection install oracle.oci --force > /dev/null
+    $VENV_PATH/bin/ansible-galaxy collection install -c oracle.oci --upgrade --force > /dev/null
 fi
 
 threads=$(nproc)

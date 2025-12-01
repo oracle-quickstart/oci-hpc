@@ -19,7 +19,6 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0775"
-  run_once: true
 
 - name: Create systemd service unit file
   ansible.builtin.template:
@@ -176,7 +175,6 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0775"
-  run_once: true
 
 - name: Reload systemd daemon
   ansible.builtin.systemd:
