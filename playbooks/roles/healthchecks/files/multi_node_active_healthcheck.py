@@ -69,6 +69,14 @@ shape_mapping = {
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
         "ib_write_bw": 384
     },
+    "BM.GPU.GB200-v3.4": {
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
+        "ib_write_bw": 384
+    },    
+    "BM.GPU.GB300.4": {
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
+        "ib_write_bw": 384
+    },    
     "BM.Optimized3.36": {
         "var_NCCL_IB_HCA": "=mlx5_2",
         "ib_write_bw": 96

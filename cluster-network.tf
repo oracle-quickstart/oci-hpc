@@ -1,5 +1,5 @@
 resource "oci_core_cluster_network" "cluster_network" {
-  count          = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && (var.cluster_network_shape != "BM.GPU.GB200.4" && var.cluster_network_shape != "BM.GPU.GB200-v2.4") ? 1 : 0
+  count          = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && (var.cluster_network_shape != "BM.GPU.GB200.4" && var.cluster_network_shape != "BM.GPU.GB200-v2.4" && var.cluster_network_shape != "BM.GPU.GB200-v3.4" && var.cluster_network_shape != "BM.GPU.GB300.4") ? 1 : 0
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_functions_function.function, null_resource.cluster]
   compartment_id = var.targetCompartment
   instance_pools {
@@ -24,7 +24,7 @@ resource "oci_core_cluster_network" "cluster_network" {
 
 
 resource "oci_core_compute_gpu_memory_cluster" "compute_gpu_memory_cluster" {
-  count                     = var.node_count > 0 && (var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4") ? 1 : 0
+  count                     = var.node_count > 0 && (var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4") ? 1 : 0
   availability_domain       = var.ad
   compartment_id            = var.targetCompartment
   compute_cluster_id        = oci_core_compute_cluster.compute_cluster[0].id

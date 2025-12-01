@@ -88,6 +88,8 @@ def get_devices():
         "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
         "BM.GPU.GB200.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
         "BM.GPU.GB200-v2.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
+        "BM.GPU.GB200-v3.4": ["mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"],
+        "BM.GPU.GB300.4": ["mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"],
         "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
@@ -453,6 +455,21 @@ def check_gpu_count():
         '0018:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
         '0019:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
     ]
+
+    lspci_expected_results_gb200-v3 = [
+        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0019:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+    ]
+
+    lspci_expected_results_gb300 = [
+        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0019:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+    ]
+
     shape = metadata.get('shape')
     tmp_results = []
 
@@ -493,7 +510,7 @@ def check_gpu_count():
         lines = output.split('\n')
         # Remove empty lines
         lines = [line for line in lines if line]
-        if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4"]:
+        if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4"]:
             expected_gpus = 4
         elif shape in ["VM.GPU.A10.1", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1"]:
             expected_gpus = 1
@@ -549,6 +566,14 @@ def check_gpu_count():
                 find_number = "2941"
                 expected_gpus = 4
                 lspci_expected_results = lspci_expected_results_gb200
+            elif shape in ["BM.GPU.GB200-v3.4"]:
+                find_number = "2941"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_gb200-v3
+            elif shape in ["BM.GPU.GB300.4"]:
+                find_number = "2941"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_gb300                
 
             for line in lines:
                 if line.find("NVIDIA") != -1 and line.find(find_number) != -1:
@@ -737,6 +762,12 @@ def check_wpa_auth(metadata):
     elif shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
         interface_range = range(4)
         required_authenticated = 0
+    elif shape in ["BM.GPU.GB200-v3.4"]:
+        interface_range = range(8)
+        required_authenticated = 8
+    elif shape in ["BM.GPU.GB300.4"]:
+        interface_range = range(8)
+        required_authenticated = 8
     else:
         logger.error("Unsupported machine shape.")
         return ["Unsupported machine shape."]
@@ -958,6 +989,8 @@ def get_nvlink_speed():
         "BM.GPU.B200.8":     {"count": 18, "speed": 50,      "gpu": 8},
         "BM.GPU.GB200.4":    {"count": 18, "speed": 50,      "gpu": 4},
         "BM.GPU.GB200-v2.4": {"count": 18, "speed": 50,      "gpu": 4},
+        "BM.GPU.GB200-v3.4": {"count": 18, "speed": 50,      "gpu": 4},
+        "BM.GPU.GB300.4":    {"count": 18, "speed": 50,      "gpu": 4},
         "VM.GPU.A100.40G.1": {"count": 12, "speed": 25,      "gpu": 1},
         "VM.GPU.A100.80G.1": {"count": 12, "speed": 25,      "gpu": 1}
     }
@@ -1140,7 +1173,7 @@ if __name__ == '__main__':
     run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool)) or args.slurm
 
     # 1.3 Check OCA Status
-    if (run_all or args.oca_stat) and (not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
+    if (run_all or args.oca_stat) and (not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -1200,7 +1233,7 @@ if __name__ == '__main__':
             gpu_results = None
 
     # 7.3 Check GPU PCIe width
-    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):    
+    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):    
         try:
             gpu_pcie_results = check_gpu_pcie()
         except Exception as e:
@@ -1307,7 +1340,7 @@ if __name__ == '__main__':
             bad_page_issues = []
 
     # 17.3 Check if all interfaces have an IP address
-    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):  
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):  
         if oca_state == "COMPLETED":
             try:
                 missing_ips,ip_list = check_ip_addresses()
@@ -1343,7 +1376,7 @@ if __name__ == '__main__':
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if (run_all or args.oca_stat) and ( not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
+    if (run_all or args.oca_stat) and ( not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
@@ -1401,7 +1434,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 7.4 Summarize GPU PCIe width check
-    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
+    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):
             if gpu_pcie_results:
                 logger.error(f"{host_serial} - GPU PCIe Width: {gpu_pcie_results}")
                 slurm_reason("GPU PCIe Width Error")
@@ -1491,7 +1524,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 17.4 Summarize all interfaces have an IP address check
-    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]):
+    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):
         if len(missing_ips) > 0:
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
             slurm_reason("Missing IPs")

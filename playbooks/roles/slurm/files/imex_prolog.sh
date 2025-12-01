@@ -3,8 +3,7 @@
 set -ex
 
 shape=$(curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .shape)
-
-if [ ${shape} = "BM.GPU.GB200.4" ] || [ ${shape} = "BM.GPU.GB200-v2.4" ]; then
+if [ ${shape} = "BM.GPU.GB200.4" ] || [ ${shape} = "BM.GPU.GB200-v2.4" ] || [ ${shape} = "BM.GPU.GB200-v3.4" ] || ${shape} = "BM.GPU.GB300.4" ]; then
 
   sudo --preserve-env=SLURM_NODELIST,SLURM_JOB_ID bash <<'SUDO'
     set -ex

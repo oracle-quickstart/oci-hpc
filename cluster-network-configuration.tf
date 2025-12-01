@@ -1,5 +1,5 @@
 resource "oci_core_instance_configuration" "cluster-network-instance_configuration" {
-  count          = var.rdma_enabled && (!var.stand_alone || var.cluster_network_shape == "BM.GPU.GB200.4") ? 1 : 0
+  count          = var.rdma_enabled && (!var.stand_alone || var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4") ? 1 : 0
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
@@ -22,7 +22,7 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
         "cluster_name"        = local.cluster_name
         "controller_name"     = oci_core_instance.controller.display_name
         "hostname_convention" = var.hostname_convention
-        "memory_cluster_name" = var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" ? "${local.cluster_name}-fabric1" : ""
+        "memory_cluster_name" = var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4" ? "${local.cluster_name}-fabric1" : ""
       }
       metadata = {
         # TODO: add user key to the authorized_keys 

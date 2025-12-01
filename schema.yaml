@@ -595,6 +595,12 @@ variables:
           - eq:
             - ${cluster_network_shape}
             - "BM.GPU.GB200-v2.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v3.4"            
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB300.4"            
 
   stand_alone:
     title: Use Stand-Alone instances
@@ -610,6 +616,12 @@ variables:
           - eq:
             - ${cluster_network_shape}
             - "BM.GPU.GB200-v2.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v3.4"            
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB300.4"
 
   compute_cluster_exists:
     title: Use existing Compute Cluster
@@ -642,6 +654,12 @@ variables:
           - eq:
             - ${cluster_network_shape}
             - "BM.GPU.GB200-v2.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v3.4"            
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB300.4"
 
   cluster_network_shape:
     type: enum
@@ -655,6 +673,8 @@ variables:
       - "BM.GPU.B200.8"
       - "BM.GPU.GB200.4"
       - "BM.GPU.GB200-v2.4"
+      - "BM.GPU.GB200-v3.4"
+      - "BM.GPU.GB300.4"
       - "BM.GPU.MI300X.8"
       - "BM.GPU.MI355X-v0.8"
       - "BM.GPU.MI355X.8"

@@ -1,5 +1,5 @@
 resource "oci_core_compute_cluster" "compute_cluster" {
-  count = (var.stand_alone && var.rdma_enabled && var.node_count > 0) || (var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4") ? 1 : 0
+  count = (var.stand_alone && var.rdma_enabled && var.node_count > 0) || (var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4") ? 1 : 0
   #Required
   availability_domain = var.ad
   compartment_id      = var.targetCompartment
