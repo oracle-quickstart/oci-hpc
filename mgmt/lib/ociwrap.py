@@ -156,7 +156,7 @@ def run_add(nodes, count, names):
         logger.error("The resize script cannot work for a cluster if there are no nodes in the cluster")
         sys.exit(1)
     for first_node in nodes:
-        if first_node.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]:
+        if "GPU.GB" in first_node.shape:
             memory_clusters = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name).data
             for memory_cluster in memory_clusters:
                 mc_id=memory_cluster.id
@@ -590,7 +590,7 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
         else:
             new_display_name=hostname
             new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname}
-        if shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]:
+        if "GPU.GB" in shape:
             new_tags["memory_cluster_name"]=memory_cluster_name
         if config.role == "login":
             new_tags["login"]="true"
@@ -794,7 +794,7 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
 
         new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
         new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
-        if shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]:
+        if "GPU.GB" in shape:
             new_tags["memory_cluster_name"]=memory_cluster_name
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
@@ -889,7 +889,7 @@ def remove_inventory(cluster_name):
 
 def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None):
     generate_inventory(config,cluster_name)
-    if not config.stand_alone or config.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]:
+    if not config.stand_alone or "GPU.GB" in config.shape:
         instance_config_data=generate_instance_config(config, controller_hostname, cluster_name, memory_cluster_name = gpu_memory_cluster_name)
         instance_config_ocid=instance_config_data.id
 

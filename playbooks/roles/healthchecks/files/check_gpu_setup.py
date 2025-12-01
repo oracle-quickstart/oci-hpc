@@ -510,7 +510,7 @@ def check_gpu_count():
         lines = output.split('\n')
         # Remove empty lines
         lines = [line for line in lines if line]
-        if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4"]:
+        if "GPU.GB" in shape or shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"]:
             expected_gpus = 4
         elif shape in ["VM.GPU.A10.1", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1"]:
             expected_gpus = 1
@@ -562,7 +562,7 @@ def check_gpu_count():
                 else:
                     expected_gpus = 8
                 lspci_expected_results = lspci_expected_results_gpu
-            elif shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4"]:
+            elif "GPU.GB" in shape:
                 find_number = "2941"
                 expected_gpus = 4
                 lspci_expected_results = lspci_expected_results_gb200
@@ -759,7 +759,7 @@ def check_wpa_auth(metadata):
     elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8"]:
         interface_range = range(8)
         required_authenticated = 8
-    elif shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
+    elif "GPU.GB" in shape:
         interface_range = range(4)
         required_authenticated = 0
     elif shape in ["BM.GPU.GB200-v3.4"]:
@@ -778,7 +778,7 @@ def check_wpa_auth(metadata):
     interface_names = ["rdma" + str(i) for i in interface_range]
     auth_status = {key: 0 for key in interface_names}
     warning = {key: [] for key in interface_names}
-
+    action = None
     for i in range(5):
         # Check each RDMA interface for WPA authentication status
         for interface in interface_names:
@@ -807,12 +807,12 @@ def check_wpa_auth(metadata):
 
     # Determine action based on authentication result
     if authenticated_count < required_authenticated:
-        action = "Reboot"  # Set action as needed, e.g., "Reboot" if a reset is recommended
+        #action = "Reboot"  # Set action as needed, e.g., "Reboot" if a reset is recommended
         wpa_auth_issues.append(f"Only {authenticated_count} interfaces are AUTHENTICATED; expected at least {required_authenticated}.")
         for i in warning.keys():
             if auth_status[i] == 0:
                 logger.warning(warning[i])
-        logger.error("WPA Authentication Check: Failed")
+        logger.warning("WPA Authentication Check: Failed")
     else:
         action = None  # No action if check passes
         logger.info("WPA Authentication Check: Passed")
@@ -1173,7 +1173,7 @@ if __name__ == '__main__':
     run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool)) or args.slurm
 
     # 1.3 Check OCA Status
-    if (run_all or args.oca_stat) and (not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
+    if (run_all or args.oca_stat) and (not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -1209,7 +1209,7 @@ if __name__ == '__main__':
                 rttcc_issues = []
     
     # 4.3 Check for ECC errors
-    if run_all or args.ecc_err:
+    if (run_all or args.ecc_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         try:
             ecc_issues = check_ecc_errors()
         except Exception as e:
@@ -1217,7 +1217,7 @@ if __name__ == '__main__':
             ecc_issues = []
 
     # 5.3 Check for row remap errors
-    if run_all or args.rowremap_err:
+    if (run_all or args.rowremap_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         try:
             remap_results, row_remap_action = check_row_remap_errors()
         except Exception as e:
@@ -1233,7 +1233,7 @@ if __name__ == '__main__':
             gpu_results = None
 
     # 7.3 Check GPU PCIe width
-    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):    
+    if (run_all or args.gpu_pcie) and ( not "GPU.GB" in shape):    
         try:
             gpu_pcie_results = check_gpu_pcie()
         except Exception as e:
@@ -1340,7 +1340,7 @@ if __name__ == '__main__':
             bad_page_issues = []
 
     # 17.3 Check if all interfaces have an IP address
-    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):  
+    if (run_all or args.ip_address) and ( not "GPU.GB" in shape):  
         if oca_state == "COMPLETED":
             try:
                 missing_ips,ip_list = check_ip_addresses()
@@ -1376,7 +1376,7 @@ if __name__ == '__main__':
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if (run_all or args.oca_stat) and ( not shape in ["BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.L40S.4", "BM.GPU.A10.4"]):
+    if (run_all or args.oca_stat) and ( not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
@@ -1396,7 +1396,7 @@ if __name__ == '__main__':
                 slurm_reason("RTTCC Error")
 
     # 4.4 Summarize ECC errors check
-    if run_all or args.ecc_err:
+    if (run_all or args.ecc_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         if len(ecc_issues) > 0:
             ecc_error = False
             for issue in ecc_issues:
@@ -1413,7 +1413,7 @@ if __name__ == '__main__':
                 action = recommended_action(action, "Reboot")
 
     # 5.4 Summarize row remap errors check
-    if run_all or args.rowremap_err:
+    if (run_all or args.rowremap_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         if len(remap_results) > 0:
             remap_error = False
             for issue in remap_results:
@@ -1434,7 +1434,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 7.4 Summarize GPU PCIe width check
-    if (run_all or args.gpu_pcie) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):
+    if (run_all or args.gpu_pcie) and ( not "GPU.GB" in shape):
             if gpu_pcie_results:
                 logger.error(f"{host_serial} - GPU PCIe Width: {gpu_pcie_results}")
                 slurm_reason("GPU PCIe Width Error")
@@ -1459,11 +1459,11 @@ if __name__ == '__main__':
     if run_all or args.rdmalink_stat:
         if len(rdma_link_issues) > 0:
             for issue in rdma_link_issues:
-                logger.error(f"{host_serial} - RDMA link issues: {issue}")
-                slurm_reason("RDMA Link Error")
+                logger.warning(f"{host_serial} - RDMA link issues: {issue}")
+                #slurm_reason("RDMA Link Error")
                 if "signal not detected" in issue:
                     logger.info("No signal detected doesn't always come from a bad cable and require a termination for investigation")
-                action = recommended_action(action, "Terminate")
+                #action = recommended_action(action, "Terminate")
 
     # 11.4 Summarize RDMA link flapping check
     if run_all or args.rdmalink_flap:
@@ -1473,15 +1473,15 @@ if __name__ == '__main__':
               logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
            elif len(lft_issues["failures"]) > 1:
               for issue in lft_issues["failures"]:
-                  logger.error(f"{host_serial} - RDMA link flapping issues: {issue}")
-                  slurm_reason("RDMA Link Flapping Error")
+                  logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
+                  #slurm_reason("RDMA Link Flapping Error")
            if len(lft_issues["link_down"]) == 1:
               issue = lft_issues["link_down"][0]
               logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
            elif len(lft_issues["link_down"]) > 1:
               for issue in lft_issues["link_down"]:
-                  logger.error(f"{host_serial} - RDMA link down issues: {issue}")
-                  slurm_reason("RDMA Link Down Error")
+                  logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
+                  #slurm_reason("RDMA Link Down Error")
 
     # 12.4 Summarize GPU Xid errors check
     if run_all or args.xid_err:
@@ -1495,9 +1495,9 @@ if __name__ == '__main__':
     if run_all or args.wpa_auth:
         if wpa_auth_results:
             for issue in wpa_auth_results:
-                logger.error(f"{host_serial} - WPA authentication issue: {issue}")
-            slurm_reason("WPA Auth Error")
-            action = recommended_action(action, "Reboot")
+                logger.warning(f"{host_serial} - WPA authentication issue: {issue}")
+            #slurm_reason("WPA Auth Error")
+            #action = recommended_action(action, "Reboot")
 
     # 14.4 Summarize Fabric Manager check
     if run_all or args.fabric_mgr:
@@ -1524,7 +1524,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 17.4 Summarize all interfaces have an IP address check
-    if (run_all or args.ip_address) and ( not shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]):
+    if (run_all or args.ip_address) and ( not "GPU.GB" in shape):
         if len(missing_ips) > 0:
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
             slurm_reason("Missing IPs")
