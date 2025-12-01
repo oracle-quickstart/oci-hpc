@@ -22,6 +22,8 @@ elif [ "$shape" == "BM.GPU.GB200.4" ]; then
    HCA="mlx5_0 mlx5_1 mlx5_3 mlx5_4"
 elif [ "$shape" == "BM.GPU.GB200-v2.4" ]; then
    HCA="mlx5_0 mlx5_1 mlx5_3 mlx5_4"
+elif [ "$shape" == "BM.GPU.GB200-v3.4" ]; then
+   HCA="mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"
 elif [ "$shape" == "BM.GPU.GB300.4" ]; then
    HCA="mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"
 elif [ "$shape" == "BM.GPU.B4.8" ]; then
