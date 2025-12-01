@@ -660,12 +660,28 @@ Currently, the TerraForm connector is not working with GB200 based shapes due to
 1. Check that the `lifecycle_state` is `AVAILABLE`, the `fabric_health` must be `HEALTHY`, and check `AVAILABLE` nodes:
 ```
 mgmt fabrics list
+                                                                        Fabrics
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ id                                                                           ┃ lifecycle_state ┃ fabric_health ┃ memory_cluster ┃ OCCUPIED ┃ AVAILABLE ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ ocid1.computegpumemoryfabric.oc1....                                         │ AVAILABLE       │ HEALTHY       │ None           │ 0        │ 18        │
+└──────────────────────────────────────────────────────────────────────────────┴─────────────────┴───────────────┴────────────────┴──────────┴───────────┘
 ```
 2. Use the OCID from above for `--fabric`, as well as the number of `AVAILABLE` hosts for `--count`:
 ```
 mgmt clusters create --count 16 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
 ```
-This creates a `computegpumemorycluster` with a name `cluster_xxxxx` and spins up the number of instances given in `--count`.  This is reflected in the `mgmt fabrics list` command output after a few minutes.
+This creates a `computegpumemorycluster` with a name `cluster_xxxxx` and spins up the number of instances given in `--count`.  This is reflected in the `mgmt fabrics list` command output after a few minutes. The nodes and their respective informations can be seen with:
+```
+mgmt nodes list
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+┃ hostname                 ┃ healthcheck_recommendat… ┃ status  ┃ compute_status ┃ cluster_name  ┃ memory_cluster_name ┃ ocid                      ┃ serial        ┃ ip_address    ┃ shape               ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+│ trusting-dory-controller │                          │ running │ configuring    │ trusting-dory │ None                │ ocid1.instance.oc1.ap-sy… │ Not Specified │ 172.16.0.237  │ VM.Standard.E5.Flex │
+│ GPU-7853                 │ Healthy                  │ running │ configuring    │ trusting-dory │ trusting-dory_wuuja │ ocid1.instance.oc1.ap-sy… │ 2517XNG03H    │ 172.16.62.172 │ BM.GPU.GB200.4      │
+│ GPU-986                  │ Healthy                  │ running │ configuring    │ trusting-dory │ trusting-dory_wuuja │ ocid1.instance.oc1.ap-sy… │ 2530XNG2FT    │ 172.16.35.217 │ BM.GPU.GB200.4      │
+└──────────────────────────┴──────────────────────────┴─────────┴────────────────┴───────────────┴─────────────────────┴───────────────────────────┴───────────────┴───────────────┴─────────────────────┘
+```
 
 > [!WARNING]
 > Use the above command **ONLY** to add the first set of instances (see below how to add `gpumemoryfabrics` to the compute cluster named `gb200` that has been created above), otherwise inter-rack communication will not work.
