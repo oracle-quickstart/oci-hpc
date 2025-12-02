@@ -4,7 +4,7 @@
 
 ## Table of Content
 
-Use the top-right button to display.
+User can hit the top-right `Outline` button to display the interactive help.
 
 - [HPC Cluster Stack](#hpc-cluster-stack)
   - [Table of Content](#table-of-content)
