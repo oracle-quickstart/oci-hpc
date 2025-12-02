@@ -289,15 +289,21 @@ Select this option to use existing Function container registry.
 
 ### Controller Node Options
 
-In this section, define controller node Availability Domain, shape, cores and memory (for Flex virtual machines) and size of the boot volume. Image is defined in the next section.
+In this section, define controller node Availability Domain, shape, cores and memory (for Flex virtual machines) and size of the boot volume. The image is defined in the next section.
 
 ### Management Nodes Image Options
+
+There are possibly up to 4 management nodes:
+* Controller (required) : for cluster admin tasks (node management, user management, cluster resizing, etc.)
+* Login: for users tasks (job submission, data management)
+* Monitoring: monitoring tasks dedicated node (Prometheus, Grafana)
+* Controller backup: for High Availability purpose (requires the File Storage Service to host a slurm MySQL HeatWave database)
 
 Marketplace images are based on Oracle Linux 8. They are HPC specific versions with NVIDIA or AMD GPU drivers (except HPC_OL8) and RDMA drivers preinstalled.
 
 Other images such as Ubuntu or CentOS can be used. Username must be changed accordingly (default is `opc` for OL8, `ubuntu` for Ubuntu).
 
-If a non-listed image must be used, provide the image ocid. The image must have been previously imported as a Custom Image.
+If a non-listed image must be used, the image ocid must be provided. The image must have been previously imported as a Custom Image.
 
 ### Compute Nodes Options
 
@@ -319,19 +325,28 @@ HPC cluster monitoring tools can be installed. This includes alerting tools, and
 
 ### Storage Options
 
-Depending on the requirements, different storage options can be selected.
+Depending on the requirements, different "hot" storage options can be configured:
+* OCI File Storage service
+* OCI File Storage with Lustre service
+* Local Storage (NVMe)
 
 #### Lustre Filesystem
 
-The OCI File Storage with Lustre managed service...
+The OCI File Storage with Lustre is a fully managed service that delivers the performance ans scale benefits of Lustre, including:
+* Milliseconds of meta-data latency
+* Capacity to petabytes
+* High throughput of terabytes per second
+while eliminating the complexity of management.
+
+Capacity is a multiple of 31.2 TB. Performance tier must be selected form 125, 250, 500 or 1000 MBps per provisioned TB.
 
 #### File Storage Service
 
 The OCI File Storage managed service is a highly available network file system (NFS) that enables multiple servers to access data. It is elastic up to 8 exabytes with asynchronous replication, snapshot and clone capabilities.
 
 The cluster can connect to an exising File Storage service or create a new one.
-For an exisintg, simply provide the information (address, mounting path, credentials).
-For a new one, specify the number of mount targets. Mount target performance is 1 Gbps per default but can be upgraded to 20, 40 or 80 Gbps with High Performance Mount Targets (HPMT). HPMT-20, -40 and -80 respectively include 20, 40 and 80 TB of storage capacity.
+For an `existing` one, simply provide the required information (address, mounting path, credentials).
+For a `new` one, specify the number of mount targets. Mount target performance is 1 Gbps per default but can be upgraded to 20, 40 or 80 Gbps with High Performance Mount Targets (HPMT). HPMT-20, -40 and -80 respectively include 20, 40 and 80 TB of storage capacity.
 
 Other options include the NFS mounting path, the NFS server path, Compartment and Availability Domain.
 
@@ -415,7 +430,7 @@ Resizing a HPC cluster with Cluster Network consists in 2 major sub-steps:
 > [!IMPORTANT]
 > If you are using GB200 hosts, see special notes above.
 
-The `mgmt` tool is deployed on the controller node as part of the HPC Cluster Stack deployment. 
+The `mgmt` tool is deployed on the controller node as part of the HPC Cluster Stack deployment. The full mgmt command help is available [here](documentation/mgmt-help.txt). 
 
 ##### Adding nodes
 
@@ -585,11 +600,17 @@ Each cluster has its own log file with named `create_clustername_date.log` and `
 
 ## Troubleshooting
 
+The cluster state and activity is logged in different files.
+
 ### Where are my logs?
 
 #### slurm (jobs) logs
 
+The slurm job logs are created in the folder from which the job is launched. Its generic name is `slurm-jobid.out`.
+
 #### cluster logs
+
+The cluster logs (creation, resizing, deletion) are stored in the `/config/logs` folder.
 
 ### How do I reconfigure my stack?
 
@@ -677,9 +698,9 @@ mgmt nodes list
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
 ┃ hostname                 ┃ healthcheck_recommendat… ┃ status  ┃ compute_status ┃ cluster_name  ┃ memory_cluster_name ┃ ocid                      ┃ serial        ┃ ip_address    ┃ shape               ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
-│ trusting-dory-controller │                          │ running │ configuring    │ trusting-dory │ None                │ ocid1.instance.oc1.ap-sy… │ Not Specified │ 172.16.0.237  │ VM.Standard.E5.Flex │
-│ GPU-7853                 │ Healthy                  │ running │ configuring    │ trusting-dory │ trusting-dory_wuuja │ ocid1.instance.oc1.ap-sy… │ 2517XNG03H    │ 172.16.62.172 │ BM.GPU.GB200.4      │
-│ GPU-986                  │ Healthy                  │ running │ configuring    │ trusting-dory │ trusting-dory_wuuja │ ocid1.instance.oc1.ap-sy… │ 2530XNG2FT    │ 172.16.35.217 │ BM.GPU.GB200.4      │
+│ trusting-dory-controller │                          │ running │ configuring    │ cluster-name  │ None                │ ocid1.instance.oc1.ap-sy… │ Not Specified │ 172.16.xxx.xxx  │ VM.Standard.E5.Flex │
+│ GPU-123                 │ Healthy                  │ running │ configuring    │ cluster-name  │ cluster-name_wuuja  │ ocid1.instance.oc1.ap-sy… │ 1234ABCXXX    │ 172.16.xxx.xxx │ BM.GPU.GB200.4      │
+│ GPU-456                  │ Healthy                  │ running │ configuring    │ cluster-name  │ cluster-name_wuuja  │ ocid1.instance.oc1.ap-sy… │ 5678DEFYYY    │ 172.16.xxx.xxx │ BM.GPU.GB200.4      │
 └──────────────────────────┴──────────────────────────┴─────────┴────────────────┴───────────────┴─────────────────────┴───────────────────────────┴───────────────┴───────────────┴─────────────────────┘
 ```
 
