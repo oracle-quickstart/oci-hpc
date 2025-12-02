@@ -17,7 +17,7 @@ jobs:
   # This job deploys with a custom Ubuntu 22.04 image and a ubuntu user with FSS, slurm backup, mysql service on aarch 64 (compute + controller + monitoring + login + slurm_backup)
   deploy_ubuntu_fss_backup_all_aarch64:
     # The type of runner that the job will run on
-    runs-on: ubuntu_fss_aarch64
+    runs-on: ubuntu-fss-aarch64
     env:
       TF_VAR_controller_username: "ubuntu"
       TF_VAR_compute_username: "ubuntu"
@@ -114,7 +114,7 @@ jobs:
   # This job deploys with a custom Ubuntu 22.04 image and a ubuntu user without FSS on aarch 64 (compute) and x86 (controller + monitoring + login)
   deploy_ubuntu_mix_aarch64_x86:
     # The type of runner that the job will run on
-    runs-on: ubuntu_aarch64
+    runs-on: ubuntu-aarch64
     env:
       TF_VAR_controller_username: "ubuntu"
       TF_VAR_compute_username: "ubuntu"
