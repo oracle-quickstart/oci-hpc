@@ -456,7 +456,7 @@ def check_gpu_count():
         '0019:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
     ]
 
-    lspci_expected_results_gb200-v3 = [
+    lspci_expected_results_gb200_v3 = [
         '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
         '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
         '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
@@ -569,7 +569,7 @@ def check_gpu_count():
             elif shape in ["BM.GPU.GB200-v3.4"]:
                 find_number = "2941"
                 expected_gpus = 4
-                lspci_expected_results = lspci_expected_results_gb200-v3
+                lspci_expected_results = lspci_expected_results_gb200_v3
             elif shape in ["BM.GPU.GB300.4"]:
                 find_number = "2941"
                 expected_gpus = 4
