@@ -9,24 +9,19 @@ SlurmctldPidFile=/run/slurmctld.pid
 SlurmctldPort=6817
 SlurmdPidFile=/run/slurmd.pid
 SlurmdPort=6818
-SlurmdSpoolDir=/var/spool_{{ cluster_name }}/slurmd
+SlurmdSpoolDir=/var/spool/slurmd
 SlurmUser=slurm
 Prolog={{slurm_conf_path}}/prolog.d/*
 Epilog={{slurm_conf_path}}/epilog.d/*
 SchedulerParameters=nohold_on_prolog_fail
-MessageTimeout=20
-UnkillableStepTimeout=128
+MessageTimeout=120
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log
 StateSaveLocation={{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm
 SwitchType=switch/none
 TaskPlugin=task/affinity,task/cgroup
-
-{% if pam|bool %}
-PrologFlags=contain
-{% else %}
-PrologFlags=alloc,nohold
-{% endif %}
+JobContainerType=job_container/tmpfs
+PrologFlags=alloc,contain,serial
 InactiveLimit=0
 KillWait=30
 MinJobAge=300
@@ -36,7 +31,7 @@ Waittime=0
 GresTypes=gpu
 SchedulerType=sched/backfill
 SelectType=select/cons_tres
-SelectTypeParameters=CR_Core
+SelectTypeParameters=CR_Core_Memory
 AccountingStorageHost={{ controller_hostname }}
 {% if groups['slurm_backup'] | length > 0 %}
 AccountingStorageBackupHost={{ slurm_backup_hostname }}
@@ -55,7 +50,11 @@ TopologyPlugin=topology/tree
 TopologyParam=SwitchAsNodeRank
 TreeWidth=2048
 SlurmctldParameters=enable_configless
+SlurmdParameters=numa_node_as_socket
 MaxNodeCount=10000
+UnkillableStepTimeout=600
+AuthAltTypes=auth/jwt
+AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}
 {% if healthchecks|bool %}
 HealthCheckProgram={{slurm_conf_path}}/prolog.d/healthchecks.sh
 HealthCheckInterval=300
@@ -70,8 +69,6 @@ AccountingStorageEnforce=limits,associations,qos,safe
 JobCompType=jobcomp/none
 TrackWckey=no
 {% endif %}
-AuthAltTypes=auth/jwt
-AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}
 ResumeProgram=/etc/slurm/resume.sh
 SuspendProgram=/etc/slurm/suspend.sh
 ResumeRate=0

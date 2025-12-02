@@ -21,11 +21,13 @@
     opts: "{{ options }}"
     state: mounted
   when: options!=""
+
 - name: Mount NFS without options
   mount:
     path: "{{ local_path }}"
     src: "{{ export_host }}:{{ export_path | trim() }}"
     fstype: nfs
+    opts: defaults,nconnect=16
     state: mounted
   when: options==""
 

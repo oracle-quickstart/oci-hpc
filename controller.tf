@@ -74,7 +74,9 @@ resource "oci_core_instance" "controller" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
-    user_data           = base64encode(data.template_file.controller_config.rendered)
+    user_data           = base64encode(templatefile("${path.module}/config.controller", {
+      key = tls_private_key.ssh.private_key_pem
+    }))
   }
   source_details {
     //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
@@ -105,8 +107,8 @@ resource "null_resource" "controller" {
       "sudo mkdir -p /config",
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/"
       ],
-      var.create_fss ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+      var.create_fss == "new" ? [
+        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],
       [
@@ -199,19 +201,6 @@ resource "null_resource" "controller" {
       timeout     = "10m"
     }
   }
-  provisioner "file" {
-    content = templatefile("${path.module}/configure.tpl", {
-      configure = var.configure
-    })
-    destination = "/tmp/configure.conf"
-    connection {
-      host        = local.host
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-      timeout     = "10m"
-    }
-  }
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_openssh
@@ -289,11 +278,8 @@ resource "null_resource" "cluster" {
       rdma_netmask             = cidrnetmask(var.rdma_subnet),
       vcn_compartment          = var.vcn_compartment,
       zone_name                = local.zone_name,
-      home_nfs                 = var.home_nfs,
       create_fss               = var.create_fss,
-      home_fss                 = var.home_fss,
-      scratch_nfs              = var.use_scratch_nfs && var.node_count > 0,
-      scratch_nfs_path         = var.scratch_nfs_path,
+      shared_home              = var.shared_home,
       add_nfs                  = var.add_nfs,
       nfs_target_path          = var.nfs_target_path,
       nfs_source_IP            = local.nfs_source_IP,
@@ -306,11 +292,9 @@ resource "null_resource" "cluster" {
       slurm                    = var.slurm,
       slurm_version            = var.slurm_version,
       rack_aware               = var.rack_aware,
-      slurm_nfs_path           = var.create_fss ? var.nfs_source_path : "/config"
+      slurm_nfs_path           = var.create_fss == "new" ? var.nfs_source_path : "/config"
       spack                    = var.spack,
       ldap                     = var.ldap,
-      scratch_nfs_type         = var.scratch_nfs_type,
-      autoscaling              = var.autoscaling,
       cluster_name             = local.cluster_name,
       shape                    = local.shape,
       instance_pool_ocpus      = local.instance_pool_ocpus,
@@ -323,7 +307,6 @@ resource "null_resource" "cluster" {
       pyxis                    = var.pyxis,
       privilege_sudo           = var.privilege_sudo,
       privilege_group_name     = var.privilege_group_name,
-      latency_check            = var.latency_check,
       pam                      = var.pam,
       sacct_limits             = var.sacct_limits,
       region                   = var.region,
@@ -387,13 +370,13 @@ resource "null_resource" "cluster" {
       public_subnet_id            = local.controller_subnet_id
       login_shape                 = var.login_shape,
       login_ad                    = var.login_ad,
-      login_image                 = local.login_image
+      login_image                 = local.controller_image
       login_boot_volume_size      = var.login_boot_volume_size
-      use_marketplace_image_login = var.use_marketplace_image_login
+      use_marketplace_image_login = var.use_marketplace_image
       login_instance_pool_ocpus   = local.instance_pool_ocpus
       login_instance_pool_memory  = var.login_memory
       login_instance_pool_custom_memory = var.login_custom_memory
-      marketplace_listing_login   = var.marketplace_listing_login
+      marketplace_listing_login   = var.marketplace_listing
     })
 
     destination = "/config/conf/initial_configs.conf"
@@ -477,7 +460,6 @@ resource "null_resource" "configure" {
     inline = [
       "#!/bin/bash",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
-      "echo ${var.configure} > /tmp/configure.conf",
       "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
     "exit $exit_code"]

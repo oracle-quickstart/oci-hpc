@@ -75,8 +75,7 @@
           run_once: true
         - name: First try downloading .deb
           ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{
-              slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
+            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
             dest: "{{ slurm_nfs_path }}/slurm_rpms"
           when: ( not slurm_dwld.stat.exists )
           delegate_to: 127.0.0.1
@@ -84,8 +83,7 @@
   rescue:
     - name: Second try downloading .deb
       ansible.builtin.get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{
-          slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
         dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
       run_once: true
@@ -105,8 +103,7 @@
         - name: First try downloading RPMs
           environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
           ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{
-              item.item }}"
+            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"
             dest: "{{ slurm_nfs_path }}/slurm_rpms"
           when: ( not item.stat.exists )
           delegate_to: 127.0.0.1
@@ -252,7 +249,7 @@
     mode: "0755"
   when: healthchecks|bool
 
-- name: Copy imex prolog and epilog
+- name: Copy imex prolog 
   become: true
   ansible.builtin.copy:
     src: imex_prolog.sh
@@ -261,7 +258,7 @@
     group: root
     mode: "0755"
 
-- name: Copy imex prolog and epilog
+- name: Copy imex epilog
   become: true
   ansible.builtin.copy:
     src: imex_epilog.sh
@@ -269,3 +266,24 @@
     owner: root
     group: root
     mode: "0755"
+
+- name: Copy AMD Slurm metrics prolog
+  become: true
+  ansible.builtin.copy:
+    src: amd_prolog.sh
+    dest: "{{ slurm_conf_path }}/prolog.d/amd_prolog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'BM.GPU.MI' in shape"
+
+- name: Copy AMD Slurm metrics epilog
+  become: true
+  ansible.builtin.copy:
+    src: amd_epilog.sh
+    dest: "{{ slurm_conf_path }}/epilog.d/amd_epilog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'BM.GPU.MI' in shape"
+  

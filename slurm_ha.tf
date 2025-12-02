@@ -25,7 +25,9 @@ resource "oci_core_instance" "backup" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
-    user_data           = base64encode(data.template_file.controller_config.rendered)
+    user_data           = base64encode(templatefile("${path.module}/config.controller", {
+      key = tls_private_key.ssh.private_key_pem
+    }))
   }
   source_details {
     //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
@@ -116,18 +118,6 @@ resource "null_resource" "backup" {
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
-  provisioner "file" {
-    content = templatefile("${path.module}/configure.tpl", {
-      configure = var.configure
-    })
-    destination = "/tmp/configure.conf"
-    connection {
-      host        = local.host_backup
-      type        = "ssh"
-      user        = var.controller_username
-      private_key = tls_private_key.ssh.private_key_pem
-    }
-  }
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_pem
@@ -152,8 +142,8 @@ resource "null_resource" "setup_backup" {
       "sudo mkdir -p /config",
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
       ],
-      var.create_fss ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults\" | sudo tee -a /etc/fstab",
+      var.add_nfs ? [
+        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],
       [
@@ -189,11 +179,8 @@ resource "null_resource" "cluster_backup" {
       rdma_netmask             = cidrnetmask(var.rdma_subnet),
       vcn_compartment          = var.vcn_compartment,
       zone_name                = local.zone_name,
-      home_nfs                 = var.home_nfs,
       create_fss               = var.create_fss,
-      home_fss                 = var.home_fss,
-      scratch_nfs              = var.use_scratch_nfs && var.node_count > 0,
-      scratch_nfs_path         = var.scratch_nfs_path,
+      shared_home              = var.shared_home,
       add_nfs                  = var.add_nfs,
       nfs_target_path          = var.nfs_target_path,
       nfs_source_IP            = local.nfs_source_IP,
@@ -206,11 +193,9 @@ resource "null_resource" "cluster_backup" {
       slurm                    = var.slurm,
       slurm_version            = var.slurm_version,
       rack_aware               = var.rack_aware,
-      slurm_nfs_path           = var.create_fss ? var.nfs_source_path : "/config"
+      slurm_nfs_path           = var.create_fss == "new" ? var.nfs_source_path : "/config"
       spack                    = var.spack,
       ldap                     = var.ldap,
-      scratch_nfs_type         = var.scratch_nfs_type,
-      autoscaling              = var.autoscaling,
       cluster_name             = local.cluster_name,
       shape                    = local.shape,
       instance_pool_ocpus      = local.instance_pool_ocpus,
@@ -223,7 +208,6 @@ resource "null_resource" "cluster_backup" {
       pyxis                    = var.pyxis,
       privilege_sudo           = var.privilege_sudo,
       privilege_group_name     = var.privilege_group_name,
-      latency_check            = var.latency_check,
       pam                      = var.pam,
       sacct_limits             = var.sacct_limits,
       region                   = var.region,

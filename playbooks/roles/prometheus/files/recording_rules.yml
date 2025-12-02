@@ -4,76 +4,153 @@ groups:
     rules:
       # Node memory and boot volume checks
       - record: node_disk_free_ok
-        expr: avg by (hostname, cluster_name) (node_filesystem_avail_bytes{mountpoint="/"}) >= bool 50 * 1024 * 1024 * 1024
+        expr: avg by (hostname, cluster_name, vendor) (node_filesystem_avail_bytes{mountpoint="/"}) >= bool 50 * 1024 * 1024 * 1024
 
       - record: node_memory_availability_ok
-        expr: avg by (hostname, cluster_name) (node_memory_MemAvailable_bytes) >= bool 50 * 1024 * 1024 * 1024
+        expr: avg by (hostname, cluster_name, vendor) (node_memory_MemAvailable_bytes) >= bool 50 * 1024 * 1024 * 1024
 
       # GPU throttling checks
       - record: node_gpu_power_violation_ok
-        expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) == bool 0)
 
       - record: node_gpu_board_limit_violation_ok
-        expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) == bool 0)
 
       - record: node_gpu_thermal_violation_ok
-        expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) == bool 0)
 
       - record: node_gpu_sync_boost_violation_ok
-        expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m]) == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m]) == bool 0)
 
       - record: node_gpu_reliability_violation_ok
-        expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m]) == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m]) == bool 0)
 
       # PCIe error checks
       - record: node_pcie_aer_correctable_errors_ok
-        expr: min by (hostname, cluster_name) (increase(pcie_aer_correctable_error_count[5m]) == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (increase(pcie_aer_correctable_error_count[5m]) == bool 0)
 
       - record: node_pcie_aer_fatal_errors_ok
-        expr: min by (hostname, cluster_name) (increase(pcie_aer_fatal_error_count[5m]) == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (increase(pcie_aer_fatal_error_count[5m]) == bool 0)
 
       - record: node_pcie_aer_nonfatal_errors_ok
-        expr: min by(hostname, cluster_name) (increase(pcie_aer_nonfatal_error_count[5m]) == bool 0)
+        expr: min by(hostname, cluster_name, vendor) (increase(pcie_aer_nonfatal_error_count[5m]) == bool 0)
 
       - record: node_pcie_bus_inaccessible_ok
-        expr: min by (hostname, cluster_name) (pcie_bus_inaccessible_status == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (pcie_bus_inaccessible_status == bool 0)
 
       - record: node_pcie_bus_linkwidth_ok
-        expr: min by (hostname, cluster_name) (pcie_bus_linkwidth_status == bool 0)
+        expr: min by (hostname, cluster_name, vendor) (pcie_bus_linkwidth_status == bool 0)
 
       # Health checks via custom metrics
       - record: node_rttcc_ok
-        expr: min by(hostname, cluster_name) (rttcc_status == bool 0)
+        expr: min by(hostname, cluster_name, vendor) (rttcc_status == bool 0)
 
       - record: node_oca_ver_ok
-        expr: oca_version * on(hostname, cluster_name) oca_version
+        expr: oca_version * on(hostname, cluster_name, vendor) oca_version
 
       - record: node_rdma_device_status_ok
-        expr: min by(hostname, cluster_name) (rdma_device_status)
+        expr: min by(hostname, cluster_name, vendor) (rdma_device_status)
 
       - record: node_check_bus_issue_count_ok
-        expr: (check_bus_issue_count == bool 0) * on (hostname, cluster_name) (check_bus_issue_count == bool 0)
+        expr: (check_bus_issue_count == bool 0) * on (hostname, cluster_name, vendor) (check_bus_issue_count == bool 0)
 
       - record: node_rdma_link_flapping_ok
-        expr: min by(hostname, cluster_name) (rdma_link_noflap)
+        expr: min by(hostname, cluster_name, vendor) (rdma_link_noflap)
 
       - record: node_ecc_error_check_ok
-        expr: (gpu_ecc_error_check) * on (hostname, cluster_name) (gpu_ecc_error_check)
+        expr: (gpu_ecc_error_check) * on (hostname, cluster_name, vendor) (gpu_ecc_error_check)
 
       - record: node_gpu_count_ok
-        expr: (gpu_count) * on (hostname, cluster_name) (gpu_count)
+        expr: (gpu_count) * on (hostname, cluster_name, vendor) (gpu_count)
 
       - record: node_gpu_row_remap_error_check
-        expr: (gpu_row_remap_error_check== bool 0) * on (hostname, cluster_name) (gpu_row_remap_error_check== bool 0)
+        expr: (gpu_row_remap_error_check== bool 0) * on (hostname, cluster_name, vendor) (gpu_row_remap_error_check== bool 0)
 
       - record: node_xid_error_check
-        expr: (xid_error_check) * on (hostname, cluster_name) (xid_error_check)
+        expr: (xid_error_check) * on (hostname, cluster_name, vendor) (xid_error_check)
 
       - record: node_up_check
-        expr: (up{instance=~".*:9100$"}) * on (hostname, cluster_name) (up{instance=~".*:9100$"})
+        expr: (up{instance=~".*:9100$"}) * on (hostname, cluster_name, vendor) (up{instance=~".*:9100$"})
 
       - record: active_nodes
-        expr: group by (hostname, cluster_name) (up{instance=~".*:9100$"} == 1 and (time() - timestamp(up{instance=~".*:9100$"}) < 300))
+        expr: group by (hostname, cluster_name, vendor) (up{instance=~".*:9100$"} == 1 and (time() - timestamp(up{instance=~".*:9100$"}) < 300))
+
+      # AMD GPU ECC checks
+      - record: node_amd_ecc_correctable_ok
+        expr: |
+          (
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_correct_umc) < bool 100)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_correct_gfx) < bool 50)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_correct_xgmi_wafl) < bool 10)
+          ) or on(hostname, cluster_name, vendor) (amd_gpu_ecc_correct_total * 0 + 1)
+
+      - record: node_amd_ecc_uncorrectable_ok
+        expr: |
+          (
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_umc) == bool 0)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_gfx) == bool 0)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_xgmi_wafl) == bool 0)
+          ) or on(hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_total * 0 + 1)
+
+      # AMD GPU health check
+      - record: node_amd_gpu_health_ok
+        expr: (min by (hostname, cluster_name, vendor) (amd_gpu_health) == bool 1) or on (hostname, cluster_name, vendor) (amd_gpu_health * 0 + 1)
+
+      - record: node_amd_gpu_power_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_ppt_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_power_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_power_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_socket_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_thermal_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_hbm_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_hbm_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_hbm_thermal_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_hbm_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_processor_hot_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_processor_hot_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_processor_hot_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_processor_hot_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_vr_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_vr_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_vr_thermal_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_vr_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_current_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_current_accumulated_counter[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_current_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_current_violation_percentage) < bool 50
+
+      # AMD PCIe health checks
+      - record: node_amd_pcie_link_speed_ok
+        expr: (min by (hostname, cluster_name, vendor) (amd_pcie_speed) >= bool 32) or on(hostname, cluster_name, vendor) (amd_pcie_speed * 0 + 1)
+
+      - record: node_amd_pcie_link_width_ok
+        expr: (min by (hostname, cluster_name, vendor) (amd_pcie_bandwidth) >= bool 16) or on(hostname, cluster_name, vendor) (amd_pcie_bandwidth * 0 + 1)
+
+      - record: node_amd_pcie_replay_ok
+        expr: (min by (hostname, cluster_name, vendor) (increase(amd_pcie_replay_count[5m])) == bool 0) or on(hostname, cluster_name, vendor) (amd_pcie_replay_count * 0 + 1)
+
+      - record: node_amd_pcie_nack_ok
+        expr: (min by (hostname, cluster_name, vendor) (increase(amd_pcie_nack_sent_count[5m])) == bool 0) or on(hostname, cluster_name, vendor) (amd_pcie_nack_sent_count * 0 + 1)
+
+      - record: node_amd_pcie_recovery_ok
+        expr: (min by (hostname, cluster_name, vendor) (increase(amd_pcie_recovery_count[5m])) < bool 5) or on(hostname, cluster_name, vendor) (amd_pcie_recovery_count * 0 + 1)
 
       # combine them: this will be 1 only if *all* success‑flags are 1
       - record: node_health_status
@@ -140,6 +217,22 @@ groups:
           )
           *
           (
+            node_amd_gpu_health_ok or node_up_check
+          )
+          *
+          (
+            node_amd_ecc_uncorrectable_ok or node_up_check
+          )
+          *
+          (
+            node_amd_pcie_link_speed_ok or node_up_check
+          )
+          *
+          (
+            node_amd_pcie_link_width_ok or node_up_check
+          )
+          *
+          (
             node_disk_free_ok or node_up_check
           )
-          ) and on(hostname, cluster_name) active_nodes
+          ) and on(hostname, cluster_name, vendor) active_nodes

@@ -161,7 +161,8 @@ class XidChecker:
                 "140": {"description": "Unrecovered ECC Error", "severity": "Warn"},
                 "141": {"description": "Reserved", "severity": "Warn"},
                 "142": {"description": "Reserved", "severity": "Warn"},
-                "143": {"description": "GPU Initialization Failure", "severity": "Warn"}
+                "143": {"description": "GPU Initialization Failure", "severity": "Warn"},
+                "149": {"description": "NETIR_MFDE_EVENT", "severity": "Warn"}
                 }
 
     def check_gpu_xid(self):
@@ -171,7 +172,7 @@ class XidChecker:
             for XID in self.XID_EC.keys():
                 logger.debug(f"Checking for GPU Xid {XID} error in dmesg")
                 
-                matches = re.findall(f"NVRM: Xid \(PCI:(.*?): {XID},", dmesg_output)
+                matches = re.findall(fr"NVRM: Xid \(PCI:(.*?): {XID},", dmesg_output)
                 tmp_dict = {}
                 for match in matches:
                     if match not in tmp_dict:

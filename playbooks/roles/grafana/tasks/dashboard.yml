@@ -7,16 +7,6 @@
   include_role:
     name: safe_yum
 
-- name: Get DEB architecture # noqa no-changed-when
-  ansible.builtin.command: dpkg --print-architecture
-  register: deb_architecture
-  when: ansible_os_family == 'Debian'
-
-- name: Set DPKG architecture
-  set_fact:
-    arch_suffix: "{{ deb_architecture.stdout }}"
-  when: ansible_os_family == 'Debian'
-
 - name: Map system architecture to suffix
   set_fact:
     arch_suffix: "{{ arch_map[ansible_architecture] }}"
@@ -83,9 +73,12 @@
     - g.libsonnet
     - gauge-panel.libsonnet
     - gauge-panel-util.libsonnet
-    - gpu-health.jsonnet
-    - gpu-metrics-single-variables.libsonnet
-    - gpu-metrics-single.jsonnet
+    - amd-gpu-health.jsonnet
+    - amd-gpu-metrics-single-variables.libsonnet
+    - amd-gpu-metrics-single.jsonnet
+    - nvidia-gpu-health.jsonnet
+    - nvidia-gpu-metrics-single-variables.libsonnet
+    - nvidia-gpu-metrics-single.jsonnet
     - host-metrics-single-variables.libsonnet
     - host-metrics-single.jsonnet
     - multi-node-variables.libsonnet
@@ -133,8 +126,10 @@
     /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
     /usr/local/bin/jsonnet -J vendor cluster-level.jsonnet -o cluster-level.json
     /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
-    /usr/local/bin/jsonnet -J vendor gpu-metrics-single.jsonnet -o gpu-metrics-single.json
-    /usr/local/bin/jsonnet -J vendor gpu-health.jsonnet -o gpu-health.json
+    /usr/local/bin/jsonnet -J vendor amd-gpu-metrics-single.jsonnet -o amd-gpu-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor amd-gpu-health.jsonnet -o amd-gpu-health.json
+    /usr/local/bin/jsonnet -J vendor nvidia-gpu-metrics-single.jsonnet -o nvidia-gpu-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor nvidia-gpu-health.jsonnet -o nvidia-gpu-health.json
     /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
     /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
     /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
@@ -169,8 +164,10 @@
   loop:
     - cluster-level.json
     - command-center.json
-    - gpu-health.json
-    - gpu-metrics-single.json
+    - amd-gpu-health.json
+    - amd-gpu-metrics-single.json
+    - nvidia-gpu-health.json
+    - nvidia-gpu-metrics-single.json
     - host-metrics-single.json
     - multi-node.json
     - nccl-traces.json
@@ -203,8 +200,10 @@
     - multi-node.json
     - host-metrics-single.json
     - storage-metrics.json
-    - gpu-metrics-single.json
-    - gpu-health.json
+    - amd-gpu-health.json
+    - amd-gpu-metrics-single.json
+    - nvidia-gpu-health.json
+    - nvidia-gpu-metrics-single.json
     - oci-vcn.json    
     - oci-block.json
     - oci-igw.json

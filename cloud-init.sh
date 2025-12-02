@@ -46,7 +46,7 @@ fss=fss-${controller_name}
 fss_ip=$(host "${fss}" | awk '{print $4}')
 controller_ip=$(host "${controller_name}"| awk '{print $4}')
 
-if [ "$controller" == "true" ]; then
+if [ "$controller" == "true" ] && [ "$controller_name" == `hostname` ]; then
     echo "Do not run the cloud-init on the controller, this will create a circular dependency on the /config mount"
     exit
 fi
@@ -64,7 +64,7 @@ if [ "$fss_ip" == "$controller_ip" ]; then
     fi
 else
     if ! grep -qF "$fss:/config /config nfs" /etc/fstab; then
-        echo "$fss:/config /config nfs defaults" >> /etc/fstab
+        echo "$fss:/config /config nfs defaults,nconnect=16" >> /etc/fstab
         systemctl daemon-reload
         echo "Entry added to /etc/fstab."
     else
@@ -107,6 +107,6 @@ if [ "$login" == "true" ]; then
     su - $default_user /config/bin/login.sh 2>&1 | tee -a /tmp/cloud-init.log
 elif [ "$monitoring" == "true" ]; then
     su - $default_user /config/bin/monitoring.sh 2>&1 | tee -a /tmp/cloud-init.log
-else
+elif [ "$controller" != "true" ] ; then
     su - $default_user /config/bin/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
 fi

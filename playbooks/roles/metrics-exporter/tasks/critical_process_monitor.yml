@@ -1,21 +1,4 @@
 ---
-- name: Install required packages
-  vars:
-    package_name:
-      - python3-prometheus-client
-    package_state: present
-    package_cache: true
-  ansible.builtin.include_role:
-    name: safe_yum
-  when: ansible_distribution == 'Ubuntu'
-
-- name: Install prometheus_client python package
-  become: true
-  ansible.builtin.pip:
-    name: prometheus_client
-    executable: /usr/bin/pip3
-  ignore_errors: true
-
 - name: Copy service file to scripts directory
   ansible.builtin.copy:
     src: critical_process_monitor.py

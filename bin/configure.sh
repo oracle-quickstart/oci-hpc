@@ -40,19 +40,6 @@ if [ -f /config/playbooks/inventory ] ; then
   sudo chown $username:$username /config/playbooks/inventory_${clustername}
 fi 
 
-
-
-if [ -f /tmp/configure.conf ] ; then
-        configure=$(cat /tmp/configure.conf)
-else
-        configure=true
-fi
-
-if [[ $configure != true ]] ; then
-        echo "Do not configure is set. Exiting"
-        exit
-fi
-
 # Update the forks to a 8 * threads
 
 
@@ -62,6 +49,9 @@ fi
 #
 export UV_INSTALL_DIR=/config/venv/${ID^}_${VERSION_ID}_$(uname -m)/
 export VENV_PATH=${UV_INSTALL_DIR}/oci
+
+# Always use the system-wide ansible.cfg we generated in controller.sh
+export ANSIBLE_CONFIG=/etc/ansible/ansible.cfg
 
 if [[ $execution -eq 1 ]] ; then
   ANSIBLE_HOST_KEY_CHECKING=False $VENV_PATH/bin/ansible --private-key ~/.ssh/cluster.key all -m setup --tree /tmp/ansible > /dev/null 2>&1

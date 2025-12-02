@@ -5,6 +5,8 @@ import os
 import re
 import time
 import pyudev
+import subprocess
+import shutil
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,8 +62,11 @@ def get_pci_addresses(subsystem):
     return devices
 
 def get_gpu_pci_addresses():
-    import subprocess
     devices = {}
+    # Check if nvidia-smi exists before trying to use it
+    if not shutil.which('nvidia-smi'):
+        logger.info("nvidia-smi not found - assuming non-NVIDIA system, skipping GPU metrics")
+        return devices    
     try:
         out = subprocess.check_output([
             "nvidia-smi",

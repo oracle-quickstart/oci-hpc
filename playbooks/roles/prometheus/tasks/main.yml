@@ -1,5 +1,13 @@
 ---
 # tasks file for prometheus
+- name: Map system architecture to suffix
+  set_fact:
+    arch_suffix: "{{ arch_map[ansible_architecture] }}"
+  vars:
+    arch_map:
+      x86_64: amd64
+      aarch64: arm64
+
 - name: Create user for prometheus
   become: true
   user:

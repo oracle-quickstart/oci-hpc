@@ -16,7 +16,7 @@ def add(ip, hostname, ocid):
         if ocid_dict[ip] is None:
             logger.error(f"Node with {ip} is not ready yet. The webserver containing the node info is not available")
             return
-        ocid=ocid_dict[ip]
+        ocid=ocid_dict[ip]["ocid"]
     content={'ip_address': ip, 'status': 'starting', 'controller_status': 'configuring'}
     if hostname is not None:
         content={'ip_address': ip, 'status': 'starting', 'hostname': hostname, 'controller_status': 'configuring'}

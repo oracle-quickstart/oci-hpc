@@ -5,7 +5,8 @@
     path: "{{ slurm_conf_path }}/gres.conf"
     marker: "### {mark} {{ item.value.hostname }}"
     state: absent
-  when: "'GPU' in item.value.shape"
+  delegate_to: 127.0.0.1
+  when: item.value.shape in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"]
   with_items: "{{ remove_compute_info | dict2items }}"
 
 - name: Remove nodes from current topology before adding them

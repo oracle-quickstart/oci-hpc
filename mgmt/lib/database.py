@@ -83,6 +83,8 @@ class NodesMixin:
     update_count               = mapped_column(Integer, nullable=True)
     slurm_state                = mapped_column(String(128), nullable=True)
     slurm_partition            = mapped_column(String(128), nullable=True)
+    slurm_reservation          = mapped_column(String(128), nullable=True)
+    slurm_up_time              = mapped_column(Integer, nullable=True)
     oci_host_id                = mapped_column(String(128), nullable=True)
 
 class Nodes(NodesMixin, Base):
@@ -435,30 +437,6 @@ def filter_nodes(session, query=None, filter="all"):
     return query
 
 
-def filter_nodes_by_cluster(query, cluster_name=None, memory_cluster_name=None):
-    if cluster_name is not None:
-        query = query.filter(
-            Nodes.cluster_name == cluster_name
-        )
-    elif memory_cluster_name is not None:
-        query = query.filter(
-            Nodes.memory_cluster_name == memory_cluster_name
-        )
-    else:
-        # NoOP. This allows the function to be called unconditionally and only
-        # filter data is one of the cluster name args is passed in.
-        return query
-
-    query = query.filter(
-        or_(
-            ~Nodes.role.in_(["controller", "login", "monitoring"]),
-            Nodes.role.is_(None)
-        )
-    )
-
-    return query
-
-
 
 def get_query_by_fields(query, field_dict):
     """Get a query filtered by node fields and latest healthcheck results."""
@@ -748,7 +726,10 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     """Get all nodes whose active healthcheck is expired."""
 
     current_time = current_utc_time()
-    time_th = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
+    time_th = current_time - active_hc_timeout
+    
+    initial_validation_timeout=timedelta(hours=1)
+    initial_validation_time_th = (current_time - initial_validation_timeout)
 
     query = get_nodes_with_latest_healthchecks()
 
@@ -760,32 +741,49 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     logger.debug(f"Count after role filter: {query.count()}")
     query = query.filter(label_map["shape"].in_([
         "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
-        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8", "BM.GPU.GB200-v2.4", "BM.GPU.MI300X.8"
+        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.MI300X.8"
     ]))
     logger.debug(f"Count after shape filter: {query.count()}")
-    query = query.filter(label_map["slurm_state"] == "idle")
-    logger.debug(f"Count after slurm state filter: {query.count()}")
-    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after passive healthcheck filter: {query.count()}")
+    idle_query = query.filter(label_map["slurm_state"] == "idle")
+    logger.debug(f"Count after slurm state filter: {idle_query.count()}")
+    idle_query = idle_query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after passive healthcheck filter: {idle_query.count()}")
+    idle_query= idle_query.filter(label_map.get("slurm_up_time") > 300)
+    logger.debug(f"Count after slurm uptime check ( > 5minutes): {idle_query.count()}")
     # Add having for expired active healthcheck
     col = label_map.get("active_healthcheck_last_time")
     if col is not None:
-        query = query.filter(
+        idle_query= idle_query.filter(
             or_(
                 col == None,  # NULL treated as expired
                 cast(col, DateTime) < time_th
             )
         )
-    logger.debug(f"Count after expired active healthcheck filter: {query.count()}")
-    result = query.all()
-    return result
+    logger.debug(f"Count after expired active healthcheck filter: {idle_query.count()}")
+    idle_result = idle_query.all()
+
+    starting_nodes_query = query.filter(label_map["slurm_state"] == "resv")
+    logger.debug(f"Count after slurm status check: {starting_nodes_query.count()}")
+    starting_nodes_query = starting_nodes_query.filter(label_map["slurm_reservation"]=="InitialValidation")
+    logger.debug(f"Count after slurm reservation name check : {starting_nodes_query.count()}")
+    col = label_map.get("active_healthcheck_last_time")
+    if col is not None:
+        starting_nodes_query= starting_nodes_query.filter(
+            or_(
+                col == None,  # NULL treated as expired
+                cast(col, DateTime) < initial_validation_time_th
+            )
+        )
+    logger.debug(f"Count after slurm initial validation timeout check: {starting_nodes_query.count()}")
+    starting_nodes_results = starting_nodes_query.all()
+    return idle_result,starting_nodes_results
 
 
 def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
     """Get all nodes whose active healthcheck is expired."""
     current_time = current_utc_time()
     time_th_multi_node = (current_time - multi_node_hc_timeout).replace(tzinfo=timezone.utc)
-    active_hc_timeout=timedelta(minutes=10)
+    active_hc_timeout=timedelta(minutes=2)
     time_th_active_hc = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
 
     query = get_nodes_with_latest_healthchecks()
@@ -799,7 +797,7 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
     query = query.filter(label_map["shape"].in_([
         "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
         "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4",
-        "BM.GPU.B200.8", "BM.GPU.GB200-v2.4", "BM.GPU.MI300X.8"
+        "BM.GPU.B200.8", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.MI300X.8"
     ]))
     logger.debug(f"Count after shape filter: {query.count()}")
 
@@ -836,10 +834,66 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
         )
     logger.debug(f"Count after multi node healthcheck Healthy for 24 hours filter: {query_healthy.count()}")
     query_potentially_bad = query.filter(
-        label_map["multi_node_healthcheck_recommendation"] == "Potentially Bad"
+        label_map["multi_node_healthcheck_status"] == "Potentially Bad"
     )
     logger.debug(f"Count after multi node healthcheck Potentially Bad filter: {query_potentially_bad.count()}")
     return query_healthy.all(), query_potentially_bad.all()
+
+
+def get_nodes_for_initial_multi_node_check(multi_node_hc_timeout):
+    """Get all nodes whose active healthcheck is expired."""
+    current_time = current_utc_time()
+    time_th_multi_node = (current_time - multi_node_hc_timeout).replace(tzinfo=timezone.utc)
+    active_hc_timeout=timedelta(minutes=10)
+    time_th_active_hc = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
+
+    query = get_nodes_with_latest_healthchecks()
+
+    # Map subquery columns
+    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+    # Filters
+    query = query.filter(label_map["role"] == "compute")
+    logger.debug(f"Count after role filter: {query.count()}")
+
+    query = query.filter(label_map["shape"].in_([
+        "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
+        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4",
+        "BM.GPU.B200.8", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.MI300X.8"
+    ]))
+    logger.debug(f"Count after shape filter: {query.count()}")
+
+    query = query.filter(label_map["slurm_state"] == "resv")
+    logger.debug(f"Count after slurm state filter: {query.count()}")
+    query = query.filter(label_map["slurm_reservation"]=="InitialValidation")
+    logger.debug(f"Count after slurm reservation check: {query.count()}")
+    number_of_nodes=query.count()
+    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after passive healthcheck Healthy filter: {query.count()}")
+    query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after active healthcheck Healthy for 10 minutes filter: {query.count()}")
+
+    query_healthy = query.filter(
+        or_(
+            label_map["multi_node_healthcheck_recommendation"] == "Healthy",
+            label_map["multi_node_healthcheck_recommendation"] == "",
+            label_map["multi_node_healthcheck_recommendation"].is_(None),
+        )
+    )
+    col = label_map.get("multi_node_healthcheck_last_time")
+    if col is not None:
+        query_healthy = query_healthy.filter(
+            or_(
+                col.is_(None),
+                cast(col, DateTime) < time_th_multi_node
+            )
+        )
+    logger.debug(f"Count after multi node healthcheck Healthy filter: {query_healthy.count()}")
+    query_potentially_bad = query.filter(
+        label_map["multi_node_healthcheck_status"] == "Potentially Bad"
+    )
+    logger.debug(f"Count after multi node healthcheck Potentially Bad filter: {query_potentially_bad.count()}")
+    return query_healthy.all(), query_potentially_bad.all()
+
 
 def get_nodes_by_status(status):
     """Get all nodes with a specific status"""
@@ -1420,3 +1474,39 @@ def db_create_healthcheck(node_ocid, hc_dict):
         return False
     finally:
         session.close()
+
+def get_nodes_validated():
+
+    current_time = current_utc_time()
+    time_th_active_hc = (current_time - timedelta(hours=1)).replace(tzinfo=timezone.utc)
+    query = get_nodes_with_latest_healthchecks()
+    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+    query = query.filter(label_map["role"] == "compute")
+    logger.debug(f"Count after role compute filter: {query.count()}")
+    query = query.filter(label_map["slurm_state"] == "resv")
+    nodes_in_validation_count = query.count()
+    logger.debug(f"Count after slurm_state resv filter: {nodes_in_validation_count}")
+    query = query.filter(label_map["slurm_reservation"] == "InitialValidation")
+    logger.debug(f"Count after slurm_reservation InitialValidation filter: {query.count()}")
+    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after passive_healthcheck_recommendation Healthy filter: {query.count()}")
+    query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after active_healthcheck_recommendation Healthy filter: {query.count()}")
+
+
+    query_validated = query.filter(label_map["multi_node_healthcheck_recommendation"] == "Healthy")
+    logger.debug(f"Count after multi_node_healthcheck_recommendation Healthy filter: {query_validated.count()}")
+    col = label_map.get("multi_node_healthcheck_last_time")
+    if col is not None:
+        query_validated = query_validated.filter( cast(col, DateTime) >= time_th_active_hc )
+    logger.debug(f"multi_node_healthcheck_last_time: {query_validated.count()}")
+
+    query_not_validated = query.except_(query_validated)
+    if query_not_validated == 1 :
+        query_not_validated = query_not_validated.filter(col.is_(None))
+        col = label_map.get("active_healthcheck_recommendation")
+        if col is not None:
+            query_not_validated = query_not_validated.filter( cast(col, DateTime) >= (current_time - timedelta(minutes=10)).replace(tzinfo=timezone.utc) )
+            logger.debug(f"Count after active_healthcheck_last_time filter: {query_not_validated.count()}")
+
+    return query_not_validated.union(query_validated)

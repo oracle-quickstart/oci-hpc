@@ -1,24 +1,4 @@
 ---
-- name: Install required packages
-  vars:
-    package_name:
-      - python3-prometheus-client
-      - python3-pyudev
-    package_state: present
-    package_cache: true
-  ansible.builtin.include_role:
-    name: safe_yum
-  when: ansible_distribution == 'Ubuntu'
-
-- name: Install required python packages
-  become: true
-  ansible.builtin.pip:
-    name:
-      - pyudev
-      - prometheus_client
-    executable: /usr/bin/pip3
-  ignore_errors: true
-
 - name: Copy service file to scripts directory
   copy:
     src: pcie_faults_exporter.py

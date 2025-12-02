@@ -6,6 +6,7 @@ import string
 import sys
 import time
 import json
+import ipaddress
 
 from functools import cached_property
 from datetime import datetime, timedelta, timezone
@@ -118,10 +119,10 @@ def run_terminate(node):
     cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
     try:
         if cluster_type == "SA" or cluster_type == "CC":
-            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
+            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING","TERMINATED"])
         elif cluster_type == "IPA" or cluster_type == "CN":
-            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}")
+            logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=node.ocid,is_auto_terminate=True,is_decrement_size=True)
             CLIENTS.compute_management_client_composite_operations.detach_instance_pool_instance_and_wait_for_work_request(instance_pool_ocid,instance_details)
     except oci.exceptions.ServiceError as e:
@@ -155,7 +156,7 @@ def run_add(nodes, count, names):
         logger.error("The resize script cannot work for a cluster if there are no nodes in the cluster")
         sys.exit(1)
     for first_node in nodes:
-        if first_node.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
+        if "GPU.GB" in first_node.shape:
             memory_clusters = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_gpu_memory_clusters, first_node.compartment_id, display_name=first_node.memory_cluster_name).data
             for memory_cluster in memory_clusters:
                 mc_id=memory_cluster.id
@@ -222,7 +223,7 @@ def run_add_memory_fabric( nodes, count, fabric_id , gpu_memory_cluster_name, in
         logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster and no instance type has been specified")
         sys.exit(1)
     if fabric_id is None:
-        logger.error(f"For BM.GPU.GB200.4 or BM.GPU.GB200-v2.4, the memory fabric needs to be specified, Exiting")
+        logger.error(f"For BM.GPU.GB200.4, BM.GPU.GB200-v2.4, BM.GPU.GB200-v3.4, or BM.GPU.GB300.4, the memory fabric needs to be specified, Exiting")
         sys.exit(1)
     first_node=nodes[0]
     if not instancetype is None:
@@ -589,7 +590,7 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
         else:
             new_display_name=hostname
             new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname}
-        if shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
+        if "GPU.GB" in shape:
             new_tags["memory_cluster_name"]=memory_cluster_name
         if config.role == "login":
             new_tags["login"]="true"
@@ -793,7 +794,7 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
 
         new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
         new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
-        if shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
+        if "GPU.GB" in shape:
             new_tags["memory_cluster_name"]=memory_cluster_name
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
@@ -888,14 +889,14 @@ def remove_inventory(cluster_name):
 
 def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None):
     generate_inventory(config,cluster_name)
-    if not config.stand_alone or config.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
+    if not config.stand_alone or "GPU.GB" in config.shape:
         instance_config_data=generate_instance_config(config, controller_hostname, cluster_name, memory_cluster_name = gpu_memory_cluster_name)
         instance_config_ocid=instance_config_data.id
 
         if config.rdma_enabled:
-            if config.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4"]:
+            if config.shape in ["BM.GPU.GB200.4","BM.GPU.GB200-v2.4","BM.GPU.GB200-v3.4","BM.GPU.GB300.4"]:
                 if gpu_memory_fabric is None:
-                    logger.error(f"For BM.GPU.GB200.4 or BM.GPU.GB200-v2.4, the memory fabric needs to be specified, Exiting")
+                    logger.error(f"For BM.GPU.GB200.4 or BM.GPU.GB200-v2.4 or BM.GPU.GB200-v3.4 or BM.GPU.GB300.4, the memory fabric needs to be specified, Exiting")
                     sys.exit(1)
                 cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.availability_domain,display_name=cluster_name)
                 cn = CLIENTS.compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
@@ -950,7 +951,7 @@ def delete_cluster(cluster_name,nodes_list):
         if cluster_type == "CC":
             CLIENTS.compute_client.delete_compute_cluster(cluster_ocid)
     elif cluster_type == "MC":
-        logger.error("A BM.GPU.GB200.4 or BM.GPU.GB200-v2.4 instance should not be calling this function")
+        logger.error("A BM.GPU.GB200.4, BM.GPU.GB200-v2.4, BM.GPU.GB200-v2.4, or BM.GPU.GB300.4 instance should not be calling this function")
     remove_inventory(cluster_name)
 
 def get_memory_fabrics(tenancy_id,compartment_id):
@@ -1018,3 +1019,52 @@ def delete_compute_cluster(cluster_ocid):
     cluster_name=CLIENTS.compute_client.get_compute_cluster(cluster_ocid).data.display_name
     CLIENTS.compute_client.delete_compute_cluster(cluster_ocid)
     remove_inventory(cluster_name)
+
+def update_dns(instance_ocid, zone_name, compartment_ocid, instance_launch, hostname):
+    """
+    Update DNS for instance launching and instance terminating
+    inputs: 
+        instance_ocid: Instance OCID from event paylod, type=string
+        zone_name: <cluster_name>.local coming from Terraform, type=string
+        compartment_ocid: Compartment OCID from event payload (same as var.targetCompartment in terraform), type=string
+        instance_launch: launching or terminating instance type=boolean
+        hostname: current instance name from OCI web console, type=string
+    output: 
+        hostname: new display name in web console hostname_convention+"-"+str(index), type=string if updated or corresponds to hostname if not
+        private_ip: private IP if instance is launch type=string, None otherwise
+    """
+    zone_id=CLIENTS.dns_client.list_zones(compartment_id=compartment_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
+    private_ip = None
+    if instance_launch:
+        private_ip = get_private_ip(instance_ocid,compartment_ocid)
+
+        get_rr_set_response = CLIENTS.dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600,)]))
+        logger.info(f"DNS updated for instance launch with IP {private_ip} and {hostname}")
+    else:
+        get_rr_set_response = CLIENTS.dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE") 
+        logger.info(f"DNS updated for instance terminated with hostname: {hostname}")
+
+def update_display_name(instance_ocid, new_hostname):
+    """
+    Update display name in OCI web console to match hostname convention
+    inputs:
+        instance_ocid: Instance OCID from event paylod, type=string
+        new_hostname: new display name in web console hostname_convention+"-"+str(index), type=string
+    outputs:
+        None
+    """
+
+    max_retries = 30
+    retries = 0
+    # adding a while loop because retry_strategy doesn't work as expected. Check the state and make sure it's RUNNING before changing hostname
+    while CLIENTS.compute_client.get_instance(instance_ocid).data.display_name != new_hostname and retries <= max_retries:    
+        if CLIENTS.compute_client.get_instance(instance_ocid).data.lifecycle_state != "RUNNING":
+            time.sleep(2*(1+retries))
+            retries +=1
+        else:    
+            update_instance_response = CLIENTS.compute_client.update_instance(
+                instance_id=instance_ocid,
+                update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname),
+                retry_strategy=retry_strategy_via_constructor)
+            logger.info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")    
+    return 

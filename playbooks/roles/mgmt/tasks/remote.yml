@@ -1,4 +1,13 @@
 ---
+- name: Make sure clustershell is installed for node status script
+  vars:
+    package_name:
+      - clustershell
+    package_state: latest
+  include_role:
+    name: safe_yum
+  ignore_errors: true
+  
 - name: Copy mgmt utility
   become: true
   ansible.builtin.template:

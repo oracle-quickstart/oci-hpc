@@ -1,0 +1,48 @@
+---
+- name: Install required packages
+  vars:
+    package_name: fail2ban
+    package_state: present
+    package_cache: true
+  include_role:
+    name: safe_yum
+
+
+- name: Create fail2ban jail.local
+  vars:
+    fail2ban_bantime: 3600      # 1 hour
+    fail2ban_maxretry: 5
+    fail2ban_findtime: 600      # 10 minutes
+  copy:
+    dest: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime  = {{ fail2ban_bantime }}
+      findtime = {{ fail2ban_findtime }}
+      maxretry = {{ fail2ban_maxretry }}
+      banaction = iptables-multiport
+      backend = systemd
+
+      [sshd]
+      enabled = true
+      port    = ssh
+      logpath = %(sshd_log)s
+  notify:
+    - restart fail2ban
+
+- name: Ensure fail2ban is enabled and started
+  systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Ensure MaxStartups is set in sshd_config
+  vars:
+    sshd_maxstartups: "10:30:60"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?MaxStartups'
+    line: "MaxStartups {{ sshd_maxstartups }}"
+    state: present
+  notify:
+    - reload ssh

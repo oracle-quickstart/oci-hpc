@@ -105,6 +105,17 @@ Different sets of Policies must be set to create the required authorizations.
 
 #### Policies to deploy the stack
 
+**Existing FSS in an existing VCN**
+When using an existing VCN, it is possible to point to an existing NFS/FSS instead of creating one. If so, the name of the cluster should not be random and `Use custom cluster name` must be enabled to set `Name of the cluster`. In case of an existing FSS, a record of type A with the mount target IP address as RDATA should be added to the newly created private zone prior to the stack deployment and respect the following syntax:
+```
+fss-<cluster_name>-controller.<cluster_name>.local
+```
+`Existing NFS server IP` should be set to `fss-<cluster_name>-controller.<cluster_name>.local`
+
+Finally, a reserved export path called `/config` should be created (`File storage > File System > Your File system > Create Export`)
+
+## Policies
+### Policies to deploy the stack: 
 ```
 allow service compute_management to use tag-namespace in tenancy
 allow service compute_management to manage compute-management-family in tenancy
@@ -256,15 +267,25 @@ The controller node:
   * Adds/removes the node to `prometheus.yml`
   * Adds/removes the node in the slurm configuration, i.e. `topology.conf` and `gres.conf`
 
+## Notes on Deployments for Memory Fabric Based Shapes, such as Nvidia GB200 / GB300
+When deploying this shape you should configure and deploy the stack as usual EXCEPT that the initial size of the cluster should to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial GPU Memory Cluster like this.
 
+
+Now use the OCID from above for --fabric, as well as the number of AVAILABLE hosts for --count:
+```
+mgmt clusters create --count 16 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
+```
 
 ## Stack Configuration
 
-Add zip, folder or create from Marketplace. Be careful, select the right compartment.
+Use the above command to add ONLY THE FIRST SET OF INSTANCES.  See below on how to add additional gpumemoryfabrics to the compute cluster named my_cluster that was created above (otherwise inter-rack communication will not work).
 
 ### Cluster Configuration
 
-#### SSH Keys
+To add hosts from other computegpumemoryfabrics to the cluster:
+```
+mgmt clusters add memory-fabric --count 18 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
+```
 
 User must provide a public ssh key to allow ssh connection to the management nodes (controller, controller backup, login and monitoring).
 
@@ -428,7 +449,7 @@ Resizing a HPC cluster with Cluster Network consists in 2 major sub-steps:
 #### Resizing with mgmt
 
 > [!IMPORTANT]
-> If you are using GB200 hosts, see special notes above.
+> If you are using GB200 or GB300 hosts, see special notes above
 
 The `mgmt` tool is deployed on the controller node as part of the HPC Cluster Stack deployment. The full mgmt command help is available [here](documentation/mgmt-help.txt). 
 

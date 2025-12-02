@@ -6,7 +6,7 @@
     marker: "### {mark} {{ item.value.hostname }}"
     state: absent
   delegate_to: 127.0.0.1
-  when: "'GPU' in item.value.shape"
+  when: item.value.shape in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"]
   with_items: "{{ remove_compute_info | dict2items }}"
 
 - name: Create a list of hostnames to remove

@@ -37,12 +37,12 @@ g.dashboard.new('Command Center')
     ),
     statPanel(
       'Total GPUs',
-      'sum(max by (instance) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}))',
+      'sum(max by (Hostname) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}) or max by (hostname) (amd_gpu_nodes_total{cluster_name=~"$cluster_name"}) )',
       {w:4, h:4, x:16, y:0}
     ),    
     statPanel(
       'Healthy GPUs',
-      'sum(available_gpu_count{cluster_name=~"$cluster_name"})',
+      'sum(available_gpu_count{cluster_name=~"$cluster_name"}) or sum(amd_gpu_nodes_total{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:20, y:0}
     ),
     /*
@@ -103,12 +103,12 @@ g.dashboard.new('Command Center')
             },
             {
               title: 'GPU Metrics',
-              url: '/d/gpu-metrics-single/gpu-metrics?var-hostname=${__field.labels.hostname}',
+              url: '/d/${__field.labels.vendor}-gpu-metrics-single/gpu-metrics?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             },
             {
               title: 'GPU Health',
-              url: '/d/gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
+              url: '/d/${__field.labels.vendor}-gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             }
         ]),
@@ -130,28 +130,10 @@ g.dashboard.new('Command Center')
       + g.panel.stateTimeline.gridPos.withH(10)
       + g.panel.stat.gridPos.withX(0)
       + g.panel.stat.gridPos.withY(9),
-    g.panel.stateTimeline.new('Historical LFS Health')
-      + g.panel.stateTimeline.queryOptions.withTargets([
-          g.query.prometheus.new(
-              '$PROMETHEUS_DS',
-              'lfs_health_status',
-          )
-          + g.query.prometheus.withLegendFormat('{{object_name}}')
-      ])
-      + g.panel.stateTimeline.options.withShowValue('never')
-      + g.panel.stateTimeline.options.withPerPage(value=20)
-      + g.panel.stat.standardOptions.withMappings(
-            g.panel.stat.standardOptions.mapping.ValueMap.withType() +  
-            g.panel.stat.standardOptions.mapping.ValueMap.withOptions({'0': { text: 'down', color: 'red' },'1': { text: 'up', color: 'green' }})
-      )       
-      + g.panel.stateTimeline.gridPos.withW(24)
-      + g.panel.stateTimeline.gridPos.withH(10)
-      + g.panel.stat.gridPos.withX(0)
-      + g.panel.stat.gridPos.withY(19),      
     g.panel.alertList.new('Cluster Alerts')
       + g.panel.alertList.options.UnifiedAlertListOptions.withAlertInstanceLabelFilter('{cluster_name=~"$cluster_name"}')
       + g.panel.alertList.gridPos.withW(24)
       + g.panel.alertList.gridPos.withH(5)
       + g.panel.stat.gridPos.withX(0)
-      + g.panel.stat.gridPos.withY(24),      
+      + g.panel.stat.gridPos.withY(19),      
 ])

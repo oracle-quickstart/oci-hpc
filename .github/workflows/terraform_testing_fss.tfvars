@@ -2,7 +2,7 @@
 
 add_nfs=true
 home_fss=true
-create_fss=true
+create_fss="new"
 slurm_ha=true
 mysql_admin_username="admin"
 mysql_admin_password="Admin1234!"
@@ -49,7 +49,7 @@ use_marketplace_image=false
 
 slurm=true
 
-slurm_version="24.05.1-2"
+slurm_version="25.11.0-1"
 
 login_node=true
 

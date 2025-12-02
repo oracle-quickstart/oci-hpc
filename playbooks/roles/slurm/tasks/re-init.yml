@@ -9,8 +9,7 @@
 
 - name: Get All configurations in the DB
   vars:
-    venv_path: "{% if ansible_distribution == 'Ubuntu' %}/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% elif
-  ansible_distribution == 'OracleLinux' %}/config/venv/Ol_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% endif %}"
+    venv_path: "{% if ansible_distribution == 'Ubuntu' %}/config/venv/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% elif ansible_distribution == 'OracleLinux' %}/config/venv/Ol_{{ ansible_distribution_version }}_{{ ansible_architecture }}{% endif %}"
   ansible.builtin.command: "{{venv_path}}/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
   register: get_configurations_results
 

@@ -19,7 +19,6 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0775"
-  run_once: true
 
 - name: Create systemd service unit file
   ansible.builtin.template:
@@ -129,6 +128,21 @@
     rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}, recursive=True) }}"
   when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
 
+- name: Add empty customerHPCIslandId
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None'}}, recursive=True) }}"
+  when: "not 'customerHPCIslandId' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerLocalBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerLocalBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerLocalBlock' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerNetworkBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerNetworkBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerNetworkBlock' in rdma_metadata['rdmaTopologyData']"
+
 - name: Set http_role based on hostvars or default to "compute"
   ansible.builtin.set_fact:
     http_role: "{{ hostvars[inventory_hostname]['role'] }}"
@@ -161,7 +175,6 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0775"
-  run_once: true
 
 - name: Reload systemd daemon
   ansible.builtin.systemd:

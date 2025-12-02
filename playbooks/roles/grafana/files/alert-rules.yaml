@@ -2042,3 +2042,180 @@ groups:
         notification_settings:
           receiver: ons-webhook
           repeat_interval: 24h
+      - uid: amd-gpu-health-status
+        title: AMD GPU Health Degraded
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model:
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: node_amd_gpu_health_ok
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: "{{ oci_name }} {{ hostname }} {{ gpu_id }}"
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: KeepLast
+        execErrState: KeepLast
+        for: 15m
+        annotations:
+          summary: Tag and Terminate.
+        isPaused: false
+        notification_settings:
+          receiver: ons-webhook
+          repeat_interval: 24h
+      - uid: amd-pcie-link-speed-status
+        title: AMD PCIE Link Speed Degraded
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model:
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: node_amd_pcie_link_speed_ok
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: "{{ oci_name }} {{ hostname }} {{ gpu_id }}"
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: KeepLast
+        execErrState: KeepLast
+        for: 15m
+        annotations:
+          summary: Tag and Terminate.
+        isPaused: false
+        notification_settings:
+          receiver: ons-webhook
+          repeat_interval: 24h
+      - uid: amd-pcie-link-width-status
+        title: AMD PCIE Link Width Degraded
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model:
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: node_amd_pcie_link_width_ok
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: "{{ oci_name }} {{ hostname }} {{ gpu_id }}"
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: KeepLast
+        execErrState: KeepLast
+        for: 15m
+        annotations:
+          summary: Tag and Terminate.
+        isPaused: false
+        notification_settings:
+          receiver: ons-webhook
+          repeat_interval: 24h

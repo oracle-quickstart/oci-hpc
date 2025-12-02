@@ -14,7 +14,6 @@
     name: safe_yum
   when: ansible_os_family == 'Debian'
 
-
 - name: Install PyMySQL
   vars:
     package_name:
@@ -140,7 +139,6 @@
   register: slurmdbd_conf_content 
   run_once: true
 
-
 - name: Generate slurmdbd.conf on slurm_backup
   become: true
   ansible.builtin.copy:
@@ -169,6 +167,24 @@
     group: slurm
     backup: true
 
+- name: Slurp job_container.conf from controller
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ slurm_conf_path }}/job_container.conf"
+  delegate_to: "{{ groups['controller'][0] }}" 
+  register: slurm_job_container_conf_content 
+  run_once: true
+
+- name: Generate job_container.conf
+  become: true
+  ansible.builtin.template:
+    src: "{{ slurm_job_container_conf_file }}"
+    dest: "{{ slurm_conf_path }}/job_container.conf"
+    mode: "0644"
+    backup: true
+    owner: slurm
+    group: slurm
+  notify: Restart slurm server
 
 - name: Slurp topology.conf from controller
   become: true

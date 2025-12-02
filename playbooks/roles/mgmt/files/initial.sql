@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS clusterDB.nodes (
     update_count INT,
     slurm_state VARCHAR(128),
     slurm_partition VARCHAR(128),
+    slurm_reservation VARCHAR(128),
+    slurm_up_time INT,
     oci_host_id VARCHAR(128)
 );
 
@@ -67,6 +69,8 @@ CREATE TABLE IF NOT EXISTS clusterDB.terminated_nodes (
     update_count INT,
     slurm_state VARCHAR(128),
     slurm_partition VARCHAR(128),
+    slurm_reservation VARCHAR(128),
+    slurm_up_time INT,
     oci_host_id VARCHAR(128)
 );
 

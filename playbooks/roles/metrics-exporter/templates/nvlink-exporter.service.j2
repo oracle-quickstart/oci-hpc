@@ -7,7 +7,7 @@ After=network-online.target
 User={{ prometheus_user }}
 Group={{ prometheus_user }}
 Type=simple
-ExecStart=/usr/bin/env {{venv_path}}/bin/python3 /usr/local/bin/nvlink_counters_exporter.py
+ExecStart={{venv_path}}/bin/python3 /usr/local/bin/nvlink_counters_exporter.py
 
 [Install]
 WantedBy=multi-user.target

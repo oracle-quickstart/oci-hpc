@@ -42,7 +42,8 @@
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
-  when: (not nvm_exists.stat.exists) and (not home_fss|bool)
+  # when: (not nvm_exists.stat.exists) and (not home_fss|bool)
+  when: (not nvm_exists.stat.exists) and (not shared_home == 'fss')
 
 - name: Execute NVM install script with FFS Home
   shell: "/tmp/nvm_install.sh"
@@ -50,7 +51,8 @@
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
-  when: (not nvm_exists.stat.exists) and home_fss|bool
+  # when: (not nvm_exists.stat.exists) and home_fss|bool
+  when: (not nvm_exists.stat.exists) and shared_home == 'fss'
   delegate_to: 127.0.0.1
   run_once: true
 

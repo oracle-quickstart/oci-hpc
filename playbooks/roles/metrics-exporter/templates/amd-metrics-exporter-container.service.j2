@@ -1,0 +1,27 @@
+[Unit]
+Description=AMD Device Metrics Exporter Container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/podman rm -f amd-metrics-exporter
+ExecStart=/usr/bin/podman run \
+  --rm \
+  --name amd-metrics-exporter \
+  --privileged \
+  --network host \
+  --pid=host \
+  --ipc=host \
+  -v /dev:/dev:ro \
+  -v /sys:/sys:ro \
+  -v /etc/metrics:/etc/metrics:ro \
+  {{ amd_exporter_image }} \
+  -amd-metrics-config /etc/metrics/config.json
+ExecStop=/usr/bin/podman stop -t 10 amd-metrics-exporter
+
+[Install]
+WantedBy=multi-user.target

@@ -1,12 +1,12 @@
 locals {
   // display names of instances 
-  cluster_instances_ids   = var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" ? data.oci_core_instance.memory_cluster_network_instances.*.id : var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.id : oci_core_instance.compute_instances.*.id : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.id : data.oci_core_instance.instance_pool_instances.*.id
-  cluster_instances_names = var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" ? data.oci_core_instance.memory_cluster_network_instances.*.display_name : var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.display_name : oci_core_instance.compute_instances.*.display_name : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
+  cluster_instances_ids   = var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4" ? data.oci_core_instance.memory_cluster_network_instances.*.id : var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.id : oci_core_instance.compute_instances.*.id : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.id : data.oci_core_instance.instance_pool_instances.*.id
+  cluster_instances_names = var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4" ? data.oci_core_instance.memory_cluster_network_instances.*.display_name : var.stand_alone ? var.rdma_enabled ? oci_core_instance.compute_cluster_instances.*.display_name : oci_core_instance.compute_instances.*.display_name : var.rdma_enabled ? data.oci_core_instance.cluster_network_instances.*.display_name : data.oci_core_instance.instance_pool_instances.*.display_name
 
   image_ocid                   = var.unsupported ? var.image_ocid : var.image
   custom_controller_image_ocid = var.unsupported_controller ? var.unsupported_controller_image : var.custom_controller_image
-  custom_login_image_ocid      = var.unsupported_login ? var.unsupported_login_image : var.custom_login_image
-  custom_monitoring_image_ocid = var.unsupported_monitoring ? var.unsupported_monitoring_image : var.custom_monitoring_image
+  // custom_login_image_ocid      = var.unsupported_login ? var.unsupported_login_image : var.custom_login_image
+  // custom_monitoring_image_ocid = var.unsupported_monitoring ? var.unsupported_monitoring_image : var.custom_monitoring_image
 
 
   shape               = var.rdma_enabled ? var.cluster_network_shape : var.instance_pool_shape
@@ -26,8 +26,8 @@ locals {
   //  subnet_id = var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
   subnet_id = var.private_deployment ? var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 1) : var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
 
-  nfs_source_IP                = var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : var.nfs_source_IP
-  nfs_list_of_mount_target_IPs = var.create_fss ? "[\"${join("\",\"", oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP
+  nfs_source_IP                = var.create_fss == "new" ? oci_dns_rrset.fss-dns-round-robin[0].domain : var.nfs_source_IP
+  nfs_list_of_mount_target_IPs = var.create_fss == "new" ? "[\"${join("\",\"", oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP
 
   // subnet id derived either from created subnet or existing if specified
   // controller_subnet_id = var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
@@ -37,9 +37,9 @@ locals {
 
   controller_image = var.use_marketplace_image_controller ? oci_core_app_catalog_subscription.controller_mp_image_subscription[0].listing_resource_id : local.custom_controller_image_ocid
 
-  login_image = var.login_node && var.use_marketplace_image_login ? oci_core_app_catalog_subscription.login_mp_image_subscription[0].listing_resource_id : local.custom_login_image_ocid
+  // login_image = var.login_node && var.use_marketplace_image_login ? oci_core_app_catalog_subscription.login_mp_image_subscription[0].listing_resource_id : local.custom_login_image_ocid
 
-  monitoring_image = var.monitoring_node && var.use_marketplace_image_monitoring ? oci_core_app_catalog_subscription.monitoring_mp_image_subscription[0].listing_resource_id : local.custom_monitoring_image_ocid
+  // monitoring_image = var.monitoring_node && var.use_marketplace_image_monitoring ? oci_core_app_catalog_subscription.monitoring_mp_image_subscription[0].listing_resource_id : local.custom_monitoring_image_ocid
 
   compute_image = var.use_marketplace_image ? oci_core_app_catalog_subscription.mp_image_subscription[0].listing_resource_id : local.image_ocid
 
@@ -80,7 +80,7 @@ locals {
   ocir_image = var.use_OCI_generated_container ? "${local.region_key}.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
 
   # Pick the right IP based on flags
-  config_target_name = var.create_fss ? oci_dns_rrset.fss-dns-round-robin[0].domain : oci_dns_rrset.controller[0].domain
+  config_target_name = var.create_fss == "new" ? oci_dns_rrset.fss-dns-round-robin[0].domain : oci_dns_rrset.controller[0].domain
 
   lustre_IP = var.create_lfs ? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
   mysql_service_host = var.slurm_ha ? data.oci_mysql_mysql_db_system.slurm_mysql[0].endpoints[0].ip_address : ""

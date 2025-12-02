@@ -90,7 +90,7 @@ resource "oci_functions_function" "function" {
     "QUEUE_OCID" : local.queue_ocid
     "CLUSTER_NAME"    = local.cluster_name
     "CONTROLLER_NAME" = "${local.cluster_name}-controller"
-    "PRIVATE_SUBNET"  = var.private_subnet
+    "PRIVATE_SUBNET"  = data.oci_core_subnet.private_subnet.cidr_block
     "ZONE_NAME"       = local.zone_name
     shape             = "GENERIC_X86"
   }

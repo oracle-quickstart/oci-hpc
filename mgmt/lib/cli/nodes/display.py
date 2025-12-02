@@ -59,6 +59,8 @@ def print_nodes_info(nodes, full=False):
             table.add_row("terminated_time", node.terminated_time)
             table.add_row("update_count", str(node.update_count))
             table.add_row("slurm_state", node.slurm_state)
+            table.add_row("slurm_reservation", node.slurm_reservation)
+            table.add_row("slurm_up_time", str(node.slurm_up_time) if node.slurm_up_time is not None else "N/A")
             table.add_row("slurm_partition", node.slurm_partition)
             for hc_type in ["passive","active","multi_node"]:
                 for hc_entry in db.get_extra_columns_per_hc():
@@ -259,7 +261,7 @@ def display_nodes_as_csv(nodes, fields, show_header=True, **ignored_kwargs):
 
 
 def display_nodes_as_nodeset(nodes, **ignored_kwargs):
-    click.echo(NodeSet.fromlist(node.hostname for node[0] in nodes))
+    click.echo(NodeSet.fromlist(node.hostname for node in nodes))
 
 
 def display_nodes_as_table(nodes, fields, per_node=False, table_style=None, show_header=True, width=None):
@@ -288,7 +290,8 @@ def display_nodes_as_table(nodes, fields, per_node=False, table_style=None, show
             table = rich.table.Table(show_header=False, **style)
 
             for field, value in zip(fields, node):
-                table.add_row(field, value)
+                safe_value = str(value) if value is not None else ""
+                table.add_row(field, safe_value)
 
             console.print(table)
     else:
@@ -298,7 +301,8 @@ def display_nodes_as_table(nodes, fields, per_node=False, table_style=None, show
             table.add_column(field, justify="left")
 
         for row in node_lists:
-            table.add_row(*row)
+            safe_row = [str(v) if v is not None else "" for v in row]
+            table.add_row(*safe_row)
 
         console.print(table)
 
