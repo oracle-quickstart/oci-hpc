@@ -69,11 +69,7 @@ pam=true
 unsupported=true
 unsupported_controller=true
 use_marketplace_image_controller=false
-unsupported_login=true
-unsupported_monitoring=true
 
-use_marketplace_image_login=false
-use_marketplace_image_monitoring=false
 
 change_hostname=true
 hostname_convention="GPU"
