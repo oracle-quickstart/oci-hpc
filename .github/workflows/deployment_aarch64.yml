@@ -1,0 +1,210 @@
+name: deployment_slurm_aarch64
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "3.0.0", "3.0.0_aarch64_github_action" ]
+  pull_request:
+    branches: [ "3.0.0", "3.0.0_aarch64_github_action" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # This job deploys with a custom Ubuntu 22.04 image and a ubuntu user with FSS, slurm backup, mysql service on aarch 64 (compute + controller + monitoring + login + slurm_backup)
+  deploy_ubuntu_fss_backup_all_aarch64:
+    # The type of runner that the job will run on
+    runs-on: ubuntu_fss_aarch64
+    env:
+      TF_VAR_controller_username: "ubuntu"
+      TF_VAR_compute_username: "ubuntu"
+      TF_VAR_login_username: "ubuntu"
+      TF_VAR_monitoring_username: "ubuntu"
+      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
+      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
+      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
+      TF_VAR_image_ocid: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
+      avoid_waiting_for_delete_target: "true"
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+     
+      - name: creating working directory, cd and copy files
+        run: |
+          mkdir ${{ github.sha }}
+          for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
+          cd ${{ github.sha }}
+
+      # Runs a single command using the runners shell
+      - name: get terraform version
+        run: terraform --version
+
+      # Runs a set of commands using the runners shell
+      - name: Setup and execute terraform apply
+        run: |
+          cp .github/workflows/provider_testing.tf provider.tf
+          cp .github/workflows/versions_testing.tf versions.tf
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing_fss_aarch64.tfvars terraform.tfvars   
+          terraform init
+          terraform apply --auto-approve
+
+      - name: Wait for nodes to be configured (max 30 minutes)
+        run: |
+          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
+          start_time=$(date +%s)
+          timeout=$((30 * 60))  # 30 minutes
+
+          while true; do
+              not_ready=$(mgmt nodes list \
+                  --fields role=compute \
+                  --columns hostname,compute_status,controller_status \
+                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
+              
+              if [[ -z "$not_ready" ]]; then
+                  echo "✅ All nodes are configured!"
+                  break
+              fi
+
+              now=$(date +%s)
+              elapsed=$((now - start_time))
+              if (( elapsed > timeout )); then
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  exit 1
+              fi
+
+              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
+              echo "$not_ready"
+              sleep 10
+          done
+          EOF
+
+      - name: Run sinfo
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+
+      - name: Check there are 2 nodes in Slurm
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+
+      - name: Check mgmt is there and working
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+
+      - name: Get all logs in /config/logs
+        if: always()
+        run: |
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+          for f in /config/logs/*; do
+              echo -e "#######$f#######\n" "$(cat $f)\n"
+          done
+          EOF
+
+      - name: Execute terraform destroy
+        if: always()
+        run: terraform destroy --auto-approve
+
+      - name: go up one directory
+        if: always()
+        run: |
+          cd ..
+                      
+  # This job deploys with a custom Ubuntu 22.04 image and a ubuntu user without FSS on aarch 64 (compute) and x86 (controller + monitoring + login)
+  deploy_ubuntu_mix_aarch64_x86:
+    # The type of runner that the job will run on
+    runs-on: ubuntu_aarch64
+    env:
+      TF_VAR_controller_username: "ubuntu"
+      TF_VAR_compute_username: "ubuntu"
+      TF_VAR_login_username: "ubuntu"
+      TF_VAR_monitoring_username: "ubuntu"
+      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaaxivhsykal6gomdhfbfxocwhogohskjuu4xnmfqujjw2g4xgn6d4a"
+      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaaxivhsykal6gomdhfbfxocwhogohskjuu4xnmfqujjw2g4xgn6d4a"
+      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaaxivhsykal6gomdhfbfxocwhogohskjuu4xnmfqujjw2g4xgn6d4a"
+      TF_VAR_image_ocid: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
+      avoid_waiting_for_delete_target: "true"
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+     
+      - name: creating working directory, cd and copy files
+        run: |
+          mkdir ${{ github.sha }}
+          for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
+          cd ${{ github.sha }}
+
+      # Runs a single command using the runners shell
+      - name: get terraform version
+        run: terraform --version
+
+      # Runs a set of commands using the runners shell
+      - name: Setup and execute terraform apply
+        run: |
+          cp .github/workflows/provider_testing.tf provider.tf
+          cp .github/workflows/versions_testing.tf versions.tf
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing_aarch64.tfvars terraform.tfvars   
+          terraform init
+          terraform apply --auto-approve
+
+      - name: Wait for nodes to be configured (max 30 minutes)
+        run: |
+          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
+          start_time=$(date +%s)
+          timeout=$((30 * 60))  # 30 minutes
+
+          while true; do
+              not_ready=$(mgmt nodes list \
+                  --fields role=compute \
+                  --columns hostname,compute_status,controller_status \
+                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
+              
+              if [[ -z "$not_ready" ]]; then
+                  echo "✅ All nodes are configured!"
+                  break
+              fi
+
+              now=$(date +%s)
+              elapsed=$((now - start_time))
+              if (( elapsed > timeout )); then
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  exit 1
+              fi
+
+              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
+              echo "$not_ready"
+              sleep 10
+          done
+          EOF
+
+      - name: Run sinfo
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+
+      - name: Check there are 2 nodes in Slurm
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+
+      - name: Check mgmt is there and working
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+
+      - name: Get all logs in /config/logs
+        if: always()
+        run: |
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+          for f in /config/logs/*; do
+              echo -e "#######$f#######\n" "$(cat $f)\n"
+          done
+          EOF
+
+      - name: Execute terraform destroy
+        if: always()
+        run: terraform destroy --auto-approve
+
+      - name: go up one directory
+        if: always()
+        run: |
+          cd ..
+                 
