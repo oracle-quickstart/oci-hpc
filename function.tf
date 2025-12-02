@@ -29,7 +29,7 @@ resource "oci_functions_application" "fn_application" {
   compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}-app"
   subnet_ids     = [local.subnet_id]
-  shape          = "GENERIC_X86_ARM"
+  shape          = "GENERIC_X86"
 
   freeform_tags = {
     "cluster_name"    = local.cluster_name
@@ -92,7 +92,7 @@ resource "oci_functions_function" "function" {
     "CONTROLLER_NAME" = "${local.cluster_name}-controller"
     "PRIVATE_SUBNET"  = data.oci_core_subnet.private_subnet.cidr_block
     "ZONE_NAME"       = local.zone_name
-    shape             = "GENERIC_X86_ARM"
+    shape             = "GENERIC_X86"
   }
 
   freeform_tags = {
