@@ -22,18 +22,36 @@ if [ ${shape} = "BM.GPU.GB200.4" ] || [ ${shape} = "BM.GPU.GB200-v2.4" ] || [ ${
 
     #update peer list
     current_host=`hostname`
-    current_switch=`scontrol show topology ${current_host} | grep Level=0 | awk '{print $1}'`
 
-    for i in `scontrol show hostname ${SLURM_NODELIST}`
+    L0_slurm_topology_file=/tmp/L0_slurm_topology_file_job_${SLURM_JOB_ID}
+    expanded_slurm_topology_file=/tmp/expanded_slurm_topology_file_job_${SLURM_JOB_ID}
+
+    > $L0_slurm_topology_file
+    > $expanded_slurm_topology_file
+
+    scontrol show topology | grep Level=0 > $L0_slurm_topology_file
+
+    while IFS= read -r line
     do
-      ip=`scontrol -a show node $i -o | sed 's/^.* NodeAddr=\([^ ]*\).*/\1/'`
-      switchname_add=`scontrol show topology $i | grep Level=0 | awk '{print $1}'`
+      expanded_nodes=$(echo $line | cluset -e $(awk -F"Nodes=" '{print $2}'))
+      switch=$(echo $line | awk -F"SwitchName=" '{print $2}' | awk '{print $1}')
+      echo "${switch} ${expanded_nodes}" >> ${expanded_slurm_topology_file}
+    done < $L0_slurm_topology_file
 
+    current_switch=`grep -P "${current_host}( |$)" ${expanded_slurm_topology_file} | awk '{print $1}'`
+
+    for i in `cluset -e ${SLURM_NODELIST}`
+    do
+      switchname_add=`grep -P "${i}( |$)" ${expanded_slurm_topology_file} | awk '{print $1}'`
       if [ ${current_switch} = ${switchname_add} ]; then
-        echo "${current_switch} ${ip}" >> /tmp/imex.log
-        echo ${ip} >> /etc/nvidia-imex/nodes_config.cfg
+        echo "${current_switch} ${i}" >> /tmp/imex.log
+        echo ${i} >> /etc/nvidia-imex/nodes_config.cfg
       fi
     done
+
+    rm $L0_slurm_topology_file
+    rm $expanded_slurm_topology_file
+
     #rotate server port to prevent race condition
     NEW_SERVER_PORT=$((${SLURM_JOB_ID} % 16384 + 33792))
     sed -i "s/SERVER_PORT.*/SERVER_PORT=${NEW_SERVER_PORT}/" /etc/nvidia-imex/config.cfg
@@ -65,11 +83,11 @@ SUDO
     count=$((count+1))
   done
 
-  export LOCAL_IP=$(hostname -I | awk '{print $1}')
+  export LOCAL_HOSTNAME=$(hostname)
   export IMEX_OUTPUT_JSON=$(nvidia-imex-ctl -N -j)
 
   export NODE_IDX=$(jq \
-    -r --arg node_ip "$LOCAL_IP" -n '
+    -r --arg node_ip "$LOCAL_HOSTNAME" -n '
       env.IMEX_OUTPUT_JSON | fromjson
       | .nodes
       | to_entries[]
