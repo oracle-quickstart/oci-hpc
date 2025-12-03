@@ -496,23 +496,28 @@ Example:
 
 * Reconfiguring a set of 3 compute nodes (slurm notation):
 ```
-mgmt nodes reconfigure compute --nodes GPU-[1,2,3]
+mgmt nodes reconfigure --action compute --nodes GPU-[1,2,3]
+```
+* Reconfiguring the set of 2 compute nodes on the controller (IPs). This will reconfigure Slurm topology and any other action needed to run on the controller:
+```
+mgmt nodes reconfigure --action controller --nodes 1.0.0.2,1.0.0.3
 ```
 
+* Reconfiguring the custom role only on 2 compute nodes on the controller (Serials):
+```
+mgmt nodes reconfigure --action custom --nodes 2539XNG0J,2539XNG4J
+```
 ### Autoscaling
 
 > [!WARNING]
 > Not to be confused with the [Autoscaling service](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/autoscalinginstancepools.htm) from OCI.
 
-The autoscaling works as a “cluster per job” approach. This means that for job waiting in the queue, a new cluster is created specifically for that job. Autoscaling also takes care of spinning down clusters. By default, a cluster is left idle for 10 minutes before shutting it down. Autoscaling is achieved with a cron job to be able to quickly switch from one scheduler to the next one.
-
-Smaller jobs can run on large clusters and the clusters will be resized down after the grace period to only the necessary nodes. Clusters will NOT be scaled out. Instead, a new larger cluster is spun up and the smaller cluster is spun down to avoid capacity issues in the HPC island. 
-
-Initial cluster deployed through the stack is permanent: it will never be spun down.
+If selected during the initial bring up of the cluster, you can create a partition that will bring use Slurm autoscaling (Powering Up/Down) capabilities to add and remove nodes in the partition. 
+(https://slurm.schedmd.com/power_save.html)
 
 #### Clusters and queues configuration
 
-A configuration file at `/opt/oci-hpc/conf/queues.conf` and a custom version example at `/opt/oci-hpc/conf/queues.conf.example`are provided to show how multiple queues and multiple instance types can be added. Examples are given for HPC bare metal instances, GPU bare metal instances and Flexible Virtual Machines. 
+A configuration file at `/opt/oci-hpc/conf/queues.conf` is created and then imported in the DB. You can use the mgmt tool to add and remove nodes/cluster/queues and login nodes. 
 
 ##### Specifying node type and queue
 
