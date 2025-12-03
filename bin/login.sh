@@ -34,7 +34,9 @@ if [ $ID == "ol" ] ; then
     sudo osms unregister 
   elif [ $vid == 8 ] ; then
     repo="ol8_developer_EPEL"
-    sudo osms unregister 
+    if command -v osms >/dev/null 2>&1; then
+      sudo osms unregister 
+    fi
   elif [ $vid == 9 ] ; then
     repo="ol9_developer_EPEL"
   fi
@@ -186,7 +188,7 @@ if [ $creating_python_install_dir ]; then
   uv pip install watchdog
   uv pip install opentelemetry-sdk
   uv pip install opentelemetry-exporter-otlp
-  uv pip install pynvml
+  uv pip install nvidia-ml-py
   uv pip install pyudev
   uv pip install clustershell
   uv pip install sqlalchemy
@@ -217,6 +219,27 @@ if [ $creating_python_install_dir ]; then
   uv pip install "typing-inspect>=0.4.0"
   uv pip install "pydantic>=2"
 
+  # Silent Data Corruption checks
+  uv pip install numpy
+  uv pip install setuptools
+  uv pip install wheel
+
+  # Detect CUDA version and install matching CuPy wheel
+  shopt -s nullglob
+  CUDA_MAJOR=12
+  if compgen -G "/usr/local/cuda-13*" >/dev/null; then
+    CUDA_MAJOR=13
+  elif ! compgen -G "/usr/local/cuda-12*" >/dev/null; then
+    echo "/usr/local/cuda not found. Defaulting to CUDA 12" >&2
+  fi
+
+  # Select CuPy wheel
+  PKG="cupy-cuda${CUDA_MAJOR}x"
+
+  # Install the selected CuPy wheel
+  uv pip install "${PKG}" 
+
+  export VENV_PATH=${UV_INSTALL_DIR}/oci
   # Other packages
   uv pip install ujson
   uv pip install "fastapi[standard-no-fastapi-cloud-cli]"
@@ -278,7 +301,7 @@ fi
 modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
 echo $modified_hostname
 log=/config/logs/${modified_hostname}.log
-max_attempts=5
+max_attempts=10
 max_attempts_ansible_install=50
 attempt=1
 
@@ -287,6 +310,7 @@ while [ $attempt -le $max_attempts_ansible_install ]; do
     $VENV_PATH/bin/ansible localhost -c local -m ping 2>&1 | tee -a $log
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "Ansible is installed!" | tee -a $log
+        sleep 10s
         break
     else
         echo "Ansible is not installed. " | tee -a $log
