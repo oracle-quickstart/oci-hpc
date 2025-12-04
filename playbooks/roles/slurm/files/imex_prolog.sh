@@ -53,8 +53,8 @@ if [ ${shape} = "BM.GPU.GB200.4" ] || [ ${shape} = "BM.GPU.GB200-v2.4" ] || [ ${
     rm $expanded_slurm_topology_file
 
     #rotate server port to prevent race condition
-    NEW_SERVER_PORT=$((${SLURM_JOB_ID} % 16384 + 33792))
-#    sed -i "s/SERVER_PORT.*/SERVER_PORT=${NEW_SERVER_PORT}/" /etc/nvidia-imex/config.cfg
+    #NEW_SERVER_PORT=$((${SLURM_JOB_ID} % 16384 + 33792))
+    #sed -i "s/SERVER_PORT.*/SERVER_PORT=${NEW_SERVER_PORT}/" /etc/nvidia-imex/config.cfg
 
     #enable imex-ctl on all nodes so you can query imex status with: nvidia-imex-ctl -a -q
     sed -i "s/IMEX_CMD_PORT.*/IMEX_CMD_PORT=50005/" /etc/nvidia-imex/config.cfg
