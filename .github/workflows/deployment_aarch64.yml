@@ -23,10 +23,10 @@ jobs:
       TF_VAR_compute_username: "ubuntu"
       TF_VAR_login_username: "ubuntu"
       TF_VAR_monitoring_username: "ubuntu"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
+      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
+      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
+      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
+      TF_VAR_image_ocid: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -120,10 +120,10 @@ jobs:
       TF_VAR_compute_username: "ubuntu"
       TF_VAR_login_username: "ubuntu"
       TF_VAR_monitoring_username: "ubuntu"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaaxivhsykal6gomdhfbfxocwhogohskjuu4xnmfqujjw2g4xgn6d4a"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaaxivhsykal6gomdhfbfxocwhogohskjuu4xnmfqujjw2g4xgn6d4a"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-marseille-1.aaaaaaaaxivhsykal6gomdhfbfxocwhogohskjuu4xnmfqujjw2g4xgn6d4a"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-marseille-1.aaaaaaaa4wovgoqsxyo2ahkhuknbukrz3n2s53dcb2mmk56p6tkccaryvgya"
+      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaauqe4u3kafdrml5hjx6i6ylw454wkg72meruqhqehogp2jtv5dgwq"
+      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaauqe4u3kafdrml5hjx6i6ylw454wkg72meruqhqehogp2jtv5dgwq"
+      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaauqe4u3kafdrml5hjx6i6ylw454wkg72meruqhqehogp2jtv5dgwq"
+      TF_VAR_image_ocid: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
