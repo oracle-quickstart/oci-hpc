@@ -193,6 +193,14 @@ The Capacity Topology is created by default in the root Compartment. The folowin
 ```
 Allow dynamic-group instance_principal to manage compute-bare-metal-hosts in tenancy
 ```
+For the GB series GPU, you will also need to add those policies: 
+```
+Allow any-user to use compute-hpc-islands in tenancy
+Allow any-user to use compute-network-blocks in tenancy
+Allow any-user to use compute-local-blocks in tenancy
+Allow any-user to use compute-bare-metal-hosts in tenancy
+Allow any-user to use compute-gpu-memory-fabrics in tenancy
+```
 
 ### Supported operating systems
 
