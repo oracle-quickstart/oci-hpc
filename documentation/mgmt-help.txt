@@ -1,0 +1,973 @@
+
+=======================================
+ HELP FOR : mgmt 
+=======================================
+Usage: manage.py [OPTIONS] COMMAND [ARGS]...
+
+  CLI for managing your application.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  clusters         Commands to manage clusters.
+  configurations   Commands to manage configurations.
+  database         Commands to do in the database.
+  fabrics          Commands to display fabrics.
+  login            Commands to manage login nodes.
+  network          Network block commands.
+  nodes            Commands to manage nodes.
+  recommendations  Commands to show recommendations about the cluster.
+  services         Commands to manage services.
+
+=======================================
+ HELP FOR : mgmt clusters 
+=======================================
+Usage: manage.py clusters [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage clusters.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  add     Add nodes to clusters or memory fabrics.
+  create  Create a new cluster.
+  delete  Delete a cluster with name.
+  list    List all clusters in tabular or JSON format.
+
+=======================================
+ HELP FOR : mgmt clusters add 
+=======================================
+Usage: manage.py clusters add [OPTIONS] COMMAND [ARGS]...
+
+  Add nodes to clusters or memory fabrics.
+
+  Available subcommands:
+
+    - node: Add compute nodes to a cluster
+
+    - memory-fabric: Add nodes to a memory fabric
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  memory-fabric  Add nodes to a memory fabric.
+  node           Add compute nodes to a cluster.
+
+=======================================
+ HELP FOR : mgmt clusters add memory-fabric 
+=======================================
+Usage: manage.py clusters add memory-fabric [OPTIONS]
+
+  Add nodes to a memory fabric.
+
+  Example:
+
+  mgmt clusters add memory-fabric --count 1 --cluster mycluster --fabric
+  ocid1.fabric.oc1..xxxx --instancetype BM.GPU.GB200.4
+
+Options:
+  --count INTEGER       Number of nodes to add  [required]
+  --cluster TEXT        Name of the compute cluster  [required]
+  --fabric TEXT         OCID of the memory fabric  [required]
+  --memorycluster TEXT  Name for the memory cluster
+  --instancetype TEXT   Instance type for the nodes  [required]
+  --help                Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt clusters add node 
+=======================================
+Usage: manage.py clusters add node [OPTIONS]
+
+  Add compute nodes to a cluster.
+
+  Example:
+
+  mgmt clusters add node --count 2 --cluster mycluster
+
+Options:
+  --count INTEGER       Number of nodes to add  [required]
+  --cluster TEXT        Name of the cluster
+  --names TEXT          Comma-separated list of host names
+  --memorycluster TEXT  Name of the memory cluster (alternative to --cluster)
+  --help                Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt clusters create 
+=======================================
+Usage: manage.py clusters create [OPTIONS]
+
+  Create a new cluster.
+
+  Example:
+
+  # Create a standard compute cluster
+
+  mgmt clusters create --count 3 --cluster mycluster --instancetype
+  BM.Standard.E3.128
+
+  # Create a GPU cluster with memory fabric
+
+  mgmt clusters create --count 2 --cluster mycluster --instancetype
+  BM.GPU.GB200.4 --fabric ocid1.fabric.oc1..xxxx --names node01,node02
+
+Options:
+  --count INTEGER       Number of nodes to add  [required]
+  --cluster TEXT        Specify the name of the cluster  [required]
+  --instancetype TEXT   Specify the instance type of the cluster  [required]
+  --names TEXT          comma separated list of host names
+  --fabric TEXT         OCID of the memory fabric to add the nodes in for
+                        BM.GPU.GB200.4 nodes
+  --memorycluster TEXT  Name used for the memory cluster fabric, default will
+                        be cluster_xxxxx with xxxxx the last 5 character of
+                        the fabric ocid
+  --help                Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt clusters delete 
+=======================================
+Usage: manage.py clusters delete [OPTIONS]
+
+  Delete a cluster with name.
+
+Options:
+  --cluster TEXT         Specify the name of the cluster
+  --memory_cluster TEXT  Specify the name of the Memory cluster (Compute
+                         cluster does not need to be specified)
+  --help                 Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt clusters list 
+=======================================
+Usage: manage.py clusters list [OPTIONS]
+
+  List all clusters in tabular or JSON format.
+
+  Example:
+
+    # List all clusters
+
+    mgmt clusters list
+
+    # List all clusters in JSON format
+
+    mgmt clusters list --format json
+
+Options:
+  --format [tabular|json]  Output format  [default: tabular]
+  --help                   Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt configurations 
+=======================================
+Usage: manage.py configurations [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage configurations.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  create  Create Configuration.
+  delete  Delete Configuration.
+  get     Get information about the configuration.
+  list    List Configuration based on role, partition, or shape.
+  update  Update Configuration
+
+=======================================
+ HELP FOR : mgmt configurations create 
+=======================================
+Usage: manage.py configurations create [OPTIONS] COMMAND [ARGS]...
+
+  Create Configuration.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  from-existing  Duplicate Configuration with new name.
+  from-file      Create Configurations from file.
+
+=======================================
+ HELP FOR : mgmt configurations create from-existing 
+=======================================
+Usage: manage.py configurations create from-existing [OPTIONS]
+
+  Duplicate Configuration with new name.
+
+Options:
+  --configuration TEXT  Name of the existing configuration to copy.
+                        [required]
+  --name TEXT           Name for the new configuration.  [required]
+  --help                Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt configurations create from-file 
+=======================================
+Usage: manage.py configurations create from-file [OPTIONS]
+
+  Create Configurations from file.
+
+Options:
+  --file TEXT  Name of the json or yaml file.  [required]
+  --help       Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt configurations delete 
+=======================================
+Usage: manage.py configurations delete [OPTIONS]
+
+  Delete Configuration.
+
+Options:
+  --configuration TEXT  Name of the configuration to delete.  [required]
+  --help                Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt configurations get 
+=======================================
+Usage: manage.py configurations get [OPTIONS]
+
+  Get information about the configuration.
+
+Options:
+  --name TEXT  Get configuration name.  [required]
+  --help       Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt configurations list 
+=======================================
+Usage: manage.py configurations list [OPTIONS]
+
+  List Configuration based on role, partition, or shape.
+
+Options:
+  --format [tabular|json|yaml]  Output format  [default: tabular]
+  --output_file TEXT            Name of the output file.
+  --partition TEXT              Get all configurations in that defined
+                                partition.
+  --role [compute|login|all]    Get all configurations for compute or login.
+                                [default: all]
+  --shape TEXT                  Get all configurations with a particular
+                                shape.
+  --help                        Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt configurations update 
+=======================================
+Usage: manage.py configurations update [OPTIONS]
+
+  Update Configuration
+
+Options:
+  --name TEXT    Name of the configuration to update  [required]
+  --fields TEXT  Comma-separated list of updates to apply, Example:
+                 shape="VM.Standard.E5.Flex,instance_pool_ocpus=4"  [required]
+  --help         Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt database 
+=======================================
+Usage: manage.py database [OPTIONS] COMMAND [ARGS]...
+
+  Commands to do in the database.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  add       Add specific node to the DB.
+  create    Create database/tables.
+  delete    Delete nodes from the DB.
+  export    Export database contents to a SQLite DB file.
+  scan-vcn  Scan the specified VCN CIDR to list nodes
+  update    Update a field for a list of nodes.
+
+=======================================
+ HELP FOR : mgmt database add 
+=======================================
+Usage: manage.py database add [OPTIONS]
+
+  Add specific node to the DB.
+
+Options:
+  --ip TEXT        IP Address of the node.  [required]
+  --hostname TEXT  Hostname of the node.
+  --ocid TEXT      OCID of the node.
+  --help           Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt database create 
+=======================================
+Usage: manage.py database create [OPTIONS]
+
+  Create database/tables. Will not recreate tables that already exist.
+
+Options:
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt database delete 
+=======================================
+Usage: manage.py database delete [OPTIONS]
+
+  Delete nodes from the DB. This will not terminate the nodes
+
+Options:
+  --nodes TEXT   Comma separated list of nodes (IP Addresses, hostnames,
+                 OCID's, serials or oci names)
+  --fields TEXT  Fields to filter nodes (e.g., role=compute,status=running)
+  --help         Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt database export 
+=======================================
+Usage: manage.py database export [OPTIONS]
+
+  Export database contents to a SQLite DB file. May not work if Python was
+  built without sqlite support.
+
+Options:
+  --filename TEXT  SQLite filename. Must not already exist.  [default:
+                   export.sqlite]
+  --use-base       Use embedded Base metadata when creating target db. This
+                   can be used as very simple validation; if the source
+                   database schema doesn't match, an error may be raised.
+  --help           Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt database scan-vcn 
+=======================================
+Usage: manage.py database scan-vcn [OPTIONS] CIDR
+
+  Scan the specified VCN CIDR to list nodes
+
+Options:
+  --dns              Scan DNS
+  --change_hostname  Change OCI hostname
+  --help             Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt database update 
+=======================================
+Usage: manage.py database update [OPTIONS] IDENTIFIERS
+
+  Update a field for a list of nodes.
+
+Options:
+  --fields TEXT  Add a list of update to do, Example
+                 shape=VM.Standard.E5.Flex,instance_pool_ocpus=4  [required]
+  --help         Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt fabrics 
+=======================================
+Usage: manage.py fabrics [OPTIONS] COMMAND [ARGS]...
+
+  Commands to display fabrics.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  list  List all fabrics for nodes.
+
+=======================================
+ HELP FOR : mgmt fabrics list 
+=======================================
+Usage: manage.py fabrics list [OPTIONS]
+
+  List all fabrics for nodes.
+
+Options:
+  --full  Get full information about the node.
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt login 
+=======================================
+Usage: manage.py login [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage login nodes.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  create  Add login node to the cluster.
+  delete  Delete a login node.
+  list    List all login nodes.
+
+=======================================
+ HELP FOR : mgmt login create 
+=======================================
+Usage: manage.py login create [OPTIONS]
+
+  Add login node to the cluster.
+
+Options:
+  --count INTEGER       Number of login nodes to add  [required]
+  --configuration TEXT  Specify the name of the login configuration
+                        [required]
+  --names TEXT          Comma separated list of host names  [required]
+  --help                Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt login delete 
+=======================================
+Usage: manage.py login delete [OPTIONS]
+
+  Delete a login node.
+
+Options:
+  --hostname TEXT  Specify the name of the login node  [required]
+  --help           Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt login list 
+=======================================
+Usage: manage.py login list [OPTIONS]
+
+  List all login nodes.
+
+Options:
+  --format [tabular|json]  Output format  [default: tabular]
+  --help                   Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt network 
+=======================================
+Usage: manage.py network [OPTIONS] COMMAND [ARGS]...
+
+  Network block commands.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  blocks  Commands to manage network blocks.
+  rails   Commands to manage rails.
+
+=======================================
+ HELP FOR : mgmt network blocks 
+=======================================
+Usage: manage.py network blocks [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage network blocks.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  list  List commands for blocks.
+
+=======================================
+ HELP FOR : mgmt network blocks list 
+=======================================
+Usage: manage.py network blocks list [OPTIONS] COMMAND [ARGS]...
+
+  List commands for blocks.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  cluster  Get blocks by cluster
+
+=======================================
+ HELP FOR : mgmt network blocks list cluster 
+=======================================
+Usage: manage.py network blocks list cluster [OPTIONS]
+
+  Get blocks by cluster
+
+Options:
+  --cluster TEXT  Name of the cluster.  [required]
+  --help          Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt network rails 
+=======================================
+Usage: manage.py network rails [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage rails.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  list  List commands for rails.
+
+=======================================
+ HELP FOR : mgmt network rails list 
+=======================================
+Usage: manage.py network rails list [OPTIONS] COMMAND [ARGS]...
+
+  List commands for rails.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  cluster  Get rails by cluster
+
+=======================================
+ HELP FOR : mgmt network rails list cluster 
+=======================================
+Usage: manage.py network rails list cluster [OPTIONS]
+
+  Get rails by cluster
+
+Options:
+  --cluster TEXT        Name of the cluster.  [required]
+  --nodes / --no-nodes  Show nodes in the rail.
+  --help                Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes 
+=======================================
+Usage: manage.py nodes [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage nodes.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  boot-volume-swap   Boot Volume Swap one or more nodes.
+  get                Get information about nodes.
+  healthchecks       Tag nodes as unhealthy.
+  list               List nodes with various filters and formats Example:
+  reboot             Reboot one or more nodes.
+  reconfigure        Rerun the cloud-init script on the nodes.
+  tag                Tag nodes as unhealthy.
+  tag-and-terminate  Tag and Terminate nodes.
+  terminate          Terminate nodes.
+
+=======================================
+ HELP FOR : mgmt nodes boot-volume-swap 
+=======================================
+Usage: manage.py nodes boot-volume-swap [OPTIONS]
+
+  Boot Volume Swap one or more nodes.
+
+  You must specify either --nodes or --fields to identify which nodes to
+  reboot.
+
+  Example:
+
+   #Boot Volume Swap by node names
+
+   --nodes=node1,node2
+
+   #Boot Volume Swap by fields
+
+   --fields=role=compute,status=running
+
+   #Boot Volume Swap image
+
+   --image=ocid1.image.oc1..exampleuniqueid
+
+   #Boot Volume Swap BV size
+
+   --size=100
+
+Options:
+  --nodes TEXT    Comma separated list of nodes (IP Addresses, hostnames,
+                  OCID's, serials or oci names)
+  --fields TEXT   Fields to filter nodes (e.g., role=compute,status=running)
+  --image TEXT    Specify the image for BVR
+  --size INTEGER  Specify the size for BVR in GB
+  --help          Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes get 
+=======================================
+Usage: manage.py nodes get [OPTIONS] COMMAND [ARGS]...
+
+  Get information about nodes. Any is the default
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  any      Default: Get info by serial, IP, OCID, or hostname.
+  ids      Get information about a node by ID.
+  ips      Get information about a node by IP.
+  names    Get information about a node by host name.
+  serials  Get information about a node by serial number.
+
+=======================================
+ HELP FOR : mgmt nodes get any 
+=======================================
+Usage: manage.py nodes get any [OPTIONS] IDENTIFIERS
+
+  Default: Get info by serial, IP, OCID, or hostname.
+
+Options:
+  --format [node|csv|json]  Output format  [default: node]
+  --help                    Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes get ids 
+=======================================
+Usage: manage.py nodes get ids [OPTIONS] IDS
+
+  Get information about a node by ID.
+
+Options:
+  --format [node|csv|json]  Output format  [default: node]
+  --help                    Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes get ips 
+=======================================
+Usage: manage.py nodes get ips [OPTIONS] IPS
+
+  Get information about a node by IP.
+
+Options:
+  --format [node|csv|json]  Output format  [default: node]
+  --help                    Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes get names 
+=======================================
+Usage: manage.py nodes get names [OPTIONS] NAMES
+
+  Get information about a node by host name.
+
+Options:
+  --format [node|csv|json]  Output format  [default: node]
+  --help                    Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes get serials 
+=======================================
+Usage: manage.py nodes get serials [OPTIONS] SERIALS
+
+  Get information about a node by serial number.
+
+Options:
+  --format [node|csv|json]  Output format  [default: node]
+  --help                    Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes healthchecks 
+=======================================
+Usage: manage.py nodes healthchecks [OPTIONS]
+
+  Tag nodes as unhealthy.
+
+Options:
+  --nodes TEXT                    Comma separated list of nodes (IP Addresses,
+                                  hostnames, OCID's, serials or oci names)
+  --fields TEXT                   Fields to filter nodes (e.g.,
+                                  role=compute,status=running)
+  --type [all|passive|active|multi-node]
+                                  Type of healthcheck to run (all,passive,
+                                  active, multi-node)
+  --exclude-node TEXT             Node to exclude from multi_node healthcheck
+  --reservation TEXT              Include a Reservation Name for the
+                                  healthcheck in case the nodes are in a
+                                  reservation, InitialValidation is the
+                                  reservation created for all new nodes.
+  --help                          Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes list 
+=======================================
+Usage: manage.py nodes list [OPTIONS]
+
+  List nodes with various filters and formats   Example:
+
+  # List all nodes in a cluster
+
+  mgmt nodes list --cluster mycluster
+
+  # Lists all node hostnames in a boxed table format without headers, using a
+  fixed width of 30
+
+  mgmt nodes list --columns hostname --style box --no-header --width 30
+
+  # Lists all compute nodes in a json format with all fields
+
+  mgmt nodes list --format json --columns all --fields role=compute
+
+Options:
+  --one-line                      Share the hostnames list in one line (or
+                                  compact output with --json)
+  --cluster TEXT                  List nodes that are part of named cluster.
+  --memory-cluster TEXT           List nodes that are part of named memory
+                                  cluster.
+  --style [lines|box|none]        Table style for tabular output.  [default:
+                                  box]
+  --format [tabular|node|csv|json]
+                                  Output format  [default: tabular]
+  --width INTEGER                 Width of output. [default: detect from
+                                  terminal or COLUMNS env var]
+  --columns TEXT                  Comma separated list of fields to display.
+                                  Also accepts ALL, DEFAULT, SIMPLE (all
+                                  single-line fields), HC (all healthcheck
+                                  fields + simple fields), or LIST (to list
+                                  field names and exit)
+  --no-header                     Do not include header in tabular/csv
+                                  formats.
+  --fields TEXT                   Add a list of fields to filter, Example:
+                                  role=compute,status=running
+  --help                          Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes reboot 
+=======================================
+Usage: manage.py nodes reboot [OPTIONS]
+
+  Reboot one or more nodes.
+
+  You must specify either --nodes or --fields to identify which nodes to
+  reboot.
+
+  Example:
+
+    #Reboot by node names
+
+    --nodes=node1,node2
+
+    #Reboot by fields
+
+    --fields=role=compute,status=running
+
+    #Soft reboot
+
+    --nodes=node1 --soft
+
+Options:
+  --nodes TEXT   Comma separated list of nodes (IP Addresses, hostnames,
+                 OCID's, serials or oci names)
+  --fields TEXT  Fields to filter nodes (e.g., role=compute,status=running)
+  --soft         Perform a soft reboot (OS level) instead of a hard reset
+  --help         Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes reconfigure 
+=======================================
+Usage: manage.py nodes reconfigure [OPTIONS]
+
+  Rerun the cloud-init script on the nodes.
+
+Options:
+  --nodes TEXT                    Comma separated list of nodes (IP Addresses,
+                                  hostnames, OCID's, serials or oci names)
+  --fields TEXT                   Fields to filter nodes (e.g.,
+                                  role=compute,status=running)
+  --action [compute|controller|all|custom|command]
+                                  What to reconfigure (compute will rerun the
+                                  cloud-init, controller will reconfigure the
+                                  node on the controller (Slurm Topology and
+                                  Prometheus targets),  all will reconfigure
+                                  the node on the controller and the cloud-
+                                  init, customer will reconfigure the node on
+                                  the controller and the cloud-init,  custom
+                                  will reconfigure the node on the controller
+                                  and the cloud-init,  command will run a
+                                  custom command on the nodes)
+  --command TEXT                  Specify the command to run on the nodes. To
+                                  be used with --action=command
+  --help                          Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes tag 
+=======================================
+Usage: manage.py nodes tag [OPTIONS]
+
+  Tag nodes as unhealthy.
+
+Options:
+  --nodes TEXT   Comma separated list of nodes (IP Addresses, hostnames,
+                 OCID's, serials or oci names)
+  --fields TEXT  Fields to filter nodes (e.g., role=compute,status=running)
+  --help         Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes tag-and-terminate 
+=======================================
+Usage: manage.py nodes tag-and-terminate [OPTIONS]
+
+  Tag and Terminate nodes.
+
+Options:
+  --nodes TEXT   Comma separated list of nodes (IP Addresses, hostnames,
+                 OCID's, serials or oci names)
+  --fields TEXT  Fields to filter nodes (e.g., role=compute,status=running)
+  --help         Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt nodes terminate 
+=======================================
+Usage: manage.py nodes terminate [OPTIONS]
+
+  Terminate nodes.
+
+Options:
+  --nodes TEXT   Comma separated list of nodes (IP Addresses, hostnames,
+                 OCID's, serials or oci names)
+  --fields TEXT  Fields to filter nodes (e.g., role=compute,status=running)
+  --help         Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt recommendations 
+=======================================
+Usage: manage.py recommendations [OPTIONS] COMMAND [ARGS]...
+
+  Commands to show recommendations about the cluster.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  list  List all the nodes with recommendations.
+  run   Run all the recommendations.
+
+=======================================
+ HELP FOR : mgmt recommendations list 
+=======================================
+Usage: manage.py recommendations list [OPTIONS]
+
+  List all the nodes with recommendations.
+
+Options:
+  --healthcheck                   Only show the Healthcheck Recommendations.
+  --unreachable                   Only show the unreachable nodes.
+  --unconfigured                  Only show the nodes failing to start.
+  --unreachable_timeout INTEGER   Timeout in minutes before a node is
+                                  considered unreachable.
+  --unconfigured_timeout INTEGER  Timeout in minutes before a node is
+                                  considered unreachable.
+  --help                          Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt recommendations run 
+=======================================
+Usage: manage.py recommendations run [OPTIONS]
+
+  Run all the recommendations.
+
+Options:
+  --nodes TEXT                    Comma separated list of nodes (IP Addresses,
+                                  hostnames, OCID's, serials or oci names)
+  --healthcheck
+  --unreachable                   Get full information about the nodes.
+  --unconfigured                  Get full information about the nodes.
+  --unreachable_timeout INTEGER   Timeout in minutes before a node is
+                                  considered unreachable.
+  --unconfigured_timeout INTEGER  Timeout in minutes before a node is
+                                  considered unreachable.
+  --help                          Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services 
+=======================================
+Usage: manage.py services [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage services.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  active-hc        Run active healthcheck.
+  all              Run full workflow: scan queue, update metadata, run...
+  ansible          Run Ansible to configure nodes.
+  init             Reconfigure the Slurm Config files on the controller.
+  multi-node-hc    Run active healthcheck.
+  scan-host-api    Scan Host API, update Health information and report...
+  scan-queue       Scan queue for new or removed nodes and update the DB.
+  update-metadata  Update metadata for all hosts in the DB.
+
+=======================================
+ HELP FOR : mgmt services active-hc 
+=======================================
+Usage: manage.py services active-hc [OPTIONS]
+
+  Run active healthcheck.
+
+Options:
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services all 
+=======================================
+Usage: manage.py services all [OPTIONS]
+
+  Run full workflow: scan queue, update metadata, run ansible and update nodes
+  in case of success.
+
+Options:
+  --http_port INTEGER  Specify HTTP Port.
+  --help               Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services ansible 
+=======================================
+Usage: manage.py services ansible [OPTIONS]
+
+  Run Ansible to configure nodes.
+
+Options:
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services init 
+=======================================
+Usage: manage.py services init [OPTIONS]
+
+  Reconfigure the Slurm Config files on the controller. topology.conf .
+
+Options:
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services multi-node-hc 
+=======================================
+Usage: manage.py services multi-node-hc [OPTIONS]
+
+  Run active healthcheck.
+
+Options:
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services scan-host-api 
+=======================================
+Usage: manage.py services scan-host-api [OPTIONS]
+
+  Scan Host API, update Health information and report number of available
+  nodes in the dedicated pool.
+
+Options:
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services scan-queue 
+=======================================
+Usage: manage.py services scan-queue [OPTIONS]
+
+  Scan queue for new or removed nodes and update the DB.
+
+Options:
+  --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt services update-metadata 
+=======================================
+Usage: manage.py services update-metadata [OPTIONS]
+
+  Update metadata for all hosts in the DB.
+
+Options:
+  --nodes TEXT         any of the hostname, OCID, IP, serial, OCI_name of the
+                       node.
+  --http_port INTEGER  Specify HTTP Port.
+  --help               Show this message and exit.

@@ -28,9 +28,9 @@ def write_ordered_rankfile(ordered_hosts=[],hostfile=None):
     fhandler.close()
 
 
-def get_swicthname(host):
+def get_switchname(host):
     try:
-        command = "scontrol show topology "+host+" | grep Level=0"
+        command = "scontrol show topology node="+host+" | grep Level=0"
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         switchname=result.stdout.split(" ")[0].replace("SwitchName=","")
         return switchname
@@ -77,7 +77,7 @@ except:
     slurm = False
 if slurm:
     for host in hosts:
-        switch=get_swicthname(host)
+        switch=get_switchname(host)
         if switch in r.keys():
             r[switch].append( host )
         else:

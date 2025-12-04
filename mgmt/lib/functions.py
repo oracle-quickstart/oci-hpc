@@ -158,6 +158,8 @@ def get_updates_based_on_url(nodes,HTTP_SERVER_PORT,filename):
                     if node.status=="starting":
                         json_data["controller_status"]="configuring"
                         json_data["status"]="running"
+                    if node.status=="unreachable":
+                        json_data["status"]="running"
                     if node.first_time_reachable is None:
                         json_data.update({"first_time_reachable":current_time_str})
                     logger.debug(f"Stored content for {url}")
