@@ -16,7 +16,7 @@
     - name: Download Docker APT repo GPG key
       become: true
       ansible.builtin.get_url:
-        url: "https://download.docker.com/linux/ubuntu/dists/{{ ansible_distribution_release }}/Release.gpg"
+        url: "https://download.docker.com/linux/ubuntu/gpg"
         dest: /tmp/docker.asc.gpg
         mode: '0644'
         force: true
@@ -28,7 +28,7 @@
     - name: Add Docker repository
       become: true
       ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        repo: "deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
         state: present
         update_cache: true
     - name: Update apt and install pre-req packages for docker
