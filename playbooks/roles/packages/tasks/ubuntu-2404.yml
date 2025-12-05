@@ -6,24 +6,6 @@
         path: /etc/needrestart/needrestart.conf
         regexp: "#$nrconf{restart} = 'i';"
         replace: "$nrconf{restart} = 'a';"
-    - name: Download NVIDIA CUDA GPG key
-      become: true
-      ansible.builtin.get_url:
-        url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/{{ ansible_architecture }}/Release.gpg"
-        dest: /tmp/nvidia_cuda_asc.gpg
-        mode: '0644'
-        force: true
-    - name: Convert NVIDIA CUDA key to binary keyring
-      become: true
-      ansible.builtin.command:
-        cmd: "gpg --dearmor -o /etc/apt/keyrings/nvidia_cuda.gpg /tmp/nvidia_cuda_asc.gpg"
-        creates: /etc/apt/keyrings/nvidia_cuda.gpg
-    - name: Use updated NVIDIA CUDA key
-      become: true
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/nvidia_cuda.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/{{ ansible_architecture }} stable main"
-        state: present
-        update_cache: true
     - name: Make sure python OpenSSL and parallel ssh is installed
       vars:
         package_name:
