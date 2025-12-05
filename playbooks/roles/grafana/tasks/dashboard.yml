@@ -81,6 +81,7 @@
     - nvidia-gpu-metrics-single.jsonnet
     - host-metrics-single-variables.libsonnet
     - host-metrics-single.jsonnet
+    - node-health-table-variables.libsonnet
     - health-by-node-agg-counts.jsonnet
     - health-by-node-matrix.jsonnet
     - multi-node-variables.libsonnet
