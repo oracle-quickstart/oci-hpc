@@ -81,9 +81,12 @@
     - nvidia-gpu-metrics-single.jsonnet
     - host-metrics-single-variables.libsonnet
     - host-metrics-single.jsonnet
+    - health-by-node-agg-counts.jsonnet
+    - health-by-node-matrix.jsonnet
     - multi-node-variables.libsonnet
     - multi-node.jsonnet
     - nccl-traces.jsonnet
+    - node-by-health-matrix.jsonnet
     - oci-block-variables.libsonnet
     - oci-block.jsonnet
     - oci-drg-variables.libsonnet
@@ -114,6 +117,7 @@
     - storage-metrics-variables.libsonnet
     - table-panel.libsonnet
     - timeseries-panel.libsonnet
+    - Makefile
   retries: 10
   delay: 10
   until: copy_result is not failed
@@ -131,8 +135,11 @@
     /usr/local/bin/jsonnet -J vendor nvidia-gpu-metrics-single.jsonnet -o nvidia-gpu-metrics-single.json
     /usr/local/bin/jsonnet -J vendor nvidia-gpu-health.jsonnet -o nvidia-gpu-health.json
     /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor health-by-node-agg-counts.jsonnet -o health-by-node-agg-counts.json
+    /usr/local/bin/jsonnet -J vendor health-by-node-matrix.jsonnet -o health-by-node-matrix.json
     /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
     /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
+    /usr/local/bin/jsonnet -J vendor node-by-health-matrix.jsonnet -o node-by-health-matrix.json
     /usr/local/bin/jsonnet -J vendor oci-block.jsonnet -o oci-block.json
     /usr/local/bin/jsonnet -J vendor oci-drg.jsonnet -o oci-drg.json
     /usr/local/bin/jsonnet -J vendor oci-fastconnect.jsonnet -o oci-fastconnect.json
@@ -169,8 +176,11 @@
     - nvidia-gpu-health.json
     - nvidia-gpu-metrics-single.json
     - host-metrics-single.json
+    - health-by-node-agg-counts.json
+    - health-by-node-matrix.json
     - multi-node.json
     - nccl-traces.json
+    - node-by-health-matrix.json
     - oci-block.json
     - oci-drg.json
     - oci-fastconnect.json
@@ -200,6 +210,9 @@
     - multi-node.json
     - host-metrics-single.json
     - storage-metrics.json
+    - health-by-node-agg-counts.json
+    - health-by-node-matrix.json
+    - node-by-health-matrix.json
     - amd-gpu-health.json
     - amd-gpu-metrics-single.json
     - nvidia-gpu-health.json
