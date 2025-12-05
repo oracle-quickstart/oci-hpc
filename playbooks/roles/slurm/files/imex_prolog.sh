@@ -3,7 +3,7 @@
 set -ex
 
 shape=$(curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .shape)
-if [ ${shape} = "BM.GPU.GB200.4" ] || [ ${shape} = "BM.GPU.GB200-v2.4" ] || [ ${shape} = "BM.GPU.GB200-v3.4" ] || ${shape} = "BM.GPU.GB300.4" ]; then
+if [ ${shape} = "BM.GPU.GB200.4" ] || [ ${shape} = "BM.GPU.GB200-v2.4" ] || [ ${shape} = "BM.GPU.GB200-v3.4" ] || [ ${shape} = "BM.GPU.GB300.4" ]; then
 
   sudo --preserve-env=SLURM_NODELIST,SLURM_JOB_ID bash <<'SUDO'
     set -ex
@@ -53,8 +53,8 @@ if [ ${shape} = "BM.GPU.GB200.4" ] || [ ${shape} = "BM.GPU.GB200-v2.4" ] || [ ${
     rm $expanded_slurm_topology_file
 
     #rotate server port to prevent race condition
-    NEW_SERVER_PORT=$((${SLURM_JOB_ID} % 16384 + 33792))
-    sed -i "s/SERVER_PORT.*/SERVER_PORT=${NEW_SERVER_PORT}/" /etc/nvidia-imex/config.cfg
+    #NEW_SERVER_PORT=$((${SLURM_JOB_ID} % 16384 + 33792))
+    #sed -i "s/SERVER_PORT.*/SERVER_PORT=${NEW_SERVER_PORT}/" /etc/nvidia-imex/config.cfg
 
     #enable imex-ctl on all nodes so you can query imex status with: nvidia-imex-ctl -a -q
     sed -i "s/IMEX_CMD_PORT.*/IMEX_CMD_PORT=50005/" /etc/nvidia-imex/config.cfg
@@ -68,15 +68,19 @@ SUDO
   echo "Waiting for NVIDIA domain status to be UP"
   count=0
   while true; do
-    status=$(nvidia-imex-ctl -N -j | jq -r '.status')
+    status=$(timeout 6 nvidia-imex-ctl -N -j | jq -r '.status')
     if [[ "$status" == "UP" ]]; then
       echo "Domain is UP!"
       break
     fi
     if [[ $count -gt 20 ]]; then
       echo " Max count is exhausted without domain coming up"
-      nvidia-imex-ctl -N
-      exit 1
+      timeout 6 nvidia-imex-ctl -N
+      if [ $(timeout 6 nvidia-imex-ctl -N -j | jq -r --arg host $(hostname) '.nodes[] | select(.host == $host) | .status') = "UNAVAILABLE" ]; then
+        exit 1
+      else
+        exit 0
+      fi
     fi
     echo -n "."
     sleep 2
@@ -84,7 +88,7 @@ SUDO
   done
 
   export LOCAL_HOSTNAME=$(hostname)
-  export IMEX_OUTPUT_JSON=$(nvidia-imex-ctl -N -j)
+  export IMEX_OUTPUT_JSON=$(timeout 6 nvidia-imex-ctl -N -j)
 
   export NODE_IDX=$(jq \
     -r --arg node_ip "$LOCAL_HOSTNAME" -n '
