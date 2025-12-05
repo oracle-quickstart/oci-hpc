@@ -27,8 +27,8 @@ local healthChecks = [
   { metric: 'node_health_status', title: 'Overall Health' },
 ];
 
-g.dashboard.new('Health Check Matrix with Counts')
-+ g.dashboard.withUid('health-check-matrix-with-counts')
+g.dashboard.new('Health by Node Counts')
++ g.dashboard.withUid('health-by-node-counts')
 + g.dashboard.withDescription(|||
   Health checks as rows, nodes as columns, with fail/success counts.
   Shows ✓ for passing checks and ✗ for failing checks.
@@ -41,8 +41,7 @@ g.dashboard.new('Health Check Matrix with Counts')
   variables.cluster,
   variables.hostname,
 ])
-+ g.dashboard.withPanels(
-  g.util.grid.makeGrid([
++ g.dashboard.withPanels([
     g.panel.table.new('Health Check Status Matrix with Counts')
     + g.panel.table.queryOptions.withTargets([
       // Query A: All health check data with hostname and check labels
@@ -312,7 +311,8 @@ g.dashboard.new('Health Check Matrix with Counts')
     ])
     + g.panel.table.options.withShowHeader(true)
     + g.panel.table.options.footer.withEnablePagination(true)
+    + g.panel.table.gridPos.withX(0)
+    + g.panel.table.gridPos.withY(0)
     + g.panel.table.gridPos.withW(24)
-    + g.panel.table.gridPos.withH(16),
-  ])
-)
+    + g.panel.table.gridPos.withH(18),
+])

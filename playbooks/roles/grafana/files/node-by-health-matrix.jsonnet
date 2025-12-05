@@ -1,8 +1,9 @@
 local g = import './g.libsonnet';
-local variables = import './variables.libsonnet';
+local variables = import './node-health-table-variables.libsonnet';
 
 // Define all health check metrics from recording_rules.yml
 local healthChecks = [
+  { metric: 'node_health_status', title: 'Overall Health', columnName: 'Health' },
   { metric: 'node_disk_free_ok', title: 'Disk Free', columnName: 'Disk Free' },
   { metric: 'node_memory_availability_ok', title: 'Memory Available', columnName: 'Memory' },
   { metric: 'node_gpu_power_violation_ok', title: 'GPU Power', columnName: 'GPU Power' },
@@ -24,11 +25,10 @@ local healthChecks = [
   { metric: 'node_gpu_count_ok', title: 'GPU Count', columnName: 'GPU Count' },
   { metric: 'node_gpu_row_remap_error_check', title: 'GPU Row Remap', columnName: 'Row Remap' },
   { metric: 'node_xid_error_check', title: 'XID Errors', columnName: 'XID' },
-  { metric: 'node_health_status', title: 'Overall Health', columnName: 'Health' },
 ];
 
-g.dashboard.new('Node Health Check Matrix')
-+ g.dashboard.withUid('node-health-table')
+g.dashboard.new('Node by Health Matrix')
++ g.dashboard.withUid('node-by-health-matrix')
 + g.dashboard.withDescription(|||
   Comprehensive health check status matrix for all cluster nodes.
   Shows ✓ for passing checks and ✗ for failing checks.
@@ -36,30 +36,32 @@ g.dashboard.new('Node Health Check Matrix')
 + g.dashboard.withTimezone('browser')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.withVariables([
   variables.prometheus,
   variables.cluster,
   variables.hostname,
 ])
-+ g.dashboard.withPanels(
-  g.util.grid.makeGrid([
-    g.panel.table.new('Node Health Status Matrix')
-    + g.panel.table.queryOptions.withTargets(
-      [
-        g.query.prometheus.new(
-          '$PROMETHEUS_DS',
-          check.metric + '{cluster_name=~"$cluster_name", hostname=~"$hostname"}',
-        )
-        + g.query.prometheus.withInstant(true)
-        + g.query.prometheus.withFormat('table')
-        + g.query.prometheus.withRefId(std.asciiUpper(std.substr(check.metric, 0, 1)))
-        for check in healthChecks
-      ]
-    )
++ g.dashboard.withPanels([
+    g.panel.table.new('Node x Health Matrix')
+    + g.panel.table.queryOptions.withTargets([
+      g.query.prometheus.new(
+        '$PROMETHEUS_DS',
+        check.metric + '{cluster_name=~"$cluster_name", hostname=~"$hostname"}',
+      )
+      + g.query.prometheus.withInstant(true)
+      + g.query.prometheus.withFormat('table')
+      + g.query.prometheus.withRefId(std.char(65 + i))
+      for i in std.range(0, std.length(healthChecks) - 1)
+      for check in [healthChecks[i]]
+    ])
     + g.panel.table.queryOptions.withTransformations([
       {
-        id: 'merge',
-        options: {},
+        id: 'joinByField',
+        options: {
+          byField: 'hostname',
+          mode: 'outer',
+        },
       },
       {
         id: 'organize',
@@ -69,16 +71,31 @@ g.dashboard.new('Node Health Check Matrix')
             __name__: true,
             instance: true,
             job: true,
+          } + {
+            ['Time ' + i]: true
+            for i in std.range(1, 30)
+          } + {
+            ['cluster_name ' + i]: true
+            for i in std.range(2, 30)
+          } + {
+            ['vendor ' + i]: true
+            for i in std.range(2, 30)
           },
           indexByName: {
             hostname: 0,
-            cluster_name: 1,
+            'cluster_name 1': 1,
+            'vendor 1': 2,
+          } + {
+            ['Value #' + std.char(65 + i)]: i + 3
+            for i in std.range(0, std.length(healthChecks) - 1)
           },
           renameByName: {
             hostname: 'Node',
-            cluster_name: 'Cluster',
-            [check.metric]: check.columnName
-            for check in healthChecks
+            'cluster_name 1': 'Cluster',
+            'vendor 1': 'Vendor',
+          } + {
+            ['Value #' + std.char(65 + i)]: healthChecks[i].columnName
+            for i in std.range(0, std.length(healthChecks) - 1)
           },
         },
       },
@@ -186,7 +203,8 @@ g.dashboard.new('Node Health Check Matrix')
     ])
     + g.panel.table.options.withShowHeader(true)
     + g.panel.table.options.footer.withEnablePagination(true)
+    + g.panel.table.gridPos.withX(0)
+    + g.panel.table.gridPos.withY(0)
     + g.panel.table.gridPos.withW(24)
-    + g.panel.table.gridPos.withH(16),
-  ])
-)
+    + g.panel.table.gridPos.withH(18),
+])
