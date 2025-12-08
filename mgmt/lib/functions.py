@@ -411,16 +411,21 @@ def run_multi_node_active_hc(nodes,exclude_node=None,reservation_id=None):
         logger.error("The number of nodes does not make sense")
     if hc_partition:
         logger.info(f"Submitting multi node healthcheck on {hostnames} through partition {hc_partition[0]}")
+        healthcheck_script="/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"
+        try:
+            gpu_count = int(node_1.shape.split(".")[-1])
+        except:
+            gpu_count = 8
         if exclude_node is None:
             if reservation_id is None:
-                cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",hostnames,"--deadline=now+5minutes","--time=4:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"]       
+                cmd=["sbatch","-N","2","-p",hc_partition[0],"--ntasks-per-node",gpu_count,"--gpus-per-node",gpu_count,"-w",hostnames,"--deadline=now+5minutes","--time=4:00",healthcheck_script]       
             else:
-                cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",hostnames,"--reservation",reservation_id,"--deadline=now+5minutes","--time=00:04:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"] 
+                cmd=["sbatch","-N","2","-p",hc_partition[0],"--ntasks-per-node",gpu_count,"--gpus-per-node",gpu_count,"-w",hostnames,"--reservation",reservation_id,"--deadline=now+5minutes","--time=00:04:00",healthcheck_script] 
         else:
             if reservation_id is None:
-                cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",hostnames,"-x",exclude_node,"--deadline=now+5minutes","--time=00:04:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"] 
+                cmd=["sbatch","-N","2","-p",hc_partition[0],"--ntasks-per-node",gpu_count,"--gpus-per-node",gpu_count,"-w",hostnames,"-x",exclude_node,"--deadline=now+5minutes","--time=00:04:00",healthcheck_script] 
             else:
-                cmd=["sbatch","-N","2","-p",hc_partition[0],"-w",hostnames,"-x",exclude_node,"--reservation",reservation_id,"--deadline=now+5minutes","--time=00:04:00","/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"] 
+                cmd=["sbatch","-N","2","-p",hc_partition[0],"--ntasks-per-node",gpu_count,"--gpus-per-node",gpu_count,"-w",hostnames,"-x",exclude_node,"--reservation",reservation_id,"--deadline=now+5minutes","--time=00:04:00",healthcheck_script] 
         logger.debug(f"Running command: {' '.join(cmd)}")
         results = subprocess.run(cmd)
         if results.returncode != 0:

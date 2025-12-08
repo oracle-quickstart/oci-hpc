@@ -29,64 +29,83 @@ shape_mapping = {
         "var_UCX_NET_DEVICES": "mlx5_0:1",
         "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
         "threshold": 185,
-        "ib_write_bw": 96
+        "ib_write_bw": 96,
+        "ib_write_lat": 5
     },
     "BM.GPU.A100-v2.8": {
         "var_UCX_NET_DEVICES": "mlx5_0:1",
         "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_1",
         "threshold": 185,
-        "ib_write_bw": 96
+        "ib_write_bw": 96,
+        "ib_write_lat": 5
     },
     "BM.GPU4.8": {
         "var_UCX_NET_DEVICES": "mlx5_4:1",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17",
         "threshold": 185,
-        "ib_write_bw": 96
+        "ib_write_bw": 96,
+        "ib_write_lat": 5
     },
     "BM.GPU.H100.8": {
         "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17",
         "threshold": 440,
-        "ib_write_bw": 192
+        "ib_write_bw": 192,
+        "ib_write_lat": 5
     },
     "BM.GPU.H200.8": {
         "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
         "threshold": 440,
-        "ib_write_bw": 384
+        "ib_write_bw": 384,
+        "ib_write_lat": 5
     },
     "BM.GPU.B200.8": {
         "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
         "threshold": 440,
-        "ib_write_bw": 384
+        "ib_write_bw": 384,
+        "ib_write_lat": 5
     },
     "BM.GPU.GB200.4": {
+        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
-        "ib_write_bw": 384
+        "ib_write_bw": 384,
+        "ib_write_lat": 9
     },
     "BM.GPU.GB200-v2.4": {
+        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
-        "ib_write_bw": 384
+        "ib_write_bw": 384,
+        "ib_write_lat": 9
     },
     "BM.GPU.GB200-v3.4": {
+        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
-        "ib_write_bw": 384
-    },    
+        "ib_write_bw": 384,
+        "ib_write_lat": 9,
+        "threshold": 300
+    },
     "BM.GPU.GB300.4": {
+        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
-        "ib_write_bw": 384
-    },    
+        "ib_write_bw": 384,
+        "ib_write_lat": 9,
+        "threshold": 440,
+    },
     "BM.Optimized3.36": {
+        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_2",
-        "ib_write_bw": 96
+        "ib_write_bw": 96,
+        "ib_write_lat": 5
     },
     "BM.GPU.MI300X.8": {
         "var_UCX_NET_DEVICES": "mlx5_0:1",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_7,mlx5_8,mlx5_9",
         "threshold": 350,
-        "ib_write_bw": 350
-    }    
+        "ib_write_bw": 350,
+        "ib_write_lat": 5
+    }
 }
 
 healthy = "Healthy"
@@ -131,7 +150,7 @@ def get_host_serial():
         pass  # Metadata service not available
 
     return "Unknown Instance"  # Final fallback if all methods fail
-    
+
 def custom_join(cmd_list):
     return ' '.join(('^hcoll' if x == '^hcoll' else shlex.quote(x)) for x in cmd_list)
 
@@ -144,11 +163,12 @@ def get_node_details():
     logger.info(f"Node details: {hostname} - {host_serial} - {ocid} - {shape}")
 
 def run_multi_node_nccl_test(hostfile, shape):
-
     paths = glob.glob('/usr/mpi/gcc/openmpi-*/bin/mpivars.sh')
     if paths:
         mpivars_path = paths[0]
     else:
+        logger.info("157")
+
         return False,"NCCL Test Failed: No mpivars.sh found"
 
     increment=1024*1024*1024*9
@@ -157,9 +177,11 @@ def run_multi_node_nccl_test(hostfile, shape):
 
     var_UCX_NET_DEVICES = shape_mapping.get(shape, {}).get('var_UCX_NET_DEVICES', '')
     if var_UCX_NET_DEVICES == "":
-        return False,"NCCL Test Failed: Shape not found for NCCL test"
+        logger.info("166")
+        return False,f"NCCL Test Failed: Shape {shape} not found for NCCL test"
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
     if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
+        logger.info("170")
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
             "--bind-to", "numa",
@@ -210,7 +232,58 @@ def run_multi_node_nccl_test(hostfile, shape):
             "bash","-c",
             f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
         ]
-
+    elif shape == "BM.GPU.GB200.4":
+        mpirun_cmd = [
+            "mpirun",
+            "--bind-to", "none",
+            "--mca", "coll", "^hcoll",
+            "--mca", "plm_rsh_no_tree_spawn", "1",
+            "-x", "NCCL_MNNVL_ENABLE=1",
+            "-x", "NCCL_NET_PLUGIN=none",
+            "-x", "NCCL_NET_GDR_C2C=1",
+            "-x", "NCCL_NVLS_ENABLE=1",
+            "-x", f"UCX_NET_DEVICES={var_NCCL_IB_HCA}",
+            "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
+            "-x", f"NCCL_SOCKET_IFNAME={var_UCX_NET_DEVICES}",
+            "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
+            "--np", "8",
+            "--rankfile", hostfile,
+            "bash","-c",
+            f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
+        ]
+    elif "GPU.GB" in shape:
+        mpirun_cmd = [
+            "mpirun",
+            "--bind-to", "numa",
+            "--mca", "pml", "ucx",
+            "--mca", "coll", "^hcoll",
+            "-x", "NCCL_MNNVL_ENABLE=1",
+            "-x", "NCCL_CUMEM_ENABLE=1",
+            "-x", "NCCL_NET_PLUGIN=none",
+            "-x", "NCCL_NET_GDR_C2C=1",
+            "-x", "NCCL_NVLS_ENABLE=1",
+            "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
+            "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
+            "-x", f"NCCL_SOCKET_IFNAME={var_UCX_NET_DEVICES}",
+            "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
+            "-x", "NCCL_IB_GID_INDEX=3",
+            "-x", "NCCL_IB_TC=41",
+            "-x", "NCCL_IB_SL=0",
+            "-x", "NCCL_IB_TIMEOUT=22",
+            "-x", "RX_QUEUE_LEN=8192",
+            "-x", "IB_RX_QUEUE_LEN=8192",
+            "-x", "HCOLL_ENABLE_MCAST_ALL=0",
+            "-x", "coll_hcoll_enable=0",
+            "-x", "NCCL_IB_QPS_PER_CONNECTION=4",
+            "-x", "NCCL_IB_SPLIT_DATA_ON_QPS=0",
+            "-x", "NCCL_NVLS_ENABLE=1",
+            "-x", "NCCL_DMABUF_ENABLE=1",
+            "-x", "NCCL_NET_GDR_LEVEL=SYS",
+            "--np", "8",
+            "--rankfile", hostfile,
+            "bash","-c",
+            f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
+        ]
     else:
         return False,"NCCL Test Failed: No suitable shape found for NCCL test"
 
@@ -223,7 +296,6 @@ def run_multi_node_nccl_test(hostfile, shape):
     os.chmod(tmp_script, 0o777)
     i = 0
     while i < 5:
-        logger.info(f"NCCL Test {i+1}/5")
         i += 1
         try:
             result = subprocess.run(
@@ -235,13 +307,12 @@ def run_multi_node_nccl_test(hostfile, shape):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-
             if result.returncode == 0:
                 output = result.stdout
                 bw=None
                 threshold = shape_mapping.get(shape, {}).get("threshold")
                 if threshold == "":
-                    return False,"NCCL Test Failed: Shape not found for NCCL test"
+                    return False,f"NCCL Test Failed: Shape {shape} not found for NCCL test"
                 for line in output.splitlines():
                     if "Avg bus bandwidth" in line:
                         try:
@@ -265,6 +336,7 @@ def run_multi_node_nccl_test(hostfile, shape):
                 continue
             else:
                 return False, f"NCCL Test Failed: Failed to run nccl test. {e}"
+    return False,"NCCL Test Failed: NCCL test failed after 5 attempts"
 
 def run_multi_node_rccl_test(hostfile, shape):
 
@@ -289,7 +361,7 @@ def run_multi_node_rccl_test(hostfile, shape):
             "--mca", "plm_rsh_no_tree_spawn", "1",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
             "-x", f"NCCL_SOCKET_IFNAME=eth0",
-            "-x", "NCCL_IB_SL=0", 
+            "-x", "NCCL_IB_SL=0",
             "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
             "-x", "coll_hcoll_enable=0",
             "-x", "HCOLL_ENABLE_MCAST_ALL=0",
@@ -366,14 +438,14 @@ def run_multi_node_rccl_test(hostfile, shape):
             return False, f"RCCL Test Failed: Failed to run nccl test. {e}"
 
 
-def run_ib_write_bw(shape, server, client='localhost'):    
+def run_ib_write_bw(shape, server, client='localhost'):
     ib_write_bw = shape_mapping.get(shape, {}).get('ib_write_bw', '')
     if ib_write_bw == "":
         return False,"ib write bw Test Failed: Shape not found for ib write test"
 
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
     hca_list = var_NCCL_IB_HCA.lstrip("=").split(',')
-    
+
     cmd_base = "/usr/bin/ib_write_bw -F -q 2 -x 3 --report_gbits"
     results = {}
     for i in range(3):
@@ -386,7 +458,7 @@ def run_ib_write_bw(shape, server, client='localhost'):
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
             time.sleep(1)  # Ensure server process is listening
-            
+
             # Run client-side ib_write_bw over SSH
             ssh_client_cmd = f"ssh {shlex.quote(client)} '{cmd_base} -d {dev} {server}'"
             try:
@@ -429,10 +501,13 @@ def run_ib_write_bw(shape, server, client='localhost'):
             interfaces_str = ' and '.join(pairs)
             # Construct the full message
             msg = f"WARNING: BW was below the threshold {ib_write_bw} Gb/s for interface {interfaces_str}"
-            logger.warning(msg)  
+            logger.warning(msg)
             return False,"ib write bw Test Failed: Bandwidth is less than the threshold of " + str(ib_write_bw) + " Gb/s for one or more RDMA interfaces"
 
 def run_ib_write_lat(shape, server, client='localhost'):
+    ib_write_lat_threshold = shape_mapping.get(shape, {}).get('ib_write_lat', '')
+    if ib_write_lat_threshold == "":
+        return False,"ib write latency Test Failed: Shape not found for ib write latency test"
     # Helper to execute ssh command and return stdout
     def ssh(host, cmd):
         try:
@@ -455,7 +530,7 @@ def run_ib_write_lat(shape, server, client='localhost'):
     total_hcas = len(hca_list)
     half = total_hcas // 2
     cmd_base = "/usr/bin/ib_write_lat -F -x 3 -s 8 -n 10000"
-    
+
     success = True
     error_dict = {}
     for i in range(3):
@@ -486,19 +561,19 @@ def run_ib_write_lat(shape, server, client='localhost'):
                     success = False
             else:
                 error_dict[dev] = None
-                success = False              
+                success = False
         if success:
             return True,"ib write latency Test Succeeded: Latency for each RDMA interface is less than the threshold of " + str(ib_write_lat_threshold) + " microseconds"
         else:
             if i < 2:
-                continue    
+                continue
             # Create a string for each key-value pair
             pairs = [f"{key} ({value})" for key, value in error_dict.items()]
             # Join them with ' and '
             interfaces_str = ' and '.join(pairs)
             # Construct the full message
             msg = f"WARNING: Latency was greater than the threshold {ib_write_lat_threshold} for interface {interfaces_str}"
-            logger.warning(msg)  
+            logger.warning(msg)
             return False,"ib write latency Test Failed: Latency is equal to or above the threshold of " + str(ib_write_lat_threshold) + " microseconds for one or more RDMA interfaces"
 
 def write_hc_http_server_file(node1, node2):
@@ -512,7 +587,7 @@ def write_hc_http_server_file(node1, node2):
     except (FileNotFoundError, json.JSONDecodeError):
         logger.debug(f"{hostname}: Error: File not found or not in valid JSON format.")
         data={}
-    
+
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
     data["multi_node_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -524,7 +599,7 @@ def write_hc_http_server_file(node1, node2):
     else:
         multi_node_HC_associated_node = node1
     data["multi_node_healthcheck_associated_node"] = multi_node_HC_associated_node
-    
+
     healthcheck = healthy
     # Read the latest_multi_node_active_healthcheck.log file content
 
@@ -536,7 +611,7 @@ def write_hc_http_server_file(node1, node2):
                 half = 2000  # Half of 2048 to keep from start and end
                 content = content[:half] + "\n... [truncated] ...\n" + content[-half:]
             data["multi_node_healthcheck_logs"] = content  # Store log content in JSON
-            
+
             # Check for errors in the full log content
             for line in content.splitlines():
                 if "ERROR" in line:
@@ -601,7 +676,7 @@ if __name__ == '__main__':
     if var_NCCL_IB_HCA == "":
         logger.error("Shape not found for multi-node active healthcheck")
         sys.exit(1)
-    
+
     if args.mode == 1:
         get_node_details()
     elif args.mode == 2:
@@ -618,7 +693,7 @@ if __name__ == '__main__':
 
         file_handler = logging.FileHandler("/var/log/healthchecks/latest_multi_node_active_healthcheck.log", mode='w')
         logger.addHandler(file_handler)
-        
+
         datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logger.info(f"Started multi-node active healthcheck at: {datetime_str}")
 
@@ -633,7 +708,7 @@ if __name__ == '__main__':
             if not rccl_state:
                 logger.error(rccl_output)
             else:
-                logger.info(rccl_output)                   
+                logger.info(rccl_output)
 
         ib_write_bw_state,ib_write_bw_output = run_ib_write_bw(shape, server_host, client_host)
         if not ib_write_bw_state:
@@ -645,15 +720,15 @@ if __name__ == '__main__':
         if not ib_write_lat_state:
             logger.warning(ib_write_lat_output)
         else:
-            logger.info(ib_write_lat_output)         
+            logger.info(ib_write_lat_output)
 
         datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logger.info(f"Finished multi-node active healthcheck at: {datetime_str}")
     elif args.mode == 3:
         if not args.node1.strip():
             logger.error("Error: --node1 argument cannot be empty", flush=True)
-            sys.exit(1)   
+            sys.exit(1)
         if not args.node2.strip():
             logger.error("Error: --node2 argument cannot be empty", flush=True)
-            sys.exit(1)                    
+            sys.exit(1)
         write_hc_http_server_file(args.node1, args.node2)
