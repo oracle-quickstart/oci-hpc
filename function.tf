@@ -49,7 +49,7 @@ resource "null_resource" "Login2OCIR" {
 
 
 resource "null_resource" "function_Push2OCIR" {
-  depends_on = [null_resource.Login2OCIR, local_file.updateFuncVariables]
+  depends_on = [null_resource.Login2OCIR]
   count      = var.use_OCI_generated_container ? 0 : 1
   provisioner "local-exec" {
     command     = "fn update context oracle.compartment-id ${var.targetCompartment}"
