@@ -1,9 +1,3 @@
-resource "local_file" "updateFuncVariables" {
-  count      = var.use_OCI_generated_container ? 0 : 1
-  depends_on = [oci_queue_queue.queue]
-  source     = "func.py.tftpl"
-  filename   = "${path.module}/function/func.py"
-}
 
 resource "oci_identity_auth_token" "auth_token" {
   count       = var.use_OCI_generated_container || var.use_existing_auth_token ? 0 : 1
@@ -55,7 +49,7 @@ resource "null_resource" "Login2OCIR" {
 
 
 resource "null_resource" "function_Push2OCIR" {
-  depends_on = [null_resource.Login2OCIR, local_file.updateFuncVariables]
+  depends_on = [null_resource.Login2OCIR]
   count      = var.use_OCI_generated_container ? 0 : 1
   provisioner "local-exec" {
     command     = "fn update context oracle.compartment-id ${var.targetCompartment}"

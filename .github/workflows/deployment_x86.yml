@@ -1,4 +1,4 @@
-name: basic_deployment_slurm
+name: deployment_slurm_x86
 
 # Controls when the workflow will run
 on:
