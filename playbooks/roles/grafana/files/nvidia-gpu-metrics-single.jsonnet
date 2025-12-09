@@ -131,32 +131,39 @@ g.dashboard.new('NVIDIA GPU Metrics')
       {w:8, h:8, x:16, y:28}
     ),
     timeseriesPanel(
+      'Pipe Tensor Active',
+      'DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{Hostname=~"$hostname", oci_name=~"$oci_name"}',
+      '{{ gpu }} {{GPU_I_PROFILE}}',
+      'percentunit',
+      {w:24, h:8, x:0, y:36}
+    ),
+    timeseriesPanel(
       'NVLink Rx + Tx Combined B/W',
       'sum by (hostname, gpu) (rate(nvlink_raw_tx_kib_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(nvlink_raw_rx_kib_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])) * 1024 ',
       '{{ gpu }}',
       'Bps',
-      {w:8, h:8, x:0, y:36}
+      {w:8, h:8, x:0, y:44}
     ),
     timeseriesPanel(
       'NVLink Tx B/W',
       'sum by (hostname, gpu) (rate(nvlink_raw_tx_kib_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])) * 1024',
       '{{ gpu }}',
       'Bps',
-      {w:8, h:8, x:8, y:36}
+      {w:8, h:8, x:8, y:44}
     ),
     timeseriesPanel(
       'NVLink Rx B/W',
       'sum by (hostname, gpu) (rate(nvlink_raw_rx_kib_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])) * 1024',
       '{{ gpu }}',
       'Bps',
-      {w:8, h:8, x:16, y:36}
+      {w:8, h:8, x:16, y:44}
     ),
     timeseriesPanel(
       'ROCEv2 Rx + Tx Combined B/W',
       '(rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:0, y:44},
+      {w:8, h:10, x:0, y:52},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
     timeseriesPanel(
@@ -164,7 +171,7 @@ g.dashboard.new('NVIDIA GPU Metrics')
       'rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:8, y:44},
+      {w:8, h:10, x:8, y:52},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
     ),
     timeseriesPanel(
@@ -172,7 +179,7 @@ g.dashboard.new('NVIDIA GPU Metrics')
       'rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])',
       '{{ device }}',
       'Bps',
-      {w:8, h:10, x:16, y:44},
+      {w:8, h:10, x:16, y:52},
       {calcs: ['delta'], displayMode: 'table', placement: 'right'},
-    ),
+    ),    
 ])
