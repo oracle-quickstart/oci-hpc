@@ -6,6 +6,10 @@ resource "oci_core_instance" "login" {
   compartment_id      = var.targetCompartment
   shape               = var.login_shape
 
+  instance_options {
+    are_legacy_imds_endpoints_disabled = true
+  }
+
   dynamic "shape_config" {
     for_each = local.is_login_flex_shape
     content {

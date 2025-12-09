@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def get_compartment_id():
-    url = "http://169.254.169.254/opc/v1/instance/"
+    url = "http://169.254.169.254/opc/v2/instance/"
     headers = {
         "Authorization": "Bearer Oracle"
     }
