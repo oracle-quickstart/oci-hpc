@@ -4,7 +4,10 @@ resource "oci_core_instance" "backup" {
   availability_domain = var.controller_ad
   compartment_id      = var.targetCompartment
   shape               = var.controller_shape
+  instance_options {
+        are_legacy_imds_endpoints_disabled = true
 
+  }
   dynamic "shape_config" {
     for_each = local.is_controller_flex_shape
     content {

@@ -12,7 +12,11 @@ resource "oci_core_instance" "compute_cluster_instances" {
   availability_domain = var.ad
   compartment_id      = var.targetCompartment
   shape               = var.cluster_network_shape
+  instance_options {
 
+    are_legacy_imds_endpoints_disabled = true
+  
+  }
   agent_config {
 
     are_all_plugins_disabled = false
