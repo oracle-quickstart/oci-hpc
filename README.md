@@ -202,6 +202,28 @@ Allow any-user to use compute-bare-metal-hosts in tenancy
 Allow any-user to use compute-gpu-memory-fabrics in tenancy
 ```
 
+#### Policies for monitoring:
+
+Integration with OCI services for monitoring purpose is optional and can be enabled by setting the variables:  - `alerting = true` to push Grafana alerts to OCI topics.
+- `ingest_oci_metrics = true` to ingest OCI infrastructure metrics into Prometheus using OCI Service Connector Hub, Streaming and Telegraf.
+
+If you have not set this policy in the previous step:  
+```
+Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName
+``` 
+
+The policies needed are:
+
+```
+Allow dynamic-group instance_principal to use ons-family in compartment compartmentName
+Allow dynamic-group instance_principal to use stream-family in compartment compartmentName
+Allow dynamic-group instance_principal to read all-resources in compartment compartmentName
+
+Allow any-user to read metrics in tenancy where all {request.principal.type = 'serviceconnector', request.principal.compartment.id = '<compartment_OCID>'}
+Allow any-user to use stream-push in compartment id <target_stream_compartment_OCID> where all {request.principal.type='serviceconnector', request.principal.compartment.id='<compartment_OCID>'}
+```
+
+
 ### Supported operating systems
 
 This stack supports several operating systems and operating system combinations listed below. We can't guarantee any other combination.
