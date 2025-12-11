@@ -7,5 +7,5 @@ source /etc/os-release
 for host in $hosts
 do
     echo $(date)
-    /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/bin/python3 /config/mgmt/manage.py nodes terminate --nodes "$host"
+    /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/oci/bin/python3 /config/mgmt/manage.py nodes terminate --nodes "$host"
 done
