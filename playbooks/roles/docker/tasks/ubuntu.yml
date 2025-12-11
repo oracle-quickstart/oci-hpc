@@ -13,17 +13,24 @@
       ansible.builtin.include_role:
         name: safe_yum
       ignore_errors: true
-
-    - name: Add Docker GPG apt Key
-      ansible.builtin.apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
-
-    - name: Add Docker Repository
+    - name: Download Docker APT repo GPG key
+      become: true
+      ansible.builtin.get_url:
+        url: "https://download.docker.com/linux/ubuntu/gpg"
+        dest: /tmp/docker.asc.gpg
+        mode: '0644'
+        force: true
+    - name: Convert Docker APT repo key to binary keyring
+      become: true
+      ansible.builtin.command:
+        cmd: "gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.asc.gpg"
+        creates: /etc/apt/keyrings/docker.gpg
+    - name: Add Docker repository
+      become: true
       ansible.builtin.apt_repository:
-        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        repo: "deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
         state: present
-
+        update_cache: true
     - name: Update apt and install pre-req packages for docker
       vars:
         package_name:

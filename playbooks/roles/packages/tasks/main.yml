@@ -11,6 +11,14 @@
 - ansible.builtin.include_tasks: centos-7.yml
   when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7'
 
+- name: Ensure keyrings directory exists for extra repositories
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  when: ansible_os_family == 'Debian'
+
 - ansible.builtin.include_tasks: ubuntu.yml
   when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int < 22
 
