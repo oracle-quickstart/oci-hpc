@@ -1,5 +1,5 @@
 ---
-- hosts: monitoring, controller
+- hosts: controller
   tasks:
    - name: Remove legacy InfluxData repo (without signed-by)
      become: true
