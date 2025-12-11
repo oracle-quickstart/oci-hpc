@@ -34,7 +34,7 @@
 - name: Make sure the permissions of the share directory are right
   become: true
   environment:
-    ANSIBLE_REMOTE_TMP: /tmp/.ansible  
+    ansible_remote_tmp: /tmp 
   ansible.builtin.file:
     path: "{{ local_path }}"
     state: directory
