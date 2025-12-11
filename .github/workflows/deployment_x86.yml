@@ -247,11 +247,11 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: Wait for nodes to be configured (max 60 minutes)
+      - name: Wait for nodes to be configured (max 30 minutes)
         run: |
           ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
           start_time=$(date +%s)
-          timeout=$((60 * 60))  # 60 minutes
+          timeout=$((30 * 60))  # 30 minutes
 
           while true; do
               not_ready=$(mgmt nodes list \
@@ -267,7 +267,7 @@ jobs:
               now=$(date +%s)
               elapsed=$((now - start_time))
               if (( elapsed > timeout )); then
-                  echo "❌ Timeout reached: nodes did not configure within 60 minutes."
+                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
                   exit 1
               fi
 
@@ -295,9 +295,9 @@ jobs:
           done
           EOF
 
-      # - name: Execute terraform destroy
-      #   if: always()
-      #   run: terraform destroy --auto-approve
+      - name: Execute terraform destroy
+        if: always()
+        run: terraform destroy --auto-approve
 
       - name: go up one directory
         if: always()
