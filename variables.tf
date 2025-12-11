@@ -550,7 +550,7 @@ variable "add_lfs" {
 }
 variable "create_lfs" {
   default = false
-  type =  bool
+  type =  string
 }
 variable "lfs_compartment" {
   default = ""

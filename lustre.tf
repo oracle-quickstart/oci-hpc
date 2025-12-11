@@ -1,6 +1,6 @@
 resource "oci_lustre_file_storage_lustre_file_system" "lustre_file_system" {
   #Required
-  count               = var.create_lfs ? 1 : 0
+  count               = var.add_lfs && var.create_lfs == "new" ? 1 : 0
   availability_domain = var.ad
   capacity_in_gbs     = var.lfs_capacity_in_gbs
   compartment_id      = var.lfs_compartment
