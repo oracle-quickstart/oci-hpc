@@ -28,7 +28,9 @@ if [ $ID == "ol" ] ; then
     sudo osms unregister 
   elif [ $vid == 8 ] ; then
     repo="ol8_developer_EPEL"
-    sudo osms unregister 
+    if command -v osms >/dev/null 2>&1; then
+      sudo osms unregister 
+    fi
   elif [ $vid == 9 ] ; then
     repo="ol9_developer_EPEL"
   fi

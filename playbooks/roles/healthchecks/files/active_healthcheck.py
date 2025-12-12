@@ -145,9 +145,11 @@ def run_local_nccl_test(shape):
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
         },
         "BM.GPU.GB200-v3.4": {
+            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
         },
         "BM.GPU.GB300.4": {
+            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
         },
         "BM.Optimized3.36": {
@@ -167,6 +169,8 @@ def run_local_nccl_test(shape):
             cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x UCX_TLS=ud,self,sm -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x HCOLL_ENABLE_MCAST_ALL=0 -x coll_hcoll_enable=0 -x NCCL_ALGO=Ring -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_QPS_PER_CONNECTION=4 -x NCCL_IB_GID_INDEX=3 --np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g 1 -n 50 -f 2"
         elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8"):
             cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x HCOLL_ENABLE_MCAST_ALL=0 -x NCCL_CUMEM_ENABLE=0 -x NCCL_IB_SPLIT_DATA_ON_QPS=0 -x NCCL_IB_QPS_PER_CONNECTION=1 -x NCCL_IB_TIMEOUT=22 -x UCX_TLS=tcp -x NCCL_NET_PLUGIN=none -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x coll_hcoll_enable=0 -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_GID_INDEX=3 -x RX_QUEUE_LEN=8192 -x IB_RX_QUEUE_LEN=8192 -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IGNORE_CPU_AFFINITY=1 -np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"
+        elif "GPU.GB" in shape:
+            cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --bind-to none --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x UCX_NET_DEVICES={shape_mapping[shape]['var_NCCL_IB_HCA']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x NCCL_DEBUG=WARN -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_NET_PLUGIN=none -x NCCL_MNNVL_ENABLE=1 -x NCCL_CUMEM_ENABLE=1 -x NCCL_NVLS_ENABLE=1 -x NCCL_NET_GDR_C2C=1 -np 4 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"
         result = run_as_default_user(cmd_nccl_test, timeout=120)
 
         if result.returncode == 0:
@@ -321,7 +325,10 @@ cargo install gpu-fryer --root /opt/gpu-fryer
         if default_user == "opc":
             cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer --nvml-lib-path /lib64/libnvidia-ml.so.1 {run_time}"
         else:
-            cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer {run_time}"
+            if "GPU.GB" in shape:
+                cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer --nvml-lib-path /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1 {run_time}"
+            else:   
+                cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer {run_time}"
         result = run_as_default_user(cmd_gpu_fryer, timeout=run_time+20)
         if result.returncode != 0:
             output_text = result.stdout.decode("utf-8")
@@ -359,7 +366,7 @@ def run_gpu_sdc_check(gpu_ids=None):
     try:
         # MultiGPUSDCChecker - runs all tests on all GPUs in parallel
         checker = MultiGPUSDCChecker(gpu_ids=gpu_ids)
-        logger.info(f"Running GPU SDC checks on {len(checker.checkers)} GPU(s): {list(checker.checkers.keys())}")
+        logger.debug(f"Running GPU SDC checks on {len(checker.checkers)} GPU(s): {list(checker.checkers.keys())}")
 
         # Run all tests on all GPUs
         results = checker.run_all_tests()
@@ -377,7 +384,7 @@ def run_gpu_sdc_check(gpu_ids=None):
             return False, message, summary
         else:
             message = f"GPU SDC Test Succeeded: All {len(checker.checkers)} GPU(s) passed all tests"
-            logger.info(message)
+            logger.debug(message)
             return True, message, summary
 
     except Exception as e:
@@ -595,7 +602,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - NCCL Test Succeeded: {nccl_output}")
-        if shape == "BM.GPU.B200.8":
+        if "B200" in shape or "B300" in shape:
             run_time=240
         else:
             run_time=20
@@ -629,13 +636,13 @@ if __name__ == '__main__':
             logger.info(f"{hostname} - RCCL Test Succeeded: {rccl_output}")
 
         # --- Run RVS active healthcheck ---
-    rvs_state, rvs_output = run_local_rvs_test(shape)
-    if not rvs_state:
-        logger.error(f"{hostname} - RVS Test Failed: {rvs_output}")
-        slurm_reason("Single node RVS Test Failed")
-        action = recommended_action(action, "Tag_and_Terminate")
-    else:
-        logger.info(f"{hostname} - RVS Test Succeeded: {rvs_output}")
+        rvs_state, rvs_output = run_local_rvs_test(shape)
+        if not rvs_state:
+            logger.error(f"{hostname} - RVS Test Failed: {rvs_output}")
+            slurm_reason("Single node RVS Test Failed")
+            action = recommended_action(action, "Tag_and_Terminate")
+        else:
+            logger.info(f"{hostname} - RVS Test Succeeded: {rvs_output}")
 
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()

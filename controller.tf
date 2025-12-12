@@ -61,6 +61,9 @@ resource "oci_core_instance" "controller" {
       memory_in_gbs = var.controller_custom_memory ? var.controller_memory : 16 * shape_config.value
     }
   }
+  instance_options {
+    are_legacy_imds_endpoints_disabled = true
+  }
   agent_config {
     is_management_disabled = true
   }

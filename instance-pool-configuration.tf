@@ -28,6 +28,9 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
         ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
         user_data           = base64encode(file("cloud-init.sh"))
       }
+      instance_options {
+        are_legacy_imds_endpoints_disabled = true
+      }
       agent_config {
 
         are_all_plugins_disabled = false

@@ -82,7 +82,7 @@ locals {
   # Pick the right IP based on flags
   config_target_name = var.create_fss == "new" ? oci_dns_rrset.fss-dns-round-robin[0].domain : oci_dns_rrset.controller[0].domain
 
-  lustre_IP = var.create_lfs ? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
+  lustre_IP = var.add_lfs && var.create_lfs == "new"? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
   mysql_service_host = var.slurm_ha ? data.oci_mysql_mysql_db_system.slurm_mysql[0].endpoints[0].ip_address : ""
 
 }

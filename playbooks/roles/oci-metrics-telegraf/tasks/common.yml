@@ -10,14 +10,6 @@
     gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
   when: ansible_os_family == 'RedHat'
 
-- name: Ensure keyrings directory exists
-  become: true
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-  when: ansible_os_family == 'Debian'
-
 - name: Remove old InfluxData GPG key if exists
   become: true
   ansible.builtin.file:

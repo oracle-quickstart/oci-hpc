@@ -33,8 +33,8 @@
   apt_key:
     state: present
     url: https://dl.cloudsmith.io/public/caddy/stable/gpg.key
-  retries: 3
-  delay: 3
+  retries: 5
+  delay: 5
   when: ansible_os_family == 'Debian'
 
 - name: Add Caddy apt repository
@@ -42,6 +42,8 @@
   apt_repository:
     repo: deb https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main
     state: present
+  retries: 5
+  delay: 5
   when: ansible_os_family == 'Debian'
 
 - name: Install caddy

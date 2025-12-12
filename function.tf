@@ -1,9 +1,3 @@
-resource "local_file" "updateFuncVariables" {
-  count      = var.use_OCI_generated_container ? 0 : 1
-  depends_on = [oci_queue_queue.queue]
-  source     = "func.py.tftpl"
-  filename   = "${path.module}/function/func.py"
-}
 
 resource "oci_identity_auth_token" "auth_token" {
   count       = var.use_OCI_generated_container || var.use_existing_auth_token ? 0 : 1
@@ -29,7 +23,7 @@ resource "oci_functions_application" "fn_application" {
   compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}-app"
   subnet_ids     = [local.subnet_id]
-  shape          = "GENERIC_X86"
+  shape          = "GENERIC_X86_ARM"
 
   freeform_tags = {
     "cluster_name"    = local.cluster_name
@@ -55,7 +49,7 @@ resource "null_resource" "Login2OCIR" {
 
 
 resource "null_resource" "function_Push2OCIR" {
-  depends_on = [null_resource.Login2OCIR, local_file.updateFuncVariables]
+  depends_on = [null_resource.Login2OCIR]
   count      = var.use_OCI_generated_container ? 0 : 1
   provisioner "local-exec" {
     command     = "fn update context oracle.compartment-id ${var.targetCompartment}"
@@ -92,7 +86,7 @@ resource "oci_functions_function" "function" {
     "CONTROLLER_NAME" = "${local.cluster_name}-controller"
     "PRIVATE_SUBNET"  = data.oci_core_subnet.private_subnet.cidr_block
     "ZONE_NAME"       = local.zone_name
-    shape             = "GENERIC_X86"
+    shape             = "GENERIC_X86_ARM"
   }
 
   freeform_tags = {

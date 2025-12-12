@@ -34,7 +34,7 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
 
   rank=0
   for node in $(scontrol show hostnames "$SLURM_JOB_NODELIST"); do
-      for slot in {0..7}; do
+      for slot in $(seq 0 $((${SLURM_GPUS_PER_NODE}-1))); do
           echo "rank ${rank}=${node} slot=${slot}"
           ((rank++))
       done

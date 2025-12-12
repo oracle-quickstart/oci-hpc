@@ -43,85 +43,140 @@ g.dashboard.new('NVIDIA GPU Health')
       {w:3, h:3, x:12, y:0}
    ),
    statHealth(
-      'ECC',
-      'node_ecc_error_check_ok{hostname=~"$hostname"}',
+      'ECC SBE',
+      'node_ecc_sbe_ok{hostname=~"$hostname"}',
       {w:3, h:3, x:15, y:0}
    ),
    statHealth(
-      'Row Remap',
-      'node_gpu_row_remap_error_check{hostname=~"$hostname"}',
+      'ECC DBE',
+      'node_ecc_dbe_ok{hostname=~"$hostname"}',
       {w:3, h:3, x:18, y:0}
    ),
    statHealth(
-      'Xid',
-      'node_xid_error_check{hostname=~"$hostname"}',
+      'Row Remap Pending',
+      'node_row_remap_pending_ok{hostname=~"$hostname"}',
       {w:3, h:3, x:21, y:0}
+   ),
+   statHealth(
+      'Row Remap Failed',
+      'node_row_remap_failure_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:0, y:3}
+   ),
+   statHealth(
+      'Xid',
+      'node_xid_severity_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:3, y:3}
    ),
    statHealth(
       'Power Violation',
       'node_gpu_power_violation_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:0, y:3}
+      {w:3, h:3, x:6, y:3}
    ),
    statHealth(
       'Board Limit Violation',
       'node_gpu_board_limit_violation_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:3, y:3}
+      {w:3, h:3, x:9, y:3}
    ),
    statHealth(
       'Thermal Violation',
       'node_gpu_thermal_violation_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:6, y:3}
+      {w:3, h:3, x:12, y:3}
    ),
    statHealth(
       'Sync Boost Violation',
       'node_gpu_sync_boost_violation_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:9, y:3}
+      {w:3, h:3, x:15, y:3}
    ),
    statHealth(
       'Reliability Violation',
       'node_gpu_reliability_violation_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:12, y:3}
+      {w:3, h:3, x:18, y:3}
    ),
    statHealth(
       'PCIE Correctable',
       'node_pcie_aer_correctable_errors_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:15, y:3}
+      {w:3, h:3, x:21, y:3}
    ),
    statHealth(
       'PCIE Non Fatal',
       'node_pcie_aer_nonfatal_errors_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:18, y:3}
+      {w:3, h:3, x:0, y:6}
    ),
    statHealth(
       'PCIE Fatal',
       'node_pcie_aer_fatal_errors_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:21, y:3}
+      {w:3, h:3, x:3, y:6}
    ),
    statHealth(
       'PCIE Bus Inaccessible',
       'node_pcie_bus_inaccessible_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:0, y:6}
+      {w:3, h:3, x:6, y:6}
    ),
    statHealth(
       'PCIE Link Width',
       'node_pcie_bus_linkwidth_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:3, y:6}
+      {w:3, h:3, x:9, y:6}
    ),
    statHealth(
       'Disk free',
       'node_disk_free_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:6, y:6}
+      {w:3, h:3, x:12, y:6}
    ),
    statHealth(
       'Mem free',
       'node_memory_availability_ok{hostname=~"$hostname"}',
-      {w:3, h:3, x:9, y:6}
+      {w:3, h:3, x:15, y:6}
    ),
    statHealth(
       'GPU Count',
       'node_gpu_count_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:18, y:6}
+   ),
+   statHealth(
+      'GPU Health',
+      'node_nvidia_gpu_health_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:21, y:6}
+   ),  
+   statHealth(
+      'GPU PCIE',
+      'node_nvidia_gpu_health_pcie_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:0, y:6}
+   ),
+   statHealth(
+      'GPU NVLink',
+      'node_nvidia_gpu_health_nvlink_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:3, y:6}
+   ),
+   statHealth(
+      'GPU PMU',
+      'node_nvidia_gpu_health_pmu_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:6, y:6}
+   ),
+   statHealth(
+      'GPU MCU',
+      'node_nvidia_gpu_health_mcu_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:9, y:6}
+   ),
+   statHealth(
+      'GPU MEM',
+      'node_nvidia_gpu_health_mem_ok{hostname=~"$hostname"}',
       {w:3, h:3, x:12, y:6}
    ),
+   statHealth(
+      'GPU SM',
+      'node_nvidia_gpu_health_sm_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:15, y:6}
+   ),
+   statHealth(
+      'GPU Power',
+      'node_nvidia_gpu_health_power_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:18, y:6}
+   ),
+   statHealth(
+      'GPU Thermal',
+      'node_nvidia_gpu_health_thermal_ok{hostname=~"$hostname"}',
+      {w:3, h:3, x:21, y:6}
+   ),   
    stateTimeline(
     'PCIE Health Score history',
     'sum by (hostname, device) (increase(pcie_aer_correctable_error_count{hostname=~"$hostname"}[5m]) + increase(pcie_aer_nonfatal_error_count{hostname=~"$hostname"}[5m]) * 10 + increase(pcie_aer_fatal_error_count{hostname=~"$hostname"}[5m]) * 100)',

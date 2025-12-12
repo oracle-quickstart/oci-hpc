@@ -11,7 +11,7 @@ queue_ocid = os.environ["QUEUE_OCID"]
 controller_name = os.environ["CONTROLLER_NAME"]
 private_subnet= os.environ["PRIVATE_SUBNET"]
 cluster_name = os.environ["CLUSTER_NAME"]
-zone_name = cluster_name+".local"
+zone_name = os.environ["ZONE_NAME"]
 
 # define a retry strategy
 retry_strategy_via_constructor = oci.retry.RetryStrategyBuilder(

@@ -62,15 +62,50 @@ if [[ "$hpcx_path" == "" ]]; then
 fi
 
 echo "Running ${EXEC_CMD} test on ${SLURM_NNODES} nodes"
+shape=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape`
+if [ $shape == \"BM.GPU.GB200.4\" ]
+then
 mpirun --bind-to none \
-       --mca coll ^hcoll \
-       -x NCCL_DEBUG=WARN \
-       -x NCCL_MNNVL_ENABLE=1 \
-       -x NCCL_CUMEM_ENABLE=1 \
-       -x NCCL_NET_PLUGIN=${hpcx_path} \
-       -x UCX_NET_DEVICES=mlx5_0:1,mlx5_1:1,mlx5_3:1,mlx5_4:1 \
-       -x NCCL_IB_HCA==mlx5_0,mlx5_1,mlx5_3,mlx5_4 \
-       -x NCCL_NVLS_ENABLE=1 \
-       -x NCCL_NET_GDR_C2C=1 \
-       -x NCCL_SOCKET_IFNAME=eth0 \
-	     --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --rankfile $ORDEREDRANKMACHINEFILE ${EXEC_CMD} -b 1G -e 16G -f 2 -g 1 -n 50
+        --mca coll ^hcoll \
+        -x NCCL_DEBUG=WARN \
+        -x NCCL_MNNVL_ENABLE=1 \
+        -x NCCL_CUMEM_ENABLE=1 \
+        -x NCCL_NET_PLUGIN=${hpcx_path} \
+        -x UCX_NET_DEVICES=mlx5_0:1,mlx5_1:1,mlx5_3:1,mlx5_4:1 \
+        -x NCCL_IB_HCA==mlx5_0,mlx5_1,mlx5_3,mlx5_4 \
+        -x NCCL_NVLS_ENABLE=1 \
+        -x NCCL_NET_GDR_C2C=1 \
+        -x NCCL_SOCKET_IFNAME=eth0 \
+        --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --rankfile $ORDEREDRANKMACHINEFILE ${EXEC_CMD} -b 1G -e 16G -f 2 -g 1 -n 50
+else
+
+mpirun --bind-to numa \
+        --mca pml ucx \
+        --mca coll ^hcoll \
+        -x NCCL_DEBUG=WARN \
+        -x NCCL_MNNVL_ENABLE=1 \
+        -x NCCL_CUMEM_ENABLE=1 \
+        -x NCCL_NET_PLUGIN=none \
+        -x UCX_NET_DEVICES=eth0 \
+        -x NCCL_IB_HCA==mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8 \
+        -x NCCL_NVLS_ENABLE=1 \
+        -x NCCL_SOCKET_IFNAME=eth0 \
+        -x NCCL_NET_GDR_C2C=1 \
+        -x NCCL_IB_GID_INDEX=3 \
+        -x NCCL_IB_TC=41 \
+        -x NCCL_IB_SL=0 \
+        -x NCCL_IB_TIMEOUT=22 \
+        -x RX_QUEUE_LEN=8192 \
+        -x IB_RX_QUEUE_LEN=8192 \
+        -x HCOLL_ENABLE_MCAST_ALL=0 \
+        -x coll_hcoll_enable=0 \
+        -x NCCL_BUFFSIZE=16777216 \
+        -x NCCL_IB_QPS_PER_CONNECTION=4 \
+        -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
+        -x NCCL_NVLS_ENABLE=1 \
+        -x NCCL_NET_GDR_C2C=1 \
+        -x NCCL_MNNVLS_ENABLE=1 \
+        -x NCCL_DMABUF_ENABLE=1 \
+        --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --rankfile $ORDEREDRANKMACHINEFILE ${EXEC_CMD} -b 1G -e 16G -f 2 -g 1 -n 50
+
+fi

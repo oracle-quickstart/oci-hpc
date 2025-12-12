@@ -10,11 +10,11 @@
     path: "{{tmp_home}}/home"
     state: directory
     mode: "0755"
-  when: not create_fss|bool
+  when: create_fss != 'new'
 
 - name: Report if ubuntu dir exist
   file:
-    path: "{{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/ubuntu/"
+    path: "{{tmp_home}}{% if create_fss != 'new' %}/home{% endif %}/ubuntu/"
     state: directory
     mode: "0700"
     owner: ubuntu
@@ -22,7 +22,7 @@
   register: ubuntu_directory
 
 - name: copy ubuntu/ dir
-  command: "cp -rpT /home/ubuntu {{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/ubuntu"
+  command: "cp -rpT /home/ubuntu {{tmp_home}}{% if create_fss != 'new' %}/home{% endif %}/ubuntu"
   when: ubuntu_directory.changed
   ignore_errors: true
 

@@ -306,19 +306,22 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
         return(len(instance_summaries))
 
 def get_instance_type(node):
-    instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_cluster_networks,node.compartment_id,display_name=node.cluster_name).data
-    if len(instance_pools):
-        logger.debug(f"Found Cluster Network with name {node.cluster_name}")
-        for instance_pool in instance_pools:
-            ipa_ocid=instance_pool.instance_pools[0].id
-            instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,node.compartment_id,ipa_ocid).data
-            for instance_summary in instance_summaries:
-                if instance_summary.id == node.ocid:
-                    cluster_type="CN"
-                    cluster_ocid=instance_pool.id
-                    ipa_ocid=ipa_ocid
-                    return cluster_type,cluster_ocid,ipa_ocid
-
+    try:
+        instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_cluster_networks,node.compartment_id,display_name=node.cluster_name).data
+        if len(instance_pools):
+            logger.debug(f"Found Cluster Network with name {node.cluster_name}")
+            for instance_pool in instance_pools:
+                ipa_ocid=instance_pool.instance_pools[0].id
+                instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,node.compartment_id,ipa_ocid).data
+                for instance_summary in instance_summaries:
+                    if instance_summary.id == node.ocid:
+                        cluster_type="CN"
+                        cluster_ocid=instance_pool.id
+                        ipa_ocid=ipa_ocid
+                        return cluster_type,cluster_ocid,ipa_ocid
+    except oci.exceptions.ServiceError as e:
+        logger.warning(f"CLuster Network are not enabled in this region")
+        instance_pools = []
     instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pools,node.compartment_id,display_name=node.cluster_name).data
     if len(instance_pools):
         logger.debug(f"Found Instance Pool with name {node.cluster_name}")

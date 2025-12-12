@@ -753,7 +753,7 @@ def check_wpa_auth(metadata):
         pass
         return []
 
-    if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"]:
+    if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8","BM.GPU.B4.8"]:
         interface_range = range(16)
         required_authenticated = 16
     elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8"]:
@@ -1485,11 +1485,42 @@ if __name__ == '__main__':
 
     # 12.4 Summarize GPU Xid errors check
     if run_all or args.xid_err:
-        if xid_results["status"] == "Failed":
-         for xid in xid_results["results"]:
-             for pci in xid_results["results"][xid]["results"]:
-                 logger.error(f"{host_serial} - GPU Xid {xid} device: {pci}, {xid_results['results'][xid]['description']}")
-                 slurm_reason("XID Error")
+        critical_xids = xid_results["categories"].get("critical", {})
+        reset_xids = xid_results["categories"].get("gpu_reset_reboot", {})
+        warning_xids  = xid_results["categories"].get("warning", {})
+
+        # Log & set action for critical XIDs
+        if critical_xids:
+            action = recommended_action(action, "Terminate")
+            for xid, info in critical_xids.items():
+                desc = info["description"]
+                for pci, count in info["results"].items():
+                    logger.error(
+                        f"{host_serial} - [critical] GPU Xid {xid} "
+                        f"device: {pci}, count: {count}, {desc}"
+                    )
+                    slurm_reason("XID Error")
+
+        # Log & set action for gpu_reset_reboot XIDs
+        if reset_xids:
+            action = recommended_action(action, "Reboot")
+            for xid, info in reset_xids.items():
+                desc = info["description"]
+                for pci, count in info["results"].items():
+                    logger.error(
+                        f"{host_serial} - [gpu_reset_reboot] GPU Xid {xid} "
+                        f"device: {pci}, count: {count}, {desc}"
+                    )
+                    slurm_reason("XID Error")
+
+        # Optional: just warn for warning bucket
+        for xid, info in warning_xids.items():
+            desc = info["description"]
+            for pci, count in info["results"].items():
+                logger.warning(
+                    f"{host_serial} - [warning] GPU Xid {xid} "
+                    f"device: {pci}, count: {count}, {desc}"
+                )
 
     # 13.4 Summarize WPA Authentication check
     if run_all or args.wpa_auth:

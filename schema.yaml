@@ -1315,7 +1315,7 @@ variables:
     enum:
       - "existing"
       - "new"
-    default: "existing"
+    default: "new"
     required: true
     visible: ${add_nfs}
 
