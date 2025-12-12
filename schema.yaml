@@ -86,7 +86,7 @@ variableGroups:
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
 
-  - title: "Management node image options (controller,backup,monitoring,login)"
+  - title: "Management nodes image options (controller,backup,monitoring,login)"
     variables:
       - ${use_marketplace_image_controller}
       - ${marketplace_listing_controller}
