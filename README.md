@@ -13,25 +13,30 @@ User can hit the top-right `Outline` button to display the interactive help.
     - [Service Limits](#service-limits)
     - [Policies](#policies)
       - [Policies to deploy the stack](#policies-to-deploy-the-stack)
+  - [Policies](#policies-1)
+    - [Policies to deploy the stack:](#policies-to-deploy-the-stack-1)
       - [Policies for Functions](#policies-for-functions)
       - [Policies for Queue](#policies-for-queue)
       - [Policies for resizing or adding clusters](#policies-for-resizing-or-adding-clusters)
       - [Policies for Host API](#policies-for-host-api)
+      - [Policies for monitoring:](#policies-for-monitoring)
     - [Supported operating systems](#supported-operating-systems)
     - [Serverless Part](#serverless-part)
     - [Workflow](#workflow)
       - [Serverless function](#serverless-function)
       - [Node configuration](#node-configuration)
       - [Controller service and actions for configuration](#controller-service-and-actions-for-configuration)
+  - [Notes on Deployments for Memory Fabric Based Shapes, such as Nvidia GB200 / GB300](#notes-on-deployments-for-memory-fabric-based-shapes-such-as-nvidia-gb200--gb300)
   - [Stack Configuration](#stack-configuration)
     - [Cluster Configuration](#cluster-configuration)
-      - [SSH Keys](#ssh-keys)
       - [LDAP](#ldap)
     - [Functions and Events Configuration](#functions-and-events-configuration)
       - [Use an existing OCI Registry](#use-an-existing-oci-registry)
     - [Controller Node Options](#controller-node-options)
     - [Management Nodes Image Options](#management-nodes-image-options)
     - [Compute Nodes Options](#compute-nodes-options)
+      - [Main (permanent) partition](#main-permanent-partition)
+      - [On-demand partition](#on-demand-partition)
     - [Login Node Options](#login-node-options)
     - [Cluster Monitoring](#cluster-monitoring)
     - [Storage Options](#storage-options)
@@ -298,6 +303,7 @@ The controller node:
   * Adds/removes the node in the slurm configuration, i.e. `topology.conf` and `gres.conf`
 
 ## Notes on Deployments for Memory Fabric Based Shapes, such as Nvidia GB200 / GB300
+
 When deploying this shape you should configure and deploy the stack as usual EXCEPT that the initial size of the cluster should to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial GPU Memory Cluster like this.
 
 
@@ -360,11 +366,21 @@ If a non-listed image must be used, the image ocid must be provided. The image m
 
 For the compute nodes, first define the Availability Domain and the node shape. If RoCE V2 cluster network is enabled, only Bare Metal shapes that support RDMA are available. If not, any shape, VM or BM, can be used as compute nodes.
 
+#### Main (permanent) partition
+
 The initial cluster size corresponds to the number of nodes of the permanent cluster.
 
 Boot volume size can be set at this stage.
 
 Image options are the same as for the management nodes. Management node and compute node images do not have to be identical but they must be compatible. Example: Canonical-Ubuntu-22.04 for the management nodes and Canonical-Ubuntu-22.04-OFED-GPU-570-OPEN-CUDA-12.8 for the compute nodes (GPU Bare Metal).
+
+#### On-demand partition
+
+This feature takes advantage of [Slurm Power Saving](https://slurm.schedmd.com/power_save.html) mechanism. One can add an additional "on-demand" partition by checking ```On-Demand Partition```. This will create a new slurm partition with name "ondemand".
+To submit a job, specify the correct partition (i.e ```--partition ondemand```). When submitting the job, ```ResumeProgram``` specified in ```slurm.conf``` is triggered to bring the correct number of nodes in Oracle Cloud and register them in Slurm to run the job. Once the job has run and ```SuspendTime```is reached, ```SuspendProgram``` is triggered to unregister the node and terminate it in Oracle Cloud Infrastructure.
+
+> [!WARNING]
+> Currently, when defining an on-demand partition, the key ```stand_alone:``` should be ```true```. This is because we are not using [NodeSet](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeSet) but rather [OPT_NodeName](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeName) and the name of the node needs to be known beforehand. This is currenlty not possible with Cluster Networks and Instance Pools.
 
 ### Login Node Options
 
