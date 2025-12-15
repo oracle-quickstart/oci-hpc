@@ -301,7 +301,6 @@ fi
 modified_hostname=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .displayName`
 echo $modified_hostname
 log=/config/logs/${modified_hostname}.log
-max_attempts=5
 max_attempts_ansible_install=50
 attempt=1
 
@@ -332,8 +331,9 @@ while [ $attempt -le $max_attempts_ansible_install ]; do
     fi
 done 
 
+max_attempts=6
 attempt=1
-wait_time=1
+wait_time=10
 while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
     $VENV_PATH/bin/ansible-playbook -i /config/playbooks/inventory_$cluster_name /config/playbooks/compute.yml 2>&1 | tee -a $log

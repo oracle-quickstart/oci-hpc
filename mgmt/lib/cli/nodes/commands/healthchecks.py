@@ -44,7 +44,8 @@ def filter_cmd(ctx, nodes, fields):
     type=click.Choice(["all", "passive", "active", "multi-node"]),
     default="passive",
     required=False,
-    help="Type of healthcheck to run (all,passive, active, multi-node)"
+    help="Type of healthcheck to run (all, passive, active, multi-node). Active healthchecks will "
+        + "write results to /var/log/healthchecks"
 )
 @click.option(
     "--exclude-node",
@@ -54,11 +55,12 @@ def filter_cmd(ctx, nodes, fields):
 @click.option(
     "--reservation",
     required=False,
-    help="Include a Reservation Name for the healthcheck in case the nodes are in a reservation, InitialValidation is the reservation created for all new nodes. "
+    help="Include a Reservation Name for the healthcheck in case the nodes are in a reservation, "
+        + "InitialValidation is the reservation created for all new nodes. "
 )
 @click.pass_context
-def healthchecks(ctx, nodes, fields,type,exclude_node,reservation):
-    """Tag nodes as unhealthy."""
+def healthchecks(ctx, nodes, fields, type, exclude_node, reservation):
+    """Run healthchecks on given nodes."""
     nodes_list = filter_cmd(ctx, nodes, fields)
 
     if not nodes_list:

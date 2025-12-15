@@ -13,25 +13,30 @@ User can hit the top-right `Outline` button to display the interactive help.
     - [Service Limits](#service-limits)
     - [Policies](#policies)
       - [Policies to deploy the stack](#policies-to-deploy-the-stack)
+  - [Policies](#policies-1)
+    - [Policies to deploy the stack:](#policies-to-deploy-the-stack-1)
       - [Policies for Functions](#policies-for-functions)
       - [Policies for Queue](#policies-for-queue)
       - [Policies for resizing or adding clusters](#policies-for-resizing-or-adding-clusters)
       - [Policies for Host API](#policies-for-host-api)
+      - [Policies for monitoring:](#policies-for-monitoring)
     - [Supported operating systems](#supported-operating-systems)
     - [Serverless Part](#serverless-part)
     - [Workflow](#workflow)
       - [Serverless function](#serverless-function)
       - [Node configuration](#node-configuration)
       - [Controller service and actions for configuration](#controller-service-and-actions-for-configuration)
+  - [Notes on Deployments for Memory Fabric Based Shapes, such as Nvidia GB200 / GB300](#notes-on-deployments-for-memory-fabric-based-shapes-such-as-nvidia-gb200--gb300)
   - [Stack Configuration](#stack-configuration)
     - [Cluster Configuration](#cluster-configuration)
-      - [SSH Keys](#ssh-keys)
       - [LDAP](#ldap)
     - [Functions and Events Configuration](#functions-and-events-configuration)
       - [Use an existing OCI Registry](#use-an-existing-oci-registry)
     - [Controller Node Options](#controller-node-options)
     - [Management Nodes Image Options](#management-nodes-image-options)
     - [Compute Nodes Options](#compute-nodes-options)
+      - [Main (permanent) partition](#main-permanent-partition)
+      - [On-demand partition](#on-demand-partition)
     - [Login Node Options](#login-node-options)
     - [Cluster Monitoring](#cluster-monitoring)
     - [Storage Options](#storage-options)
@@ -298,13 +303,58 @@ The controller node:
   * Adds/removes the node in the slurm configuration, i.e. `topology.conf` and `gres.conf`
 
 ## Notes on Deployments for Memory Fabric Based Shapes, such as Nvidia GB200 / GB300
-When deploying this shape you should configure and deploy the stack as usual EXCEPT that the initial size of the cluster should to be set to 0, but otherwise fully define the instance configuration for the compute hosts in the stack deployment.  Once you log into the cluster controller you can create the initial GPU Memory Cluster like this.
+When deploying these shapes your initial cluster scale up actions once you connect to the cluster will differ depending on whether or not you choose to add execution hosts during the stack apply or not.  
 
+On the controller host you can view the available GPU Memory Fabrics like this:
+```
+mgmt fabrics list
+                                                                        Fabrics
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ id                                                                           ┃ lifecycle_state ┃ fabric_health ┃ memory_cluster ┃ OCCUPIED ┃ AVAILABLE ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ ocid1.computegpumemoryfabric.oc1....                                         │ AVAILABLE       │ HEALTHY       │ None           │ 0        │ 18        │
+└──────────────────────────────────────────────────────────────────────────────┴─────────────────┴───────────────┴────────────────┴──────────┴───────────┘
+```
 
-Now use the OCID from above for --fabric, as well as the number of AVAILABLE hosts for --count:
+NOTE:  If your stack apply included an initial GPU Memory Fabric to launch on, skip down to the `mgmt clusters add memory-fabric` command below.  
+If you did NOT add any compute hosts via GPUMemoryFabrics during the initial stack deployment/apply, you can create the initial Compute Cluster that is required for inter-rack communication AND GPU Memory Cluster like this:
+
+1. Check that the `lifecycle_state` is `AVAILABLE`, the `fabric_health` must be `HEALTHY`, and check `AVAILABLE` nodes:
+
+2. Use the OCID from above for `--fabric`, as well as the number of `AVAILABLE` hosts for `--count`:
+
 ```
 mgmt clusters create --count 16 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
 ```
+
+This creates a `computecluster` with the name my_cluster as well as a `computegpumemorycluster` with a name `cluster_xxxxx`.  When a `computegpumemorycluster` is created OCI automatically spins up the number of instances given in `--count`.  This is reflected in the `mgmt fabrics list` command output after a few minutes. The nodes and their respective informations can be seen with:
+```
+mgmt nodes list
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+┃ hostname                 ┃ healthcheck_recommendat… ┃ status  ┃ compute_status ┃ cluster_name  ┃ memory_cluster_name ┃ ocid                      ┃ serial        ┃ ip_address    ┃ shape               ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+│ trusting-dory-controller │                          │ running │ configuring    │ cluster-name  │ None                │ ocid1.instance.oc1.ap-sy… │ Not Specified │ 172.16.xxx.xxx│ VM.Standard.E5.Flex │
+│ GPU-123                  │ Healthy                  │ running │ configuring    │ cluster-name  │ cluster-name_wuuja  │ ocid1.instance.oc1.ap-sy… │ 1234ABCXXX    │ 172.16.xxx.xxx│ BM.GPU.GB200.4      │
+│ GPU-456                  │ Healthy                  │ running │ configuring    │ cluster-name  │ cluster-name_wuuja  │ ocid1.instance.oc1.ap-sy… │ 5678DEFYYY    │ 172.16.xxx.xxx│ BM.GPU.GB200.4      │
+└──────────────────────────┴──────────────────────────┴─────────┴────────────────┴───────────────┴─────────────────────┴───────────────────────────┴───────────────┴───────────────┴─────────────────────┘
+```
+
+> [!WARNING]
+> Use the above command `mgmt clusters create ...` **ONLY** to add the first set of instances (see below how to add `gpumemoryfabrics` to the compute cluster named `gb200` that has been created above), otherwise inter-rack communication will not work.
+
+To add nodes from additional `computegpumemoryfabrics` to an existing compute cluster:
+```
+mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
+```
+To add more nodes from a `computegpumemoryfabric` that is already included in this cluster, use the corresponding `cluster_xxxxx` name for these nodes as shown as `memory_cluster_name` in `mgmt fabrics list`:
+```
+mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
+```
+To delete a `computegpumemorycluster` and terminate all of the instances:
+```
+mgmt clusters delete --memory_cluster cluster_xxxxx
+```
+
 
 ## Stack Configuration
 
@@ -360,11 +410,21 @@ If a non-listed image must be used, the image ocid must be provided. The image m
 
 For the compute nodes, first define the Availability Domain and the node shape. If RoCE V2 cluster network is enabled, only Bare Metal shapes that support RDMA are available. If not, any shape, VM or BM, can be used as compute nodes.
 
+#### Main (permanent) partition
+
 The initial cluster size corresponds to the number of nodes of the permanent cluster.
 
 Boot volume size can be set at this stage.
 
 Image options are the same as for the management nodes. Management node and compute node images do not have to be identical but they must be compatible. Example: Canonical-Ubuntu-22.04 for the management nodes and Canonical-Ubuntu-22.04-OFED-GPU-570-OPEN-CUDA-12.8 for the compute nodes (GPU Bare Metal).
+
+#### On-demand partition
+
+This feature takes advantage of [Slurm Power Saving](https://slurm.schedmd.com/power_save.html) mechanism. One can add an additional "on-demand" partition by checking ```On-Demand Partition```. This will create a new slurm partition with name "ondemand".
+To submit a job, specify the correct partition (i.e ```--partition ondemand```). When submitting the job, ```ResumeProgram``` specified in ```slurm.conf``` is triggered to bring the correct number of nodes in Oracle Cloud and register them in Slurm to run the job. Once the job has run and ```SuspendTime```is reached, ```SuspendProgram``` is triggered to unregister the node and terminate it in Oracle Cloud Infrastructure.
+
+> [!WARNING]
+> Currently, when defining an on-demand partition, the key ```stand_alone:``` should be ```true```. This is because we are not using [NodeSet](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeSet) but rather [OPT_NodeName](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeName) and the name of the node needs to be known beforehand. This is currenlty not possible with Cluster Networks and Instance Pools.
 
 ### Login Node Options
 
@@ -729,51 +789,5 @@ Running the tool before starting workload on a cluster network should serve as a
 1. Link down on the RDMA NIC
 2. RDMA interface initialization or configuration issues including IP address assignment to the interface
 3. Insufficient ARP table size on the node to store all needed peer mac addresses
-
-### Notes on Nvidia GB200 Deployments
-
-Currently, the TerraForm connector is not working with GB200 based shapes due to the requirements around GPU memory cluster constructs. When deploying this shape, user must configure and deploy the stack as usual **EXCEPT** that the initial size of the cluster must be set to 0. Otherwise, user fully defines the compute nodes options during the stack configuration. Once logged in to the cluster controller node, user creates the initial `gpumemorycluster` as explained below.
-
-1. Check that the `lifecycle_state` is `AVAILABLE`, the `fabric_health` must be `HEALTHY`, and check `AVAILABLE` nodes:
-```
-mgmt fabrics list
-                                                                        Fabrics
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
-┃ id                                                                           ┃ lifecycle_state ┃ fabric_health ┃ memory_cluster ┃ OCCUPIED ┃ AVAILABLE ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ ocid1.computegpumemoryfabric.oc1....                                         │ AVAILABLE       │ HEALTHY       │ None           │ 0        │ 18        │
-└──────────────────────────────────────────────────────────────────────────────┴─────────────────┴───────────────┴────────────────┴──────────┴───────────┘
-```
-2. Use the OCID from above for `--fabric`, as well as the number of `AVAILABLE` hosts for `--count`:
-```
-mgmt clusters create --count 16 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
-```
-This creates a `computegpumemorycluster` with a name `cluster_xxxxx` and spins up the number of instances given in `--count`.  This is reflected in the `mgmt fabrics list` command output after a few minutes. The nodes and their respective informations can be seen with:
-```
-mgmt nodes list
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
-┃ hostname                 ┃ healthcheck_recommendat… ┃ status  ┃ compute_status ┃ cluster_name  ┃ memory_cluster_name ┃ ocid                      ┃ serial        ┃ ip_address    ┃ shape               ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
-│ trusting-dory-controller │                          │ running │ configuring    │ cluster-name  │ None                │ ocid1.instance.oc1.ap-sy… │ Not Specified │ 172.16.xxx.xxx  │ VM.Standard.E5.Flex │
-│ GPU-123                 │ Healthy                  │ running │ configuring    │ cluster-name  │ cluster-name_wuuja  │ ocid1.instance.oc1.ap-sy… │ 1234ABCXXX    │ 172.16.xxx.xxx │ BM.GPU.GB200.4      │
-│ GPU-456                  │ Healthy                  │ running │ configuring    │ cluster-name  │ cluster-name_wuuja  │ ocid1.instance.oc1.ap-sy… │ 5678DEFYYY    │ 172.16.xxx.xxx │ BM.GPU.GB200.4      │
-└──────────────────────────┴──────────────────────────┴─────────┴────────────────┴───────────────┴─────────────────────┴───────────────────────────┴───────────────┴───────────────┴─────────────────────┘
-```
-
-> [!WARNING]
-> Use the above command **ONLY** to add the first set of instances (see below how to add `gpumemoryfabrics` to the compute cluster named `gb200` that has been created above), otherwise inter-rack communication will not work.
-
-To add more nodes from the same `computegpumemoryfabric` to this cluster, use the corresponding `cluster_xxxxx` name for these nodes as shown as `memory_cluster_name` in `mgmt fabrics list`:
-```
-mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
-```
-To add nodes from other `computegpumemoryfabrics` to the cluster:
-```
-mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
-```
-To delete a `computegpumemorycluster` and terminate all of the instances:
-```
-mgmt clusters delete --memory_cluster cluster_xxxxx
-```
 
 ### Blogs
