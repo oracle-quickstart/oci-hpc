@@ -88,12 +88,48 @@ def list_custom_images(compartment_ocid):
             logger.info(f"No custom images found in compartment {compartment_ocid}.")
     except oci.exceptions.ServiceError as e:
          logger.error(f"Error retrieving custom images: {compartment_ocid}")
+    return custom_images
+
+def pick_custom_images(compartment_ocid):
+    custom_images = list_custom_images(compartment_ocid)
     for i, img in enumerate(custom_images):
         print(f"{i+1}. {img.display_name} ({img.id})")
     # Ask user to choose a custom image
     choice = int(input("Enter the number of the custom image to use: ")) - 1
     image_ocid = custom_images[choice].id
     return image_ocid
+
+def add_shape_to_image(image_ocid, compartment_ocid, shape):
+    try:
+        image = CLIENTS.compute_client.get_image(image_ocid).data
+    except:
+        logger.debug("Image with OCID is not found, trying with image name")
+        images=CLIENTS.compute_client.list_images(compartment_id=compartment_ocid,display_name=image_ocid)
+        if images.data:
+            image=images.data[0]
+        else:
+            logger.error(f"Image {image_ocid} not found in compartment {compartment_ocid}")
+            return
+    shape_compatibility_entries=CLIENTS.compute_client.list_image_shape_compatibility_entries(image.id).data
+
+
+    for shape_compatibility_entry in shape_compatibility_entries:
+        if shape == shape_compatibility_entry.shape:
+            logger.info(f"Shape {shape} already exists for image {image_ocid}")
+            return
+
+    CLIENTS.compute_client.add_image_shape_compatibility_entry(image_id=image_ocid,shape_name=shape)
+    logger.info(f"Shape {shape} added to image {image_ocid}")
+
+def import_custom_image(url,compartment_ocid):
+    name = url.split("/")[-1]
+    try:
+        image_source_details = oci.core.models.ImageSourceViaObjectStorageUriDetails(source_uri=url)
+        image_details = oci.core.models.CreateImageDetails(source_image_type=image_source_details,display_name=name,compartment_id=compartment_ocid)
+        CLIENTS.compute_client.create_image(image_details)
+
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error creating custom image: {e}")
 
 def run_boot_volume_swap(node,image_ocid,size):
     update_instance_source_details = oci.core.models.UpdateInstanceSourceViaImageDetails()

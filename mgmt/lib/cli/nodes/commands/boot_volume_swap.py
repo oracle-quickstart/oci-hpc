@@ -1,5 +1,5 @@
 import click
-from lib.ociwrap import run_boot_volume_swap, list_custom_images
+from lib.ociwrap import run_boot_volume_swap, pick_custom_images
 import lib.database as db
 from lib.logger import logger
 from ClusterShell.NodeSet import NodeSet
@@ -65,7 +65,7 @@ def boot_volume_swap(ctx, nodes, fields, image, size):
             controller = db.get_controller_node()
             compartment_id = controller.compartment_id
 
-        image_ocid = list_custom_images(compartment_id)
+        image_ocid = pick_custom_images(compartment_id)
     else:
         image_ocid = image
 
