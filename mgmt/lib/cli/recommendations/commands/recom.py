@@ -94,15 +94,21 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
     if unreachable_nodes+nodes_to_reboot:
         click.echo("Rebooting: "+str(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot]))))
         for node in unreachable_nodes+nodes_to_reboot:
-            run_reboot(node,False)
+            if node.slurm_state=="drained" or node.slurm_state=="down":
+                run_reboot(node,False)
+            else:
+                click.echo(f"Node is not drained, cannot reboot {node.hostname}")
 
     # Try to tag and terminate nodes.
     if nodes_to_terminate:
         print_node_list(nodes_to_terminate, "Nodes to Terminate")
         click.echo("Tagging and Terminating: "+str(NodeSet(','.join([node.hostname for node in nodes_to_terminate]))))
         for node in nodes_to_terminate:
-            run_tag(node)
-            run_terminate(node)
+            if node.slurm_state=="drained" or node.slurm_state=="down":
+                run_tag(node)
+                run_terminate(node)
+            else:
+                click.echo(f"Node is not drained, cannot terminate {node.hostname}")
 
     # Relaunch configuration step.
     if unconfigured_nodes:
