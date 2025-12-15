@@ -1,11 +1,16 @@
 ---
+- name: Check if Lustre is installed (Oracle Linux)
+  shell: 'rpm -q lustre-client'
+  register: lustre_installed
+  ignore_errors: true
+
 - name: Create directory for downloading and untarring Lustre client DKMS package
   file:
     path: "{{ download_path }}/OL8-Lustre-client-dkms"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-  when: download_path == '/tmp'
+  when: download_path == '/tmp' and lustre_installed.rc != 0
 
 - name: Create directory for downloading and untarring Lustre client DKMS package
   file:
@@ -15,7 +20,7 @@
     group: "{{ ansible_user }}"
   delegate_to: 127.0.0.1
   run_once: true
-  when: download_path != '/tmp'
+  when: download_path != '/tmp' and lustre_installed.rc != 0
 
 - name: Download OL8 Lustre client DKMS file
   block:
@@ -35,7 +40,7 @@
           when: ( not lfs_dwld.stat.exists )
           delegate_to: 127.0.0.1
           run_once: true
-      when: download_path != '/tmp'
+      when: download_path != '/tmp' and lustre_installed.rc != 0
 
     - name: Download in local location instance on each instance
       block:
@@ -49,6 +54,8 @@
             url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/YgdAE95IZFWvt39VffXXn9O8ir6JwAnqSSZCP5sAGf5UEqLS2gasO8NychBhNXUv/n/fsssolutions/b/rclone-1/o/OL8-Lustre-client-dkms.tgz"
             dest: "{{ download_path }}/OL8-Lustre-client-dkms"
           when: ( not lfs_dwld.stat.exists )
+      when: download_path != '/tmp' and lustre_installed.rc != 0
+
   rescue:
     - name: Retry downloading the Lustre .tgz file
       environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
@@ -77,19 +84,21 @@
     dest: "{{ download_path }}/OL8-Lustre-client-dkms"
   delegate_to: 127.0.0.1
   run_once: true
-  when: download_path != '/tmp'
+  when: download_path != '/tmp' and lustre_installed.rc != 0
 
 - name: untar Lustre client DKMS file in the local directory created above
   unarchive:
     src: "{{ download_path }}/OL8-Lustre-client-dkms/OL8-Lustre-client-dkms.tgz"
     dest: "{{ download_path }}/OL8-Lustre-client-dkms"
-  when: download_path == '/tmp'
+  when: download_path == '/tmp' and lustre_installed.rc != 0
 
 - name: Ensure ol8_codeready_builder repo is enabled
   shell: dnf config-manager --set-enabled ol8_codeready_builder
+  when: lustre_installed.rc != 0
 
 - name: Ensure ol8_codeready_builder repo is enabled
   shell: dnf config-manager --enable ol8_developer_EPEL
+  when: lustre_installed.rc != 0
 
 - name: Install downloaded Lustre client RPMS
   vars:
@@ -99,7 +108,7 @@
   with_items: "{{ lfs_client_rpms }}"
   include_role:
     name: safe_yum
-  when: ansible_distribution_major_version == '8'
+  when: ansible_distribution_major_version == '8' and lustre_installed.rc != 0
 
 - name: Create and update Lustre configuration file
   copy:

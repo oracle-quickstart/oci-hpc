@@ -1,5 +1,10 @@
 ---
 
+- name: check if Lustre in installed
+  shell: "dpkg -l | grep lustre"
+  register: lustre_installed
+  ignore_errors: true
+
 - name: Copy Lustre client installation script for Ubuntu
   copy:
     src: files/install_lustre_ubuntu.sh
@@ -7,6 +12,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: lustre_installed.rc != 0
 
 - name: Check if Lustre filesystem is already mounted
   command: "mountpoint -q {{ local_path }}"
@@ -21,7 +27,7 @@
     creates: ubuntu-lustre-install.logs
   async: 600
   poll: 10
-  when: mount_status.rc != 0
+  when: mount_status.rc != 0 and lustre_installed.rc != 0
 
 - name: Create and update Lustre configuration file
   copy:
