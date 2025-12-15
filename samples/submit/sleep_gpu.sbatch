@@ -4,7 +4,7 @@
 #SBATCH --constraint p100
 #SBATCH --partition compute2
 
-cd /nfs/scratch
+cd /fss
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 
