@@ -65,9 +65,9 @@ mgmt nodes reconfigure --action custom --nodes 2539XNG0J,2539XNG4J
 ## Submiting jobs
 
 Slurm job examples (NCCL allreduce) can be found for several GPU shapes: 
-* [A100, H100, H200 and B200](/samples/gpu/nccl_run_allreduce.sbatch)
-* [GB200 and GB300](/samples/gpu/nccl_run_allreduce_GB200.sbatch)
-* [MI300X](/samples/gpu/nccl_run_allreduce.sbatch)
+* [A100, H100, H200 and B200](samples/gpu/nccl_run_allreduce.sbatch)
+* [GB200 and GB300](samples/gpu/nccl_run_allreduce_GB200.sbatch)
+* [MI300X](samples/gpu/nccl_run_allreduce.sbatch)
 
 ## Logs
 
