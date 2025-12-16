@@ -15,4 +15,4 @@ The following diagram shows the target architecture:
 
 ## Documentation
 
-The information to deploy, use and understand the structure of the deployed infrastructure can be found in [documentation section](/documentation/README.md).
+The information to deploy, use and understand the structure of the deployed infrastructure can be found in the [documentation section](/documentation/README.md).
