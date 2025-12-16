@@ -13,7 +13,7 @@ Examples:
 
 * Adding one node:
 ```
-mgmt clusters add add-node --count 1
+mgmt clusters add node --count 1
 ```
 * Adding three nodes to cluster compute-1-hpc:
 ```
