@@ -413,9 +413,9 @@ def run_multi_node_active_hc(nodes,exclude_node=None,reservation_id=None):
         logger.info(f"Submitting multi node healthcheck on {hostnames} through partition {hc_partition[0]}")
         healthcheck_script="/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"
         try:
-            gpu_count = int(node_1.shape.split(".")[-1])
+            gpu_count = str(int(node_1.shape.split(".")[-1]))
         except:
-            gpu_count = 8
+            gpu_count = str(8)
         if exclude_node is None:
             if reservation_id is None:
                 cmd=["sbatch","-N","2","-p",hc_partition[0],"--ntasks-per-node",gpu_count,"--gpus-per-node",gpu_count,"-w",hostnames,"--deadline=now+5minutes","--time=4:00",healthcheck_script]       
