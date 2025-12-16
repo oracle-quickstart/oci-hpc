@@ -17,7 +17,7 @@ mgmt clusters add node --count 1
 ```
 * Adding three nodes to cluster compute-1-hpc:
 ```
-mgmt clusters add add-node --count 3 --cluster compute-1-hpc
+mgmt clusters add node --count 3 --cluster compute-1-hpc
 ```
 
 ### Removing nodes
@@ -67,7 +67,7 @@ mgmt nodes reconfigure --action custom --nodes 2539XNG0J,2539XNG4J
 Slurm job examples (NCCL allreduce) can be found for several GPU shapes: 
 * [A100, H100, H200 and B200](samples/gpu/nccl_run_allreduce.sbatch)
 * [GB200 and GB300](samples/gpu/nccl_run_allreduce_GB200.sbatch)
-* [MI300X](samples/gpu/nccl_run_allreduce.sbatch)
+* [MI300X](samples/gpu/rccl_run_allreduce.sbatch)
 
 ## Logs
 

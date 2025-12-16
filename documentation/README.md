@@ -1,7 +1,10 @@
 # Documentation
 
-The below section willl guide the user through the stack deployment steps and usage:
-* [Prerequisites.md](/documentation/Prerequisites.md): what is required before the cluster deployment.
+The below section willl guide the user through the stack deployment steps and usage.
+
+> [!WARNING]
+> Don't forget to complete all the [prerequisites](/documentation/Prerequisites.md) before starting any configuration or deployment.
+
 * [Setup.md](/documentation/Setup.md): how to configure and deploy the cluster.
 * [UserGuide.md](/documentation/UserGuide.md): how to use the cluster.
 * [Background.md](/documentation/Background.md): technical information on the infrastructure.

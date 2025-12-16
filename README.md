@@ -13,6 +13,10 @@ The following diagram shows the target architecture:
 
 ![Target architecture deployed via this Terraform stack.](/images/architecture_diagram.png)
 
+## Prerequisites
+
+Please ensure that you have setup all required prerequisites for successfully deploying the stack. For details, follow [this guide](/documentation/Prerequisites.md).
+
 ## Documentation
 
 The information to deploy, use and understand the structure of the deployed infrastructure can be found in the [documentation section](/documentation/README.md).
