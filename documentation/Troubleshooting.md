@@ -51,17 +51,6 @@ This stack uses the following OCI services:
 * [Private Endpoint](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Tasks/private-endpoints.htm) (if controller in a private subnet)
 * [MySQL Database](https://docs.oracle.com/en-us/iaas/mysql-database/home.htm) (if `Create a back-up Slurm Controller` is checked)
 
-## Collect RDMA NIC Metrics and Upload to Object Storage
-
-OCI-HPC is deployed in customer tenancy. So, OCI service teams cannot access metrics from these OCI-HPC stack clusters. Due to overcome this issue, in release,
-we introduce a feature to collect RDMA NIC Metrics and upload those metrics to Object Storage. Later on, that Object Storage URL could be shared with OCI service
-teams. After that URL, OCI service teams could access metrics and use those metrics for debugging purpose.
-
-To collect RDMA NIC Metrics and upload those to Object Storage, user needs to follow these following steps:
-
-1. Create a PAR (PreAuthenticated Request) by making sure that the "Create Object Storage PAR" checkbox is ticked (it is by default) at the stack configuration step in the Resource Manager.
-2. Use shell script `upload_rdma_nic_metrics.sh` to collect and upload metrics to object storage. User can configure metrics collection limits and intervals using the `rdma_metrics_collection_config.conf` config file.
-
 ## Meshpinger
 
 Meshpinger is a tool for validating network layer connectivity between RDMA NICs on a cluster network in OCI. The tool is capable of initiating ICMP ping from every RDMA NIC port on the cluster network to every other RDMA NIC port on the same cluster network and reporting back the success/failure status of the pings performed in the form of logs.
