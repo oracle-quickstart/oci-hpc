@@ -1184,7 +1184,7 @@ variables:
       - "24.11.7-1"
       - "23.11.11-2"
       - "25.11.0-1"
-    default: "24.11.7-1"
+    default: "25.11.0-1"
     visible: ${slurm}
     required: true
 
