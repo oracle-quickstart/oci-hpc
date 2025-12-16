@@ -12,3 +12,7 @@ It is configured and deployed using the [Oracle Resource Manager](https://docs.o
 The following diagram shows the target architecture:
 
 ![Target architecture deployed via this Terraform stack.](/images/architecture_diagram.png)
+
+## Documentation
+
+The information to deploy, use and understand the structure of the deployed infrastructure can be found in [documentation section](/documentation/README.md).
