@@ -37,7 +37,7 @@ mgmt nodes terminate --nodes GPU-123
 ```
 mgmt nodes terminate --nodes GPU-123,GPU-456
 ```
-* Removing a list of nodes (slurm notation):  
+* Removing a list of nodes (clustershell notation):  
 ```
 mgmt nodes terminate --nodes GPU-[123,456]
 ```
