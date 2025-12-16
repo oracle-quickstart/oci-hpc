@@ -27,7 +27,7 @@ By default, a `privilege` group that has access to the NFS and can have sudo acc
 
 ### Use an existing OCI Registry
 
-Select this option to use existing Function container registry.
+Select this option to use existing image container registry.
 
 ## Controller Node Options
 
