@@ -20,7 +20,6 @@ The cluster logs (creation, resizing, deletion) are stored in the `/config/logs`
 sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py
 ```
 
-### Monitoring
 
 # Useful Information
 
