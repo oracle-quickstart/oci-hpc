@@ -12,8 +12,6 @@ The slurm job logs are created in the folder from which the job is launched. Its
 
 The cluster logs (creation, resizing, deletion) are stored in the `/config/logs` folder.
 
-## How do I reconfigure my stack?
-
 ## Healthchecks
 
 ### In-node healthcheck

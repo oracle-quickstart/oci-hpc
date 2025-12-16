@@ -1,4 +1,6 @@
-The stack documentation is split in different files:
+# Documentation
+
+The below section willl guide the user through the stack deployment steps and usage:
 * [Prerequisites.md](/documentation/Prerequisites.md): what is required before the cluster deployment.
 * [Setup.md](/documentation/Setup.md): how to configure and deploy the cluster.
 * [UserGuide.md](/documentation/UserGuide.md): how to use the cluster.
