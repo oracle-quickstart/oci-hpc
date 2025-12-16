@@ -59,6 +59,8 @@ else:
 
 from shared_logging import logger
 
+SMI_TIMEOUT_SEC = 10
+
 #Section 0: Common Functions for all Health Checks.
 ###################################################
 
@@ -306,7 +308,7 @@ def check_ecc_errors():
     ecc_issues = []
 
     try:
-        result = subprocess.run(['nvidia-smi', '-q'], stdout=subprocess.PIPE)
+        result = subprocess.run(['nvidia-smi', '-q'], stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
         if result.returncode == 0:
             output = result.stdout.decode('utf-8')
             sram_matches = re.findall(r'SRAM Uncorrectable\s+:\s+(\d+)', output)
@@ -334,19 +336,27 @@ def check_ecc_errors():
                     logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
                     ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
 
+    except subprocess.TimeoutExpired:
+        logger.warning(f"GPU ECC Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        ecc_issues.append(f"nvidia-smi -q timed out after {SMI_TIMEOUT_SEC}s")
+
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
         try:
             THRESHOLD = 5
             # Try detecting AMD GPU
-            result = subprocess.run(["amd-smi", "metric", "--ecc", "--json"], capture_output=True, check=True)
+            result = subprocess.run(["amd-smi", "metric", "--ecc", "--json"], capture_output=True, check=True, timeout=SMI_TIMEOUT_SEC)
 
             # Parse JSON output
             gpu_data = json.loads(result.stdout.decode('utf-8'))
             for gpu in gpu_data:
                 if gpu["ecc"]["total_uncorrectable_count"] > THRESHOLD:
                     ecc_issues.append(f"GPU {gpu['gpu']} - ECC Errors: {gpu['ecc']['total_uncorrectable_count']}")
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"SRAM/DRAM ECC Test: Failed - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
+            ecc_issues.append(f"amd-smi metric --ecc --json timed out after {SMI_TIMEOUT_SEC}s")
 
         except (subprocess.CalledProcessError, FileNotFoundError):
             logger.warning("Skipping SRAM/DRAM ECC Test: nvidia-smi | amd-smi command not found.")
@@ -381,7 +391,7 @@ def check_row_remap_errors():
         # Run the nvidia-smi -q command
         result = subprocess.run(
             ['nvidia-smi', '--query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable', '--format=csv,noheader'],
-            stdout=subprocess.PIPE
+            stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC
         )
 
         if result.returncode != 0:
@@ -390,6 +400,10 @@ def check_row_remap_errors():
     except FileNotFoundError:
         logger.warning("Skipping Row Remap Test: nvidia-smi command not found")
         return remap_issues, recommended_action
+
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Row Remap Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        remap_issues.append(f"nvidia-smi --query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable --format=csv,noheader timed out after {SMI_TIMEOUT_SEC}s")
 
     # Decode the output from bytes to string
     output = result.stdout.decode('utf-8')
@@ -450,23 +464,23 @@ def check_gpu_count():
     ]
 
     lspci_expected_results_gb200 = [
-        '0008:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
-        '0009:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
-        '0018:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0008:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0009:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0018:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
         '0019:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
     ]
 
     lspci_expected_results_gb200_v3 = [
-        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
-        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
-        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
         '0019:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
     ]
 
     lspci_expected_results_gb300 = [
-        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
-        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
-        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
         '0019:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
     ]
 
@@ -476,7 +490,7 @@ def check_gpu_count():
     # Check the number of GPUs for AMD
     if shape == "BM.GPU.MI300X.8":
         try:
-            result = subprocess.run(['amd-smi', 'list'], stdout=subprocess.PIPE)
+            result = subprocess.run(['amd-smi', 'list'], stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
             output = result.stdout.decode('utf-8')
             gpu_count = output.count("GPU")  # Count occurrences of "GPU"
             tmp_results = []
@@ -488,6 +502,10 @@ def check_gpu_count():
                 logger.warning("GPU Count Test: Failed")
                 tmp_results.append(f"Expected {expected_no_gpu} GPUs, found {gpu_count} using amd-smi command")
 
+        except subprocess.TimeoutExpired:
+            logger.warning("GPU Count Test: Failed - amd-smi list timed out")
+            tmp_results.append(f"amd-smi list timed out after {SMI_TIMEOUT_SEC}s")
+
         except FileNotFoundError:
             logger.warning("Skipping GPU count test: amd-smi command not found")
 
@@ -495,7 +513,7 @@ def check_gpu_count():
 
     # Check the number of GPUs for NVIDIA
     try:
-        result = subprocess.run(['nvidia-smi', '--list-gpus'], stdout=subprocess.PIPE)
+        result = subprocess.run(['nvidia-smi', '--list-gpus'], stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
         output = result.stdout.decode('utf-8').strip()
 
         # Handle "No devices found" case
@@ -588,9 +606,14 @@ def check_gpu_count():
             else:
                 logger.warning("GPU Count Test: Failed")
             return missing_gpus
+
         except FileNotFoundError:
             logger.warning("Skipping GPU count test: nvidia-smi and lspci commands not found")
             return None
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"GPU Count Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+            return [f"nvidia-smi --list-gpus timed out after {SMI_TIMEOUT_SEC}s"]
 
 # 7.1 Checks PCIe link width for NVIDIA or AMD based on instance shape.
 def check_gpu_pcie():
@@ -600,7 +623,7 @@ def check_gpu_pcie():
 
     if shape == "BM.GPU.MI300X.8":
         try:
-            result = subprocess.run(['amd-smi', 'metric', '--pcie'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run(['amd-smi', 'metric', '--pcie'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
             output = result.stdout.decode('utf-8').strip()
 
             if result.returncode != 0 or "No devices were found" in output:
@@ -617,6 +640,10 @@ def check_gpu_pcie():
                 logger.error("GPU PCIe Width Test: Failed")
                 return [f"Expected PCIe width {expected_pcie_width}, but found {pcie_widths}"]
 
+        except subprocess.TimeoutExpired:
+            logger.error(f"GPU PCIe Width Test: Failed - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
+            return [f"amd-smi metric --pcie timed out after {SMI_TIMEOUT_SEC}s"]
+
         except FileNotFoundError:
             logger.warning("GPU PCIe Width Test: Skipping - amd-smi command not found")
             return ["AMD PCIe Width Test Skipped"]
@@ -625,7 +652,7 @@ def check_gpu_pcie():
         try:
             result = subprocess.run(
                 ['nvidia-smi', '--query-gpu=pcie.link.width.current', '--format=csv,noheader'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC
             )
             output = result.stdout.decode('utf-8').strip()
 
@@ -648,6 +675,10 @@ def check_gpu_pcie():
         except FileNotFoundError:
             logger.warning("GPU PCIe Width Test: Skipping - `nvidia-smi` command not found")
             return ["NVIDIA PCIe Width Test Skipped"]
+        
+        except subprocess.TimeoutExpired:
+            logger.error(f"GPU PCIe Width Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+            return [f"nvidia-smi PCIe query timed out after {SMI_TIMEOUT_SEC}s"]
 
     return []
 
@@ -827,13 +858,17 @@ def check_fabric_manager():
     fabric_manager_health = False
     try:
         # Run the nvidia-smi -q -i 0 | grep -i -A 2 Fabric
-        result = subprocess.run('nvidia-smi -q -i 0 | grep -i -A 2 Fabric', shell=True, stdout=subprocess.PIPE)
+        result = subprocess.run('nvidia-smi -q -i 0 | grep -i -A 2 Fabric', shell=True, stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
         if result.returncode != 0:
             logger.debug(f"Fabric Manager Check exited with error code: {result.returncode}")
 
     except FileNotFoundError:
         logger.warning("Skipping Fabric Manager test: nvidia-smi command not found")
         return fabric_manager_health
+ 
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Fabric Manager Check: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        return False
 
     # Decode the output from bytes to string
     output = result.stdout.decode('utf-8')
@@ -927,18 +962,23 @@ def get_current_cpu_profile():
 # 16.1 Check for pending bad pages on GPUs, for AMD only.
 def check_bad_pages():
     try:
-        result = subprocess.run(["amd-smi", "bad-pages", "--json"], capture_output=True, check=True)
+        result = subprocess.run(["amd-smi", "bad-pages", "--json"], capture_output=True, check=True, timeout=SMI_TIMEOUT_SEC)
         data = json.loads(result.stdout.decode('utf-8'))
+    except subprocess.TimeoutExpired:
+        return [f"amd-smi bad-pages --json timed out after {SMI_TIMEOUT_SEC}s"]
+    except FileNotFoundError:
+        logger.warning("GPU Pending Bad Pages Check: Skipping - amd-smi command not found")
+        return ["AMD bad-pages check skipped (amd-smi not found)"]
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
         logger.error(f"Error executing amd-smi or parsing JSON: {e}")
-        return
+        return [f"amd-smi bad-pages failed or returned invalid JSON: {e}"]
 
     errors = []
 
     for gpu in data:
         if gpu.get("pending") != "No bad pages found.":
             errors.append(f"Error: GPU {gpu['gpu']} has bad pages pending: {gpu['pending']}")
-
+    
     if errors:
         for error in errors:
             logger.error(error)
@@ -997,6 +1037,9 @@ def get_nvlink_speed():
 
     shape = metadata.get('shape')
     info = gpu_nvlink_info[shape]
+    if not info:
+        logger.info(f"Skipping NVLink speed check: unsupported GPU shape {shape}")
+        return []
     count_expected = info['count']
     speed_expected = info['speed']
     expected_gpu = info['gpu']
@@ -1009,7 +1052,7 @@ def get_nvlink_speed():
                 ["nvidia-smi", "--query-gpu=mig.mode.current", "--format=csv,noheader", "-i", str(gpu_index)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=10,
+                timeout=SMI_TIMEOUT_SEC,
                 check=True
             )
             mig_output = result.stdout.decode()
@@ -1019,7 +1062,7 @@ def get_nvlink_speed():
                 continue
 
         except subprocess.TimeoutExpired:
-            logger.warning(f"GPU {gpu_index}: MIG status check command timed out.")
+            logger.warning(f"GPU {gpu_index}: MIG status check command timed out after {SMI_TIMEOUT_SEC}s.")
         except subprocess.CalledProcessError as e:
             logger.warning(f"GPU {gpu_index}: MIG status check command failed with return code {e.returncode}.")
         except Exception as e:
@@ -1030,7 +1073,7 @@ def get_nvlink_speed():
                 ["nvidia-smi", "nvlink", "-s", "-i", str(gpu_index)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=10,
+                timeout=SMI_TIMEOUT_SEC,
                 check=True
             )
             gpu_output = result.stdout.decode()
@@ -1048,7 +1091,7 @@ def get_nvlink_speed():
                 logger.error(f"GPU {gpu_index}: ERROR: One or more link speeds do not match expected ({speed_expected} GB/s)")
                 error = True
         except subprocess.TimeoutExpired:
-            logger.warning(f"GPU {gpu_index}: NVLink speed check command timed out.")
+            logger.warning(f"GPU {gpu_index}: NVLink speed check command timed out after {SMI_TIMEOUT_SEC}s.")
         except subprocess.CalledProcessError as e:
             logger.warning(f"GPU {gpu_index}: NVLink speed check command failed with return code {e.returncode}.")
         except Exception as e:
@@ -1065,14 +1108,14 @@ def get_nvlink_speed():
 def run_dcgmi_health():
     # Check dcgmi version
     try:
-        version_out = subprocess.check_output(['dcgmi', '--version'], text=True, timeout=10)
+        version_out = subprocess.check_output(['dcgmi', '--version'], universal_newlines=True, timeout=10)
     except FileNotFoundError:
         logger.warning("dcgmi is not installed or not in PATH.")
         return True
 
     # Check if health is set up using output of `dcgmi health -c`
     try:
-        health_output = subprocess.check_output(['dcgmi', 'health', '-c'], text=True, stderr=subprocess.STDOUT, timeout=10)
+        health_output = subprocess.check_output(['dcgmi', 'health', '-c'], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
         need_setup = "Error: Health watches not enabled. Please enable watches." in health_output
     except subprocess.CalledProcessError as e:
         health_output = e.output
@@ -1082,7 +1125,7 @@ def run_dcgmi_health():
     if need_setup:
         # dcgmi health not set up, running `dcgmi health -s a`
         try:
-            setup_output = subprocess.check_output(['dcgmi', 'health', '-s', 'a'], text=True, stderr=subprocess.STDOUT, timeout=10)
+            setup_output = subprocess.check_output(['dcgmi', 'health', '-s', 'a'], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
             if "Health monitor systems set successfully." not in setup_output:
                 logger.warning("Unexpected dcgmi health setup output:\n", setup_output)
                 return True
@@ -1100,7 +1143,8 @@ def run_dcgmi_health():
         health_status = subprocess.check_output(
             "dcgmi health -c -j | jq -r '.body[\"Overall Health\"].value'",
             shell=True,
-            text=True,
+            #text=True,
+            universal_newlines=True,
             timeout=10
         ).strip()
         status_norm = health_status.lower()
