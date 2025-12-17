@@ -20,3 +20,18 @@ Please ensure that you have setup all required prerequisites for successfully de
 ## Documentation
 
 The information to deploy, use and understand the structure of the deployed infrastructure can be found in the [documentation section](/documentation/README.md).
+
+## Contributing
+
+This project welcomes contributions from the community. Before submitting a pull request, please [review our contribution guide](./CONTRIBUTING.md)
+
+## Security
+
+Please consult the [security guide](./SECURITY.md) for our responsible security vulnerability disclosure process
+
+## License
+
+Copyright (c) 2018-2020 Oracle and/or its affiliates.
+
+Released under the Universal Permissive License v1.0 as shown at
+<https://oss.oracle.com/licenses/upl/>.
