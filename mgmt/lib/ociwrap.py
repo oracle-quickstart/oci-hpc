@@ -99,27 +99,31 @@ def pick_custom_images(compartment_ocid):
     image_ocid = custom_images[choice].id
     return image_ocid
 
-def add_shape_to_image(image_ocid, compartment_ocid, shape):
+def add_shape_to_image(image_ocid_name, compartment_ocid, shape):
     try:
-        image = CLIENTS.compute_client.get_image(image_ocid).data
+        image = CLIENTS.compute_client.get_image(image_ocid_name).data
+        image_ocid=image_ocid_name
+        image_name=image.display_name
     except:
         logger.debug("Image with OCID is not found, trying with image name")
-        images=CLIENTS.compute_client.list_images(compartment_id=compartment_ocid,display_name=image_ocid)
+        images=CLIENTS.compute_client.list_images(compartment_id=compartment_ocid,display_name=image_ocid_name)
         if images.data:
             image=images.data[0]
+            image_ocid=image.id
+            image_name=image.display_name
         else:
-            logger.error(f"Image {image_ocid} not found in compartment {compartment_ocid}")
+            logger.error(f"Image {image_ocid_name} not found in compartment {compartment_ocid}")
             return
-    shape_compatibility_entries=CLIENTS.compute_client.list_image_shape_compatibility_entries(image.id).data
+    shape_compatibility_entries=CLIENTS.compute_client.list_image_shape_compatibility_entries(image_ocid).data
 
 
     for shape_compatibility_entry in shape_compatibility_entries:
         if shape == shape_compatibility_entry.shape:
-            logger.info(f"Shape {shape} already exists for image {image_ocid}")
+            logger.info(f"Shape {shape} already exists for image {image_name}")
             return
 
     CLIENTS.compute_client.add_image_shape_compatibility_entry(image_id=image_ocid,shape_name=shape)
-    logger.info(f"Shape {shape} added to image {image_ocid}")
+    logger.info(f"Shape {shape} added to image {image_name}")
 
 def import_custom_image(url,compartment_ocid):
     name = url.split("/")[-1]
