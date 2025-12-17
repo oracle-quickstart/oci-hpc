@@ -125,7 +125,7 @@ def import_custom_image(url,compartment_ocid):
     name = url.split("/")[-1]
     try:
         image_source_details = oci.core.models.ImageSourceViaObjectStorageUriDetails(source_uri=url)
-        image_details = oci.core.models.CreateImageDetails(source_image_type=image_source_details,display_name=name,compartment_id=compartment_ocid)
+        image_details = oci.core.models.CreateImageDetails(image_source_details=image_source_details,display_name=name,compartment_id=compartment_ocid)
         CLIENTS.compute_client.create_image(image_details)
 
     except oci.exceptions.ServiceError as e:

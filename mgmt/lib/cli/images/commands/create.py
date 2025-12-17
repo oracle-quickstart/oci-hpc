@@ -16,4 +16,3 @@ def create(url, compartment):
         import_custom_image(url, compartment)
     except Exception as e:
         logger.error(f"Error creating custom image: {e}")
-        ctx.exit(1)

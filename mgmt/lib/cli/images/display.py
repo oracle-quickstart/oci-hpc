@@ -20,7 +20,8 @@ def print_image_list(images, title,nodes_per_image=None):
                       )
         else:
             table.add_row(str(image.display_name), 
-                      str(image.id)
+                      str(image.id),
+                      str(image.lifecycle_state)
                       )
 
     console = Console()
