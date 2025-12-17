@@ -34,7 +34,7 @@
       - git
   ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Install required packages
   vars:
@@ -44,24 +44,24 @@
       - make
   ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Check if pyxis directory is present
   ansible.builtin.stat:
-    path: "/config/3rdparty/pyxis/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}"
+    path: "/config/3rdparty/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}"
   register: pyxis_present
 
 - name: Clone pyxis repo
   ansible.builtin.git:
     repo: https://github.com/NVIDIA/pyxis.git
-    dest: "/config/3rdparty/pyxis/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}"
+    dest: "/config/3rdparty/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}"
   ignore_errors: true
   when: not pyxis_present.stat.exists
 
 - name: Compile
   ansible.builtin.command: bash -c "sudo make install"
   args:
-    chdir: "/config/3rdparty/pyxis/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}"
+    chdir: "/config/3rdparty/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}"
   ignore_errors: true
 
 - name: Create plugstack.conf

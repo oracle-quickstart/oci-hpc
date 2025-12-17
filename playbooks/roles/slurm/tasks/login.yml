@@ -15,7 +15,7 @@
     backup: true
   with_items:
     - sackd
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Create systemd unit dirs for sackd and munge
   become: true

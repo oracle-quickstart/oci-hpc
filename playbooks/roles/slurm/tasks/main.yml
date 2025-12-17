@@ -1,12 +1,12 @@
 ---
 - ansible.builtin.include_vars: el_vars.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux'
 
 - ansible.builtin.include_vars: centos_vars.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'CentOS'
 
 - ansible.builtin.include_vars: ubuntu_vars.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - when: slurm_mode == 'controller'
 

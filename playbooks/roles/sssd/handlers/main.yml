@@ -5,7 +5,7 @@
     name: sshd
     state: restarted
     enabled: true
-  when: not ( ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int >= 24 )
+  when: not ( ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int >= 24 )
 
 - name: Restart sssd
   listen: Restart ns daemons

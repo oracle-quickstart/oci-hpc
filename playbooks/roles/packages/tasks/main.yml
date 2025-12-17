@@ -1,15 +1,15 @@
 ---
 - ansible.builtin.include_tasks: ol-7.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '7'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '7'
 
 - ansible.builtin.include_tasks: ol-8.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '8'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '8'
 
 - ansible.builtin.include_tasks: ol-9.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '9'
 
 - ansible.builtin.include_tasks: centos-7.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'CentOS' and ansible_facts['distribution_major_version'] == '7'
 
 - name: Ensure keyrings directory exists for extra repositories
   become: true
@@ -17,16 +17,16 @@
     path: /etc/apt/keyrings
     state: directory
     mode: '0755'
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - ansible.builtin.include_tasks: ubuntu.yml
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int < 22
+  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int < 22
 
 - ansible.builtin.include_tasks: ubuntu-2204.yml
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int == 22
+  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int == 22
 
 - ansible.builtin.include_tasks: ubuntu-2404.yml
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int > 22
+  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int > 22
 
 - ansible.builtin.include_tasks: debian.yml
-  when: ansible_distribution == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian'

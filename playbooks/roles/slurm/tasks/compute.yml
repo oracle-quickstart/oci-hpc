@@ -69,7 +69,7 @@
     backup: true
   with_items:
     - slurmd
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Create systemd unit dirs for slurmd and munge
   become: true
@@ -162,7 +162,7 @@
 
 - name: Create Reservation
   become: true
-  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ansible_hostname}} user=ubuntu reservation=InitialValidation"
+  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ansible_facts['hostname']}} user=ubuntu reservation=InitialValidation"
   register: create_reservation
   until: create_reservation is not failed
   retries: 5
@@ -176,7 +176,7 @@
 
 - name: Append to reservation
   become: true
-  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_hostname}}"
+  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_facts['hostname']}}"
   register: append_reservation
   until: append_reservation is not failed
   retries: 5
@@ -188,7 +188,7 @@
     - (reservation is defined and reservation.rc == 0) or (create_reservation is defined and create_reservation.rc != 0)
 
 - name: test the node
-  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_hostname}} hostname"
+  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_facts['hostname']}} hostname"
   ignore_errors: true
   register: test_result
   when:
@@ -205,7 +205,7 @@
   when: not ( 'GPU' in shape and rdma_enabled|bool)
 
 - name: test the node
-  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ansible_hostname}} hostname"
+  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ansible_facts['hostname']}} hostname"
   ignore_errors: true
   register: test_result
   when: not ( 'GPU' in shape and rdma_enabled|bool)

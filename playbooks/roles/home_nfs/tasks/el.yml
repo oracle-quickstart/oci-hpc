@@ -6,4 +6,7 @@
     name: use_nfs_home_dirs
     state: true
     persistent: true
-  when: ansible_selinux.status == "enabled"
+  when:
+  - ansible_facts['selinux'] is defined
+  - ansible_facts['selinux'] != false
+  - ansible_facts['selinux']['status'] == 'enabled'

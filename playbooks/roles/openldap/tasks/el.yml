@@ -14,7 +14,7 @@
   vars:
     package_name: >-
       {{
-        'policycoreutils-python' if ansible_distribution_major_version == '7' else
+        'policycoreutils-python' if ansible_facts['distribution_major_version'] == '7' else
         'policycoreutils-python-utils'
       }}
     package_state: present
@@ -24,17 +24,17 @@
 - block:
     - name: Install OpenLDAP servers (OL8)
       ansible.builtin.yum:
-        name: https://vault.centos.org/centos/8/PowerTools/{{ansible_architecture}}/os/Packages/openldap-servers-2.4.46-18.el8.{{ansible_architecture}}.rpm
+        name: https://vault.centos.org/centos/8/PowerTools/{{ansible_facts['architecture']}}/os/Packages/openldap-servers-2.4.46-18.el8.{{ansible_facts['architecture']}}.rpm
         state: present
         disable_gpg_check: true
-  when: ansible_distribution_major_version == '8'
+  when: ansible_facts['distribution_major_version'] == '8'
 
 - name: Install OpenLDAP packages (OL7, OL8, OL9)
   vars:
     package_name: >-
       {{
-        openldap_packages if ansible_distribution_major_version == '7' else
-        openldap_packages_ol8 if ansible_distribution_major_version == '8' else
+        openldap_packages if ansible_facts['distribution_major_version'] == '7' else
+        openldap_packages_ol8 if ansible_facts['distribution_major_version'] == '8' else
         openldap_packages_ol9
       }}
   include_role:
@@ -45,7 +45,7 @@
     content: ""
     dest: /etc/sysconfig/slapd
     mode: "0644"
-  when: ansible_distribution_major_version in ["8", "9"]
+  when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
 - name: Generate openldap root password 
   set_fact:
@@ -84,7 +84,10 @@
   sefcontext:
     target: "{{ openldap_server_conf_path }}(/.*)?"
     setype: slapd_db_t
-  when: ansible_selinux.status == "enabled"
+  when:
+  - ansible_facts['selinux'] is defined
+  - ansible_facts['selinux'] != false
+  - ansible_facts['selinux']['status'] == 'enabled'
 
 - name: Adjust OpenLDAP server TLS configuration
   lineinfile:
@@ -133,7 +136,7 @@
       lineinfile:
         dest: /etc/openldap/ldap.conf
         line: TLS_REQSAN allow
-  when: ansible_distribution_major_version in ["8", "9"]
+  when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
 - name: Ensure OpenLDAP data directory exists
   file:
@@ -185,7 +188,7 @@
       with_items:
         - { src: "el_ppolicy.ldif", dest: "ppolicy.ldif" }
         - { src: "el_memberof.ldif", dest: "memberof.ldif" }
-  when: ansible_distribution_major_version == "7"
+  when: ansible_facts['distribution_major_version'] == "7"
 
 - block:
     - name: Copy OpenLDAP schemas (OL8 or OL9)
@@ -208,7 +211,7 @@
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
-      when: ansible_distribution_major_version == "9"
+      when: ansible_facts['distribution_major_version'] == "9"
 
     - name: Copy `memberof.ldif` schemas (OL8 or OL9)
       copy:
@@ -217,7 +220,7 @@
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
-      when: ansible_distribution_major_version in ["8", "9"]
+      when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
     - name: Render OpenLDAP configuration templates (OL8 or OL9)
       template:
@@ -228,8 +231,8 @@
         mode: "0644"
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
-        - { src: "{{ 'el_local_ol9.ldif.j2' if ansible_distribution_major_version == '9' else 'el_local_ol8.ldif.j2' }}", dest: "local.ldif" }
-  when: ansible_distribution_major_version in ["8", "9"]
+        - { src: "{{ 'el_local_ol9.ldif.j2' if ansible_facts['distribution_major_version'] == '9' else 'el_local_ol8.ldif.j2' }}", dest: "local.ldif" }
+  when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
 - name: Find matching files
   ansible.builtin.find:
@@ -261,14 +264,14 @@
     - ppolicy.ldif
     - memberof.ldif
   notify: Restart openldap
-  when: ansible_distribution_major_version == '7'
+  when: ansible_facts['distribution_major_version'] == '7'
 
 - name: Restart openldap
   service:
     name: slapd
     state: restarted
     enabled: true
-  when: ansible_distribution_major_version in ["8", "9"]
+  when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
 - name: Load OpenLDAP local configuration (OL8, OL9)
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
@@ -279,7 +282,7 @@
     - local.ldif
     - memberof.ldif
   notify: Restart openldap
-  when: ansible_distribution_major_version in ["8", "9"]
+  when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
 - name: Check local schemas
   command: ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"
@@ -311,7 +314,7 @@
         - mod_syncprov_el.ldif
         - replicate_config.ldif
         - replicate_database_el_hdb.ldif
-      when: ansible_distribution_major_version == '7'
+      when: ansible_facts['distribution_major_version'] == '7'
 
     - name: Copy OpenLDAP schemas (OL8, OL9)
       template:
@@ -325,7 +328,7 @@
         - mod_syncprov_el.ldif
         - replicate_config.ldif
         - replicate_database_el_mdb.ldif
-      when: ansible_distribution_major_version in ["8", "9"]
+      when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
     - name: Add syncprov module to openLDAP
       shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/mod_syncprov_el.ldif'
@@ -342,13 +345,13 @@
       ignore_errors: true  #set to get around erroring out that items already exist
       become: true
       notify: Restart openldap
-      when: ansible_distribution_major_version == '7'
+      when: ansible_facts['distribution_major_version'] == '7'
 
     - name: Add replicate database to openLDAP (OL8, OL9)
       shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_el_mdb.ldif'
       ignore_errors: true  #set to get around erroring out that items already exist
       become: true
-      when: ansible_distribution_major_version in ["8", "9"]
+      when: ansible_facts['distribution_major_version'] in ["8", "9"]
       notify: Restart openldap
 
 

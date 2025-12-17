@@ -47,7 +47,7 @@
 - name: Sleep for 10 seconds
   ansible.builtin.pause:
     seconds: 10
-  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+  when: change_hostname_tag and hostname_output.stdout != ansible_facts['fqdn'].split('.')[0]
 
 - name: Sleep for 10 seconds
   ansible.builtin.pause:
@@ -59,7 +59,7 @@
     index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
-  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+  when: change_hostname_tag and hostname_output.stdout != ansible_facts['fqdn'].split('.')[0]
 
 - name: Update hostname for HPC cluster
   ansible.builtin.hostname:
@@ -74,7 +74,7 @@
 - name: Sleep for 30 seconds
   ansible.builtin.pause:
     seconds: 30
-  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+  when: change_hostname_tag and hostname_output.stdout != ansible_facts['fqdn'].split('.')[0]
 
 - name: Sleep for 30 seconds
   ansible.builtin.pause:
@@ -86,7 +86,7 @@
     index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
-  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+  when: change_hostname_tag and hostname_output.stdout != ansible_facts['fqdn'].split('.')[0]
 
 - name: Update hostname for HPC cluster
   ansible.builtin.hostname:
@@ -101,7 +101,7 @@
 - name: Sleep for 60 seconds
   ansible.builtin.pause:
     seconds: 60
-  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+  when: change_hostname_tag and hostname_output.stdout != ansible_facts['fqdn'].split('.')[0]
 
 - name: Sleep for 60 seconds
   ansible.builtin.pause:
@@ -113,7 +113,7 @@
     index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.hostname:
     name: "{{ hostname_convention }}-{{ index }}"
-  when: change_hostname_tag and hostname_output.stdout != ansible_fqdn.split('.')[0]
+  when: change_hostname_tag and hostname_output.stdout != ansible_facts['fqdn'].split('.')[0]
 
 - name: Update hostname for HPC cluster
   ansible.builtin.hostname:

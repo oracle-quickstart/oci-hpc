@@ -2,7 +2,7 @@
 - block:
     - name: Set mydistribution
       ansible.builtin.set_fact:
-        mydistribution: "{{ 'rhel' if (ansible_distribution == 'OracleLinux') else (ansible_distribution | lower) }}{{ ansible_distribution_version }}"
+        mydistribution: "{{ 'rhel' if (ansible_facts['distribution'] == 'OracleLinux') else (ansible_facts['distribution'] | lower) }}{{ ansible_facts['distribution_version'] }}"
 
     - name: Mydistribution
       ansible.builtin.debug:

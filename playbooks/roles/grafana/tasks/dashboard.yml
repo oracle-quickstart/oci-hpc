@@ -9,7 +9,7 @@
 
 - name: Map system architecture to suffix
   set_fact:
-    arch_suffix: "{{ arch_map[ansible_architecture] }}"
+    arch_suffix: "{{ arch_map[ansible_facts['architecture']] }}"
   vars:
     arch_map:
       x86_64: amd64
@@ -17,7 +17,7 @@
 
 - name: Map system architecture to suffix
   set_fact:
-    jsonnet_file: "go-jsonnet_Linux_{{arch_map[ansible_architecture]}}.tar.gz"
+    jsonnet_file: "go-jsonnet_Linux_{{arch_map[ansible_facts['architecture']]}}.tar.gz"
   vars:
     arch_map:
       x86_64: x86_64
@@ -25,7 +25,7 @@
 
 - name: Download jb
   become: true
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
     dest: /usr/local/bin/jb
@@ -33,7 +33,7 @@
 
 - name: Download jsonnet
   become: true
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{jsonnet_file}}
     dest: /tmp

@@ -199,7 +199,7 @@
     path: "{{ item.mountpoint }}"
     src: "{{ backends | join(',') }}/{{item.name}}"
     fstype: wekafs
-    opts: "{{ dpdk_opts }},net={{ ansible_default_ipv4.alias }}{{ item.opts }}"
+    opts: "{{ dpdk_opts }},net={{ ansible_facts['default_ipv4']['alias'] }}{{ item.opts }}"
     state: mounted
     when: (shape == "BM.GPU4.8" or shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8" or shape == "BM.GPU.H100.8") and dpdk_fs is defined
     loop: "{{ dpdk_fs }}"

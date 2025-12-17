@@ -13,17 +13,17 @@
       ansible.builtin.yum_repository:
         name: centos-extras
         description: Centos extras - $basearch
-        baseurl: http://mirror.centos.org/centos/{{ ansible_distribution_major_version }}/extras/{{ ansible_architecture }}
+        baseurl: http://mirror.centos.org/centos/{{ ansible_facts['distribution_major_version'] }}/extras/{{ ansible_facts['architecture'] }}
         enabled: 1
         gpgcheck: 0
-      when: ansible_distribution_major_version == '7'
+      when: ansible_facts['distribution_major_version'] == '7'
 
     - name: Add docker-ce repository
       become: true
       ansible.builtin.yum_repository:
         name: docker-ce
         description: Docker CE Stable - $basearch
-        baseurl: https://download.docker.com/linux/centos/{{ ansible_distribution_major_version }}/$basearch/stable
+        baseurl: https://download.docker.com/linux/centos/{{ ansible_facts['distribution_major_version'] }}/$basearch/stable
         enabled: 1
         gpgcheck: 1
         gpgkey: https://download.docker.com/linux/centos/gpg

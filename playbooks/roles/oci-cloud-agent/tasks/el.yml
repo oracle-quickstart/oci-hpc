@@ -8,7 +8,7 @@
   retries: 5
   register: unregister_cloud_agent
   until: unregister_cloud_agent is not failed
-  when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '7'
+  when: ansible_facts['distribution_major_version'] == '8' or ansible_facts['distribution_major_version'] == '7'
   ignore_errors: true
 
 # incase it takes time to get all repo ready after osms unregister

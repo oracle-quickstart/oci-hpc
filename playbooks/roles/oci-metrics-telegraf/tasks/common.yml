@@ -8,21 +8,21 @@
     enabled: 1
     gpgcheck: 1
     gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Remove old InfluxData GPG key if exists
   become: true
   ansible.builtin.file:
     path: /etc/apt/keyrings/influxdata.gpg
     state: absent
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Download and install InfluxData GPG key
   become: true
   ansible.builtin.shell: |
     curl -fsSL https://repos.influxdata.com/influxdata-archive_compat.key | gpg --dearmor -o /etc/apt/keyrings/influxdata.gpg
     chmod 0644 /etc/apt/keyrings/influxdata.gpg
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Manage InfluxData APT repositories - for Telegraf
   become: true
@@ -31,7 +31,7 @@
     filename: influxdata
     state: present
     update_cache: false
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Update apt cache for InfluxData repository only
   become: true
@@ -40,7 +40,7 @@
     cache_valid_time: 0
   environment:
     APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: "1"
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
   ignore_errors: true
 
 - name: Install Telegraf

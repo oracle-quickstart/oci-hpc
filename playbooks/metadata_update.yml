@@ -2,7 +2,7 @@
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   gather_facts: true
   roles:
     - http_server

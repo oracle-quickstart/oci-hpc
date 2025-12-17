@@ -15,7 +15,7 @@
         - "{{ enroot_caps_file }}"
 
     - name: Download RPMs if not already present
-      when: not item.stat.exists and ansible_distribution_major_version != "8"
+      when: not item.stat.exists and ansible_facts['distribution_major_version'] != "8"
       ansible.builtin.get_url:
         url: "{{ item.item }}"
         dest: "/config/3rdparty/{{ item.item | basename }}"
@@ -24,8 +24,8 @@
         group: opc
       with_items: "{{rpm_files.results}}"
     - name: Download RPMs if not already present
-      when: not item.stat.exists and ansible_distribution_major_version == "8"
-      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+      when: not item.stat.exists and ansible_facts['distribution_major_version'] == "8"
+      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
       ansible.builtin.get_url:
         url: "{{ item.item }}"
         dest: "/config/3rdparty/{{ item.item | basename }}"
@@ -40,7 +40,7 @@
           - zstd
           - "/config/3rdparty/{{ enroot_file | basename }}"
           - "/config/3rdparty/{{ enroot_caps_file | basename }}"
-        package_repo: "epel,ol{{ ansible_distribution_major_version }}_developer_EPEL"
+        package_repo: "epel,ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL"
         disable_gpg_check_var: true
       ansible.builtin.include_role:
         name: safe_yum
@@ -69,10 +69,10 @@
         mode: "0755"
         owner: opc
         group: opc
-      when: not enroot_check_files.stat.exists | bool and ansible_distribution_major_version != "8"
+      when: not enroot_check_files.stat.exists | bool and ansible_facts['distribution_major_version'] != "8"
 
     - name: Download enroot-check
-      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
       ansible.builtin.get_url:
         url: "{{ enroot_check_file }}"
         dest: "/config/3rdparty"

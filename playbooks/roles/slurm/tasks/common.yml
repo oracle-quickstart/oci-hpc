@@ -54,28 +54,28 @@
 - name: Get DEB architecture # noqa no-changed-when
   ansible.builtin.command: dpkg --print-architecture
   register: deb_architecture_out
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Map system architecture to suffix
   ansible.builtin.set_fact:
     deb_architecture: "{{ deb_architecture_out.stdout }}"
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Download Slurm DEB
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
   block:
     - name: Download in shared location
       block:
         - name: Check if the deb file exists
           ansible.builtin.stat:
-            path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
+            path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
           register: slurm_dwld
           delegate_to: 127.0.0.1
           run_once: true
         - name: First try downloading .deb
           ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
+            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
             dest: "{{ slurm_nfs_path }}/slurm_rpms"
           when: ( not slurm_dwld.stat.exists )
           delegate_to: 127.0.0.1
@@ -83,12 +83,12 @@
   rescue:
     - name: Second try downloading .deb
       ansible.builtin.get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
         dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
       run_once: true
 - name: Download Slurm RPMs
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
   block:
     - name: Download in shared location
@@ -101,7 +101,7 @@
           run_once: true
           with_items: "{{slurm_all_packages}}"
         - name: First try downloading RPMs
-          environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+          environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
           ansible.builtin.get_url:
             url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"
             dest: "{{ slurm_nfs_path }}/slurm_rpms"
@@ -112,7 +112,7 @@
 
   rescue:
     - name: Second try downloading RPMs
-      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
       ansible.builtin.get_url:
         url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item
           }}"
@@ -123,11 +123,11 @@
 - name: Install .deb
   vars:
     deb_name:
-      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_distribution_version }}_{{ deb_architecture }}.deb"
+      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
     package_state: present
   ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Install SLURM common packages RedHat
   vars:
@@ -136,7 +136,7 @@
     disable_gpg_check_var: true
   ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Add Environment variable file for SLurm
   become: true
@@ -144,7 +144,7 @@
     src: "systemd/slurm_env.j2"
     dest: "/etc/default/slurm"
     backup: true
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Create {{ slurm_spool_path }}
   become: true
@@ -221,7 +221,7 @@
 
 - name: Include pmix prolog files
   ansible.builtin.include_tasks: common_pmix.yml
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Ensure prolog directory exists
   become: true

@@ -6,7 +6,7 @@
      ansible.builtin.apt_repository:
        repo: "deb https://repos.influxdata.com/debian stable main"
        state: absent
-     when: ansible_distribution == 'Ubuntu'
+     when: ansible_facts['distribution'] == 'Ubuntu'
 
 - hosts: controller
   become: true
@@ -235,7 +235,7 @@
 - hosts: controller, slurm_backup
   become: true
   vars:
-    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configured"
   gather_facts: true
   roles:

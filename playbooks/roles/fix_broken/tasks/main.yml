@@ -3,4 +3,4 @@
 
 # to resolve error for not able to install nfs-kernel-server. seeing the same error for compute nodes while installing other packages. so adding this to run on all compute hosts the first time itself.
 - ansible.builtin.include_tasks: ubuntu.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'

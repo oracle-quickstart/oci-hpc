@@ -7,7 +7,10 @@
 
 - name: Set SELinux to permissive at runtime
   ansible.builtin.command: setenforce 0
-  when: ansible_selinux.status == "enabled"
+  when:
+    - ansible_facts['selinux'] is defined
+    - ansible_facts['selinux'] != false
+    - ansible_facts['selinux']['status'] == 'enabled'
   become: true
 
 - name: Persist SELinux in permissive mode (optional)

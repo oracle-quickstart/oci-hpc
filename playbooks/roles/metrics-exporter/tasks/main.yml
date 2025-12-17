@@ -1,9 +1,9 @@
 ---
 - ansible.builtin.include_tasks: node_exporter_el.yml
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - ansible.builtin.include_tasks: node_exporter_ubuntu.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - ansible.builtin.include_tasks: dcgm_exporter.yml
   when: compute_node|bool and 'GPU' in shape and not 'BM.GPU.MI' in shape
@@ -28,7 +28,7 @@
 # - ansible.builtin.include_tasks: critical_process_monitor.yml
 
 - ansible.builtin.include_tasks: amd_metrics_exporter_el.yml
-  when: compute_node|bool and ansible_os_family == 'RedHat' and 'BM.GPU.MI' in shape
+  when: compute_node|bool and ansible_facts['os_family'] == 'RedHat' and 'BM.GPU.MI' in shape
 
 - ansible.builtin.include_tasks: amd_metrics_exporter_ubuntu.yml
-  when: compute_node|bool and ansible_distribution == 'Ubuntu' and 'BM.GPU.MI' in shape
+  when: compute_node|bool and ansible_facts['distribution'] == 'Ubuntu' and 'BM.GPU.MI' in shape

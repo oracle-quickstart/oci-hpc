@@ -5,14 +5,14 @@
     state: latest
     disable_gpg_check: true
   when:
-    - ansible_os_family == 'RedHat' and ( ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' )
+    - ansible_facts['os_family'] == 'RedHat' and ( ansible_facts['distribution_major_version'] == '8' or ansible_facts['distribution_major_version'] == '9' )
 
 - name: Hold latest OCA for OL
   community.general.yum_versionlock:
     name: oracle-cloud-agent
     state: present
   when:
-    - ansible_os_family == 'RedHat'
+    - ansible_facts['os_family'] == 'RedHat'
 
 - name: Check if the updater file exists
   stat:

@@ -1,12 +1,12 @@
 ---
 - include_tasks: centos.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'CentOS'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'CentOS'
 
 - include_tasks: el.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux'
 
 - include_tasks: debian.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - include_tasks: debian.yml
-  when: ansible_distribution == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian'

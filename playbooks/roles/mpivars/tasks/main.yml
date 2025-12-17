@@ -1,4 +1,4 @@
 ---
 # tasks file for mpivars
 - ansible.builtin.include_tasks: ubuntu.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'

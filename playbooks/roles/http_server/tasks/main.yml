@@ -160,7 +160,7 @@
 
 - name: Build the host_info dictionary
   ansible.builtin.set_fact:
-    host_info: "{{ {'host': ansible_hostname, 'role': http_role, 'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'memory_cluster_name': memory_cluster_name,
+    host_info: "{{ {'host': ansible_facts['hostname'], 'role': http_role, 'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'memory_cluster_name': memory_cluster_name,
       'controller_name': instance_metadata['freeformTags']['controller_name'], 'shape': instance_metadata['shape'], 'ocid': instance_metadata['id'], 'oci_name': instance_metadata['hostname'],
       'availability_domain': instance_metadata['availabilityDomain'], 'tenancy_id': instance_metadata['tenantId'], 'compartment_id': instance_metadata['compartmentId'],
       'rack_id': rdma_metadata['rackId'], 'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'], 'network_block_id': rdma_metadata['rdmaTopologyData']['customerNetworkBlock'],

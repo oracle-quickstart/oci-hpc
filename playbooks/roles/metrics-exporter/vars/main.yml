@@ -11,7 +11,7 @@ go_path: "/usr/local/go/bin"
 dcgm_repo: "https://github.com/NVIDIA/dcgm-exporter.git"
 dcgm_service_path: "/etc/systemd/system/dcgm-exporter.service"
 dcgm_counter_config_path: "/etc"
-dependencies: "{{ rhel_dependencies if ansible_os_family == 'RedHat' else ubuntu_dependencies }}"
+dependencies: "{{ rhel_dependencies if ansible_facts['os_family'] == 'RedHat' else ubuntu_dependencies }}"
 ubuntu_dependencies:
   - wget
   - git

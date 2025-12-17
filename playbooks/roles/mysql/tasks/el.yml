@@ -34,7 +34,7 @@
         package_repo: ol7_MySQL80
       include_role:
         name: safe_yum
-  when: ansible_distribution_major_version == '7'
+  when: ansible_facts['distribution_major_version'] == '7'
 
 - block:
     - name: Select mysql package ol8
@@ -47,7 +47,7 @@
         package_repo: ol8_MySQL80
       include_role:
         name: safe_yum
-  when: ansible_distribution_major_version == '8'
+  when: ansible_facts['distribution_major_version'] == '8'
 
 - block:
     - name: Select mysql package ol9
@@ -60,7 +60,7 @@
         package_repo: ol9_MySQL80
       include_role:
         name: safe_yum
-  when: ansible_distribution_major_version == '9'
+  when: ansible_facts['distribution_major_version'] == '9'
 
 - name: Make sure pymysql is present
   become: true
@@ -78,7 +78,10 @@
     setype: mysqld_db_t
     seuser: system_u
     state: present
-  when: ansible_selinux.status == "enabled"
+  when:
+  - ansible_facts['selinux'] is defined
+  - ansible_facts['selinux'] != false
+  - ansible_facts['selinux']['status'] == 'enabled'
 
 - name: Ensure {{ mysql_db_path }} exists
   become: true
@@ -151,7 +154,7 @@
           command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY
             '{{ mysql_root_pwd }}';"
           when: dbstatus.rc != 0
-      when: ansible_distribution_major_version == '7'
+      when: ansible_facts['distribution_major_version'] == '7'
 
     - block:
         - name: Set MySQL root pasword ol8
@@ -182,7 +185,7 @@
           command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{
             mysql_root_pwd }}';"
           when: dbstatus.rc != 0
-      when: ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9'
+      when: ansible_facts['distribution_major_version'] == '8' or ansible_facts['distribution_major_version'] == '9'
 
     - name: Render /root/.my.cnf
       become: true

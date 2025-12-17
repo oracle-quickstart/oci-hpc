@@ -37,17 +37,17 @@
     - gpu_sdc_checker.py
 
 - name: Download oci-mesh-pinger
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: "{{ mp_download_link_x86 }}"
     dest: "/tmp/{{ mp_filename }}"
-  when: ('controller' in group_names) and ansible_architecture == "x86_64"
+  when: ('controller' in group_names) and ansible_facts['architecture'] == "x86_64"
 
 - name: Download oci-mesh-pinger
   ansible.builtin.get_url:
     url: "{{ mp_download_link_arm }}"
     dest: "/tmp/{{ mp_filename }}"
-  when: ('controller' in group_names) and ansible_architecture == "aarch64" and ansible_distribution_major_version != "8"
+  when: ('controller' in group_names) and ansible_facts['architecture'] == "aarch64" and ansible_facts['distribution_major_version'] != "8"
 
 - name: Untar meshpinger
   ansible.builtin.unarchive:

@@ -28,7 +28,7 @@
 
 - name: Set Ubuntu codename for ROCm repository
   ansible.builtin.set_fact:
-    ubuntu_codename: "{{ 'noble' if ansible_distribution_version == '24.04' else 'jammy' }}"
+    ubuntu_codename: "{{ 'noble' if ansible_facts['distribution_version'] == '24.04' else 'jammy' }}"
 
 - name: Add AMD device metrics exporter repository
   become: true

@@ -29,7 +29,7 @@
         state: latest
         executable: /usr/bin/pip3
       ignore_errors: true
-      when: ansible_distribution_major_version | int < 24
+      when: ansible_facts['distribution_major_version'] | int < 24
 
     - name: Install oci
       become: true

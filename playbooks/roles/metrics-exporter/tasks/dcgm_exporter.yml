@@ -6,7 +6,7 @@
     state: present
 
 - name: Download Go tarball
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   become: true
   ansible.builtin.get_url:
     url: "{{ go_url }}"
@@ -35,7 +35,7 @@
 
 - name: Check if file already exists
   ansible.builtin.stat:
-    path: /config/3rdparty/dcgm-exporter/{{ ansible_distribution }}_{{ ansible_distribution_version }}_{{ ansible_architecture }}
+    path: /config/3rdparty/dcgm-exporter/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}
   register: dcgm_exporter
 
 - name: Get current DCGM version
@@ -62,7 +62,7 @@
   when: not dcgm_exporter.stat.exists | bool
 
 - name: Download DCGM Exporter tarball
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   become: true
   ansible.builtin.get_url:
     url: "{{ dcgm_exporter_url }}"
@@ -87,7 +87,7 @@
   args:
     chdir: "{{ dcgm_directory.stdout }}"
   environment:
-    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+    PATH: "{{ go_path }}:{{ ansible_facts['env']['PATH'] }}"
   when: not dcgm_exporter.stat.exists | bool
 
 - name: Install DCGM Exporter
@@ -96,7 +96,7 @@
   args:
     chdir: "{{ dcgm_directory.stdout }}"
   environment:
-    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+    PATH: "{{ go_path }}:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Create systemd service for DCGM-Exporter
   become: true

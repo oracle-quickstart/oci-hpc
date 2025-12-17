@@ -5,12 +5,12 @@
   tasks:
     - include_role:
         name: fix_broken
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
 
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configuring"
     http_server_role: "login"
   gather_facts: true
@@ -33,7 +33,7 @@
   become: true
   gather_facts: true
   vars:
-    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   tasks:
     - include_role:
         name: localdisk
@@ -93,7 +93,7 @@
   become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   tasks:
     - include_role:
         name: docker
@@ -133,7 +133,7 @@
   vars:
     slurm_mode: "login"
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     compute_node: false
   tasks:
     - include_role:
@@ -151,7 +151,7 @@
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_os_family == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configured"
     http_server_role: "login"
   gather_facts: true

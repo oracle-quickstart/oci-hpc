@@ -1,3 +1,3 @@
 ---
 - include_tasks: ubuntu.yml
-  when: ( ansible_distribution == 'Ubuntu' ) and (( new_compute_info | length > 0 ) or ( new_hosts_info | length > 0 ))
+  when: ( ansible_facts['distribution'] == 'Ubuntu' ) and (( new_compute_info | length > 0 ) or ( new_hosts_info | length > 0 ))

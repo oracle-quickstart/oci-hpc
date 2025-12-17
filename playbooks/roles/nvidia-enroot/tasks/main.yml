@@ -1,15 +1,15 @@
 ---
 - ansible.builtin.include_vars: el7.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == '7'
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '7'
 
 - ansible.builtin.include_vars: el8.yml
-  when: ansible_os_family == 'RedHat' and ( ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9' )
+  when: ansible_facts['os_family'] == 'RedHat' and ( ansible_facts['distribution_major_version'] == '8' or ansible_facts['distribution_major_version'] == '9' )
 
 - ansible.builtin.include_vars: ubuntu.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - ansible.builtin.include_tasks: oraclelinux.yml
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - ansible.builtin.include_tasks: ubuntu.yml
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'

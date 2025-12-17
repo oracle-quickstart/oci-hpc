@@ -38,8 +38,8 @@
     url: "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/{{ openapi_generator_jar_version }}/openapi-generator-cli-{{ openapi_generator_jar_version }}.jar"
     dest: "{{ openapi_download_path }}/openapi-generator.jar"
     mode: '0644'
-    validate_certs: "{{ false if ansible_distribution == 'OracleLinux' else true }}"
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+    validate_certs: "{{ false if ansible_facts['distribution'] == 'OracleLinux' else true }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   become: true
 
 - name: Verify jar file exists

@@ -1,7 +1,7 @@
 - name: Choose Java package on OL/RHEL
   set_fact:
-    java_pkg: "{{ 'java-17-openjdk' if (ansible_distribution == 'OracleLinux' and (ansible_distribution_major_version|int) >= 9) else 'java-11-openjdk' }}"
-  when: ansible_os_family == "RedHat"
+    java_pkg: "{{ 'java-17-openjdk' if (ansible_facts['distribution'] == 'OracleLinux' and (ansible_facts['distribution_major_version']|int) >= 9) else 'java-11-openjdk' }}"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Install required deps (Ubuntu)
   apt:
@@ -9,7 +9,7 @@
       - default-jre
     state: present
     update_cache: yes
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
   become: true
 
 - name: Install required deps (OL/RHEL)
@@ -17,14 +17,14 @@
     name:
       - "{{ java_pkg }}"
     state: present
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
   become: true
 
 # ==================== NVM / OpenAPI Generator ====================
 # (unchanged logic; we only add robust cert env for OL and JAVA_HOME detection)
 
 - name: Download NVM install script
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_distribution == 'OracleLinux' else {} }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
     url: "{{ nvm_install_url }}"
     dest: /tmp/nvm_install.sh
@@ -33,7 +33,7 @@
 
 - name: Check if NVM is already installed
   stat:
-    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
   register: nvm_exists
 
 - name: Execute NVM install script no FSS Home
@@ -41,7 +41,7 @@
   args:
     executable: /bin/bash
   environment:
-    HOME: "{{ ansible_env.HOME }}"
+    HOME: "{{ ansible_facts['env']['HOME'] }}"
   # when: (not nvm_exists.stat.exists) and (not home_fss|bool)
   when: (not nvm_exists.stat.exists) and (not shared_home == 'fss')
 
@@ -50,7 +50,7 @@
   args:
     executable: /bin/bash
   environment:
-    HOME: "{{ ansible_env.HOME }}"
+    HOME: "{{ ansible_facts['env']['HOME'] }}"
   # when: (not nvm_exists.stat.exists) and home_fss|bool
   when: (not nvm_exists.stat.exists) and shared_home == 'fss'
   delegate_to: 127.0.0.1
@@ -114,7 +114,7 @@
   failed_when: false
   environment:
     JAVA_HOME: "{{ JAVA_HOME }}"
-    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_facts['env']['PATH'], ansible_facts['env']['PATH']) }}"
   delegate_to: 127.0.0.1
   run_once: true  
 
@@ -128,7 +128,7 @@
   when: openapi_cli_check.rc != 0
   environment:
     JAVA_HOME: "{{ JAVA_HOME }}"
-    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_env.PATH, ansible_env.PATH) }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_facts['env']['PATH'], ansible_facts['env']['PATH']) }}"
   delegate_to: 127.0.0.1
   run_once: true  
 
