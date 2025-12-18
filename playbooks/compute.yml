@@ -124,6 +124,18 @@
 - hosts: localhost
   become: true
   tasks:
+    - name: Get AMD GPU Info
+      shell: |
+         lspci |grep  "Processing accelerators"
+      register: amd_check
+      ignore_errors: yes
+    - ansible.builtin.include_role:
+         name: amd-container
+      when: amd_check.rc == 0
+
+- hosts: localhost
+  become: true
+  tasks:
     - include_role:
         name: lustre-client
         apply:
