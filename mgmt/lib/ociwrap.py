@@ -152,7 +152,15 @@ def run_boot_volume_swap(node,image_ocid,size):
             wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"]
         )
     except oci.exceptions.ServiceError as e:
-        logger.error(f"Error: {e}")
+        if e.code == "InvalidParameter":
+            add_shape_to_image(image_ocid, node.compartment_id, node.shape)
+            CLIENTS.compute_client_composite_operations.update_instance_and_wait_for_state(
+                node.ocid,
+                update_instance_details,
+                wait_for_states=["STOPPING","STOPPED","STARTING","RUNNING"]
+            )
+        else:
+            logger.error(f"Error: {e}")
     time.sleep(1)
 
 def run_terminate(node):
