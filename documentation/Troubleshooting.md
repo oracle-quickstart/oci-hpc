@@ -4,22 +4,79 @@ The cluster state and activity is logged in different files.
 
 ## Where are my logs?
 
+### Initial configuration logs
+
+The initial configuration of the controller will be available in the Terraform output as well as in `/config/logs/initial_configure.log`
+
+If it succeeds, and the command `mgmt nodes list` does not return anything, check that the policy. If the pre-requisite are not met, you will see compute odes not renamed in the OCI console. 
+
+### mgmt logs
+
+The logs from the mgmt service (responsible for adding nodes to the DB, addig the nodes in Slurm topology,...) are stored in `/config/logs/mgmt.log`
+
+### Compute nodes logs
+
+Each node will configure itself. It's running the cloud-init script. A copy is available at `/config/bin/cloud-init.sh`
+If the role of the node is compute, it will run /config/bin/copute.sh which will run the compute.yml ansible playbook. 
+If the role of the node is login, it will run /config/bin/login.sh which will run the login.yml ansible playbook. 
+
+The logs from the compute nodes are stored in `/config/logs/${hostame}.log`
+
 ### slurm (jobs) logs
 
 The slurm job logs are created in the folder from which the job is launched. Its generic name is `slurm-jobid.out`.
 
-### cluster logs
-
-The cluster logs (creation, resizing, deletion) are stored in the `/config/logs` folder.
 
 ## Healthchecks
 
-### In-node healthcheck
+### Passive healthchecks
 
+To check if the RDMA interfaces and the GPUs are healthy, run the following command on any compute node:
+This can run even on busy nodes as it does not use any resources.
 ```
 sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py
 ```
+This is automatically run in the prolog of ay job as well as idle/drained nodes every 5 minutes. (HealthCheckInterval in SLurm.conf)
 
+### Active healthchecks
+
+To run the active healthchecks, run the following command 
+```
+sudo python3 /opt/oci-hpc/healthchecks/active_healthcheck.py
+```
+
+Or run from the controller and replace the hostame by the node you would like to run this on:
+
+```
+sbatch -N 1 -w hostname /opt/oci-hpc/healthchecks/active_HC.sbatch
+```
+
+This is also run once every day on idle nodes in a low priority partition. (`compute_healthcheck`)
+
+The output while runing on a node is at `/var/log/healthchecks/latest_active_healthcheck.log` on the. node or at 
+`mgmt nodes get hostame` on the controller. 
+
+### Active healthchecks
+
+To run the active multi-ode healthchecks, submit this job and replace the hostame by the node you would like to run this on: (one or 2 nodes can be specified in the -w command)
+
+```
+sbatch -N 2 -w hostname /opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch
+```
+
+This is also run once every day on idle nodes in a low priority partition. (`compute_healthcheck`)
+
+The output while runing on a node is at `/var/log/healthchecks/latest_multi_node_active_healthcheck.log` on the nodes or at 
+`mgmt nodes get hostame` on the controller. 
+
+### Slurm reservation
+During the initial setup of the nodes, a reservation (InitialValidation) is created to ensure that the nodes are not used by other jobs. You can check the reservation with the following command:
+```
+scontrol show reservation InitialValidation
+```
+
+Nodes can be removed from the reservation or the reservation can de removed if anything does not go as expected. 
+Nodes that have a active Healthcheck but no multi-node healthcheck will be removed from the reservation after 10 minutes to avoid single nodes to be kept unavailable for too long. 
 
 # Useful Information
 
