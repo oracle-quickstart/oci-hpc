@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "requests",
+#   "psutil",
+#   "distro"
+# ]
+# ///
 
 """
 ===========================================================================================
@@ -1169,6 +1176,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Check Host setup')
     parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level default: INFO")
     parser.add_argument('-slurm', '--slurm', action='store_true', help='Add a Slurm message')
+    parser.add_argument('--dry-run', action='store_true', default=False, help='Skip updating the local files: http-server-file and the log file.')
 
     parser.add_argument('--oca-stat', action='store_true', help='Check the state of oca')
     parser.add_argument('--oca-ver', action='store_true', help='Run OCA version check')
@@ -1214,7 +1222,7 @@ if __name__ == '__main__':
 ####################################################
 
     # Run everything if no arguments are provided
-    run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool)) or args.slurm
+    run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool) and arg not in ('log_level', 'dry_run')) or args.slurm
 
     # 1.3 Check OCA Status
     if (run_all or args.oca_stat) and (not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
@@ -1632,20 +1640,23 @@ if __name__ == '__main__':
     if action == "Wait_For_OCA":
         logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
-    if slurm_error_count > 0 and args.slurm:
+    if slurm_error_count > 0 and any((args.slurm, args.dry_run)):
         logger.error("Healthcheck:: " + slurm_drain_reason[:-1])
         logger.error("Healthcheck:: Recommended Action:" + str(action))
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
 
-    http_server_file="/opt/oci-hpc/http_server/files/healthchecks"
-    # Read the existing data from the file
-    try:
-        with open(http_server_file, 'r') as file:
-            data = json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError):
-        logger.debug("Error: File not found or not in valid JSON format.")
-        data={}
+    if not args.dry_run:
+        http_server_file="/opt/oci-hpc/http_server/files/healthchecks"
+        # Read the existing data from the file
+        try:
+            with open(http_server_file, 'r') as file:
+                data = json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            logger.debug("Error: File not found or not in valid JSON format.")
+            data={}
+    else:
+        data = {}
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
     if action is None:
         data["passive_healthcheck_recommendation"] = "Healthy"
@@ -1653,19 +1664,20 @@ if __name__ == '__main__':
         data["passive_healthcheck_recommendation"] = action
     data["passive_healthcheck_time"] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     # Read the healthcheck.log file content
-    try:
-        with open("/var/log/healthchecks/latest_healthcheck.log", 'r') as log_file:
-            data["passive_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
-    except FileNotFoundError:
-        logger.warning("Log file not found, initializing empty logs.")
-        data["passive_healthcheck_logs"] = ""
-    if slurm_drain_reason != "":
-        data["passive_healthcheck_status"] = slurm_drain_reason
-    else:
-        data["passive_healthcheck_status"] = "Healthy"
-    # Write updated data back to the file
-    with open(http_server_file, 'w') as file:
+    if not args.dry_run:
         try:
-            json.dump(data, file, indent=4)
-        except Exception as e:
-            logger.error(f"Error writing to file: {e}")
+            with open("/var/log/healthchecks/latest_healthcheck.log", 'r') as log_file:
+                data["passive_healthcheck_logs"] = log_file.read(4095)  # Store log content in JSON
+        except FileNotFoundError:
+            logger.warning("Log file not found, initializing empty logs.")
+            data["passive_healthcheck_logs"] = ""
+        if slurm_drain_reason != "":
+            data["passive_healthcheck_status"] = slurm_drain_reason
+        else:
+            data["passive_healthcheck_status"] = "Healthy"
+        # Write updated data back to the file
+        with open(http_server_file, 'w') as file:
+            try:
+                json.dump(data, file, indent=4)
+            except Exception as e:
+                logger.error(f"Error writing to file: {e}")
