@@ -109,6 +109,12 @@
     enabled: true
 
 - block:
+    - name: Stop OpenLDAP service
+      systemd:
+        name: slapd
+        state: stopped
+      become: true
+
     - name: Ensure OpenLDAP data directory exists
       file:
         path: "{{ openldap_server_dir_path }}"
@@ -117,12 +123,6 @@
         group: "{{ openldap_default_group }}"
         setype: slapd_db_t
         seuser: system_u
-
-    - name: Start OpenLDAP service
-      systemd:
-        name: slapd
-        state: started
-        enabled: true
 
     - name: Copy OpenLDAP schemas
       copy:
@@ -156,6 +156,12 @@
     - name: Reconfigure slapd for rfc2307bis instead of nis
       command: dpkg-reconfigure -f noninteractive slapd
       when: not dpkgcheck.found
+
+    - name: Start OpenLDAP service
+      systemd:
+        name: slapd
+        state: started
+        enabled: true
 
     - name: Load OpenLDAP schemas 20.04
       command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
