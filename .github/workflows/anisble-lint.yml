@@ -29,11 +29,7 @@ jobs:
 
       - name: Run ansible-lint on the playbooks directory
         run: |
-          ansible-lint --profile min ./playbooks
-
-      - name: Custom annotation if ansible-lint fails
-        if: failure()
-        run: echo "::error ::❌ ansible-lint failed. Please fix the errors before merging. Run 'ansible-lint --profile min --fix ./playbooks' to automatically fix errors."
+          ansible-lint --profile basic ./playbooks
 
       - name: Post custom error comment on PR
         if: failure() && github.event_name == 'pull_request'
@@ -42,4 +38,4 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
             ❌ **ansible-lint failed**  
-            Please fix all linting issues before merging as per our contribution guidelines. Run 'ansible-lint --profile min --fix ./playbooks' to automatically fix errors.
+            Please check workflow output and fix all reported linting issues before merging.
