@@ -4,9 +4,9 @@ name: deployment_slurm_aarch64
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "3.0.0" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "3.0.0" ]
+    branches: [ "master" ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -54,32 +54,42 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: Wait for nodes to be configured (max 30 minutes)
+      - &wait_for_nodes
+        name: Wait for nodes to be configured (max 30 minutes)
         run: |
           ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
           start_time=$(date +%s)
           timeout=$((30 * 60))  # 30 minutes
 
           while true; do
-              not_ready=$(mgmt nodes list \
+              export out_mgmt=$(mgmt nodes list \
                   --fields role=compute \
                   --columns hostname,compute_status,controller_status \
-                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
-              
-              if [[ -z "$not_ready" ]]; then
-                  echo "✅ All nodes are configured!"
-                  break
+                  --format json)
+              n_nodes=$(jq -r -n 'env.out_mgmt | fromjson | length')
+              if [[ "$n_nodes" == "2" ]]; then
+                  all_ready=$(jq -r -n 'env.out_mgmt | fromjson
+                        | all(.[]; .compute_status == "configured")')
+                  if [[ "$all_ready" == "true" ]]; then
+                      echo "✅ All nodes are configured!"
+                      break
+                  fi
               fi
 
               now=$(date +%s)
               elapsed=$((now - start_time))
               if (( elapsed > timeout )); then
                   echo "❌ Timeout reached: nodes did not configure within 30 minutes."
+                  jq -r -n 'env.out_mgmt
+                      | fromjson | .[]
+                      | .hostname + ": " + .compute_status'
                   exit 1
               fi
 
-              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
-              echo "$not_ready"
+              echo "⏳ Waiting for 2 nodes to configure (elapsed: ${elapsed}s)..."
+              jq -r -n 'env.out_mgmt
+                  | fromjson | .[]
+                  | .hostname + ": " + .compute_status'
               sleep 10
           done
           EOF
@@ -151,36 +161,8 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
-      - name: Wait for nodes to be configured (max 30 minutes)
-        run: |
-          ssh -o "StrictHostKeyChecking no" $(cat public_ip.txt) -T 'bash -s' <<'EOF'
-          start_time=$(date +%s)
-          timeout=$((30 * 60))  # 30 minutes
-
-          while true; do
-              not_ready=$(mgmt nodes list \
-                  --fields role=compute \
-                  --columns hostname,compute_status,controller_status \
-                  --style none --no-header | awk '$2 != "configured" || $3 != "configured"')
-              
-              if [[ -z "$not_ready" ]]; then
-                  echo "✅ All nodes are configured!"
-                  break
-              fi
-
-              now=$(date +%s)
-              elapsed=$((now - start_time))
-              if (( elapsed > timeout )); then
-                  echo "❌ Timeout reached: nodes did not configure within 30 minutes."
-                  exit 1
-              fi
-
-              echo "⏳ Waiting for nodes to configure (elapsed: ${elapsed}s)..."
-              echo "$not_ready"
-              sleep 10
-          done
-          EOF
-
+      - *wait_for_nodes
+        # Reuse the task defined above
       - name: Run sinfo
         run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
 
@@ -207,4 +189,3 @@ jobs:
         if: always()
         run: |
           cd ..
-                 
