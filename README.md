@@ -21,6 +21,10 @@ Please ensure that you have setup all required prerequisites for successfully de
 
 The information to deploy, use and understand the structure of the deployed infrastructure can be found in the [documentation section](/documentation/README.md).
 
+## Cluster Management
+
+For managing your cluster, follow [this guide](/documentation/mgmt-cli.md).
+
 ## Contributing
 
 This project welcomes contributions from the community. Before submitting a pull request, please [review our contribution guide](./CONTRIBUTING.md)
