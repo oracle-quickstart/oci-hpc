@@ -111,7 +111,7 @@ resource "null_resource" "controller" {
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/"
       ],
       var.create_fss == "new" ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16\" | sudo tee -a /etc/fstab",
+        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],
       [

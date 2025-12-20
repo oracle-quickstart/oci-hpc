@@ -146,7 +146,7 @@ resource "null_resource" "setup_backup" {
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
       ],
       var.add_nfs ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16\" | sudo tee -a /etc/fstab",
+        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
         "sudo mount /config",
       ] : [],
       [

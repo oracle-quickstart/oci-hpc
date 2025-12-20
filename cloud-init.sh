@@ -64,7 +64,7 @@ if [ "$fss_ip" == "$controller_ip" ]; then
     fi
 else
     if ! grep -qF "$fss:/config /config nfs" /etc/fstab; then
-        echo "$fss:/config /config nfs defaults,nconnect=16" >> /etc/fstab
+        echo "$fss:/config /config nfs defaults,nconnect=16 0 0" >> /etc/fstab
         systemctl daemon-reload
         echo "Entry added to /etc/fstab."
     else
