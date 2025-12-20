@@ -44,7 +44,7 @@ if [ ${shape} = "BM.GPU.H100.8" ] || \
     fi
   else
     REASON=$(scontrol show node="$NODE" | awk -F= '/Reason=/{print $2}')
-    if echo "$REASON" | grep '^Healthcheck::' >/dev/null 2>&1; then
+    if echo "$REASON" | grep -E '^Healthcheck::|^Prolog error' >/dev/null 2>&1; then
       scontrol update nodename=$NODE state=resume
     fi
   fi
