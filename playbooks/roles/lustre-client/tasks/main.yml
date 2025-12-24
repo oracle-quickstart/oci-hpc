@@ -3,4 +3,4 @@
   when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '8'
 
 - include_tasks: ubuntu.yml
-  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] == "22"
+  when: ansible_facts['distribution'] == 'Ubuntu'
