@@ -36,4 +36,3 @@
     - name: Display dry-run result
       ansible.builtin.debug:
         var: logrotate_test.stdout_lines
-

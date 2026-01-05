@@ -1,7 +1,6 @@
-
 ---
 - block:
-    # added register, until, retries, delay so that if the apt lock is held by other process, it can finish and then retry to install packages. 
+    # added register, until, retries, delay so that if the apt lock is held by other process, it can finish and then retry to install packages.
     - name: Update apt and install pre-req packages for docker
       vars:
         package_name:

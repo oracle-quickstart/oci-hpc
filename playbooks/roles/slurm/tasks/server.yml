@@ -132,7 +132,7 @@
     path: "{{ slurm_jwt_key_path }}"
     owner: "slurm"
     group: "slurm"
-    mode: 0700
+    mode: "0700"
   become: true
 
 - name: Create DB for accounting
@@ -141,7 +141,7 @@
     config_file: "/root/.my.cnf"
     name: "{{ slurm_db_name }}"
     state: present
-  when: groups['slurm_backup'] | length == 0   
+  when: groups['slurm_backup'] | length == 0
 
 - name: Create DB user for accounting
   become: true
@@ -151,7 +151,7 @@
     password: "{{ slurmdbd_sql_pwd }}"
     priv: "{{ slurm_db_name }}.*:ALL"
     state: present
-  when: groups['slurm_backup'] | length == 0     
+  when: groups['slurm_backup'] | length == 0
 
 - name: Create DB for accounting on mysql service
   mysql_db:
@@ -159,22 +159,22 @@
     login_password: "{{mysql_admin_password}}"
     login_host: "{{mysql_service_host}}"
     name: "{{ slurm_db_name }}"
-    state: present  
-  when: groups['slurm_backup'] | length > 0   
+    state: present
+  when: groups['slurm_backup'] | length > 0
 
 - name: Create DB user for accounting on mysql service
   mysql_user:
     login_user: "{{mysql_admin_username}}"
     login_password: "{{mysql_admin_password}}"
-    login_host: "{{mysql_service_host}}"  
-    host: "%"  
+    login_host: "{{mysql_service_host}}"
+    host: "%"
     name: "{{ slurm_db_user }}"
     priv: "{{ slurm_db_name }}.*:ALL"
     plugin: caching_sha2_password
     plugin_auth_string: "{{ slurmdbd_sql_pwd }}"
     salt: 1234567890abcdefghij
-    state: present  
-  when: groups['slurm_backup'] | length > 0    
+    state: present
+  when: groups['slurm_backup'] | length > 0
 
 - name: Copy cgroup file
   become: true

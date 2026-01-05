@@ -37,7 +37,7 @@
     path: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz"
   register: node_exporter_file
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Download node_exporter {{ node_exporter }}
   become: true
@@ -46,7 +46,7 @@
     dest: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz"
   when: not node_exporter_file.stat.exists | bool
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Extract node_exporter {{ node_exporter }}.linux-{{arch_suffix}}.tar.gz into /var/lib/prometheus/node_exporter/
   become: true

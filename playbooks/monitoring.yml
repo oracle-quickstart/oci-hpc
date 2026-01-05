@@ -1,12 +1,12 @@
 ---
 - hosts: localhost
   tasks:
-   - name: Remove legacy InfluxData repo (without signed-by)
-     become: true
-     ansible.builtin.apt_repository:
-       repo: "deb https://repos.influxdata.com/debian stable main"
-       state: absent
-     when: ansible_facts['distribution'] == 'Ubuntu'
+    - name: Remove legacy InfluxData repo (without signed-by)
+      become: true
+      ansible.builtin.apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable main"
+        state: absent
+      when: ansible_facts['distribution'] == 'Ubuntu'
 
 - hosts: localhost
   become: true

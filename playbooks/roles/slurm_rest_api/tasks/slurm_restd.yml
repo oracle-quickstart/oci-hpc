@@ -8,7 +8,7 @@
     name:
       - default-jre
     state: present
-    update_cache: yes
+    update_cache: true
   when: ansible_facts['os_family'] == "Debian"
   become: true
 
@@ -67,7 +67,7 @@
   changed_when: false
   failed_when: false
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Install Node LTS and latest npm
   shell: |
@@ -78,7 +78,7 @@
     executable: /bin/bash
   when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 # ---- Java home detection for openapi-generator-cli ----
 - name: Detect JAVA_HOME from current java on PATH
@@ -94,13 +94,13 @@
   changed_when: false
   failed_when: false
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Set JAVA_HOME fact (may be empty)
   set_fact:
     JAVA_HOME: "{{ (java_home_cmd.stdout | default('')) | trim }}"
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Check if OpenAPI generator CLI is already installed
   shell: |
@@ -116,7 +116,7 @@
     JAVA_HOME: "{{ JAVA_HOME }}"
     PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_facts['env']['PATH'], ansible_facts['env']['PATH']) }}"
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Install OpenAPI generator CLI via npm (and select version)
   shell: |
@@ -130,14 +130,14 @@
     JAVA_HOME: "{{ JAVA_HOME }}"
     PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_facts['env']['PATH'], ansible_facts['env']['PATH']) }}"
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 # ==================== slurmrestd service ====================
 - name: Create the slurmrestd group
   become: true
   ansible.builtin.group:
     name: slurmrestd
-    system: yes
+    system: true
     state: present
 
 - name: Create slurmrestd user
@@ -145,9 +145,9 @@
   user:
     comment: "Slurmrestd user"
     name: slurmrestd
-    system: yes
+    system: true
     shell: /usr/sbin/nologin
-    create_home: no
+    create_home: false
     group: slurmrestd
     state: present
 
@@ -166,4 +166,4 @@
     name: slurmrestd
     daemon_reload: true
     state: restarted
-    enabled: yes
+    enabled: true

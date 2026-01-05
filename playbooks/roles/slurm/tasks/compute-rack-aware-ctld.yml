@@ -240,7 +240,6 @@
       run_once: true
 
 
-
     - name: Create empty directory
       ansible.builtin.set_fact:
         racks_on_nb_condensed: {}
@@ -253,7 +252,6 @@
       when: ( ( rem_nb_dict[item] | difference(switchname_to_remove) | length ) > 0 )
       run_once: true
       ignore_errors: true
-
 
 
 # Find which Network Blocks need to be removed
@@ -430,7 +428,7 @@
       with_items: "{{ new_compute_info | dict2items }}"
       when: item.value.network_block_id == 'None'
 
-    # Build dictionaries of cluster, NetworkBlock and Racks with the list of switch. 
+    # Build dictionaries of cluster, NetworkBlock and Racks with the list of switch.
 
     - name: Make empty rack_dict
       ansible.builtin.set_fact:
@@ -468,7 +466,7 @@
           + nb_id_dict[item.value.hostname]] | unique}) }}"
       with_items: "{{ new_compute_info | dict2items }}"
 
-    # Add the racks with all the nodes. 
+    # Add the racks with all the nodes.
     - name: Get current nodes in Switch
       ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}} \""
       register: nodes_in_switch
@@ -534,7 +532,7 @@
       delegate_to: 127.0.0.1
       notify: Reconfigure slurm
 
-# Add the racks in the NetworkBlock. 
+# Add the racks in the NetworkBlock.
 
     - name: debug nb_dict
       ansible.builtin.debug:
@@ -591,7 +589,7 @@
       delegate_to: 127.0.0.1
       notify: Reconfigure slurm
 
-# Add the NB with all the clusters. 
+# Add the NB with all the clusters.
 
     - name: Get current NB in Clusters
       ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}} \""

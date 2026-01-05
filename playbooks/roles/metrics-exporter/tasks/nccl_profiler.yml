@@ -140,8 +140,8 @@
         dest: "{{ exporter_service_file }}"
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
-        mode: 0744
-        
+        mode: "0744"
+
     - name: Ensure nccl-profiler-exporter service is enabled and running
       become: true
       ansible.builtin.systemd:

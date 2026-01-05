@@ -249,7 +249,7 @@
     mode: "0755"
   when: healthchecks|bool
 
-- name: Copy imex prolog 
+- name: Copy imex prolog
   become: true
   ansible.builtin.copy:
     src: imex_prolog.sh
@@ -286,4 +286,3 @@
     group: root
     mode: "0755"
   when: "'BM.GPU.MI' in shape"
-  

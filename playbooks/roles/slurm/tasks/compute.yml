@@ -182,7 +182,7 @@
   retries: 5
   delay: 5
   ignore_errors: true
-  when: 
+  when:
     - "'GPU' in shape"
     - rdma_enabled|bool
     - (reservation is defined and reservation.rc == 0) or (create_reservation is defined and create_reservation.rc != 0)

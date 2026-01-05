@@ -4,7 +4,7 @@
   ansible.builtin.copy:
     dest: "{{ slurm_conf_path }}/gres.conf"
     content: "#GRES.conf\n"
-    force: yes 
+    force: true
 
 
 - name: Get All configurations in the DB

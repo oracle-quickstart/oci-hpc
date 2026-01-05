@@ -49,15 +49,15 @@
   delegate_to: 127.0.0.1
 
 - block:
-  - name: Write openldap root password to backup
-    copy:
-      content: "{{ openldap_root_pwd }}"
-      dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
-    delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
+    - name: Write openldap root password to backup
+      copy:
+        content: "{{ openldap_root_pwd }}"
+        dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
+      delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
   when:
-  - groups['slurm_backup'] is defined
-  - groups['slurm_backup'] | length > 0
-  
+    - groups['slurm_backup'] is defined
+    - groups['slurm_backup'] | length > 0
+
 - name: Install the openldap and required Packages for Ubuntu
   vars:
     package_name: "{{ openldap_packages }}"
@@ -249,8 +249,8 @@
 
 - name: Enable replication
   when:
-  - groups['slurm_backup'] is defined
-  - groups['slurm_backup'] | length > 0
+    - groups['slurm_backup'] is defined
+    - groups['slurm_backup'] | length > 0
   block:
     - name: Copy OpenLDAP schemas
       template:
@@ -264,7 +264,7 @@
         - mod_syncprov_debian.ldif
         - replicate_config.ldif
         - replicate_database_debian.ldif
-  
+
     - name: Add syncprov module to openLDAP
       shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/mod_syncprov_debian.ldif'
       ignore_errors: true  #set to get around erroring out that items already exist

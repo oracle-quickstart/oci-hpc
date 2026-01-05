@@ -6,7 +6,7 @@
     enabled: false
   ignore_errors: true
 
-# it still need update to iptables rules to accept traffic or else mpi traffic fails 
+# it still need update to iptables rules to accept traffic or else mpi traffic fails
 
 - name: Copy off-iptables.sh
   ansible.builtin.copy:

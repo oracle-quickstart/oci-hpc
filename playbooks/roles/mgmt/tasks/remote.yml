@@ -7,7 +7,7 @@
   include_role:
     name: safe_yum
   ignore_errors: true
-  
+
 - name: Copy mgmt utility
   become: true
   ansible.builtin.template:

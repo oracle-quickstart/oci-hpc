@@ -47,7 +47,7 @@
     mode: "0644"
   when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
-- name: Generate openldap root password 
+- name: Generate openldap root password
   set_fact:
     tmp_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/openldap/root.txt',
@@ -55,7 +55,7 @@
   run_once: true
   delegate_to: 127.0.0.1
 
-- name: Get openldap root password 
+- name: Get openldap root password
   set_fact:
     openldap_root_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/openldap/root.txt',
@@ -64,14 +64,14 @@
   delegate_to: 127.0.0.1
 
 - block:
-  - name: Write openldap root password to backup
-    copy:
-      content: "{{ openldap_root_pwd }}"
-      dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
-    delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
+    - name: Write openldap root password to backup
+      copy:
+        content: "{{ openldap_root_pwd }}"
+        dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
+      delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
   when:
-  - groups['slurm_backup'] is defined
-  - groups['slurm_backup'] | length > 0
+    - groups['slurm_backup'] is defined
+    - groups['slurm_backup'] | length > 0
 
 - name: Hash OpenLDAP root password
   command: slappasswd -h {SSHA} -s {{ openldap_root_pwd }}
@@ -85,9 +85,9 @@
     target: "{{ openldap_server_conf_path }}(/.*)?"
     setype: slapd_db_t
   when:
-  - ansible_facts['selinux'] is defined
-  - ansible_facts['selinux'] != false
-  - ansible_facts['selinux']['status'] == 'enabled'
+    - ansible_facts['selinux'] is defined
+    - ansible_facts['selinux'] != false
+    - ansible_facts['selinux']['status'] == 'enabled'
 
 - name: Adjust OpenLDAP server TLS configuration
   lineinfile:
@@ -299,8 +299,8 @@
 
 - name: Enable replication
   when:
-  - groups['slurm_backup'] is defined
-  - groups['slurm_backup'] | length > 0
+    - groups['slurm_backup'] is defined
+    - groups['slurm_backup'] | length > 0
   block:
     - name: Copy OpenLDAP schemas OL7
       template:
@@ -340,7 +340,7 @@
       ignore_errors: true  #set to get around erroring out that items already exist
       become: true
 
-    - name: Add replicate database to openLDAP OL7 
+    - name: Add replicate database to openLDAP OL7
       shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_el_hdb.ldif'
       ignore_errors: true  #set to get around erroring out that items already exist
       become: true

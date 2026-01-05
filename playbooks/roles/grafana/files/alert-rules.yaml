@@ -3,21 +3,21 @@ contactPoints:
   - orgId: 1
     name: ons-webhook
     receivers:
-    - uid: ons
-      type: webhook
-      settings:
-        url: http://localhost:5000/grafana-webhook
-        httpMethod: POST
+      - uid: ons
+        type: webhook
+        settings:
+          url: http://localhost:5000/grafana-webhook
+          httpMethod: POST
 policies:
-    - orgId: 1
-      receiver: ons-webhook
-      group_by:
-        - grafana_folder
-        - alertname
-        - hostname
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 12h
+  - orgId: 1
+    receiver: ons-webhook
+    group_by:
+      - grafana_folder
+      - alertname
+      - hostname
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 12h
 groups:
   - orgId: 1
     name: Host Related Warnings or Events (non-GPU and non-RDMA) which may cause cluster instability
@@ -1052,7 +1052,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000 
+              expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000
               hide: false
               instant: true
               intervalMs: 60000

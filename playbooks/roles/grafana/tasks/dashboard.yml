@@ -190,13 +190,13 @@
     - oci-lustre.json
     - oci-natgw.json
     - oci-sgw.json
-    - oci-vcn.json      
+    - oci-vcn.json
     - oci-dashboard.json
     - slurm-dashboard.json
     - storage-metrics.json
 
 # Preserve the order in order to show the dashboards in non-alphabetic
-# functional order. 
+# functional order.
 - name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
@@ -218,7 +218,7 @@
     - amd-gpu-metrics-single.json
     - nvidia-gpu-health.json
     - nvidia-gpu-metrics-single.json
-    - oci-vcn.json    
+    - oci-vcn.json
     - oci-block.json
     - oci-igw.json
     - oci-natgw.json

@@ -126,11 +126,11 @@
   tasks:
     - name: Get AMD GPU Info
       shell: |
-         lspci |grep  "Processing accelerators"
+        lspci |grep  "Processing accelerators"
       register: amd_check
-      ignore_errors: yes
+      ignore_errors: true
     - ansible.builtin.include_role:
-         name: amd-container
+        name: amd-container
       when: amd_check.rc == 0
 
 - hosts: localhost

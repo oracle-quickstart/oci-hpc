@@ -400,7 +400,7 @@
     - name: Add nodes to current topology if they are on-demand
       when: ondemand_node_dict.keys() | length > 0
       block:
-      # Build dictionaries of cluster the list of nodes. 
+      # Build dictionaries of cluster the list of nodes.
 
         - name: Build dictionary of racks to add
           ansible.builtin.set_fact:

@@ -1,12 +1,12 @@
 ---
 - hosts: controller
   tasks:
-   - name: Remove legacy InfluxData repo (without signed-by)
-     become: true
-     ansible.builtin.apt_repository:
-       repo: "deb https://repos.influxdata.com/debian stable main"
-       state: absent
-     when: ansible_facts['distribution'] == 'Ubuntu'
+    - name: Remove legacy InfluxData repo (without signed-by)
+      become: true
+      ansible.builtin.apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable main"
+        state: absent
+      when: ansible_facts['distribution'] == 'Ubuntu'
 
 - hosts: controller
   become: true
@@ -200,7 +200,7 @@
     - include_role:
         name: grafana
       when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 )
-      
+
 # New role to clean old tmp dir files
 - hosts: all
   become: true
