@@ -116,8 +116,7 @@ def list_cmd(columns, format, **options):
     query = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict)
     nodes = query.all()
     if not nodes:
-        click.echo("No nodes found.")
-        return
+        click.echo("No nodes found.", err=True)
 
     display.display_nodes(
         nodes, format, columns,
