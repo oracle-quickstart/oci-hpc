@@ -76,16 +76,15 @@ SUDO
     if [[ $count -gt 20 ]]; then
       echo " Max count is exhausted without domain coming up"
       timeout 6 nvidia-imex-ctl -N
-      if [ $(timeout 6 nvidia-imex-ctl -N -j | jq -r --arg host $(hostname) '.nodes[] | select(.host == $host) | .status') = "UNAVAILABLE" ]; then
-        exit 1
-      else
-        exit 0
-      fi
+      break
     fi
     echo -n "."
     sleep 2
     count=$((count+1))
   done
+
+  MISSING_LIMIT=3
+  EXIT_STATUS=0
 
   export LOCAL_HOSTNAME=$(hostname)
   export IMEX_OUTPUT_JSON=$(timeout 6 nvidia-imex-ctl -N -j)
@@ -107,19 +106,11 @@ SUDO
   echo "Node Index: $NODE_IDX"
   echo "Node Status: $NODE_STATUS"
 
-  if [ "$NODE_STATUS" = "READY" ]; then
-    echo "Local node is READY."
-  else
-    echo "Local node is NOT ready."
-    exit 1
-  fi
-
   N_NODES=$(jq \
     -r -n '
       env.IMEX_OUTPUT_JSON | fromjson
       | .nodes
       | length')
-  MISSING_LIMIT=3
 
   N_CONNECTIONS=$(jq \
     -r --arg node_idx "$NODE_IDX" -n '
@@ -140,9 +131,27 @@ SUDO
     | select(.key == $node_idx)
     |     .value.connections'
   MISSING=$(( N_NODES - N_CONNECTIONS ))
-  if [ "$MISSING" -gt "$MISSING_LIMIT" ]; then
-    echo "❌ Rack Health: NOT HEALTHY ($MISSING connections missing)"
+  if [ "$NODE_STATUS" = "READY" ]; then
+    echo "Local node is READY."
   else
-    echo "✅ Rack Health: HEALTHY"
+    echo "Local node is NOT ready."
+    scontrol update NodeName=$LOCAL_HOSTNAME State=drain Reason="IMEX: Node status is not READY"
+    EXIT_STATUS=1
   fi
+  
+  if [[ "$MISSING" -gt "$MISSING_LIMIT" && "$EXIT_STATUS" -eq 0 ]]; then
+    echo "❌ Rack Health: NOT HEALTHY ($MISSING connections missing, $MISSING_LIMIT allowed)"
+    EXIT_STATUS=1
+    if [ "$MISSING" -eq $(("N_NODES"-1)) ]; then
+      echo "This node can only connect to itself"
+      scontrol update NodeName=$LOCAL_HOSTNAME State=drain Reason="IMEX: Node can only connect to itself"
+    else
+      scontrol update NodeName=$LOCAL_HOSTNAME State=drain Reason="IMEX: Rack health criteria not met"
+    fi
+  else
+    echo "✅ Rack Health: HEALTHY ($MISSING connections missing, $MISSING_LIMIT allowed)"
+  fi
+
+  exit $EXIT_STATUS
+
 fi
