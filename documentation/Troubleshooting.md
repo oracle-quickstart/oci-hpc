@@ -26,7 +26,6 @@ The logs from the compute nodes are stored in `/config/logs/${hostame}.log`
 
 The slurm job logs are created in the folder from which the job is launched. Its generic name is `slurm-jobid.out`.
 
-
 ## Healthchecks
 
 ### Passive healthchecks
@@ -36,6 +35,50 @@ This can run even on busy nodes as it does not use any resources.
 ```
 sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py
 ```
+---
+
+## NCCL and GPU Diagnostics
+
+### NCCL connectivity and bandwidth checks
+The `ncclscout.py` script is used to diagnose and test the connectivity and performance of NVIDIA GPUs across multiple nodes in the cluster. It leverages NCCL (NVIDIA Collective Communications Library) to ensure proper communication and bandwidth between nodes.
+
+Use this script to identify:
+- Unreachable nodes
+- Nodes with low bandwidth
+- Nodes with possible configuration issues (e.g., duplicate nodes, pairing issues)
+
+#### Usage
+Run the script as follows:
+```
+python3 /opt/oci-hpc/healthchecks/ncclscout.py [options]
+```
+
+#### Options
+1. Check all nodes in the cluster:
+   ```
+   python3 /opt/oci-hpc/healthchecks/ncclscout.py
+   ```
+   Note: Don't use sudo, the script relies on the ubuntu/opc user.
+
+3. Check specific nodes in the cluster using host file:
+   ```
+   python3 /opt/oci-hpc/healthchecks/ncclscout.py hosts.txt
+   ```
+5. Test a specific pair of nodes:
+   ```
+   python3 /opt/oci-hpc/healthchecks/ncclscout.py node1 node2
+   ```
+
+#### Output
+The output categorizes nodes into:
+
+Good Nodes: Nodes that meet the bandwidth threshold.
+Bad Nodes: Nodes that didn't meet the bandwidth threshold.
+Unreachable Nodes: Nodes that could not be accessed via SSH.
+Timeout Nodes: Nodes that failed to respond during tests.
+
+The script logs detailed test results into `nccl_test.log`, and provides a summary of node states.
+
 This is automatically run in the prolog of ay job as well as idle/drained nodes every 5 minutes. (HealthCheckInterval in SLurm.conf)
 
 ### Active healthchecks
@@ -56,7 +99,7 @@ This is also run once every day on idle nodes in a low priority partition. (`com
 The output while runing on a node is at `/var/log/healthchecks/latest_active_healthcheck.log` on the. node or at 
 `mgmt nodes get hostame` on the controller. 
 
-### Active healthchecks
+### Multi-node Active healthchecks
 
 To run the active multi-ode healthchecks, submit this job and replace the hostame by the node you would like to run this on: (one or 2 nodes can be specified in the -w command)
 
