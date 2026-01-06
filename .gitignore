@@ -16,6 +16,7 @@ crash.*.log
 # tfvars variable files.
 *.tfvars
 *.tfvars.json
+!.github/workflows/*.tfvars
 
 # Override files 
 override.tf

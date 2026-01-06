@@ -4,9 +4,9 @@ name: deployment_slurm_x86
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "master" ]
+    branches: [ "master"]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -94,16 +94,37 @@ jobs:
           done
           EOF
 
-      - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci sinfo'
+      - &run_sinfo
+        name: Run sinfo
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -c sinfo'
 
-      - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci "timeout 30 srun -N 2 hostname"'
+      - &check_nodes
+        name: Check there are 2 nodes in Slurm
+        id: srun
+        run: |
+          set +e
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -c "timeout 30 srun -vvv -N 2 hostname"'
+          exitcode="$?"
+          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+          exit "$exitcode"
 
-      - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -ci "mgmt --help"'
+      - &termination_status
+        name: Status of srun termination
+        if: ${{ success() || steps.srun.conclusion == 'failure' }}
+        run: |
+          if [[ "${{ steps.srun.outputs.exitcode }}" == "124" ]]; then
+                  echo "srun reached timeout with exit code 124!"
+          elif [[ "${{ steps.srun.outputs.exitcode }}" == "0" ]]; then
+                  echo "Success!"
+          else
+                  echo "error happened with exit code $exitcode"
+          fi    
+      - &mgmt
+        name: Check mgmt is there and working
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -c "mgmt --help"'
 
-      - name: Get all logs in /config/logs
+      - &get_logs
+        name: Get all logs in /config/logs
         if: always()
         run: |
           ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T bash --noprofile --norc << 'EOF'
@@ -112,7 +133,8 @@ jobs:
           done
           EOF
 
-      - name: Execute terraform destroy
+      - &destroy
+        name: Execute terraform destroy
         if: always()
         run: terraform destroy --auto-approve
 
@@ -143,10 +165,6 @@ jobs:
 
       - name: creating working directory, cd and copy files
         run: |
-          cp .github/workflows/provider_testing.tf provider.tf
-          cp .github/workflows/versions_testing.tf versions.tf
-          cp .github/workflows/public_ip.tf public_ip.tf
-          cp .github/workflows/terraform_testing.tfvars terraform.tfvars     
           mkdir ${{ github.sha }}
           for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
           cd ${{ github.sha }}
@@ -155,34 +173,27 @@ jobs:
         run: terraform --version
 
       # Runs a set of commands using the runners shell
-      - name: Setup and execute Terraform
+      - name: Setup and execute terraform apply
         run: |
+          cp .github/workflows/provider_testing.tf provider.tf
+          cp .github/workflows/versions_testing.tf versions.tf
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing.tfvars terraform.tfvars
           terraform init
           terraform apply --auto-approve
 
       - *wait_for_nodes
 
-      - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+      - *run_sinfo
 
-      - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+      - *check_nodes
+      - *termination_status
 
-      - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+      - *mgmt
 
-      - name: Get all logs in /config/logs
-        if: always()
-        run: |
-          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
-          for f in /config/logs/*; do
-              echo -e "#######$f#######\n" "$(cat $f)\n"
-          done
-          EOF
+      - *get_logs
 
-      - name: Execute terraform destroy
-        if: always()
-        run: terraform destroy --auto-approve
+      - *destroy
 
       - name: go up one directory
         if: always()
@@ -215,10 +226,6 @@ jobs:
           for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
           cd ${{ github.sha }}
 
-      # Runs a single command using the runners shell
-      - name: get terraform version
-        run: terraform --version
-
       # Runs a set of commands using the runners shell
       - name: Setup and execute terraform apply
         run: |
@@ -229,29 +236,19 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
+
       - *wait_for_nodes
 
-      - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+      - *run_sinfo
 
-      - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+      - *check_nodes
+      - *termination_status
 
-      - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+      - *mgmt
 
-      - name: Get all logs in /config/logs
-        if: always()
-        run: |
-          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
-          for f in /config/logs/*; do
-              echo -e "#######$f#######\n" "$(cat $f)\n"
-          done
-          EOF
+      - *get_logs
 
-      - name: Execute terraform destroy
-        if: always()
-        run: terraform destroy --auto-approve
+      - *destroy
 
       - name: go up one directory
         if: always()
@@ -297,34 +294,24 @@ jobs:
           terraform init
           terraform apply --auto-approve
 
+
       - *wait_for_nodes
 
-      - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+      - *run_sinfo
 
-      - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+      - *check_nodes
+      - *termination_status
 
-      - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+      - *mgmt
 
-      - name: Get all logs in /config/logs
-        if: always()
-        run: |
-          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
-          for f in /config/logs/*; do
-              echo -e "#######$f#######\n" "$(cat $f)\n"
-          done
-          EOF
+      - *get_logs
 
-      - name: Execute terraform destroy
-        if: always()
-        run: terraform destroy --auto-approve
+      - *destroy
 
       - name: go up one directory
         if: always()
         run: |
-          cd ..            
+          cd ..             
 
   deploy_Ubuntu24:
     # The type of runner that the job will run on
@@ -347,10 +334,6 @@ jobs:
 
       - name: creating working directory, cd and copy files
         run: |
-          cp .github/workflows/provider_testing.tf provider.tf
-          cp .github/workflows/versions_testing.tf versions.tf
-          cp .github/workflows/public_ip.tf public_ip.tf
-          cp .github/workflows/terraform_testing.tfvars terraform.tfvars     
           mkdir ${{ github.sha }}
           for file in *;do test "$file" != "${{ github.sha }}" && cp -r "$file" "${{ github.sha }}/";done
           cd ${{ github.sha }}
@@ -359,34 +342,28 @@ jobs:
         run: terraform --version
 
       # Runs a set of commands using the runners shell
-      - name: Setup and execute Terraform
+      - name: Setup and execute terraform apply
         run: |
+          cp .github/workflows/provider_testing.tf provider.tf
+          cp .github/workflows/versions_testing.tf versions.tf
+          cp .github/workflows/public_ip.tf public_ip.tf
+          cp .github/workflows/terraform_testing.tfvars terraform.tfvars
           terraform init
           terraform apply --auto-approve
 
+
       - *wait_for_nodes
 
-      - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+      - *run_sinfo
 
-      - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+      - *check_nodes
+      - *termination_status
 
-      - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+      - *mgmt
 
-      - name: Get all logs in /config/logs
-        if: always()
-        run: |
-          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
-          for f in /config/logs/*; do
-              echo -e "#######$f#######\n" "$(cat $f)\n"
-          done
-          EOF
+      - *get_logs
 
-      - name: Execute terraform destroy
-        if: always()
-        run: terraform destroy --auto-approve
+      - *destroy
 
       - name: go up one directory
         if: always()
