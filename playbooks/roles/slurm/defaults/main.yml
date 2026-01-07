@@ -14,5 +14,5 @@ slurm_gid: 1501
 slurm_uid: 1501
 munge_gid: 1500
 munge_uid: 1500
-rack_aware_playbook_suffix: "{% if rack_aware|bool %}-rack-aware{% endif%}"
+rack_aware_playbook_suffix: "{% if rack_aware | bool %}-rack-aware{% endif %}"
 slurm_jwt_key_path: "{{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm/jwt_hs256.key"

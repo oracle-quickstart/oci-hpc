@@ -36,7 +36,7 @@
   set_fact:
     tmp_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/openldap/root.txt',
-                          chars=['ascii_letters','digits','hexdigits']) }}"
+                          chars=['ascii_letters', 'digits', 'hexdigits']) }}"
   run_once: true
   delegate_to: 127.0.0.1
 
@@ -44,7 +44,7 @@
   set_fact:
     openldap_root_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/openldap/root.txt',
-                          chars=['ascii_letters','digits','hexdigits']) }}"
+                          chars=['ascii_letters', 'digits', 'hexdigits']) }}"
   run_once: true
   delegate_to: 127.0.0.1
 

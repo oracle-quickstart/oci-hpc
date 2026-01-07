@@ -83,7 +83,7 @@
   become: true
   template:
     src: "{{ item }}.j2"
-    dest: /etc/telegraf/telegraf.d/{{item}}
+    dest: /etc/telegraf/telegraf.d/{{ item }}
     force: true
     owner: telegraf
     group: telegraf
@@ -97,7 +97,7 @@
   become: true
   template:
     src: "{{ item }}.j2"
-    dest: /usr/local/bin/{{item}}
+    dest: /usr/local/bin/{{ item }}
     force: true
     owner: telegraf
     group: telegraf

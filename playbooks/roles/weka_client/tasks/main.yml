@@ -57,30 +57,30 @@
     path: /tmp/weka
     state: directory
     mode: "0755"
-  when: rt_check.stdout | int != 19 and ( (shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8") )
+  when: rt_check.stdout | int != 19 and ((shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8"))
 - name: Copy files
   copy:
     src: files/
     dest: /tmp/weka/
-  when: rt_check.stdout | int != 19 and ( (shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8") )
+  when: rt_check.stdout | int != 19 and ((shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8"))
 
 - name: Copy IP route rules
   copy:
     src: /tmp/weka/rt_tables
     dest: /etc/iproute2/rt_tables
-  when: rt_check.stdout | int != 19 and ( (shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8") )
+  when: rt_check.stdout | int != 19 and ((shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8"))
 
 - name: Get interface names
   shell: ip a | grep BROADCAST | awk '{ print $2 }' | grep -v 'ens\|docker\|lo' | sed 's/://'
   register: interface_names
-  when: rt_check.stdout | int != 19 and ( (shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8") )
+  when: rt_check.stdout | int != 19 and ((shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8"))
 
 - name: Create list of interface names
   copy:
     dest: "/tmp/interface_names"
     content: |
-      {{  interface_names.stdout }}
-  when: rt_check.stdout | int != 19 and ( (shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8") )
+      {{ interface_names.stdout }}
+  when: rt_check.stdout | int != 19 and ((shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8"))
 
 - name: Loop over NIC names and set up routing tables and rules
   shell: |
@@ -99,33 +99,33 @@
       echo "192.168.0.0/16 dev $NIC src $IP table net$TABLE" > /etc/sysconfig/network-scripts/route-$line
       echo "table net$TABLE from $IP" > /etc/sysconfig/network-scripts/rule-$line
     done < /tmp/interface_names
-  when: rt_check.stdout | int != 19 and ( (shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8") )
+  when: rt_check.stdout | int != 19 and ((shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8"))
 
 - name: Reset Network Interfaces
   shell: "for nic in $(cat /tmp/interface_names); do sudo ifdown $nic; sudo ifup $nic; done"
-  when: rt_check.stdout | int != 19 and ( (shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8") )
+  when: rt_check.stdout | int != 19 and ((shape == "BM.GPU4.8") or (shape == "BM.GPU.B4.8") or (shape == "BM.GPU.A100-v2.8") or (shape == "BM.GPU.H100.8"))
 
 #
 # SECONDARY VNIC SETUP
 #
 
 - name: Get VNIC Number
-  shell: "export LC_ALL=C.UTF-8;export LANG=C.UTF-8; /usr/bin/oci compute instance list-vnics --auth instance_principal --instance-id {{instance_metadata.json.id}}
+  shell: "export LC_ALL=C.UTF-8;export LANG=C.UTF-8; /usr/bin/oci compute instance list-vnics --auth instance_principal --instance-id {{ instance_metadata.json.id }}
     | jq '.[] | length'"
   register: vnic_number
   when: shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex"
 
 - name: attach secondary vnic
-  shell: "export LC_ALL=C.UTF-8;export LANG=C.UTF-8; oci compute instance attach-vnic --instance-id {{instance_metadata.json.id}} --vnic-display-name 'weka' --subnet-id
-    {{secondary_vnic_subnet}} --auth instance_principal"
-  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and  vnic_number.stdout | int < 2
+  shell: "export LC_ALL=C.UTF-8;export LANG=C.UTF-8; oci compute instance attach-vnic --instance-id {{ instance_metadata.json.id }} --vnic-display-name 'weka' --subnet-id
+    {{ secondary_vnic_subnet }} --auth instance_principal"
+  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and vnic_number.stdout | int < 2
   register: add_vnic
   delegate_to: 127.0.0.1
 
 - name: Sleep
   pause:
     seconds: 30
-  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and  vnic_number.stdout | int < 2
+  when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and vnic_number.stdout | int < 2
 
 #
 # WEKA INSTALL
@@ -197,7 +197,7 @@
 - name: Mount Weka DPDK Filesystems GPU Nodes
   mount:
     path: "{{ item.mountpoint }}"
-    src: "{{ backends | join(',') }}/{{item.name}}"
+    src: "{{ backends | join(',') }}/{{ item.name }}"
     fstype: wekafs
     opts: "{{ dpdk_opts }},net={{ ansible_facts['default_ipv4']['alias'] }}{{ item.opts }}"
     state: mounted
@@ -209,9 +209,9 @@
 - name: Mount Weka DPDK Filesystems to VM nodes
   mount:
     path: "{{ item.mountpoint }}"
-    src: "{{ data_backends | join(',') }}/{{item.name}}"
+    src: "{{ data_backends | join(',') }}/{{ item.name }}"
     fstype: wekafs
-    opts: "{{ dpdk_opts }},net=ens5/{{ private_ip_2 }}/{{ subnet_cidr_block_2 }}/{{ gateway_2}}{{ item.opts }}"
+    opts: "{{ dpdk_opts }},net=ens5/{{ private_ip_2 }}/{{ subnet_cidr_block_2 }}/{{ gateway_2 }}{{ item.opts }}"
     state: mounted
   when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and dpdk_fs is defined
   loop: "{{ dpdk_fs }}"
@@ -219,7 +219,7 @@
 - name: Mount Weka UDP to all nodes
   mount:
     path: "{{ item.mountpoint }}"
-    src: "{{ backends | join(',') }}/{{item.name}}"
+    src: "{{ backends | join(',') }}/{{ item.name }}"
     fstype: wekafs
     opts: "{{ upd_opts }},net=udp,{{ item.opts }}"
     state: mounted

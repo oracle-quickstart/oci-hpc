@@ -61,20 +61,20 @@
   become: true
   vars:
     tmp_home: "/tmp/home_tmp/"
-    remote_path: "{% if create_fss == 'new' %}/home{% else%}{{nfs_source_path}}{% endif %}"
+    remote_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}{% endif %}"
   tasks:
     - include_role:
         name: nfs-client
       vars:
-        local_path: "{{tmp_home}}"
+        local_path: "{{ tmp_home }}"
         export_host: "{{ nfs_source_IP }}"
         export_path: "{{ remote_path }}"
         options: ""
         lock: "none"
-      when: add_nfs|bool and shared_home == "fss"
+      when: add_nfs | bool and shared_home == "fss"
     - include_role:
         name: fss-home
-      when: add_nfs|bool and shared_home == "fss"
+      when: add_nfs | bool and shared_home == "fss"
 
 - hosts: controller, slurm_backup
   become: true
@@ -84,10 +84,10 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss == 'new' %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        export_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}/home{% endif %}"
         options: ""
         lock: "none"
-      when: add_nfs|bool and shared_home == "fss"
+      when: add_nfs | bool and shared_home == "fss"
     - include_role:
         name: passwords
 
@@ -96,13 +96,13 @@
   tasks:
     - include_role:
         name: ssl
-      when: ldap|default(true)|bool
+      when: ldap | default(true) | bool
     - include_role:
         name: openldap
-      when: ldap|default(true)|bool
+      when: ldap | default(true) | bool
     - include_role:
         name: cluster-cli
-      when: ldap|default(true)|bool
+      when: ldap | default(true) | bool
 
 - hosts: controller
   become: true
@@ -121,21 +121,21 @@
         export_path: "{{ nfs_source_path }} "
         options: "{{ nfs_options }}"
         lock: "none"
-      when: add_nfs|default(false)|bool
+      when: add_nfs | default(false) | bool
 
 - hosts: controller, slurm_backup
   become: true
   tasks:
     - include_role:
         name: sssd
-      when: ldap|default(true)|bool
+      when: ldap | default(true) | bool
 
 - hosts: controller, slurm_backup
   become: true
   tasks:
     - include_role:
         name: fix_ldap
-      when: ldap|default(true)|bool
+      when: ldap | default(true) | bool
 
 - hosts: controller, slurm_backup
   become: true
@@ -146,13 +146,13 @@
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "{{ nfs_target_path if create_fss == 'new' else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+        download_path: "{{ nfs_target_path if create_fss == 'new' else (cluster_nfs_path if cluster_nfs | bool else '/tmp') }}"
         local_path: "{{ lfs_target_path }}"
         export_host: "{{ lfs_source_IP }}"
         options: "{{ lfs_options }}"
         export_path: "{{ lfs_source_path }}"
         lock: "none"
-      when: add_lfs|default(false)|bool
+      when: add_lfs | default(false) | bool
 
 - hosts: controller
   become: true
@@ -172,10 +172,10 @@
         name: rack-aware
     - include_role:
         name: spack
-      when: spack|default(false)|bool
+      when: spack | default(false) | bool
     - include_role:
         name: slurm
-      when: slurm|default(false)|bool
+      when: slurm | default(false) | bool
 
 - hosts: controller, slurm_backup
   vars:
@@ -185,13 +185,13 @@
         name: metrics-exporter
     - include_role:
         name: oci-metrics
-      when: cluster_monitoring|default(false)|bool
+      when: cluster_monitoring | default(false) | bool
 
 - hosts: controller, slurm_backup
   tasks:
     - include_role:
         name: slurm_rest_api
-      when: slurm|default(false)|bool
+      when: slurm | default(false) | bool
 
 - hosts: monitoring
   tasks:
@@ -199,7 +199,7 @@
         name: wait_for_cloud_init
     - include_role:
         name: grafana
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 )
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length > 0)
 
 # New role to clean old tmp dir files
 - hosts: all
@@ -212,25 +212,25 @@
   tasks:
     - include_role:
         name: grafana
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 )
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length == 0)
 
 - hosts: monitoring
   tasks:
     - include_role:
         name: oci-metrics-telegraf
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) and ( (metrics_stream_ocid | default('')) | length > 0 )
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length > 0) and ((metrics_stream_ocid | default('')) | length > 0)
 
 - hosts: controller
   tasks:
     - include_role:
         name: oci-metrics-telegraf
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) and ( (metrics_stream_ocid | default('')) | length > 0 )
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length == 0) and ((metrics_stream_ocid | default('')) | length > 0)
 
 - hosts: controller, monitoring
   tasks:
     - include_role:
         name: prometheus
-      when: cluster_monitoring|default(false)|bool
+      when: cluster_monitoring | default(false) | bool
 
 - hosts: controller, slurm_backup
   become: true

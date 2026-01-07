@@ -93,7 +93,7 @@
 
     # Creating RAID array
     - name: Creating Array
-      ansible.builtin.shell: "yes | mdadm --create /dev/md0 {% if redundancy | bool %}--level=10{% else%}--level=0{% endif%} --raid-devices={{ nvmes | count }} {{
+      ansible.builtin.shell: "yes | mdadm --create /dev/md0 {% if redundancy | bool %}--level=10{% else %}--level=0{% endif %} --raid-devices={{ nvmes | count }} {{
         nvme_devices | join(' ') }}"
       register: "array_created"
       when: array_check.rc != 0 and array_check_all.rc != 0

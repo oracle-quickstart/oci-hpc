@@ -1,7 +1,7 @@
 ---
-- name: "Safe Yum install of latest {{package_name}}"
+- name: "Safe Yum install of latest {{ package_name }}"
   block:
-    - name: "Yum first try {{package_name}}"
+    - name: "Yum first try {{ package_name }}"
       vars:
         ansible_python_interpreter: /usr/bin/python3
       become: true
@@ -27,7 +27,7 @@
       when: package_repo|default('None') != 'None'
       failed_when: job_result.rc is defined and job_result.rc > 0 and not 'could not find job' in job_result.msg
 
-    - name: "Yum first try {{package_name}}"
+    - name: "Yum first try {{ package_name }}"
       vars:
         ansible_python_interpreter: /usr/bin/python3
       become: true

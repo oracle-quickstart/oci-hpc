@@ -16,7 +16,7 @@
     validate: "visudo -cf %s"
   when: privilege_sudo | bool
 
-- name: "Add opc user to {{privilege_group_name}} group"
+- name: "Add opc user to {{ privilege_group_name }} group"
   become: true
   ansible.builtin.user:
     name: opc

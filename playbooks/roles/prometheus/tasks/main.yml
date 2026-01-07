@@ -17,7 +17,7 @@
     shell: /usr/sbin/nologin
     append: true
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Create installation folder in etc
   become: true
@@ -29,7 +29,7 @@
     mode: "0775"
     recurse: true
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Create data folder
   become: true
@@ -41,7 +41,7 @@
     mode: "0775"
     recurse: true
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Ensuring the prometheus targets dir
   become: true
@@ -52,7 +52,7 @@
     group: "{{ prometheus_user }}"
     mode: "0777"
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Download/unarchive Packages for prometheus
   become: true
@@ -69,7 +69,7 @@
   delay: 10
   register: download_prometheus
   until: download_prometheus is not failed
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Copying the service binary for prometheus
   become: true
@@ -84,7 +84,7 @@
     - prometheus
     - promtool
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Copying the console binary
   become: true
@@ -99,7 +99,7 @@
     - consoles
     - console_libraries
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Removing the tar file of prometheus
   become: true
@@ -107,7 +107,7 @@
     path: "{{ prometheus_download_dir }}"
     state: absent
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Create prometheus systemd service file
   become: true
@@ -115,12 +115,12 @@
     src: templates/prometheus.service.j2
     dest: "{{ service_dest_dir }}/prometheus.service"
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Copying the scrape config
   become: true
   vars:
-    oci_metrics_host: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+    oci_metrics_host: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
   template:
     src: templates/prometheus.yml.j2
     dest: "{{ prometheus_dest_dir }}/prometheus.yml"
@@ -128,7 +128,7 @@
     group: "{{ prometheus_user }}"
     mode: "0775"
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
   retries: 3
   delay: 10
   register: copy_scrape
@@ -143,7 +143,7 @@
     group: "{{ prometheus_user }}"
     mode: "0775"
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
   retries: 3
   delay: 10
   register: copy_rules
@@ -157,4 +157,4 @@
     daemon_reload: true
     enabled: true
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"

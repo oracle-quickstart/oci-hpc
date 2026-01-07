@@ -9,7 +9,7 @@
     shell: /usr/sbin/nologin
     append: true
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Create installation folder in etc
   become: true
@@ -21,7 +21,7 @@
     mode: "0775"
     recurse: true
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Create targets folder
   become: true
@@ -33,7 +33,7 @@
     mode: "0775"
     recurse: true
   run_once: true
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Sync targets for the controller node(s)
   become: true
@@ -45,7 +45,7 @@
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
     mode: "0775"
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
   loop: "{{ all_hosts_info | dict2items | selectattr('value.role', 'equalto', 'controller') | rejectattr('value.controller_status', 'equalto', 'terminating') }}"
 
 - name: Sync targets for the login node(s)
@@ -58,7 +58,7 @@
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
     mode: "0775"
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
   loop: "{{ all_hosts_info | dict2items | selectattr('value.role', 'equalto', 'login') | rejectattr('value.controller_status', 'equalto', 'terminating') }}"
 
 - name: Sync targets for the compute node(s)
@@ -71,5 +71,5 @@
     owner: "{{ prometheus_user }}"
     group: "{{ prometheus_user }}"
     mode: "0775"
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
   loop: "{{ all_hosts_info | dict2items | selectattr('value.role', 'equalto', 'compute') | rejectattr('value.controller_status', 'equalto', 'terminating') }}"

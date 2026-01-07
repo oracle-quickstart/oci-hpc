@@ -1,6 +1,6 @@
 - name: Choose Java package on OL/RHEL
   set_fact:
-    java_pkg: "{{ 'java-17-openjdk' if (ansible_facts['distribution'] == 'OracleLinux' and (ansible_facts['distribution_major_version']|int) >= 9) else 'java-11-openjdk' }}"
+    java_pkg: "{{ 'java-17-openjdk' if (ansible_facts['distribution'] == 'OracleLinux' and (ansible_facts['distribution_major_version'] | int) >= 9) else 'java-11-openjdk' }}"
   when: ansible_facts['os_family'] == "RedHat"
 
 - name: Install required deps (Ubuntu)

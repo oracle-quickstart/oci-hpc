@@ -24,7 +24,7 @@
           register: pmix_dwld
           delegate_to: 127.0.0.1
           run_once: true
-          with_items: "{{pmix_download_packages}}"
+          with_items: "{{ pmix_download_packages }}"
         - name: First try downloading RPMs
           environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
           ansible.builtin.get_url:
@@ -33,7 +33,7 @@
           when: ( not item.stat.exists )
           delegate_to: 127.0.0.1
           run_once: true
-          with_items: "{{pmix_dwld.results}}"
+          with_items: "{{ pmix_dwld.results }}"
 
   rescue:
     - name: Second try downloading RPMs

@@ -30,7 +30,7 @@
         owner: opc
         group: opc
       when: not item.stat.exists
-      with_items: "{{deb_files.results}}"
+      with_items: "{{ deb_files.results }}"
 
     - name: Install required packages
       vars:
@@ -130,7 +130,7 @@
         line: "ENROOT_ROOTFS_WRITABLE        yes"
         backup: true
 
-    - name: Set permissions on {{enroot_top_path_checked}}
+    - name: Set permissions on {{ enroot_top_path_checked }}
       become: true
       ansible.builtin.file:
         path: "{{ enroot_top_path_checked }}"
@@ -140,7 +140,7 @@
         group: "{{ privilege_group_name }}"
         recurse: false
 
-    - name: Make sure all {{enroot_top_path_checked}} directories exist
+    - name: Make sure all {{ enroot_top_path_checked }} directories exist
       ansible.builtin.file:
         path: "{{ enroot_top_path_checked }}/{{ item }}"
         state: directory

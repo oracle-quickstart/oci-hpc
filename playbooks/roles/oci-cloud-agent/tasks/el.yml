@@ -22,6 +22,6 @@
   register: yum_process
 
 - name: Kill Yum Process
-  ansible.builtin.command: "sudo kill -9 {{yum_process.stdout}}"
+  ansible.builtin.command: "sudo kill -9 {{ yum_process.stdout }}"
   when: yum_process.stdout != ""
   ignore_errors: true

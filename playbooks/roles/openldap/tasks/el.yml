@@ -24,7 +24,7 @@
 - block:
     - name: Install OpenLDAP servers (OL8)
       ansible.builtin.yum:
-        name: https://vault.centos.org/centos/8/PowerTools/{{ansible_facts['architecture']}}/os/Packages/openldap-servers-2.4.46-18.el8.{{ansible_facts['architecture']}}.rpm
+        name: https://vault.centos.org/centos/8/PowerTools/{{ ansible_facts['architecture'] }}/os/Packages/openldap-servers-2.4.46-18.el8.{{ ansible_facts['architecture'] }}.rpm
         state: present
         disable_gpg_check: true
   when: ansible_facts['distribution_major_version'] == '8'
@@ -51,7 +51,7 @@
   set_fact:
     tmp_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/openldap/root.txt',
-                          chars=['ascii_letters','digits','hexdigits']) }}"
+                          chars=['ascii_letters', 'digits', 'hexdigits']) }}"
   run_once: true
   delegate_to: 127.0.0.1
 
@@ -59,7 +59,7 @@
   set_fact:
     openldap_root_pwd: "{{ lookup('password',
                           '/etc/opt/oci-hpc/passwords/openldap/root.txt',
-                          chars=['ascii_letters','digits','hexdigits']) }}"
+                          chars=['ascii_letters', 'digits', 'hexdigits']) }}"
   run_once: true
   delegate_to: 127.0.0.1
 

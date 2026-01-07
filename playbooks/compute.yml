@@ -5,7 +5,7 @@
   tasks:
     - ansible.builtin.include_role:
         name: hostname
-      when: change_hostname  | default(false) | bool
+      when: change_hostname | default(false) | bool
     - ansible.builtin.include_role:
         name: fix_broken
       when: ansible_facts['os_family'] == 'Debian'
@@ -13,7 +13,7 @@
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     http_server_status: "configuring"
     http_server_role: "compute"
   gather_facts: true
@@ -36,7 +36,7 @@
   become: true
   gather_facts: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
     - ansible.builtin.include_role:
         name: localdisk
@@ -59,7 +59,7 @@
   tasks:
     - ansible.builtin.include_role:
         name: hyperthreading
-      when: not hyperthreading|default(true)|bool
+      when: not hyperthreading | default(true) | bool
 
 - hosts: localhost
   become: true
@@ -93,40 +93,40 @@
         export_path: "{{ nfs_source_path }} "
         options: "{{ nfs_options }}"
         lock: "none"
-      when: add_nfs|default(false)|bool
+      when: add_nfs | default(false) | bool
 
 - hosts: localhost
   become: true
   tasks:
     - include_role:
         name: sssd
-      when: ldap|default(true)|bool
+      when: ldap | default(true) | bool
 
 - hosts: localhost
   become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
     - ansible.builtin.include_role:
         name: docker
-      when: enroot|default(true)|bool
+      when: enroot | default(true) | bool
     - ansible.builtin.include_role:
         name: nvidia-container
-      when: enroot|default(true)|bool
+      when: enroot | default(true) | bool
     - ansible.builtin.include_role:
         name: nvidia-enroot
-      when: enroot|default(true)|bool
+      when: enroot | default(true) | bool
     - ansible.builtin.include_role:
         name: nccl-conf
-      when: rdma_enabled|bool
+      when: rdma_enabled | bool
 
 - hosts: localhost
   become: true
   tasks:
     - name: Get AMD GPU Info
       shell: |
-        lspci |grep  "Processing accelerators"
+        lspci | grep  "Processing accelerators"
       register: amd_check
       ignore_errors: true
     - ansible.builtin.include_role:
@@ -142,13 +142,13 @@
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "{{ nfs_target_path if create_fss == 'new' else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+        download_path: "{{ nfs_target_path if create_fss == 'new' else (cluster_nfs_path if cluster_nfs | bool else '/tmp') }}"
         local_path: "{{ lfs_target_path }}"
         export_host: "{{ lfs_source_IP }}"
         options: "{{ lfs_options }}"
         export_path: "{{ lfs_source_path }}"
         lock: "none"
-      when: add_lfs|default(false)|bool
+      when: add_lfs | default(false) | bool
 
 - hosts: localhost
   become: true
@@ -161,25 +161,25 @@
   vars:
     slurm_mode: "compute"
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: true
   tasks:
     - ansible.builtin.include_role:
         name: rack-aware
     - ansible.builtin.include_role:
         name: spack
-      when: spack|default(false)|bool
+      when: spack | default(false) | bool
     - ansible.builtin.include_role:
         name: slurm
-      when: slurm|default(false)|bool
+      when: slurm | default(false) | bool
     - ansible.builtin.include_role:
         name: metrics-exporter
-      when: cluster_monitoring|default(false)|bool
+      when: cluster_monitoring | default(false) | bool
 
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     http_server_status: "configured"
     http_server_role: "compute"
   gather_facts: true

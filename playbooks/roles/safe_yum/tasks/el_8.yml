@@ -1,7 +1,7 @@
 ---
-- name: "Safe Yum install of latest {{package_name}}"
+- name: "Safe Yum install of latest {{ package_name }}"
   block:
-    - name: "Yum first try {{package_name}}"
+    - name: "Yum first try {{ package_name }}"
       vars:
         ansible_python_interpreter: /usr/bin/python3
       become: true
@@ -18,7 +18,7 @@
       delay: 10
       until: yum_sleeper is not failed
 
-    - name: "Yum first try {{package_name}}"
+    - name: "Yum first try {{ package_name }}"
       vars:
         ansible_python_interpreter: /usr/bin/python3
       become: true

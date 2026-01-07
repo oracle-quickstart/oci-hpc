@@ -7,4 +7,4 @@
   tasks:
     - include_role:
         name: slurm
-      when: slurm|default(true)|bool
+      when: slurm | default(true) | bool

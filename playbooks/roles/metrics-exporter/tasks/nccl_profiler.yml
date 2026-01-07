@@ -87,8 +87,8 @@
     - name: Copy NCCL profiler library (Debian)
       become: true
       ansible.builtin.copy:
-        src: "{{so_file.files[0].path}}"
-        dest: "/usr/lib/{{ ansible_facts['architecture'] }}-linux-gnu/{{so_file.files[0].path | basename}}"
+        src: "{{ so_file.files[0].path }}"
+        dest: "/usr/lib/{{ ansible_facts['architecture'] }}-linux-gnu/{{ so_file.files[0].path | basename }}"
         mode: "0644"
         remote_src: true
       when: ansible_facts['os_family'] == "Debian"
@@ -96,8 +96,8 @@
     - name: Copy NCCL profiler library (RedHat)
       become: true
       ansible.builtin.copy:
-        src: "{{so_file.files[0].path}}"
-        dest: "/usr/lib64/{{so_file.files[0].path | basename}}"
+        src: "{{ so_file.files[0].path }}"
+        dest: "/usr/lib64/{{ so_file.files[0].path | basename }}"
         mode: "0644"
         remote_src: true
       when: ansible_facts['distribution'] == "RedHat"

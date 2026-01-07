@@ -52,7 +52,7 @@
   register: serial_output
 
 - name: Gather FSS IP
-  ansible.builtin.shell: "cat /etc/fstab | grep {{nfs_source_path}}"
+  ansible.builtin.shell: "cat /etc/fstab | grep {{ nfs_source_path }}"
   register: nfs_output
   ignore_errors: true
 
@@ -115,7 +115,7 @@
 
 - name: Set fact
   ansible.builtin.set_fact:
-    rdma_metadata: "{{ h_metadata['content'] | from_json}}"
+    rdma_metadata: "{{ h_metadata['content'] | from_json }}"
 
 - name: Add empty rdmaTopologyData
   ansible.builtin.set_fact:

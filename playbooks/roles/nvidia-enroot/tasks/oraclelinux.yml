@@ -22,7 +22,7 @@
         mode: "0755"
         owner: opc
         group: opc
-      with_items: "{{rpm_files.results}}"
+      with_items: "{{ rpm_files.results }}"
     - name: Download RPMs if not already present
       when: not item.stat.exists and ansible_facts['distribution_major_version'] == "8"
       environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
@@ -32,7 +32,7 @@
         mode: "0755"
         owner: opc
         group: opc
-      with_items: "{{rpm_files.results}}"
+      with_items: "{{ rpm_files.results }}"
 
     - name: Install required packages
       vars:
@@ -147,7 +147,7 @@
         line: "ENROOT_ROOTFS_WRITABLE        yes"
         backup: true
 
-    - name: Set permissions on {{enroot_top_path_checked}}
+    - name: Set permissions on {{ enroot_top_path_checked }}
       become: true
       ansible.builtin.file:
         path: "{{ enroot_top_path_checked }}"
@@ -157,7 +157,7 @@
         group: "{{ privilege_group_name }}"
         recurse: false
 
-    - name: Make sure all {{enroot_top_path_checked}} directories exist
+    - name: Make sure all {{ enroot_top_path_checked }} directories exist
       ansible.builtin.file:
         path: "{{ enroot_top_path_checked }}/{{ item }}"
         state: directory

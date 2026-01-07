@@ -14,75 +14,75 @@
     hostnames_list: "{{ remove_compute_info | dict2items | map(attribute='value.hostname') | list }}"
 
 - name: Get SwitchLine
-  ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{item}}  | rev | cut -d \"=\" -f 1 | rev`"
+  ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }}  | rev | cut -d \"=\" -f 1 | rev`"
   register: current_switch
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{hostnames_list}}"
+  with_items: "{{ hostnames_list }}"
 
 - name: GetNodes
   ansible.builtin.set_fact:
     nodes_on_switch: "{{ nodes_on_switch | default({}) | combine({item.item: item.stdout_lines}) }}"
-  with_items: "{{current_switch.results}}"
+  with_items: "{{ current_switch.results }}"
   run_once: true
   delegate_to: 127.0.0.1
-  when: ( item.stdout_lines | length ) > 0
+  when: (item.stdout_lines | length) > 0
 
 - name: GetNodes
   ansible.builtin.set_fact:
     nodes_on_switch: "{{ nodes_on_switch | default({}) | combine({item.item: []}) }}"
-  with_items: "{{current_switch.results}}"
+  with_items: "{{ current_switch.results }}"
   run_once: true
   delegate_to: 127.0.0.1
-  when: ( item.stdout_lines | length ) == 0
+  when: (item.stdout_lines | length) == 0
 
 - name: Get SwitchNames
-  ansible.builtin.shell: "scontrol show topology {{item}} | awk '{print $1}' | cut -d \"=\" -f 2"
+  ansible.builtin.shell: "scontrol show topology {{ item }} | awk '{print $1}' | cut -d \"=\" -f 2"
   register: current_switchName
   run_once: true
   delegate_to: 127.0.0.1
-  with_items: "{{hostnames_list}}"
+  with_items: "{{ hostnames_list }}"
 
 - name: Get Switchname
   ansible.builtin.set_fact:
     switchnames: "{{ switchnames | default({}) | combine({item.item: item.stdout}) }}"
-  with_items: "{{current_switchName.results}}"
+  with_items: "{{ current_switchName.results }}"
   run_once: true
   delegate_to: 127.0.0.1
-  when: ( item.stdout_lines | length ) > 0
+  when: (item.stdout_lines | length) > 0
 
 - name: Get Switchname
   ansible.builtin.set_fact:
     switchnames: "{{ switchnames | default({}) | combine({item.item: \"\"}) }}"
-  with_items: "{{current_switchName.results}}"
+  with_items: "{{ current_switchName.results }}"
   run_once: true
   delegate_to: 127.0.0.1
-  when: ( item.stdout_lines | length ) == 0
+  when: (item.stdout_lines | length) == 0
 
 - name: Remove line from topology
   ansible.builtin.lineinfile:
     path: "{{ slurm_conf_path }}/topology.conf"
     regexp: "SwitchName={{ switchnames[item] }}\\sNodes=.*"
     state: absent
-  with_items: "{{hostnames_list}}"
+  with_items: "{{ hostnames_list }}"
   ignore_unreachable: true
-  when: ( ( nodes_on_switch[item] | length ) < 2 ) and ( switchnames[item] | length ) > 1
+  when: ((nodes_on_switch[item] | length) < 2) and (switchnames[item] | length) > 1
   run_once: true
   delegate_to: 127.0.0.1
 
 - name: Generate nodes_on_switch_condensed
-  ansible.builtin.command: "scontrol show hostlistsorted {{nodes_on_switch[item] | difference(hostnames_list) | join(',')}}"
+  ansible.builtin.command: "scontrol show hostlistsorted {{ nodes_on_switch[item] | difference(hostnames_list) | join(',') }}"
   register: switch_condensed
-  with_items: "{{hostnames_list}}"
+  with_items: "{{ hostnames_list }}"
   ignore_unreachable: true
-  when: ( ( nodes_on_switch[item] | difference(hostnames_list) | length ) > 1 ) and ( switchnames[item] | length ) > 1
+  when: ((nodes_on_switch[item] | difference(hostnames_list) | length) > 1) and (switchnames[item] | length) > 1
   run_once: true
   delegate_to: 127.0.0.1
 
 - name: Get condensed_Nodes
   ansible.builtin.set_fact:
     nodes_on_switch_condensed: "{{ nodes_on_switch_condensed | default({}) | combine({item.item: item.stdout}) }}"
-  with_items: "{{switch_condensed.results}}"
+  with_items: "{{ switch_condensed.results }}"
   run_once: true
   delegate_to: 127.0.0.1
   ignore_errors: true
@@ -93,9 +93,9 @@
     regexp: "SwitchName={{ switchnames[item] }}\\sNodes.*"
     line: "SwitchName={{ switchnames[item] }} Nodes={{ nodes_on_switch_condensed[item] }}"
     state: present
-  with_items: "{{hostnames_list}}"
+  with_items: "{{ hostnames_list }}"
   ignore_errors: true
-  when: ( ( nodes_on_switch_condensed[item] | length ) > 1 )
+  when: ((nodes_on_switch_condensed[item] | length) > 1)
   run_once: true
   delegate_to: 127.0.0.1
 
@@ -104,7 +104,7 @@
   ansible.builtin.command: "scontrol delete nodename={{ item }}"
   ignore_errors: true
   ignore_unreachable: true
-  with_items: "{{hostnames_list}}"
+  with_items: "{{ hostnames_list }}"
   delegate_to: 127.0.0.1
   when: ('controller' in group_names)
 
