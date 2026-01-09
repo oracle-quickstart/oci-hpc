@@ -1,0 +1,6 @@
+- name: Restart telegraf
+  become: true
+  shell: |
+    systemctl reset-failed telegraf || true
+    systemctl restart telegraf
+    systemctl enable telegraf

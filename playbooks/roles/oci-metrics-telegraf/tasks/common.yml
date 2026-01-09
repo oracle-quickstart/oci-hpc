@@ -20,7 +20,7 @@
 - name: Download and install InfluxData GPG key
   become: true
   ansible.builtin.shell: |
-    curl -fsSL https://repos.influxdata.com/influxdata-archive_compat.key | gpg --dearmor -o /etc/apt/keyrings/influxdata.gpg
+    curl -fsSL https://repos.influxdata.com/influxdata-archive.key | gpg --dearmor -o /etc/apt/keyrings/influxdata.gpg
     chmod 0644 /etc/apt/keyrings/influxdata.gpg
   when: ansible_facts['os_family'] == 'Debian'
 
@@ -78,6 +78,7 @@
     owner: telegraf
     group: telegraf
     mode: "0755"
+  notify: Restart telegraf
 
 - name: Render Telegraf configuration files
   become: true
@@ -92,6 +93,7 @@
     - filter.conf
     - input.conf
     - output.conf
+  notify: Restart telegraf
 
 - name: Render OCI Metric Python files
   become: true
@@ -106,6 +108,7 @@
     - oci_metrics_telegraf_input.py
     - oci_metrics_telegraf_filter.py
     - oci_metrics_telegraf_utils.py
+  notify: Restart telegraf
 
 - name: Add environment variable to file
   become: true
@@ -115,10 +118,5 @@
     owner: root
     group: root
     mode: "0644"
+  notify: Restart telegraf
 
-- name: Restart Telegraf
-  become: true
-  service:
-    name: telegraf
-    state: restarted
-    enabled: true
