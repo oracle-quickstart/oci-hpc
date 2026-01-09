@@ -7,8 +7,8 @@ openldap_packages:
   - rsync
 
 openldap_packages_ol8:
-  - openldap-2.4.46-18.el8.{{ansible_facts['architecture']}}
-  - openldap-clients-2.4.46-18.el8.{{ansible_facts['architecture']}}
+  - openldap-2.4.46-18.el8.{{ ansible_facts['architecture'] }}
+  - openldap-clients-2.4.46-18.el8.{{ ansible_facts['architecture'] }}
   - rsync
 
 openldap_packages_ol9:

@@ -76,6 +76,11 @@ def callback_fields(ctx, param, value):
     required=False,
     help='Add a list of fields to filter, Example: role=compute,status=running'
 )
+@click.option(
+    "--terminated",
+    is_flag=True,
+    help="List terminated nodes instead of active nodes."
+)
 
 def list_cmd(columns, format, **options):
     """List nodes with various filters and formats
@@ -109,15 +114,20 @@ def list_cmd(columns, format, **options):
             field_dict[key] = new_value
     if options["cluster"] is not None:
         field_dict["cluster_name"] = options["cluster"]
-    
+
     if options["memory_cluster"] is not None:
         field_dict["memory_cluster_name"] = options["memory_cluster"]
-    
-    query = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict)
+
+    if options.get("terminated"):
+        logger.debug("Using terminated nodes query")
+        base_query = db.get_terminated_nodes_with_latest_healthchecks()
+    else:
+        base_query = db.get_nodes_with_latest_healthchecks()
+
+    query = db.get_query_by_fields(base_query,field_dict)
     nodes = query.all()
     if not nodes:
-        click.echo("No nodes found.")
-        return
+        click.echo("No nodes found.", err=True)
 
     display.display_nodes(
         nodes, format, columns,

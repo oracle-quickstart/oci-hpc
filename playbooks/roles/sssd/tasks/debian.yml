@@ -81,4 +81,3 @@
     line: PasswordAuthentication no
   notify:
     - Restart login services
-

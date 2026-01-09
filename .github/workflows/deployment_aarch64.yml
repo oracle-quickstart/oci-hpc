@@ -6,7 +6,7 @@ on:
   push:
     branches: [ "master" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -74,7 +74,7 @@ jobs:
                       echo "✅ All nodes are configured!"
                       break
                   fi
-              fi
+              fi    
 
               now=$(date +%s)
               elapsed=$((now - start_time))
@@ -94,25 +94,47 @@ jobs:
           done
           EOF
 
-      - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
+      - &run_sinfo
+        name: Run sinfo
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -c sinfo'
 
-      - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+      - &check_nodes
+        name: Check there are 2 nodes in Slurm
+        id: srun
+        run: |
+          set +e
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -c "timeout 30 srun -vvv -N 2 hostname"'
+          exitcode="$?"
+          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+          exit "$exitcode"
 
-      - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+      - &termination_status
+        name: Status of srun termination
+        if: ${{ success() || steps.srun.conclusion == 'failure' }}
+        run: |
+          if [[ "${{ steps.srun.outputs.exitcode }}" == "124" ]]; then
+                  echo "srun reached timeout with exit code 124!"
+          elif [[ "${{ steps.srun.outputs.exitcode }}" == "0" ]]; then
+                  echo "Success!"
+          else
+                  echo "error happened with exit code $exitcode"
+          fi    
+      - &mgmt
+        name: Check mgmt is there and working
+        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T 'bash -c "mgmt --help"'
 
-      - name: Get all logs in /config/logs
+      - &get_logs
+        name: Get all logs in /config/logs
         if: always()
         run: |
-          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
+          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -T bash --noprofile --norc << 'EOF'
           for f in /config/logs/*; do
               echo -e "#######$f#######\n" "$(cat $f)\n"
           done
           EOF
 
-      - name: Execute terraform destroy
+      - &destroy
+        name: Execute terraform destroy
         if: always()
         run: terraform destroy --auto-approve
 
@@ -162,28 +184,16 @@ jobs:
           terraform apply --auto-approve
 
       - *wait_for_nodes
-        # Reuse the task defined above
-      - name: Run sinfo
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci sinfo'
 
-      - name: Check there are 2 nodes in Slurm
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "timeout 30 srun -N 2 hostname"'
+      - *run_sinfo
 
-      - name: Check mgmt is there and working
-        run: ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t 'bash -ci "mgmt --help"'
+      - *check_nodes
+      - *termination_status
+      - *mgmt
 
-      - name: Get all logs in /config/logs
-        if: always()
-        run: |
-          ssh -o "StrictHostKeyChecking no" `cat public_ip.txt` -t bash --noprofile --norc << 'EOF'
-          for f in /config/logs/*; do
-              echo -e "#######$f#######\n" "$(cat $f)\n"
-          done
-          EOF
+      - *get_logs
 
-      - name: Execute terraform destroy
-        if: always()
-        run: terraform destroy --auto-approve
+      - *destroy
 
       - name: go up one directory
         if: always()

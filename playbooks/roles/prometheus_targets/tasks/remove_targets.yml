@@ -4,5 +4,5 @@
   file:
     path: "{{ prometheus_targets_dir }}/{{ item.value.hostname }}.json"
     state: absent
-  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
   loop: "{{ remove_compute_info | dict2items }}"

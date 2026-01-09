@@ -4,14 +4,14 @@
     name: podman
     state: present
 
-- name: Create systemd service for AMD metrics exporter container 
+- name: Create systemd service for AMD metrics exporter container
   become: true
   ansible.builtin.template:
     src: amd-metrics-exporter-container.service.j2
     dest: /etc/systemd/system/amd-metrics-exporter.service
     mode: '0644'
 
-- name: Reload systemd daemon 
+- name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
 

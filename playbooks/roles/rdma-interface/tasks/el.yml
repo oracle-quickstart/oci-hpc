@@ -1,7 +1,7 @@
 ---
 #
-# Detecting MLX interface name by PCI ID. 
-# Another option is to detect the mlx5_core driver, but it's harder to tell whch interface can be activated 
+# Detecting MLX interface name by PCI ID.
+# Another option is to detect the mlx5_core driver, but it's harder to tell whch interface can be activated
 #
 - name: detect shape
   uri:
@@ -26,7 +26,7 @@
   replace:
     path: /etc/oci-hpc/rdma-network.conf
     regexp: "rdma_network=192.168.0.0/255.255.0.0"
-    replace: "rdma_network={{rdma_network}}/{{rdma_netmask}}"
+    replace: "rdma_network={{ rdma_network }}/{{ rdma_netmask }}"
 
 - name: Append subnet part to /etc/oci-hpc/rdma-network.conf
   blockinfile:
@@ -34,7 +34,7 @@
     block: |
       [subnet]
       modify_arp=true
-      override_netconfig_netmask={{rdma_netmask}}
+      override_netconfig_netmask={{ rdma_netmask }}
   when: new_image.stat.exists
 
 - name: Start the OCI RDMA service
@@ -47,7 +47,7 @@
 
 - name: detect mellanox interfaces
   set_fact:
-    ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
+    ansible_mlx: "{% set ansible_mlx = ansible_mlx | default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx | list }}"
   when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and
     hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]) and ( not new_image.stat.exists )
   with_items:

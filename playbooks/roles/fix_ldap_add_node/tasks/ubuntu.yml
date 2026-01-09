@@ -7,4 +7,4 @@
     daemon_reload: true
     enabled: true
   delegate_to: item
-  with_items: "{{all_hosts_info.keys()}}"
+  with_items: "{{ all_hosts_info.keys() }}"

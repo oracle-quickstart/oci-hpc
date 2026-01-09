@@ -17,7 +17,7 @@
 
 - name: Map system architecture to suffix
   set_fact:
-    jsonnet_file: "go-jsonnet_Linux_{{arch_map[ansible_facts['architecture']]}}.tar.gz"
+    jsonnet_file: "go-jsonnet_Linux_{{ arch_map[ansible_facts['architecture']] }}.tar.gz"
   vars:
     arch_map:
       x86_64: x86_64
@@ -27,7 +27,7 @@
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{arch_suffix}}
+    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{ arch_suffix }}
     dest: /usr/local/bin/jb
     mode: "0755"
 
@@ -35,13 +35,13 @@
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{jsonnet_file}}
+    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{ jsonnet_file }}
     dest: /tmp
 
 - name: Extract jsonnet
   become: true
   unarchive:
-    src: /tmp/{{jsonnet_file}}
+    src: /tmp/{{ jsonnet_file }}
     dest: /usr/local/bin
     mode: "0755"
     remote_src: true
@@ -190,13 +190,13 @@
     - oci-lustre.json
     - oci-natgw.json
     - oci-sgw.json
-    - oci-vcn.json      
+    - oci-vcn.json
     - oci-dashboard.json
     - slurm-dashboard.json
     - storage-metrics.json
 
 # Preserve the order in order to show the dashboards in non-alphabetic
-# functional order. 
+# functional order.
 - name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
@@ -218,7 +218,7 @@
     - amd-gpu-metrics-single.json
     - nvidia-gpu-health.json
     - nvidia-gpu-metrics-single.json
-    - oci-vcn.json    
+    - oci-vcn.json
     - oci-block.json
     - oci-igw.json
     - oci-natgw.json

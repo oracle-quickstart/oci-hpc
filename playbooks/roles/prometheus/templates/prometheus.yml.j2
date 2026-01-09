@@ -12,6 +12,10 @@ scrape_configs:
   - files:
     - '/etc/prometheus/targets/*.json'
 
+- job_name: prometheus-self
+  static_configs:
+  - targets: ['localhost:9090']
+
 {% if metrics_stream_ocid | default('') | length > 0 %}
 - job_name: oci-metrics
   honor_timestamps: true

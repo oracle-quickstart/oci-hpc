@@ -408,6 +408,83 @@ def get_nodes_with_latest_healthchecks():
         )
         return query_with_global_rec
 
+def get_terminated_nodes_with_latest_healthchecks():
+    """
+    Return TERMINATED nodes with their latest aggregated healthchecks.
+
+    This function intentionally mirrors get_nodes_with_latest_healthchecks(),
+    but operates on the terminated node set. The logic is kept separate to
+    avoid changing the behavior of the existing active-node query.
+    """
+    with DBConn() as session:
+        hc = aliased(HealthChecks)
+
+        subq = (
+            session.query(
+                hc.ocid.label("node_ocid"),
+                hc.healthcheck_type,
+                hc.healthcheck_status,
+                hc.healthcheck_logs,
+                hc.healthcheck_recommendation,
+                hc.healthcheck_associated_node,
+                hc.healthcheck_last_time,
+                func.row_number().over(
+                    partition_by=[hc.ocid, hc.healthcheck_type],
+                    order_by=hc.healthcheck_last_time.desc()
+                ).label("rn")
+            )
+            .subquery()
+        )
+
+        agg_columns = []
+        for hc_type in ["active", "passive", "multi-node"]:
+            for c in get_extra_columns_per_hc():
+                agg_columns.append(
+                    func.max(
+                        case(
+                            (subq.c.healthcheck_type == hc_type, getattr(subq.c, c))
+                        )
+                    ).label(f"{hc_type.replace('-', '_')}_{c}")
+                )
+
+        query = (
+            session.query(TerminatedNodes, *agg_columns)
+            .outerjoin(subq, and_(
+                TerminatedNodes.ocid == subq.c.node_ocid,
+                subq.c.rn == 1
+            ))
+            .group_by(TerminatedNodes.ocid)
+        )
+
+        base_subq = query.subquery()
+
+        return session.query(
+            base_subq,
+            case(
+                (
+                    base_subq.c.passive_healthcheck_recommendation != "Healthy",
+                    base_subq.c.passive_healthcheck_recommendation,
+                ),
+                (
+                    and_(
+                        base_subq.c.active_healthcheck_recommendation.isnot(None),
+                        base_subq.c.active_healthcheck_recommendation != "",
+                        base_subq.c.active_healthcheck_recommendation != "Healthy",
+                    ),
+                    base_subq.c.active_healthcheck_recommendation,
+                ),
+                (
+                    and_(
+                        base_subq.c.multi_node_healthcheck_recommendation.isnot(None),
+                        base_subq.c.multi_node_healthcheck_recommendation != "",
+                        base_subq.c.multi_node_healthcheck_recommendation != "Healthy",
+                    ),
+                    base_subq.c.multi_node_healthcheck_recommendation,
+                ),
+                else_=base_subq.c.passive_healthcheck_recommendation,
+            ).label("healthcheck_recommendation"),
+        )
+
 def filter_nodes(session, query=None, filter="all"):
     """
     Experimenting with an approach to have a "query" which can be passed to

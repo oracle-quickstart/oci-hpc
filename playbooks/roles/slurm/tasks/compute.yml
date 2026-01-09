@@ -48,17 +48,17 @@
 
 - name: set topology var
   ansible.builtin.set_fact:
-    topology: "topo-tree:{{cluster_name}}:{{rdma_metadata['rdmaTopologyData']['customerLocalBlock'][-40:]}}"
+    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerLocalBlock'][-40:] }}"
   when: "'GPU.H' in shape"
 
 - name: set topology var
   ansible.builtin.set_fact:
-    topology: "topo-tree:{{cluster_name}}:{{rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'][-40:]}}"
+    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'][-40:] }}"
   when: "'GPU.GB' in shape"
 
 - name: set topology var
   ansible.builtin.set_fact:
-    topology: "topo-tree:{{cluster_name}}:{{rdma_metadata['rackId'][-40:]}}"
+    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rackId'][-40:] }}"
   when: "not 'GPU.GB' in shape and not 'GPU.H' in shape"
 
 - name: Render systemd units for slurmd
@@ -162,7 +162,7 @@
 
 - name: Create Reservation
   become: true
-  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ansible_facts['hostname']}} user=ubuntu reservation=InitialValidation"
+  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ ansible_facts['hostname'] }} user=ubuntu reservation=InitialValidation"
   register: create_reservation
   until: create_reservation is not failed
   retries: 5
@@ -170,30 +170,30 @@
   ignore_errors: true
   when:
     - "'GPU' in shape"
-    - rdma_enabled|bool
+    - rdma_enabled | bool
     - reservation is defined
     - reservation.rc != 0
 
 - name: Append to reservation
   become: true
-  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ansible_facts['hostname']}}"
+  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ ansible_facts['hostname'] }}"
   register: append_reservation
   until: append_reservation is not failed
   retries: 5
   delay: 5
   ignore_errors: true
-  when: 
+  when:
     - "'GPU' in shape"
-    - rdma_enabled|bool
+    - rdma_enabled | bool
     - (reservation is defined and reservation.rc == 0) or (create_reservation is defined and create_reservation.rc != 0)
 
 - name: test the node
-  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ansible_facts['hostname']}} hostname"
+  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ ansible_facts['hostname'] }} hostname"
   ignore_errors: true
   register: test_result
   when:
     - "'GPU' in shape"
-    - rdma_enabled|bool
+    - rdma_enabled | bool
 
 - name: Reconfigure slurm
   become: true
@@ -202,10 +202,10 @@
   until: result is not failed
   retries: 5
   delay: 5
-  when: not ( 'GPU' in shape and rdma_enabled|bool)
+  when: not ('GPU' in shape and rdma_enabled | bool)
 
 - name: test the node
-  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ansible_facts['hostname']}} hostname"
+  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ ansible_facts['hostname'] }} hostname"
   ignore_errors: true
   register: test_result
-  when: not ( 'GPU' in shape and rdma_enabled|bool)
+  when: not ('GPU' in shape and rdma_enabled | bool)

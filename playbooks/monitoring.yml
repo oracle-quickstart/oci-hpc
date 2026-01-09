@@ -1,12 +1,12 @@
 ---
 - hosts: localhost
   tasks:
-   - name: Remove legacy InfluxData repo (without signed-by)
-     become: true
-     ansible.builtin.apt_repository:
-       repo: "deb https://repos.influxdata.com/debian stable main"
-       state: absent
-     when: ansible_facts['distribution'] == 'Ubuntu'
+    - name: Remove legacy InfluxData repo (without signed-by)
+      become: true
+      ansible.builtin.apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable main"
+        state: absent
+      when: ansible_facts['distribution'] == 'Ubuntu'
 
 - hosts: localhost
   become: true
@@ -77,7 +77,7 @@
       vars:
         local_path: "/home"
         export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss == 'new' %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
+        export_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}/home{% endif %}"
         options: ""
         lock: "none"
       when: shared_home == "fss"
@@ -89,44 +89,44 @@
         export_path: "{{ nfs_source_path }} "
         options: "{{ nfs_options }}"
         lock: "none"
-      when: add_nfs|default(false)|bool
+      when: add_nfs | default(false) | bool
 
 - hosts: localhost
   become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
     - include_role:
         name: docker
-      when: enroot|default(true)|bool
+      when: enroot | default(true) | bool
     - include_role:
         name: nvidia-container
-      when: enroot|default(true)|bool
+      when: enroot | default(true) | bool
     - include_role:
         name: nvidia-enroot
-      when: enroot|default(true)|bool
+      when: enroot | default(true) | bool
 
 - hosts: localhost
   vars:
     slurm_mode: "login"
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: false
   tasks:
     - include_role:
         name: rack-aware
     - include_role:
         name: spack
-      when: spack|default(false)|bool
+      when: spack | default(false) | bool
     - include_role:
         name: slurm
-      when: slurm|default(false)|bool
+      when: slurm | default(false) | bool
 
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     http_server_status: "configured"
     http_server_role: "monitoring"
   gather_facts: true

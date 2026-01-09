@@ -117,8 +117,8 @@
   become: true
   ansible.builtin.slurp:
     src: "{{ slurm_conf_path }}/cgroup.conf"
-  delegate_to: "{{ groups['controller'][0] }}" 
-  register: cgroup_conf_content 
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: cgroup_conf_content
   run_once: true
 
 - name: Copy cgroup file
@@ -129,14 +129,14 @@
     force: false
     owner: slurm
     group: slurm
-  delegate_to: "{{ groups['controller'][0] }}" 
+  delegate_to: "{{ groups['controller'][0] }}"
 
 - name: Slurp slurmdbd.conf from controller
   become: true
   ansible.builtin.slurp:
     src: "{{ slurm_conf_path }}/slurmdbd.conf"
-  delegate_to: "{{ groups['controller'][0] }}" 
-  register: slurmdbd_conf_content 
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: slurmdbd_conf_content
   run_once: true
 
 - name: Generate slurmdbd.conf on slurm_backup
@@ -153,8 +153,8 @@
   become: true
   ansible.builtin.slurp:
     src: "{{ slurm_conf_path }}/slurm.conf"
-  delegate_to: "{{ groups['controller'][0] }}" 
-  register: slurm_conf_content 
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: slurm_conf_content
   run_once: true
 
 - name: Generate slurm.conf on slurm_backup
@@ -171,8 +171,8 @@
   become: true
   ansible.builtin.slurp:
     src: "{{ slurm_conf_path }}/job_container.conf"
-  delegate_to: "{{ groups['controller'][0] }}" 
-  register: slurm_job_container_conf_content 
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: slurm_job_container_conf_content
   run_once: true
 
 - name: Generate job_container.conf
@@ -190,8 +190,8 @@
   become: true
   ansible.builtin.slurp:
     src: "{{ slurm_conf_path }}/topology.conf"
-  delegate_to: "{{ groups['controller'][0] }}" 
-  register: topology_conf_content 
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: topology_conf_content
   run_once: true
 
 - name: Generate topology.conf on slurm_backup
@@ -202,14 +202,14 @@
     mode: "0644"
     owner: slurm
     group: slurm
-    backup: true  
+    backup: true
 
 - name: Slurp gres.conf from controller
   become: true
   ansible.builtin.slurp:
     src: "{{ slurm_conf_path }}/gres.conf"
-  delegate_to: "{{ groups['controller'][0] }}" 
-  register: gres_conf_content 
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: gres_conf_content
   run_once: true
 
 - name: Generate gres.conf on slurm_backup
@@ -221,7 +221,7 @@
     owner: slurm
     group: slurm
     backup: true
-    force: true   
+    force: true
 
 - name: Start slurmdbd
   become: true

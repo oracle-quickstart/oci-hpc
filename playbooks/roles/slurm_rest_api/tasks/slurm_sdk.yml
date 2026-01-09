@@ -54,7 +54,7 @@
   become_user: "{{ slurm_user }}"
   register: jwt_token_result
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Save JWT token to file
   copy:
@@ -65,7 +65,7 @@
     mode: "0600"
   become: true
   delegate_to: 127.0.0.1
-  run_once: true    
+  run_once: true
 
 - name: Read JWT token from file
   slurp:
@@ -73,13 +73,13 @@
   register: jwt_token_file
   become: true
   delegate_to: 127.0.0.1
-  run_once: true    
+  run_once: true
 
 - name: Set JWT token fact
   set_fact:
     slurm_jwt_token: "{{ (jwt_token_file.content | b64decode).split('=')[1] }}"
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Fetch Slurm API versions
   ansible.builtin.uri:
@@ -90,21 +90,21 @@
       X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
   register: api_response
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Extract all version strings
   ansible.builtin.set_fact:
     version_strings: >-
       {{ api_response.content | regex_findall('slurm_v([0-9]+)_get_jobs') }}
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Set highest version string
   ansible.builtin.set_fact:
     slurm_api_version: >-
       {{ version_strings | max | string }}
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Download Slurm OpenAPI spec
   uri:
@@ -115,7 +115,7 @@
       X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
   become: true
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 # ----------------- Generate SDK -----------------
 - name: Ensure SDK output directory
   file:
@@ -123,7 +123,7 @@
     state: directory
   become: true
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Generate Slurm python SDK from OpenAPI
   command:
@@ -135,7 +135,7 @@
     chdir: "{{ openapi_download_path }}"
   become: true
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 # ----------------- Build & install SDK wheel using venv -----------------
 - name: Build slurm sdk python wheel using venv
@@ -146,7 +146,7 @@
   register: build_sdk_wheel
   changed_when: "'Building' in build_sdk_wheel.stdout or 'Wrote' in build_sdk_wheel.stdout"
   delegate_to: 127.0.0.1
-  run_once: true  
+  run_once: true
 
 - name: Install slurm sdk wheel into venv with uv
   ansible.builtin.shell: |
@@ -159,7 +159,7 @@
     UV_PYTHON: "{{ python_executable }}"
   become: true
   delegate_to: 127.0.0.1
-  run_once: true    
+  run_once: true
 
 - name: Verify SDK installation
   command: "{{ python_executable }} -c \"import importlib; importlib.import_module('openapi_client')\""
@@ -168,10 +168,10 @@
   failed_when: sdk_verify.rc != 0
   become: true
   delegate_to: 127.0.0.1
-  run_once: true    
+  run_once: true
 
 - name: Display SDK installation info
   debug:
     msg: "{{ sdk_verify.stdout_lines }}"
   delegate_to: 127.0.0.1
-  run_once: true      
+  run_once: true

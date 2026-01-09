@@ -5,6 +5,6 @@ prometheus_dest_dir: /etc/prometheus
 prometheus_targets_dir: /etc/prometheus/targets
 prometheus_data_dir: /var/lib/prometheus
 service_dest_dir: /etc/systemd/system
-prometheus_download_dir: /tmp/prometheus-3.3.1.linux-{{arch_suffix}}
-prometheus_download_url: https://github.com/prometheus/prometheus/releases/download/v3.3.1/prometheus-3.3.1.linux-{{arch_suffix}}.tar.gz
+prometheus_download_dir: /tmp/prometheus-3.3.1.linux-{{ arch_suffix }}
+prometheus_download_url: https://github.com/prometheus/prometheus/releases/download/v3.3.1/prometheus-3.3.1.linux-{{ arch_suffix }}.tar.gz
 telegraf_prometheus_port: "9273"

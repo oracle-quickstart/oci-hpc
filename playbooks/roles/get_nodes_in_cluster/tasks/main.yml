@@ -1,6 +1,6 @@
 ---
 - name: Get all nodes with this controller
-  shell: "{{venv_path}}/bin/python3 /config/mgmt/manage.py nodes list --format json --columns ALL"
+  shell: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py nodes list --format json --columns ALL"
   register: get_cluster_nodes_results
   changed_when: false
 

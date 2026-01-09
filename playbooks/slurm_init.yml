@@ -5,4 +5,4 @@
   tasks:
     - include_role:
         name: slurm
-      when: slurm|default(false)|bool
+      when: slurm | default(false) | bool

@@ -7,7 +7,7 @@ groups:
         expr: avg by (hostname, cluster_name, vendor) (node_filesystem_avail_bytes{mountpoint="/"}) >= bool 50 * 1024 * 1024 * 1024
 
       - record: node_memory_pressure_score
-        expr: (((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100 + (15 / clamp_min(log2(node_memory_MemTotal_bytes / (16*1024^3)), 0.5)))    
+        expr: (((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100 + (15 / clamp_min(log2(node_memory_MemTotal_bytes / (16*1024^3)), 0.5)))
 
       - record: node_memory_availability_ok
         expr: avg by (hostname, cluster_name) (node_memory_pressure_score) <= bool 90
@@ -112,7 +112,7 @@ groups:
             * node_nvidia_gpu_health_thermal_ok
             * node_nvidia_gpu_health_power_ok
             * node_nvidia_gpu_health_driver_ok
-          ) 
+          )
 
       # PCIe error checks
       - record: node_pcie_aer_correctable_errors_ok
@@ -408,7 +408,7 @@ groups:
           (
             node_ecc_sbe_ok or node_up_check
           )
-          *          
+          *
           (
             node_gpu_count_ok or node_up_check
           )

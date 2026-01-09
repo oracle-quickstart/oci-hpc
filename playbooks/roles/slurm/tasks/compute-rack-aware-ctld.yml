@@ -22,49 +22,49 @@
         hostnames_list: "{{ new_compute_info | dict2items | map(attribute='value.hostname') | list }}"
     # get Info from the Rack Switches
     - name: Get RackLine
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{item}} | grep Level=0 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=0 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_switch
       run_once: true
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
 
     - name: GetNodes
       ansible.builtin.set_fact:
         rem_nodes_on_switch: "{{ rem_nodes_on_switch | default({}) | combine({item.item: item.stdout_lines}) }}"
-      with_items: "{{current_switch.results}}"
+      with_items: "{{ current_switch.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) > 0
+      when: (item.stdout_lines | length) > 0
 
     - name: GetNodes
       ansible.builtin.set_fact:
         rem_nodes_on_switch: "{{ rem_nodes_on_switch | default({}) | combine({item.item: []}) }}"
-      with_items: "{{current_switch.results}}"
+      with_items: "{{ current_switch.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) == 0
+      when: (item.stdout_lines | length) == 0
 
     - name: Get SwitchNames
-      ansible.builtin.shell: "scontrol show topology {{item}} | grep Level=0 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Level=0 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_switchName
       run_once: true
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
 
     - name: Get Switchname
       ansible.builtin.set_fact:
         rem_switchnames_dict: "{{ rem_switchnames_dict | default({}) | combine({item.item: item.stdout}) }}"
-      with_items: "{{current_switchName.results}}"
+      with_items: "{{ current_switchName.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) > 0
+      when: (item.stdout_lines | length) > 0
 
     - name: Get Switchname
       ansible.builtin.set_fact:
         rem_switchnames_dict: "{{ rem_switchnames_dict | default({}) | combine({item.item: \"\"}) }}"
-      with_items: "{{current_switchName.results}}"
+      with_items: "{{ current_switchName.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) == 0
+      when: (item.stdout_lines | length) == 0
 
     - name: Build a dict of the racks including nodes to remove
       ansible.builtin.set_fact:
         rem_racks_dict: "{{ rem_racks_dict | default({}) | combine({rem_switchnames_dict[item]: rem_nodes_on_switch[item]}) }}"
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
       run_once: true
 
     - name: create an empty rem_racks_dict list
@@ -80,49 +80,49 @@
  # get Info from the Network Block Switches
 
     - name: Get Network Block line
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{item}} | grep Level=1 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=1 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_nb
       run_once: true
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
 
     - name: GetSwitches
       ansible.builtin.set_fact:
         rem_nbs_on_cluster_dict: "{{ rem_nbs_on_cluster_dict | default({}) | combine({item.item: item.stdout_lines}) }}"
-      with_items: "{{current_nb.results}}"
+      with_items: "{{ current_nb.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) > 0
+      when: (item.stdout_lines | length) > 0
 
     - name: GetSwitches
       ansible.builtin.set_fact:
         rem_nbs_on_cluster_dict: "{{ rem_nbs_on_cluster_dict | default({}) | combine({item.item: []}) }}"
-      with_items: "{{current_nb.results}}"
+      with_items: "{{ current_nb.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) == 0
+      when: (item.stdout_lines | length) == 0
 
     - name: Get NetworkBlock Name
-      ansible.builtin.shell: "scontrol show topology {{item}} | grep Switches= | grep Level=1 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Switches= | grep Level=1 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_NetworkBlockName
       run_once: true
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
 
     - name: Get NetworkBlock Name
       ansible.builtin.set_fact:
         rem_rem_networkblocknames_dict: "{{ rem_rem_networkblocknames_dict | default({}) | combine({item.item: item.stdout}) }}"
-      with_items: "{{current_NetworkBlockName.results}}"
+      with_items: "{{ current_NetworkBlockName.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) > 0
+      when: (item.stdout_lines | length) > 0
 
     - name: Get NetworkBlock Name
       ansible.builtin.set_fact:
         rem_rem_networkblocknames_dict: "{{ rem_rem_networkblocknames_dict | default({}) | combine({item.item: \"\"}) }}"
-      with_items: "{{current_NetworkBlockName.results}}"
+      with_items: "{{ current_NetworkBlockName.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) == 0
+      when: (item.stdout_lines | length) == 0
 
     - name: Build a dict of the nbs including nodes to remove
       ansible.builtin.set_fact:
         rem_nb_dict: "{{ rem_nb_dict | default({}) | combine({rem_rem_networkblocknames_dict[item]: rem_nbs_on_cluster_dict[item]}) }}"
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
       run_once: true
 
     - name: create an empty rem_nb_dict list
@@ -138,49 +138,49 @@
  # get Info from the Cluster Switches
 
     - name: Get Cluster line
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{item}} | grep Level=2 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=2 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_cluster
       run_once: true
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
 
     - name: GetNBs
       ansible.builtin.set_fact:
         nb_on_cluster: "{{ nb_on_cluster | default({}) | combine({item.item: item.stdout_lines}) }}"
-      with_items: "{{current_cluster.results}}"
+      with_items: "{{ current_cluster.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) > 0
+      when: (item.stdout_lines | length) > 0
 
     - name: GetNBs
       ansible.builtin.set_fact:
         nb_on_cluster: "{{ nb_on_cluster | default({}) | combine({item.item: []}) }}"
-      with_items: "{{current_cluster.results}}"
+      with_items: "{{ current_cluster.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) == 0
+      when: (item.stdout_lines | length) == 0
 
     - name: Get Cluster Name
-      ansible.builtin.shell: "scontrol show topology {{item}} | grep Switches= | grep Level=2 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Switches= | grep Level=2 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_ClusterName
       run_once: true
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
 
     - name: Get Cluster Name
       ansible.builtin.set_fact:
         rem_clusternames_dict: "{{ rem_clusternames_dict | default({}) | combine({item.item: item.stdout}) }}"
-      with_items: "{{current_ClusterName.results}}"
+      with_items: "{{ current_ClusterName.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) > 0
+      when: (item.stdout_lines | length) > 0
 
     - name: Get Cluster Name
       ansible.builtin.set_fact:
         rem_clusternames_dict: "{{ rem_clusternames_dict | default({}) | combine({item.item: \"\"}) }}"
-      with_items: "{{current_ClusterName.results}}"
+      with_items: "{{ current_ClusterName.results }}"
       run_once: true
-      when: ( item.stdout_lines | length ) == 0
+      when: (item.stdout_lines | length) == 0
 
     - name: Build a dict of the clusters including nodes to remove
       ansible.builtin.set_fact:
         rem_cluster_dict: "{{ rem_cluster_dict | default({}) | combine({rem_clusternames_dict[item]: nb_on_cluster[item]}) }}"
-      with_items: "{{hostnames_list}}"
+      with_items: "{{ hostnames_list }}"
       run_once: true
 
     - name: create an empty rem_cluster_dict
@@ -204,22 +204,22 @@
     - name: Create a list of rem_switchnames to remove
       ansible.builtin.set_fact:
         switchname_to_remove: "{{ switchname_to_remove | default([]) + [item] | unique }}"
-      with_items: "{{rem_switchnames}}"
-      when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) < 1 )
+      with_items: "{{ rem_switchnames }}"
+      when: ((rem_racks_dict[item] | difference(hostnames_list) | length) < 1)
       run_once: true
 
     - name: Generate rem_nodes_on_switch_condensed
-      ansible.builtin.command: "scontrol show hostlistsorted {{rem_racks_dict[item] | difference(hostnames_list) | join(',')}}"
+      ansible.builtin.command: "scontrol show hostlistsorted {{ rem_racks_dict[item] | difference(hostnames_list) | join(',') }}"
       register: switch_condensed
-      with_items: "{{rem_switchnames}}"
-      when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) > 0 )
+      with_items: "{{ rem_switchnames }}"
+      when: ((rem_racks_dict[item] | difference(hostnames_list) | length) > 0)
       run_once: true
 
     - name: Get condensed_Nodes
       ansible.builtin.set_fact:
         rem_nodes_on_switch_condensed: "{{ rem_nodes_on_switch_condensed | default({}) | combine({item.item: item.stdout}) }}"
-      with_items: "{{switch_condensed.results}}"
-      when: ( ( rem_racks_dict[item.item] | difference(hostnames_list) | length ) > 0 )
+      with_items: "{{ switch_condensed.results }}"
+      when: ((rem_racks_dict[item.item] | difference(hostnames_list) | length) > 0)
       run_once: true
       ignore_errors: true
 
@@ -235,10 +235,9 @@
     - name: Create a list of rem_networkblocknames to remove
       ansible.builtin.set_fact:
         rem_networkblocknames_to_remove: "{{ rem_networkblocknames_to_remove | default([]) + [item] | unique }}"
-      with_items: "{{rem_networkblocknames}}"
-      when: ( ( rem_nb_dict[item] | difference(switchname_to_remove) | length ) < 1 )
+      with_items: "{{ rem_networkblocknames }}"
+      when: ((rem_nb_dict[item] | difference(switchname_to_remove) | length) < 1)
       run_once: true
-
 
 
     - name: Create empty directory
@@ -249,11 +248,10 @@
     - name: Get condensed_Nodes
       ansible.builtin.set_fact:
         racks_on_nb_condensed: "{{ racks_on_nb_condensed | default({}) | combine({item: rem_nb_dict[item] | difference(switchname_to_remove) | join(',')}) }}"
-      with_items: "{{rem_networkblocknames}}"
-      when: ( ( rem_nb_dict[item] | difference(switchname_to_remove) | length ) > 0 )
+      with_items: "{{ rem_networkblocknames }}"
+      when: ((rem_nb_dict[item] | difference(switchname_to_remove) | length) > 0)
       run_once: true
       ignore_errors: true
-
 
 
 # Find which Network Blocks need to be removed
@@ -267,8 +265,8 @@
     - name: Create a list of clusternames to remove
       ansible.builtin.set_fact:
         clusternames_to_remove: "{{ clusternames_to_remove | default([]) + [item] | unique }}"
-      with_items: "{{rem_clusternames}}"
-      when: ( ( rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length ) < 1 )
+      with_items: "{{ rem_clusternames }}"
+      when: ((rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length) < 1)
       run_once: true
 
 
@@ -276,8 +274,8 @@
       ansible.builtin.set_fact:
         nbs_on_cluster_dict_condensed: "{{ nbs_on_cluster_dict_condensed | default({}) | combine({item: rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove)
           | join(',')}) }}"
-      with_items: "{{rem_clusternames}}"
-      when: ( ( rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length ) > 0 )
+      with_items: "{{ rem_clusternames }}"
+      when: ((rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length) > 0)
       run_once: true
       ignore_errors: true
 
@@ -340,7 +338,7 @@
         path: "{{ slurm_conf_path }}/topology.conf"
         regexp: "SwitchName={{ item }}\\sNodes=.*"
         state: absent
-      with_items: "{{switchname_to_remove}}"
+      with_items: "{{ switchname_to_remove }}"
       run_once: true
       notify: Reconfigure slurm
 
@@ -351,9 +349,9 @@
         regexp: "SwitchName={{ item }}\\sNodes.*"
         line: "SwitchName={{ item }} Nodes={{ rem_nodes_on_switch_condensed[item] }}"
         state: present
-      with_items: "{{rem_switchnames}}"
+      with_items: "{{ rem_switchnames }}"
       ignore_errors: true
-      when: ( ( rem_racks_dict[item] | difference(hostnames_list) | length ) > 0 )
+      when: ((rem_racks_dict[item] | difference(hostnames_list) | length) > 0)
       run_once: true
       notify: Reconfigure slurm
 
@@ -363,7 +361,7 @@
         path: "{{ slurm_conf_path }}/topology.conf"
         regexp: "SwitchName={{ item }}\\sSwitches=.*"
         state: absent
-      with_items: "{{rem_networkblocknames_to_remove}}"
+      with_items: "{{ rem_networkblocknames_to_remove }}"
       run_once: true
       notify: Reconfigure slurm
 
@@ -374,9 +372,9 @@
         regexp: "SwitchName={{ item }}\\sSwitches.*"
         line: "SwitchName={{ item }} Switches={{ racks_on_nb_condensed[item] }}"
         state: present
-      with_items: "{{rem_networkblocknames}}"
+      with_items: "{{ rem_networkblocknames }}"
       ignore_errors: true
-      when: ( ( rem_nb_dict[item] | difference(switchname_to_remove) | length ) > 0 )
+      when: ((rem_nb_dict[item] | difference(switchname_to_remove) | length) > 0)
       run_once: true
       notify: Reconfigure slurm
 
@@ -386,7 +384,7 @@
         path: "{{ slurm_conf_path }}/topology.conf"
         regexp: "SwitchName={{ item }}\\sSwitches=.*"
         state: absent
-      with_items: "{{clusternames_to_remove}}"
+      with_items: "{{ clusternames_to_remove }}"
       run_once: true
       notify: Reconfigure slurm
 
@@ -397,9 +395,9 @@
         regexp: "SwitchName={{ item }}\\sSwitches.*"
         line: "SwitchName={{ item }} Switches={{ nbs_on_cluster_dict_condensed[item] }}"
         state: present
-      with_items: "{{rem_clusternames}}"
+      with_items: "{{ rem_clusternames }}"
       ignore_errors: true
-      when: ( ( rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length ) > 0 )
+      when: ((rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length) > 0)
       run_once: true
       notify: Reconfigure slurm
 
@@ -430,7 +428,7 @@
       with_items: "{{ new_compute_info | dict2items }}"
       when: item.value.network_block_id == 'None'
 
-    # Build dictionaries of cluster, NetworkBlock and Racks with the list of switch. 
+    # Build dictionaries of cluster, NetworkBlock and Racks with the list of switch.
 
     - name: Make empty rack_dict
       ansible.builtin.set_fact:
@@ -451,8 +449,7 @@
 
     - name: Build dictionary of nb to add
       ansible.builtin.set_fact:
-        nb_dict: "{{ nb_dict | combine({nb_name: (nb_dict[nb_name] | default([])) + [item.value.cluster_name + ':' + nb_id_dict[item.value.hostname]+ ':' + rack_id_dict[item.value.hostname]]
-          | unique}) }}"
+        nb_dict: "{{ nb_dict | combine({nb_name: (nb_dict[nb_name] | default([])) + [item.value.cluster_name + ':' + nb_id_dict[item.value.hostname] + ':' + rack_id_dict[item.value.hostname]] | unique}) }}"
       vars:
         nb_name: "{{ item.value.cluster_name }}:{{ nb_id_dict[item.value.hostname] }}"
       with_items: "{{ new_compute_info | dict2items }}"
@@ -468,29 +465,29 @@
           + nb_id_dict[item.value.hostname]] | unique}) }}"
       with_items: "{{ new_compute_info | dict2items }}"
 
-    # Add the racks with all the nodes. 
+    # Add the racks with all the nodes.
     - name: Get current nodes in Switch
-      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}} \""
+      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{ item }} \""
       register: nodes_in_switch
       delegate_to: 127.0.0.1
       run_once: true
-      with_items: "{{rack_dict.keys()}}"
+      with_items: "{{ rack_dict.keys() }}"
       ignore_errors: true
 
     - name: Get current nodes in Switch hostlist
       vars:
         switch_list_condensed: "{{ item.stdout.split('Nodes=')[1] }}"
-      ansible.builtin.command: "scontrol show hostname {{switch_list_condensed }}"
+      ansible.builtin.command: "scontrol show hostname {{ switch_list_condensed }}"
       register: switch_hostlist
       delegate_to: 127.0.0.1
-      with_items: "{{nodes_in_switch.results}}"
+      with_items: "{{ nodes_in_switch.results }}"
       when: item.rc == 0
 
     - name: Get hostlist if switch exists
-      ansible.builtin.command: "scontrol show hostlistsorted {{ item.stdout_lines | union (rack_dict[item.item.item] | list | unique) | join(',') }}"
+      ansible.builtin.command: "scontrol show hostlistsorted {{ item.stdout_lines | union(rack_dict[item.item.item] | list | unique) | join(',') }}"
       register: rack_hostlist1
       delegate_to: 127.0.0.1
-      with_items: "{{switch_hostlist.results}}"
+      with_items: "{{ switch_hostlist.results }}"
       run_once: true
       when: item.item.rc == 0
 
@@ -498,22 +495,22 @@
       ansible.builtin.command: "scontrol show hostlistsorted {{ rack_dict[item.item.item] | list | unique | join(',') }}"
       register: rack_hostlist2
       delegate_to: 127.0.0.1
-      with_items: "{{switch_hostlist.results}}"
+      with_items: "{{ switch_hostlist.results }}"
       run_once: true
       when: item.item.rc > 0
 
     - name: Get Nodes on switch if switch exists
       ansible.builtin.set_fact:
         nodes_on_switches: "{{ nodes_on_switches | default({}) | combine({item.item.item.item: item.stdout}) }}"
-      with_items: "{{rack_hostlist1.results}}"
+      with_items: "{{ rack_hostlist1.results }}"
       run_once: true
       delegate_to: 127.0.0.1
-      when: item.item.item.rc== 0
+      when: item.item.item.rc == 0
 
     - name: Get Nodes on switch if switch does not exists
       ansible.builtin.set_fact:
         nodes_on_switches: "{{ nodes_on_switches | default({}) | combine({item.item.item.item: item.stdout}) }}"
-      with_items: "{{rack_hostlist2.results}}"
+      with_items: "{{ rack_hostlist2.results }}"
       run_once: true
       delegate_to: 127.0.0.1
       when: item.item.item.rc > 0
@@ -530,22 +527,22 @@
         line: "SwitchName={{ item.item.item }} Nodes={{ nodes_on_switches[item.item.item] }}"
         state: present
       run_once: true
-      with_items: "{{switch_hostlist.results}}"
+      with_items: "{{ switch_hostlist.results }}"
       delegate_to: 127.0.0.1
       notify: Reconfigure slurm
 
-# Add the racks in the NetworkBlock. 
+# Add the racks in the NetworkBlock.
 
     - name: debug nb_dict
       ansible.builtin.debug:
         var: nb_dict
 
     - name: Get current Racks in NetworkBlock
-      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}} \""
+      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{ item }} \""
       register: racks_in_nb
       delegate_to: 127.0.0.1
       run_once: true
-      with_items: "{{nb_dict.keys()}}"
+      with_items: "{{ nb_dict.keys() }}"
       ignore_errors: true
 
     - name: create empty nbs_on_cluster_dict
@@ -557,21 +554,21 @@
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union(nb_dict[item.item]
           | list | unique)}) }}"
-      with_items: "{{racks_in_nb.results}}"
+      with_items: "{{ racks_in_nb.results }}"
       run_once: true
       when: item.rc == 0
 
     - name: create nbs_on_cluster_dict
       ansible.builtin.debug:
-        msg: "{{nb_dict[item.item] }}"
-      with_items: "{{racks_in_nb.results}}"
+        msg: "{{ nb_dict[item.item] }}"
+      with_items: "{{ racks_in_nb.results }}"
       run_once: true
       when: item.rc > 0
 
     - name: create nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: nb_dict[item.item] | list | unique}) }}"
-      with_items: "{{racks_in_nb.results}}"
+      with_items: "{{ racks_in_nb.results }}"
       run_once: true
       when: item.rc > 0
 
@@ -587,18 +584,18 @@
         line: "SwitchName={{ item }} Switches={{ nbs_on_cluster_dict[item] | join(',') }}"
         state: present
       run_once: true
-      with_items: "{{nbs_on_cluster_dict.keys()}}"
+      with_items: "{{ nbs_on_cluster_dict.keys() }}"
       delegate_to: 127.0.0.1
       notify: Reconfigure slurm
 
-# Add the NB with all the clusters. 
+# Add the NB with all the clusters.
 
     - name: Get current NB in Clusters
-      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{item}} \""
+      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{ item }} \""
       register: nb_in_cluster
       delegate_to: 127.0.0.1
       run_once: true
-      with_items: "{{cluster_dict.keys()}}"
+      with_items: "{{ cluster_dict.keys() }}"
       ignore_errors: true
 
     - name: create empty nbs_on_cluster_dict
@@ -608,16 +605,15 @@
 
     - name: create nbs_on_cluster_dict
       ansible.builtin.set_fact:
-        nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union (cluster_dict[item.item]
-          | list | unique)}) }}"
-      with_items: "{{nb_in_cluster.results}}"
+        nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union(cluster_dict[item.item] | list | unique)}) }}"
+      with_items: "{{ nb_in_cluster.results }}"
       run_once: true
       when: item.rc == 0
 
     - name: create nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: cluster_dict[item.item] | list | unique}) }}"
-      with_items: "{{nb_in_cluster.results}}"
+      with_items: "{{ nb_in_cluster.results }}"
       run_once: true
       when: item.rc > 0
 
@@ -633,7 +629,7 @@
         line: "SwitchName={{ item }} Switches={{ nbs_on_cluster_dict[item] | join(',') }}"
         state: present
       run_once: true
-      with_items: "{{nbs_on_cluster_dict.keys()}}"
+      with_items: "{{ nbs_on_cluster_dict.keys() }}"
       delegate_to: 127.0.0.1
       notify: Reconfigure slurm
 

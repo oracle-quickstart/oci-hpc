@@ -10,7 +10,7 @@
 - name: Download yq RPMs.
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   ansible.builtin.get_url:
-    url: "https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_{{deb_architecture}}.tar.gz"
+    url: "https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_{{ deb_architecture }}.tar.gz"
     dest: "/tmp"
   retries: 10
   delay: 10
@@ -19,11 +19,11 @@
 
 - name: untar yq
   unarchive:
-    src: "/tmp/yq_linux_{{deb_architecture}}.tar.gz"
+    src: "/tmp/yq_linux_{{ deb_architecture }}.tar.gz"
     dest: "/tmp"
 - name: move
   become: true
   copy:
-    src: "/tmp/yq_linux_{{deb_architecture}}"
+    src: "/tmp/yq_linux_{{ deb_architecture }}"
     dest: "/usr/bin/yq"
     mode: "0755"

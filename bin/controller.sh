@@ -142,9 +142,12 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
       -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
 fi
 
+if [ ! -f "${VENV_PATH}/bin/activate" ]; then
+     export creating_python_install_dir=true
+fi
 
 # install uv  
-if [ $creating_python_install_dir ]; then
+if [[ "${creating_python_install_dir:-}" == "true" ]]; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
 
   source ${UV_INSTALL_DIR}/env
