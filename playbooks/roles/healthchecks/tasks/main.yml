@@ -35,6 +35,12 @@
     - multi_node_active_HC.sbatch
     - multi_node_active_healthcheck.py
     - gpu_sdc_checker.py
+    - gpu_reset.sh
+
+- name: Change gpu_reset.sh file mode to 0755
+  ansible.builtin.file:
+    path: /opt/oci-hpc/healthchecks/gpu_reset.sh
+    mode: '0755'
 
 - name: Download oci-mesh-pinger
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"

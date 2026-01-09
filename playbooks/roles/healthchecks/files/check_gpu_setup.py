@@ -133,22 +133,22 @@ def get_host_serial():
     return "Unknown Instance"  # Final fallback if all methods fail
 
 # Initialize global variables for Slurm reasons and error count
-slurm_drain_reason = ""
+slurm_drain_reason = []
 slurm_error_count = 0
 
 # Function to provide slurm reason for a node to be drained or down
 def slurm_reason(message):
     global slurm_drain_reason
     global slurm_error_count
-    slurm_drain_reason+=(message+"\n")
+    slurm_drain_reason.append(message)
     slurm_error_count+=1
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA"):
+    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Reset_GPU"):
         logger.error("No action was found")
         return 0
-    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA"):
+    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Reset_GPU"):
         if current == "Terminate":
             return current
         else:
@@ -158,7 +158,7 @@ def recommended_action(current, action):
     if action == "Terminate":
         return action
     if action in ("Wait_For_OCA"):
-        if current in ("FabricManagerRestart","Reboot","Terminate"):
+        if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU"):
             return current
         else:
             return action
@@ -171,9 +171,11 @@ def get_reboots_count():
     now = datetime.now()
     one_day_ago = now - timedelta(hours=24)
     two_hours_ago = now - timedelta(hours=2)
+    twelve_hours_ago = now - timedelta(hours=12)
 
     reboot_count_last_day = 0
     last_reboot_within_2hour = 0
+    last_reboot_within_12hours = 0
     reboot_lines=[]
     for line in output.splitlines():
         parts = line.split()
@@ -186,15 +188,117 @@ def get_reboots_count():
         date_str = " ".join(parts[4:8])  # Extract date/time part
         reboot_time = datetime.strptime(date_str, "%a %b %d %H:%M")
         reboot_time = reboot_time.replace(year=now.year)  # Assume current year
-        # Count reboots in the last 12 hours
+        # Count reboots in the last 24 hours
         if reboot_time >= one_day_ago:
             reboot_count_last_day += 1
 
-        # Check if the last reboot was within the last hour
+        # Check if the last reboot was within the last 2 hours
         if reboot_time >= two_hours_ago:
             last_reboot_within_2hour += 1
 
-    return reboot_count_last_day, last_reboot_within_2hour
+        # Check if the last reboot was within the last 12 hours
+        if reboot_time >= twelve_hours_ago:
+            last_reboot_within_12hours += 1
+
+    return reboot_count_last_day, last_reboot_within_2hour, last_reboot_within_12hours
+
+# This function is called only when Xid error is present and when the remediation of the Xid is GPU reset.
+# Check section 12.3 for details.
+def gpu_reset_reboot(xc):
+    
+    # The below function checks 
+    #       Recently rebooted: Tag and terminate
+    #       Not recently rebooted: GPU reset
+    def gpu_reset_logic():
+        number_of_reboots,last_2hour_reboot,last_12hour_reboot = get_reboots_count()
+        if last_12hour_reboot > 0 or number_of_reboots > 3:
+            # Tag and Terminate
+            logger.error("Xid Error Check: Failed")
+            return "Terminate", False
+        else:
+            # GPU reset
+            logger.error("Xid Error Check: Failed")
+            return "GPU_Reset", False
+
+    # List of (index, line, timestamp) for lines that contain nvidia-nvswitch: Probing device. These are the lines that indicate a GPU Reset.
+    gpu_reset_indices = []
+    # List of indices for lines that contain NVRM: Xid
+    xid_indices = []
+
+    # Get the dmesg output
+    dmesg_output = xc.get_dmesg()
+    if dmesg_output == "":
+        return "", True
+    dmesg_lines = dmesg_output.splitlines()
+
+    # get the indices of the lines with Xid error and GPU reset
+    for idx, line in enumerate(dmesg_lines):
+        if "nvidia-nvswitch: Probing device" in line:
+            # Parse the timestamp for the lines that mention GPU has been reset. 
+            ts = XidChecker.parse_dmesg_timestamp(line)
+            gpu_reset_indices.append((idx, line, ts))
+        if "NVRM: Xid" in line:
+            xid_indices.append(idx)
+    
+    gpu_reset_present = len(gpu_reset_indices) > 0
+    now = datetime.now()
+    
+    # Get all the GPU resets in the last 24 hours
+    gpu_reset_recent = []
+    for gpi in gpu_reset_indices:
+        timestamp = gpi[2]
+        if timestamp is not None:
+            time_difference = now - timestamp
+            seconds_difference = time_difference.total_seconds()
+            if seconds_difference <= 86400:
+                gpu_reset_recent.append(gpi)
+    
+    # Logic for GPU reset:
+    # 1. Xid error and no GPU reset or Xid error and GPU reset before more than 24 hours ago
+    #       Recently rebooted: Tag and terminate
+    #       Not recently rebooted: GPU reset
+    # 2. Xid Error and GPU reset was done after the last Xid --> Healthy
+    # 3. Xid Error and GPU reset before in the last 24 hours:
+    #       If not rebooted even once in the last 12 hours: GPU reset
+    #       Recently rebooted: Tag and Terminate
+    #       Else: Reboot
+
+    # If GPU reset was done
+    if gpu_reset_present:
+        last_xid = xid_indices[-1]
+        last_probing = gpu_reset_indices[-1][0]
+        # GPU reset was done after the last Xid --> Healthy
+        if last_xid < last_probing:
+            logger.info("Xid Error Check: Passed")
+            return "", True
+        elif gpu_reset_recent:
+            # GPU reset before in the last 24 hours:
+            #       If not rebooted even once in the last 12 hours: GPU reset
+            #       Recently rebooted: Tag and Terminate
+            #       Else: Reboot
+            number_of_reboots,last_2hour_reboot,last_12hour_reboot = get_reboots_count()
+            if last_12hour_reboot > 0 or number_of_reboots > 3:
+                # Tag and Terminate
+                logger.error("Xid Error Check: Failed")
+                return "Terminate", False
+            elif last_12hour_reboot == 0:
+                # Reset GPU
+                logger.error("Xid Error Check: Failed")
+                return "GPU_Reset", False
+            else:
+                # Reboot
+                logger.error("Xid Error Check: Failed")
+                return "Reboot", False
+        else:
+            # GPU reset before more than 24 hours ago
+            #       Recently rebooted: Tag and terminate
+            #       Not recently rebooted: GPU reset
+            return gpu_reset_logic()
+    else:
+        # No GPU reset was done
+        #       Recently rebooted: Tag and terminate
+        #       Not recently rebooted: GPU reset
+        return gpu_reset_logic()
 
 #Section 1: All Health Check functions.
 ########################################
@@ -1343,6 +1447,15 @@ if __name__ == '__main__':
         try:
             xc = XidChecker()
             xid_results = xc.check_gpu_xid()
+            critical_xids = xid_results["categories"].get("critical", {})
+            reset_xids = xid_results["categories"].get("gpu_reset_reboot", {})
+            warning_xids  = xid_results["categories"].get("warning", {})
+            if critical_xids:
+                logger.debug("Xid critical error")
+            elif reset_xids:
+                gpu_reset_action, gpu_reset_status = gpu_reset_reboot(xc)
+            elif warning_xids:
+                logger.debug("Xid warning")
         except Exception as e:
             logger.warning(f"Failed to check GPU Xid errors with error: {e}")
             xid_results = {"status": "None", "results": {}}
@@ -1541,7 +1654,7 @@ if __name__ == '__main__':
         reset_xids = xid_results["categories"].get("gpu_reset_reboot", {})
         warning_xids  = xid_results["categories"].get("warning", {})
 
-        # Log & set action for critical XIDs
+        # Log & set action for Xids
         if critical_xids:
             action = recommended_action(action, "Terminate")
             for xid, info in critical_xids.items():
@@ -1551,28 +1664,37 @@ if __name__ == '__main__':
                         f"{host_serial} - [critical] GPU Xid {xid} "
                         f"device: {pci}, count: {count}, {desc}"
                     )
-                    slurm_reason("XID Error")
-
-        # Log & set action for gpu_reset_reboot XIDs
+                    slurm_reason("Xid Error")
         if reset_xids:
-            action = recommended_action(action, "Reboot")
-            for xid, info in reset_xids.items():
+            if not gpu_reset_status:
+                if gpu_reset_action == "Reboot":
+                    action = recommended_action(action, "Reboot")
+                    slurm_reason("Xid Error")
+                elif gpu_reset_action == "Terminate":
+                    action = recommended_action(action, "Terminate")
+                    slurm_reason("Xid Error")
+                elif gpu_reset_action == "GPU_Reset":
+                    action = recommended_action(action, "Reset_GPU")
+                    slurm_reason("Reset_GPU")
+                else:
+                    action = recommended_action(action, "Reboot")
+                    slurm_reason("Xid Error")
+                if gpu_reset_action != "":
+                    for xid, info in reset_xids.items():
+                        desc = info["description"]
+                        for pci, count in info["results"].items():
+                            logger.error(
+                                f"{host_serial} - [gpu_reset_reboot] GPU Xid {xid} "
+                                f"device: {pci}, count: {count}, {desc}"
+                            )
+        if warning_xids:
+            for xid, info in warning_xids.items():
                 desc = info["description"]
                 for pci, count in info["results"].items():
-                    logger.error(
-                        f"{host_serial} - [gpu_reset_reboot] GPU Xid {xid} "
+                    logger.warning(
+                        f"{host_serial} - [warning] GPU Xid {xid} "
                         f"device: {pci}, count: {count}, {desc}"
                     )
-                    slurm_reason("XID Error")
-
-        # Optional: just warn for warning bucket
-        for xid, info in warning_xids.items():
-            desc = info["description"]
-            for pci, count in info["results"].items():
-                logger.warning(
-                    f"{host_serial} - [warning] GPU Xid {xid} "
-                    f"device: {pci}, count: {count}, {desc}"
-                )
 
     # 13.4 Summarize WPA Authentication check
     if run_all or args.wpa_auth:
@@ -1629,7 +1751,7 @@ if __name__ == '__main__':
 
     # Print recommended action and slurm message
     if action == "Reboot":
-        number_of_reboots,last_2hour_reboot = get_reboots_count()
+        number_of_reboots,last_2hour_reboot,last_12hour_reboot = get_reboots_count()
         if last_2hour_reboot > 0 or number_of_reboots > 5:
             action = "Terminate"
             logger.error(f"The node has already been rebooted {last_2hour_reboot} time(s) in the last 2 hours and {number_of_reboots} in the last day")
@@ -1641,7 +1763,7 @@ if __name__ == '__main__':
         logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
     if slurm_error_count > 0 and any((args.slurm, args.dry_run)):
-        logger.error("Healthcheck:: " + slurm_drain_reason[:-1])
+        logger.error("Healthcheck:: " + ", ".join(slurm_drain_reason))
         logger.error("Healthcheck:: Recommended Action:" + str(action))
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
@@ -1671,7 +1793,7 @@ if __name__ == '__main__':
         except FileNotFoundError:
             logger.warning("Log file not found, initializing empty logs.")
             data["passive_healthcheck_logs"] = ""
-        if slurm_drain_reason != "":
+        if slurm_drain_reason:
             data["passive_healthcheck_status"] = slurm_drain_reason
         else:
             data["passive_healthcheck_status"] = "Healthy"

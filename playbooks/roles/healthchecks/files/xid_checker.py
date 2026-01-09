@@ -6,9 +6,16 @@ import subprocess
 import sys
 import re
 import os
+import shlex
+
+version = sys.version_info
+if version >= (3, 12):
+    from datetime import datetime, UTC
+else:
+    from datetime import datetime
 
 class XidChecker:
-    def __init__(self, dmesg_cmd="dmesg", time_interval=60):
+    def __init__(self, dmesg_cmd="dmesg -T", time_interval=60):
         # if user is root
         if not os.geteuid() == 0:
             #logger.info("The XidChecker script did not run since it must be run as root")
@@ -165,6 +172,31 @@ class XidChecker:
             "149": {"description": "NVLINK: NETIR Error", "severity": "warning"},
         }
 
+    def get_dmesg(self):
+        dmesg_cmd_list = shlex.split(self.dmesg_cmd)
+        dmesg_output = ""
+        try:
+            result = subprocess.run(dmesg_cmd_list, check=True, capture_output=True, text=True, timeout=10)
+            dmesg_output = result.stdout
+        except subprocess.CalledProcessError as e:
+            logger.info("Error running Xid check command dmesg -T:", e)
+        except subprocess.TimeoutExpired as e:
+            logger.info("dmesg -T command timed out:", e)
+        return dmesg_output
+    
+    # Get the timestamp from the dmesg line. This will help when checking whether GPU was reset in the last 24 hours in the healthcheck script.
+    @staticmethod
+    def parse_dmesg_timestamp(line):
+        # Extract timestamp from start of line (e.g., "Thu May  9 14:00:43 2024 ...")
+        match = re.match(r"\[([A-Za-z]{3} [A-Za-z]{3}\s+\d{1,2} \d{2}:\d{2}:\d{2} \d{4})\]", line)
+        if match:
+            timestamp_str = match.group(1)
+            try:
+                return datetime.strptime(timestamp_str, "%a %b %d %H:%M:%S %Y")
+            except ValueError:
+                return None
+        return None
+
     def check_gpu_xid(self):
         # buckets we’ll return
         categorized_results = {
@@ -173,7 +205,13 @@ class XidChecker:
             "warning": {},
         }
 
-        dmesg_output = subprocess.check_output([self.dmesg_cmd]).decode("utf-8")
+        dmesg_output = self.get_dmesg()
+
+        if dmesg_output == "":
+            return {
+                "categories": categorized_results,
+                "results": self.results,
+            } 
 
         if "NVRM: Xid" not in dmesg_output:
             logger.info("Xid Check: Passed")
@@ -181,7 +219,7 @@ class XidChecker:
             return {
                 "categories": categorized_results,
                 "results": self.results,
-            }        
+            }
 
         # We found at least one "NVRM: Xid" string in dmesg, walk all known XIDs
         for XID in self.XID_EC.keys():
@@ -209,8 +247,9 @@ class XidChecker:
             desc = self.XID_EC[XID]["description"]
             severity = self.XID_EC[XID]["severity"]  # 'critical', 'gpu_reset_reboot', 'warning'
 
-            for pci in tmp_dict.keys():
-                logger.info(f"{XID} : count: {tmp_dict[pci]}, {desc} - PCI: {pci}")
+            # Do not display the errors here as we are summarizing those later
+            # for pci in tmp_dict.keys():
+            #     logger.info(f"{XID} : count: {tmp_dict[pci]}, {desc} - PCI: {pci}")
 
             # Store in the global results structure (if you still want it)
             self.results[XID] = {
@@ -244,9 +283,8 @@ class XidChecker:
 if __name__ == '__main__':
     # Argument parsing
     parser = argparse.ArgumentParser(description='Check for GPU Xid errors.')
-    parser.add_argument('--dmesg_cmd', default='dmesg', help='Dmesg file to check. Default is dmesg.')
+    parser.add_argument('--dmesg_cmd', default='dmesg -T', help='Dmesg file to check. Default is dmesg -T.')
     args = parser.parse_args()
-
     logger.debug(f"Using dmesg command: {args.dmesg_cmd}")
     
     try:
