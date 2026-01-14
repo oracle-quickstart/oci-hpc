@@ -46,7 +46,7 @@ g.dashboard.new('Cluster Level Metrics')
     ),
     gaugePanel(
       'Avg GPU Util %',
-      'avg by (cluster_name) (DCGM_FI_DEV_GPU_UTIL{cluster_name=~"$cluster_name"})',
+      'avg by (cluster_name) (DCGM_FI_DEV_GPU_UTIL{cluster_name=~"$cluster_name"}) or avg by (cluster_name) (amd_gpu_gfx_activity{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:4, y:0}
     ),
     gaugePanel(
@@ -102,21 +102,21 @@ g.dashboard.new('Cluster Level Metrics')
     ),
     timeseriesPanel(
       'Cluster GPU Utilization',
-      'avg by (cluster_name) (DCGM_FI_DEV_GPU_UTIL{cluster_name=~"$cluster_name"})',
+      'avg by (cluster_name) (DCGM_FI_DEV_GPU_UTIL{cluster_name=~"$cluster_name"}) or avg by (cluster_name) (amd_gpu_gfx_activity{cluster_name=~"$cluster_name"})',
       '{{ cluster_name }}',
       'percent',
       {w:8, h:8, x:16, y:8}
     ),
     timeseriesPanel(
       'Cluster GPU Temperature',
-      'max by (cluster_name) (DCGM_FI_DEV_GPU_TEMP{cluster_name=~"$cluster_name"})',
+      'max by (cluster_name) (DCGM_FI_DEV_GPU_TEMP{cluster_name=~"$cluster_name"}) or max by (cluster_name) (amd_gpu_junction_temperature{cluster_name=~"$cluster_name"})',
       '{{ cluster_name }}',
       'celsius',
       {w:8, h:8, x:0, y:16}
     ),
     timeseriesPanel(
       'Cluster GPU Power Usage',
-      'sum by (cluster_name) (DCGM_FI_DEV_POWER_USAGE{cluster_name=~"$cluster_name"})',
+      'sum by (cluster_name) (DCGM_FI_DEV_POWER_USAGE{cluster_name=~"$cluster_name"}) or sum by(cluster_name) (amd_gpu_power_usage{cluster_name=~"$cluster_name"})',
       '{{ cluster_name }}',
       'watts',
       {w:8, h:8, x:8, y:16}

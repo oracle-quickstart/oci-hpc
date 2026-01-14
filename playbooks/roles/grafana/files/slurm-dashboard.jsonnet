@@ -17,8 +17,8 @@ local slurm_metrics = [
 ];
 
 local slurm_job_metrics = [
-  { expr: 'avg by (slurm_job_id) (slurm_job_gpu_util_percent{slurm_job_id=~"$slurm_job_id"})', legend_format: '{{slurm_job_id}}', title: 'Average job gpu utilization across nodes', unit: 'percent' },
-  { expr: 'avg by (slurm_job_id) (slurm_job_gpu_mem_util_percent{slurm_job_id=~"$slurm_job_id"})', legend_format: '{{slurm_job_id}}', title: 'Average job gpu memory utilization across nodes', unit: 'percent' },
+  { expr: 'avg by (slurm_job_id) (slurm_job_gpu_util_percent{slurm_job_id=~"$slurm_job_id"}) or avg by (job_id) (amd_gpu_gfx_activity{job_id=~"$slurm_job_id"})', legend_format: '{{slurm_job_id}}', title: 'Average job gpu utilization across nodes', unit: 'percent' },
+  { expr: 'avg by (slurm_job_id) (slurm_job_gpu_mem_util_percent{slurm_job_id=~"$slurm_job_id"}) or avg by(job_id) (amd_gpu_used_vram{job_id=~"$slurm_job_id"}/amd_gpu_total_vram{job_id=~"$slurm_job_id"})', legend_format: '{{slurm_job_id}}', title: 'Average job gpu memory utilization across nodes', unit: 'percent' },
   { expr: 'irate(slurm_job_cpu_util_seconds{slurm_job_id=~"$slurm_job_id"}[5m])', legend_format: '{{slurm_job_id}}', title: 'Average job cpu utilization across nodes', unit: 'percent' },
   { expr: 'irate(slurm_job_mem_util_bytes{slurm_job_id=~"$slurm_job_id"}[5m])', legend_format: '{{slurm_job_id}}', title: 'Average job memory utilization across nodes', unit: 'MiB' },  
 ];

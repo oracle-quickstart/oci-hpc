@@ -18,7 +18,7 @@
   when: compute_node|bool and rdma_enabled|bool
 
 - include_tasks: nvml_exporter.yml
-  when: compute_node|bool and 'GPU' in shape and not 'BM.GPU.MI' in shape
+  when: compute_node|bool and 'GPU' in shape 
 
 - include_tasks: pcie_faults.yml
   when: compute_node|bool and 'GPU' in shape
