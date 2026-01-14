@@ -4,8 +4,6 @@
 - name: Make sure python OpenSSL and parallel ssh is installed
   vars:
     package_name:
-      #- pyOpenSSL
-      #- python2-cryptography
       - python3-oci-cli
       - pssh
       - pdsh

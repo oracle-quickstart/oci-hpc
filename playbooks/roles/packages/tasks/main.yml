@@ -1,14 +1,18 @@
 ---
-- ansible.builtin.include_tasks: ol-7.yml
+- name: Install required packages on Oracle Linux 7
+  ansible.builtin.include_tasks: ol-7.yml
   when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '7'
 
-- ansible.builtin.include_tasks: ol-8.yml
+- name: Install required packages on Oracle Linux 8
+  ansible.builtin.include_tasks: ol-8.yml
   when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '8'
 
-- ansible.builtin.include_tasks: ol-9.yml
+- name: Install required packages on Oracle Linux 9
+  ansible.builtin.include_tasks: ol-9.yml
   when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '9'
 
-- ansible.builtin.include_tasks: centos-7.yml
+- name: Install required packages on CentOS 7
+  ansible.builtin.include_tasks: centos-7.yml
   when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'CentOS' and ansible_facts['distribution_major_version'] == '7'
 
 - name: Ensure keyrings directory exists for extra repositories
@@ -19,14 +23,18 @@
     mode: '0755'
   when: ansible_facts['os_family'] == 'Debian'
 
-- ansible.builtin.include_tasks: ubuntu.yml
+- name: Install required packages on Ubuntu < 22.04
+  ansible.builtin.include_tasks: ubuntu.yml
   when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int < 22
 
-- ansible.builtin.include_tasks: ubuntu-2204.yml
+- name: Install required packages on Ubuntu 22.04
+  ansible.builtin.include_tasks: ubuntu-2204.yml
   when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int == 22
 
-- ansible.builtin.include_tasks: ubuntu-2404.yml
+- name: Install required packages on Ubuntu 24.04
+  ansible.builtin.include_tasks: ubuntu-2404.yml
   when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int > 22
 
-- ansible.builtin.include_tasks: debian.yml
+- name: Install required packages on Debian distributions
+  ansible.builtin.include_tasks: debian.yml
   when: ansible_facts['distribution'] == 'Debian'
