@@ -102,7 +102,8 @@ def get_devices():
         "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
-        "BM.GPU.MI300X.8": ["mlx5_0", "mlx5_2", "mlx5_3","mlx5_4", "mlx5_5", "mlx5_7", "mlx5_8", "mlx5_9"]
+        "BM.GPU.MI300X.8": ["mlx5_0", "mlx5_2", "mlx5_3","mlx5_4", "mlx5_5", "mlx5_7", "mlx5_8", "mlx5_9"],
+        "BM.GPU.MI355X-v1.8": ["mlx5_0", "mlx5_1", "mlx5_2","mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7"]
     }
     
     return shape_devices.get(shape, [])
@@ -599,7 +600,7 @@ def check_gpu_count():
     tmp_results = []
 
     # Check the number of GPUs for AMD
-    if shape == "BM.GPU.MI300X.8":
+    if "BM.GPU.MI" in shape:
         try:
             result = subprocess.run(['amd-smi', 'list'], stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
             output = result.stdout.decode('utf-8')
@@ -732,7 +733,7 @@ def check_gpu_pcie():
 
     expected_pcie_width = 16  # Expected PCIe width
 
-    if shape == "BM.GPU.MI300X.8":
+    if "BM.GPU.MI" in shape:
         try:
             result = subprocess.run(['amd-smi', 'metric', '--pcie'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
             output = result.stdout.decode('utf-8').strip()
@@ -898,7 +899,7 @@ def check_wpa_auth(metadata):
     if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8","BM.GPU.B4.8"]:
         interface_range = range(16)
         required_authenticated = 16
-    elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8"]:
+    elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8"]:
         interface_range = range(8)
         required_authenticated = 8
     elif "GPU.GB" in shape:
@@ -1496,7 +1497,7 @@ if __name__ == '__main__':
     # 16.3 Check if AMD GPU has pending bad pages
     if run_all or args.bad_page:   
         try:
-            if shape == "BM.GPU.MI300X.8":
+            if "BM.GPU.MI" in shape:
                 bad_page_issues = check_bad_pages()
             else:
                 bad_page_issues = None
@@ -1518,12 +1519,12 @@ if __name__ == '__main__':
             missing_ips = []
 
     # 18.3 Check if NVLink speed is correct
-    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4"]):
         nvlink_speed = get_nvlink_speed()
     
     # 19.3 Check the node health using dcgmi health check
     if run_all or args.dcgmi_health:
-        if shape != "BM.GPU.MI300X.8":
+        if not "BM.GPU.MI" in shape:
             try:
                 dcgmi_health_check = run_dcgmi_health()
             except Exception as e:
@@ -1555,7 +1556,7 @@ if __name__ == '__main__':
 
     # 3.4 Summarize RTTCC status check
     if run_all or args.rttcc_stat:
-        if shape != "BM.GPU.MI300X.8":
+        if not "BM.GPU.MI" in shape:
             if len(rttcc_issues) > 0:
                 logger.error(f"RTTCC issues: {rttcc_issues}")
                 slurm_reason("RTTCC Error")
@@ -1736,7 +1737,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
     
     # 18.4 Summarize NVLink speed check
-    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4"]):
         if not nvlink_speed:
             logger.error(f"NVLink speed Error for one or more GPUs")
             slurm_reason("NVLink speed Error")

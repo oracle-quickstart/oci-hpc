@@ -105,6 +105,27 @@ shape_mapping = {
         "threshold": 350,
         "ib_write_bw": 350,
         "ib_write_lat": 5
+    },
+    "BM.GPU.MI355X.8": {
+        "var_UCX_NET_DEVICES": "mlx5_8:1",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7",
+        "threshold": 350,
+        "ib_write_bw": 350,
+        "ib_write_lat": 5
+    },
+    "BM.GPU.MI355X-v0.8": {
+        "var_UCX_NET_DEVICES": "mlx5_8:1",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7",
+        "threshold": 350,
+        "ib_write_bw": 350,
+        "ib_write_lat": 5
+    },
+    "BM.GPU.MI355X-v1.8": {
+        "var_UCX_NET_DEVICES": "mlx5_8:1",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7",
+        "threshold": 350,
+        "ib_write_bw": 350,
+        "ib_write_lat": 5
     }
 }
 
@@ -354,7 +375,7 @@ def run_multi_node_rccl_test(hostfile, shape):
     if var_UCX_NET_DEVICES == "":
         return False,"RCCL Test Failed: Shape not found for RCCL test"
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
-    if shape in ("BM.GPU.MI300X.8"):
+    if "BM.GPU.MI" in shape:
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
             "--bind-to", "numa",
