@@ -108,30 +108,26 @@
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
-    - ansible.builtin.include_role:
-        name: docker
+    - name: Configure Enroot/Pyxis/Container runtimes
       when: enroot | default(true) | bool
-    - ansible.builtin.include_role:
-        name: nvidia-container
-      when: enroot | default(true) | bool
-    - ansible.builtin.include_role:
-        name: nvidia-enroot
-      when: enroot | default(true) | bool
+      block:
+        - name: Install and configure Docker
+          ansible.builtin.include_role:
+            name: docker
+        - name: Configure the AMD container runtime
+          ansible.builtin.include_role:
+            name: amd-container
+          when: "'BM.GPU.MI' in shape"
+        - name: Configure the NVIDIA container runtime
+          ansible.builtin.include_role:
+            name: nvidia-container
+          when: "'BM.GPU.MI' not in shape"
+        - name: Set up Enroot
+          ansible.builtin.include_role:
+            name: nvidia-enroot
     - ansible.builtin.include_role:
         name: nccl-conf
       when: rdma_enabled | bool
-
-- hosts: localhost
-  become: true
-  tasks:
-    - name: Get AMD GPU Info
-      shell: |
-        lspci | grep  "Processing accelerators"
-      register: amd_check
-      ignore_errors: true
-    - ansible.builtin.include_role:
-        name: amd-container
-      when: amd_check.rc == 0
 
 - hosts: localhost
   become: true

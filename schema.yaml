@@ -1247,7 +1247,7 @@ variables:
     type: boolean
     title: "Install Nvidia Enroot for containerized GPU workloads"
     default: true
-    description: "Install Enroot, Nvidia Container Toolkit, and docker."
+    description: "Install Enroot, either the Nvidia or AMD Container Toolkit, and docker."
     visible: ${slurm}
 
   cluster_monitoring:
