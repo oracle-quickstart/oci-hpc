@@ -110,11 +110,14 @@
     name: safe_yum
   when: ansible_facts['distribution_major_version'] == '8' and lustre_installed.rc != 0
 
-- name: Create and update Lustre configuration file
-  copy:
-    content: "options lnet networks={{ (lnet_protocol | split('@'))[1] }}({{ ansible_facts['default_ipv4']['interface'] }})\n"
-    dest: /etc/modprobe.d/lustre.conf
-    force: false
+- name: Ensure Lustre configuration line is present in lnet.conf
+  lineinfile:
+    dest: /etc/modprobe.d/lnet.conf
+    regexp: '^options lnet networks='
+    line: "options lnet networks={{ (lnet_protocol | split('@'))[1] }}({{ ansible_facts['default_ipv4']['interface'] }})"
+    create: yes
+    state: present
+    mode: '0644'
 
 - name: Create Lustre mount directory
   become: true
