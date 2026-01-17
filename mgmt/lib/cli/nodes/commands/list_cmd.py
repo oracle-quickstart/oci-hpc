@@ -81,7 +81,11 @@ def callback_fields(ctx, param, value):
     is_flag=True,
     help="List terminated nodes instead of active nodes."
 )
-
+@click.option(
+    "--terminated_delay",
+    type=int,
+    help="List terminated nodes instead in the last X minutes."
+)
 def list_cmd(columns, format, **options):
     """List nodes with various filters and formats
     Example:
@@ -120,7 +124,7 @@ def list_cmd(columns, format, **options):
 
     if options.get("terminated"):
         logger.debug("Using terminated nodes query")
-        base_query = db.get_terminated_nodes_with_latest_healthchecks()
+        base_query = db.get_terminated_nodes_with_latest_healthchecks(delay=options.get("terminated_delay"))
     else:
         base_query = db.get_nodes_with_latest_healthchecks()
 

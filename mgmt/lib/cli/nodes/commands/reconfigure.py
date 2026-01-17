@@ -40,7 +40,7 @@ def filter_cmd(ctx, nodes, fields):
 )
 @click.option(
     '--action',
-    type=click.Choice(["compute", "controller", "all", "custom", "command"]),
+    type=click.Choice(["compute", "controller", "all", "custom", "command", "ansible"]),
     default="all",
     required=False,
     help='What to reconfigure (compute will rerun the cloud-init, controller will reconfigure the node on the controller (Slurm Topology and Prometheus targets), \n all will reconfigure the node on the controller and the cloud-init, customer will reconfigure the node on the controller and the cloud-init, \n custom will reconfigure the node on the controller and the cloud-init, \n command will run a custom command on the nodes)'
@@ -50,8 +50,13 @@ def filter_cmd(ctx, nodes, fields):
     required=False,
     help='Specify the command to run on the nodes. To be used with --action=command'
 )
+@click.option(
+    '--playbook',
+    required=False,
+    help='Specify the command to run on the nodes. To be used with --action=command'
+)
 @click.pass_context
-def reconfigure(ctx, nodes, fields, action, command):
+def reconfigure(ctx, nodes, fields, action, command, playbook):
     """Rerun the cloud-init script on the nodes."""
     if action == "command":
         if not command:
@@ -60,6 +65,10 @@ def reconfigure(ctx, nodes, fields, action, command):
     else:
         if command:
             click.echo("The command will be ignored since the action is not set to command.")
+    if action == "ansible":
+        if not playbook:
+            click.echo("No ansible specified.")
+            return
     nodes_list = filter_cmd(ctx,nodes, fields)
     if not nodes_list:
         click.echo("No nodes found.")
@@ -78,6 +87,10 @@ def reconfigure(ctx, nodes, fields, action, command):
     if action == "custom":
         logger.info("Running Ansible custom role on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
         command_to_run="/config/bin/custom_ansible.sh custom"
+        run_command(nodes_list,command_to_run)
+    if action == "ansible":
+        logger.info(f"Running Ansible role {playbook} on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        command_to_run=f"/config/bin/custom_ansible.sh {playbook}"
         run_command(nodes_list,command_to_run)
     if action == "command":
         logger.info("Running command on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))

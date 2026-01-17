@@ -408,7 +408,7 @@ def get_nodes_with_latest_healthchecks():
         )
         return query_with_global_rec
 
-def get_terminated_nodes_with_latest_healthchecks():
+def get_terminated_nodes_with_latest_healthchecks(delay=None):
     """
     Return TERMINATED nodes with their latest aggregated healthchecks.
 
@@ -455,8 +455,14 @@ def get_terminated_nodes_with_latest_healthchecks():
             ))
             .group_by(TerminatedNodes.ocid)
         )
-
+        if delay is not None:
+            cutoff_time = datetime.now() - timedelta(minutes=int(delay))
+            query = query.filter(
+                cast(TerminatedNodes.terminated_time, DateTime) >= cutoff_time
+            )
         base_subq = query.subquery()
+
+
 
         return session.query(
             base_subq,
