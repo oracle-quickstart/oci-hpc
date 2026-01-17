@@ -21,7 +21,7 @@
     group: opc
   register: opc_directory
 
-- name: copy opc/ dir
+- name: Copy opc/ dir
   command: "cp -rpT /home/opc {{ tmp_home }}{% if create_fss != 'new' %}/home{% endif %}/opc"
   when: opc_directory.changed
 

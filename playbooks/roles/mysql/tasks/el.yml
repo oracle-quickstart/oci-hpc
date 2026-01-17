@@ -101,7 +101,7 @@
     backup: true
   notify: Restart mysqld
 
-- name: create configuration directory
+- name: Create configuration directory
   become: true
   file:
     path: /etc/my.cnf.d/
@@ -130,27 +130,27 @@
 
     - meta: flush_handlers
 
-    - name: get root password
+    - name: Get root password
       shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
       register: m_root_password
 
-    - name: check if DB exists
+    - name: Check if DB exists
       shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
       register: dbstatus
       ignore_errors: true
       no_log: true
 
     - block:
-        - name: fix user password
+        - name: Fix user password
           command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{
             m_root_password.stdout }}';"
           when: dbstatus.rc != 0
 
-        - name: fix password policy
+        - name: Fix password policy
           command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
           when: dbstatus.rc != 0
 
-        - name: update expired root user password
+        - name: Update expired root user password
           command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY
             '{{ mysql_root_pwd }}';"
           when: dbstatus.rc != 0
@@ -166,22 +166,22 @@
             check_implicit_admin: true
             state: present
 
-        - name: check if DB exists
+        - name: Check if DB exists
           shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
           register: dbstatus
           ignore_errors: true
           no_log: true
 
-        - name: fix user password
+        - name: Fix user password
           command: mysql --user root -p'{{ mysql_root_pwd }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{
             mysql_root_pwd }}';"
           when: dbstatus.rc != 0
 
-        - name: fix password policy
+        - name: Fix password policy
           command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
           when: dbstatus.rc != 0
 
-        - name: update expired root user password
+        - name: Update expired root user password
           command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{
             mysql_root_pwd }}';"
           when: dbstatus.rc != 0

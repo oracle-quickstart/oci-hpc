@@ -12,14 +12,14 @@
     target: '{{ nodes["nodes"][0] }}'
   register: target
 
-- name: create local storage directory
+- name: Create local storage directory
   file:
     path: "{{ local_path }}"
     state: directory
     owner: debian
     group: debian
 
-- name: create a filesystem
+- name: Create a filesystem
   filesystem:
     dev: '{{ target["devicenodes"][0] }}'
     fstype: ext4

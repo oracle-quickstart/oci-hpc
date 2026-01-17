@@ -78,7 +78,7 @@
       until: result is not failed
       when: download_path == '/tmp'
 
-- name: untar Lustre client DKMS file in the shared directory created above
+- name: Untar Lustre client DKMS file in the shared directory created above
   unarchive:
     src: "{{ download_path }}/OL8-Lustre-client-dkms/OL8-Lustre-client-dkms.tgz"
     dest: "{{ download_path }}/OL8-Lustre-client-dkms"
@@ -86,7 +86,7 @@
   run_once: true
   when: download_path != '/tmp' and lustre_installed.rc != 0
 
-- name: untar Lustre client DKMS file in the local directory created above
+- name: Untar Lustre client DKMS file in the local directory created above
   unarchive:
     src: "{{ download_path }}/OL8-Lustre-client-dkms/OL8-Lustre-client-dkms.tgz"
     dest: "{{ download_path }}/OL8-Lustre-client-dkms"

@@ -115,7 +115,7 @@
   register: vnic_number
   when: shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex"
 
-- name: attach secondary vnic
+- name: Attach secondary vnic
   shell: "export LC_ALL=C.UTF-8;export LANG=C.UTF-8; oci compute instance attach-vnic --instance-id {{ instance_metadata.json.id }} --vnic-display-name 'weka' --subnet-id
     {{ secondary_vnic_subnet }} --auth instance_principal"
   when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and vnic_number.stdout | int < 2

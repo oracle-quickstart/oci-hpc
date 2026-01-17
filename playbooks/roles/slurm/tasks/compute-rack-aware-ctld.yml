@@ -67,7 +67,7 @@
       with_items: "{{ hostnames_list }}"
       run_once: true
 
-    - name: create an empty rem_racks_dict list
+    - name: Create an empty rem_racks_dict list
       ansible.builtin.set_fact:
         rem_racks_dict: "{{ rem_racks_dict | default({}) }}"
       run_once: true
@@ -125,7 +125,7 @@
       with_items: "{{ hostnames_list }}"
       run_once: true
 
-    - name: create an empty rem_nb_dict list
+    - name: Create an empty rem_nb_dict list
       ansible.builtin.set_fact:
         rem_nb_dict: "{{ rem_nb_dict | default({}) }}"
       run_once: true
@@ -183,7 +183,7 @@
       with_items: "{{ hostnames_list }}"
       run_once: true
 
-    - name: create an empty rem_cluster_dict
+    - name: Create an empty rem_cluster_dict
       ansible.builtin.set_fact:
         rem_cluster_dict: "{{ rem_cluster_dict | default({}) }}"
       run_once: true
@@ -279,55 +279,55 @@
       run_once: true
       ignore_errors: true
 
-    - name: debug hostnames_list
+    - name: Debug hostnames_list
       ansible.builtin.debug:
         var: hostnames_list
 
-    - name: debug rem_switchnames
+    - name: Debug rem_switchnames
       ansible.builtin.debug:
         var: rem_switchnames
 
-    - name: debug switchname_to_remove
+    - name: Debug switchname_to_remove
       ansible.builtin.debug:
         var: switchname_to_remove
 
-    - name: debug rem_racks_dict
+    - name: Debug rem_racks_dict
       ansible.builtin.debug:
         var: rem_racks_dict
 
-    - name: debug rem_networkblocknames
+    - name: Debug rem_networkblocknames
       ansible.builtin.debug:
         var: rem_networkblocknames
 
-    - name: debug rem_networkblocknames_to_remove
+    - name: Debug rem_networkblocknames_to_remove
       ansible.builtin.debug:
         var: rem_networkblocknames_to_remove
 
-    - name: debug rem_nb_dict
+    - name: Debug rem_nb_dict
       ansible.builtin.debug:
         var: rem_nb_dict
 
-    - name: debug rem_clusternames
+    - name: Debug rem_clusternames
       ansible.builtin.debug:
         var: rem_clusternames
 
-    - name: debug rem_cluster_dict
+    - name: Debug rem_cluster_dict
       ansible.builtin.debug:
         var: rem_cluster_dict
 
-    - name: debug nbs_on_cluster_dict_condensed
+    - name: Debug nbs_on_cluster_dict_condensed
       ansible.builtin.debug:
         var: nbs_on_cluster_dict_condensed
 
-    - name: debug racks_on_nb_condensed
+    - name: Debug racks_on_nb_condensed
       ansible.builtin.debug:
         var: racks_on_nb_condensed
 
-    - name: debug clusternames_to_remove
+    - name: Debug clusternames_to_remove
       ansible.builtin.debug:
         var: clusternames_to_remove
 
-    - name: debug rem_nodes_on_switch_condensed
+    - name: Debug rem_nodes_on_switch_condensed
       ansible.builtin.debug:
         var: rem_nodes_on_switch_condensed
 
@@ -515,7 +515,7 @@
       delegate_to: 127.0.0.1
       when: item.item.item.rc > 0
 
-    - name: debug nodes_on_switches
+    - name: Debug nodes_on_switches
       ansible.builtin.debug:
         var: nodes_on_switches
 
@@ -533,7 +533,7 @@
 
 # Add the racks in the NetworkBlock.
 
-    - name: debug nb_dict
+    - name: Debug nb_dict
       ansible.builtin.debug:
         var: nb_dict
 
@@ -545,12 +545,12 @@
       with_items: "{{ nb_dict.keys() }}"
       ignore_errors: true
 
-    - name: create empty nbs_on_cluster_dict
+    - name: Create empty nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: {}
       run_once: true
 
-    - name: create nbs_on_cluster_dict
+    - name: Create nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union(nb_dict[item.item]
           | list | unique)}) }}"
@@ -558,21 +558,21 @@
       run_once: true
       when: item.rc == 0
 
-    - name: create nbs_on_cluster_dict
+    - name: Create nbs_on_cluster_dict
       ansible.builtin.debug:
         msg: "{{ nb_dict[item.item] }}"
       with_items: "{{ racks_in_nb.results }}"
       run_once: true
       when: item.rc > 0
 
-    - name: create nbs_on_cluster_dict
+    - name: Create nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: nb_dict[item.item] | list | unique}) }}"
       with_items: "{{ racks_in_nb.results }}"
       run_once: true
       when: item.rc > 0
 
-    - name: debug nbs_on_cluster_dict
+    - name: Debug nbs_on_cluster_dict
       ansible.builtin.debug:
         var: nbs_on_cluster_dict
 
@@ -598,26 +598,26 @@
       with_items: "{{ cluster_dict.keys() }}"
       ignore_errors: true
 
-    - name: create empty nbs_on_cluster_dict
+    - name: Create empty nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: {}
       run_once: true
 
-    - name: create nbs_on_cluster_dict
+    - name: Create nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: item.stdout.split('Switches=')[1].split(',') | list | default([]) | union(cluster_dict[item.item] | list | unique)}) }}"
       with_items: "{{ nb_in_cluster.results }}"
       run_once: true
       when: item.rc == 0
 
-    - name: create nbs_on_cluster_dict
+    - name: Create nbs_on_cluster_dict
       ansible.builtin.set_fact:
         nbs_on_cluster_dict: "{{ nbs_on_cluster_dict | combine({item.item: cluster_dict[item.item] | list | unique}) }}"
       with_items: "{{ nb_in_cluster.results }}"
       run_once: true
       when: item.rc > 0
 
-    - name: debug nbs_on_cluster_dict
+    - name: Debug nbs_on_cluster_dict
       ansible.builtin.debug:
         var: nbs_on_cluster_dict
 

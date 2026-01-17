@@ -1,5 +1,5 @@
 ---
-- name: install sssd
+- name: Install sssd
   vars:
     package_name:
       - sssd

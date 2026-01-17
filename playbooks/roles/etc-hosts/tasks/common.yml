@@ -1,5 +1,5 @@
 ---
-- name: create controller part of the /etc/hosts files for the compute nodes
+- name: Create controller part of the /etc/hosts files for the compute nodes
   blockinfile:
     dest: /tmp/hosts.etc.{{ cluster_name }}
     content: "{{ lookup('template', 'templates/etc-hosts-controller.j2') }}"
@@ -9,7 +9,7 @@
   delegate_to: 127.0.0.1
   run_once: true
 
-- name: create controller part of the /etc/hosts files for the controller
+- name: Create controller part of the /etc/hosts files for the controller
   blockinfile:
     dest: /etc/hosts
     content: "{{ lookup('template', 'templates/etc-hosts-controller.j2') }}"
@@ -19,7 +19,7 @@
   delegate_to: 127.0.0.1
   run_once: true
 
-- name: move /etc/hosts on backup slurm, login node and monitoring node
+- name: Move /etc/hosts on backup slurm, login node and monitoring node
   become: true
   copy:
     dest: /etc/hosts

@@ -1,6 +1,6 @@
 ---
 
-- name: check if Lustre in installed
+- name: Check if Lustre in installed
   shell: "dpkg -l | grep lustre"
   register: lustre_installed
   ignore_errors: true

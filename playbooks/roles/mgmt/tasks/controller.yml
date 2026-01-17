@@ -105,7 +105,7 @@
     mode: "0775"
   run_once: true
 
-- name: import the initial_configs into the DB
+- name: Import the initial_configs into the DB
   shell: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py configurations create from-file --file /config/conf/initial_configs.conf"
 
 - name: Ensure logrotate package is installed

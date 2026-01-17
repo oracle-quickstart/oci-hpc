@@ -5,7 +5,7 @@
     mode: "0755"
     path: /etc/opt/oci-hpc
 
-- name: create rdma hostfile
+- name: Create rdma hostfile
   template:
     src: templates/hostfile_rdma.j2
     dest: /etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}
@@ -16,7 +16,7 @@
   run_once: true
   when: rdma_enabled|bool
 
-- name: create tcp hostfile
+- name: Create tcp hostfile
   template:
     src: templates/hostfile_tcp.j2
     dest: /etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}

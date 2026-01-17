@@ -1,5 +1,5 @@
 ---
-- name: install required packages
+- name: Install required packages
   vars:
     package_name:
       - python3-click
@@ -8,7 +8,7 @@
   include_role:
     name: safe_yum
 
-- name: copy cluster cli
+- name: Copy cluster cli
   template:
     src: cluster.j2
     dest: /usr/bin/cluster

@@ -3,10 +3,12 @@
   become: true
   gather_facts: true
   tasks:
-    - ansible.builtin.include_role:
+    - name: Change hostname
+      ansible.builtin.include_role:
         name: hostname
       when: change_hostname | default(false) | bool
-    - ansible.builtin.include_role:
+    - name: Disable daily updates on Ubuntu, "hold" kernel, fix broken packages
+      ansible.builtin.include_role:
         name: fix_broken
       when: ansible_facts['os_family'] == 'Debian'
 
@@ -38,36 +40,43 @@
   vars:
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
-    - ansible.builtin.include_role:
+    - name: Configure local NVMe drives
+      ansible.builtin.include_role:
         name: localdisk
       when: localdisk | default(true) | bool
-    - ansible.builtin.include_role:
+    - name: Load the nvidia_peermem kernel module
+      ansible.builtin.include_role:
         name: nvidia_peermem
-    - ansible.builtin.include_role:
+    - name: Install health check scripts
+      ansible.builtin.include_role:
         name: healthchecks
 
 # New role to clean old tmp dir files
 - hosts: all
   become: true
   tasks:
-    - include_role:
+    - name: Install systemd service to clean tmp
+      ansible.builtin.include_role:
         name: clean_tmp
 
 - hosts: localhost
   become: true
   gather_facts: true
   tasks:
-    - ansible.builtin.include_role:
+    - name: Install the hyperthreading controlling service
+      ansible.builtin.include_role:
         name: hyperthreading
       when: not hyperthreading | default(true) | bool
 
 - hosts: localhost
   become: true
   tasks:
-    - ansible.builtin.include_role:
+    - name: Enable NFS home directories in SELinux
+      ansible.builtin.include_role:
         name: home_nfs
       when: shared_home != "none"
-    - ansible.builtin.include_role:
+    - name: Configure shared home directories via NFS
+      ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "/home"
@@ -76,7 +85,8 @@
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: shared_home == "nfs"
-    - ansible.builtin.include_role:
+    - name: Configure shared home directories via FSS
+      ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "/home"
@@ -85,7 +95,8 @@
         options: ""
         lock: "none"
       when: shared_home == "fss"
-    - ansible.builtin.include_role:
+    - name: Configure the generic NFS client
+      ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "{{ nfs_target_path }}"
@@ -98,7 +109,8 @@
 - hosts: localhost
   become: true
   tasks:
-    - include_role:
+    - name: Set up the Systems Security Services Demon
+      include_role:
         name: sssd
       when: ldap | default(true) | bool
 
@@ -150,7 +162,8 @@
   become: true
   gather_facts: true
   tasks:
-    - ansible.builtin.include_role:
+    - name: Run custom test role
+      ansible.builtin.include_role:
         name: custom
 
 - hosts: localhost
@@ -160,15 +173,19 @@
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: true
   tasks:
-    - ansible.builtin.include_role:
+    - name: Install rack aware helper scripts
+      ansible.builtin.include_role:
         name: rack-aware
-    - ansible.builtin.include_role:
+    - name: Set up Spack
+      ansible.builtin.include_role:
         name: spack
       when: spack | default(false) | bool
-    - ansible.builtin.include_role:
+    - name: Set up SLURM
+      ansible.builtin.include_role:
         name: slurm
       when: slurm | default(false) | bool
-    - ansible.builtin.include_role:
+    - name: Install metrics exporter
+      ansible.builtin.include_role:
         name: metrics-exporter
       when: cluster_monitoring | default(false) | bool
 

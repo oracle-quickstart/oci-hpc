@@ -132,7 +132,7 @@
         name: ["ldap3", "click"]
         executable: /usr/bin/pip3
 
-    - name: update /etc/openldap/ldap.conf
+    - name: Update /etc/openldap/ldap.conf
       lineinfile:
         dest: /etc/openldap/ldap.conf
         line: TLS_REQSAN allow

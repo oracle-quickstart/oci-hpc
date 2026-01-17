@@ -46,17 +46,17 @@
     rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerNetworkBlock': 'None'}}, recursive=True) }}"
   when: "not 'customerNetworkBlock' in rdma_metadata['rdmaTopologyData']"
 
-- name: set topology var
+- name: Set topology var
   ansible.builtin.set_fact:
     topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerLocalBlock'][-40:] }}"
   when: "'GPU.H' in shape"
 
-- name: set topology var
+- name: Set topology var
   ansible.builtin.set_fact:
     topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'][-40:] }}"
   when: "'GPU.GB' in shape"
 
-- name: set topology var
+- name: Set topology var
   ansible.builtin.set_fact:
     topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rackId'][-40:] }}"
   when: "not 'GPU.GB' in shape and not 'GPU.H' in shape"
@@ -187,7 +187,7 @@
     - rdma_enabled | bool
     - (reservation is defined and reservation.rc == 0) or (create_reservation is defined and create_reservation.rc != 0)
 
-- name: test the node
+- name: Test the node
   ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ ansible_facts['hostname'] }} hostname"
   ignore_errors: true
   register: test_result
@@ -204,7 +204,7 @@
   delay: 5
   when: not ('GPU' in shape and rdma_enabled | bool)
 
-- name: test the node
+- name: Test the node
   ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ ansible_facts['hostname'] }} hostname"
   ignore_errors: true
   register: test_result

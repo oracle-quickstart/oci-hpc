@@ -9,7 +9,7 @@
     path: /sbin/oci-rdma-configure
   register: new_image
 
-- name: detect shape
+- name: Detect shape
   uri:
     url: http://169.254.169.254/opc/v2/instance/
     method: GET
@@ -42,11 +42,11 @@
     enabled: true
   when: new_image.stat.exists
 
-- name: set fact
+- name: Set fact
   set_fact:
     instance_metadata: "{{ i_metadata['content'] | from_json }}"
 
-- name: detect mellanox interfaces
+- name: Detect mellanox interfaces
   set_fact:
     ansible_mlx: "{% set ansible_mlx = ansible_mlx | default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx | list }}"
   when: ( rdma_pci_ids[instance_metadata['shape']] is defined ) and ( hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' ) and (
@@ -54,7 +54,7 @@
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] | sort }}"
 
-- name: create interface files
+- name: Create interface files
   register: rdma_interface
   template:
     src: interface.j2
@@ -65,7 +65,7 @@
   loop_control:
     index_var: index
 
-- name: restart_interface
+- name: Restart interface
   command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
   when: ( ansible_mlx is defined ) and ( item.changed|default(false) ) and ( not new_image.stat.exists )
   with_items: "{{ rdma_interface['results'] }}"

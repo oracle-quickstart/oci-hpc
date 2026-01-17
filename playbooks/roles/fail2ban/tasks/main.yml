@@ -28,7 +28,7 @@
       port    = ssh
       logpath = %(sshd_log)s
   notify:
-    - restart fail2ban
+    - Restart fail2ban
 
 - name: Ensure fail2ban is enabled and started
   systemd:
@@ -45,4 +45,4 @@
     line: "MaxStartups {{ sshd_maxstartups }}"
     state: present
   notify:
-    - reload ssh
+    - Reload ssh

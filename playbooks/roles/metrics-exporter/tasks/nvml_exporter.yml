@@ -50,7 +50,7 @@
     group: "{{ ansible_user }}"
     mode: "0744"
 
-- name: start nvml exporter
+- name: Start nvml exporter
   become: true
   service:
     name: nvml-exporter

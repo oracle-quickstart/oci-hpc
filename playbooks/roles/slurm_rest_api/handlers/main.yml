@@ -1,19 +1,19 @@
 ---
-- name: restart slurmctld
+- name: Restart slurmctld
   service:
     name: "{{ slurmctld_service }}"
     state: restarted
     daemon_reload: true
     enabled: true
 
-- name: restart slurmdbd
+- name: Restart slurmdbd
   service:
     name: "{{ slurmdbd_service }}"
     state: restarted
     daemon_reload: true
     enabled: true
 
-- name: restart slurmrestd
+- name: Restart slurmrestd
   service:
     name: "{{ slurmrestd_service }}"
     state: restarted

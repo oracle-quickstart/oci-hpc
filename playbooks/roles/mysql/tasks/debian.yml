@@ -54,7 +54,7 @@
     backup: true
   notify: Restart mariadb
 
-- name: create configuration directory
+- name: Create configuration directory
   become: true
   file:
     path: /etc/my.cnf.d/

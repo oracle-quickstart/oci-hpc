@@ -16,11 +16,11 @@
   register: result
   until: result is not failed
 
-- name: untar yq
+- name: Untar yq
   unarchive:
     src: "/tmp/yq_linux_{{ deb_architecture }}.tar.gz"
     dest: "/tmp"
-- name: move
+- name: Move yq
   become: true
   copy:
     src: "/tmp/yq_linux_{{ deb_architecture }}"

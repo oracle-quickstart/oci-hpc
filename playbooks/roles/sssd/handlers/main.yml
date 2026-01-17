@@ -14,7 +14,7 @@
     state: restarted
     enabled: true
 
-- name: restart_systemd_logind
+- name: Restart systemd_logind
   listen: Restart login services
   service:
     name: systemd-logind

@@ -1,10 +1,10 @@
 ---
-- name: restart fail2ban
+- name: Restart fail2ban
   systemd:
     name: fail2ban
     state: restarted
 
-- name: reload ssh
+- name: Reload ssh
   systemd:
     name: ssh
     state: reloaded
