@@ -97,8 +97,8 @@ def get_devices():
         "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
         "BM.GPU.GB200.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
         "BM.GPU.GB200-v2.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
-        "BM.GPU.GB200-v3.4": ["mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"],
-        "BM.GPU.GB300.4": ["mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"],
+        "BM.GPU.GB200-v3.4": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8"],
+        "BM.GPU.GB300.4": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8"],
         "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
@@ -318,11 +318,11 @@ def check_oca_status(log_state=False):
     except FileNotFoundError:
         if log_state:
             logger.error("oci-hpc-rdma-configure.json not found.")
-            return "Not Started"
+        return "Not Started"
     except json.JSONDecodeError:
         if log_state:
             logger.error("Failed to parse oci-hpc-rdma-configure.json.")
-            return "Not Started"
+        return "Not Started"
 # 2.1 Check if the Oracle Cloud Agent is installed and up-to-date
 def get_oca_version():
     # Run the shell command
@@ -1329,6 +1329,10 @@ if __name__ == '__main__':
     # Run everything if no arguments are provided
     run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool) and arg not in ('log_level', 'dry_run')) or args.slurm
 
+    # Initialize oca_state with default value for GB shapes (OCA check is skipped for these)
+    if "GPU.GB" in shape:
+        oca_state = "COMPLETED"
+
     # 1.3 Check OCA Status
     if (run_all or args.oca_stat) and (not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
         try:
@@ -1352,11 +1356,13 @@ if __name__ == '__main__':
     # 3.3 Check for RTTCC Issues (only if OCA status is COMPLETED)
     rttcc_issues = []
     if run_all or args.rttcc_stat:
-        try:
-            oca_state = check_oca_status(log_state=False)  # Retrieve OCA state only when needed
-        except Exception as e:
-            logger.warning(f"Failed to check OCA state with error: {e}")
-            oca_state = "NOT STARTED"
+        # Only check OCA status for non-GB shapes (GB shapes skip OCA and use default COMPLETED)
+        if not "GPU.GB" in shape:
+            try:
+                oca_state = check_oca_status(log_state=False)  # Retrieve OCA state only when needed
+            except Exception as e:
+                logger.warning(f"Failed to check OCA state with error: {e}")
+                oca_state = "NOT STARTED"
 
         if oca_state == "COMPLETED":
             try:
