@@ -91,6 +91,8 @@
     package_name:
       - python3-psutil
       - python3-distro
+      - nvme-cli
+      - fio
     package_state: latest
   ansible.builtin.include_role:
     name: safe_yum
