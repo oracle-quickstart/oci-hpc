@@ -30,6 +30,7 @@ This is a Health Check script which covered below in order:
 17. Check if all interfaces have an IP address
 18. Check NVLinks speeds
 19. Run dcgmi health check
+20. Run rocminfo check (AMD GPUs)
 
 ===========================================================================================
 Usage:
@@ -1272,6 +1273,37 @@ def run_dcgmi_health():
     except subprocess.CalledProcessError:
         logger.warning("Error running dcgmi health check or parsing JSON (is jq installed?).")
         return True
+    
+# 20.1 Run rocminfo check
+def run_rocminfo_check():
+    try:
+        # Run 'rocminfo' and capture stdout as text
+        result = subprocess.run(["rocminfo"], capture_output=True, text=True, check=True, timeout=10)
+        output_lines = result.stdout.strip().splitlines()
+        
+        # Check if the output has more than 100 lines
+        if len(output_lines) < 101:
+            logger.error("rocminfo output length is not as expected")
+            return False  
+        # Check if the last line is *** Done ***
+        if output_lines[-1] != '*** Done ***':
+            logger.error("Last line is not '*** Done ***'. rocminfo output is not as expected")
+            return False  
+        # Check for presence of "HSA Agents" (case-sensitive)
+        if any("HSA Agents" in line for line in output_lines):
+            return True
+        else:
+            logger.error("'HSA Agents' not found in rocminfo output. rocminfo output is not as expected")
+            return False
+    except FileNotFoundError:
+        logger.error("rocminfo is not installed or not in PATH")
+        return False
+    except subprocess.CalledProcessError as e:
+        logger.error(f"rocminfo execution failed: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"rocminfo health check unexpected error: {str(e)}")
+        return False
 
 #Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
@@ -1304,6 +1336,7 @@ if __name__ == '__main__':
     parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have an IP address')
     parser.add_argument('--nvlink-speed', action='store_true', help='Check NVLinks speeds')
     parser.add_argument('--dcgmi-health', action='store_true', help='Run dcgmi health check')
+    parser.add_argument('--rocminfo-check', action='store_true', help='Run rocminfo check')
 
     args = parser.parse_args()
     metadata = get_metadata()
@@ -1542,6 +1575,19 @@ if __name__ == '__main__':
         else:
             dcgmi_health_check = True
 
+    # 20.3 Validate rocminfo is valid or not
+    if run_all or args.rocminfo_check:
+        if "BM.GPU.MI" in shape:
+            try:
+                rocminfo_check = run_rocminfo_check()
+            except Exception as e:
+                logger.warning(f"Failed to run rocminfo health check with error: {e}")
+                rocminfo_check = True
+            if rocminfo_check:
+                logger.info("rocminfo health check: Passed")
+        else:
+            rocminfo_check = True
+
 #Section 4: Summarize the results and recommend actions.
 ########################################################
 
@@ -1631,11 +1677,11 @@ if __name__ == '__main__':
     if run_all or args.rdmalink_stat:
         if len(rdma_link_issues) > 0:
             for issue in rdma_link_issues:
-                logger.warning(f"{host_serial} - RDMA link issues: {issue}")
-                #slurm_reason("RDMA Link Error")
+                logger.error(f"{host_serial} - RDMA link issues: {issue}")
+                slurm_reason("RDMA Link Error")
                 if "signal not detected" in issue:
                     logger.info("No signal detected doesn't always come from a bad cable and require a termination for investigation")
-                #action = recommended_action(action, "Terminate")
+                action = recommended_action(action, "Terminate")
 
     # 11.4 Summarize RDMA link flapping check
     if run_all or args.rdmalink_flap:
@@ -1645,15 +1691,15 @@ if __name__ == '__main__':
               logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
            elif len(lft_issues["failures"]) > 1:
               for issue in lft_issues["failures"]:
-                  logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
-                  #slurm_reason("RDMA Link Flapping Error")
+                  logger.error(f"{host_serial} - RDMA link flapping issues: {issue}")
+                  slurm_reason("RDMA Link Flapping Error")
            if len(lft_issues["link_down"]) == 1:
               issue = lft_issues["link_down"][0]
               logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
            elif len(lft_issues["link_down"]) > 1:
               for issue in lft_issues["link_down"]:
-                  logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
-                  #slurm_reason("RDMA Link Down Error")
+                  logger.error(f"{host_serial} - RDMA link down issues: {issue}")
+                  slurm_reason("RDMA Link Down Error")
 
     # 12.4 Summarize GPU Xid errors check
     if run_all or args.xid_err:
@@ -1754,6 +1800,13 @@ if __name__ == '__main__':
         if not dcgmi_health_check:
             logger.error(f"{host_serial} - dcgmi health check failed. Run `dcgmi health -c` to get full output.")
             slurm_reason("dcgmi health check failed")
+            action = recommended_action(action, "Reboot")
+
+    # 20.4 Summarize rocminfo health check
+    if run_all or args.rocminfo_check:
+        if not rocminfo_check:
+            logger.error(f"{host_serial} - rocminfo health check failed")
+            slurm_reason("rocminfo health check failed")
             action = recommended_action(action, "Reboot")
 
     # Print recommended action and slurm message
