@@ -137,14 +137,16 @@
         - name: Set up Enroot
           ansible.builtin.include_role:
             name: nvidia-enroot
-    - ansible.builtin.include_role:
+    - name: Add nccl-conf role for RDMA clusters
+      ansible.builtin.include_role:
         name: nccl-conf
       when: rdma_enabled | bool
 
 - hosts: localhost
   become: true
   tasks:
-    - include_role:
+    - name: Add lustre-client when LFS is added to the cluster
+      ansible.builtin.include_role:
         name: lustre-client
         apply:
           environment:

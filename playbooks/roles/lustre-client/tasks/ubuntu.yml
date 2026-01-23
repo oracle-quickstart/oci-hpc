@@ -34,10 +34,10 @@
     dest: /etc/modprobe.d/lnet.conf
     regexp: '^options lnet networks='
     line: "options lnet networks={{ (lnet_protocol | split('@'))[1] }}({{ ansible_facts['default_ipv4']['interface'] }})"
-    create: yes
+    create: true
     state: present
     mode: '0644'
-    
+
 - name: Create Lustre mount directory
   become: true
   file:

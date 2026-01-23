@@ -33,7 +33,7 @@ locals {
   // controller_subnet_id = var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
   controller_subnet_id = var.private_deployment ? var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0) : var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
 
-  cluster_name = var.use_custom_name ? var.cluster_name : random_pet.name.id
+  cluster_name = var.use_custom_name ? lower(var.cluster_name) : random_pet.name.id
 
   controller_image = var.use_marketplace_image_controller ? oci_core_app_catalog_subscription.controller_mp_image_subscription[0].listing_resource_id : local.custom_controller_image_ocid
 

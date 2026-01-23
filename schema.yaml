@@ -288,7 +288,8 @@ variables:
 
   cluster_name:
     title: "Cluster name"
-    description: "Custom cluster name."
+    description: "The custom cluster name must be lower case letters, digits and - only."
+    pattern: "^[-a-z0-9]+$"
     default: ""
     type: string
     visible:

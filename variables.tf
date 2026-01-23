@@ -44,8 +44,12 @@ variable "use_custom_name" {
   type    = bool
 }
 variable "cluster_name" {
-  default = ""
+  default = "custom-cluster-name-123"
   type    = string
+  validation {
+    condition     = can(regex("^[-a-z0-9]+$", var.cluster_name))
+    error_message = "The name of the cluster (must be lower case letters, digits and -)."
+  }
 }
 variable "controller_ad" {
   type = string
