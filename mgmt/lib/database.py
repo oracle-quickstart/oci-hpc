@@ -110,6 +110,7 @@ class Configurations(Base):
     name = mapped_column(String(64), unique=True, nullable=False)
     role = mapped_column(Enum('compute', 'login'), nullable=False)
     partition = mapped_column(String(64), nullable=False)
+    default_partition = mapped_column(Boolean, default=True, nullable=False)
     shape = mapped_column(String(64), nullable=False)
     change_hostname = mapped_column(Boolean, default=True, nullable=False)
     hostname_convention = mapped_column(String(64), nullable=True)
@@ -1227,6 +1228,7 @@ def db_duplicate_configuration(old_configuration_name, new_configuration_name):
         columns = {c.key for c in inspect(Configurations).mapper.column_attrs} - {'id', 'name'}
         data = {col: getattr(original, col) for col in columns}
         data['name'] = new_configuration_name  # set new name
+        data['default_partition'] = False
 
         # Create and add the new configuration
         new_config = Configurations(**data)
@@ -1293,7 +1295,7 @@ def db_delete_configuration(configuration_name):
         ).first()
 
         if not configuration:
-            logger.warning(f"No node found with OCID: {configuration_name}")
+            logger.warning(f"No configuration found with name: {configuration_name}")
             return False
         session.delete(configuration)
         session.commit()
@@ -1321,6 +1323,7 @@ def db_import_configuration(filename):
                 config = Configurations(
                     role="compute",
                     name=instance.get("name"),
+                    default_partition =  queue.get("default"),
                     partition=queue.get("name"),  # using queue name as partition
                     shape=instance.get("shape"),
                     change_hostname=instance.get("change_hostname", True),
@@ -1357,6 +1360,7 @@ def db_import_configuration(filename):
             config = Configurations(
                 role="login",
                 name=login.get("name"),
+                default_partition =  queue.get("default"),
                 partition=login.get("partition"),
                 shape=login.get("shape"),
                 change_hostname=login.get("change_hostname", True),

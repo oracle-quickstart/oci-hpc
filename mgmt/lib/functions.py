@@ -6,7 +6,8 @@ from lib.database import get_all_nodes, db_update_node, get_controller_node, db_
 
 import subprocess
 import ipaddress
-
+from typing import List
+import os
 import sys
 import json
 import time
@@ -487,3 +488,202 @@ def remove_reservation(nodes):
     else:
         logger.debug("No nodes found to remove reservation")
         
+def generate_slurm_entries(configs) -> List[str]:
+    """Generate Nodeset and PartitionName entries from database configs."""
+    entries = []
+    partitions={}
+    for config in configs:
+        # Add Nodeset entry
+        entries.append(f"Nodeset={config.name} Feature={config.name}")
+        
+        if config.partition in partitions:
+            partitions[config.partition]["name"].append(config.name)
+        else:
+            partitions[config.partition] = {"name":[config.name], "default": "NO"}
+        # Add PartitionName entry
+        if config.default_partition:
+            partitions[config.partition]["default"] = "YES"
+
+            # Special handling for default partition
+    for key in partitions:
+        PartitionName = key
+        Nodes = ",".join(partitions[key]["name"])
+        default = partitions[key]["default"]
+        entries.append(f"PartitionName={PartitionName} Nodes={Nodes} Default={default}")
+    
+    return entries
+
+def read_slurm_conf(filepath='/etc/slurm/slurm.conf'):
+    """Read slurm.conf and separate managed and unmanaged lines."""
+    managed_keywords = ["Nodeset", "PartitionName"]
+    ignored_lines = [
+        "PartitionName=compute-healthcheck Nodes=default Default=NO PriorityTier=0"
+    ]
+    
+    unmanaged_lines = []
+    existing_managed_lines = []
+    
+    with open(filepath, 'r') as f:
+        for line in f:
+            stripped = line.rstrip('\n')
+            
+            # Check if it's an ignored line (keep it as unmanaged)
+            if stripped.strip() in ignored_lines:
+                unmanaged_lines.append(stripped)
+                continue
+            
+            # Check if it's a managed line
+            if any(stripped.strip().startswith(kw) for kw in managed_keywords):
+                existing_managed_lines.append(stripped.strip())
+                continue
+            
+            # Keep all other lines
+            unmanaged_lines.append(stripped)
+    
+    return unmanaged_lines, existing_managed_lines
+
+def write_slurm_conf(unmanaged_lines, managed_entries, filepath='/etc/slurm/slurm.conf', backup=True):
+    """Write updated slurm.conf with managed entries."""
+    
+    # Create backup
+    if backup and os.path.exists(filepath):
+        backup_path = f"{filepath}.backup"
+        subprocess.run(['cp', filepath, backup_path], check=True)
+        logger.info(f"Created backup at {backup_path}")
+    
+    # Remove the auto-generated comment if it already exists in unmanaged lines
+    marker_comment = '# Auto-generated entries from database'
+    unmanaged_lines = [line for line in unmanaged_lines if line.strip() != marker_comment.strip()]
+    
+    # Remove trailing empty lines from unmanaged content
+    while unmanaged_lines and not unmanaged_lines[-1].strip():
+        unmanaged_lines.pop()
+    
+    with open(filepath, 'w') as f:
+        # Write unmanaged lines first
+        for line in unmanaged_lines:
+            f.write(line + '\n')
+        
+        # Add a separator comment (only once)
+        f.write('\n' + marker_comment + '\n')
+        
+        # Write managed entries
+        for entry in managed_entries:
+            f.write(entry + '\n')
+
+def check_root_privileges():
+    """Check if the script is running as root and warn if not."""
+    if os.geteuid() != 0:
+        logger.warning("This script is not running as root")
+        logger.warning("Modifying files in /etc typically requires root privileges")
+        logger.warning("You may encounter permission errors")
+        
+        response = input("\nDo you want to continue anyway? (yes/no): ").strip().lower()
+        if response not in ['yes', 'y']:
+            logger.info("Operation cancelled by user")
+            return False
+    return True
+
+def sync_slurm_config(configs, slurm_conf_path='/etc/slurm/slurm.conf'):
+    """Synchronize database configs with slurm.conf."""
+    backup_path = f"{slurm_conf_path}.backup"
+    
+    # Check if modifying a file in /etc and warn if not root
+    if slurm_conf_path.startswith('/etc/') and not check_root_privileges():
+        return False
+    
+    try:
+        new_managed_entries = generate_slurm_entries(configs)
+        unmanaged_lines, existing_managed_lines = read_slurm_conf(slurm_conf_path)
+        
+        new_set = set(new_managed_entries)
+        existing_set = set(existing_managed_lines)
+        
+        if new_set == existing_set:
+            logger.info("No changes detected in slurm.conf - skipping update")
+            return True
+        
+        # Show changes
+        added = new_set - existing_set
+        removed = existing_set - new_set
+        
+        if added:
+            logger.info("Adding entries:")
+            for entry in added:
+                logger.info(f"  + {entry}")
+        
+        if removed:
+            logger.info("Removing entries:")
+            for entry in removed:
+                logger.info(f"  - {entry}")
+
+        # Write updated config (this creates a backup)
+        write_slurm_conf(unmanaged_lines, new_managed_entries, slurm_conf_path, backup=True)
+        
+        # Reconfigure slurmctld to pick up changes
+        logger.info("Running 'scontrol reconfigure'...")
+        result = subprocess.run(['scontrol', 'reconfigure'], 
+                               capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            logger.info("✓ Successfully synchronized slurm.conf and reconfigured slurmctld")
+            return True
+        else:
+            logger.error(f"scontrol reconfigure failed: {result.stderr}")
+            rollback_config(slurm_conf_path, backup_path)
+            return False
+            
+    except subprocess.TimeoutExpired:
+        logger.error("scontrol reconfigure timed out")
+        rollback_config(slurm_conf_path, backup_path)
+        return False
+    except PermissionError as e:
+        logger.error(f"Permission denied - {e}")
+        logger.error("This operation requires root privileges")
+        logger.error("Please run with: sudo python manage.py configurations sync-config")
+        return False
+    except Exception as e:
+        logger.error(f"Error synchronizing slurm config: {e}")
+        if os.path.exists(backup_path):
+            rollback_config(slurm_conf_path, backup_path)
+        return False
+
+def rollback_config(slurm_conf_path, backup_path):
+    """Rollback slurm.conf to backup and reconfigure slurmctld."""
+    try:
+        logger.warning("="*60)
+        logger.warning("ROLLBACK: Reverting to previous configuration")
+        logger.warning("="*60)
+        
+        if not os.path.exists(backup_path):
+            logger.error(f"Backup file not found: {backup_path}")
+            return False
+        
+        # Restore backup
+        logger.info(f"Restoring backup from: {backup_path}")
+        subprocess.run(['cp', backup_path, slurm_conf_path], check=True)
+        
+        # Reconfigure with old config
+        logger.info("Reconfiguring slurmctld with previous configuration...")
+        result = subprocess.run(['scontrol', 'reconfigure'], 
+                               capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            logger.info("✓ Successfully restored previous configuration")
+            logger.info("Please review the configuration changes and try again")
+            logger.info("Check slurmctld logs for details: journalctl -u slurmctld -n 50")
+            return True
+        else:
+            logger.error("Failed to reconfigure slurmctld even with backup configuration")
+            logger.error(f"Error: {result.stderr}")
+            logger.error("Manual intervention required. Check:")
+            logger.error("  - slurmctld logs: journalctl -u slurmctld -n 100")
+            logger.error("  - slurm.conf syntax: slurmctld -t")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        logger.error("scontrol reconfigure timed out during rollback")
+        return False
+    except Exception as e:
+        logger.error(f"Error during rollback: {e}")
+        return False

@@ -11,6 +11,7 @@ def print_config_info(configuration):
     table.add_row("name", str(configuration.name))
     table.add_row("role", str(configuration.role))
     table.add_row("partition", str(configuration.partition))
+    table.add_row("default_partition", str(configuration.default_partition))
     table.add_row("shape", str(configuration.shape))
     table.add_row("change_hostname", str(configuration.change_hostname))
     table.add_row("hostname_convention", str(configuration.hostname_convention))
@@ -39,6 +40,7 @@ def print_config_list(configurations, title):
     table.add_column("name", justify="left",no_wrap=True)
     table.add_column("role", justify="left")
     table.add_column("partition", justify="left")
+    table.add_column("default_partition", justify="left")
     table.add_column("shape", justify="left")
     table.add_column("hostname_convention", justify="left")
     table.add_column("permanent", justify="left")
@@ -70,6 +72,7 @@ def print_config_list(configurations, title):
         table.add_row(str(configuration.name), 
                       str(configuration.role), 
                       str(configuration.partition), 
+                      str(configuration.default_partition), 
                       str(configuration.shape), 
                       str(hostname_convention), 
                       str(configuration.permanent), 
@@ -125,7 +128,6 @@ def print_config_list_yaml_json(configurations,output_file=None,type="yaml"):
             "preemptible": config.preemptible
         }
         queues[config.partition].append(instance_type)
-
     yaml_queues = []
     for idx, (partition, instances) in enumerate(queues.items()):
         for i, inst in enumerate(instances):

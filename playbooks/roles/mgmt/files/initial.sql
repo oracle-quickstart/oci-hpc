@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS clusterDB.configurations (
     shape VARCHAR(64),
     role ENUM('compute', 'login'),
     change_hostname BOOLEAN,
+    default_partition BOOLEAN,
     hostname_convention VARCHAR(64),
     permanent BOOLEAN,
     rdma_enabled BOOLEAN,

@@ -16,7 +16,7 @@ def from_existing(configuration,name):
     if not success:
         click.echo(f"Could not duplicate the configuration with name {configuration}.")
         return
-
+    logger.warning(f"Configuration {name} has been created. Consider updating Slurm with 'mgmt configurations update-slurm' to sync slurmctld and the database")
 @create.command()       
 @click.option('--file', required=True, help='Name of the json or yaml file.')
 def from_file(file):
@@ -25,3 +25,4 @@ def from_file(file):
     if not success:
         click.echo(f"Could not duplicate the configuration from file {file}.")
         return
+    logger.warning(f"Configuration has been created from file {file}. Consider updating Slurm with 'mgmt configurations update-slurm' to sync slurmctld and the database")

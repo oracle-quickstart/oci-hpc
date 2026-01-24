@@ -10,3 +10,4 @@ def delete(configuration):
     if not success:
         click.echo(f"Could not delete the configuration with name {configuration}.")
         return
+    logger.warning(f"Configuration {configuration} has been deleted. Consider updating Slurm with 'mgmt configurations update-slurm' to sync slurmctld and the database")

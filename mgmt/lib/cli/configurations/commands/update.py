@@ -1,6 +1,6 @@
 import click
 from lib.database import db_update_configuration
-
+from lib.logger import logger
 
 @click.command()
 @click.option('--name', required=True, help='Name of the configuration to update')
@@ -29,3 +29,4 @@ def update(name, fields):
         field_dict[key] = new_value
 
     db_update_configuration(name, **field_dict)
+    logger.warning(f"Configuration {name} has been updated. Consider updating Slurm with 'mgmt configurations update-slurm' to sync slurmctld and the database")

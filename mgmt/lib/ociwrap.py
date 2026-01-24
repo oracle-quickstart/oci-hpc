@@ -910,6 +910,8 @@ def generate_inventory(config,cluster_name):
     modifications={"cluster_name":cluster_name,
                 "shape":config.shape,
                 "rdma_enabled":config.rdma_enabled,
+                "queue":config.partition,
+                "instance_type": config.name,
                 "hostname_convention": config.hostname_convention
                 }
     try:
