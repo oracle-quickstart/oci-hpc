@@ -1,9 +1,34 @@
 #!/bin/bash
 
-set -u  # Treat unset variables as errors
+set -u
 
-fail=0    # To track any kind of failure or timeout
+# Redirect all output to /var/log/reset.log with append
+exec > /var/log/healthchecks/latest_gpu_reset.log 2>&1
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*"
+}
+
+FAIL=0
 TIMEOUT=60
+SLURM=false
+NODENAME=$(hostname)
+
+log "=== Starting GPU reset for $NODENAME ==="
+log "Script invoked as: $0 $*"
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --slurm)
+            SLURM=true
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 # Function to check if a systemd service exists
 service_exists() {
@@ -11,50 +36,57 @@ service_exists() {
 }
 
 run_cmd() {
-    # Runs the given command with timeout and sets fail=1 on failure
-    # Usage: run_cmd command args...
-    timeout "$TIMEOUT" "$@" >/dev/null 2>&1 || fail=1
+    log "Running: $*"
+    timeout "$TIMEOUT" "$@" >/dev/null 2>&1
+    rc=$?
+    if [ $rc -eq 0 ]; then
+        log "SUCCESS: $*"
+    else
+        FAIL=1
+        log "FAILED (rc=$rc): $*"
+    fi
+    return $rc
 }
 
-# 1
 run_cmd sudo systemctl stop nvidia-cdi-refresh.path
-# 2
 run_cmd sudo systemctl stop nvidia-cdi-refresh.service
-# 3
 run_cmd sudo systemctl stop nvidia-dcgm.service
-# 4
 run_cmd sudo systemctl stop nvidia-persistenced.service
-# 5
 run_cmd sudo systemctl stop nvidia-fabricmanager.service
-# 6: check if dcgm-exporter.service exists before stopping
+# check if dcgm-exporter.service exists before stopping
 if service_exists dcgm-exporter.service; then
     run_cmd sudo systemctl stop dcgm-exporter.service
+else
+    log "Service dcgm-exporter.service not present"
 fi
-# 7
 run_cmd sudo systemctl stop slurmd
-# 8
 run_cmd sudo modprobe -r nvidia_drm
-# 9
 run_cmd sudo nvidia-smi -r
 
-# Always attempt to run commands 10-17, regardless of earlier failures
-# 10
+# Always attempt to run below commands, regardless of earlier failures
 run_cmd sudo modprobe nvidia_drm
-# 11
 run_cmd sudo systemctl start slurmd
-# 12: only if exists
+# check if dcgm-exporter.service exists before starting
 if service_exists dcgm-exporter.service; then
     run_cmd sudo systemctl start dcgm-exporter.service
+else
+    log "Service dcgm-exporter.service not present"
 fi
-# 13
 run_cmd sudo systemctl start nvidia-fabricmanager.service
-# 14
 run_cmd sudo systemctl start nvidia-persistenced.service
-# 15
 run_cmd sudo systemctl start nvidia-dcgm.service
-# 16
 run_cmd sudo systemctl start nvidia-cdi-refresh.service
-# 17
 run_cmd sudo systemctl start nvidia-cdi-refresh.path
 
-exit $fail
+# If --slurm parameter is passed and the reset is successful, then update the node slurm state to idle.
+if [[ "$SLURM" == true && "$FAIL" -eq 0 ]]; then
+    run_cmd sudo scontrol update nodename=$NODENAME state=resume
+fi
+
+if [ "$FAIL" -eq 0 ]; then
+    log "=== GPU reset completed successfully for $NODENAME ==="
+else
+    log "=== GPU reset FAILED for $NODENAME ==="
+fi
+
+exit $FAIL

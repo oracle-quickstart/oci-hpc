@@ -1,6 +1,6 @@
 import click
 from lib.database import get_all_nodes_failing_to_start, get_all_nodes_with_hc_status, get_all_nodes_unreachable
-from lib.functions import run_configure, scan_host_api_logic
+from lib.functions import run_configure, scan_host_api_logic, run_reset_gpus
 from lib.ociwrap import run_reboot, run_terminate, run_tag
 from lib.cli.recommendations.display import print_node_list
 
@@ -32,19 +32,25 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
     unconfigured_nodes=[]
     nodes_to_reboot=[]
     nodes_to_terminate=[]
+    nodes_to_reset_GPUs=[]
+    
     if unreachable or not (unreachable or unconfigured or healthcheck):
         unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unconfigured_timeout),[])
     if unconfigured or not (unreachable or unconfigured or healthcheck):
         unconfigured_nodes= get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),[])
     if healthcheck or not (unreachable or unconfigured or healthcheck):
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",[])
+        nodes_to_reset_GPUs = get_all_nodes_with_hc_status("Reset_GPU",[])
         nodes_to_terminate = get_all_nodes_with_hc_status("Terminate",[])
     # Print tables 
     if unreachable_nodes+nodes_to_reboot:
         print_node_list(unreachable_nodes+nodes_to_reboot, "Nodes to Reboot")
         click.echo(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot])))
+    elif nodes_to_reset_GPUs:
+        print_node_list(nodes_to_reset_GPUs, "Nodes to Reset GPUs")
+        click.echo(NodeSet(','.join([node.hostname for node in nodes_to_reset_GPUs])))
     else:
-        logger.info("All the nodes are Reachable and There are no Unhealthy nodes requiring reboot\n")
+        logger.info("All the nodes are Reachable and There are no Unhealthy nodes requiring reboot or GPU reset\n")
     if nodes_to_terminate:
         print_node_list(nodes_to_terminate, "Nodes to Terminate")
         click.echo(NodeSet(','.join([node.hostname for node in nodes_to_terminate])))
@@ -80,6 +86,7 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
     unconfigured_nodes=[]
     nodes_to_reboot=[]
     nodes_to_terminate=[]
+    nodes_to_reset_GPUs=[]
     if not nodes:
         nodes=[]
     if unreachable or not (unreachable or unconfigured or healthcheck):
@@ -88,13 +95,14 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
         unconfigured_nodes=get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),nodes)
     if healthcheck or not (unreachable or unconfigured or healthcheck):
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",nodes)
+        nodes_to_reset_GPUs = get_all_nodes_with_hc_status("Reset_GPU",nodes)
         nodes_to_terminate = get_all_nodes_with_hc_status("Terminate",nodes)
     
     # Reboot unreachable nodes as well as nodes flagged for reboot by Healthcheck. 
     if unreachable_nodes+nodes_to_reboot:
         click.echo("Rebooting: "+str(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot]))))
         for node in unreachable_nodes+nodes_to_reboot:
-            if node.slurm_state=="drained" or node.slurm_state=="down":
+            if node.slurm_state=="drain" or node.slurm_state=="down":
                 run_reboot(node,False)
             else:
                 click.echo(f"Node is not drained, cannot reboot {node.hostname}")
@@ -104,11 +112,21 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
         print_node_list(nodes_to_terminate, "Nodes to Terminate")
         click.echo("Tagging and Terminating: "+str(NodeSet(','.join([node.hostname for node in nodes_to_terminate]))))
         for node in nodes_to_terminate:
-            if node.slurm_state=="drained" or node.slurm_state=="down":
+            if node.slurm_state=="drain" or node.slurm_state=="down":
                 run_tag(node)
                 run_terminate(node)
             else:
                 click.echo(f"Node is not drained, cannot terminate {node.hostname}")
+
+    # Reset GPUs on nodes.
+    if nodes_to_reset_GPUs:
+        print_node_list(nodes_to_reset_GPUs, "Nodes to Reset the GPUs")
+        click.echo("Resetting the GPUs on : "+str(NodeSet(','.join([node.hostname for node in nodes_to_reset_GPUs]))))
+        for node in nodes_to_reset_GPUs:
+            if node.slurm_state=="drain" or node.slurm_state=="down":
+                run_reset_gpus(node)
+            else:
+                click.echo(f"Node is not drained, cannot reset GPUs on {node.hostname}")
 
     # Relaunch configuration step.
     if unconfigured_nodes:

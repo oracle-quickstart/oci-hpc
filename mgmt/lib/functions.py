@@ -51,6 +51,14 @@ def run_configure(nodes):
     task.run()
     logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
+def run_reset_gpus(node):
+    logger.info("Resetting GPUs on: "+str(node.hostname)+" with IP "+str(node.ip_address))
+    task = task_self()
+    nodes = NodeSet(str(node.ip_address))
+    command = "sudo /opt/oci-hpc/healthchecks/gpu_reset.sh --slurm"
+    task.run(command, nodes=nodes)
+    logger.info(f"GPU reset script was run. Logs are available at /var/log/healthchecks/latest_gpu_reset.log.")
+
 def run_command(nodes,command,print_output=False):
     logger.debug(f"Running command {command} on: {NodeSet(','.join([node.ip_address for node in nodes]))}")
     task = task_self()

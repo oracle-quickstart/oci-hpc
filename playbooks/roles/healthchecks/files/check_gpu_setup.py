@@ -951,18 +951,13 @@ def check_wpa_auth(metadata):
 
     # Determine action based on authentication result
     if authenticated_count < required_authenticated:
-        #action = "Reboot"  # Set action as needed, e.g., "Reboot" if a reset is recommended
         wpa_auth_issues.append(f"Only {authenticated_count} interfaces are AUTHENTICATED; expected at least {required_authenticated}.")
         for i in warning.keys():
             if auth_status[i] == 0:
                 logger.warning(warning[i])
-        logger.warning("WPA Authentication Check: Failed")
+        logger.error("WPA Authentication Check: Failed")
     else:
-        action = None  # No action if check passes
         logger.info("WPA Authentication Check: Passed")
-
-    # Call the recommended_action function
-    final_action = recommended_action(current_state, action)
 
     return wpa_auth_issues if wpa_auth_issues else []
 
@@ -1753,9 +1748,9 @@ if __name__ == '__main__':
     if run_all or args.wpa_auth:
         if wpa_auth_results:
             for issue in wpa_auth_results:
-                logger.warning(f"{host_serial} - WPA authentication issue: {issue}")
-            #slurm_reason("WPA Auth Error")
-            #action = recommended_action(action, "Reboot")
+                logger.error(f"{host_serial} - WPA authentication issue: {issue}")
+            slurm_reason("WPA Auth Error")
+            action = recommended_action(action, "Reboot")
 
     # 14.4 Summarize Fabric Manager check
     if run_all or args.fabric_mgr:
@@ -1854,7 +1849,7 @@ if __name__ == '__main__':
             logger.warning("Log file not found, initializing empty logs.")
             data["passive_healthcheck_logs"] = ""
         if slurm_drain_reason:
-            data["passive_healthcheck_status"] = slurm_drain_reason
+            data["passive_healthcheck_status"] = ", ".join(slurm_drain_reason)
         else:
             data["passive_healthcheck_status"] = "Healthy"
         # Write updated data back to the file
