@@ -84,7 +84,6 @@ SUDO
   done
 
   MISSING_LIMIT=3
-  EXIT_STATUS=0
 
   export LOCAL_HOSTNAME=$(hostname)
   export IMEX_OUTPUT_JSON=$(timeout 6 nvidia-imex-ctl -N -j)
@@ -136,22 +135,21 @@ SUDO
   else
     echo "Local node is NOT ready."
     scontrol update NodeName=$LOCAL_HOSTNAME State=drain Reason="IMEX: Node status is not READY"
-    EXIT_STATUS=1
+    exit 1
   fi
-  
-  if [[ "$MISSING" -gt "$MISSING_LIMIT" && "$EXIT_STATUS" -eq 0 ]]; then
+
+  if [[ "$MISSING" -gt "$MISSING_LIMIT" ]]; then
     echo "❌ Rack Health: NOT HEALTHY ($MISSING connections missing, $MISSING_LIMIT allowed)"
-    EXIT_STATUS=1
     if [ "$MISSING" -eq $(("N_NODES"-1)) ]; then
       echo "This node can only connect to itself"
       scontrol update NodeName=$LOCAL_HOSTNAME State=drain Reason="IMEX: Node can only connect to itself"
     else
       scontrol update NodeName=$LOCAL_HOSTNAME State=drain Reason="IMEX: Rack health criteria not met"
     fi
+    exit 1
   else
     echo "✅ Rack Health: HEALTHY ($MISSING connections missing, $MISSING_LIMIT allowed)"
+    exit 0
   fi
-
-  exit $EXIT_STATUS
 
 fi
