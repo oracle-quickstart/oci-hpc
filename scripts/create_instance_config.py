@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
-
 import oci
+import oci.core
+import oci.util
 import argparse
 
 def list_instance_configurations(compartment_id, compute_mgmt_client):
@@ -44,18 +44,19 @@ def list_cluster_networks(compartment_id, compute_mgmt_client):
 # Core Function: Full Replication with SSH Key Replacement
 # ------------------------------
 
-def create_instance_configuration_from_details(compartment_id, src_config, new_ssh_key, new_bv_size, new_image_id):
+def create_instance_configuration_from_details(compartment_id, src_config, new_ssh_key, new_bv_size, new_image_id, new_cloud_init, new_instance_config_name):
     """
     Creates a new instance configuration by fully replicating the source configuration.
     If a new SSH key is provided, it replaces the SSH key in the launch metadata.
     """
     try:
         launch = src_config.instance_details.launch_details
-
         # Update metadata with new SSH key; create a copy if it exists.
         new_metadata = dict(launch.metadata) if launch.metadata else {}
         if new_ssh_key:
             new_metadata["ssh_authorized_keys"] = new_ssh_key
+        if new_cloud_init:
+            new_metadata["user_data"] = oci.util.file_content_as_launch_instance_user_data(new_cloud_init)
 
         # Build Agent Config if present
         new_agent_config = None
@@ -78,7 +79,9 @@ def create_instance_configuration_from_details(compartment_id, src_config, new_s
             new_create_vnic = oci.core.models.InstanceConfigurationCreateVnicDetails(
                 assign_public_ip=launch.create_vnic_details.assign_public_ip,
                 assign_private_dns_record=launch.create_vnic_details.assign_private_dns_record,
-                subnet_id=launch.create_vnic_details.subnet_id
+                subnet_id=launch.create_vnic_details.subnet_id,
+                nsg_ids=launch.create_vnic_details.nsg_ids,
+                assign_ipv6_ip=launch.create_vnic_details.assign_ipv6_ip
                 # Additional fields can be added here if needed
             )
 
@@ -92,6 +95,10 @@ def create_instance_configuration_from_details(compartment_id, src_config, new_s
             image_id=new_image_id
         else:
             image_id=src_details.image_id
+        if new_instance_config_name:
+            instance_config_name=new_instance_config_name
+        else:
+            instance_config_name=src_config.display_name + "-copy"
 
         new_source_details = oci.core.models.InstanceConfigurationInstanceSourceViaImageDetails(
             source_type=src_details.source_type,
@@ -124,7 +131,8 @@ def create_instance_configuration_from_details(compartment_id, src_config, new_s
             instance_options=launch.instance_options,
             availability_config=launch.availability_config,
             preemptible_instance_config=launch.preemptible_instance_config,
-            licensing_configs=launch.licensing_configs
+            licensing_configs=launch.licensing_configs,
+            is_pv_encryption_in_transit_enabled=launch.is_pv_encryption_in_transit_enabled
         )
 
         # Build new Instance Details
@@ -138,7 +146,7 @@ def create_instance_configuration_from_details(compartment_id, src_config, new_s
         # Construct new Instance Configuration Details object
         new_config_details = oci.core.models.CreateInstanceConfigurationDetails(
             compartment_id=src_config.compartment_id,
-            display_name=src_config.display_name + "-copy",
+            display_name=instance_config_name,
             instance_details=new_instance_details,
             defined_tags=src_config.defined_tags,
             freeform_tags=src_config.freeform_tags
@@ -212,28 +220,28 @@ def main():
         print("Failed to fetch instance configuration details.")
         return
 
-    # Step 3: Ask for a new SSH public key (or leave blank to keep existing key)
+    # Step 3: Ask for a new parameters (or leave blank to keep existing)
     new_ssh_key = input("\nEnter new SSH Public Key (leave blank to keep existing): ").strip()
     new_bv_size = input("\nEnter new BV Size (leave blank to keep existing): ").strip()
     if not new_bv_size:
         new_bv_size=0
 
     new_image_id = input("\nEnter new Image OCID (leave blank to keep existing): ").strip()
-
-
-    # Step 4: Create a new instance configuration by replicating the source, replacing SSH key if provided
-    new_instance_config = create_instance_configuration_from_details(compartment_id, src_config, new_ssh_key, int(new_bv_size), new_image_id)
+    new_cloud_init = input("\nEnter new cloud-init_path (leave blank to keep existing): ").strip()
+    new_instance_config_name = input("\nEnter new instance config name (leave blank to keep existing): ").strip()
+    # Step 5: Create a new instance configuration by replicating the source, replacing SSH key if provided
+    new_instance_config = create_instance_configuration_from_details(compartment_id, src_config, new_ssh_key, int(new_bv_size), new_image_id, new_cloud_init, new_instance_config_name)
     if not new_instance_config:
         print("Failed to create new instance configuration.")
         return
     print(f"\nNew Instance Configuration Created: {new_instance_config.id}")
 
-    # Step 5: List and choose a Cluster Network to attach the new instance config
+    # Step 6: List and choose a Cluster Network to attach the new instance config
     chosen_cluster_network = list_cluster_networks(compartment_id, compute_mgmt_client)
     if not chosen_cluster_network:
         return
 
-    # Step 6: Attach the new instance configuration to the chosen Cluster Network
+    # Step 7: Attach the new instance configuration to the chosen Cluster Network
     attach_instance_config_to_cluster_network(chosen_cluster_network.id, new_instance_config.id, compute_mgmt_client)
     print(f"\nInstance Configuration {new_instance_config.id} attached to Cluster Network {chosen_cluster_network.id}")
 
