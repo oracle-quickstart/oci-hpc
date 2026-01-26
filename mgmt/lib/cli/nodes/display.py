@@ -46,6 +46,7 @@ def print_nodes_info(nodes, full=False):
             table.add_row("hostname", node.hostname)
             table.add_row("hpc_island", node.hpc_island)
             table.add_row("image_id", node.image_id)
+            table.add_row("instance_type", node.instance_type)
             table.add_row("last_time_reachable", node.last_time_reachable)
             table.add_row("network_block_id", node.network_block_id)
             table.add_row("memory_cluster_name", node.memory_cluster_name)

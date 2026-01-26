@@ -369,8 +369,6 @@ cargo install gpu-fryer --root /opt/gpu-fryer
             return False,"GPU Fryer failed"
     except subprocess.TimeoutExpired:
         logger.error(f"GPU Fryer test timed out after {run_time+20} seconds")
-        output = result.stdout.decode('utf-8')
-        print('\n'.join(output.splitlines()[-20:]))
         return False, f"Timeout after {run_time+20} seconds"
     except Exception as e:
         logger.error(f"Failed to run local GPU Fryer test: {e}")

@@ -70,6 +70,7 @@ class NodesMixin:
     gpu_memory_fabric          = mapped_column(String(128), nullable=True)
     hpc_island                 = mapped_column(String(128), nullable=True)
     image_id                   = mapped_column(String(128), nullable=True)
+    instance_type              = mapped_column(String(128), nullable=True)
     last_time_reachable        = mapped_column(String(128), nullable=True)
     oci_name                   = mapped_column(String(128), nullable=True)
     ocid                       = mapped_column(String(128), unique=True, nullable=True)

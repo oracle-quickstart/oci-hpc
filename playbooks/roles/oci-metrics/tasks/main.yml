@@ -58,7 +58,11 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0744"
-
+  until: job_result is not failed
+  retries: 30
+  delay: 10
+  register: job_result
+  ignore_errors: true
 # - name: Start OCI FSS Exporter
 #   become: true
 #   service:
