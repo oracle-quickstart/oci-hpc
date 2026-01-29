@@ -48,57 +48,60 @@ groups:
       # health_watch labels: PCIE, NVLINK, PMU, MCU, MEM, SM, INFOROM, THERMAL, POWER, DRIVER
 
       # Node-level health by watch type (1=all GPUs healthy, 0=any GPU unhealthy)
+      # DCGM_EXP_GPU_HEALTH_STATUS is only available in DCGM 4.x+
+      # Fallback to active_nodes ensures rules return 1 (healthy) when metric is absent
       - record: node_nvidia_gpu_health_pcie_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PCIE"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PCIE"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_nvlink_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="NVLINK"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="NVLINK"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_pmu_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PMU"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PMU"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_mcu_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="MCU"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="MCU"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_mem_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="MEM"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="MEM"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_sm_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="SM"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="SM"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_inforom_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="INFOROM"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="INFOROM"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_thermal_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="THERMAL"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="THERMAL"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_power_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="POWER"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="POWER"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       - record: node_nvidia_gpu_health_driver_ok
         expr: |
           min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="DRIVER"} == bool 0)
-          or on(hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="DRIVER"} * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       # Combined DCGM health status (all watches must pass)
+      # Returns 1 (healthy) for nodes without DCGM 4.x (metric absent)
       - record: node_nvidia_gpu_health_ok
         expr: |
           (
@@ -467,6 +470,10 @@ groups:
           *
           (
             node_amd_pcie_link_width_ok or node_up_check
+          )
+          *
+          (
+            node_nvidia_gpu_health_ok or node_up_check
           )
           *
           (

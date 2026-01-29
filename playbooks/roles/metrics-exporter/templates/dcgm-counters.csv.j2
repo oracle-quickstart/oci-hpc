@@ -89,4 +89,7 @@ DCGM_FI_PROF_DRAM_ACTIVE,        gauge, Ratio of cycles the device memory interf
 DCGM_FI_PROF_PIPE_FP64_ACTIVE,   gauge, Ratio of cycles the fp64 pipes are active (in %).
 DCGM_FI_PROF_PIPE_FP32_ACTIVE,   gauge, Ratio of cycles the fp32 pipes are active (in %).
 DCGM_FI_PROF_PIPE_FP16_ACTIVE,   gauge, Ratio of cycles the fp16 pipes are active (in %).
+{% if dcgm_major_version | int >= 4 %}
+# DCGM 4.x+ only metrics
 DCGM_EXP_GPU_HEALTH_STATUS, counter, DCGM reported health status
+{% endif %}

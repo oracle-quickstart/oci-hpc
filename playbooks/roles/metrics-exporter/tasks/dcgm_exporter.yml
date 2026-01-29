@@ -43,7 +43,11 @@
   ansible.builtin.shell:
     cmd: dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'
   register: dcgm_version
-  when: not dcgm_exporter.stat.exists | bool
+  changed_when: false
+
+- name: Extract DCGM major version
+  ansible.builtin.set_fact:
+    dcgm_major_version: "{{ dcgm_version.stdout.split('.')[0] }}"
 
 - name: Find DCGM Exporter releases
   become: true
@@ -104,11 +108,11 @@
     src: dcgm-exporter.service.j2
     dest: "{{ dcgm_service_path }}"
 
-- name: Copy DCGM-Exporter counter configuration
+- name: Template DCGM-Exporter counter configuration
   become: true
-  ansible.builtin.copy:
-    src: dcgm-counters.csv
-    dest: "{{ dcgm_counter_config_path }}"
+  ansible.builtin.template:
+    src: dcgm-counters.csv.j2
+    dest: "/etc/dcgm-counters.csv"
 
 - name: Reload systemd daemon
   become: true
