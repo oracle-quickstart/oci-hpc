@@ -528,6 +528,8 @@ def run_local_rvs_test(shape):
         except Exception:
             logger.debug("Could not remove temp config %s", config_path)
 
+def escape_rich_markup_tags(text):
+    return text.replace("[", "(").replace("]", ")")
 
 def get_fio_command(nvme_devices):
     """
@@ -555,7 +557,8 @@ def get_fio_command(nvme_devices):
             "new_group",
             f"filename={device}",
             f"numjobs={nvme_devices[device].get('numjobs')}",
-            f"iodepth={nvme_devices[device].get('iodepth')}"
+            f"iodepth={nvme_devices[device].get('iodepth')}",
+            "\n"
         ])
 
     fio_command_lines = [
@@ -571,11 +574,11 @@ def get_fio_command(nvme_devices):
         "ioengine=libaio",
         "direct=1",
         "group_reporting=1",
-
+        "\n",
         *nvme_config,
+        "\n",
         "EOF"
     ]
-
     return "\n".join(fio_command_lines)
 
 def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
@@ -662,6 +665,11 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
         if not test_read:
             return True, "NVME drives detected, performance read test skipped."
         
+        # Check if FIO is installed
+        result = run_as_default_user("which fio")
+        if result.returncode != 0:
+            return False, "FIO is not installed."
+            
         # Run FIO read tests
         result = run_as_default_user(get_fio_command(detected_nvmes_dict), 1800)
         if result.returncode == 0:
@@ -684,7 +692,7 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
                     outliers.append(f'{disk_test_result["drive"]} > {disk_test_result["iops"]} IOPS (deviation: {deviation_percent:.2f}%)')
 
             if outliers:
-                return False, "NVME outliers: " + "; ".join(outliers)
+                return False, "NVME outliers: " + escape_rich_markup_tags("; ".join(outliers))
             else:
                 return True, "NVME read performance test passed."
         else:
@@ -693,7 +701,7 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
             stderr = result.stderr.decode('utf-8') if result.stderr else ""
             combined = "\n".join([stdout, stderr]).strip()
             tail = "\n".join(combined.splitlines()[-20:])
-            logger.error("NVME FIO read test failed (rc=%s). Tail:\n%s", result.returncode, tail)
+            logger.error(escape_rich_markup_tags(f"NVME FIO read test failed (rc={result.returncode}). Tail:\n{tail}"))
             return False, "fio test command execution failed."
 
 
@@ -708,8 +716,8 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
         if result and result.stdout:
             out = result.stdout.decode('utf-8')
             logger.error('\n'.join(out.splitlines()[-20:]))
-            return False, str(e)
-        return False, str(e)
+            return False, escape_rich_markup_tags(str(e))
+        return False, escape_rich_markup_tags(str(e))
 
 
 def recommended_action(current, action):
