@@ -1,7 +1,7 @@
 ---
 - name: Add InfluxData repository - for Telegraf
   become: true
-  yum_repository:
+  ansible.builtin.yum_repository:
     name: influxdata
     description: InfluxData Repository - Stable
     baseurl: https://repos.influxdata.com/stable/$basearch/main
@@ -20,8 +20,11 @@
 - name: Download and install InfluxData GPG key
   become: true
   ansible.builtin.shell: |
+    set -eo pipefail
     curl -fsSL https://repos.influxdata.com/influxdata-archive.key | gpg --dearmor -o /etc/apt/keyrings/influxdata.gpg
     chmod 0644 /etc/apt/keyrings/influxdata.gpg
+  args:
+    executable: /bin/bash
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Manage InfluxData APT repositories - for Telegraf
@@ -48,12 +51,12 @@
     package_name:
       - telegraf
     package_state: latest
-  include_role:
+  ansible.builtin.include_role:
     name: safe_yum
 
 - name: Force Telegraf gid 995
   become: true
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/group
     state: present
     regexp: "^telegraf:x:(.*)$"
@@ -62,7 +65,7 @@
 
 - name: Force Telegraf uid 995
   become: true
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/passwd
     state: present
     regexp: "^telegraf:x:(.*)$"
@@ -71,7 +74,7 @@
 
 - name: Copy telegraf.conf
   become: true
-  copy:
+  ansible.builtin.copy:
     src: "telegraf.conf"
     dest: /etc/telegraf/telegraf.conf
     force: true
@@ -82,7 +85,7 @@
 
 - name: Render Telegraf configuration files
   become: true
-  template:
+  ansible.builtin.template:
     src: "{{ item }}.j2"
     dest: /etc/telegraf/telegraf.d/{{ item }}
     force: true
@@ -97,7 +100,7 @@
 
 - name: Render OCI Metric Python files
   become: true
-  template:
+  ansible.builtin.template:
     src: "{{ item }}.j2"
     dest: /usr/local/bin/{{ item }}
     force: true
@@ -105,9 +108,21 @@
     group: telegraf
     mode: "0755"
   with_items:
-    - oci_metrics_telegraf_input.py
-    - oci_metrics_telegraf_filter.py
-    - oci_metrics_telegraf_utils.py
+    - "{{ telegraf_streaming_input }}"
+
+- name: Copy OCI Metric Python files
+  become: true
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /usr/local/bin/{{ item }}
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+  with_items:
+    - "{{ telegraf_monitoring_input }}"
+    - "{{ telegraf_utils }}"
+    - "{{ telegraf_filter }}"
   notify: Restart telegraf
 
 - name: Add environment variable to file

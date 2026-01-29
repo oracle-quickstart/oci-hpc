@@ -1,5 +1,12 @@
 # Run executable as long-running input plugin
 [[inputs.execd]]
-  command = ["{{venv_path}}/bin/python3", "{{ telegraf_input_path }}"]
+  alias = "streaming"
+  command = ["{{venv_path}}/bin/python3", "/usr/local/bin/{{ telegraf_streaming_input }}"]
+  buffer_size = "2MiB"
+  precision = "1ns"
+
+[[inputs.execd]]
+  alias = "monitoring"
+  command = ["{{venv_path}}/bin/python3", "/usr/local/bin/{{ telegraf_monitoring_input }}"]
   buffer_size = "2MiB"
   precision = "1ns"

@@ -3,6 +3,7 @@
   order = 1
   ## Default action if no rule applies
   default = "drop"
+  alias = "filter"
 
   ## Rules to apply on the incoming metrics (multiple rules are possible)
   ## The rules are evaluated in order and the first matching rule is applied.
@@ -128,5 +129,6 @@
 
 [[processors.execd]]
   order = 2
-  command = ["{{venv_path}}/bin/python3", "{{ telegraf_filter_path }}"]
+  alias = "metrics_enrich"
+  command = ["{{venv_path}}/bin/python3", "/usr/local/bin/{{ telegraf_filter }}"]
   environment = ["ENRICH_METRICS=true"]
