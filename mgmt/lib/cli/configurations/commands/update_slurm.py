@@ -3,7 +3,7 @@
 
 import click
 from lib.database import get_all_configs
-from lib.functions import generate_slurm_entries, read_slurm_conf, write_slurm_conf, sync_slurm_config
+from lib.functions import generate_slurm_entries, read_slurm_conf, write_slurm_conf, sync_slurm_config, generate_topology_entries_simple
 from lib.logger import logger
 import sys
 
@@ -17,9 +17,14 @@ def update_slurm(slurm_conf, dry_run):
     
     if dry_run:
         logger.info("Dry run mode - showing what would be generated:")
-        entries = generate_slurm_entries(configs)
-        for entry in entries:
+        logger.info("Dry run mode - entries in slurm.conf:")
+        slurmconf = generate_slurm_entries(configs)
+        logger.info(slurmconf)
+        for entry in slurmconf[0]:
             logger.info(entry)
+        topologyconf = generate_topology_entries_simple(slurmconf[1])
+        for entry in topologyconf:
+            logger.info(entry)            
     else:
         if sync_slurm_config(configs, slurm_conf):
             logger.info("✓ Configuration synchronized successfully")

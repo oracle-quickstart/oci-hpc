@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS clusterDB.configurations (
     image_id VARCHAR(128),
     target_compartment_id VARCHAR(128),
     boot_volume_size INT,
+    max_number_nodes INT,
     use_marketplace_image BOOLEAN,
     instance_pool_ocpus INT,
     instance_pool_custom_memory BOOLEAN,

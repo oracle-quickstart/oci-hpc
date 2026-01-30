@@ -18,6 +18,7 @@ def print_config_info(configuration):
     table.add_row("permanent", str(configuration.permanent))
     table.add_row("rdma_enabled", str(configuration.rdma_enabled))
     table.add_row("stand_alone", str(configuration.stand_alone))
+    table.add_row("max_number_nodes", str(configuration.stand_alone))
     table.add_row("region", str(configuration.region))
     table.add_row("availability_domain", str(configuration.availability_domain))
     table.add_row("private_subnet_cidr", str(configuration.private_subnet_cidr))
@@ -46,6 +47,7 @@ def print_config_list(configurations, title):
     table.add_column("permanent", justify="left")
     table.add_column("rdma_enabled", justify="left")
     table.add_column("stand_alone", justify="left")
+    table.add_column("max_number_nodes", justify="left")
     table.add_column("region", justify="left")
     table.add_column("availability_domain", justify="left")
     table.add_column("private_subnet_cidr", justify="left")
@@ -78,6 +80,7 @@ def print_config_list(configurations, title):
                       str(configuration.permanent), 
                       str(configuration.rdma_enabled), 
                       str(configuration.stand_alone), 
+                      str(configuration.max_number_nodes), 
                       str(configuration.region), 
                       str(configuration.availability_domain), 
                       str(configuration.private_subnet_cidr), 
@@ -108,7 +111,7 @@ def print_config_list_yaml_json(configurations,output_file=None,type="yaml"):
             "permanent": config.permanent,
             "rdma_enabled": config.rdma_enabled,
             "stand_alone": config.stand_alone,
-            "max_number_nodes": 1000,
+            "max_number_nodes": config.max_number_nodes,
             "max_cluster_size": 50,
             "max_cluster_count": 1000,
             "region": config.region,

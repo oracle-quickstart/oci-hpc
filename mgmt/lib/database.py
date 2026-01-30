@@ -118,6 +118,7 @@ class Configurations(Base):
     permanent = mapped_column(Boolean, default=True, nullable=False)
     rdma_enabled = mapped_column(Boolean, default=True, nullable=False)
     stand_alone = mapped_column(Boolean, default=False, nullable=False)
+    max_number_nodes = mapped_column(Integer, nullable=True)
     region = mapped_column(String(64), nullable=True)
     availability_domain = mapped_column(String(64), nullable=True)
     private_subnet_cidr = mapped_column(String(64), nullable=True)
@@ -1332,6 +1333,7 @@ def db_import_configuration(filename):
                     permanent=instance.get("permanent", True),
                     rdma_enabled=instance.get("rdma_enabled", True),
                     stand_alone=instance.get("stand_alone", False),
+                    max_number_nodes=instance.get("max_number_nodes",100),
                     region=instance.get("region"),
                     availability_domain=instance.get("availability_domain"),
                     private_subnet_cidr=instance.get("private_subnet"),
@@ -1376,6 +1378,7 @@ def db_import_configuration(filename):
                 image_id=login.get("image_id"),
                 target_compartment_id=login.get("target_compartment_id"),
                 boot_volume_size=login.get("boot_volume_size", 50),
+                max_number_nodes=login.get("max_number_nodes", 100),
                 use_marketplace_image=login.get("use_marketplace_image", True),
                 instance_pool_ocpus=login.get("instance_pool_ocpus"),
                 instance_pool_custom_memory=login.get("instance_pool_custom_memory", False),
