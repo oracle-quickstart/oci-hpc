@@ -10,7 +10,7 @@
 - name: Get All configurations in the DB
   vars:
     venv_path: "{% if ansible_facts['distribution'] == 'Ubuntu' %}/config/venv/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}{% elif ansible_facts['distribution'] == 'OracleLinux' %}/config/venv/Ol_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}{% endif %}"
-  ansible.builtin.command: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
+  ansible.builtin.command: "{{ venv_path }}/oci/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
   register: get_configurations_results
 
 - name: Convert the Python script output to a list of dictionaries

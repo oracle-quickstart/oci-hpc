@@ -15,6 +15,12 @@
   when: item.value.shape in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"]
   with_items: "{{ new_compute_info | dict2items }}"
 
+- name: Set variable based on Slurm version
+  ansible.builtin.set_fact:
+    slurm_topology_syntax: >-
+      {% set major = slurm_version.split('.')[0]|int %}
+      {% if major < 25 %}{% else %}Node={% endif %}
+
 - name: Remove nodes from current topology before adding them
   block:
     - name: Create a list of hostnames to remove
@@ -22,7 +28,7 @@
         hostnames_list: "{{ new_compute_info | dict2items | map(attribute='value.hostname') | list }}"
     # get Info from the Rack Switches
     - name: Get RackLine
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=0 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=0 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_switch
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -42,7 +48,7 @@
       when: (item.stdout_lines | length) == 0
 
     - name: Get SwitchNames
-      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Level=0 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=0 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_switchName
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -80,7 +86,7 @@
  # get Info from the Network Block Switches
 
     - name: Get Network Block line
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=1 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=1 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_nb
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -100,7 +106,7 @@
       when: (item.stdout_lines | length) == 0
 
     - name: Get NetworkBlock Name
-      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Switches= | grep Level=1 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Switches= | grep Level=1 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_NetworkBlockName
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -138,7 +144,7 @@
  # get Info from the Cluster Switches
 
     - name: Get Cluster line
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=2 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=2 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_cluster
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -158,7 +164,7 @@
       when: (item.stdout_lines | length) == 0
 
     - name: Get Cluster Name
-      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Switches= | grep Level=2 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Switches= | grep Level=2 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_ClusterName
       run_once: true
       with_items: "{{ hostnames_list }}"

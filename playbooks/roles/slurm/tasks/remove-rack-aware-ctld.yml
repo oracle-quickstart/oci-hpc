@@ -9,6 +9,12 @@
   when: item.value.shape in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"]
   with_items: "{{ remove_compute_info | dict2items }}"
 
+- name: Set variable based on Slurm version
+  ansible.builtin.set_fact:
+    slurm_topology_syntax: >-
+      {% set major = slurm_version.split('.')[0]|int %}
+      {% if major < 25 %}{% else %}Node={% endif %}
+
 - name: Remove nodes from current topology before adding them
   block:
     - name: Debug
@@ -23,7 +29,7 @@
 
  # get Info from the Rack Switches
     - name: Get RackLine
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=0 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=0 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_switch
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -43,7 +49,7 @@
       when: (item.stdout_lines | length) == 0
 
     - name: Get SwitchNames
-      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Level=0 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=0 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_switchName
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -81,7 +87,7 @@
  # get Info from the Network Block Switches
 
     - name: Get Network Block line
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=1 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=1 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_nb
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -101,7 +107,7 @@
       when: (item.stdout_lines | length) == 0
 
     - name: Get NetworkBlock Name
-      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Switches= | grep Level=1 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Switches= | grep Level=1 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_NetworkBlockName
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -139,7 +145,7 @@
  # get Info from the Cluster Switches
 
     - name: Get Cluster line
-      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }} | grep Level=2 | rev | cut -d \"=\" -f 1 | rev`"
+      ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Level=2 | rev | cut -d \"=\" -f 1 | rev`"
       register: current_cluster
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -159,7 +165,7 @@
       when: (item.stdout_lines | length) == 0
 
     - name: Get Cluster Name
-      ansible.builtin.shell: "scontrol show topology {{ item }} | grep Switches= | grep Level=2 | awk '{print $1}' | cut -d \"=\" -f 2"
+      ansible.builtin.shell: "scontrol show topology {{slurm_topology_syntax}}{{ item }} | grep Switches= | grep Level=2 | awk '{print $1}' | cut -d \"=\" -f 2"
       register: current_ClusterName
       run_once: true
       with_items: "{{ hostnames_list }}"
@@ -378,27 +384,32 @@
 
 - name: Add nodes to current topology if they are on-demand
   block:
-    - name: Check if the node is on-demand
-      ansible.builtin.shell: "sudo scontrol show topology {{ item.value.hostname }} | grep Switches= | grep {{ item.value.cluster_name }}:inactive"
-      register: ondemand_nodes
+    - name: Check if the node's partition has an inactive switch in topology
+      ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep 'SwitchName={{ item.value.slurm_partition }}:inactive'"
+      register: partition_has_inactive
+      delegate_to: 127.0.0.1
       run_once: true
       with_items: "{{ remove_compute_info | dict2items }}"
       ignore_errors: true
 
-    - name: Build empty list of on-demand nodes
-      ansible.builtin.set_fact:
-        ondemand_node_dict: "{{ ondemand_node_dict | default({}) }}"
-      with_items: "{{ ondemand_nodes.results }}"
-      when: (item.stdout | length) == 0
+    - name: Check if the node is already in the inactive switch
+      ansible.builtin.shell: "sudo scontrol show topology {{slurm_topology_syntax}}{{ item.item.value.hostname }} | grep Switches= | grep {{ item.item.value.slurm_partition }}:inactive"
+      register: ondemand_nodes
+      run_once: true
+      with_items: "{{ partition_has_inactive.results }}"
+      when: item.rc == 0
+      ignore_errors: true
 
-    - name: Build list of on-demand nodes
+    - name: Build list of nodes that need to be added to inactive switch
       ansible.builtin.set_fact:
-        ondemand_node_dict: "{{ ondemand_node_dict | default({}) | combine({item.item: item.item.value}) }}"
+        ondemand_node_dict: "{{ ondemand_node_dict | default({}) | combine({item.item.item.value.hostname: item.item.item.value}) }}"
       with_items: "{{ ondemand_nodes.results }}"
-      when: ( item.stdout | length ) > 0
+      when:
+        - item.item.rc == 0
+        - item.rc != 0 or (item.stdout | length) == 0
 
-    - name: Add nodes to current topology if they are on-demand
-      when: ondemand_node_dict.keys() | length > 0
+    - name: Add nodes to current topology if they need to be added to inactive
+      when: ondemand_node_dict is defined and ondemand_node_dict.keys() | length > 0
       block:
       # Build dictionaries of cluster the list of nodes.
 
@@ -406,20 +417,27 @@
           ansible.builtin.set_fact:
             rack_dict: "{{ rack_dict | default({}) | combine({rack_name: (rack_dict[rack_name] | default([])) + [ondemand_node_dict[item].hostname] | unique}) }}"
           vars:
-            rack_name: "{{ ondemand_node_dict[item].cluster_name }}:inactive"
-          with_items: "{{ ondemand_node_dict }}"
+            rack_name: "{{ ondemand_node_dict[item].slurm_partition }}:inactive"
+          with_items: "{{ ondemand_node_dict.keys() | list }}"
+
+        - name: Get list of parent clusters to update
+          ansible.builtin.set_fact:
+            parent_clusters: "{{ parent_clusters | default([]) | union([ondemand_node_dict[item].slurm_partition]) | unique }}"
+          with_items: "{{ ondemand_node_dict.keys() | list }}"
 
         - name: Get current nodes in Switch
           ansible.builtin.shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{ item }} \""
           register: nodes_in_switch
           delegate_to: 127.0.0.1
           run_once: true
-          with_items: "{{ rack_dict.keys() }}"
+          with_items: "{{ rack_dict.keys() | list }}"
           ignore_errors: true
 
         - name: Get current nodes in Switch hostlist
           vars:
-            switch_list_condensed: "{{ item.stdout.split('Nodes=')[1] }}"
+            switch_line: "{{ item.stdout }}"
+            nodes_part: "{{ switch_line.split('Nodes=')[1] }}"
+            switch_list_condensed: "{{ nodes_part.split('Switches=')[0].strip() }}"
           ansible.builtin.command: "scontrol show hostname {{ switch_list_condensed }}"
           register: switch_hostlist
           delegate_to: 127.0.0.1
@@ -448,7 +466,7 @@
           with_items: "{{ rack_hostlist1.results }}"
           run_once: true
           delegate_to: 127.0.0.1
-          when: item.item.item.rc== 0
+          when: item.item.item.rc == 0
 
         - name: Get Nodes on switch if switch does not exists
           ansible.builtin.set_fact:
@@ -462,13 +480,51 @@
           become: true
           ansible.builtin.lineinfile:
             path: "{{ slurm_conf_path }}/topology.conf"
-            regexp: "SwitchName={{ item.item.item }}\\sNodes.*"
+            regexp: "SwitchName={{ item.item.item }}\\s+Nodes.*"
             line: "SwitchName={{ item.item.item }} Nodes={{ nodes_on_switches[item.item.item] }}"
             state: present
           run_once: true
           with_items: "{{ switch_hostlist.results }}"
           delegate_to: 127.0.0.1
           notify: Reconfigure slurm
+
+        # Update parent switches to remove references to now-empty sub-switches
+        - name: Check if parent cluster has any active sub-switches with nodes
+          ansible.builtin.shell: |
+            # Check if there are any non-inactive sub-switches for this partition that have nodes
+            grep "^SwitchName={{ item }}:" {{ slurm_conf_path }}/topology.conf | grep -v ":inactive" | grep "Nodes=" | grep -v "^$" || echo "NO_ACTIVE_NODES"
+          register: parent_active_switches
+          delegate_to: 127.0.0.1
+          run_once: true
+          with_items: "{{ parent_clusters }}"
+          changed_when: false
+
+        - name: Update parent switch to only reference inactive when no active nodes exist
+          become: true
+          ansible.builtin.lineinfile:
+            path: "{{ slurm_conf_path }}/topology.conf"
+            regexp: "^SwitchName={{ item.item }}\\s+Switches.*"
+            line: "SwitchName={{ item.item }} Switches={{ item.item }}:inactive"
+            state: present
+          run_once: true
+          with_items: "{{ parent_active_switches.results }}"
+          delegate_to: 127.0.0.1
+          when: item.stdout == "NO_ACTIVE_NODES"
+          notify: Reconfigure slurm
+        - name: Update parent switch to reference both inactive and active when active nodes exist
+          become: true
+          ansible.builtin.shell: |
+            # Get all child switches for this partition
+            children=$(grep "^SwitchName={{ item.item }}:" {{ slurm_conf_path }}/topology.conf | sed 's/SwitchName=\([^ ]*\) .*/\1/' | tr '\n' ',' | sed 's/,$//')
+            if [ -n "$children" ]; then
+              # Update the parent switch line
+              sed -i "s|^SwitchName={{ item.item }}\\s\\+Switches=.*|SwitchName={{ item.item }} Switches=$children|" {{ slurm_conf_path }}/topology.conf
+            fi
+          with_items: "{{ parent_active_switches.results }}"
+          delegate_to: 127.0.0.1
+          when: item.stdout != "NO_ACTIVE_NODES"
+          notify: Reconfigure slurm
+
 
 - name: Change Node Status
   become: true

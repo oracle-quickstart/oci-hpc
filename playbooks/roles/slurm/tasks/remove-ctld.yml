@@ -13,8 +13,14 @@
   ansible.builtin.set_fact:
     hostnames_list: "{{ remove_compute_info | dict2items | map(attribute='value.hostname') | list }}"
 
+- name: Set variable based on Slurm version
+  ansible.builtin.set_fact:
+    slurm_topology_syntax: >-
+      {% set major = slurm_version.split('.')[0]|int %}
+      {% if major < 25 %}{% else %}Node={% endif %}
+
 - name: Get SwitchLine
-  ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{ item }}  | rev | cut -d \"=\" -f 1 | rev`"
+  ansible.builtin.shell: "scontrol show hostname `scontrol show topology {{slurm_topology_syntax}}{{ item }}  | rev | cut -d \"=\" -f 1 | rev`"
   register: current_switch
   run_once: true
   delegate_to: 127.0.0.1
@@ -37,7 +43,7 @@
   when: (item.stdout_lines | length) == 0
 
 - name: Get SwitchNames
-  ansible.builtin.shell: "scontrol show topology {{ item }} | awk '{print $1}' | cut -d \"=\" -f 2"
+  ansible.builtin.shell: "scontrol show topology {{slurm_topology_syntax}}{{ item }} | awk '{print $1}' | cut -d \"=\" -f 2"
   register: current_switchName
   run_once: true
   delegate_to: 127.0.0.1
