@@ -1,0 +1,149 @@
+# tasks file for nhc
+---
+
+# -----------------------------------------
+# Node detection
+# -----------------------------------------
+
+- name: Get the instance shape
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: nhc_instance_metadata
+  changed_when: false
+
+- name: Set node shape
+  ansible.builtin.set_fact:
+    nhc_node_shape: "{{ nhc_instance_metadata.json.shape }}"
+
+
+# -----------------------------------------
+# NHC tasks (GPU nodes only)
+# -----------------------------------------
+
+- name: Install and configure NHC on GPU nodes
+  when: "'GPU' in nhc_node_shape"
+  block:
+
+    # -----------------------------------------
+    # Install NHC if not already installed
+    # -----------------------------------------
+
+    - name: Check if NHC is already installed
+      stat:
+        path: /usr/sbin/nhc
+      register: nhc_installed
+
+    - name: Download NHC tarball on node
+      get_url:
+        url: https://github.com/mej/nhc/releases/download/1.4.3/lbnl-nhc-1.4.3.tar.xz
+        dest: /tmp/lbnl-nhc-1.4.3.tar.xz
+        mode: '0644'
+      when: not nhc_installed.stat.exists
+
+    - name: Extract NHC source
+      unarchive:
+        src: /tmp/lbnl-nhc-1.4.3.tar.xz
+        dest: /tmp
+        remote_src: true
+      when: not nhc_installed.stat.exists
+
+    - name: Run configure
+      command: ./configure --prefix=/usr --sysconfdir=/etc --libexecdir=/usr/libexec
+      args:
+        chdir: /tmp/lbnl-nhc-1.4.3
+      when: not nhc_installed.stat.exists
+
+    - name: Run make test
+      become: true
+      command: make test
+      args:
+        chdir: /tmp/lbnl-nhc-1.4.3
+      when: not nhc_installed.stat.exists
+
+    - name: Run make install
+      become: true
+      command: make install
+      args:
+        chdir: /tmp/lbnl-nhc-1.4.3
+      when: not nhc_installed.stat.exists
+
+    # -----------------------------------------
+    # Cleanup /tmp
+    # -----------------------------------------
+
+    - name: Remove NHC source directory from /tmp
+      file:
+        path: /tmp/lbnl-nhc-1.4.3
+        state: absent
+
+    - name: Remove NHC tarball from /tmp
+      file:
+        path: /tmp/lbnl-nhc-1.4.3.tar.xz
+        state: absent
+
+    # -----------------------------------------
+    # Detect hyperthreading
+    # -----------------------------------------
+
+    - name: Detect hyperthreading (kernel-level)
+      command: cat /sys/devices/system/cpu/smt/active
+      register: nhc_smt_status
+      changed_when: false
+      failed_when: false
+
+    - name: Set hyperthreading flag
+      set_fact:
+        nhc_ht_enabled: "{{ nhc_smt_status.stdout | trim == '1' }}"
+
+    - name: Debug HT flag
+      debug:
+        msg: "HT enabled = {{ nhc_ht_enabled }}"
+
+    # -----------------------------------------
+    # Filesystem checks
+    # -----------------------------------------
+
+    - name: Filter mounts for checking (exclude pseudo, snap, loop)
+      set_fact:
+        nhc_mounts: >-
+          {{
+            ansible_mounts
+            | rejectattr('fstype', 'in',
+                ['proc','sysfs','devpts','cgroup','tmpfs','autofs','swap','squashfs'])
+            | rejectattr('mount', 'search', '^/snap')
+            | rejectattr('device', 'search', '^/dev/loop')
+            | list
+          }}
+
+    - name: Detect NFS mounts
+      set_fact:
+        nhc_has_nfs: >-
+          {{
+            nhc_mounts
+            | selectattr('fstype', 'in', ['nfs', 'nfs4'])
+            | list
+            | length > 0
+          }}
+
+    # -----------------------------------------
+    # NHC config
+    # -----------------------------------------
+
+    - name: Ensure /etc/nhc exists
+      file:
+        path: /etc/nhc
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Render NHC config
+      template:
+        src: oci.nhc.conf.j2
+        dest: /etc/nhc/oci.nhc.conf
+        owner: root
+        group: root
+        mode: '0644'

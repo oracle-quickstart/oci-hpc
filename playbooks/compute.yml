@@ -200,3 +200,10 @@
   gather_facts: true
   roles:
     - http_server
+
+- hosts: localhost
+  become: true
+  tasks:
+    - name: Configure NHC
+      ansible.builtin.include_role:
+        name: nhc
