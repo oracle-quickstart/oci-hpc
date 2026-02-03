@@ -1,7 +1,7 @@
 import click
 from lib.logger import logger
 from lib.ociwrap import run_add, run_add_memory_fabric
-from lib.database import get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster, get_config_by_name
+from lib.database import get_controller_node, get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster, get_config_by_name
 
 # Create the main command group
 @click.group("add")
@@ -50,10 +50,16 @@ def node(count, cluster, names, memorycluster):
         nodes = get_nodes_by_memory_cluster(memorycluster)
         
     if not nodes:
-        logger.error("No nodes found in the specified cluster.")
-        return
-        
-    run_add(nodes, int(count), name_list)
+        if cluster is None:
+            logger.error("No nodes found in the specified cluster.")
+            return
+        else:
+            compartment_ocid = get_controller_node().compartment_id
+    else:
+        compartment_ocid=nodes[0].compartment_id
+            
+    
+    run_add(nodes, int(count), name_list, cluster,compartment_ocid)
 
 @add.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add')
