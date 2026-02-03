@@ -4,7 +4,7 @@ name: deployment_slurm_aarch64
 on:
   # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "master" ]
+    branches: [ "master"]
   pull_request:
     branches: [ "master"]
 
@@ -13,20 +13,123 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-
+  check_ansible_lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Wait for Ansible Lint to complete
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "=========================================="
+        echo "DEBUG: Starting Ansible Lint check"
+        echo "=========================================="
+        echo "Repository: ${{ github.repository }}"
+        echo "Event name: ${{ github.event_name }}"
+        echo "github.sha: ${{ github.sha }}"
+        echo "github.event.pull_request.head.sha: ${{ github.event.pull_request.head.sha }}"
+        echo "=========================================="
+        
+        # Use the correct SHA based on event type
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "Using PR head SHA: $COMMIT_SHA"
+        else
+          COMMIT_SHA="${{ github.sha }}"
+          echo "Using github.sha: $COMMIT_SHA"
+        fi
+        
+        echo "=========================================="
+        
+        for i in {1..60}; do
+          echo ""
+          echo "--- Attempt $i/60 ---"
+          
+          # Make the API call with the correct SHA
+          echo "Making API call to GitHub for commit: $COMMIT_SHA"
+          full_response=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs)
+          
+          echo "API call completed successfully"
+          
+          # Show the FULL raw response
+          echo ""
+          echo "Full API response:"
+          echo "$full_response" | jq '.'
+          
+          # Show total count
+          echo ""
+          total_count=$(echo "$full_response" | jq -r '.total_count')
+          echo "Total check runs: $total_count"
+          
+          if [ "$total_count" -gt 0 ]; then
+            # Show all check run names
+            echo ""
+            echo "All check runs found:"
+            echo "$full_response" | jq -r '.check_runs[] | .name'
+            
+            # Show all check runs with their status
+            echo ""
+            echo "Check runs with status:"
+            echo "$full_response" | jq -r '.check_runs[] | "\(.name): status=\(.status), conclusion=\(.conclusion)"'
+          fi
+          
+          # Filter for ansible_lint specifically
+          echo ""
+          echo "Looking for 'ansible_lint' check run..."
+          status=$(echo "$full_response" | jq -r '.check_runs[] | select(.name == "ansible_lint") | .conclusion')
+          
+          echo "Status value: '$status'"
+          
+          # Check the status
+          if [ "$status" == "success" ]; then
+            echo ""
+            echo "=========================================="
+            echo "✅ Ansible Lint passed!"
+            echo "=========================================="
+            exit 0
+          elif [ "$status" == "failure" ]; then
+            echo ""
+            echo "=========================================="
+            echo "❌ Ansible Lint failed!"
+            echo "=========================================="
+            exit 1
+          elif [ -n "$status" ] && [ "$status" != "null" ]; then
+            echo ""
+            echo "=========================================="
+            echo "❌ Ansible Lint completed with status: $status"
+            echo "=========================================="
+            exit 1
+          fi
+          
+          echo "⏳ Ansible Lint still running or not started yet (total checks found: $total_count)..."
+          echo "Waiting 10 seconds before next check..."
+          sleep 10
+        done
+        
+        echo ""
+        echo "=========================================="
+        echo "❌ Timeout: Ansible Lint did not complete within 10 minutes"
+        echo "=========================================="
+        exit 1
   # This job deploys with a custom Ubuntu 22.04 image and a ubuntu user with FSS, slurm backup, mysql service on aarch 64 (compute + controller + monitoring + login + slurm_backup)
   deploy_ubuntu_fss_backup_all_aarch64:
     # The type of runner that the job will run on
     runs-on: ubuntu-fss-aarch64
+    needs: check_ansible_lint
     env:
+      TF_VAR_ssh_key: ${{ secrets.PUBLIC_SSH_KEY }}
+      TF_VAR_current_user_ocid: ${{ secrets.USER_OCID }}
+      TF_VAR_tenancy_ocid: ${{ secrets.TENANCY_OCID }}
+      TF_VAR_targetCompartment: ${{ secrets.COMPARTMENT_OCID }}
+      TF_VAR_vcn_compartment: ${{ secrets.COMPARTMENT_OCID }}      
       TF_VAR_controller_username: "ubuntu"
       TF_VAR_compute_username: "ubuntu"
-      TF_VAR_login_username: "ubuntu"
-      TF_VAR_monitoring_username: "ubuntu"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
+      TF_VAR_unsupported_controller_image: ${{ secrets.UBUNTU2204_AARCH64_MILAN }}
+      TF_VAR_image_ocid: ${{ secrets.UBUNTU2204_AARCH64_MILAN }}
+      TF_VAR_fss_compartment: ${{ secrets.COMPARTMENT_OCID }} 
+      TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_USER }}
+      TF_VAR_mysql_admin_password: ${{ secrets.MYSQL_PASSWORD }}
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -147,15 +250,17 @@ jobs:
   deploy_ubuntu_mix_aarch64_x86:
     # The type of runner that the job will run on
     runs-on: ubuntu-aarch64
+    needs: check_ansible_lint
     env:
+      TF_VAR_ssh_key: ${{ secrets.PUBLIC_SSH_KEY }}
+      TF_VAR_current_user_ocid: ${{ secrets.USER_OCID }}
+      TF_VAR_tenancy_ocid: ${{ secrets.TENANCY_OCID }}
+      TF_VAR_targetCompartment: ${{ secrets.COMPARTMENT_OCID }}
+      TF_VAR_vcn_compartment: ${{ secrets.COMPARTMENT_OCID }}      
       TF_VAR_controller_username: "ubuntu"
       TF_VAR_compute_username: "ubuntu"
-      TF_VAR_login_username: "ubuntu"
-      TF_VAR_monitoring_username: "ubuntu"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaauqe4u3kafdrml5hjx6i6ylw454wkg72meruqhqehogp2jtv5dgwq"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaauqe4u3kafdrml5hjx6i6ylw454wkg72meruqhqehogp2jtv5dgwq"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-milan-1.aaaaaaaauqe4u3kafdrml5hjx6i6ylw454wkg72meruqhqehogp2jtv5dgwq"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-milan-1.aaaaaaaa2r7e7xnv2wwtpniggand36hrz7m6dzgc4mrhsz47tzhfv2pkrjbq"
+      TF_VAR_unsupported_controller_image: ${{ secrets.UBUNTU2204_X86_MILAN }}
+      TF_VAR_image_ocid: ${{ secrets.UBUNTU2204_AARCH64_MILAN }}
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job

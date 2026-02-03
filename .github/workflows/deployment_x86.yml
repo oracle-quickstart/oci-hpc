@@ -13,24 +13,126 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  check_ansible_lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Wait for Ansible Lint to complete
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "=========================================="
+        echo "DEBUG: Starting Ansible Lint check"
+        echo "=========================================="
+        echo "Repository: ${{ github.repository }}"
+        echo "Event name: ${{ github.event_name }}"
+        echo "github.sha: ${{ github.sha }}"
+        echo "github.event.pull_request.head.sha: ${{ github.event.pull_request.head.sha }}"
+        echo "=========================================="
+        
+        # Use the correct SHA based on event type
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "Using PR head SHA: $COMMIT_SHA"
+        else
+          COMMIT_SHA="${{ github.sha }}"
+          echo "Using github.sha: $COMMIT_SHA"
+        fi
+        
+        echo "=========================================="
+        
+        for i in {1..60}; do
+          echo ""
+          echo "--- Attempt $i/60 ---"
+          
+          # Make the API call with the correct SHA
+          echo "Making API call to GitHub for commit: $COMMIT_SHA"
+          full_response=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs)
+          
+          echo "API call completed successfully"
+          
+          # Show the FULL raw response
+          echo ""
+          echo "Full API response:"
+          echo "$full_response" | jq '.'
+          
+          # Show total count
+          echo ""
+          total_count=$(echo "$full_response" | jq -r '.total_count')
+          echo "Total check runs: $total_count"
+          
+          if [ "$total_count" -gt 0 ]; then
+            # Show all check run names
+            echo ""
+            echo "All check runs found:"
+            echo "$full_response" | jq -r '.check_runs[] | .name'
+            
+            # Show all check runs with their status
+            echo ""
+            echo "Check runs with status:"
+            echo "$full_response" | jq -r '.check_runs[] | "\(.name): status=\(.status), conclusion=\(.conclusion)"'
+          fi
+          
+          # Filter for ansible_lint specifically
+          echo ""
+          echo "Looking for 'ansible_lint' check run..."
+          status=$(echo "$full_response" | jq -r '.check_runs[] | select(.name == "ansible_lint") | .conclusion')
+          
+          echo "Status value: '$status'"
+          
+          # Check the status
+          if [ "$status" == "success" ]; then
+            echo ""
+            echo "=========================================="
+            echo "✅ Ansible Lint passed!"
+            echo "=========================================="
+            exit 0
+          elif [ "$status" == "failure" ]; then
+            echo ""
+            echo "=========================================="
+            echo "❌ Ansible Lint failed!"
+            echo "=========================================="
+            exit 1
+          elif [ -n "$status" ] && [ "$status" != "null" ]; then
+            echo ""
+            echo "=========================================="
+            echo "❌ Ansible Lint completed with status: $status"
+            echo "=========================================="
+            exit 1
+          fi
+          
+          echo "⏳ Ansible Lint still running or not started yet (total checks found: $total_count)..."
+          echo "Waiting 10 seconds before next check..."
+          sleep 10
+        done
+        
+        echo ""
+        echo "=========================================="
+        echo "❌ Timeout: Ansible Lint did not complete within 10 minutes"
+        echo "=========================================="
+        exit 1
   #This job deploys with a custom OL image and a opc user
   deploy_OL8:
     # The type of runner that the job will run on
     runs-on: ol8
+    needs: check_ansible_lint
     env:
       # Variables with OL8 custom image OCID
+      TF_VAR_ssh_key: ${{ secrets.PUBLIC_SSH_KEY }}
+      TF_VAR_current_user_ocid: ${{ secrets.USER_OCID }}
+      TF_VAR_tenancy_ocid: ${{ secrets.TENANCY_OCID }}
+      TF_VAR_targetCompartment: ${{ secrets.COMPARTMENT_OCID }}
+      TF_VAR_vcn_compartment: ${{ secrets.COMPARTMENT_OCID }}      
       TF_VAR_controller_username: "opc"
       TF_VAR_compute_username: "opc"
-      TF_VAR_login_username: "opc"
-      TF_VAR_monitoring_username: "opc"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaall6of3grf5bbtgk6mozol7mqsujospbx2pl5nrlbar32quq72y6q"
+      TF_VAR_unsupported_controller_image: ${{ secrets.OL8_X86_PARIS }}
+      TF_VAR_image_ocid: ${{ secrets.OL8_X86_PARIS }}
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Wait for Ansible Lint to complete
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
      
@@ -146,16 +248,18 @@ jobs:
   # This job deploys with a custom Ubuntu 22.04 image and a ubuntu user
   deploy_Ubuntu:
     # The type of runner that the job will run on
-    runs-on: ubuntu    
+    runs-on: ubuntu
+    needs: check_ansible_lint    
     env:
+      TF_VAR_ssh_key: ${{ secrets.PUBLIC_SSH_KEY }}
+      TF_VAR_current_user_ocid: ${{ secrets.USER_OCID }}
+      TF_VAR_tenancy_ocid: ${{ secrets.TENANCY_OCID }}
+      TF_VAR_targetCompartment: ${{ secrets.COMPARTMENT_OCID }}
+      TF_VAR_vcn_compartment: ${{ secrets.COMPARTMENT_OCID }}      
       TF_VAR_controller_username: "ubuntu"
       TF_VAR_compute_username: "ubuntu"
-      TF_VAR_login_username: "ubuntu"
-      TF_VAR_monitoring_username: "ubuntu"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+      TF_VAR_unsupported_controller_image: ${{ secrets.UBUNTU2204_X86_PARIS }}
+      TF_VAR_image_ocid: ${{ secrets.UBUNTU2204_X86_PARIS }}
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -204,15 +308,20 @@ jobs:
   deploy_ubuntu_fss_backup:
     # The type of runner that the job will run on
     runs-on: ubuntu_fss
+    needs: check_ansible_lint
     env:
+      TF_VAR_ssh_key: ${{ secrets.PUBLIC_SSH_KEY }}
+      TF_VAR_current_user_ocid: ${{ secrets.USER_OCID }}
+      TF_VAR_tenancy_ocid: ${{ secrets.TENANCY_OCID }}
+      TF_VAR_targetCompartment: ${{ secrets.COMPARTMENT_OCID }}
+      TF_VAR_vcn_compartment: ${{ secrets.COMPARTMENT_OCID }}      
       TF_VAR_controller_username: "ubuntu"
       TF_VAR_compute_username: "ubuntu"
-      TF_VAR_login_username: "ubuntu"
-      TF_VAR_monitoring_username: "ubuntu"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaaighqdoo44aiyzj4fd4iuhz5mz4pdd2fhfyhassk64rg4l4wpwlca"
+      TF_VAR_unsupported_controller_image: ${{ secrets.UBUNTU2204_X86_PARIS }}
+      TF_VAR_image_ocid: ${{ secrets.UBUNTU2204_X86_PARIS }}
+      TF_VAR_fss_compartment: ${{ secrets.COMPARTMENT_OCID }} 
+      TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_USER }}
+      TF_VAR_mysql_admin_password: ${{ secrets.MYSQL_PASSWORD }}
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -258,15 +367,17 @@ jobs:
   deploy_OL9:
     # The type of runner that the job will run on
     runs-on: ol9
+    needs: check_ansible_lint
     env:
+      TF_VAR_ssh_key: ${{ secrets.PUBLIC_SSH_KEY }}
+      TF_VAR_current_user_ocid: ${{ secrets.USER_OCID }}
+      TF_VAR_tenancy_ocid: ${{ secrets.TENANCY_OCID }}
+      TF_VAR_targetCompartment: ${{ secrets.COMPARTMENT_OCID }}
+      TF_VAR_vcn_compartment: ${{ secrets.COMPARTMENT_OCID }}      
       TF_VAR_controller_username: "opc"
       TF_VAR_compute_username: "opc"
-      TF_VAR_login_username: "opc"
-      TF_VAR_monitoring_username: "opc"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaarox5zphiffxt3czvbuuk74p7lm4emqdmksidxc52bu5wese7ekwa"
+      TF_VAR_unsupported_controller_image: ${{ secrets.OL9_X86_PARIS }}
+      TF_VAR_image_ocid: ${{ secrets.OL9_X86_PARIS }}
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -315,16 +426,18 @@ jobs:
 
   deploy_Ubuntu24:
     # The type of runner that the job will run on
-    runs-on: ubuntu24   
+    runs-on: ubuntu24 
+    needs: check_ansible_lint  
     env:
+      TF_VAR_ssh_key: ${{ secrets.PUBLIC_SSH_KEY }}
+      TF_VAR_current_user_ocid: ${{ secrets.USER_OCID }}
+      TF_VAR_tenancy_ocid: ${{ secrets.TENANCY_OCID }}
+      TF_VAR_targetCompartment: ${{ secrets.COMPARTMENT_OCID }}
+      TF_VAR_vcn_compartment: ${{ secrets.COMPARTMENT_OCID }}      
       TF_VAR_controller_username: "ubuntu"
       TF_VAR_compute_username: "ubuntu"
-      TF_VAR_login_username: "ubuntu"
-      TF_VAR_monitoring_username: "ubuntu"
-      TF_VAR_unsupported_controller_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaa3n5gutujq7gasbswa2qbh35jtyozj4nk3afglpzn4gcpywinznna"
-      TF_VAR_unsupported_login_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaa3n5gutujq7gasbswa2qbh35jtyozj4nk3afglpzn4gcpywinznna"
-      TF_VAR_unsupported_monitoring_image: "ocid1.image.oc1.eu-paris-1.aaaaaaaa3n5gutujq7gasbswa2qbh35jtyozj4nk3afglpzn4gcpywinznna"
-      TF_VAR_image_ocid: "ocid1.image.oc1.eu-paris-1.aaaaaaaa3n5gutujq7gasbswa2qbh35jtyozj4nk3afglpzn4gcpywinznna"
+      TF_VAR_unsupported_controller_image: ${{ secrets.UBUNTU2404_X86_PARIS }}
+      TF_VAR_image_ocid: ${{ secrets.UBUNTU2404_X86_PARIS }}
       avoid_waiting_for_delete_target: "true"
 
     # Steps represent a sequence of tasks that will be executed as part of the job
