@@ -265,7 +265,7 @@ resource "null_resource" "controller" {
 }
 
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, oci_core_instance.controller]
+  depends_on = [null_resource.controller, oci_core_instance.controller, time_sleep.dns_sleep]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {

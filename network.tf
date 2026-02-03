@@ -312,5 +312,11 @@ resource "null_resource" "dns_ready" {
   triggers = {
     fss_rrset        = try(oci_dns_rrset.fss-dns-round-robin[0].id, "")
     controller_rrset = try(oci_dns_rrset.controller[0].id, "")
+    monitoring_rrset = try(oci_dns_rrset.rrset-monitoring[0].id, "")
   }
+}
+
+resource "time_sleep" "dns_sleep" {
+  depends_on = [null_resource.dns_ready]
+  create_duration = "120s"
 }
