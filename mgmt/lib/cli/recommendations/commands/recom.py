@@ -1,5 +1,5 @@
 import click
-from lib.database import get_all_nodes_failing_to_start, get_all_nodes_with_hc_status, get_all_nodes_unreachable
+from lib.database import get_all_nodes_failing_to_start, get_all_nodes_with_hc_status, get_all_nodes_unreachable, get_nodes_slurm_unconfigured, join_nodes_lists
 from lib.functions import run_configure, scan_host_api_logic, run_reset_gpus
 from lib.ociwrap import run_reboot, run_terminate, run_tag
 from lib.cli.recommendations.display import print_node_list
@@ -37,7 +37,9 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
     if unreachable or not (unreachable or unconfigured or healthcheck):
         unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unconfigured_timeout),[])
     if unconfigured or not (unreachable or unconfigured or healthcheck):
-        unconfigured_nodes= get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),[])
+        nodes_failing_to_start=get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),[])
+        unconfigured_slurm_nodes=get_nodes_slurm_unconfigured()
+        unconfigured_nodes=join_nodes_lists(nodes_failing_to_start,unconfigured_slurm_nodes)
     if healthcheck or not (unreachable or unconfigured or healthcheck):
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",[])
         nodes_to_reset_GPUs = get_all_nodes_with_hc_status("Reset_GPU",[])
@@ -92,7 +94,9 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
     if unreachable or not (unreachable or unconfigured or healthcheck):
         unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unconfigured_timeout),nodes)
     if unconfigured or not (unreachable or unconfigured or healthcheck):
-        unconfigured_nodes=get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),nodes)
+        nodes_failing_to_start=get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),[])
+        unconfigured_slurm_nodes=get_nodes_slurm_unconfigured()
+        unconfigured_nodes=join_nodes_lists(nodes_failing_to_start,unconfigured_slurm_nodes)
     if healthcheck or not (unreachable or unconfigured or healthcheck):
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",nodes)
         nodes_to_reset_GPUs = get_all_nodes_with_hc_status("Reset_GPU",nodes)

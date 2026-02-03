@@ -548,6 +548,26 @@ def get_query_by_fields(query, field_dict):
         logger.error(f"Error filtering nodes with fields {field_dict}: {exc}")
         raise
 
+def join_nodes_lists(list1,list2):
+    list1_ocids=[node.ocid for node in list1]
+    list2_ocids=[node.ocid for node in list2]
+    ocids=list(set(list1_ocids).union(set(list2_ocids)))
+    node_list=[]
+    for ocid in ocids:
+        found=False
+        for node1 in list1:
+            if node1.ocid == ocid:
+                node_list.append(node1)
+                found=True
+                break
+        if not found:
+            for node2 in list2:
+                if node2.ocid == ocid:
+                    node_list.append(node2)
+                    found=True
+                    break
+    return node_list
+
 def get_all_nodes():
     """Get all nodes/servers from the database"""
     with DBConn() as session:
@@ -635,6 +655,12 @@ def get_all_nodes_failing_to_start(unreachable_timeout, node_any_list):
         return nodes_failing_to_start
     finally:
         session.close()
+
+def get_nodes_slurm_unconfigured():
+    query = get_nodes_with_latest_healthchecks()
+    field_dict = {"role":"compute","slurm_state":"unconfigured"}
+    nodes_slurm_unconfigured = get_query_by_fields(query,field_dict).all()
+    return nodes_slurm_unconfigured
 
 
 def get_all_nodes_unreachable(unreachable_timeout, node_any_list):

@@ -30,6 +30,9 @@ def update_metadata_logic(http_port=9876, nodes=None):
             update_dict[node.ocid]["slurm_partition"]=','.join(slurm_dict[node.hostname]["partition"])
             update_dict[node.ocid]["slurm_reservation"]=slurm_dict[node.hostname]["reservation_id"]
             update_dict[node.ocid]["slurm_up_time"]=slurm_dict[node.hostname]["slurm_up_time"]
+        else:
+            if node.role == "compute":
+                update_dict[node.ocid]["slurm_state"]="unconfigured"
         db_update_node(node, **update_dict[node.ocid])
         logger.debug(f"Node {node.ocid} is not {hc_update_dict.keys()}")
         if node.ocid in hc_update_dict.keys() and hc_update_dict[node.ocid] != {}:
