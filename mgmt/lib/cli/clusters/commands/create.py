@@ -61,8 +61,10 @@ def create(count,cluster,instancetype,names,fabric,memorycluster):
         gpu_memory_cluster_name = cluster+"_"+fabric[-5:]
     else:
         gpu_memory_cluster_name=memorycluster
-    logger.info(f"Creating cluster {cluster} with {count} nodes on memoryfabric {fabric} with gpu_memory_cluster_name {gpu_memory_cluster_name}")
-
+    if gpu_memory_cluster_name is None and fabric is None:
+        logger.info(f"Creating cluster {cluster} with {count} nodes")
+    else:
+        logger.info(f"Creating cluster {cluster} with {count} nodes on memoryfabric {fabric} with gpu_memory_cluster_name {gpu_memory_cluster_name}")
     create_cluster(config,int(count),cluster,controller_hostname, name_list, gpu_memory_fabric=fabric, gpu_memory_cluster_name=gpu_memory_cluster_name)
     
 

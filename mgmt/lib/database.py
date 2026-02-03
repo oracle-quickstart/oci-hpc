@@ -604,57 +604,54 @@ def get_all_terminated_nodes():
 
 def get_all_nodes_to_configure():
     """Get all nodes/servers from the database"""
-    session = query_db()
-    try:
-        nodes_configuring = session.query(Nodes).filter(
+    query = get_nodes_with_latest_healthchecks()
+    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+    nodes_configuring = query.filter(
             and_(
-                Nodes.controller_status.in_(['configuring', 'reconfiguring']),
-                Nodes.compute_status.in_(['configuring','configured'])
+                label_map["controller_status"].in_(['configuring', 'reconfiguring']),
+                label_map["compute_status"].in_(['configuring','configured'])
             )
         ).all()
-        nodes_terminating = session.query(Nodes).filter(
-                Nodes.controller_status == 'terminating'
-        ).all()
-        return nodes_configuring, nodes_terminating
-    finally:
-        session.close()
+    nodes_terminating = query.filter(
+        and_(
+            label_map["controller_status"].in_(['terminating']),
+        )
+    ).all()
+    return nodes_configuring, nodes_terminating
 
 
 def get_all_nodes_failing_to_start(unreachable_timeout, node_any_list):
     """Get all nodes/servers from the database in waiting_for_info status"""
-    session = query_db()
+    query = get_nodes_with_latest_healthchecks()
+    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
     nodes_failing_to_start = []
     current_time = current_utc_time()
     time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
-    try:
-        if node_any_list:
-            nodes_waiting_for_info = session.query(Nodes).filter(
-                and_(
-                    Nodes.controller_status.in_(['waiting_for_info']),
-                    or_(
-                        Nodes.ip_address.in_(node_any_list),
-                        Nodes.ocid.in_(node_any_list),
-                        Nodes.serial.in_(node_any_list),
-                        Nodes.hostname.in_(node_any_list),
-                        Nodes.oci_name.in_(node_any_list)
-                    )
+
+    if node_any_list:
+        nodes_waiting_for_info = query.filter(
+            and_(
+                label_map["controller_status"].in_(["waiting_for_info"]),
+                or_(
+                    label_map["ip_address"].in_(node_any_list),
+                    label_map["ocid"].in_(node_any_list),
+                    label_map["serial"].in_(node_any_list),
+                    label_map["hostname"].in_(node_any_list),
+                    label_map["oci_name"].in_(node_any_list)
                 )
-            ).all()
-        else:
-            nodes_waiting_for_info = session.query(Nodes).filter(
-                    Nodes.controller_status.in_(['waiting_for_info'])
-            ).all()
+            )
+        ).all()
+    else:
+        nodes_waiting_for_info = query.filter(label_map["controller_status"].in_(["waiting_for_info"])).all()
+    for node in nodes_waiting_for_info:
+        started_time = datetime.strptime(
+            node.started_time, "%Y-%m-%d %H:%M:%S"
+        ).replace(tzinfo=timezone.utc)
 
-        for node in nodes_waiting_for_info:
-            started_time = datetime.strptime(
-                node.started_time, "%Y-%m-%d %H:%M:%S"
-            ).replace(tzinfo=timezone.utc)
+        if started_time < time_th:
+            nodes_failing_to_start.append(node)
+    return nodes_failing_to_start
 
-            if started_time < time_th:
-                nodes_failing_to_start.append(node)
-        return nodes_failing_to_start
-    finally:
-        session.close()
 
 def get_nodes_slurm_unconfigured():
     query = get_nodes_with_latest_healthchecks()
@@ -665,44 +662,40 @@ def get_nodes_slurm_unconfigured():
 
 def get_all_nodes_unreachable(unreachable_timeout, node_any_list):
     """Get all nodes/servers from the database in waiting_for_info status"""
-    session = query_db()
+    query = get_nodes_with_latest_healthchecks()
+    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
     unreachable_nodes = []
     current_time = current_utc_time()
     time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
-    try:
-        if node_any_list:
-            configured_nodes = session.query(Nodes).filter(
-                and_(
-                    and_(
-                        Nodes.controller_status.in_(["configured"]),
-                        Nodes.compute_status.in_(["configured", "configuring"])
-                    ),
-                    or_(
-                        Nodes.ip_address.in_(node_any_list),
-                        Nodes.ocid.in_(node_any_list),
-                        Nodes.serial.in_(node_any_list),
-                        Nodes.hostname.in_(node_any_list),
-                        Nodes.oci_name.in_(node_any_list)
-                    )
+    if node_any_list:
+        configured_nodes = query.filter(
+            and_(
+                label_map["controller_status"].in_(["configured"]),
+                or_(
+                    label_map["ip_address"].in_(node_any_list),
+                    label_map["ocid"].in_(node_any_list),
+                    label_map["serial"].in_(node_any_list),
+                    label_map["hostname"].in_(node_any_list),
+                    label_map["oci_name"].in_(node_any_list)
                 )
-            ).all()
-        else:
-            configured_nodes = session.query(Nodes).filter(
-                and_(
-                    Nodes.controller_status.in_(["configured"]),
-                    Nodes.compute_status.in_(["configured", "configuring"])
-                )
-            ).all()
-        for node in configured_nodes:
-            last_time_reachable = datetime.strptime(
-                node.last_time_reachable, "%Y-%m-%d %H:%M:%S"
-            ).replace(tzinfo=timezone.utc)
+            )
+        ).all()
+    else:
+        configured_nodes = query.filter(
+            and_(
+                label_map["controller_status"].in_(["configured"]),
+                label_map["compute_status"].in_(["configured", "configuring"]) 
+            )
+        
+        ).all()
+    for node in configured_nodes:
+        last_time_reachable = datetime.strptime(
+            node.last_time_reachable, "%Y-%m-%d %H:%M:%S"
+        ).replace(tzinfo=timezone.utc)
 
-            if last_time_reachable < time_th:
-                unreachable_nodes.append(node)
-        return unreachable_nodes
-    finally:
-        session.close()
+        if last_time_reachable < time_th:
+            unreachable_nodes.append(node)
+    return unreachable_nodes
 
 
 def get_all_nodes_with_hc_status(hc_status, node_any_list):

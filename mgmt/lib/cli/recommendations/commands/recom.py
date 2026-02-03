@@ -35,9 +35,9 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
     nodes_to_reset_GPUs=[]
     
     if unreachable or not (unreachable or unconfigured or healthcheck):
-        unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unconfigured_timeout),[])
+        unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unreachable_timeout),[])
     if unconfigured or not (unreachable or unconfigured or healthcheck):
-        nodes_failing_to_start=get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),[])
+        nodes_failing_to_start=get_all_nodes_failing_to_start(timedelta(minutes=unconfigured_timeout),[])
         unconfigured_slurm_nodes=get_nodes_slurm_unconfigured()
         unconfigured_nodes=join_nodes_lists(nodes_failing_to_start,unconfigured_slurm_nodes)
     if healthcheck or not (unreachable or unconfigured or healthcheck):
@@ -92,9 +92,9 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
     if not nodes:
         nodes=[]
     if unreachable or not (unreachable or unconfigured or healthcheck):
-        unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unconfigured_timeout),nodes)
+        unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unreachable_timeout),nodes)
     if unconfigured or not (unreachable or unconfigured or healthcheck):
-        nodes_failing_to_start=get_all_nodes_failing_to_start(timedelta(minutes=unreachable_timeout),[])
+        nodes_failing_to_start=get_all_nodes_failing_to_start(timedelta(minutes=unconfigured_timeout),[])
         unconfigured_slurm_nodes=get_nodes_slurm_unconfigured()
         unconfigured_nodes=join_nodes_lists(nodes_failing_to_start,unconfigured_slurm_nodes)
     if healthcheck or not (unreachable or unconfigured or healthcheck):

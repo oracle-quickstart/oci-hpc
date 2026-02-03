@@ -206,7 +206,6 @@ variableGroups:
       - ${vcn_subnet}
       - ${public_subnet}
       - ${private_subnet}
-      - ${rdma_subnet}
       - ${additional_subnet}
       - ${zone_name}
 
@@ -247,6 +246,7 @@ variableGroups:
       - ${OCI_generated_container_namespace}
       - ${OCI_generated_container_name}
       - ${wildcard_dns_domain}
+      - ${rdma_subnet}
     visible: false
 
 
