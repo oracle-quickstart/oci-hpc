@@ -604,20 +604,20 @@ def get_all_terminated_nodes():
 
 def get_all_nodes_to_configure():
     """Get all nodes/servers from the database"""
-    query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes_configuring = query.filter(
+    session = query_db()
+    try:
+        nodes_configuring = session.query(Nodes).filter(
             and_(
-                label_map["controller_status"].in_(['configuring', 'reconfiguring']),
-                label_map["compute_status"].in_(['configuring','configured'])
+                Nodes.controller_status.in_(['configuring', 'reconfiguring']),
+                Nodes.compute_status.in_(['configuring','configured'])
             )
         ).all()
-    nodes_terminating = query.filter(
-        and_(
-            label_map["controller_status"].in_(['terminating']),
-        )
-    ).all()
-    return nodes_configuring, nodes_terminating
+        nodes_terminating = session.query(Nodes).filter(
+                Nodes.controller_status == 'terminating'
+        ).all()
+        return nodes_configuring, nodes_terminating
+    finally:
+        session.close()
 
 
 def get_all_nodes_failing_to_start(unreachable_timeout, node_any_list):
