@@ -361,7 +361,7 @@
         nbs_on_cluster_condensed: "{{ nbs_on_cluster_condensed | default({}) | combine({item: rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove)
           | join(',')}) }}"
       with_items: "{{ rem_clusternames }}"
-      when: ((rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length  > 0)
+      when: ((rem_cluster_dict[item] | difference(rem_networkblocknames_to_remove) | length) > 0)
       run_once: true
       ignore_errors: true
 
