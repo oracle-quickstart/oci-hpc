@@ -96,7 +96,7 @@ resource "oci_core_instance" "controller" {
 }
 
 resource "null_resource" "controller" {
-  depends_on = [oci_core_instance.controller, null_resource.fss_home_dependency, null_resource.fss_config_dependency]
+  depends_on = [oci_core_instance.controller, null_resource.fss_home_dependency, null_resource.fss_config_dependency, time_sleep.dns_sleep]
   triggers = {
     controller = oci_core_instance.controller.id
   }
@@ -112,7 +112,8 @@ resource "null_resource" "controller" {
       ],
       var.create_fss == "new" ? [
         "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
-        "sudo mount /config",
+        "sudo systemctl daemon-reload",
+        "for i in {1..30}; do sudo mount /config ; mountpoint -q /config && break || { echo 'Waiting for /config to be mounted...'; sleep 10 ; }; done"
       ] : [],
       [
         "sudo chown ${var.controller_username}:${var.controller_username} /config",
@@ -130,7 +131,7 @@ resource "null_resource" "controller" {
       type        = "ssh"
       user        = var.controller_username
       private_key = tls_private_key.ssh.private_key_pem
-      timeout     = "10m"
+      timeout     = "20m"
     }
   }
   provisioner "file" {
@@ -265,7 +266,7 @@ resource "null_resource" "controller" {
 }
 
 resource "null_resource" "cluster" {
-  depends_on = [null_resource.controller, oci_core_instance.controller, time_sleep.dns_sleep]
+  depends_on = [null_resource.controller, oci_core_instance.controller]
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
