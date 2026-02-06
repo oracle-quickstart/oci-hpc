@@ -17,6 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import mapped_column, sessionmaker, DeclarativeBase, aliased
 from sqlalchemy.inspection import inspect
 from sqlalchemy.dialects.mysql import INTEGER
+from sqlalchemy.engine.row import Row
 
 from ClusterShell.NodeSet import NodeSet
 
@@ -742,7 +743,7 @@ def get_nodes_by_ip(node_ip_list):
 
     query = get_nodes_with_latest_healthchecks()
     label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["ip_address"].in_(node_id_list)).all()
+    nodes = query.filter(label_map["ip_address"].in_(node_ip_list)).all()
     return nodes
 
 
@@ -755,7 +756,7 @@ def get_nodes_by_serial(node_serial_list):
 
     query = get_nodes_with_latest_healthchecks()
     label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["serial"].in_(node_id_list)).all()
+    nodes = query.filter(label_map["serial"].in_(node_serial_list)).all()
     return nodes
 
 
@@ -767,7 +768,7 @@ def get_nodes_by_name(node_name_list):
 
     query = get_nodes_with_latest_healthchecks()
     label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["hostname"].in_(node_id_list)).all()
+    nodes = query.filter(label_map["hostname"].in_(node_name_list)).all()
     return nodes
 
 
@@ -1155,7 +1156,7 @@ def db_update_healthcheck(healthcheck, hc_dict):
         session.commit()
         return True 
     except Exception as exc:
-        logger.error(f"Error updating node {node.ocid}: {exc}")
+        logger.error(f"Error updating node {healthcheck.ocid}: {exc}")
         return False
     finally:
         session.close()
@@ -1203,10 +1204,12 @@ def db_create_node(node_ocid, **kwargs):
         session.close()
 
 
-def db_move_terminated_node(node):
+def db_move_terminated_node(node_row):
     session = query_db()
 
     try:
+        ocid = node_row.ocid if hasattr(node_row, "ocid") else node_row
+        node = session.query(Nodes).filter_by(ocid=ocid).one_or_none()
         # Get shared column names, excluding 'id'
         source_columns = {c.key for c in inspect(Nodes).mapper.column_attrs}
         target_columns = {c.key for c in inspect(TerminatedNodes).mapper.column_attrs}
@@ -1284,12 +1287,16 @@ def db_update_configuration(configuration_name, **kwargs):
         ).first()
 
         if not configuration:
-            logger.warning(f"No node found with OCID: {configuration_name}")
+            logger.warning(f"No configuration found: {configuration_name}")
             return False
 
         for key, value in kwargs.items():
             if hasattr(configuration, key):
-                setattr(configuration, key, value)
+                # Special handling for hostname_convention
+                if key == 'hostname_convention' and not configuration.change_hostname:
+                    setattr(configuration, key, value.lower() if value else value)
+                else:
+                    setattr(configuration, key, value)
             else:
                 logger.warning(f"Unknown attribute '{key}' ignored.")
 
@@ -1340,6 +1347,12 @@ def db_import_configuration(filename):
         for queue in queues:
             instance_types = queue.get("instance_types", [])
             for instance in instance_types:
+                change_hostname = instance.get("change_hostname", True)
+                hostname_convention = instance.get("hostname_convention")
+                
+                # Apply lowercase if change_hostname is False
+                if not change_hostname and hostname_convention:
+                    hostname_convention = hostname_convention.lower()                
                 # Map YAML keys to SQLAlchemy model fields
                 config = Configurations(
                     role="compute",
@@ -1347,8 +1360,8 @@ def db_import_configuration(filename):
                     default_partition =  queue.get("default"),
                     partition=queue.get("name"),  # using queue name as partition
                     shape=instance.get("shape"),
-                    change_hostname=instance.get("change_hostname", True),
-                    hostname_convention=instance.get("hostname_convention"),
+                    change_hostname=change_hostname,
+                    hostname_convention=hostname_convention,
                     permanent=instance.get("permanent", True),
                     rdma_enabled=instance.get("rdma_enabled", True),
                     stand_alone=instance.get("stand_alone", False),
