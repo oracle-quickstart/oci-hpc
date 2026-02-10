@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S /config/bin/uv_wrapper.sh run --script
+#
+# /// script
+# dependencies = ["parallel-ssh"]
+# ///
 import json
 import os
 import argparse

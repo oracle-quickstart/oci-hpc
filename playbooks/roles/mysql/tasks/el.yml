@@ -47,13 +47,6 @@
         name: safe_yum
   when: ansible_facts['distribution_major_version'] == '9'
 
-- name: Make sure pymysql is present
-  become: true
-  pip:
-    name: pymysql
-    state: present
-    executable: /usr/bin/pip3
-
 - name: Update SELinux context for {{ mysql_db_path }}
   vars:
     ansible_python_interpreter: /usr/bin/python3

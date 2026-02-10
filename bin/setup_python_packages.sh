@@ -120,9 +120,6 @@ cachetools
 line-protocol-parser
 influx-line-protocol
 flatdict
-pssh
-parallel-ssh
-ldap3
 orjson
 
 # --- Python build toolchain packages for Slurm SDK ---

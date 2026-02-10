@@ -115,22 +115,10 @@
     name: "{{ openldap_default_user }}"
     groups: "{{ ssl_cert_group }}"
 
-- block:
-    - name: Install and upgrade pip
-      pip:
-        name: pip
-        extra_args: --upgrade
-        executable: /usr/bin/pip3
-
-    - name: Install ldap3 and click
-      pip:
-        name: ["ldap3", "click"]
-        executable: /usr/bin/pip3
-
-    - name: Update /etc/openldap/ldap.conf
-      lineinfile:
-        dest: /etc/openldap/ldap.conf
-        line: TLS_REQSAN allow
+- name: Update /etc/openldap/ldap.conf
+  lineinfile:
+    dest: /etc/openldap/ldap.conf
+    line: TLS_REQSAN allow
   when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
 - name: Ensure OpenLDAP data directory exists

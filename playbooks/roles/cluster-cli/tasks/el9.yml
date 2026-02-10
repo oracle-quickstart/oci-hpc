@@ -1,13 +1,4 @@
 ---
-- name: Install required packages
-  vars:
-    package_name:
-      - python3-click
-      - python3-ldap
-    package_repo: "ol9_developer_EPEL,ol9_appstream"
-  include_role:
-    name: safe_yum
-
 - name: Copy cluster cli
   template:
     src: cluster.j2

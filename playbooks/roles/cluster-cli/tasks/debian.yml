@@ -1,14 +1,4 @@
 ---
-- name: Install required packages
-  vars:
-    package_name:
-      - python3-click
-      - python3-ldap3
-    package_state: present
-    package_cache: true
-  include_role:
-    name: safe_yum
-
 - name: Copy cluster cli
   template:
     src: cluster.j2

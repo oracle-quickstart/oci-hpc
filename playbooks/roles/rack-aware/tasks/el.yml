@@ -1,17 +1,4 @@
 ---
-- name: Install and upgrade pip
-  ansible.builtin.shell: "python3 -m ensurepip & sudo python3 -m pip install --upgrade pip"
-- name: Install pssh and parallel-ssh
-  become: true
-  ansible.builtin.pip:
-    name: ["pssh", "parallel-ssh"]
-    executable: /usr/bin/pip3
-    state: latest
-  with_items:
-    - pssh
-    - parallel-ssh
-  ignore_errors: true
-
 - name: Make sure /opt/oci-hpc/bin/ exists
   become: true
   ansible.builtin.file:
