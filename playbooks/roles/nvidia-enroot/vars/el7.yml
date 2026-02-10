@@ -1,4 +1,0 @@
----
-enroot_file: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-3.4.0-2.el7.{{ ansible_facts['architecture'] }}.rpm"
-enroot_caps_file: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps-3.4.0-2.el7.{{ ansible_facts['architecture'] }}.rpm"
-enroot_check_file: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-check_3.4.0_{{ ansible_facts['architecture'] }}.run"

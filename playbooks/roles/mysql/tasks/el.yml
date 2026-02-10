@@ -20,21 +20,6 @@
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
     mysql_root_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/mysql/root.txt chars=ascii_letters,digits') }}"
-- block:
-    - name: Install MySQL packages ol7
-      vars:
-        package_name:
-          - mysql-release-el7
-      include_role:
-        name: safe_yum
-
-    - name: Install MySQL packages
-      vars:
-        package_name: "{{ mysql_packages }}"
-        package_repo: ol7_MySQL80
-      include_role:
-        name: safe_yum
-  when: ansible_facts['distribution_major_version'] == '7'
 
 - block:
     - name: Select mysql package ol8
@@ -139,22 +124,6 @@
       register: dbstatus
       ignore_errors: true
       no_log: true
-
-    - block:
-        - name: Fix user password
-          command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{
-            m_root_password.stdout }}';"
-          when: dbstatus.rc != 0
-
-        - name: Fix password policy
-          command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
-          when: dbstatus.rc != 0
-
-        - name: Update expired root user password
-          command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY
-            '{{ mysql_root_pwd }}';"
-          when: dbstatus.rc != 0
-      when: ansible_facts['distribution_major_version'] == '7'
 
     - block:
         - name: Set MySQL root pasword ol8

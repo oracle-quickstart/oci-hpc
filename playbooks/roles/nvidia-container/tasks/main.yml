@@ -1,9 +1,6 @@
 ---
-- ansible.builtin.include_tasks: oraclelinux-7.yml
-  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '7'
-
-#- include_tasks: centos-7.yml
-#  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'CentOS' and ansible_facts['distribution_major_version'] == '7'
+- ansible.builtin.include_tasks: oraclelinux.yml
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux'
 
 - ansible.builtin.include_tasks: ubuntu.yml
   when: ansible_facts['distribution'] == 'Ubuntu'

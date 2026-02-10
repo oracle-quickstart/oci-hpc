@@ -12,10 +12,7 @@ else
 fi
 
 if [ $ID == "ol" ] ; then
-  if [[ "${VERSION_MAJOR}" == "7" ]]; then
-    repo="ol7_developer_EPEL"
-    sudo osms unregister 
-  elif [[ "${VERSION_MAJOR}" == "8" ]]; then
+  if [[ "${VERSION_MAJOR}" == "8" ]]; then
     repo="ol8_developer_EPEL"
     if command -v osms >/dev/null 2>&1; then
       sudo osms unregister 
@@ -29,11 +26,7 @@ fi
 
 # Install ansible and other required packages
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
-  if [[ "${VERSION_MAJOR}" == "7" ]]; then
-    sudo yum-config-manager --save --setopt=ol7_oci_included.skip_if_unavailable=true
-    sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y ansible python-netaddr python-dnf
-  elif [[ "${VERSION_MAJOR}" == "8" ]]; then
+  if [[ "${VERSION_MAJOR}" == "8" ]]; then
     sudo yum makecache --enablerepo=$repo
     sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser
     # FIXME remove this - one should not mess with pip like this

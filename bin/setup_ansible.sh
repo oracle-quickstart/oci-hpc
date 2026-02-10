@@ -40,12 +40,13 @@ else
     export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
     export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt
     # Required for copr's includepkg attribute (monitoring uses it to install grafana)
-    # This includepkg is present from 10.0.0+. Version 12 dropped support for Python <3.7.
+    # This includepkg is present from 10.0.0+. Version 12 dropped support for
+    # Python <3.7, the version of ansible (2.12) requires a bit older for full support.
     cat <<EOF_ANSIBLE_OL8 > "${ansible_requirements}"
 ---
 collections:
   - name: community.general
-    version: "<12"
+    version: "<10"
   - name: oracle.oci
     src: git+https://github.com/oracle/oci-ansible-collection.git
 EOF_ANSIBLE_OL8

@@ -64,5 +64,4 @@ pmix_packages:
   - "{{ slurm_nfs_path }}/slurm_rpms/pmix-4.2.9-1.el{{ ansible_facts['distribution_major_version'] }}.{{ ansible_facts['architecture'] }}.rpm"
   - "{{ slurm_nfs_path }}/slurm_rpms/pmix-devel-4.2.9-1.el{{ ansible_facts['distribution_major_version'] }}.{{ ansible_facts['architecture'] }}.rpm"
 
-slurm_repos: "{% if ansible_facts['distribution_major_version'] == '8' %}ol8_developer_EPEL,ol8_codeready_builder{% elif ansible_facts['distribution_major_version'] == '9' %}ol9_developer_EPEL,ol9_codeready_builder{%
-  else %}epel,ol7_developer_EPEL{% endif %}"
+slurm_repos: "{% if ansible_facts['distribution_major_version'] == '8' %}ol8_developer_EPEL,ol8_codeready_builder{% elif ansible_facts['distribution_major_version'] == '9' %}ol9_developer_EPEL,ol9_codeready_builder{% endif %}"

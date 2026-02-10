@@ -2,9 +2,6 @@
 - include_vars: /config/playbooks/roles/openldap/vars/debian_vars.yml
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- include_tasks: el-7.yml
-  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '7'
-
 - include_tasks: el-8.yml
   when: ansible_facts['os_family'] == 'RedHat' and ( ansible_facts['distribution_major_version'] == '8' or ansible_facts['distribution_major_version'] == '9' )
 
