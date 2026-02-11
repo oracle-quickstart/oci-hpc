@@ -938,7 +938,8 @@ def generate_inventory(config,cluster_name):
                 "rdma_enabled":config.rdma_enabled,
                 "queue":config.partition,
                 "instance_type": config.name,
-                "hostname_convention": config.hostname_convention
+                "hostname_convention": config.hostname_convention,
+                "hyperthreading": config.hyperthreading
                 }
     try:
         with open(original_inventory, 'r') as file:
