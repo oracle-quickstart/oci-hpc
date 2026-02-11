@@ -23,7 +23,36 @@ from fastapi import status as fastapi_status
 from fastapi.responses import JSONResponse
 from jinja2 import Template
 
-app = FastAPI()
+
+# Initialize FastAPI with documentation and OpenAPI endpoints disabled.
+# This prevents exposure of /docs, /redoc, and /openapi.json on the webhook service.
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+# Explicit allow-list of supported webhook routes.
+# Any request that does not match these method/path combinations
+# will be rejected with HTTP 403 to reduce attack surface.
+
+_ALLOWED_ROUTES = {
+    ("GET", "/health"),
+    ("POST", "/log"),
+    ("POST", "/grafana-webhook"),
+}
+
+# Middleware to deny all unsupported routes and HTTP methods.
+# This provides a second layer of protection in addition to
+# disabling FastAPI auto-generated documentation endpoints.
+
+@app.middleware("http")
+async def deny_unsupported_routes(request: Request, call_next):
+    route_key = (request.method.upper(), request.url.path)
+    if route_key not in _ALLOWED_ROUTES:
+        return JSONResponse(
+            content={"status": "error", "message": "Unsupported route"},
+            status_code=fastapi_status.HTTP_403_FORBIDDEN,
+        )
+    return await call_next(request)
+
 
 topic_id = "{{ ons_topic_ocid }}"
 template_path = '{{ grafana_ons_webhook_template_path }}'
@@ -643,4 +672,9 @@ if __name__ == '__main__':
 
     start_daemons()
 
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+# Bind the webhook service to localhost only.
+# Grafana sends alerts via http://localhost:5000, so external access
+# is not required. Binding to 127.0.0.1 prevents network exposure
+# even if VCN security rules are modified in the future.
+
+    uvicorn.run(app, host="127.0.0.1", port=5000)

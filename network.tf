@@ -83,6 +83,7 @@ resource "oci_core_security_list" "public-security-list" {
       min = "80"
     }
   }
+  
   ingress_security_rules {
     protocol    = "6"
     source      = var.ssh_cidr
@@ -92,15 +93,7 @@ resource "oci_core_security_list" "public-security-list" {
       min = "443"
     }
   }
-  ingress_security_rules {
-    protocol    = "6"
-    source      = var.ssh_cidr
-    description = "Open port for alerts"
-    tcp_options {
-      max = "5000"
-      min = "5000"
-    }
-  }
+  
   ingress_security_rules {
     protocol = "1"
     source   = "0.0.0.0/0"
