@@ -115,6 +115,6 @@ CREATE TABLE IF NOT EXISTS clusterDB.healthchecks (
     healthcheck_time_change VARCHAR(128),
     healthcheck_last_time VARCHAR(128),
     healthcheck_recommendation VARCHAR(128),
-    healthcheck_status VARCHAR(128),
+    healthcheck_status VARCHAR(512),
     healthcheck_associated_node VARCHAR(128)
 );
