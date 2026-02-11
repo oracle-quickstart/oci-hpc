@@ -39,44 +39,45 @@
 *||check_hw_eth eth0
 *||check_hw_eth eth1
 
-*||check_hw_eth enp12s0f0
-*||check_hw_eth enp12s0f1
-*||check_hw_eth enp22s0f0
-*||check_hw_eth enp22s0f1
-*||check_hw_eth enp71s0f0
-*||check_hw_eth enp71s0f1
-*||check_hw_eth enp75s0f0
-*||check_hw_eth enp75s0f1
-*||check_hw_eth enp137s0f0
-*||check_hw_eth enp137s0f1
-*||check_hw_eth enp147s0f0
-*||check_hw_eth enp147s0f1
-*||check_hw_eth enp195s0f0
-*||check_hw_eth enp195s0f1
-*||check_hw_eth enp209s0f0
-*||check_hw_eth enp209s0f1
+*|| check_hw_eth rdma0
+*|| check_hw_eth rdma1
+*|| check_hw_eth rdma2
+*|| check_hw_eth rdma3
+*|| check_hw_eth rdma4
+*|| check_hw_eth rdma5
+*|| check_hw_eth rdma6
+*|| check_hw_eth rdma7
+*|| check_hw_eth rdma8
+*|| check_hw_eth rdma9
+*|| check_hw_eth rdma10
+*|| check_hw_eth rdma11
+*|| check_hw_eth rdma12
+*|| check_hw_eth rdma13
+*|| check_hw_eth rdma14
+*|| check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
 *||check_ps_loadavg 512
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
-*||check_hw_ib 100 mlx5_1:1
-*||check_hw_ib 100 mlx5_2:1
-*||check_hw_ib 100 mlx5_3:1
-*||check_hw_ib 100 mlx5_4:1
+*||check_hw_ib 50 mlx5_0:1
 *||check_hw_ib 100 mlx5_5:1
 *||check_hw_ib 100 mlx5_6:1
 *||check_hw_ib 100 mlx5_7:1
 *||check_hw_ib 100 mlx5_8:1
-*||check_hw_ib 100 mlx5_9:1
-*||check_hw_ib 100 mlx5_10:1
-*||check_hw_ib 100 mlx5_11:1
-*||check_hw_ib 100 mlx5_12:1
+*||check_hw_ib 100 mlx5_1:1
+*||check_hw_ib 100 mlx5_2:1
+*||check_hw_ib 100 mlx5_3:1
+*||check_hw_ib 100 mlx5_4:1
 *||check_hw_ib 100 mlx5_14:1
 *||check_hw_ib 100 mlx5_15:1
 *||check_hw_ib 100 mlx5_16:1
 *||check_hw_ib 100 mlx5_17:1
+*||check_hw_ib 100 mlx5_9:1
+*||check_hw_ib 100 mlx5_10:1
+*||check_hw_ib 100 mlx5_11:1
+*||check_hw_ib 100 mlx5_12:1
 
 
 # --- NVMe checks ---
@@ -102,22 +103,22 @@
 *||check_hw_eth eth0
 *||check_hw_eth eth1
 
-*||check_hw_eth enp12s0f0
-*||check_hw_eth enp12s0f1
-*||check_hw_eth enp22s0f0
-*||check_hw_eth enp22s0f1
-*||check_hw_eth enp71s0f0
-*||check_hw_eth enp71s0f1
-*||check_hw_eth enp75s0f0
-*||check_hw_eth enp75s0f1
-*||check_hw_eth enp137s0f0
-*||check_hw_eth enp137s0f1
-*||check_hw_eth enp147s0f0
-*||check_hw_eth enp147s0f1
-*||check_hw_eth enp195s0f0
-*||check_hw_eth enp195s0f1
-*||check_hw_eth enp209s0f0
-*||check_hw_eth enp209s0f1
+*|| check_hw_eth rdma0
+*|| check_hw_eth rdma1
+*|| check_hw_eth rdma2
+*|| check_hw_eth rdma3
+*|| check_hw_eth rdma4
+*|| check_hw_eth rdma5
+*|| check_hw_eth rdma6
+*|| check_hw_eth rdma7
+*|| check_hw_eth rdma8
+*|| check_hw_eth rdma9
+*|| check_hw_eth rdma10
+*|| check_hw_eth rdma11
+*|| check_hw_eth rdma12
+*|| check_hw_eth rdma13
+*|| check_hw_eth rdma14
+*|| check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
 *||check_ps_loadavg 512
@@ -125,22 +126,22 @@
 
 
 # --- InfiniBand / RoCE checks  ---
-*||check_hw_ib 100 mlx5_1:1
-*||check_hw_ib 100 mlx5_2:1
-*||check_hw_ib 100 mlx5_3:1
-*||check_hw_ib 100 mlx5_4:1
 *||check_hw_ib 100 mlx5_5:1
 *||check_hw_ib 100 mlx5_6:1
 *||check_hw_ib 100 mlx5_7:1
 *||check_hw_ib 100 mlx5_8:1
-*||check_hw_ib 100 mlx5_9:1
-*||check_hw_ib 100 mlx5_10:1
-*||check_hw_ib 100 mlx5_11:1
-*||check_hw_ib 100 mlx5_12:1
+*||check_hw_ib 100 mlx5_1:1
+*||check_hw_ib 100 mlx5_2:1
+*||check_hw_ib 100 mlx5_3:1
+*||check_hw_ib 100 mlx5_4:1
 *||check_hw_ib 100 mlx5_14:1
 *||check_hw_ib 100 mlx5_15:1
 *||check_hw_ib 100 mlx5_16:1
 *||check_hw_ib 100 mlx5_17:1
+*||check_hw_ib 100 mlx5_9:1
+*||check_hw_ib 100 mlx5_10:1
+*||check_hw_ib 100 mlx5_11:1
+*||check_hw_ib 100 mlx5_12:1
 
 
 # --- NVMe checks ---
@@ -195,22 +196,22 @@
 *||check_hw_eth lo
 *||check_hw_eth eth0
 
-*||check_hw_eth enp12s0f0
-*||check_hw_eth enp12s0f1
-*||check_hw_eth enp22s0f0
-*||check_hw_eth enp22s0f1
-*||check_hw_eth enp72s0f0
-*||check_hw_eth enp72s0f1
-*||check_hw_eth enp76s0f0
-*||check_hw_eth enp76s0f1
-*||check_hw_eth enp138s0f0
-*||check_hw_eth enp138s0f1
-*||check_hw_eth enp148s0f0
-*||check_hw_eth enp148s0f1
-*||check_hw_eth enp195s0f0
-*||check_hw_eth enp195s0f1
-*||check_hw_eth enp209s0f0
-*||check_hw_eth enp209s0f1
+*|| check_hw_eth rdma0
+*|| check_hw_eth rdma1
+*|| check_hw_eth rdma2
+*|| check_hw_eth rdma3
+*|| check_hw_eth rdma4
+*|| check_hw_eth rdma5
+*|| check_hw_eth rdma6
+*|| check_hw_eth rdma7
+*|| check_hw_eth rdma8
+*|| check_hw_eth rdma9
+*|| check_hw_eth rdma10
+*|| check_hw_eth rdma11
+*|| check_hw_eth rdma12
+*|| check_hw_eth rdma13
+*|| check_hw_eth rdma14
+*|| check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
 *||check_ps_loadavg 256
@@ -218,22 +219,23 @@
 
 
 # --- InfiniBand / RoCE checks  ---
-*||check_hw_ib 200 mlx5_0:1
-*||check_hw_ib 200 mlx5_1:1
-*||check_hw_ib 200 mlx5_2:1
-*||check_hw_ib 200 mlx5_3:1
-*||check_hw_ib 200 mlx5_6:1
-*||check_hw_ib 200 mlx5_7:1
-*||check_hw_ib 200 mlx5_8:1
-*||check_hw_ib 200 mlx5_9:1
-*||check_hw_ib 200 mlx5_10:1
-*||check_hw_ib 200 mlx5_11:1
-*||check_hw_ib 200 mlx5_12:1
-*||check_hw_ib 200 mlx5_13:1
-*||check_hw_ib 200 mlx5_14:1
-*||check_hw_ib 200 mlx5_15:1
-*||check_hw_ib 200 mlx5_16:1
-*||check_hw_ib 200 mlx5_17:1
+*||check_hw_ib 50 mlx5_4:1
+*||check_hw_ib 100 mlx5_0:1
+*||check_hw_ib 100 mlx5_2:1
+*||check_hw_ib 100 mlx5_6:1
+*||check_hw_ib 100 mlx5_8:1
+*||check_hw_ib 100 mlx5_10:1
+*||check_hw_ib 100 mlx5_12:1
+*||check_hw_ib 100 mlx5_14:1
+*||check_hw_ib 100 mlx5_16:1
+*||check_hw_ib 100 mlx5_1:1
+*||check_hw_ib 100 mlx5_3:1
+*||check_hw_ib 100 mlx5_7:1
+*||check_hw_ib 100 mlx5_9:1
+*||check_hw_ib 100 mlx5_11:1
+*||check_hw_ib 100 mlx5_13:1
+*||check_hw_ib 100 mlx5_15:1
+*||check_hw_ib 100 mlx5_17:1
 
 
 # --- NVMe checks ---
@@ -331,7 +333,7 @@
 *||check_hw_cpuinfo 2 112 112
 {% endif %}
 
-*||check_hw_physmem 3170353676kB 3170353676kB 3%
+*||check_hw_physmem 3221225472kB 3221225472kB 3%
 
 # --- Hardware checks  ---
 *||check_hw_eth lo
@@ -431,7 +433,9 @@
 
 
 #----------------------------------------------
-{% elif 'BM.GPU.GB200.4' in nhc_node_shape %}
+{% elif 'BM.GPU.GB200.4' in nhc_node_shape or
+        'BM.GPU.GB200-v2.4' in nhc_node_shape or
+        'BM.GPU.GB200-v3.4' in nhc_node_shape %}
 # Add checks specific to BM.GPU.GB200 compute shape here.
 
 {% if nhc_ht_enabled %}
@@ -502,14 +506,14 @@
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
-*||check_hw_ib 800 mlx5_0:1
-*||check_hw_ib 800 mlx5_1:1
-*||check_hw_ib 800 mlx5_2:1
-*||check_hw_ib 800 mlx5_3:1
-*||check_hw_ib 800 mlx5_5:1
-*||check_hw_ib 800 mlx5_6:1
-*||check_hw_ib 800 mlx5_7:1
-*||check_hw_ib 800 mlx5_8:1
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_2:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_5:1
+*||check_hw_ib 400 mlx5_6:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
 
 
 
@@ -537,14 +541,14 @@
 *||check_hw_eth lo
 *||check_hw_eth eth0
 
-*||check_hw_eth enp12s0np0
-*||check_hw_eth enp42s0np0
-*||check_hw_eth enp65s0np0
-*||check_hw_eth enp88s0np0
-*||check_hw_eth enp134s0np0
-*||check_hw_eth enp165s0np0
-*||check_hw_eth enp189s0np0
-*||check_hw_eth enp213s0np0
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
 
 
 # --- Process loadavg and required services ---
@@ -574,7 +578,9 @@
 
 
 #----------------------------------------------
-{% elif 'BM.GPU.MI355-v1.8' in nhc_node_shape %}
+{% elif 'BM.GPU.MI355X.8' in nhc_node_shape or
+        'BM.GPU.MI355X-v0.8' in nhc_node_shape or
+        'BM.GPU.MI355X-v1.8' in nhc_node_shape %}
 # Add checks specific to BM.GPU.MI355 compute shape here.
 
 {% if nhc_ht_enabled %}
@@ -583,7 +589,7 @@
 *||check_hw_cpuinfo 2 128 128
 {% endif %}
 
-*||check_hw_physmem 3072000000kB 3072000000kB 3%
+*||check_hw_physmem 3221225472kB 3221225472kB 3%
 
 # --- Hardware checks  ---
 *||check_hw_eth lo
@@ -628,8 +634,8 @@
 
 
 #----------------------------------------------
-{% elif 'BM.GPU.L40S.4' in nhc_node_shape %}
-# Add checks specific to BM.GPU.L40S compute shape here.
+{% elif 'BM.GPU.L40S-NC.4' in nhc_node_shape %}
+# Add checks specific to BM.GPU.L40S-NC.4 compute shape here.
 
 {% if nhc_ht_enabled %}
 *||check_hw_cpuinfo 2 112 224
@@ -637,14 +643,11 @@
 *||check_hw_cpuinfo 2 112 112
 {% endif %}
 
-*||check_hw_physmem 1006632960kB 1006632960kB 3%
+*||check_hw_physmem 1073741824kB 1073741824kB 3%
 
 # --- Hardware checks  ---
 *||check_hw_eth lo
 *||check_hw_eth eth0
-
-*||check_hw_eth rdma0
-*||check_hw_eth rdma1
 
 
 # --- Process loadavg and required services ---
@@ -652,8 +655,6 @@
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
-*||check_hw_ib 800 mlx5_0:1
-*||check_hw_ib 800 mlx5_2:1
 
 
 # --- NVMe checks ---

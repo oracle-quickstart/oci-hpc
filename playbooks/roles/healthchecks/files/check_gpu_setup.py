@@ -31,6 +31,7 @@ This is a Health Check script which covered below in order:
 18. Check NVLinks speeds
 19. Run dcgmi health check
 20. Run rocminfo check (AMD GPUs)
+21. Run LBNL NHC
 
 ===========================================================================================
 Usage:
@@ -57,6 +58,7 @@ import time
 import sys
 import socket
 import psutil
+from pathlib import Path
 
 version = sys.version_info
 if version >= (3, 12):
@@ -147,10 +149,10 @@ def slurm_reason(message):
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Reset_GPU"):
+    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Reset_GPU","Check_nhc_log"):
         logger.error("No action was found")
         return 0
-    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Reset_GPU"):
+    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Reset_GPU", "Check_nhc_log"):
         if current == "Terminate":
             return current
         else:
@@ -160,7 +162,7 @@ def recommended_action(current, action):
     if action == "Terminate":
         return action
     if action in ("Wait_For_OCA"):
-        if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU"):
+        if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU","Check_nhc_log"):
             return current
         else:
             return action
@@ -1299,6 +1301,90 @@ def run_rocminfo_check():
     except Exception as e:
         logger.error(f"rocminfo health check unexpected error: {str(e)}")
         return False
+    
+# Run LBNL NHC
+def run_nhc_check():
+    try:
+        subprocess.run(["nvme", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=5)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.warning("nvme-cli not installed. Cannot run LBNL node health checks", e.output)
+        return True
+    
+    nhc_log_file = '/var/log/nhc.log'
+    
+    if os.path.isfile(nhc_log_file):
+        try:
+            os.remove(nhc_log_file)
+        except PermissionError:
+            logger.warning(f"Cannot run LBNL node health checks. Try running as root or with elevated privileges.")
+            return True
+        except Exception as e:
+            logger.error(f"LBNL node health checks failed. Error deleting {nhc_log_file}: {e}")
+            return False
+
+    cmd = [
+        'sudo',
+        '/usr/sbin/nhc',
+        '-c', '/etc/nhc/oci.nhc.conf',
+        '-a',
+        '-v'
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=False, # Don't raise exception on nonzero exit
+            timeout=15 
+        )
+    except Exception as e:
+        logger.warning("Could not run LBNL node health checks", e.output)
+        return True 
+    
+    # Allow logging to flush
+    time.sleep(5)
+
+    def read_log_lines():
+        # Return log file as list of lines
+        if Path(nhc_log_file).exists():
+            return Path(nhc_log_file).read_text().splitlines(), True
+        return [], False
+    
+    def get_issues(log_lines):
+        # Return lines containing WARNING or ERROR
+        issues = []
+        for line in log_lines:
+            stripped = line.strip()
+            if stripped.startswith("WARNING:"):
+                issues.append(("WARNING", stripped))
+            elif stripped.startswith("ERROR:"):
+                issues.append(("ERROR", stripped))
+        return issues
+
+    # Capture log after running
+    nhc_log_output, nhc_log_exists = read_log_lines()
+    if nhc_log_exists:
+        issues = get_issues(nhc_log_output)
+    else:
+        logger.error("LBNL node health checks failed. /var/log/nhc.log is not generated.")
+        return False
+
+    lbnl_error = False
+    if issues:
+        for level, message in issues:
+            if level == "WARNING":
+                logger.warning(f"LBNL node health check: {message}")
+            elif level == "ERROR":
+                logger.error(f"LBNL node health check: {message}")
+                lbnl_error = True
+        if lbnl_error:
+            return False
+        else:
+            return True
+    else:
+        logger.info("LBNL node health checks: Passed")
+        return True
 
 #Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
@@ -1332,6 +1418,7 @@ if __name__ == '__main__':
     parser.add_argument('--nvlink-speed', action='store_true', help='Check NVLinks speeds')
     parser.add_argument('--dcgmi-health', action='store_true', help='Run dcgmi health check')
     parser.add_argument('--rocminfo-check', action='store_true', help='Run rocminfo check')
+    parser.add_argument('--lbnl-nhc', action='store_true', help='Run LBNL NHC')
 
     args = parser.parse_args()
     metadata = get_metadata()
@@ -1362,7 +1449,7 @@ if __name__ == '__main__':
         oca_state = "COMPLETED"
 
     # 1.3 Check OCA Status
-    if (run_all or args.oca_stat) and (not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
+    if (run_all or args.oca_stat) and (not ("GPU.GB" in shape or shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"])):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -1553,8 +1640,10 @@ if __name__ == '__main__':
             missing_ips = []
 
     # 18.3 Check if NVLink speed is correct
-    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4"]):
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S-NC.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4"]):
         nvlink_speed = get_nvlink_speed()
+    else:
+        nvlink_speed = True
     
     # 19.3 Check the node health using dcgmi health check
     if run_all or args.dcgmi_health:
@@ -1583,13 +1672,25 @@ if __name__ == '__main__':
         else:
             rocminfo_check = True
 
+    # 21.3 Check the node health using LBNL NHC
+    if run_all or args.lbnl_nhc:
+        valid_shapes = {"BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8", "BM.GPU.MI300X.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4", "BM.GPU.L40S-NC.4"}
+        if shape in valid_shapes:
+            try:
+                lbnl_nhc_output = run_nhc_check()
+            except Exception as e:
+                logger.warning(f"Failed to run LBNL node health check with error: {e}")
+                lbnl_nhc_output = True
+        else:
+            lbnl_nhc_output = True
+
 #Section 4: Summarize the results and recommend actions.
 ########################################################
 
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if (run_all or args.oca_stat) and ( not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
+    if (run_all or args.oca_stat) and ( not ("GPU.GB" in shape or shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"])):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
@@ -1784,7 +1885,7 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
     
     # 18.4 Summarize NVLink speed check
-    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4"]):
+    if run_all or args.nvlink_speed:
         if not nvlink_speed:
             logger.error(f"NVLink speed Error for one or more GPUs")
             slurm_reason("NVLink speed Error")
@@ -1803,6 +1904,13 @@ if __name__ == '__main__':
             logger.error(f"{host_serial} - rocminfo health check failed")
             slurm_reason("rocminfo health check failed")
             action = recommended_action(action, "Reboot")
+
+    # 21.4 Summarize LBNL node health check
+    if run_all or args.lbnl_nhc:
+        if not lbnl_nhc_output:
+            logger.error(f"{host_serial} - LBNL node health check failed. Check /var/log/nhc.log for details.")
+            slurm_reason("LBNL node health check failed")
+            action = recommended_action(action, "Check_nhc_log")
 
     # Print recommended action and slurm message
     if action == "Reboot":

@@ -50,7 +50,7 @@ ExecStart=
 {% set gres = "Gres=gpu:MI300X:8" %}
 {% elif shape == "BM.GPU.MI355X.8" or shape == "BM.GPU.MI355X-v0.8" or shape == "BM.GPU.MI355X-v1.8" %}
 {% set gres = "Gres=gpu:MI355X:8" %}
-{% elif shape == "BM.GPU.L40S.4" %}
+{% elif shape == "BM.GPU.L40S-NC.4" %}
 {% set gres = "Gres=gpu:L40S:4" %}
 {% elif shape == "VM.GPU.A100.40G.1" or shape == "VM.GPU.A100.B40G.1" or shape == "VM.GPU.A100.80G.1"%}
 {% set gres = "Gres=gpu:A100:1" %}
