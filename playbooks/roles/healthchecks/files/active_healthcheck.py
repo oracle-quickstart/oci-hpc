@@ -558,11 +558,10 @@ def get_fio_command(nvme_devices):
             f"filename={device}",
             f"numjobs={nvme_devices[device].get('numjobs')}",
             f"iodepth={nvme_devices[device].get('iodepth')}",
-            "\n"
+            ""
         ])
-
+    fio_command = "sudo fio --output-format=json - | jq '[.jobs[] | {iops: .read.iops, drive: .jobname}]'"
     fio_command_lines = [
-        "sudo fio --output-format=json - << EOF | jq '[.jobs[] | {iops: .read.iops, drive: .jobname}]'",
         "[global]",
         "name=nvme-rand-read",
         "time_based=1",
@@ -574,12 +573,27 @@ def get_fio_command(nvme_devices):
         "ioengine=libaio",
         "direct=1",
         "group_reporting=1",
-        "\n",
+        "",
         *nvme_config,
-        "\n",
-        "EOF"
     ]
-    return "\n".join(fio_command_lines)
+    return fio_command, "\n".join(fio_command_lines)
+
+def run_fio_command(fio_command, fio_config, timeout):
+    """Run fio with config piped to stdin."""
+    user_is_default, default_user = is_user_default()
+    
+    base_cmd = ["bash", "-lc", fio_command]
+    if not user_is_default:
+        base_cmd = ["sudo", "-u", default_user] + base_cmd
+    
+    result = subprocess.run(
+        base_cmd,
+        input=fio_config.encode(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout
+    )
+    return result
 
 def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
     default_numjobs = 16
@@ -671,7 +685,8 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
             return False, "FIO is not installed."
             
         # Run FIO read tests
-        result = run_as_default_user(get_fio_command(detected_nvmes_dict), 1800)
+        fio_command, fio_config = get_fio_command(detected_nvmes_dict)
+        result = run_fio_command(fio_command, fio_config, 1800)
         if result.returncode == 0:
             import statistics
             
