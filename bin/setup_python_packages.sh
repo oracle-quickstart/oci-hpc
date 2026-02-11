@@ -119,7 +119,6 @@ pymysql
 cachetools
 line-protocol-parser
 influx-line-protocol
-flatdict
 orjson
 
 # --- Python build toolchain packages for Slurm SDK ---
@@ -151,16 +150,6 @@ EOF_REQUIREMENTS
 echo "--- 8< --- Python Requirements --- 8< ---"
 cat "${requirements}"
 echo "--- >8 --- Python Requirements --- >8 ---"
-
-# This is for flatdict: fails to install with pkg_resources missing, which was
-# removed in setuptools 82.
-#
-# FIXME evaluate if we really need to depend on a package that has not been
-# updated since 202[01]
-cat <<EOF > pyproject.toml
-[tool.uv.extra-build-dependencies]
-flatdict = ["setuptools<82"]
-EOF
 
 uv pip install -r "${requirements}"
 

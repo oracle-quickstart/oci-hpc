@@ -81,13 +81,33 @@ Thread Safety:
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import MutableMapping
 import logging
-from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from oci.base_client import BaseClient
 
 logger = logging.getLogger(__name__)
+
+
+def _flatten_dict_gen(d: MutableMapping[str, Any], parent_key: str, sep: str):
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, MutableMapping):
+            yield from dict(_flatten_dict_gen(v, new_key, sep=sep)).items()
+        else:
+            yield new_key, v
+
+
+def flatten_dict(d: MutableMapping[str, Any], sep: str = '.'):
+    """Flatten nested dictionaries by key using a provided separator
+
+    Args:
+        d:   any key-value mutable mapping. keys must be strings
+        sep: key seperator string, '.' by default
+    """
+    return dict(_flatten_dict_gen(d, '', sep))
 
 
 class OCIClientFactory:

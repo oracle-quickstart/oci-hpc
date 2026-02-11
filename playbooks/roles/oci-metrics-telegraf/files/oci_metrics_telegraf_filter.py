@@ -40,7 +40,6 @@ from typing import Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, Future
 from threading import Thread, Lock
 
-import flatdict
 from cachetools.func import lfu_cache
 from line_protocol_parser import parse_line
 from influx_line_protocol import Metric
@@ -51,7 +50,7 @@ os.environ["OCI_PYTHON_SDK_NO_SERVICE_IMPORTS"] = "1"
 
 from oci.retry import RetryStrategyBuilder, BACKOFF_FULL_JITTER_EQUAL_ON_THROTTLE_VALUE
 
-from oci_metrics_telegraf_utils import OCIMetaClient
+from oci_metrics_telegraf_utils import OCIMetaClient, flatten_dict
 
 logger = logging.getLogger(__name__)
 
@@ -248,9 +247,11 @@ def fetch_resource_tags(namespace: str, tags: str) -> Dict[str, Any]:
         # Merge freeform tags with additional tags, flattening nested dictionaries
         # Empty values are filtered out
         if additional_tags:
-            api_resource_tags = {k: v  for k, v in flatdict.FlatDict({ **resource_info.data.freeform_tags, **additional_tags }, delimiter = ".").items() if v}
+            api_resource_tags = {k: v  for k, v in
+                flatten_dict({**resource_info.data.freeform_tags, **additional_tags}, sep = ".").items() if v}
         else:
-            api_resource_tags = {k: v  for k, v in flatdict.FlatDict({ **resource_info.data.freeform_tags }, delimiter = ".").items() if v}
+            api_resource_tags = {k: v  for k, v in
+                flatten_dict(resource_info.data.freeform_tags, sep = ".").items() if v}
     
     except Exception as e:
         logger.error(f"Error fetching resource tags for namespace {namespace}, tags {tags}: {traceback.format_exc()}")
