@@ -76,6 +76,17 @@ class OCIClients:
 
 CLIENTS = OCIClients()
 
+def get_console_history(node):
+    # Capture console history for the instance
+    try:
+        console_history_response = CLIENTS.compute_client_composite_operations.capture_console_history_and_wait_for_state(oci.core.models.CaptureConsoleHistoryDetails(
+            instance_id=node.ocid), wait_for_states=["SUCCEEDED", "FAILED"])
+        console_history_id = console_history_response.data.id
+        console_history_data = CLIENTS.compute_client.get_console_history_content(console_history_id).data
+        return console_history_data
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error capturing console history for instance {node.ocid}: {e}")
+        return None
 
 def list_custom_images(compartment_ocid):
     try:
