@@ -84,11 +84,12 @@ else
   ANSIBLE_EXTRA_PKG=
 fi
 
-# Store requirements in a temporary file
-#
+# Create a temporary directory to avoid littering the home directory.
+proj_dir=$(mktemp -d)
+
 # Using a single requirements file allows uv to satisfy the proper dependencies
 # for all installed packages.
-requirements=$(mktemp)
+requirements="${proj_dir}/requirements.txt"
 
 cat <<EOF_REQUIREMENTS >> "${requirements}"
 pip
@@ -147,10 +148,14 @@ fastapi[standard-no-fastapi-cloud-cli]
 uvicorn
 EOF_REQUIREMENTS
 
-echo "--- 8< --- Python Requirements --- 8< ---"
+echo "--- 8< --- Python Requirements: ${requirements} --- 8< ---"
 cat "${requirements}"
 echo "--- >8 --- Python Requirements --- >8 ---"
 
-uv pip install -r "${requirements}"
+(
+  # Run installation in temporary directory to pollute less
+  cd "${proj_dir}"
+  uv pip install -r "${requirements}"
+)
 
 touch "${marker_install}"
