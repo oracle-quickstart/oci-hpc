@@ -52,7 +52,6 @@ resource "oci_dns_rrset" "rrset-monitoring" {
     rdata  = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : ""
     ttl    = 3600
   }
-  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
 

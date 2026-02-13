@@ -1129,10 +1129,10 @@ def update_dns(instance_ocid, zone_name, compartment_ocid, instance_launch, host
     if instance_launch:
         private_ip = get_private_ip(instance_ocid,compartment_ocid)
 
-        get_rr_set_response = CLIENTS.dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600,)]))
+        get_rr_set_response = CLIENTS.dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600,)]))
         logger.info(f"DNS updated for instance launch with IP {private_ip} and {hostname}")
     else:
-        get_rr_set_response = CLIENTS.dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",scope="PRIVATE") 
+        get_rr_set_response = CLIENTS.dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A") 
         logger.info(f"DNS updated for instance terminated with hostname: {hostname}")
 
 def update_display_name(instance_ocid, new_hostname):

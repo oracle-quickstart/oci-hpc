@@ -1,7 +1,7 @@
 
 resource "oci_core_instance" "login" {
   count               = var.login_node ? 1 : 0
-  depends_on          = [oci_core_subnet.public-subnet, null_resource.cluster]
+  depends_on          = [oci_core_subnet.public-subnet, null_resource.controller]
   availability_domain = var.login_ad
   compartment_id      = var.targetCompartment
   shape               = var.login_shape
@@ -58,6 +58,5 @@ resource "oci_dns_rrset" "rrset-login" {
     rdata  = var.login_node ? oci_core_instance.login[0].private_ip : ""
     ttl    = 3600
   }
-  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }

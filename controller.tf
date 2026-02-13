@@ -509,6 +509,5 @@ resource "oci_dns_rrset" "rrset-controller" {
     rdata  = oci_core_instance.controller.private_ip
     ttl    = 3600
   }
-  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }

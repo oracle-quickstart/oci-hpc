@@ -260,6 +260,5 @@ resource "oci_dns_rrset" "rrset-backup" {
     rdata  = var.slurm_ha ? oci_core_instance.backup[0].private_ip : ""
     ttl    = 3600
   }
-  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
 }

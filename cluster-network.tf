@@ -1,6 +1,6 @@
 resource "oci_core_cluster_network" "cluster_network" {
   count          = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && (var.cluster_network_shape != "BM.GPU.GB200.4" && var.cluster_network_shape != "BM.GPU.GB200-v2.4" && var.cluster_network_shape != "BM.GPU.GB200-v3.4" && var.cluster_network_shape != "BM.GPU.GB300.4") ? 1 : 0
-  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_functions_function.function, null_resource.cluster]
+  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_functions_function.function, null_resource.controller]
   compartment_id = var.targetCompartment
   instance_pools {
     instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id
