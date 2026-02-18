@@ -1,88 +1,49 @@
-# Makefile for Grafana dashboard management
-JSONNET := /usr/local/bin/jsonnet
-JB := /usr/local/bin/jb
+# Grafana Dashboard Makefile
+JSONNET := jsonnet
+JB := jb
 GRAFANA_URL := http://localhost:3000
-VENDOR_DIR := vendor
-JB_STAMP := $(VENDOR_DIR)/.jb_bootstrap
+VENDOR := vendor
 
-# Command line options
-# Usage: make <dashboard-name>
-# e.g. make workshop-dashboard
-DASHBOARD_SRC ?= workshop-dashboard.jsonnet
-# Use recursive assignment so this updates when DASHBOARD_SRC is overridden
-DASHBOARD_OUT = $(DASHBOARD_SRC:.jsonnet=.json)
-GRAFANA_PASSWORD ?=
+SOURCES := $(wildcard *.jsonnet)
+DASHBOARDS := $(SOURCES:.jsonnet=.json)
+NAMES := $(SOURCES:.jsonnet=)
 
-.PHONY: all build deploy clean help vendor deps
+.PHONY: all clean help $(NAMES)
 
-all: build
+# Build all dashboards
+all: $(DASHBOARDS)
 
-# Ensure vendor deps (jb init/install) run only once
-deps: $(JB_STAMP)
+# Vendor deps - auto-install if missing
+$(VENDOR):
+	@echo "Installing jsonnet dependencies..."
+	@$(JB) init 2>/dev/null || true
+	@$(JB) install github.com/grafana/grafonnet-lib/grafonnet@master
+	@$(JB) install github.com/grafana/grafonnet/gen/grafonnet-latest@main
 
-$(VENDOR_DIR):
-	@mkdir -p $(VENDOR_DIR)
+# Pattern rule: build .json from .jsonnet
+%.json: %.jsonnet | $(VENDOR)
+	@echo "Building $@"
+	@$(JSONNET) -J $(VENDOR) $< -o $@
 
-# Bootstrap jsonnet-bundler once and stamp it
-$(JB_STAMP): | $(VENDOR_DIR)
-	@test -f jsonnetfile.json || $(JB) init
-	$(JB) install github.com/grafana/grafonnet-lib/grafonnet@master
-	$(JB) install github.com/grafana/grafonnet/gen/grafonnet-latest@main
-	@touch $@
+# Pattern rule: build and deploy by name
+$(NAMES): %: %.json
+	@test -n "$(GRAFANA_PASSWORD)" || { echo "Error: export GRAFANA_PASSWORD first"; exit 1; }
+	@echo "Deploying $< to $(GRAFANA_URL)"
+	@curl -sf -X POST -H 'Content-Type: application/json' \
+		-d '{"dashboard": '"$$(cat $<)"', "overwrite": true}' \
+		"$(GRAFANA_URL)/api/dashboards/db" -u "admin:$(GRAFANA_PASSWORD)" | jq -r '.status // .message'
 
-## Build the dashboard JSON from jsonnet source
-build: deps
-	$(JSONNET) -J $(VENDOR_DIR) $(DASHBOARD_SRC) -o $(DASHBOARD_OUT)
-
-## Deploy dashboard to Grafana (requires GRAFANA_PASSWORD)
-deploy: build
-	@if [ -z "$(GRAFANA_PASSWORD)" ]; then \
-		echo "GRAFANA_PASSWORD is not set."; \
-		echo "Usage: make deploy GRAFANA_PASSWORD=yourpassword"; \
-		exit 1; \
-	fi
-	@curl -s -X POST \
-		-H 'Content-Type: application/json' \
-		-d '{"dashboard": '"$$(jq . $(DASHBOARD_OUT))"', "overwrite": true}' \
-		"$(GRAFANA_URL)/api/dashboards/db" --user "admin:$(GRAFANA_PASSWORD)" | jq .
-
-## Shortcut rule:
-## "make <name>" will deploy <name>.jsonnet
-## Example: `make workshop-dashboard` -> uses workshop-dashboard.jsonnet
-%: %.jsonnet deps
-	@echo "Deploying dashboard '$@' using source $< ..."
-	@$(MAKE) DASHBOARD_SRC=$< deploy
-
-## Remove generated files
 clean:
-	@rm -f *.json
-	@rm -f $(JB_STAMP)
+	rm -f $(DASHBOARDS)
 
-## Show available targets
+clean-all: clean
+	rm -rf $(VENDOR) jsonnetfile.json jsonnetfile.lock.json
+
 help:
-	@echo "Available targets:"
-	@echo "  build            - Compile jsonnet to JSON (ensures jb deps are installed once)"
-	@echo "  deploy           - Push dashboard to Grafana (requires GRAFANA_PASSWORD)"
-	@echo "  <name>           - Build & deploy <name>.jsonnet (e.g. make workshop-dashboard)"
-	@echo "  clean            - Remove generated files and jb stamp"
+	@echo "Usage:"
+	@echo "  make <name>       Build and deploy dashboard (e.g., make command-center)"
+	@echo "  make all          Build all dashboards (no deploy)"
+	@echo "  make clean        Remove built JSON files"
+	@echo "  make clean-all    Remove JSON + vendor"
 	@echo ""
-	@echo "Environment:"
-	@echo "  GRAFANA_PASSWORD - Grafana admin password (required for deploy)"
-	@echo ""
-	@echo "Quick start:"
-	@echo "  1) Export your Grafana admin password:"
-	@echo "       export GRAFANA_PASSWORD=yourpassword"
-	@echo "  2) Deploy a dashboard by name (without jsonnet extension):"
-	@echo "       make workshop-dashboard"
-	@echo "       make my-dashboard"
-	@echo ""
-	@echo "Advanced usage:"
-	@echo "  DASHBOARD_SRC    - Source jsonnet file (default: workshop-dashboard.jsonnet)"
-	@echo "  GRAFANA_URL      - Grafana base URL (default: http://localhost:3000)"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make build"
-	@echo "  make build DASHBOARD_SRC=other-dashboard.jsonnet"
-	@echo "  make deploy DASHBOARD_SRC=my-dashboard.jsonnet GRAFANA_PASSWORD=secret"
-	@echo "  export GRAFANA_PASSWORD=secret && make workshop-dashboard"
-
+	@echo "Setup: export GRAFANA_PASSWORD=<password>"
