@@ -56,7 +56,7 @@ def run_reset_gpus(node):
     logger.info("Resetting GPUs on: "+str(node.hostname)+" with IP "+str(node.ip_address))
     task = task_self()
     nodes = NodeSet(str(node.ip_address))
-    command = "sudo /opt/oci-hpc/healthchecks/gpu_reset.sh --slurm"
+    command = "sudo /opt/oci-hpc/healthchecks/gpu_reset.sh"
     task.run(command, nodes=nodes)
     logger.info(f"GPU reset script was run. Logs are available at /var/log/healthchecks/latest_gpu_reset.log.")
 

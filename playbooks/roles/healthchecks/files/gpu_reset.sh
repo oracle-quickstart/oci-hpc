@@ -11,24 +11,10 @@ log() {
 
 FAIL=0
 TIMEOUT=60
-SLURM=false
 NODENAME=$(hostname)
 
 log "=== Starting GPU reset for $NODENAME ==="
 log "Script invoked as: $0 $*"
-
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --slurm)
-            SLURM=true
-            shift
-            ;;
-        *)
-            shift
-            ;;
-    esac
-done
 
 # Function to check if a systemd service exists
 service_exists() {
@@ -77,11 +63,6 @@ run_cmd sudo systemctl start nvidia-persistenced.service
 run_cmd sudo systemctl start nvidia-dcgm.service
 run_cmd sudo systemctl start nvidia-cdi-refresh.service
 run_cmd sudo systemctl start nvidia-cdi-refresh.path
-
-# If --slurm parameter is passed and the reset is successful, then update the node slurm state to idle.
-if [[ "$SLURM" == true && "$FAIL" -eq 0 ]]; then
-    run_cmd sudo scontrol update nodename=$NODENAME state=resume
-fi
 
 if [ "$FAIL" -eq 0 ]; then
     log "=== GPU reset completed successfully for $NODENAME ==="
