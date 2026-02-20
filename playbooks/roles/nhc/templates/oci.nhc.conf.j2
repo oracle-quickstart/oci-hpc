@@ -23,7 +23,7 @@
 # --- Swap  check ---
 *||check_hw_swap 0kB 0kB 3%
 
-#----------------------------------------------
+
 {% if 'BM.GPU.B4.8' in nhc_node_shape %}
 
 {% if nhc_ht_enabled %}
@@ -32,29 +32,29 @@
 *||check_hw_cpuinfo 2 128 128
 {% endif %}
 
-*||check_hw_physmem 2147483648kb 2147483648kb 3%
+*||check_hw_physmem 2147483648kB 2147483648kB 3%
 
 # --- Hardware checks  ---
 *||check_hw_eth lo
 *||check_hw_eth eth0
 *||check_hw_eth eth1
 
-*|| check_hw_eth rdma0
-*|| check_hw_eth rdma1
-*|| check_hw_eth rdma2
-*|| check_hw_eth rdma3
-*|| check_hw_eth rdma4
-*|| check_hw_eth rdma5
-*|| check_hw_eth rdma6
-*|| check_hw_eth rdma7
-*|| check_hw_eth rdma8
-*|| check_hw_eth rdma9
-*|| check_hw_eth rdma10
-*|| check_hw_eth rdma11
-*|| check_hw_eth rdma12
-*|| check_hw_eth rdma13
-*|| check_hw_eth rdma14
-*|| check_hw_eth rdma15
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
 *||check_ps_loadavg 512
@@ -103,22 +103,22 @@
 *||check_hw_eth eth0
 *||check_hw_eth eth1
 
-*|| check_hw_eth rdma0
-*|| check_hw_eth rdma1
-*|| check_hw_eth rdma2
-*|| check_hw_eth rdma3
-*|| check_hw_eth rdma4
-*|| check_hw_eth rdma5
-*|| check_hw_eth rdma6
-*|| check_hw_eth rdma7
-*|| check_hw_eth rdma8
-*|| check_hw_eth rdma9
-*|| check_hw_eth rdma10
-*|| check_hw_eth rdma11
-*|| check_hw_eth rdma12
-*|| check_hw_eth rdma13
-*|| check_hw_eth rdma14
-*|| check_hw_eth rdma15
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
 *||check_ps_loadavg 512
@@ -196,22 +196,22 @@
 *||check_hw_eth lo
 *||check_hw_eth eth0
 
-*|| check_hw_eth rdma0
-*|| check_hw_eth rdma1
-*|| check_hw_eth rdma2
-*|| check_hw_eth rdma3
-*|| check_hw_eth rdma4
-*|| check_hw_eth rdma5
-*|| check_hw_eth rdma6
-*|| check_hw_eth rdma7
-*|| check_hw_eth rdma8
-*|| check_hw_eth rdma9
-*|| check_hw_eth rdma10
-*|| check_hw_eth rdma11
-*|| check_hw_eth rdma12
-*|| check_hw_eth rdma13
-*|| check_hw_eth rdma14
-*|| check_hw_eth rdma15
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
 *||check_ps_loadavg 256
@@ -662,4 +662,39 @@
 *||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
 
 
+{% else %}
+# -------------------------------------------------
+# Generic NHC checks for non-GPU shapes
+# -------------------------------------------------
+
+# --- CPU ---
+*||check_hw_cpuinfo {{ nhc_cpu_sockets }} {{ nhc_cpu_cores_per_socket }} {{ nhc_expected_threads }}
+
+
+# --- Memory ---
+*||check_hw_physmem {{ nhc_expected_mem_kb }}kB {{ nhc_expected_mem_kb }}kB 3%
+
+
+# --- Ethernet checks (auto-detected NICs) ---
+{% for iface in ansible_interfaces %}
+{% if iface not in ['lo', 'docker0'] %}
+*||check_hw_eth {{ iface }}
 {% endif %}
+{% endfor %}
+
+
+{% for dev in nhc_nvme_devices %}
+*||check_cmd_output -e "sudo nvme smart-log /dev/{{ dev }}" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+{% endfor %}
+
+
+# --- Load average ---
+*||check_ps_loadavg {{ nhc_load_threshold }}
+
+# --- Required services ---
+*||check_ps_service -r rpcbind
+
+
+
+{% endif %}
+

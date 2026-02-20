@@ -1674,14 +1674,10 @@ if __name__ == '__main__':
 
     # 21.3 Check the node health using LBNL NHC
     if run_all or args.lbnl_nhc:
-        valid_shapes = {"BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8", "BM.GPU.MI300X.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4", "BM.GPU.L40S-NC.4"}
-        if shape in valid_shapes:
-            try:
-                lbnl_nhc_output = run_nhc_check()
-            except Exception as e:
-                logger.warning(f"Failed to run LBNL node health check with error: {e}")
-                lbnl_nhc_output = True
-        else:
+        try:
+            lbnl_nhc_output = run_nhc_check()
+        except Exception as e:
+            logger.warning(f"Failed to run LBNL node health check with error: {e}")
             lbnl_nhc_output = True
 
 #Section 4: Summarize the results and recommend actions.
