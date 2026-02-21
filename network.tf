@@ -93,7 +93,39 @@ resource "oci_core_security_list" "public-security-list" {
       min = "443"
     }
   }
-  
+  ingress_security_rules {
+    protocol    = "6"
+    source      = var.ssh_cidr
+    description = "Open port for alerts"
+    tcp_options {
+      max = "5000"
+      min = "5000"
+    }
+  }
+  dynamic "ingress_security_rules" {
+    for_each = var.slurm_federation ? [1] : []
+    content {
+      protocol    = "6"
+      source      = "${var.ip_slurmdbd}/32"
+      description = "Allow slurmdbd access from initial cluster"
+      tcp_options {
+        max = "6819"
+        min = "6819"
+      }
+    }
+  }  
+  dynamic "ingress_security_rules" {
+    for_each = var.slurm_federation ? [1] : []
+    content {
+      protocol    = "6"
+      source      = "${var.ip_slurmdbd}/32"
+      description = "Allow slurmctld access from initial cluster"
+      tcp_options {
+        max = "6817"
+        min = "6817"
+      }
+    }
+  }    
   ingress_security_rules {
     protocol = "1"
     source   = "0.0.0.0/0"

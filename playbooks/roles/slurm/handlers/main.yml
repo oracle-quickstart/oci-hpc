@@ -5,9 +5,7 @@
     name: "{{ item }}"
     state: restarted
     enabled: true
-  with_items:
-    - slurmdbd
-    - slurmctld
+  with_items: "{{ ['slurmctld'] if slurm_federation | bool else ['slurmdbd', 'slurmctld'] }}"
   register: result
   until: result is not failed
   retries: 5

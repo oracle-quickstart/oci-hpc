@@ -12,6 +12,7 @@
     state: restarted
     daemon_reload: true
     enabled: true
+  when: not slurm_federation | default(false) | bool
 
 - name: Restart slurmrestd
   service:

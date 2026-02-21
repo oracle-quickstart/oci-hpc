@@ -32,13 +32,13 @@ GresTypes=gpu
 SchedulerType=sched/backfill
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core_Memory
-AccountingStorageHost={{ controller_hostname }}
+AccountingStorageHost={{ ip_slurmdbd if slurm_federation | bool else controller_hostname}}
 {% if groups['slurm_backup'] | length > 0 %}
 AccountingStorageBackupHost={{ slurm_backup_hostname }}
 {% endif %}
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStoreFlags=job_comment
-ClusterName=cluster
+ClusterName={{ cluster_name }}
 JobAcctGatherFrequency=30
 JobAcctGatherType=jobacct_gather/linux
 SlurmctldDebug=info
@@ -190,14 +190,14 @@ NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | strin
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
     {%- else %}
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES
-PartitionName={{ partition.name }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
+PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
     {%- endif %}
 {%- else %}
     {%- if ns.has_ondemand == 1 %}
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
     {%- else %}
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO
-PartitionName={{ partition.name }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
+PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
     {%- endif %}
 {%- endif %}
 {{ "\n" -}}

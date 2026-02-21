@@ -96,11 +96,19 @@
         mode: "0750"
         recurse: true
 
+    - name: Copy munge.key
+      become: true
+      ansible.builtin.copy:
+        src: "/config/key/munge.key"
+        dest: "{{ munge_conf_path }}/munge.key"
+      when: slurm_federation | default(false) | bool
+
     - name: Create munge.key
       become: true
       ansible.builtin.command: "dd if=/dev/urandom bs=1 count=1024 of={{ munge_conf_path }}/munge.key"
       args:
         creates: "{{ munge_conf_path }}/munge.key"
+      when: not slurm_federation | default(false) | bool
 
     - name: Set munge.key permissions
       become: true
@@ -114,8 +122,12 @@
 
     - name: Copy munge.key
       become: true
-      ansible.builtin.command:
-        cmd: "cp {{ munge_conf_path }}/munge.key /config/key/munge.key"
+      ansible.builtin.copy:
+        src: "{{ munge_conf_path }}/munge.key"
+        dest: "/config/key/munge.key"
+        remote_src: true
+      when: not slurm_federation | default(false) | bool
+
     - name: Set permissions
       become: true
       ansible.builtin.command:

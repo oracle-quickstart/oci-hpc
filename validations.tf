@@ -21,6 +21,7 @@ data "oci_core_image_shapes" "test_compute_image_shapes" {
 
 locals {
   invalid_ha_config = !var.add_nfs && var.slurm_ha
+  invalid_federation_config = var.slurm_federation && var.slurm_ha
   expected_username_controller = (
     can(regex("(?i)ubuntu", data.oci_core_image.controller_validation.operating_system)) ? "ubuntu" :
     can(regex("(?i)oracle", data.oci_core_image.controller_validation.operating_system)) ? "opc" :
@@ -47,6 +48,19 @@ resource "null_resource" "validate_ha_setup" {
     }
   }
 }
+
+#  Validate that slurm_ha is not define with slurm federation
+
+resource "null_resource" "validate_federation_setup" {
+  count = local.invalid_federation_config ? 1 : 0
+  lifecycle {
+    precondition {
+      condition     = !local.invalid_federation_config
+      error_message = "Error: To join a Slurm Federation, disable 'Create a back-up slurm controller' (slurm_ha)"
+    }
+  }
+}
+
 
 # validate that the management and compute nodes usernames are set correctly
 

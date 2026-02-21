@@ -122,10 +122,15 @@ resource "null_resource" "controller" {
         "mkdir -p /config/bin",
         "sudo chown ${var.controller_username}:${var.controller_username} /config/bin",
         "mkdir -p /config/key",
-        "sudo chown ${var.controller_username}:${var.controller_username} /config/key",
+        "sudo chown ${var.controller_username}:${var.controller_username} /config/key"      
+        ],
+      var.slurm_federation ? [        
+        "echo ${var.munge_key} | base64 -d > /config/key/munge.key"
+      ] : [],
+      [
         "mkdir -p /config/3rdparty",
         "sudo chown ${var.controller_username}:${var.controller_username} /config/3rdparty"
-    ])
+      ])
     connection {
       host        = local.host
       type        = "ssh"
@@ -295,7 +300,6 @@ resource "null_resource" "cluster" {
       rdma_enabled             = var.rdma_enabled,
       slurm                    = var.slurm,
       slurm_version            = var.slurm_version,
-      rack_aware               = var.rack_aware,
       slurm_nfs_path           = var.create_fss == "new" ? var.nfs_source_path : "/config"
       spack                    = var.spack,
       ldap                     = var.ldap,
@@ -332,6 +336,8 @@ resource "null_resource" "cluster" {
       mysql_admin_password     = var.mysql_admin_password,
       mysql_admin_username     = var.mysql_admin_username,
       mysql_service_host       = local.mysql_service_host,
+      slurm_federation         = var.slurm_federation,
+      ip_slurmdbd              = var.ip_slurmdbd,
       wildcard_dns_domain      = var.wildcard_dns_domain,
       use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep
     })

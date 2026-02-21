@@ -195,7 +195,6 @@ resource "null_resource" "cluster_backup" {
       rdma_enabled             = var.rdma_enabled,
       slurm                    = var.slurm,
       slurm_version            = var.slurm_version,
-      rack_aware               = var.rack_aware,
       slurm_nfs_path           = var.create_fss == "new" ? var.nfs_source_path : "/config"
       spack                    = var.spack,
       ldap                     = var.ldap,
@@ -232,6 +231,8 @@ resource "null_resource" "cluster_backup" {
       mysql_admin_password     = var.mysql_admin_password,
       mysql_admin_username     = var.mysql_admin_username,
       mysql_service_host       = local.mysql_service_host,
+      slurm_federation         = var.slurm_federation,
+      ip_slurmdbd              = var.ip_slurmdbd,
       wildcard_dns_domain      = var.wildcard_dns_domain,
       use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep
     })

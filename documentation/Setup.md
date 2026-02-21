@@ -160,3 +160,19 @@ In the slurm configuration, the controller and its backup each have the followin
 * the `slurmdbd` service (with [DbdHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdHost) pointing to the controller, [DbdBackupHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_DbdBackupHost) pointing to the backup and [StorageHost](https://slurm.schedmd.com/slurmdbd.conf.html#OPT_StorageHost) pointing to the database in `slurmdbd.conf`).
 
 Both the controller and its backup can query the database if one of them is down.
+
+### Join [Slurm federation](https://slurm.schedmd.com/network.html#federation)
+
+> [!IMPORTANT]
+> Make sure you open the correct ports between VCN's. Remember that this automation will not open port on an existing VCN
+> `slurmdbd` runs on port 6819 and `slurmctld` runs on port 6817 by default
+
+If checked, the deployment will take an existing Munge key and use it to register to slurmdbd already running on an another cluster. `slurmdbd` will not run on this deployment. Theuser can then create a Slurm federation using `sacctmgr`
+```
+sacctmgr -i list cluster
+sacctmgr -i add cluster <CLUSTER_1>
+sacctmgr -i add cluster <CLUSTER_2>
+sacctmgr show cluster
+sacctmgr -i add federation <FEDERATION_NAME> clusters=<CLUSTER_1>,<CLUSTER_2>
+scontrol show federation
+```

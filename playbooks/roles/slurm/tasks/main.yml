@@ -33,11 +33,11 @@
 
   block:
     - name: Run compute directives on the controller for add
-      ansible.builtin.include_tasks: "compute{{ rack_aware_playbook_suffix }}-ctld.yml"
+      ansible.builtin.include_tasks: "compute-ctld.yml"
       when: new_compute_info | length > 0
 
     - name: Run compute directives on the controller for destroy
-      ansible.builtin.include_tasks: "remove{{ rack_aware_playbook_suffix }}-ctld.yml"
+      ansible.builtin.include_tasks: "remove-ctld.yml"
       when: remove_compute_info | length > 0
 
     - name: Move topology.conf on backup slurm controller

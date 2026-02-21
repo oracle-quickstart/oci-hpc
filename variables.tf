@@ -173,6 +173,20 @@ variable "slurm_ha" {
   default = false
   type    = bool
 }
+variable "slurm_federation" {
+  default = false
+  type    = bool
+}  
+
+variable "ip_slurmdbd" {
+  default = ""
+  type    = string
+}  
+
+variable "munge_key" {
+  default = ""
+  type    = string
+}
 variable "login_node" {
   default = true
   type    = bool
@@ -204,10 +218,6 @@ variable "monitoring_shape" {
 variable "monitoring_boot_volume_size" {
   default = 50
   type    = number
-}
-variable "rack_aware" {
-  default = true
-  type    = bool
 }
 variable "ldap" {
   default = true

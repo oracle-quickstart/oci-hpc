@@ -725,74 +725,96 @@ def generate_nodename_entry(config) -> Optional[str]:
     
     return " ".join(parts)
 
-def generate_slurm_entries(configs) -> List[str]:
-    """Generate Nodeset and PartitionName entries from database configs."""
+def generate_slurm_entries(configs) -> Tuple[List[str], Dict]:
+    """Generate Nodeset, NodeName and PartitionName entries from database configs."""
     entries = []
-    partitions_permanent={}
+    partitions_permanent = {}
     partitions_ondemand = {}
+
     for config in configs:
-        # Add Nodeset entry
-        if config.permanent:  
-            entries.append(f"Nodeset={config.name} Feature={config.name}")       
+        if config.permanent:
+            entries.append(f"Nodeset={config.name} Feature={config.name}")
             if config.partition in partitions_permanent:
-                partitions_permanent[config.partition]["name"].append(config.name)
+                partitions_permanent[config.partition]["names"].append(config.name)
             else:
-                partitions_permanent[config.partition] = {"name":[config.name], "default": "NO"}
-            # Add PartitionName entry
+                partitions_permanent[config.partition] = {
+                    "names": [config.name],
+                    "default": "NO"
+                }
             if config.default_partition:
                 partitions_permanent[config.partition]["default"] = "YES"
-        else:   
+        else:
             if config.stand_alone:
                 nodename_entry = generate_nodename_entry(config)
                 if nodename_entry:
                     entries.append(nodename_entry)
                     if config.partition in partitions_ondemand:
-                        partitions_ondemand[config.partition]["nodes"].append(f"{config.hostname_convention}-[1-{config.max_number_nodes}]")
+                        partitions_ondemand[config.partition]["nodes"].append(
+                            f"{config.hostname_convention}-[1-{config.max_number_nodes}]"
+                        )
                     else:
-                        partitions_ondemand[config.partition] = {"nodes":[f"{config.hostname_convention}-[1-{config.max_number_nodes}]"], "default": "NO"}                        
-            else:    
-                logger.warning(f"On demand partition detected but Standalone was not {str(config.stand_alone)}. Standalone must be true for On Demand. Review configuration {config.name}")
+                        partitions_ondemand[config.partition] = {
+                            "nodes": [f"{config.hostname_convention}-[1-{config.max_number_nodes}]"],
+                            "default": "NO"
+                        }
+            else:
+                logger.warning(
+                    f"On demand partition detected but Standalone was not {str(config.stand_alone)}. "
+                    f"Standalone must be true for On Demand. Review configuration {config.name}"
+                )
                 logger.warning(f"Ignoring {config.name}")
 
-    for key in partitions_permanent:
-        PartitionName = key
-        Nodes = ",".join(partitions_permanent[key]["name"])
-        default = partitions_permanent[key]["default"]
-        entries.append(f"PartitionName={PartitionName} Nodes={Nodes} Default={default}")
-    for key in partitions_ondemand:
-        PartitionName = key
-        Nodes = ",".join(partitions_ondemand[key]["nodes"])
-        default = partitions_ondemand[key]["default"]
-        entries.append(f"PartitionName={PartitionName} Nodes={Nodes} Default={default} ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300")
+    # Generate permanent partition entries
+    for partition_name, partition_data in partitions_permanent.items():
+        nodes = ",".join(partition_data["names"])
+        default = partition_data["default"]
+        entries.append(f"PartitionName={partition_name} Nodes={nodes} Default={default}")
+
+        # Generate a healthcheck partition for each nodeset in this partition
+        for nodeset_name in partition_data["names"]:
+            entries.append(
+                f"PartitionName={nodeset_name}-healthcheck Nodes={nodeset_name} Default=NO PriorityTier=0"
+            )
+
+    # Generate on-demand partition entries
+    for partition_name, partition_data in partitions_ondemand.items():
+        nodes = ",".join(partition_data["nodes"])
+        default = partition_data["default"]
+        entries.append(
+            f"PartitionName={partition_name} Nodes={nodes} Default={default} "
+            f"ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300"
+        )
+
     return entries, partitions_ondemand
 
 def read_slurm_conf(filepath='/etc/slurm/slurm.conf'):
     """Read slurm.conf and separate managed and unmanaged lines."""
     managed_keywords = ["Nodeset", "NodeName", "PartitionName"]
-    ignored_lines = [
-        "PartitionName=compute-healthcheck Nodes=default Default=NO PriorityTier=0"
-    ]
-    
+
+    # We no longer ignore healthcheck partitions - they are now fully managed
+    # Only ignore lines that are truly not managed by this script
+    ignored_lines = []
+
     unmanaged_lines = []
     existing_managed_lines = []
-    
+
     with open(filepath, 'r') as f:
         for line in f:
             stripped = line.rstrip('\n')
-            
-            # Check if it's an ignored line (keep it as unmanaged)
+
+            # Keep truly unmanaged lines
             if stripped.strip() in ignored_lines:
                 unmanaged_lines.append(stripped)
                 continue
-            
+
             # Check if it's a managed line
             if any(stripped.strip().startswith(kw) for kw in managed_keywords):
                 existing_managed_lines.append(stripped.strip())
                 continue
-            
+
             # Keep all other lines
             unmanaged_lines.append(stripped)
-    
+
     return unmanaged_lines, existing_managed_lines
 
 def write_slurm_conf(unmanaged_lines, managed_entries, filepath='/etc/slurm/slurm.conf', backup=True):

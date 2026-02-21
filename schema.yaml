@@ -215,10 +215,12 @@ variableGroups:
       - ${privilege_group_name} 
       - ${slurm}
       - ${slurm_version}
-      - ${slurm_ha}
+      - ${slurm_federation}
+      - ${ip_slurmdbd}
+      - ${munge_key}
+      - ${slurm_ha}      
       - ${mysql_admin_username}
       - ${mysql_admin_password}
-      - ${rack_aware}
       - ${queue}
       - ${spack}
       - ${enroot}
@@ -1120,7 +1122,7 @@ variables:
   vcn_subnet:
     type: string
     title: "VCN IP range"
-    description: "VCN subnet"
+    description: "VCN subnet (The RDMA subnet will be at 10.224.0.0/12)"
     default: "172.16.0.0/18"
     required: true
     visible:
@@ -1196,7 +1198,7 @@ variables:
     required: true
     description: "Add a second controller of the same shape as the controller as a back-up controller node and MySQL service hosted on OCI. We recommend using a FSS to save the state and share between controllers." 
     visible: ${slurm}
-  
+
   mysql_admin_username:
     type: string
     title: "Admin username for MySQL service"
@@ -1212,6 +1214,33 @@ variables:
     description: "Admin password for MySQL service" 
     visible: ${slurm_ha}
 
+  slurm_federation:
+    type: boolean
+    title: "Join Slurm federation"
+    default: false
+    required: true
+    description: "Join an existing Slurm federation. Use only for additial Slurm clusters" 
+    visible: ${slurm}
+
+  ip_slurmdbd:
+    type: string
+    title: "slurmdbd host IP"
+    required: true
+    description: "For Slurm federation. IP of the initial controller where slurmdbd runs. Make sure to adapt the secutiry list accordingly. Default port: 6819" 
+    visible:
+      and:
+        - ${slurm}
+        - ${slurm_federation}  
+
+  munge_key:
+    type: string
+    title: "Base64 of the Munge key"
+    required: true
+    description: "If you need to connect to another slurm cluster for federation, provide the base64 munge key here. This will get you the string: sudo cat /etc/munge/munge.key | base64 -w 0"
+    visible:
+      and:
+        - ${slurm_federation}
+
   pyxis:
     type: boolean
     title: "Install Nvidia Pyxis plugin for slurm"
@@ -1222,13 +1251,6 @@ variables:
         - ${slurm}
         - ${enroot}
 
-  rack_aware:
-    type: boolean
-    title: "Create rack aware topology"
-    default: true
-    required: true
-    description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted."
-    visible: ${slurm}
 
   queue:
     type: String
