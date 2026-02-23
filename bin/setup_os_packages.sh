@@ -27,15 +27,9 @@ fi
 # Install ansible and other required packages
 if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
   if [[ "${VERSION_MAJOR}" == "8" ]]; then
-    sudo yum makecache --enablerepo=$repo
-    sudo yum install --enablerepo=$repo -y python38.x86_64 python38-dnf java-11-openjdk-headless http-parser
-    # FIXME remove this - one should not mess with pip like this
-    # sudo python3.8 -m pip install --upgrade pip
-  elif [[ "${VERSION_MAJOR}" == "9" ]]; then
-    sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
-    # FIXME remove this - one should not mess with pip like this
-    # sudo python3 -m pip install --upgrade pip
+    sudo dnf makecache --enablerepo=$repo
   fi
+  sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
 
 elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
   # checking here as well to be sure that the lock file is not being held

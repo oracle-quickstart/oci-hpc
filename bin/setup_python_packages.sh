@@ -1,15 +1,3 @@
-set -o errexit
-set -o pipefail
-set -o nounset
-
-if [[ -z "${UV_INSTALL_DIR:+valid}" ]]; then
-  echo "${0} needs to have the environment variable UV_INSTALL_DIR defined"
-  exit 1
-elif [[ -z "${VENV_PATH:+valid}" ]]; then
-  echo "${0} needs to have the environment variable VENV_PATH defined"
-  exit 1
-fi
-
 # Check if another node is already installing the environment.
 # 
 # If not, do it ourselves.

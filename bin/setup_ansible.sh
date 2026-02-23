@@ -1,7 +1,3 @@
-# set -o errexit
-# set -o pipefail
-# set -o nounset
-
 source "${UV_INSTALL_DIR}/env"
 source "${VENV_PATH}/bin/activate"
 
