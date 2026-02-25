@@ -283,7 +283,7 @@ groups:
       - record: node_xid_severity_ok
         expr: |
           (node_xid_severity_status < bool 2)
-          or on(hostname, cluster_name, vendor) (node_xid_severity_status * 0 + 1)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
       # Cluster-level counts by severity
       - record: cluster_xid_gpu_count_by_severity
