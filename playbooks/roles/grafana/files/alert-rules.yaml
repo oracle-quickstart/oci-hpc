@@ -216,7 +216,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: (node_systemd_unit_state{hostname!~".*controller*|.*login*|.*backup*", state="failed",  name=~"ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|wpa_supplicant-wired@rdma.*.service"} or node_systemd_unit_state{state="failed", name="nvidia-fabricmanager.service", shape!~".*A10.*"})
+              expr: (node_systemd_unit_state{hostname!~".*controller*|.*login*|.*backup*", state="failed",  name=~"ssh.service|sssd.service|node_exporter.service|nvidia-dcgm.service|slurmd.service|nvidia-persistenced.service|nvlink-exporter.service|nvml-exporter.service|dcgm-exporter.service|wpa_supplicant-wired@rdma.*.service"} or node_systemd_unit_state{hostname!~".*controller*|.*login*|.*backup*", state="failed", name="nvidia-fabricmanager.service", shape!~".*A10.*"})
               hide: false
               instant: true
               intervalMs: 60000
@@ -557,8 +557,8 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: NoData
-        execErrState: OK
+        noDataState: KeepLast
+        execErrState: KeepLast
         for: 15m
         annotations:
           summary: Reboot, if persistent.
