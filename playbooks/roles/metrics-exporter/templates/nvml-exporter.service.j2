@@ -13,6 +13,8 @@ Environment=SCONTROL_PATH=/usr/local/bin/scontrol
 Environment=CPU_ONLY_MODE=True
 {% endif %}
 ExecStart={{venv_path}}/bin/python3 /usr/local/bin/nvml_metrics_exporter.py
+Restart=on-failure
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
