@@ -9,6 +9,16 @@ import platform
 import time
 import os
 
+
+def get_value(field):
+    """Extract value from Slurm REST API field.
+
+    Handles both old format (direct value) and new 0.0.43 format (dict with 'number' key).
+    """
+    if isinstance(field, dict):
+        return field.get("number", field.get("set", 0))
+    return field
+
 configuration = openapi_client.Configuration(
     host = "http://{{ controller_hostname }}:6820",
     access_token = "{{ slurm_jwt_token }}"
@@ -119,10 +129,15 @@ def get_slurm_metrics():
             api_response = api_instance.slurm_v{{ slurm_api_version }}_get_reservations()
             reservations = ujson.loads(api_response.to_json())
             for reservation in reservations["reservations"]:
-                if time.time() < int(reservation["end_time"]):
-                   reservation_nodes[reservation["name"]] += int(reservation["node_count"])
-                   reservation_cores[reservation["name"]] += int(reservation["core_count"])
-                   reservation_cpus[reservation["name"]] += int(reservation["tres"].split("=")[1])
+                end_time = get_value(reservation["end_time"])
+                if time.time() < int(end_time):
+                   reservation_nodes[reservation["name"]] += int(get_value(reservation["node_count"]))
+                   reservation_cores[reservation["name"]] += int(get_value(reservation["core_count"]))
+                   tres = reservation.get("tres", "")
+                   if isinstance(tres, str) and "=" in tres:
+                       reservation_cpus[reservation["name"]] += int(tres.split("=")[1])
+                   elif isinstance(tres, dict):
+                       reservation_cpus[reservation["name"]] += int(get_value(tres.get("count", 0)))
             for key in reservation_cpus:
                 slurm_active_reservations_cpus_total.labels(reservation=key).set(reservation_cpus[key])
             for key in reservation_cores:
