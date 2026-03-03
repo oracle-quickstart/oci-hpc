@@ -130,3 +130,7 @@ data "oci_core_compute_gpu_memory_fabrics" "test_compute_gpu_memory_fabrics" {
   #Required
   compartment_id = var.tenancy_ocid
 }
+
+data "external" "architecture" {
+  program = ["bash", "-c", "echo \"{\\\"arch\\\": \\\"$(uname -m)\\\"}\""]
+}

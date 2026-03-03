@@ -84,5 +84,8 @@ locals {
 
   lustre_IP = var.add_lfs && var.create_lfs == "new"? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
   mysql_service_host = var.slurm_ha ? data.oci_mysql_mysql_db_system.slurm_mysql[0].endpoints[0].ip_address : ""
-
+  detected_arch  = data.external.architecture.result["arch"]
+  function_shape = var.use_OCI_generated_container ? "GENERIC_X86_ARM" : (
+    local.detected_arch == "aarch64" ? "GENERIC_ARM" : "GENERIC_X86"
+  )
 }
