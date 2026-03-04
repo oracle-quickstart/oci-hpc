@@ -77,8 +77,11 @@ locals {
 
   topic_id   = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
   metrics_stream_ocid  = var.ingest_oci_metrics ? oci_streaming_stream.telegraf_stream[0].id : ""
-  ocir_image = var.use_OCI_generated_container ? "${local.region_key}.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
-
+  # Gov Regions
+  gov_cloud_regions = toset(["us-langley-1", "us-luke-1"])
+  is_gov_cloud = contains(local.gov_cloud_regions, var.region) || can(regex("-gov-", var.region))
+  ocir_host = local.is_gov_cloud ? "ocir.${var.region}.oci.oraclegovcloud.com" : "${local.region_key}.ocir.io"
+  ocir_image = var.use_OCI_generated_container ? "${local.ocir_host}/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.ocir_host}/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
   # Pick the right IP based on flags
   config_target_name = var.create_fss == "new" ? oci_dns_rrset.fss-dns-round-robin[0].domain : oci_dns_rrset.controller[0].domain
 

@@ -1862,6 +1862,7 @@ variables:
   use_OCI_generated_container:
     type: boolean
     title: "Point to an existing OCIR"
+    description: "Point to an existing public OCIR available in the region. Does not work for Gov and Defense regions"
     default : true
     required: true
 

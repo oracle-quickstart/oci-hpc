@@ -42,7 +42,7 @@ resource "null_resource" "Login2OCIR" {
   depends_on = [oci_functions_application.fn_application, oci_artifacts_container_repository.container_repository, oci_identity_auth_token.auth_token, time_sleep.wait_for_registry_to_be_ready]
 
   provisioner "local-exec" {
-    command     = "echo '${local.auth_token}' | docker login -u '${local.ocir_namespace}/${data.oci_identity_user.user.name}' ${local.region_key}.ocir.io --password-stdin"
+    command = "echo '${local.auth_token}' | docker login -u '${local.ocir_namespace}/${data.oci_identity_user.user.name}' ${local.ocir_host} --password-stdin"
     working_dir = "${path.module}/function/"
   }
 }
@@ -62,12 +62,12 @@ resource "null_resource" "function_Push2OCIR" {
   }
 
   provisioner "local-exec" {
-    command     = "image=$(docker images | grep oci-write-controller-queue | awk -F ' ' '{print $3}') ; docker tag $image ${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
+    command     = "image=$(docker images | grep oci-write-controller-queue | awk -F ' ' '{print $3}') ; docker tag $image ${local.ocir_host}/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
     working_dir = "${path.module}/function/"
   }
 
   provisioner "local-exec" {
-    command     = "docker push ${local.region_key}.ocir.io/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
+    command     = "docker push ${local.ocir_host}/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
     working_dir = "${path.module}/function/"
   }
 }
@@ -79,6 +79,10 @@ resource "oci_functions_function" "function" {
   image              = local.ocir_image
   memory_in_mbs      = "128"
   timeout_in_seconds = "300"
+  provisioned_concurrency_config {
+    strategy = "CONSTANT"
+    count    = 40
+  }   
   config = {
     "REGION" : var.region
     "QUEUE_OCID" : local.queue_ocid
