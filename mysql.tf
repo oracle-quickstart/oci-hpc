@@ -15,7 +15,8 @@ resource "oci_mysql_mysql_db_system" "slurm_mysql" {
 	compartment_id = var.targetCompartment
 	crash_recovery = "ENABLED"
 	data_storage {
-		is_auto_expand_storage_enabled = "false"
+		is_auto_expand_storage_enabled = "true"
+		max_storage_size_in_gbs = "32000"
 	}
 	data_storage_size_in_gb = "1024"
 	database_management = "ENABLED"
@@ -41,6 +42,6 @@ resource "oci_mysql_mysql_db_system" "slurm_mysql" {
 	secure_connections {
 		certificate_generation_type = "SYSTEM"
 	} 
-	shape_name = "MySQL.8"
+	shape_name = var.mysql_shape
 	subnet_id = local.subnet_id
 }

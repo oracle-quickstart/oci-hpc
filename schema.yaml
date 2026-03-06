@@ -218,7 +218,8 @@ variableGroups:
       - ${slurm_federation}
       - ${ip_slurmdbd}
       - ${munge_key}
-      - ${slurm_ha}      
+      - ${slurm_ha} 
+      - ${mysql_shape}     
       - ${mysql_admin_username}
       - ${mysql_admin_password}
       - ${queue}
@@ -1199,6 +1200,23 @@ variables:
     required: true
     description: "Add a second controller of the same shape as the controller as a back-up controller node and MySQL service hosted on OCI. We recommend using a FSS to save the state and share between controllers." 
     visible: ${slurm}
+
+  mysql_shape:
+    type: enum
+    title: "MySQL shapes"
+    required: true
+    description: "MySQL shapes https://docs.oracle.com/en-us/iaas/mysql-database/doc/supported-shapes.html" 
+    enum:
+      - "MySQL.Free"
+      - "MySQL.2"
+      - "MySQL.4"
+      - "MySQL.8"
+      - "MySQL.16"
+      - "MySQL.32"
+      - "MySQL.48"
+      - "MySQL.64"
+    default: "MySQL.4"    
+    visible: ${slurm_ha}
 
   mysql_admin_username:
     type: string

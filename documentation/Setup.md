@@ -161,6 +161,9 @@ In the slurm configuration, the controller and its backup each have the followin
 
 Both the controller and its backup can query the database if one of them is down.
 
+> [!IMPORTANT]
+> The current configuration is set to MySQL.4 with 4 ECPU, 32 GB of RAM and 1TB of storage (with automatic expansion enabled). This is estimated to 150$ per month at list price.
+
 ### Join [Slurm federation](https://slurm.schedmd.com/network.html#federation)
 
 > [!IMPORTANT]

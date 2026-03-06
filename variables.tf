@@ -608,6 +608,11 @@ variable "mysql_admin_password" {
   type = string
 }
 
+variable "mysql_shape" {
+  default = "MySQL.4"
+  type = string
+}
+
 variable "mysql_admin_username" {
   default = ""
   type = string
