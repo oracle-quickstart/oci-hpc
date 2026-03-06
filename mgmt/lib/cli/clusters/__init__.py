@@ -1,5 +1,6 @@
 import click
 from lib.cli.clusters.commands import add, list, create, delete
+from lib.cli.clusters.commands.update_instance_config import update_instance_config
 
 @click.group("clusters")
 def cmd():
@@ -13,3 +14,4 @@ cmd.add_command(add.add)
 cmd.add_command(list.list)
 cmd.add_command(create.create)
 cmd.add_command(delete.delete)
+cmd.add_command(update_instance_config)

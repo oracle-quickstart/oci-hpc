@@ -16,7 +16,7 @@ import oci
 from ClusterShell.NodeSet import NodeSet
 from ClusterShell.Task import task_self
 
-from lib.database import db_create_node, get_nodes_by_id, db_update_node
+from lib.database import db_create_node, get_nodes_by_id, db_update_node,get_nodes_by_cluster
 from lib.logger import logger
 
 
@@ -950,6 +950,231 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         return None
+
+def update_instance_config(
+    cluster_name,
+    image_id=None,
+    ssh_key=None,
+    cloud_init_path=None,
+    boot_volume_size=None,
+    new_display_name=None,
+):
+    """
+    Update the instance configuration used by a cluster (IPA or CN).
+
+    - Creates a new instance configuration based on the current one
+    - Overrides image / ssh key / cloud-init / boot volume size if provided
+    - Updates all instance pools (supports multi-pool CN)
+    - Waits for pool update to complete
+    """
+
+    compute_mgmt = CLIENTS.compute_management_client
+    compute_mgmt_composite = CLIENTS.compute_management_client_composite_operations
+
+    # -------------------------------------------------------
+    # STEP 1: Resolve cluster from DB
+    # -------------------------------------------------------
+    nodes = get_nodes_by_cluster(cluster_name)
+
+    if not nodes:
+        logger.error(f"No nodes found for cluster {cluster_name}")
+        sys.exit(1)
+
+    first_node = nodes[0]
+
+    cluster_type, cluster_ocid, ipa_ocid = get_instance_type(first_node)
+
+    if cluster_type not in ["IPA", "CN"]:
+        logger.error("Instance configuration update is supported only for IPA and CN clusters")
+        sys.exit(1)
+
+    # -------------------------------------------------------
+    # STEP 2: Resolve instance pool ID
+    # -------------------------------------------------------
+    if cluster_type == "IPA":
+        instance_pool_id = ipa_ocid
+
+    elif cluster_type == "CN":
+        cluster_network = compute_mgmt.get_cluster_network(cluster_ocid).data
+
+        if not cluster_network.instance_pools:
+            logger.error("No instance pool found in cluster network")
+            sys.exit(1)
+
+        if len(cluster_network.instance_pools) > 1:
+            logger.error(
+                f"Cluster network {cluster_name} returned multiple instance pools, "
+                "but OCI supports only one."
+            )
+            sys.exit(1)
+
+        instance_pool_id = cluster_network.instance_pools[0].id
+
+    logger.info(f"Using instance pool: {instance_pool_id}")
+
+    # -------------------------------------------------------
+    # STEP 3: Use first pool to get current config
+    # -------------------------------------------------------
+    pool = compute_mgmt.get_instance_pool(instance_pool_id).data
+    current_config_id = pool.instance_configuration_id
+
+    logger.info(f"Current instance config: {current_config_id}")
+
+    src_config = compute_mgmt.get_instance_configuration(
+        current_config_id
+    ).data
+
+    launch = src_config.instance_details.launch_details
+
+    # -------------------------------------------------------
+    # STEP 4: Build NEW metadata
+    # -------------------------------------------------------
+    new_metadata = dict(launch.metadata) if launch.metadata else {}
+
+    if ssh_key:
+        new_metadata["ssh_authorized_keys"] = ssh_key
+
+    if cloud_init_path:
+        new_metadata["user_data"] = oci.util.file_content_as_launch_instance_user_data(
+            cloud_init_path
+        )
+
+    # -------------------------------------------------------
+    # STEP 5: Build Agent Config (if exists)
+    # -------------------------------------------------------
+    new_agent_config = None
+    if launch.agent_config:
+        new_agent_config = oci.core.models.InstanceConfigurationLaunchInstanceAgentConfigDetails(
+            are_all_plugins_disabled=launch.agent_config.are_all_plugins_disabled,
+            is_management_disabled=launch.agent_config.is_management_disabled,
+            is_monitoring_disabled=launch.agent_config.is_monitoring_disabled,
+            plugins_config=[
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state=plugin.desired_state,
+                    name=plugin.name,
+                )
+                for plugin in (launch.agent_config.plugins_config or [])
+            ],
+        )
+
+    # -------------------------------------------------------
+    # STEP 6: Build VNIC config (if exists)
+    # -------------------------------------------------------
+    new_create_vnic = None
+    if launch.create_vnic_details:
+        new_create_vnic = oci.core.models.InstanceConfigurationCreateVnicDetails(
+            assign_public_ip=launch.create_vnic_details.assign_public_ip,
+            assign_private_dns_record=launch.create_vnic_details.assign_private_dns_record,
+            subnet_id=launch.create_vnic_details.subnet_id,
+            nsg_ids=launch.create_vnic_details.nsg_ids,
+            assign_ipv6_ip=launch.create_vnic_details.assign_ipv6_ip,
+        )
+
+    # -------------------------------------------------------
+    # STEP 7: Build NEW source details safely
+    # -------------------------------------------------------
+    src_details = launch.source_details
+
+    final_image_id = image_id if image_id else src_details.image_id
+    final_bv_size = (
+        boot_volume_size
+        if boot_volume_size
+        else getattr(src_details, "boot_volume_size_in_gbs", None)
+    )
+
+    new_source_details = oci.core.models.InstanceConfigurationInstanceSourceViaImageDetails(
+        source_type="image",
+        image_id=final_image_id,
+        boot_volume_size_in_gbs=final_bv_size,
+        boot_volume_vpus_per_gb=getattr(
+            src_details, "boot_volume_vpus_per_gb", None
+        ),
+    )
+
+    # -------------------------------------------------------
+    # STEP 8: Build NEW launch details (full rebuild)
+    # -------------------------------------------------------
+    new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
+        availability_domain=launch.availability_domain,
+        compartment_id=launch.compartment_id,
+        display_name=launch.display_name,
+        shape=launch.shape,
+        shape_config=launch.shape_config,
+        platform_config=launch.platform_config,
+        metadata=new_metadata,
+        extended_metadata=launch.extended_metadata,
+        ipxe_script=launch.ipxe_script,
+        freeform_tags=launch.freeform_tags,
+        defined_tags=launch.defined_tags,
+        agent_config=new_agent_config,
+        create_vnic_details=new_create_vnic,
+        source_details=new_source_details,
+        security_attributes=launch.security_attributes,
+        launch_options=launch.launch_options,
+        fault_domain=launch.fault_domain,
+        dedicated_vm_host_id=launch.dedicated_vm_host_id,
+        launch_mode=launch.launch_mode,
+        instance_options=launch.instance_options,
+        availability_config=launch.availability_config,
+        preemptible_instance_config=launch.preemptible_instance_config,
+        licensing_configs=launch.licensing_configs,
+        is_pv_encryption_in_transit_enabled=launch.is_pv_encryption_in_transit_enabled,
+    )
+
+    # -------------------------------------------------------
+    # STEP 9: Build NEW instance details
+    # -------------------------------------------------------
+    new_instance_details = oci.core.models.ComputeInstanceDetails(
+        instance_type=src_config.instance_details.instance_type,
+        launch_details=new_launch_details,
+        block_volumes=src_config.instance_details.block_volumes,
+        secondary_vnics=src_config.instance_details.secondary_vnics,
+    )
+
+    # -------------------------------------------------------
+    # STEP 10: Create new instance config
+    # -------------------------------------------------------
+    final_display_name = (
+        new_display_name
+        if new_display_name
+        else f"{src_config.display_name}-updated"
+    )
+
+    new_config_details = oci.core.models.CreateInstanceConfigurationDetails(
+        compartment_id=src_config.compartment_id,
+        display_name=final_display_name,
+        instance_details=new_instance_details,
+        defined_tags=src_config.defined_tags,
+        freeform_tags=src_config.freeform_tags,
+    )
+
+    new_config = compute_mgmt.create_instance_configuration(
+        new_config_details
+    ).data
+
+    logger.info(f"New instance config created: {new_config.id}")
+
+    # -------------------------------------------------------
+    # STEP 11: Update ALL instance pools safely (with waiter)
+    # -------------------------------------------------------
+
+    logger.info(f"Updating instance pool {instance_pool_id}")
+
+    update_details = oci.core.models.UpdateInstancePoolDetails(
+        instance_configuration_id=new_config.id
+    )
+
+    compute_mgmt_composite.update_instance_pool_and_wait_for_state(
+        instance_pool_id,
+        update_details,
+        wait_for_states=["RUNNING"],
+        waiter_kwargs={"max_wait_seconds": 3600},
+    )
+
+    logger.info(f"Instance pool {instance_pool_id} updated successfully")
+    logger.info("Cluster instance configuration update complete")
+
+    return new_config.id
 
 def generate_inventory(config,cluster_name):
 
