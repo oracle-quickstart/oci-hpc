@@ -1,11 +1,11 @@
 ---
 - ansible.builtin.set_fact:
     enroot_top_path_checked: "/etc/enroot/"
-  when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+  when: " not 'nvme0n1' in ansible_facts[\"devices\"]"
 
 - ansible.builtin.set_fact:
     enroot_top_path_checked: "{{ enroot_top_path }}"
-  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+  when: "'nvme0n1' in ansible_facts[\"devices\"]"
 
 - name: Ensure prolog directory exists
   become: true

@@ -2,7 +2,7 @@
 - name: Check NVMe path and names
   ansible.builtin.set_fact:
     nvme_path_edited: "{% if nvme_path[-1] == '/' %}{{ nvme_path[:-1] }}{% else %}{{ nvme_path }}{% endif %}"
-    nvmes: "{{ (hostvars[inventory_hostname]['ansible_devices'] | select('match', 'nvme[1-9][0-9]n1') | list) + (hostvars[inventory_hostname]['ansible_devices'] |
+    nvmes: "{{ (ansible_facts[\"devices\"]| select('match', 'nvme[1-9][0-9]n1') | list) + (ansible_facts[\"devices\"] |
       select('match', 'nvme[0-9]n1') | list) }}"
     dev_prefix: "/dev/"
 
