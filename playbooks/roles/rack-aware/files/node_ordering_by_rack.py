@@ -110,7 +110,7 @@ else:
     except ImportError:
         try:
             for h in hosts:
-                out = subprocess.run(["ssh "+h+" \"curl -s http://169.254.169.254/opc/v2/host/\""],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
+                out = subprocess.run(["ssh "+h+" 'curl -sH \"Authorization: Bearer Oracle\" -L http://169.254.169.254/opc/v2/host/'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
                 x = out.stdout.splitlines()
                 json_str = ''.join(x)
                 json_data = json.loads(json_str)

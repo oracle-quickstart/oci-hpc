@@ -325,7 +325,7 @@
 
 #----------------------------------------------
 {% elif 'BM.GPU.H200.8' in nhc_node_shape %}
-# Add checks specific to BM.GPU.H200.8 compute shape here.
+# Add checks specific to BM.GPU.H200.8 compute shapes here.
 
 {% if nhc_ht_enabled %}
 *||check_hw_cpuinfo 2 112 224
@@ -419,6 +419,72 @@
 *||check_hw_ib 400 mlx5_9:1
 *||check_hw_ib 400 mlx5_10:1
 *||check_hw_ib 400 mlx5_11:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.B300.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.B300.8 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 256
+{% else %}
+*||check_hw_cpuinfo 2 128 128
+{% endif %}
+
+*||check_hw_physmem 4294967296kB 4294967296kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 448
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
+*||check_hw_ib 400 mlx5_9:1
+*||check_hw_ib 400 mlx5_10:1
+*||check_hw_ib 400 mlx5_11:1
+*||check_hw_ib 400 mlx5_12:1
+*||check_hw_ib 400 mlx5_13:1
+*||check_hw_ib 400 mlx5_14:1
+*||check_hw_ib 400 mlx5_16:1
+*||check_hw_ib 400 mlx5_17:1
+*||check_hw_ib 400 mlx5_18:1
+*||check_hw_ib 400 mlx5_19:1
+*||check_hw_ib 400 mlx5_20:1
+*||check_hw_ib 400 mlx5_21:1
 
 
 # --- NVMe checks ---
@@ -676,7 +742,7 @@
 
 
 # --- Ethernet checks (auto-detected NICs) ---
-{% for iface in ansible_interfaces %}
+{% for iface in ansible_facts["interfaces"] %}
 {% if iface not in ['lo', 'docker0'] %}
 *||check_hw_eth {{ iface }}
 {% endif %}

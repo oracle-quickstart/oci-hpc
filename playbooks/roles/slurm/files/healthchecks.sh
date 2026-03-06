@@ -16,7 +16,8 @@ if [ ${shape} = "BM.GPU.H100.8" ] || \
    [ ${shape} = "BM.GPU.GB200-v2.4" ] || \
    [ ${shape} = "BM.GPU.GB200-v3.4" ] || \
    [ ${shape} = "BM.GPU.GB300.4" ] || \
-   [ ${shape} = "BM.GPU.B200.8" ]; then
+   [ ${shape} = "BM.GPU.B200.8" ] || \
+   [ ${shape} = "BM.GPU.B300.8" ]; then
 
   FILE="/var/log/healthchecks/latest_healthcheck.log"
   if [ -e "$FILE" ]; then

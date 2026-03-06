@@ -140,6 +140,11 @@ def run_local_nccl_test(shape):
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
             "threshold": 440,
         },
+        "BM.GPU.B300.8": {
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
+            "threshold": 800,
+        },
         "BM.GPU.GB200.4": {
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
         },
@@ -184,7 +189,7 @@ def run_local_nccl_test(shape):
 
         if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
             cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x UCX_TLS=ud,self,sm -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x HCOLL_ENABLE_MCAST_ALL=0 -x coll_hcoll_enable=0 -x NCCL_ALGO=Ring -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_QPS_PER_CONNECTION=4 -x NCCL_IB_GID_INDEX=3 --np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g 1 -n 50 -f 2"
-        elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8"):
+        elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8"):
             cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x HCOLL_ENABLE_MCAST_ALL=0 -x NCCL_CUMEM_ENABLE=0 -x NCCL_IB_SPLIT_DATA_ON_QPS=0 -x NCCL_IB_QPS_PER_CONNECTION=1 -x NCCL_IB_TIMEOUT=22 -x UCX_TLS=tcp -x NCCL_NET_PLUGIN=none -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x coll_hcoll_enable=0 -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_GID_INDEX=3 -x RX_QUEUE_LEN=8192 -x IB_RX_QUEUE_LEN=8192 -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IGNORE_CPU_AFFINITY=1 -np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"
         elif "GPU.GB" in shape:
             cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --bind-to none --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x UCX_NET_DEVICES={shape_mapping[shape]['var_NCCL_IB_HCA']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x NCCL_DEBUG=WARN -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_NET_PLUGIN=none -x NCCL_MNNVL_ENABLE=1 -x NCCL_CUMEM_ENABLE=1 -x NCCL_NVLS_ENABLE=1 -x NCCL_NET_GDR_C2C=1 -np 4 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"
@@ -634,6 +639,7 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
         "BM.GPU.H100.8": 16,
         "BM.GPU.H200.8": 8,
         "BM.GPU.B200.8": 8,
+        "BM.GPU.B300.8": 8,
         "BM.GPU.GB200.4": 4,
         "BM.GPU.GB200-v2.4": 4,
         "BM.GPU.GB200-v3.4": 4,

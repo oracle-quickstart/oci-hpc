@@ -40,7 +40,7 @@ def filter_cmd(ctx, nodes, fields):
 )
 @click.option(
     '--action',
-    type=click.Choice(["compute", "controller", "all", "custom", "command", "ansible"]),
+    type=click.Choice(["compute", "controller", "all", "custom", "command", "ansible", "metadata"]),
     default="all",
     required=False,
     help='What to reconfigure (compute will rerun the cloud-init, controller will reconfigure the node on the controller (Slurm Topology and Prometheus targets), \n all will reconfigure the node on the controller and the cloud-init, customer will reconfigure the node on the controller and the cloud-init, \n custom will reconfigure the node on the controller and the cloud-init, \n command will run a custom command on the nodes)'
@@ -96,3 +96,12 @@ def reconfigure(ctx, nodes, fields, action, command, playbook):
         logger.info("Running command on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
         logger.info(f"Running custom command {command} on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
         run_command(nodes_list,command)
+    if action == "metadata":
+        logger.info("Updating metadata on nodes: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        run_command(nodes_list,"/config/bin/custom_ansible.sh metadata")
+        logger.info("Waiting 60 seconds for metadata to be updated...")
+        sleep(60)
+        logger.info("Reconfiguring controller to update slurm topology: "+str(NodeSet(','.join([node.hostname for node in nodes_list]))))
+        for node in nodes_list:
+            db.db_update_node(node, controller_status="reconfiguring")
+        logger.info("This will be reconfigured at the next run of ansible on the controller.")

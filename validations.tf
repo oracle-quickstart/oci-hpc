@@ -67,7 +67,7 @@ resource "null_resource" "validate_federation_setup" {
 resource "null_resource" "validate_controller_username" {
   lifecycle {
     precondition {
-      condition     = var.controller_username == local.expected_username_controller
+      condition     = var.controller_username == local.expected_username_controller || local.expected_username_compute == "unknown"
       error_message = "Invalid username for the selected OS on controller. Use 'ubuntu' for Ubuntu images and 'opc' for Oracle Linux images."
     }
   }
@@ -76,7 +76,7 @@ resource "null_resource" "validate_controller_username" {
 resource "null_resource" "validate_compute_username" {
   lifecycle {
     precondition {
-      condition     = var.compute_username == local.expected_username_compute
+      condition     = var.compute_username == local.expected_username_compute || local.expected_username_compute == "unknown"
       error_message = "Invalid username for the selected OS on compute nodes. Use 'ubuntu' for Ubuntu images and 'opc' for Oracle Linux images."
     }
   }

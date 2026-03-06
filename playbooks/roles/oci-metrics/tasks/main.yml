@@ -86,3 +86,8 @@
     daemon_reload: true
     state: restarted
     enabled: true
+  until: job_result is not failed
+  retries: 10
+  delay: 10
+  register: job_result
+  ignore_errors: true

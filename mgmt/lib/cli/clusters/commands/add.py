@@ -40,7 +40,7 @@ def node(count, cluster, names, memorycluster):
             logger.info(f"Using cluster {cluster}.")
         else:
             cluster_string = ", ".join(clusters)
-            click.echo("Please specify the cluster in your command.")
+            click.echo("Please specify the cluster in your command with --cluster")
             click.echo(f"Clusters Available: {cluster_string}")
             return
             
@@ -81,7 +81,7 @@ def memory_fabric(count, cluster, fabric, memorycluster, instancetype):
             logger.info(f"Using cluster {cluster}.")
         else:
             cluster_string = ", ".join(clusters)
-            click.echo("Please specify the cluster in your command.")
+            click.echo("Please specify the cluster in your command with --cluster.")
             click.echo(f"Clusters Available: {cluster_string}")
             return
             

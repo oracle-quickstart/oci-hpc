@@ -60,6 +60,13 @@ shape_mapping = {
         "ib_write_bw": 384,
         "ib_write_lat": 5
     },
+    "BM.GPU.B300.8": {
+        "var_UCX_NET_DEVICES": "eth0",
+        "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
+        "threshold": 700,
+        "ib_write_bw": 375,
+        "ib_write_lat": 5
+    },
     "BM.GPU.B200.8": {
         "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
@@ -224,7 +231,7 @@ def run_multi_node_nccl_test(hostfile, shape):
             "bash","-c",
             f"{exec_cmd} -b 1G -e 10G -i{increment} -n 50"
         ]
-    elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8"):
+    elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8"):
         mpirun_cmd = [
             "mpirun", "--mca", "pml", "ucx",
             "--bind-to", "numa",

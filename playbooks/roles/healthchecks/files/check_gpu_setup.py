@@ -97,7 +97,8 @@ def get_devices():
     shape_devices = {
         "BM.GPU.H100.8": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.H200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
-        "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
+        "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],  
+        "BM.GPU.B300.8": ["mlx5_0", "mlx5_1", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_16", "mlx5_17", "mlx5_18", "mlx5_19", "mlx5_20", "mlx5_21"],
         "BM.GPU.GB200.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
         "BM.GPU.GB200-v2.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
         "BM.GPU.GB200-v3.4": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8"],
@@ -599,6 +600,17 @@ def check_gpu_count():
         '0019:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
     ]
 
+    lspci_expected_results_b300 = [
+        "14:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)",
+        "32:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)",
+        "49:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)",
+        "60:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)",
+        "8e:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)",
+        "ad:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)",
+        "c5:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)",
+        "dd:00.0 3D controller: NVIDIA Corporation Device 3182 (rev a1)"
+    ]
+
     shape = metadata.get('shape')
     tmp_results = []
 
@@ -706,7 +718,11 @@ def check_gpu_count():
             elif shape in ["BM.GPU.GB300.4"]:
                 find_number = "2941"
                 expected_gpus = 4
-                lspci_expected_results = lspci_expected_results_gb300                
+                lspci_expected_results = lspci_expected_results_gb300     
+            elif shape in ["BM.GPU.GB300.4"]:
+                find_number = "3182"
+                expected_gpus = 8
+                lspci_expected_results = lspci_expected_results_b300              
 
             for line in lines:
                 if line.find("NVIDIA") != -1 and line.find(find_number) != -1:
@@ -869,6 +885,7 @@ def check_rdma_link_status():
             logger.debug(f"{device}: {recommendation}")
             if "Bad signal integrity" in recommendation and float(physical_BER) < 1e-07:
                 logger.debug(f"Recommandation is {recommendation} but the Physical error are low enough that it can be ignored")
+                status=True
             elif "Bad signal integrity" in recommendation and float(physical_BER) > 1e-07:
                 logger.debug(f"Recommandation is {recommendation} and the Physical error count is too high to be ignored: {physical_BER}")
                 link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {recommendation}")
@@ -902,7 +919,7 @@ def check_wpa_auth(metadata):
     if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8","BM.GPU.B4.8"]:
         interface_range = range(16)
         required_authenticated = 16
-    elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8"]:
+    elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8"]:
         interface_range = range(8)
         required_authenticated = 8
     elif "GPU.GB" in shape:
@@ -1113,9 +1130,12 @@ def check_ip_addresses():
         if not interface in devices_per_interface.keys():
             continue
         ip_address = None
-        # Get IPv4 address
+        # Get IPv4 or IPV6 address
         for addr in addrs:
             if addr.family == socket.AF_INET:
+                ip_address = addr.address
+                break  # Only take the first IPv4 address
+            if addr.family == socket.AF_INET6 and shape == "BM.GPU.B300.8":
                 ip_address = addr.address
                 break  # Only take the first IPv4 address
         if devices_per_interface[interface] in devices and ip_address is None:
@@ -1137,6 +1157,7 @@ def get_nvlink_speed():
         "BM.GPU.H100.8":     {"count": 18, "speed": 25,      "gpu": 8},
         "BM.GPU.H200.8":     {"count": 18, "speed": 25,      "gpu": 8},
         "BM.GPU.B200.8":     {"count": 18, "speed": 50,      "gpu": 8},
+        "BM.GPU.B300.8":     {"count": 18, "speed": 50,      "gpu": 8},
         "BM.GPU.GB200.4":    {"count": 18, "speed": 50,      "gpu": 4},
         "BM.GPU.GB200-v2.4": {"count": 18, "speed": 50,      "gpu": 4},
         "BM.GPU.GB200-v3.4": {"count": 18, "speed": 50,      "gpu": 4},
@@ -1146,8 +1167,9 @@ def get_nvlink_speed():
     }
 
     shape = metadata.get('shape')
-    info = gpu_nvlink_info[shape]
-    if not info:
+    try:
+        info = gpu_nvlink_info[shape]
+    except KeyError:
         logger.info(f"Skipping NVLink speed check: unsupported GPU shape {shape}")
         return []
     count_expected = info['count']

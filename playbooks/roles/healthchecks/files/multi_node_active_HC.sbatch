@@ -18,6 +18,7 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
    [ "$shape" = "BM.GPU.B4.8" ] || \
    [ "$shape" = "BM.GPU.H200.8" ] || \
    [ "$shape" = "BM.GPU.B200.8" ] || \
+   [ "$shape" = "BM.GPU.B300.8" ] || \
    [ "$shape" = "BM.GPU.MI300X.8" ] || \
    [ "$shape" = "BM.GPU.MI355X.8" ] || \
    [ "$shape" = "BM.GPU.MI355X-v0.8" ] || \

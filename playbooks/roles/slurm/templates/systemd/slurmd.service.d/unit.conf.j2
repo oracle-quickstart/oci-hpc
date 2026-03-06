@@ -36,6 +36,8 @@ ExecStart=
 {% set gres = "Gres=gpu:B200:4" %}
 {% elif shape == "BM.GPU.GB200-v3.4" %}
 {% set gres = "Gres=gpu:B200:4" %}
+{% elif shape == "BM.GPU.B300.8" %}
+{% set gres = "Gres=gpu:B300:8" %}
 {% elif shape == "BM.GPU.GB300.4" %}
 {% set gres = "Gres=gpu:B300:4" %}
 {% elif shape == "BM.GPU.T1.2" %}

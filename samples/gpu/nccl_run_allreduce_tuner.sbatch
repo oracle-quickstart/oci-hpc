@@ -81,6 +81,10 @@ elif [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ]
 then
   var_UCX_NET_DEVICES=eth0
   var_NCCL_IB_HCA="=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11"
+elif [ $shape == \"BM.GPU.B300.8\" ]
+then
+  var_UCX_NET_DEVICES=eth0
+  var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21"
 else
   echo "Use the appropriate nccl test run script for non A100/H100/H200/B200 nodes"
 fi
@@ -115,7 +119,7 @@ then
   -x NCCL_IB_HCA="${var_NCCL_IB_HCA}" \
   --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE))  --rankfile $ORDEREDRANKMACHINEFILE  /opt/oci-hpc/nccl-test/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9)) -n 100
 
-elif [ $shape == \"BM.GPU.H100.8\" ] || [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ]
+elif [ $shape == \"BM.GPU.H100.8\" ] || [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ] || [ $shape == \"BM.GPU.B300.8\" ]
 then
   mpirun --mca pml ucx \
   --bind-to numa \
