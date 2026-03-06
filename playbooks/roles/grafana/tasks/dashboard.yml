@@ -79,6 +79,9 @@
     - nvidia-gpu-health.jsonnet
     - nvidia-gpu-metrics-single-variables.libsonnet
     - nvidia-gpu-metrics-single.jsonnet
+    - nvidia-gpu-throttling.jsonnet
+    - amd-gpu-throttling.jsonnet
+    - gpu-throttling-overview.jsonnet
     - host-metrics-single-variables.libsonnet
     - host-metrics-single.jsonnet
     - node-health-table-variables.libsonnet
@@ -135,6 +138,9 @@
     /usr/local/bin/jsonnet -J vendor amd-gpu-health.jsonnet -o amd-gpu-health.json
     /usr/local/bin/jsonnet -J vendor nvidia-gpu-metrics-single.jsonnet -o nvidia-gpu-metrics-single.json
     /usr/local/bin/jsonnet -J vendor nvidia-gpu-health.jsonnet -o nvidia-gpu-health.json
+    /usr/local/bin/jsonnet -J vendor nvidia-gpu-throttling.jsonnet -o nvidia-gpu-throttling.json
+    /usr/local/bin/jsonnet -J vendor amd-gpu-throttling.jsonnet -o amd-gpu-throttling.json
+    /usr/local/bin/jsonnet -J vendor gpu-throttling-overview.jsonnet -o gpu-throttling-overview.json
     /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
     /usr/local/bin/jsonnet -J vendor health-by-node-agg-counts.jsonnet -o health-by-node-agg-counts.json
     /usr/local/bin/jsonnet -J vendor health-by-node-matrix.jsonnet -o health-by-node-matrix.json
@@ -174,8 +180,11 @@
     - command-center.json
     - amd-gpu-health.json
     - amd-gpu-metrics-single.json
+    - amd-gpu-throttling.json
     - nvidia-gpu-health.json
     - nvidia-gpu-metrics-single.json
+    - nvidia-gpu-throttling.json
+    - gpu-throttling-overview.json
     - host-metrics-single.json
     - health-by-node-agg-counts.json
     - health-by-node-matrix.json
@@ -216,8 +225,11 @@
     - node-by-health-matrix.json
     - amd-gpu-health.json
     - amd-gpu-metrics-single.json
+    - amd-gpu-throttling.json
     - nvidia-gpu-health.json
     - nvidia-gpu-metrics-single.json
+    - nvidia-gpu-throttling.json
+    - gpu-throttling-overview.json
     - oci-vcn.json
     - oci-block.json
     - oci-igw.json

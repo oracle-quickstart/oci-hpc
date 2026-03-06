@@ -17,16 +17,16 @@ groups:
         expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) / 300000000000) * 100
 
       - record: node_gpu_board_limit_violation_percentage
-        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) / 300000000) * 100
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) / 300000000000) * 100
 
       - record: node_gpu_thermal_violation_percentage
-        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000) * 100
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000000) * 100
 
       - record: node_gpu_sync_boost_violation_percentage
-        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m]) / 300000000) * 100
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m]) / 300000000000) * 100
 
       - record: node_gpu_reliability_violation_percentage
-        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m]) / 300000000) * 100
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m]) / 300000000000) * 100
 
       - record: node_gpu_power_violation_ok
         expr: (min by (hostname, cluster_name, vendor) (node_gpu_power_violation_percentage)) < bool 50
