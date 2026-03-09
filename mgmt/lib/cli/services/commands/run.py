@@ -1,7 +1,7 @@
 import click
 
 from lib.database import get_all_nodes, get_nodes_by_any, db_update_node,get_controller_node, get_all_nodes_to_configure, db_move_terminated_node, get_nodes_by_active_hc_expired, get_nodes_by_multi_node_hc_expired, get_nodes_for_initial_multi_node_check, get_nodes_validated
-from lib.functions import get_updates_based_on_url, run_ansible, scan_host_api_logic, get_slurm_state, append_to_healthchecks, run_multi_node_active_hc, run_active_hc, remove_reservation
+from lib.functions import get_updates_based_on_url, run_ansible, scan_host_api_logic, get_slurm_state, append_to_healthchecks, run_multi_node_active_hc, run_active_hc, remove_nodes_from_reservation
 from lib.ociwrap import oci_scan_queue_and_update_db
 from lib.logger import logger
 import socket
@@ -121,7 +121,7 @@ def validated_nodes_logic():
     validated_nodes =get_nodes_validated()
     logger.debug(f"Count after validated nodes: {validated_nodes.count()}")
     if validated_nodes.count():
-        remove_reservation(validated_nodes.all())
+        remove_nodes_from_reservation(validated_nodes.all())
     else:
         logger.debug("No validated nodes found")
 

@@ -475,27 +475,88 @@ def get_ansiblevars(inventory_path,ansiblevars):
             KeyError("Could not find 'private_subnet' in [all:vars]")
     return output
 
-def remove_reservation(nodes):
-    if len(nodes)>0:
-        updated_reservation=subprocess.run(["sudo","scontrol","update","reservation","reservation=InitialValidation","Nodes-="+','.join([node.hostname for node in nodes])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if updated_reservation.returncode != 0:
-            for node in nodes:
-                try:
-                    updated_reservation_individual=subprocess.run(["sudo","scontrol","update","reservation","reservation=InitialValidation","Nodes-="+node.hostname], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                except Exception as e:
-                    logger.error(f"Failed to remove reservation for {node.hostname}: {e}")
-                if updated_reservation_individual.returncode != 0:
-                    res_check=subprocess.run(["sudo","scontrol","show","reservation","InitialValidation"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    time.sleep(1)
-                    for i in res_check.stdout.decode('utf-8').split():
-                        if "Nodes=" in i:
-                            nodes_in_reservation=i.split("=")[1].split(",")
-                            if len(nodes_in_reservation)==1:
-                                subprocess.run(["sudo","scontrol","delete","reservation","InitialValidation"])
-                            else:
-                                logger.error(f"Failed to remove reservation for {node.hostname}: {e}")                
-    else:
+
+def delete_nodes_from_slurm(nodes):
+    """Delete given nodes from SLURM
+    """
+    if len(nodes) == 0:
+        logger.debug("No nodes found to delete")
+        return
+
+    for node in nodes:
+        try:
+            subprocess.run(
+                [
+                    "sudo",
+                    "scontrol",
+                    "delete",
+                    f"NodeName={node.hostname}",
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            nodenames = ",".join([node.hostname for node in nodes])
+            logger.error(f"Failed to delete {nodenames} from SLURM: {e}: {e.output}")
+
+
+def remove_nodes_from_reservation(nodes, name="InitialValidation"):
+    """Remove given nodes from the SLURM reservation
+
+    Will remove the reservation as required, as SLURM does not allow for reservations
+    without any nodes.
+    """
+    if len(nodes) == 0:
         logger.debug("No nodes found to remove reservation")
+        return
+
+    def _remove(nodes) -> bool:
+        nodenames = ",".join([node.hostname for node in nodes])
+        try:
+            subprocess.check_call(
+                [
+                    "sudo",
+                    "scontrol",
+                    "update",
+                    "reservation",
+                    f"reservation={name}",
+                    f"Nodes-={nodenames}",
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT
+            )
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to remove {nodenames} from reservation {name}: {e}")
+            return False
+
+    if _remove(nodes):
+        logger.debug(f"Successfully removed nodes from reservation {name} in bulk")
+    elif all(_remove([node]) for node in nodes):
+        logger.debug(f"Successfully removed nodes from reservation {name} individually")
+    else:
+        try:
+            output = subprocess.check_output(
+                ["sudo", "scontrol", "show", "reservation", name],
+                stderr=subprocess.STDOUT,
+            ).decode("utf-8")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to list information for reservation {name}: {e}")
+
+        nodelist, = [s for s in output.split() if s.startswith("Nodes=")]
+        reserved_nodes = nodelist[6:].split(",")
+        if len(reserved_nodes) == 1:
+            try:
+                subprocess.check_call(
+                    ["sudo", "scontrol", "delete", "reservation", name],
+                    stderr=subprocess.STDOUT,
+                )
+                logger.debug(f"Successfully deleted reservation {name}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to delete reservation {name}: {e}")
+        else:
+            logger.error(f"Failed to remove nodes from reservation {name}")
 
 def get_node_configuration(config) -> Dict[str, any]:
     """
