@@ -16,10 +16,6 @@ playbooks/roles/amd-container/tasks/ubuntu.yml command-instead-of-module
 playbooks/roles/amd-container/tasks/ubuntu.yml yaml[line-length]
 playbooks/roles/boot-volume/tasks/main.yml name[missing]
 playbooks/roles/clean_tmp/tasks/main.yml name[missing]
-playbooks/roles/cloud-agent_update/tasks/el.yml yaml[line-length]
-playbooks/roles/cloud-agent_update/tasks/main.yml name[missing]
-playbooks/roles/cloud-agent_update/tasks/ubuntu.yml command-instead-of-shell
-playbooks/roles/cloud-agent_update/tasks/ubuntu.yml yaml[line-length]
 playbooks/roles/cluster-cli/tasks/debian.yml var-naming[no-role-prefix]
 playbooks/roles/cluster-cli/tasks/el8.yml var-naming[no-role-prefix]
 playbooks/roles/cluster-cli/tasks/el9.yml var-naming[no-role-prefix]

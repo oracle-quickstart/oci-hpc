@@ -10,7 +10,7 @@
     minor_version: "{{ version.stdout.split('.')[0] }}"
     sub_version: "{{ version.stdout.split('.')[2].split('-')[0] }}"
   yum:
-    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/H1npAGRle5v4izHQkTysF_tfdsgO43iawRc4IC2xL5LwO6T36m8o34T8_kc_KaBS/n/imagegen/b/agent_test/o/1.38.0/3/oracle-cloud-agent-1.38.0-10815.el8.{{ ansible_facts['architecture'] }}.rpm"
+    name: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/H1npAGRle5v4izHQkTysF_tfdsgO43iawRc4IC2xL5LwO6T36m8o34T8_kc_KaBS/n/imagegen/b/agent_test/o/1.38.0/3/oracle-cloud-agent-1.38.0-10815.el8.{{ ansible_facts['architecture'] }}.rpm" # yamllint disable-line rule:line-length
     state: present
     disable_gpg_check: true
   when:
