@@ -69,8 +69,8 @@ def ansible_logic():
     else:
         logger.info("No nodes to configure")
 
-def active_hc_logic():
-    active_hc_timeout=timedelta(hours=24)
+def active_hc_logic(active_healthchecks_frequency):
+    active_hc_timeout=timedelta(hours=active_healthchecks_frequency)
     nodes_idle,nodes_starting=get_nodes_by_active_hc_expired(active_hc_timeout)
     
     logger.debug(f"Nodes With expired active HC:{len(nodes_idle)}")
@@ -83,8 +83,8 @@ def active_hc_logic():
         for node in nodes_starting:
             run_active_hc(node,reservation_id=node.slurm_reservation)
 
-def multi_node_hc_logic():
-    multi_node_hc_timeout=timedelta(hours=24)
+def multi_node_hc_logic(multi_nodes_healthchecks_frequency):
+    multi_node_hc_timeout=timedelta(hours=multi_nodes_healthchecks_frequency)
     nodes_healthy, nodes_potentially_bad =get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout)
     logger.debug(f"Nodes With expired Healthy multi node HC:{len(nodes_healthy)}")    
     logger.debug(f"Nodes With Potentially bad multi node HC:{len(nodes_potentially_bad)}")
@@ -166,8 +166,9 @@ def scan_host_api():
 
 
 @run.command()
+@click.pass_obj
 @click.option('--http_port', type=int, required=False, default=9876, help='Specify HTTP Port.')
-def all(http_port):
+def all(cfg, http_port):
     """Run full workflow: scan queue, update metadata, run ansible and update nodes in case of success."""
     scan_queue_logic()
     update_metadata_logic(http_port)
@@ -175,22 +176,26 @@ def all(http_port):
     available_nodes=scan_host_api_logic()
     for shape in available_nodes.keys():
         click.echo(f"There are {available_nodes[shape]} available nodes of shape {shape} in your pool.")
-    logger.debug("Running active healthcheck")
-    active_hc_logic()
-    logger.debug("Running multi node healthcheck")
-    multi_node_hc_logic()
+    if cfg["active_healthchecks"]:
+        logger.debug("Running active healthcheck")
+        active_hc_logic(cfg["active_healthchecks_frequency"])
+    if cfg["multi_nodes_healthchecks"]:
+        logger.debug("Running multi node healthcheck")
+        multi_node_hc_logic(cfg["multi_nodes_healthchecks_frequency"])
     logger.debug("Running validated nodes logic")
     validated_nodes_logic()
 
 @run.command()
-def active_hc():
+@click.pass_obj
+def active_hc(cfg):
     """Run active healthcheck."""
-    active_hc_logic()
+    active_hc_logic(cfg["active_healthchecks_frequency"])
 
 @run.command()
-def multi_node_hc():
-    """Run active healthcheck."""
-    multi_node_hc_logic()
+@click.pass_obj
+def multi_node_hc(cfg):
+    """Run Multi nodes active healthcheck."""
+    multi_node_hc_logic(cfg["multi_nodes_healthchecks_frequency"])
 
 @run.command()
 def validated_nodes():

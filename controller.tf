@@ -320,6 +320,7 @@ resource "null_resource" "cluster" {
       region                   = var.region,
       tenancy_ocid             = var.tenancy_ocid,
       healthchecks             = var.healthchecks,
+      active_healthchecks      = var.active_healthchecks,
       change_hostname          = var.change_hostname,
       hostname_convention      = var.hostname_convention,
       queue_ocid               = local.queue_ocid,

@@ -58,8 +58,8 @@ def filter_cmd(ctx, nodes, fields):
     help="Include a Reservation Name for the healthcheck in case the nodes are in a reservation, "
         + "InitialValidation is the reservation created for all new nodes. "
 )
-@click.pass_context
-def healthchecks(ctx, nodes, fields, type, exclude_node, reservation):
+@click.pass_obj
+def healthchecks(cfg, nodes, fields, type, exclude_node, reservation):
     """Run healthchecks on given nodes."""
     nodes_list = filter_cmd(ctx, nodes, fields)
 
@@ -68,7 +68,7 @@ def healthchecks(ctx, nodes, fields, type, exclude_node, reservation):
         return
 
     if type == "passive" or type == "all":
-        run_command(nodes_list,"sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py",print_output=True)
+        run_command(nodes_list,"sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py",print_output=True, clush_parallel_executions=cfg["clush_parallel_executions"])
     for node in nodes_list:
         if type=="active" or type == "all":
             run_active_hc(node,reservation_id=reservation)

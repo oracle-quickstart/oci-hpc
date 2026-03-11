@@ -54,6 +54,7 @@ sacct_limits=${sacct_limits}
 zone_name=${zone_name}
 vcn_compartment=${vcn_compartment}
 healthchecks=${healthchecks}
+active_healthchecks=${active_healthchecks}
 change_hostname=${change_hostname}
 hostname_convention=${hostname_convention}
 controller_hostname=${controller_name}

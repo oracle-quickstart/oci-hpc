@@ -229,6 +229,7 @@ variableGroups:
       - ${pam}
       - ${sacct_limits}
       - ${healthchecks}
+      - ${active_healthchecks}
 
   - title: "Hidden"
     variables:
@@ -1343,6 +1344,16 @@ variables:
     default: true
     description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state."
     visible: ${slurm}
+
+  active_healthchecks:
+    type: boolean
+    title: "Turn on Active Healthchecks for GPU nodes"
+    default: true
+    description: "Will schedule Slurm active healthchecks jobs in a preemptible partition to validate GPU nodes every day"
+    visible: 
+      and:
+        - ${healthchecks}
+        - ${slurm}
 
   add_nfs:
     type: boolean

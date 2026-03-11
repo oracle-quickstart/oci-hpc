@@ -461,6 +461,10 @@ variable "healthchecks" {
   default = true
   type    = bool
 }
+variable "active_healthchecks" {
+  default = true
+  type    = bool
+}
 variable "BIOS" {
   default = false
   type    = bool

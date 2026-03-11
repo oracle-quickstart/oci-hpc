@@ -74,6 +74,7 @@
     mode: "0644"
 
 - name: Reload systemd daemon
+  become: true
   systemd:
     daemon_reload: true
 
@@ -94,6 +95,17 @@
 #   ansible.builtin.git:
 #     repo: 'https://github.com/oracle-quickstart/oci-cluster-management'
 #     dest: "/config/mgmt"
+
+- name: Copy mgmt utility
+  become: true
+  ansible.builtin.template:
+    src: templates/mgmt.ini.j2
+    dest: "/config/mgmt/mgmt.ini"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+  run_once: true
+
 
 - name: Copy mgmt utility
   become: true

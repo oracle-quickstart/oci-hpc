@@ -45,24 +45,27 @@ def fetch_content(url):
         return None
 
 
-def run_configure(nodes):
+def run_configure(nodes, clush_parallel_executions=10):
     logger.info(f"Restarting the configuration script on: {NodeSet(','.join([node.ip_address for node in nodes]))}")
     task = task_self()
+    task.set_info("fanout", clush_parallel_executions)
     task.shell("sudo bash /var/lib/cloud/instance/scripts/part-001", nodes=NodeSet(','.join([node.ip_address for node in nodes])))
     task.run()
     logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
 
-def run_reset_gpus(node):
+def run_reset_gpus(node, clush_parallel_executions=10):
     logger.info("Resetting GPUs on: "+str(node.hostname)+" with IP "+str(node.ip_address))
     task = task_self()
+    task.set_info("fanout", clush_parallel_executions)
     nodes = NodeSet(str(node.ip_address))
     command = "sudo /opt/oci-hpc/healthchecks/gpu_reset.sh"
     task.run(command, nodes=nodes)
     logger.info(f"GPU reset script was run. Logs are available at /var/log/healthchecks/latest_gpu_reset.log.")
 
-def run_command(nodes,command,print_output=False):
+def run_command(nodes,command,print_output=False,clush_parallel_executions=10):
     logger.debug(f"Running command {command} on: {NodeSet(','.join([node.ip_address for node in nodes]))}")
     task = task_self()
+    task.set_info("fanout", clush_parallel_executions) 
     task.shell(command, nodes=NodeSet(','.join([node.ip_address for node in nodes])))
     task.run()
     if print_output:

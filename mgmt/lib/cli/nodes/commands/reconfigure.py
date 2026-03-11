@@ -103,8 +103,10 @@ def filter_cmd(ctx, nodes, fields):
     required=False,
     help="Specify the playbook to run on the nodes. To be used with --action=ansible",
 )
+
+@click.pass_obj
 @click.pass_context
-def reconfigure(ctx, nodes, fields, action, command, playbook):
+def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
     """Rerun the cloud-init script on the nodes."""
     if action == "command":
         if not command:
@@ -135,21 +137,21 @@ def reconfigure(ctx, nodes, fields, action, command, playbook):
         logger.info("Re-running cloud-init on nodes: %s", nodeset)
         for node in nodes_list:
             db.db_update_node(node, compute_status="starting")
-        run_command(nodes_list, command_to_run)
+        run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
     if action == "custom":
         logger.info("Running Ansible custom role on nodes: %s", nodeset)
         command_to_run = "/config/bin/custom_ansible.sh custom"
-        run_command(nodes_list, command_to_run)
+        run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
     if action == "ansible":
         logger.info("Running Ansible playbook '%s' on nodes: %s", playbook, nodeset)
         command_to_run = f"/config/bin/custom_ansible.sh {playbook}"
-        run_command(nodes_list, command_to_run)
+        run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
     if action == "command":
         logger.info("Running custom command '%s' on nodes: %s", command, nodeset)
-        run_command(nodes_list, command)
+        run_command(nodes_list, command, clush_parallel_executions=cfg["clush_parallel_executions"])
     if action == "metadata":
         logger.info("Updating metadata on nodes: %s", nodeset)
-        run_command(nodes_list, "/config/bin/custom_ansible.sh metadata")
+        run_command(nodes_list, "/config/bin/custom_ansible.sh metadata", clush_parallel_executions=cfg["clush_parallel_executions"])
         logger.info("Waiting 60 seconds for metadata to be updated...")
         sleep(60)
         logger.info("Reconfiguring controller to update slurm topology: %s", nodeset)
@@ -176,4 +178,4 @@ def reconfigure(ctx, nodes, fields, action, command, playbook):
                 "sudo systemctl restart slurmd",
             ]
         )
-        run_command(nodes_list, command_to_run)
+        run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])

@@ -76,13 +76,14 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
     
 
 @recom.command()
+@click.pass_obj
 @click.option('--nodes', required=False, help='Comma separated list of nodes (IP Addresses, hostnames, OCID\'s, serials or oci names)')
 @click.option('--healthcheck', is_flag=True, help='', default=False)
 @click.option('--unreachable', is_flag=True, help='Get full information about the nodes.', default=False)
 @click.option('--unconfigured', is_flag=True, help='Get full information about the nodes.', default=False)
 @click.option('--unreachable_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=30)
 @click.option('--unconfigured_timeout', type=int, help='Timeout in minutes before a node is considered unreachable.', default=60)
-def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfigured_timeout):
+def run(cfg, unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfigured_timeout):
     """Run all the recommendations."""
     unreachable_nodes=[]
     unconfigured_nodes=[]
@@ -128,14 +129,14 @@ def run(unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,unconfi
         click.echo("Resetting the GPUs on : "+str(NodeSet(','.join([node.hostname for node in nodes_to_reset_GPUs]))))
         for node in nodes_to_reset_GPUs:
             if node.slurm_state=="drain" or node.slurm_state=="down":
-                run_reset_gpus(node)
+                run_reset_gpus(node, clush_parallel_executions=cfg["clush_parallel_executions"])
             else:
                 click.echo(f"Node is not drained, cannot reset GPUs on {node.hostname}")
 
     # Relaunch configuration step.
     if unconfigured_nodes:
         click.echo("Reconfiguring: "+str(NodeSet(','.join([node.hostname for node in unconfigured_nodes]))))
-        run_configure(unconfigured_nodes)
+        run_configure(unconfigured_nodes,clush_parallel_executions=cfg["clush_parallel_executions"])
         
     available_nodes=scan_host_api_logic()
     for shape in available_nodes.keys():
