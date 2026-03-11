@@ -344,6 +344,16 @@ def get_slurm_state():
             ["sinfo", "-N", "-h", "-o", "%N %R %t %i"],
             capture_output=True, text=True, check=True
         )
+        for i in range(10):
+            logger.debug(f"sinfo output: {result.stdout}")
+            if result.stdout:
+                break
+            time.sleep(10)
+            result = subprocess.run(
+            ["sinfo", "-N", "-h", "-o", "%N %R %t %i"],
+            capture_output=True, text=True, check=True
+            )
+
     except Exception as e:
         logger.error(f"Failed to run sinfo: {e}")
         return {}

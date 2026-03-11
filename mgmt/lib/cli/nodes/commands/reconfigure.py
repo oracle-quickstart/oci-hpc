@@ -12,7 +12,7 @@ from ClusterShell.NodeSet import NodeSet
 from lib.logger import logger
 import textwrap
 from time import sleep
-
+import subprocess
 
 def filter_cmd(ctx, nodes, fields):
     if (not nodes and not fields) or (nodes and fields):
@@ -179,3 +179,8 @@ def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
             ]
         )
         run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
+        logger.debug("Reconfiguring Slurm")
+        sleep(10)
+        reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
+
+
