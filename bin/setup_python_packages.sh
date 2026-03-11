@@ -1,3 +1,5 @@
+set -eu -o pipefail
+
 # Check if another node is already installing the environment.
 # 
 # If not, do it ourselves.

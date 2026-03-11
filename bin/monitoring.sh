@@ -9,6 +9,7 @@ then
 else
   cluster_name=$1
 fi
+set -eu -o pipefail
 
 echo "ClusterName:" $cluster_name
 

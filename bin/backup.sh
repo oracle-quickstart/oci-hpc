@@ -4,6 +4,8 @@
 #
 sudo cloud-init status --wait
 
+set -eu -o pipefail
+
 source $(dirname "${0}")/setup_environment.sh
 
 bash $(dirname "${0}")/setup_os_packages.sh

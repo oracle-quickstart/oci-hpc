@@ -1,6 +1,7 @@
 source "${UV_INSTALL_DIR}/env"
 source "${VENV_PATH}/bin/activate"
 
+set -eu -o pipefail
 
 # Check if another node is already installing the required Ansible collections.
 # 
