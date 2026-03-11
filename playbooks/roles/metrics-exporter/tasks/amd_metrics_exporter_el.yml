@@ -12,6 +12,7 @@
     mode: '0644'
 
 - name: Reload systemd daemon
+  become: true
   ansible.builtin.systemd:
     daemon_reload: true
 
