@@ -5,12 +5,22 @@
     name: "{{ dependencies }}"
     state: present
 
-- name: Download Go tarball
+- name: Check if Go tarball already cached
+  ansible.builtin.stat:
+    path: "/config/3rdparty/{{ go_tarball }}"
+  register: go_cache
+  delegate_to: localhost
+  run_once: true
+
+- name: Download Go tarball to shared storage
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   become: true
   ansible.builtin.get_url:
     url: "{{ go_url }}"
-    dest: "/tmp/{{ go_tarball }}"
+    dest: "/config/3rdparty/{{ go_tarball }}"
+  delegate_to: localhost
+  run_once: true
+  when: not go_cache.stat.exists | bool
 
 - name: Remove old Go installation
   become: true
@@ -18,10 +28,10 @@
     path: "{{ go_install_dir }}/go"
     state: absent
 
-- name: Extract Go tarball
+- name: Extract Go tarball from shared storage
   become: true
   ansible.builtin.unarchive:
-    src: "/tmp/{{ go_tarball }}"
+    src: "/config/3rdparty/{{ go_tarball }}"
     dest: "{{ go_install_dir }}"
     remote_src: true
 
@@ -33,7 +43,7 @@
     create: true
     state: present
 
-- name: Check if file already exists
+- name: Check if dcgm-exporter file already exists
   ansible.builtin.stat:
     path: /config/3rdparty/dcgm-exporter/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}
   register: dcgm_exporter
@@ -49,11 +59,27 @@
   ansible.builtin.set_fact:
     dcgm_major_version: "{{ dcgm_version.stdout.split('.')[0] }}"
 
-- name: Find DCGM Exporter releases
+- name: Fetch and cache DCGM Exporter releases
   become: true
   ansible.builtin.shell:
-    cmd: curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"'
-  register: dcgm_exporter_releases
+    cmd: |
+      if [ -f /config/3rdparty/dcgm-exporter-releases.txt ]; then
+        cat /config/3rdparty/dcgm-exporter-releases.txt
+      else
+        releases=$(curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"')
+        tmp=$(mktemp /config/3rdparty/.dcgm-releases.XXXXXX)
+        echo "$releases" > "$tmp"
+        mv "$tmp" /config/3rdparty/dcgm-exporter-releases.txt
+        echo "$releases"
+      fi
+  register: dcgm_exporter_releases_result
+  run_once: true
+  when: not dcgm_exporter.stat.exists | bool
+
+- name: Set DCGM Exporter releases fact
+  ansible.builtin.set_fact:
+    dcgm_exporter_releases:
+      stdout_lines: "{{ dcgm_exporter_releases_result.stdout_lines | default([]) | select | list }}"
   when: not dcgm_exporter.stat.exists | bool
 
 #- name: Extract major.minor version from DCGM version

@@ -36,16 +36,25 @@
         path: /usr/sbin/nhc
       register: nhc_installed
 
-    - name: Download NHC tarball on node
+    - name: Check if NHC tarball already cached
+      ansible.builtin.stat:
+        path: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
+      register: nhc_cache
+      delegate_to: localhost
+      run_once: true
+
+    - name: Download NHC tarball to shared storage
       get_url:
         url: https://github.com/mej/nhc/releases/download/1.4.3/lbnl-nhc-1.4.3.tar.xz
-        dest: /tmp/lbnl-nhc-1.4.3.tar.xz
+        dest: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
         mode: '0644'
-      when: not nhc_installed.stat.exists
+      delegate_to: localhost
+      run_once: true
+      when: not nhc_cache.stat.exists | bool
 
-    - name: Extract NHC source
+    - name: Extract NHC source from shared storage
       unarchive:
-        src: /tmp/lbnl-nhc-1.4.3.tar.xz
+        src: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
         dest: /tmp
         remote_src: true
       when: not nhc_installed.stat.exists
@@ -77,11 +86,6 @@
     - name: Remove NHC source directory from /tmp
       file:
         path: /tmp/lbnl-nhc-1.4.3
-        state: absent
-
-    - name: Remove NHC tarball from /tmp
-      file:
-        path: /tmp/lbnl-nhc-1.4.3.tar.xz
         state: absent
 
     # -----------------------------------------

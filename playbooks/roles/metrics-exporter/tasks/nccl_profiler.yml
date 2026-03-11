@@ -20,12 +20,27 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Find nccl releases
+    - name: Fetch and cache NCCL releases
       become: true
       ansible.builtin.shell:
-        cmd: curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"'
-      register: nccl_releases
+        cmd: |
+          if [ -f /config/3rdparty/nccl-releases.txt ]; then
+            cat /config/3rdparty/nccl-releases.txt
+          else
+            releases=$(curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"')
+            tmp=$(mktemp /config/3rdparty/.nccl-releases.XXXXXX)
+            echo "$releases" > "$tmp"
+            mv "$tmp" /config/3rdparty/nccl-releases.txt
+            echo "$releases"
+          fi
+      register: nccl_releases_result
       delegate_to: localhost
+      run_once: true
+
+    - name: Set NCCL releases fact
+      ansible.builtin.set_fact:
+        nccl_releases:
+          stdout_lines: "{{ nccl_releases_result.stdout_lines | default([]) | select | list }}"
       run_once: true
 
     - name: Select appropriate NCCL version
@@ -41,29 +56,29 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Download NCCL tarball
+    - name: Check if NCCL tarball already cached
+      ansible.builtin.stat:
+        path: "/config/3rdparty/nccl-{{ nccl_version }}.tar.gz"
+      register: nccl_tarball_cache
+      delegate_to: localhost
+      run_once: true
+
+    - name: Download NCCL tarball to shared storage
       become: true
       ansible.builtin.get_url:
         url: "{{ nccl_tarball_url }}"
-        dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+        dest: "/config/3rdparty/nccl-{{ nccl_version }}.tar.gz"
       delegate_to: localhost
       run_once: true
       environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
+      when: not nccl_tarball_cache.stat.exists | bool
 
-
-    - name: Copy nccl tarball to target
-      become: true
-      ansible.builtin.copy:
-        src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
-        dest: "/tmp/nccl-{{ nccl_version }}.tar.gz"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Extract NCCL tarball
+    - name: Extract NCCL tarball from shared storage
       become: true
       ansible.builtin.unarchive:
-        src: "/tmp/nccl-{{ nccl_version }}.tar.gz"
+        src: "/config/3rdparty/nccl-{{ nccl_version }}.tar.gz"
         dest: "/tmp"
+        remote_src: true
 
     - name: Get NCCL directory
       ansible.builtin.shell: "ls -d /tmp/NVIDIA-nccl-*"
