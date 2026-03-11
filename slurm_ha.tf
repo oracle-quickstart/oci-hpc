@@ -1,6 +1,6 @@
 resource "oci_core_instance" "backup" {
   count               = var.slurm_ha ? 1 : 0
-  depends_on          = [oci_core_subnet.public-subnet]
+  depends_on          = [oci_core_subnet.public-subnet, oci_core_shape_management.controller-shape]
   availability_domain = var.controller_ad
   compartment_id      = var.targetCompartment
   shape               = var.controller_shape

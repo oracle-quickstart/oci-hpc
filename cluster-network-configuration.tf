@@ -1,6 +1,6 @@
 resource "oci_core_instance_configuration" "cluster-network-instance_configuration" {
   count          = var.rdma_enabled && (!var.stand_alone || var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4") ? 1 : 0
-  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
+  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_shape_management.compute-shape]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
   

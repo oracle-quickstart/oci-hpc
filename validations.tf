@@ -82,33 +82,11 @@ resource "null_resource" "validate_compute_username" {
   }
 }
 
-# validate that the images are compatible with the node CPU architecture (x86_64 versus aarch64)
-
-resource "null_resource" "validate_controller_compatibility" {
+resource "null_resource" "validate_usernames" {
   lifecycle {
     precondition {
-      condition     = contains(local.compatible_controller_shapes, var.controller_shape)
-      error_message = "Selected controller image is not compatible with the controller shape CPU architecture."
-    }
-  }
-}
-
-resource "null_resource" "validate_cluster_network_compatibility" {
-  count = var.rdma_enabled ? 1 : 0
-  lifecycle {
-    precondition {
-      condition     = contains(local.compatible_compute_shapes, var.cluster_network_shape)
-      error_message = "Selected compute image is not compatible with the compute node shape CPU architecture."
-    }
-  }
-}
-
-resource "null_resource" "validate_instance_pool_compatibility" {
-  count = !var.rdma_enabled ? 1 : 0
-  lifecycle {
-    precondition {
-      condition     = contains(local.compatible_compute_shapes, var.instance_pool_shape)
-      error_message = "Selected compute image is not compatible with the compute node shape CPU architecture."
+      condition     = var.compute_username == var.controller_username
+      error_message = "Using different usernames for controller and compute nodes is not supported."
     }
   }
 }

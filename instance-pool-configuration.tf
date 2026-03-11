@@ -1,6 +1,6 @@
 resource "oci_core_instance_configuration" "instance_pool_configuration" {
   count          = (!var.rdma_enabled) && (!var.stand_alone) && (var.node_count > 0) ? 1 : 0
-  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
+  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_shape_management.compute-shape]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
 
