@@ -156,14 +156,17 @@ def recommended_action(current, action):
     if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Reset_GPU", "Check_nhc_log"):
         if current == "Terminate":
             return current
-        else:
-            return action
     if action is None: 
         return current
     if action == "Terminate":
         return action
     if action in ("Wait_For_OCA"):
         if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU","Check_nhc_log"):
+            return current
+        else:
+            return action
+    if action in ("Check_nhc_log"):
+        if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU"):
             return current
         else:
             return action
@@ -1324,25 +1327,31 @@ def run_rocminfo_check():
         logger.error(f"rocminfo health check unexpected error: {str(e)}")
         return False
     
-# Run LBNL NHC
+# 21.1 Run LBNL NHC
 def run_nhc_check():
+    nhc_log_file = '/var/log/nhc.log'
+    nhc_timeout_sec = 15
+    warning_messages = []
+    error_messages = []
+
     try:
         subprocess.run(["nvme", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=5)
+    except subprocess.TimeoutExpired:
+        logger.warning("Cannot run LBNL node health checks. LBNL node health checks timed out after 5s while checking nvme-cli availabilit.")
+        return True, [], []
     except (subprocess.CalledProcessError, FileNotFoundError):
-        logger.warning("nvme-cli not installed. Cannot run LBNL node health checks", e.output)
-        return True
-    
-    nhc_log_file = '/var/log/nhc.log'
+        logger.warning("Cannot run LBNL node health checks. nvme-cli not installed.")
+        return True, [], []
     
     if os.path.isfile(nhc_log_file):
         try:
             os.remove(nhc_log_file)
         except PermissionError:
             logger.warning(f"Cannot run LBNL node health checks. Try running as root or with elevated privileges.")
-            return True
+            return True, [], []
         except Exception as e:
-            logger.error(f"LBNL node health checks failed. Error deleting {nhc_log_file}: {e}")
-            return False
+            logger.warning(f"Cannot run LBNL node health checks. Error deleting {nhc_log_file}: {e}")
+            return True, [], []
 
     cmd = [
         'sudo',
@@ -1352,17 +1361,20 @@ def run_nhc_check():
         '-v'
     ]
     try:
-        result = subprocess.run(
+        subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
             check=False, # Don't raise exception on nonzero exit
-            timeout=15 
+            timeout=nhc_timeout_sec
         )
+    except subprocess.TimeoutExpired:
+        logger.warning(f"LBNL node health checks timed out after {nhc_timeout_sec}s")
+        return True, [], []
     except Exception as e:
-        logger.warning("Could not run LBNL node health checks", e.output)
-        return True 
+        logger.warning(f"Could not run LBNL node health checks: {e}")
+        return True, [], []
     
     # Allow logging to flush
     time.sleep(5)
@@ -1386,27 +1398,25 @@ def run_nhc_check():
 
     # Capture log after running
     nhc_log_output, nhc_log_exists = read_log_lines()
-    if nhc_log_exists:
-        issues = get_issues(nhc_log_output)
-    else:
-        logger.error("LBNL node health checks failed. /var/log/nhc.log is not generated.")
-        return False
+    if not nhc_log_exists:
+        logger.warning(f"Could not run LBNL node health checks. /var/log/nhc.log is not generated.")
+        return True, [], []
 
-    lbnl_error = False
+    issues = get_issues(nhc_log_output)
+
     if issues:
-        for level, message in issues:
-            if level == "WARNING":
-                logger.warning(f"LBNL node health check: {message}")
-            elif level == "ERROR":
-                logger.error(f"LBNL node health check: {message}")
-                lbnl_error = True
-        if lbnl_error:
-            return False
-        else:
-            return True
+        warning_messages = [message for level, message in issues if level == "WARNING"]
+        error_messages = [message for level, message in issues if level == "ERROR"]
+
+        if warning_messages:
+            logger.warning("LBNL node health check warnings:\n" + "\n".join(warning_messages))
+        if error_messages:
+            logger.error("LBNL node health check errors:\n" + "\n".join(error_messages))
+
+        return len(error_messages) == 0, warning_messages, error_messages
     else:
         logger.info("LBNL node health checks: Passed")
-        return True
+        return True, [], []
 
 #Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
@@ -1697,10 +1707,12 @@ if __name__ == '__main__':
     # 21.3 Check the node health using LBNL NHC
     if run_all or args.lbnl_nhc:
         try:
-            lbnl_nhc_output = run_nhc_check()
+            lbnl_nhc_output, lbnl_nhc_warnings, lbnl_nhc_errors = run_nhc_check()
         except Exception as e:
             logger.warning(f"Failed to run LBNL node health check with error: {e}")
             lbnl_nhc_output = True
+            lbnl_nhc_warnings = []
+            lbnl_nhc_errors = []
 
 #Section 4: Summarize the results and recommend actions.
 ########################################################
@@ -1925,8 +1937,19 @@ if __name__ == '__main__':
 
     # 21.4 Summarize LBNL node health check
     if run_all or args.lbnl_nhc:
+        if lbnl_nhc_warnings:
+            logger.warning(
+                f"{host_serial} - LBNL node health check warnings:\n" + "\n".join(lbnl_nhc_warnings)
+            )
+        if lbnl_nhc_errors:
+            logger.error(
+                f"{host_serial} - LBNL node health check errors:\n" + "\n".join(lbnl_nhc_errors)
+            )
         if not lbnl_nhc_output:
-            logger.error(f"{host_serial} - LBNL node health check failed. Check /var/log/nhc.log for details.")
+            if not lbnl_nhc_errors:
+                logger.error(
+                    f"{host_serial} - LBNL node health check failed. Check /var/log/nhc.log for details."
+                )
             slurm_reason("LBNL node health check failed")
             action = recommended_action(action, "Check_nhc_log")
 
