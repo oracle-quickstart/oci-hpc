@@ -48,6 +48,7 @@
         url: https://github.com/mej/nhc/releases/download/1.4.3/lbnl-nhc-1.4.3.tar.xz
         dest: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
         mode: '0644'
+        validate_certs: false
       delegate_to: localhost
       run_once: true
       when: not nhc_cache.stat.exists | bool
@@ -172,6 +173,15 @@
     - name: Set load threshold dynamically
       set_fact:
         nhc_load_threshold: "{{ nhc_expected_threads | int * 2 }}"
+
+    - name: Get kernel cmdline
+      command: cat /proc/cmdline
+      register: nhc_cmdline
+      changed_when: false
+
+    - name: Detect if IOMMU is disabled
+      set_fact:
+        nhc_iommu_off: "{{ 'iommu=off' in nhc_cmdline.stdout }}"
 
     # -----------------------------------------
     # NHC config

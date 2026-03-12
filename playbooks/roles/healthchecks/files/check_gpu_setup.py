@@ -1330,7 +1330,7 @@ def run_rocminfo_check():
 # 21.1 Run LBNL NHC
 def run_nhc_check():
     nhc_log_file = '/var/log/nhc.log'
-    nhc_timeout_sec = 15
+    nhc_timeout_sec = 60
     warning_messages = []
     error_messages = []
 

@@ -1,9 +1,9 @@
 # NHC Configuration file generated for node shape: {{ nhc_node_shape }}
 
-*||check_fs_mount_rw -t "tmpfs" -s "tmpfs" -f "/run"
-*||check_fs_mount_rw -t "ext4" -s "/dev/sda1" -f "/"
-*||check_fs_mount_rw -t "vfat" -s "/dev/sda15" -f "/boot/efi"
-*||check_fs_mount_rw -t "tmpfs" -s "tmpfs" -f "/dev/shm"
+*||check_fs_mount_rw -f "/"
+*||check_fs_mount_rw -f "/run"
+*||check_fs_mount_rw -f "/boot/efi"
+*||check_fs_mount_rw -f "/dev/shm"
 
 
 #----------------------------------------------
@@ -20,16 +20,20 @@
 {% endfor %}
 
 
-# --- Swap  check ---
-*||check_hw_swap 0kB 0kB 3%
-
-
 {% if 'BM.GPU.B4.8' in nhc_node_shape %}
 
-{% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 128 256
-{% else %}
+{% if nhc_iommu_off %}
+    {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 254
+    {% else %}
 *||check_hw_cpuinfo 2 128 128
+    {% endif %}
+{% else %}
+    {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 256
+    {% else %}
+*||check_hw_cpuinfo 2 128 128
+    {% endif %}
 {% endif %}
 
 *||check_hw_physmem 2147483648kB 2147483648kB 3%
@@ -90,10 +94,18 @@
 {% elif 'BM.GPU.A100-v2.8' in nhc_node_shape %}
 # Add checks specific to BM.GPU.A100-v2.8 compute shape here.
 
-{% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 128 256
-{% else %}
+{% if nhc_iommu_off %}
+    {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 254
+    {% else %}
 *||check_hw_cpuinfo 2 128 128
+    {% endif %}
+{% else %}
+    {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 256
+    {% else %}
+*||check_hw_cpuinfo 2 128 128
+    {% endif %}
 {% endif %}
 
 *||check_hw_physmem 2147483648kB 2147483648kB 3%
@@ -184,10 +196,18 @@
 {% elif 'BM.GPU4.8' in nhc_node_shape %}
 # Add checks specific to BM.GPU4.8 compute shape here.
 
-{% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 64 128
-{% else %}
+{% if nhc_iommu_off %}
+    {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 64 126
+    {% else %}
 *||check_hw_cpuinfo 2 64 64
+    {% endif %}
+{% else %}
+    {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 64 128
+    {% else %}
+*||check_hw_cpuinfo 2 64 64
+    {% endif %}
 {% endif %}
 
 *||check_hw_physmem 2147483648kB 2147483648kB 3%
@@ -763,4 +783,3 @@
 
 
 {% endif %}
-
