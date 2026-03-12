@@ -77,9 +77,6 @@ resource "oci_core_instance" "controller" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
-    user_data = base64encode(templatefile("${path.module}/config.controller", {
-      key = tls_private_key.ssh.private_key_pem
-    }))
   }
   source_details {
     //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
