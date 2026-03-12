@@ -114,7 +114,7 @@
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "{{ nfs_target_path if create_fss == 'new' else (cluster_nfs_path if cluster_nfs | bool else '/tmp') }}"
+        download_path: "/config/3rdparty"
         local_path: "{{ lfs_target_path }}"
         export_host: "{{ lfs_source_IP }}"
         options: "{{ lfs_options }}"
