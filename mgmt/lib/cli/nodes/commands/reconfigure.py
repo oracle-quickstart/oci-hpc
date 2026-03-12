@@ -52,6 +52,7 @@ def filter_cmd(ctx, nodes, fields):
     required=False,
     help="Fields to filter nodes (e.g., role=compute,status=running)",
 )
+
 @click.option(
     "--action",
     type=click.Choice(
@@ -64,6 +65,9 @@ def filter_cmd(ctx, nodes, fields):
             "ansible",
             "slurm-reinit",
             "metadata",
+            "localdisk-recover",
+            "localdisk-raid0",
+            "localdisk-raid10"
         ]
     ),
     default="all",
@@ -90,6 +94,11 @@ def filter_cmd(ctx, nodes, fields):
 
         slurm-reinit will remove the nodes from SLURM on the controller and restart
         SLURM on the nodes.
+
+        All the following actions will destroy data on /mnt/localdisk:
+        localdisk-recover will recover a failed /mnt/localdisk by recreating the RAID0 array and reformatting it. 
+        localdisk-raid0 will recreate the /mnt/localdisk as a RAID0 array, which is the default configuration.
+        localdisk-raid10 will recreate the /mnt/localdisk as a RAID10 array, which provides redundancy at the cost of usable capacity.
         """
     ),
 )
@@ -181,6 +190,18 @@ def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
         run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
         logger.debug("Reconfiguring Slurm")
         sleep(10)
-        reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
-
-
+        reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])        
+    if action in ["localdisk-recover", "localdisk-raid0", "localdisk-raid10"]:
+        nodeset_str = str(NodeSet(','.join([node.hostname for node in nodes_list])))
+        if action == "localdisk-recover":
+            logger.info(f"Recovering /mnt/localdisk on nodes: {nodeset_str}")
+            logger.warning("This will destroy all data on the local NVMe drives!")
+            run_command(nodes_list, "/config/bin/custom_ansible.sh recover_localdisk")
+        elif action == "localdisk-raid0":
+            logger.info(f"Recreating /mnt/localdisk as RAID0 on nodes: {nodeset_str}")
+            logger.warning("This will destroy all data on the local NVMe drives!")
+            run_command(nodes_list, "/config/bin/custom_ansible.sh recover_localdisk -e redundancy=false -e force_recovery=true")
+        elif action == "localdisk-raid10":
+            logger.info(f"Recreating /mnt/localdisk as RAID10 on nodes: {nodeset_str}")
+            logger.warning("This will destroy all data on the local NVMe drives!")
+            run_command(nodes_list, "/config/bin/custom_ansible.sh recover_localdisk -e redundancy=true -e force_recovery=true")        

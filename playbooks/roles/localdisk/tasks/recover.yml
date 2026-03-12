@@ -1,0 +1,137 @@
+---
+# Recovery tasks for /mnt/localdisk RAID Array
+# WARNING: This will destroy all data on the local NVMe drives.
+
+- name: Set NVMe variables
+  ansible.builtin.set_fact:
+    nvme_path_edited: "{{ nvme_path.rstrip('/') }}"
+    nvmes: >-
+          {{ (ansible_facts['devices'].keys() | select('match', 'nvme[1-9][0-9]n1') | list)
+           + (ansible_facts['devices'].keys() | select('match', 'nvme[0-9]n1') | list) }}
+    dev_prefix: "/dev/"
+
+- name: Prefix Devices
+  ansible.builtin.set_fact:
+    nvme_devices: "{{ [dev_prefix] | product(nvmes) | map('join') | list }}"
+
+- name: Display detected devices
+  ansible.builtin.debug:
+    msg: "Recovering RAID with {{ nvmes | count }} NVMe devices: {{ nvme_devices }}"
+
+- name: Detect current RAID level from mdadm.conf
+  ansible.builtin.shell: "grep -oP 'level=raid\\K[0-9]+' /etc/mdadm/mdadm.conf 2>/dev/null || echo '0'"
+  register: current_raid_level
+  changed_when: false
+  failed_when: false
+  when: redundancy is not defined or redundancy == "auto"
+
+- name: Set redundancy based on detected RAID level
+  ansible.builtin.set_fact:
+    redundancy: "{{ current_raid_level.stdout == '10' }}"
+  when: redundancy is not defined or redundancy == "auto"
+
+- name: Display RAID level to use
+  ansible.builtin.debug:
+    msg: "Using RAID level: {% if redundancy | bool %}10{% else %}0{% endif %}"
+
+- name: Check if filesystem is healthy
+  ansible.builtin.shell: "mountpoint -q {{ nvme_path_edited }} && timeout 5 stat {{ nvme_path_edited }}/. >/dev/null 2>&1"
+  register: fs_healthy
+  failed_when: false
+  changed_when: false
+
+- name: Skip recovery if filesystem is healthy
+  when: fs_healthy.rc == 0 and not (force_recovery | default(false) | bool)
+  block:
+    - name: Filesystem is healthy - nothing to do
+      ansible.builtin.debug:
+        msg: "Filesystem at {{ nvme_path_edited }} is healthy. Skipping recovery. Use -e force_recovery=true to override."
+
+    - name: End play for this host
+      ansible.builtin.meta: end_host
+
+- name: Unmount filesystem
+  ansible.builtin.command: "umount -f {{ nvme_path_edited }}"
+  failed_when: false
+
+- name: Stop md0 array
+  ansible.builtin.command: "mdadm --stop /dev/md0"
+  failed_when: false
+
+- name: Stop all RAID arrays
+  ansible.builtin.command: "mdadm --stop --scan"
+  failed_when: false
+
+- name: Zero superblocks on NVMe devices
+  ansible.builtin.command: "mdadm --zero-superblock {{ item }}"
+  loop: "{{ nvme_devices }}"
+  failed_when: false
+
+- name: Wipe filesystem signatures from md0
+  ansible.builtin.command: "wipefs -a /dev/md0"
+  failed_when: false
+
+- name: Wipe filesystem signatures from NVMe devices
+  ansible.builtin.command: "wipefs -a {{ item }}"
+  loop: "{{ nvme_devices }}"
+  failed_when: false
+
+- name: Create RAID array
+  ansible.builtin.shell: >-
+                        yes | mdadm --create /dev/md0 \
+                        {% if redundancy | bool %}--level=10{% else %}--level=0{% endif %} \
+                        --raid-devices={{ nvmes | count }} {{ nvme_devices | join(' ') }}
+
+- name: Create XFS filesystem
+  ansible.builtin.command: "mkfs.xfs -f /dev/md0"
+
+- name: Ensure mount point exists
+  ansible.builtin.file:
+    path: "{{ nvme_path_edited }}"
+    state: directory
+
+- name: Mount array and update fstab
+  mount:
+    path: "{{ nvme_path_edited }}"
+    src: "/dev/md0"
+    fstype: xfs
+    opts: defaults,nofail,noatime,discard
+    state: mounted
+
+- name: Set permissions
+  ansible.builtin.file:
+    path: "{{ nvme_path_edited }}"
+    state: directory
+    owner: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+    mode: "0775"
+    group: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+
+- name: Ensure mdadm.conf directory exists
+  ansible.builtin.file:
+    path: /etc/mdadm
+    state: directory
+
+- name: Capture array details
+  ansible.builtin.command: "mdadm --detail --scan --verbose"
+  register: array_details
+
+- name: Update mdadm.conf
+  ansible.builtin.copy:
+    content: "{{ array_details.stdout }}\n"
+    dest: /etc/mdadm/mdadm.conf
+
+- name: Rebuild initramfs (Ubuntu)
+  ansible.builtin.command: update-initramfs -k all -u
+  when: ansible_facts['distribution'] == "Ubuntu"
+
+- name: Rebuild initramfs (RHEL/Rocky)
+  ansible.builtin.command: dracut --force
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Verify recovery
+  ansible.builtin.command: "df -h {{ nvme_path_edited }}"
+  register: result
+
+- name: Done
+  ansible.builtin.debug:
+    msg: "{{ result.stdout }}"

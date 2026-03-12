@@ -62,6 +62,8 @@ mgmt nodes reconfigure --action controller --nodes 1.0.0.2,1.0.0.3
 mgmt nodes reconfigure --action custom --nodes 2539XNG0J,2539XNG4J
 ```
 
+[Local Disk Recovery](LocaldiskRecovery.md)
+
 ## Submiting jobs
 
 Slurm job examples (NCCL allreduce) can be found for several GPU shapes: 

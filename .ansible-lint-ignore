@@ -78,6 +78,7 @@ playbooks/roles/localdisk/tasks/common.yml name[missing]
 playbooks/roles/localdisk/tasks/common.yml var-naming[no-role-prefix]
 playbooks/roles/localdisk/tasks/common.yml yaml[line-length]
 playbooks/roles/localdisk/tasks/main.yml name[missing]
+playbooks/roles/localdisk/tasks/recover.yml var-naming[no-role-prefix]
 playbooks/roles/lustre-client/tasks/el.yml command-instead-of-module
 playbooks/roles/lustre-client/tasks/el.yml command-instead-of-shell
 playbooks/roles/lustre-client/tasks/el.yml key-order[task]
@@ -277,3 +278,4 @@ playbooks/slurm_config_as.yml name[missing]
 playbooks/slurm_config_as.yml name[play]
 playbooks/slurm_init.yml name[missing]
 playbooks/slurm_init.yml name[play]
+playbooks/recover_localdisk.yml var-naming[no-role-prefix]

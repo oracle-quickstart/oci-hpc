@@ -27,7 +27,7 @@ log=/config/logs/${modified_hostname}.log
 
 while [ $attempt -le $max_attempts ]; do
     echo "Attempt $attempt of $max_attempts: Configuring the node" | tee -a $log
-    $VENV_PATH/bin/ansible-playbook -i /config/playbooks/inventory_$cluster_name /config/playbooks/${1}.yml 2>&1 | tee -a $log
+    $VENV_PATH/bin/ansible-playbook -i /config/playbooks/inventory_$cluster_name /config/playbooks/${1}.yml ${@:2} 2>&1 | tee -a $log
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "Ansible succeeded!" | tee -a $log
         break
