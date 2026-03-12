@@ -182,6 +182,16 @@ class XidChecker:
             logger.info("Error running Xid check command dmesg -T:", e)
         except subprocess.TimeoutExpired as e:
             logger.info("dmesg -T command timed out:", e)
+        except TypeError :
+            result = subprocess.run(
+                dmesg_cmd_list,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,  # equivalent to text=True in older versions
+                timeout=10,
+            )
+            dmesg_output = result.stdout
         return dmesg_output
     
     # Get the timestamp from the dmesg line. This will help when checking whether GPU was reset in the last 24 hours in the healthcheck script.
