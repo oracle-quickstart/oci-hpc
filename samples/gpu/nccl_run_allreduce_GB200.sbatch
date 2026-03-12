@@ -102,9 +102,7 @@ mpirun --bind-to numa \
         -x NCCL_BUFFSIZE=16777216 \
         -x NCCL_IB_QPS_PER_CONNECTION=4 \
         -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
-        -x NCCL_NVLS_ENABLE=1 \
         -x NCCL_NET_GDR_C2C=1 \
-        -x NCCL_MNNVLS_ENABLE=1 \
         -x NCCL_DMABUF_ENABLE=1 \
         --np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --rankfile $ORDEREDRANKMACHINEFILE ${EXEC_CMD} -b 1G -e 16G -f 2 -g 1 -n 50
 
