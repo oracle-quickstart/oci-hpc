@@ -47,13 +47,15 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   }
   fix_apt
 
+  export DEBIAN_FRONTEND=noninteractive
+
   if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] ; then 
     echo deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main | sudo tee -a /etc/apt/sources.list
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
   fi 
 
   sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
-  sudo apt purge -y --auto-remove unattended-upgrades
+  sudo apt ${apt_options} purge -y --auto-remove unattended-upgrades
   sudo systemctl stop apt-daily-upgrade.timer
   sudo systemctl disable apt-daily-upgrade.timer
   sudo systemctl mask apt-daily-upgrade.service
@@ -67,10 +69,10 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
 
   fix_apt
   sleep 10s
-  sudo apt -y --fix-broken install
+  sudo apt ${apt_options} -y --fix-broken install
 
   fix_apt
-  sudo apt update
+  sudo apt ${apt_options} update
   if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
     sudo apt-get ${apt_options} -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
   else
