@@ -1241,60 +1241,187 @@ def get_nvlink_speed():
 
 # 19.1 Run dcgmi health check
 def run_dcgmi_health():
-    # Check dcgmi version
-    try:
-        version_out = subprocess.check_output(['dcgmi', '--version'], universal_newlines=True, timeout=10)
-    except FileNotFoundError:
-        logger.warning("dcgmi is not installed or not in PATH.")
-        return True
+    IMEX_TOKENS = ("imex domain status is down", "imex")
 
-    # Check if health is set up using output of `dcgmi health -c`
+    warning_messages = []
+    error_messages = []
+
+    def is_imex_related(text):
+        t = (text or "").lower()
+        return any(tok in t for tok in IMEX_TOKENS)
+
+    def collect_leaf_status_details(node, target_status, path=()):
+        # Collect detail groups from LEAF nodes whose `value` == target_status.
+        # - Ignores aggregate markers that have matching descendants.
+        # - Ignores top-level "Overall Health" marker.
+        groups = []
+
+        if isinstance(node, dict):
+            nested_groups = []
+            for k, v in node.items():
+                if isinstance(v, (dict, list)):
+                    nested_groups.extend(
+                        collect_leaf_status_details(v, target_status, path + (str(k),))
+                    )
+
+            value = str(node.get("value", "")).strip().lower()
+            is_target = value == target_status
+            is_overall_marker = len(path) > 0 and path[-1] == "Overall Health"
+
+            if is_target and not is_overall_marker:
+                if nested_groups:
+                    # This is a summary node; keep only detailed child nodes
+                    groups.extend(nested_groups)
+                else:
+                    # Leaf node: prefer overflow details
+                    details = []
+                    overflow = node.get("overflow")
+                    if isinstance(overflow, list):
+                        details.extend(str(x).strip() for x in overflow if str(x).strip())
+
+                    # Fallback to other string fields
+                    if not details:
+                        for k, v in node.items():
+                            if k in ("value", "children"):
+                                continue
+                            if isinstance(v, str):
+                                s = v.strip()
+                                if s and s.lower() != target_status:
+                                    details.append(s)
+
+                    if details:
+                        groups.append(details)
+
+                return groups
+
+            groups.extend(nested_groups)
+
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                groups.extend(collect_leaf_status_details(item, target_status, path + (str(i),)))
+
+        return groups
+
+    # 1) Check dcgmi availability
     try:
-        health_output = subprocess.check_output(['dcgmi', 'health', '-c'], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
+        subprocess.check_output(['dcgmi', '--version'], universal_newlines=True, timeout=10)
+    except FileNotFoundError:
+        warning_messages.append("dcgmi is not installed or not in PATH.")
+        return True, warning_messages, error_messages
+
+    # 2) Ensure health watches are configured
+    try:
+        health_output = subprocess.check_output(
+            ['dcgmi', 'health', '-c'],
+            universal_newlines=True,
+            stderr=subprocess.STDOUT,
+            timeout=10
+        )
         need_setup = "Error: Health watches not enabled. Please enable watches." in health_output
     except subprocess.CalledProcessError as e:
         health_output = e.output
         need_setup = "Error: Health watches not enabled. Please enable watches." in health_output
 
-    first_time_setup = False
     if need_setup:
-        # dcgmi health not set up, running `dcgmi health -s a`
         try:
-            setup_output = subprocess.check_output(['dcgmi', 'health', '-s', 'a'], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
+            setup_output = subprocess.check_output(
+                ['dcgmi', 'health', '-s', 'a'],
+                universal_newlines=True,
+                stderr=subprocess.STDOUT,
+                timeout=10
+            )
             if "Health monitor systems set successfully." not in setup_output:
-                logger.warning("Unexpected dcgmi health setup output:\n", setup_output)
-                return True
-            first_time_setup = True
+                warning_messages.append("Unexpected dcgmi health setup output")
+                return True, warning_messages, error_messages
+            time.sleep(5)
         except subprocess.CalledProcessError as e:
-            logger.warning("Error: Could not set up dcgmi health.\nOutput:", e.output)
-            return True 
+            warning_messages.append("Could not set up dcgmi health")
+            detail = (e.output or "").strip()
+            if detail and not is_imex_related(detail):
+                warning_messages.append(detail)
+            return True, warning_messages, error_messages
 
-    # Wait 5 seconds on first setup
-    if first_time_setup:
-        time.sleep(5)
-
-    # Run dcgmi health check and extract health with jq
+    # 3) Evaluate final health
     try:
-        health_status = subprocess.check_output(
-            "dcgmi health -c -j | jq -r '.body[\"Overall Health\"].value'",
-            shell=True,
-            #text=True,
+        health_json = subprocess.check_output(
+            ['dcgmi', 'health', '-c', '-j'],
             universal_newlines=True,
+            stderr=subprocess.STDOUT,
             timeout=10
-        ).strip()
-        status_norm = health_status.lower()
+        )
+        payload = json.loads(health_json)
 
-        if status_norm == "healthy":
-            return True
-        elif status_norm == "warning":
-            logger.warning("Overall dcgmi Health is 'Warning'")
-            return True
-        else:
-            logger.error(f"Overall Health is '{health_status}' (expected 'Healthy' or 'Warning')")
-            return False
-    except subprocess.CalledProcessError:
-        logger.warning("Error running dcgmi health check or parsing JSON (is jq installed?).")
-        return True
+        overall = str(payload.get("body", {}).get("Overall Health", {}).get("value", "")).strip()
+        status = overall.lower()
+
+        if status == "healthy":
+            return True, warning_messages, error_messages
+
+        if status == "warning":
+            warning_messages.append("Overall dcgmi Health is 'Warning'")
+
+            warning_groups = collect_leaf_status_details(
+                payload.get("body", {}), "warning", path=("body",)
+            )
+            seen = set()
+            for group in warning_groups:
+                for line in group:
+                    line = (line or "").strip()
+                    if line and line not in seen:
+                        warning_messages.append(line)
+                        seen.add(line)
+
+            return True, warning_messages, error_messages
+
+        if status == "failure":
+            failure_groups = collect_leaf_status_details(
+                payload.get("body", {}), "failure", path=("body",)
+            )
+
+            # If failure marker exists but no actionable details, treat as warning
+            if not failure_groups:
+                warning_messages.append(
+                    "dcgmi reported a failure status, but no specific non-IMEX issue details were found; treating this as a warning"
+                )
+                return True, warning_messages, error_messages
+
+            # Strict IMEX rule: ignore only if ALL failure groups are IMEX-related
+            non_imex_groups = []
+            for group in failure_groups:
+                if not is_imex_related(" | ".join(group)):
+                    non_imex_groups.append(group)
+
+            if not non_imex_groups:
+                warning_messages.append("Ignoring dcgmi IMEX-related failure")
+                return True, warning_messages, error_messages
+
+            # Real non-IMEX failures
+            error_messages.append("Overall dcgmi Health is 'Failure' with non-IMEX reason(s)")
+            seen = set()
+            for group in non_imex_groups:
+                for line in group:
+                    line = (line or "").strip()
+                    if line and line not in seen and not is_imex_related(line):
+                        error_messages.append(line)
+                        seen.add(line)
+
+            return False, warning_messages, error_messages
+
+        error_messages.append(f"Unexpected dcgmi Overall Health value: '{overall}'")
+        return False, warning_messages, error_messages
+
+    except subprocess.TimeoutExpired:
+        warning_messages.append("dcgmi health check timed out")
+        return True, warning_messages, error_messages
+    except subprocess.CalledProcessError as e:
+        warning_messages.append("Error running dcgmi health check")
+        detail = (e.output or "").strip()
+        if detail and not is_imex_related(detail):
+            warning_messages.append(detail)
+        return True, warning_messages, error_messages
+    except json.JSONDecodeError as e:
+        warning_messages.append(f"Error parsing dcgmi health JSON output: {e}")
+        return True, warning_messages, error_messages
     
 # 20.1 Run rocminfo check
 def run_rocminfo_check():
@@ -1679,17 +1806,24 @@ if __name__ == '__main__':
     
     # 19.3 Check the node health using dcgmi health check
     if run_all or args.dcgmi_health:
-        if not "BM.GPU.MI" in shape:
+        if "BM.GPU.MI" not in shape:
             try:
-                dcgmi_health_check = run_dcgmi_health()
+                dcgmi_health_check, dcgmi_health_warnings, dcgmi_health_errors = run_dcgmi_health()
+                if dcgmi_health_warnings:
+                    logger.warning(f"{host_serial} - dcgmi warnings:\n" + "\n".join(dcgmi_health_warnings))
+                if dcgmi_health_errors:
+                    logger.error(f"{host_serial} - dcgmi errors:\n" + "\n".join(dcgmi_health_errors))
+                if dcgmi_health_check:
+                    logger.info("dcgmi health check: Passed")
             except Exception as e:
                 logger.warning(f"Failed to run dcgmi health check with error: {e}")
                 dcgmi_health_check = True
-
-            if dcgmi_health_check:
-                logger.info("dcgmi health check: Passed")
+                dcgmi_health_warnings = []
+                dcgmi_health_errors = []
         else:
             dcgmi_health_check = True
+            dcgmi_health_warnings = []
+            dcgmi_health_errors = []
 
     # 20.3 Validate rocminfo is valid or not
     if run_all or args.rocminfo_check:
@@ -1708,6 +1842,14 @@ if __name__ == '__main__':
     if run_all or args.lbnl_nhc:
         try:
             lbnl_nhc_output, lbnl_nhc_warnings, lbnl_nhc_errors = run_nhc_check()
+            if lbnl_nhc_warnings:
+                logger.warning(
+                f"{host_serial} - LBNL node health check warnings:\n" + "\n".join(lbnl_nhc_warnings)
+            )
+            if lbnl_nhc_errors:
+                logger.error(
+                f"{host_serial} - LBNL node health check errors:\n" + "\n".join(lbnl_nhc_errors)
+            )
         except Exception as e:
             logger.warning(f"Failed to run LBNL node health check with error: {e}")
             lbnl_nhc_output = True
@@ -1923,8 +2065,9 @@ if __name__ == '__main__':
 
     # 19.4 Summarize dcgmi health check
     if run_all or args.dcgmi_health:
+        if dcgmi_health_errors:
+            logger.error(f"{host_serial} - dcgmi errors:\n" + "\n".join(dcgmi_health_errors))
         if not dcgmi_health_check:
-            logger.error(f"{host_serial} - dcgmi health check failed. Run `dcgmi health -c` to get full output.")
             slurm_reason("dcgmi health check failed")
             action = recommended_action(action, "Reboot")
 
@@ -1937,10 +2080,6 @@ if __name__ == '__main__':
 
     # 21.4 Summarize LBNL node health check
     if run_all or args.lbnl_nhc:
-        if lbnl_nhc_warnings:
-            logger.warning(
-                f"{host_serial} - LBNL node health check warnings:\n" + "\n".join(lbnl_nhc_warnings)
-            )
         if lbnl_nhc_errors:
             logger.error(
                 f"{host_serial} - LBNL node health check errors:\n" + "\n".join(lbnl_nhc_errors)
