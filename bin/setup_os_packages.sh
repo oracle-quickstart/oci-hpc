@@ -99,9 +99,41 @@ elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
   fi
   # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
   cd /tmp
-  LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name')
+  LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name' 2>/dev/null)
 
-  # First try to install into /opt/oci-cli
-   bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
-      -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "$LATEST_OCICLI"  2>&1
+  MAX_RETRIES=5
+  RETRY_COUNT=0
+  SUCCESS=false
+
+  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      ((RETRY_COUNT++))
+      echo "Attempt $RETRY_COUNT of $MAX_RETRIES..."
+
+      # Check if the variable is empty or literal "null"
+      if [ -z "$LATEST_OCICLI" ] || [ "$LATEST_OCICLI" == "null" ]; then
+          echo "Warning: Could not determine version. Falling back to default installation..."
+          INSTALL_CMD="bash -c \"\$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)\" -s --accept-all-defaults --install-dir /opt/oci-cli"
+      else
+          echo "Installing OCI CLI version: $LATEST_OCICLI"
+          INSTALL_CMD="bash -c \"\$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)\" -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version \"$LATEST_OCICLI\""
+      fi
+
+      # Execute the command
+      if eval "$INSTALL_CMD" 2>&1; then
+          echo "OCI CLI installed successfully!"
+          SUCCESS=true
+          break
+      else
+          echo "Installation failed on attempt $RETRY_COUNT."
+          if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Sleeping for 30 seconds before retrying..."
+              sleep 30
+          fi
+      fi
+  done
+
+  if [ "$SUCCESS" = false ]; then
+      echo "Error: OCI CLI installation failed after $MAX_RETRIES attempts."
+      exit 1
+  fi
 fi 
