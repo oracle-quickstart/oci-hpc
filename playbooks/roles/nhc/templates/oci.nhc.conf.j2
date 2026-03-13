@@ -22,18 +22,10 @@
 
 {% if 'BM.GPU.B4.8' in nhc_node_shape %}
 
-{% if nhc_iommu_off %}
-    {% if nhc_ht_enabled %}
+{% if nhc_ht_enabled %}
 *||check_hw_cpuinfo 2 128 254
-    {% else %}
-*||check_hw_cpuinfo 2 128 128
-    {% endif %}
 {% else %}
-    {% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 128 256
-    {% else %}
 *||check_hw_cpuinfo 2 128 128
-    {% endif %}
 {% endif %}
 
 *||check_hw_physmem 2147483648kB 2147483648kB 3%
@@ -94,18 +86,10 @@
 {% elif 'BM.GPU.A100-v2.8' in nhc_node_shape %}
 # Add checks specific to BM.GPU.A100-v2.8 compute shape here.
 
-{% if nhc_iommu_off %}
-    {% if nhc_ht_enabled %}
+{% if nhc_ht_enabled %}
 *||check_hw_cpuinfo 2 128 254
-    {% else %}
-*||check_hw_cpuinfo 2 128 128
-    {% endif %}
 {% else %}
-    {% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 128 256
-    {% else %}
 *||check_hw_cpuinfo 2 128 128
-    {% endif %}
 {% endif %}
 
 *||check_hw_physmem 2147483648kB 2147483648kB 3%
@@ -196,18 +180,10 @@
 {% elif 'BM.GPU4.8' in nhc_node_shape %}
 # Add checks specific to BM.GPU4.8 compute shape here.
 
-{% if nhc_iommu_off %}
-    {% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 64 126
-    {% else %}
-*||check_hw_cpuinfo 2 64 64
-    {% endif %}
-{% else %}
-    {% if nhc_ht_enabled %}
+ {% if nhc_ht_enabled %}
 *||check_hw_cpuinfo 2 64 128
-    {% else %}
+{% else %}
 *||check_hw_cpuinfo 2 64 64
-    {% endif %}
 {% endif %}
 
 *||check_hw_physmem 2147483648kB 2147483648kB 3%

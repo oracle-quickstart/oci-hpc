@@ -20,11 +20,24 @@
     nhc_shape_ocpus: "{{ nhc_instance_metadata.json.shapeConfig.ocpus }}"
     nhc_shape_memory_gb: "{{ nhc_instance_metadata.json.shapeConfig.memoryInGBs }}"
 
+- name: Determine if this node shape is eligible for NHC role
+  ansible.builtin.set_fact:
+    nhc_is_gpu_shape: "{{ nhc_node_shape is match('^BM\\.GPU') }}"
+    nhc_is_supported_gpu_shape: "{{ nhc_node_shape in nhc_supported_gpu_shapes }}"
+
+- name: Skip NHC role for unsupported GPU shape
+  ansible.builtin.debug:
+    msg: "Skipping NHC role for unsupported GPU shape: {{ nhc_node_shape }}"
+  when:
+    - nhc_is_gpu_shape | bool
+    - not (nhc_is_supported_gpu_shape | bool)
+
 # -----------------------------------------
 # NHC tasks
 # -----------------------------------------
 
 - name: Install and configure NHC
+  when: (not (nhc_is_gpu_shape | bool)) or (nhc_is_supported_gpu_shape | bool)
   block:
 
     # -----------------------------------------
@@ -173,15 +186,6 @@
     - name: Set load threshold dynamically
       set_fact:
         nhc_load_threshold: "{{ nhc_expected_threads | int * 2 }}"
-
-    - name: Get kernel cmdline
-      command: cat /proc/cmdline
-      register: nhc_cmdline
-      changed_when: false
-
-    - name: Detect if IOMMU is disabled
-      set_fact:
-        nhc_iommu_off: "{{ 'iommu=off' in nhc_cmdline.stdout }}"
 
     # -----------------------------------------
     # NHC config
