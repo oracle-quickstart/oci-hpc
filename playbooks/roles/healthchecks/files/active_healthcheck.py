@@ -12,33 +12,6 @@ import stat
 import tempfile
 import glob
 
-# Configure logger for active_healthcheck
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('active_healthcheck')
-
-if os.geteuid() == 0:
-    os.makedirs("/var/log/healthchecks", exist_ok=True)
-    os.chmod("/var/log/healthchecks", stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-
-file_handler = logging.FileHandler("/var/log/healthchecks/latest_active_healthcheck.log", mode='w')
-logger.addHandler(file_handler)
-
-version = sys.version_info
-if version >= (3, 12):
-    from datetime import datetime, timedelta, UTC
-else:
-    from datetime import datetime, timedelta
-
-# Import GPU SDC Checker if available
-try:
-    from gpu_sdc_checker import GPUSDCChecker, MultiGPUSDCChecker
-    GPU_SDC_AVAILABLE = True
-except ImportError:
-    logger.warning("GPU SDC Checker not available - SDC tests will be skipped")
-    GPU_SDC_AVAILABLE = False
-    GPUSDCChecker = None
-    MultiGPUSDCChecker = None
-
 def get_metadata():
     headers = { 'Authorization' : 'Bearer Oracle' }
     metadata_url = "http://169.254.169.254/opc/"
@@ -793,6 +766,34 @@ def get_reboots_count():
     return reboot_count_last_day, last_reboot_within_2hour
 
 if __name__ == '__main__':
+
+    # Configure logger for active_healthcheck
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger('active_healthcheck')
+
+    if os.geteuid() == 0:
+        os.makedirs("/var/log/healthchecks", exist_ok=True)
+        os.chmod("/var/log/healthchecks", stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+
+    file_handler = logging.FileHandler("/var/log/healthchecks/latest_active_healthcheck.log", mode='w')
+    logger.addHandler(file_handler)
+
+    version = sys.version_info
+    if version >= (3, 12):
+        from datetime import datetime, timedelta, UTC
+    else:
+        from datetime import datetime, timedelta
+
+    # Import GPU SDC Checker if available
+    try:
+        from gpu_sdc_checker import GPUSDCChecker, MultiGPUSDCChecker
+        GPU_SDC_AVAILABLE = True
+    except ImportError:
+        logger.warning("GPU SDC Checker not available - SDC tests will be skipped")
+        GPU_SDC_AVAILABLE = False
+        GPUSDCChecker = None
+        MultiGPUSDCChecker = None
+        
     action = None
     parser = argparse.ArgumentParser(description='Check Host setup')
     parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level default: INFO")
