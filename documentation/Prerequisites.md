@@ -148,7 +148,6 @@ To make your life easier, here are a few images build using this website. In the
 
 #### AMD (MI355X with Pollara NICs):
 [Canonical-Ubuntu-22.04-Kernel-5.15-OFED-5.9-AMD-ROCM-702_POLLARA-OPENMPI-4.1.6](https://objectstorage.us-saltlake-2.oraclecloud.com/p/02QYYf_pFsZlBzMQi5-kp3jTYTJiX4RnkOfgpqTxlvwpO7pCie2bfYrRCr5KD_ll/n/hpctraininglab/b/Sudhir-test-bucket/o/Canonical-Ubuntu-22.04-Kernel-5.15-OFED-5.9-AMD-ROCM-702_POLLARA-OPENMPI-4.1.6)
-[Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ap-kulai-1.oraclecloud.com/p/r7NmOiphWU9Pm9G7yBSkGIYRT5EXCjSNL2BYqso7R-s2zYBoTPmdwn3uyJ-pCvGb/n/hpctraininglab/b/Sudhir-Bucket/o/Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0)
 
 #### Nvidia_x86 (A100, H100, H200, B200, B300):
 [Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
@@ -164,6 +163,8 @@ Use the Lustre 6.8 kernel images to get the Lustre client.
 [Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0)
 [Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
 [Canonical-Ubuntu-24.04-2026.02.28-0-6.14-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.14-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
+#### AMD (MI355X with Pollara NICs):
+[Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ap-kulai-1.oraclecloud.com/p/r7NmOiphWU9Pm9G7yBSkGIYRT5EXCjSNL2BYqso7R-s2zYBoTPmdwn3uyJ-pCvGb/n/hpctraininglab/b/Sudhir-Bucket/o/Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0)
 #### Nvidia_x86 (A100, H100, H200, B200, B300,...):
 
 [Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
