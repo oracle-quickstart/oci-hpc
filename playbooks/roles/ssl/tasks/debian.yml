@@ -1,28 +1,26 @@
 ---
 - block:
+    - name: Ensure '{{ ssl_cert_owner }}' user exists
+      user:
+        name: "{{ ssl_cert_owner }}"
+        uid: "{{ ssl_cert_owner_id }}"
+        system: "yes"
+      when: ssl_cert_owner not in 'root'
 
-  - name: Ensure '{{ ssl_cert_owner }}' user exists
-    user:
-      name: '{{ ssl_cert_owner }}'
-      uid: '{{ ssl_cert_owner_id }}'
-      system: 'yes'
-    when: ssl_cert_owner not in 'root'
-
-  - name: Ensure '{{ ssl_cert_group }}' group exists
-    group:
-      name: '{{ ssl_cert_group }}'
-      gid: '{{ ssl_cert_group_id }}'
-      system: 'yes'
+    - name: Ensure '{{ ssl_cert_group }}' group exists
+      group:
+        name: "{{ ssl_cert_group }}"
+        gid: "{{ ssl_cert_group_id }}"
+        system: "yes"
 
 - block:
-
     - name: Ensure {{ ssl_cert_path }} exists
       file:
-        path: '{{ ssl_cert_path }}'
+        path: "{{ ssl_cert_path }}"
         state: directory
         setype: cert_t
         seuser: system_u
-        recurse: yes
+        recurse: true
 
     - name: Generate a certificate authority for the cluster
       command: >
@@ -33,58 +31,114 @@
           -out '{{ ssl_cert_path }}/cluster-ca.crt'
           -keyout '{{ ssl_cert_path }}/cluster-ca.key'
       args:
-        creates: '{{ ssl_cert_path }}/cluster-ca.crt'
+        creates: "{{ ssl_cert_path }}/cluster-ca.crt"
+      delegate_to: 127.0.0.1
+      run_once: true
+
+- name: Copy ca.crt and ca.key to slurm_backup node
+  block:
+    - name: Get the ca.crt value
+      become: true
+      slurp:
+        src: "{{ ssl_cert_path }}/cluster-ca.crt"
+      register: cluster_ca_crt_raw
+      delegate_to: 127.0.0.1
+
+    - name: Get the ca.key value
+      become: true
+      slurp:
+        src: "{{ ssl_cert_path }}/cluster-ca.key"
+      register: cluster_ca_key_raw
+      delegate_to: 127.0.0.1
+
+    - name: Create ca.crt file on slurm_backup node
+      copy:
+        content: "{{ cluster_ca_crt_raw.content | b64decode }}"
+        dest: "{{ ssl_cert_path }}/cluster-ca.crt"
+        owner: root
+        group: ssl
+        mode: "0644"
+      delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
+
+    - name: Create ca.key file on slurm_backup node
+      copy:
+        content: "{{ cluster_ca_key_raw.content | b64decode }}"
+        dest: "{{ ssl_cert_path }}/cluster-ca.key"
+        owner: root
+        group: ssl
+        mode: "0640"
+      delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
+  when:
+    - groups['slurm_backup'] is defined
+    - groups['slurm_backup'] | length > 0
+
+- block:
+    - name: Copy cluster-ca.crt to /config/key
+      ansible.builtin.copy:
+        src: "{{ ssl_cert_path }}/cluster-ca.crt"
+        dest: /config/key
+        owner: root
+        group: root
+        mode: "0644"
+      delegate_to: 127.0.0.1
+      run_once: true
 
     - name: Render subjectAltName configuration
       template:
-        src: 'san.conf.j2'
-        dest: '{{ ssl_cert_path }}/san.conf'
-        mode: '0660'
+        src: "san.conf.j2"
+        dest: "{{ ssl_cert_path }}/san.conf"
+        mode: "0660"
 
     - name: Create a certificate request for controller
       command: >
         openssl req -new -nodes -sha512
-          -subj '/C={{ ssl_cert_country }}/ST={{ ssl_cert_state }}/L={{ ssl_cert_locality }}/O={{ ssl_cert_organization }}/CN={{ ansible_fqdn }}'
-          -out '{{ ssl_cert_path }}/{{ ansible_fqdn }}.csr'
-          -keyout '{{ ssl_cert_path }}/{{ ansible_fqdn }}.key'
+          -subj '/C={{ ssl_cert_country }}/ST={{ ssl_cert_state }}/L={{ ssl_cert_locality }}/O={{ ssl_cert_organization }}/CN={{ ansible_facts['fqdn'] }}'
+          -out '{{ ssl_cert_path }}/{{ ansible_facts['fqdn'] }}.csr'
+          -keyout '{{ ssl_cert_path }}/{{ ansible_facts['fqdn'] }}.key'
           -config '{{ ssl_cert_path }}/san.conf'
       args:
-        creates: '{{ ssl_cert_path }}/{{ ansible_fqdn }}.csr'
+        creates: "{{ ssl_cert_path }}/{{ ansible_facts['fqdn'] }}.csr"
 
     - name: Sign the certificate requests
       command: >
         openssl x509 -req
           -days {{ ssl_cert_days }}
-          -in '{{ ssl_cert_path }}/{{ ansible_fqdn }}.csr'
+          -in '{{ ssl_cert_path }}/{{ ansible_facts['fqdn'] }}.csr'
           -CA '{{ ssl_cert_path }}/cluster-ca.crt'
           -CAkey '{{ ssl_cert_path }}/cluster-ca.key'
-          -out '{{ ssl_cert_path }}/{{ ansible_fqdn }}.crt'
+          -out '{{ ssl_cert_path }}/{{ ansible_facts['fqdn'] }}.crt'
           -extensions req_ext
           -extfile '{{ ssl_cert_path }}/san.conf'
-          -set_serial {{ ansible_date_time.epoch }}
+          -set_serial {{ ansible_facts['date_time']['epoch'] }}
       args:
-        creates: '{{ ssl_cert_path }}/{{ ansible_fqdn }}.crt'
+        creates: "{{ ssl_cert_path }}/{{ ansible_facts['fqdn'] }}.crt"
+
+    - name: Find all .key files on remote host
+      find:
+        paths: "{{ ssl_cert_path }}"
+        patterns: "*.key"
+        file_type: file
+      register: key_files
 
     - name: Restrict access permissions to the private keys
       file:
-        path: '{{ item }}'
-        mode: 0640
-      with_fileglob:
-        - '{{ ssl_cert_path }}/*.key'
+        path: "{{ item.path }}"
+        mode: "0640"
+      loop: "{{ key_files.files }}"
 
     - name: Update ownership of the certificates
       file:
-        path: '{{ ssl_cert_path }}/'
-        owner: '{{ ssl_cert_owner }}'
-        group: '{{ ssl_cert_group }}'
+        path: "{{ ssl_cert_path }}/"
+        owner: "{{ ssl_cert_owner }}"
+        group: "{{ ssl_cert_group }}"
         setype: cert_t
         seuser: system_u
-        recurse: 'yes'
+        recurse: "yes"
 
 - name: Add CA certificate to default trust store
   copy:
-    src: '{{ ssl_cert_path }}/cluster-ca.crt'
-    dest: '/usr/local/share/ca-certificates//cluster-ca.crt'
+    src: "{{ ssl_cert_path }}/cluster-ca.crt"
+    dest: "/usr/local/share/ca-certificates/cluster-ca.crt"
   register: cert_copy
 
 - name: Update certificate trust store

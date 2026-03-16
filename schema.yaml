@@ -11,13 +11,53 @@ source:
   reference: 67628143
 locale: "en"
 
+outputGroups:
+- title: "Cluster deployment details"
+  outputs:
+    - controller
+    - backup
+    - login
+    - monitoring
+
+- title: "Cluster monitoring details"
+  outputs:
+    - grafana_url
+    - grafana_password
+
 outputs:
   controller:
-    title: "controller Instance Public IP"
+    title: "Controller Instance Public IP"
     type: copyableString
     visible: true
 
+  backup:
+    title: "Backup Controller Instance IP"
+    type: copyableString
+    visible: true
+
+  login:
+    title: "Login Instance IP"
+    type: copyableString
+    visible: true
+
+  monitoring:
+    title: "Monitoring Instance IP"
+    type: copyableString
+    visible: true
+
+  grafana_url:
+    title: "Grafana URL"
+    type: link
+    visible: ${cluster_monitoring}
+
+  grafana_password:
+    title: "Grafana admin password"
+    type: copyableString
+    visible: ${cluster_monitoring}
+    sensitive: true
+
 variableGroups:
+
   - title: "Cluster configuration"
     variables:
       - ${targetCompartment}
@@ -25,7 +65,17 @@ variableGroups:
       - ${use_custom_name}
       - ${cluster_name}
       - ${ldap}
-  - title: "Headnode options"
+
+  - title: "Function and Events configuration"
+    variables:
+      - ${use_OCI_generated_container}
+      - ${use_existing_auth_token}
+      - ${auth_token}  
+      - ${home_region} 
+      - ${use_existing_registry}
+      - ${registry_id}
+
+  - title: "Controller node options"
     variables:
       - ${controller_ad}
       - ${controller_shape}
@@ -35,6 +85,9 @@ variableGroups:
       - ${controller_memory}
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
+
+  - title: "Management nodes image options (controller,backup,monitoring,login)"
+    variables:
       - ${use_marketplace_image_controller}
       - ${marketplace_listing_controller}
       - ${unsupported_controller}
@@ -42,19 +95,17 @@ variableGroups:
       - ${custom_controller_image}
       - ${unsupported_controller_image}
       - ${controller_username}
+
   - title: "Compute node options"
     variables:
-      - ${use_multiple_ads}
       - ${ad}
-      - ${secondary_ad}
-      - ${third_ad}
-      - ${cluster_network}
-      - ${compute_cluster}
-      - ${compute_cluster_exists}
-      - ${compute_cluster_id}
-      - ${compute_cluster_start_index}
       - ${cluster_network_shape}
       - ${instance_pool_shape}
+      - ${rdma_enabled}
+      - ${stand_alone}
+      - ${compute_cluster_exists}
+      - ${compute_cluster_id}
+      - ${memory_fabric_id}
       - ${instance_pool_ocpus}
       - ${instance_pool_ocpus_denseIO_flex}
       - ${instance_pool_custom_memory}
@@ -63,12 +114,12 @@ variableGroups:
       - ${hyperthreading}
       - ${boot_volume_size}
       - ${use_marketplace_image}
-      - ${compute_username}
       - ${marketplace_listing}
       - ${unsupported}
       - ${compute_image_compartment}
       - ${image}
       - ${image_ocid}
+      - ${compute_username}
       - ${BIOS}
       - ${IOMMU}
       - ${SMT}
@@ -78,8 +129,11 @@ variableGroups:
       - ${percentage_of_cores_enabled}
       - ${change_hostname}
       - ${hostname_convention}
+      - ${preemptible}
+      - ${ondemand_partition}
+      - ${ondemand_partition_count}
 
-  - title: "Additional Login Node"
+  - title: "Login node options"
     variables:
       - ${login_node}
       - ${login_ad}
@@ -89,21 +143,13 @@ variableGroups:
       - ${login_custom_memory}
       - ${login_memory}
       - ${login_boot_volume_size}
-      - ${use_marketplace_image_login}
-      - ${marketplace_listing_login}
-      - ${unsupported_login}
-      - ${login_image_compartment}
-      - ${custom_login_image}
-      - ${unsupported_login_image}
-      - ${login_username}
-      - ${login_block}
-      - ${login_block_volume_size}
-      - ${login_block_volume_performance}
 
   - title: "Cluster Monitoring"
     variables:
       - ${cluster_monitoring}
+      - ${use_lets_encrypt_prod_ep}
       - ${alerting}
+      - ${ingest_oci_metrics}
       - ${monitoring_node}
       - ${monitoring_ad}
       - ${monitoring_shape}
@@ -112,41 +158,13 @@ variableGroups:
       - ${monitoring_custom_memory}
       - ${monitoring_memory}
       - ${monitoring_boot_volume_size}
-      - ${use_marketplace_image_monitoring}
-      - ${marketplace_listing_monitoring}
-      - ${unsupported_monitoring}
-      - ${monitoring_image_compartment}
-      - ${custom_monitoring_image}
-      - ${unsupported_monitoring_image}
-      - ${monitoring_username}
 
-  - title: Autoscaling
-    variables:
-      - ${autoscaling}
-      - ${autoscaling_monitoring}
-      - ${latency_check}
-  - title: "API authentication, needed for autoscaling"
-    variables:
-      - ${inst_prin}
-      - ${api_user_ocid}
-      - ${api_fingerprint}
-      - ${api_user_key}
-  - title: "Autoscaling Monitoring"
-    variables: 
-      - ${autoscaling_mysql_service}
-      - ${monitoring_shape_name}
-      - ${admin_username}
-      - ${admin_password}
-    visible: 
-      and:
-        - ${autoscaling_monitoring}
-        - ${autoscaling}
-
-  - title: "Include Lustre Filesystem"
+  - title: "Storage options: Lustre Filesystem"
     variables:
       - ${add_lfs}
       - ${create_lfs}
       - ${lfs_compartment}
+      - ${lfs_ad}
       - ${lfs_capacity_in_gbs}
       - ${lfs_perf_tier}
       - ${lfs_target_path}
@@ -154,38 +172,29 @@ variableGroups:
       - ${lfs_source_path}
       - ${lfs_options}
 
-  - title: "Additional file system"
+  - title: "Storage options: File Storage Service"
     variables:
       - ${add_nfs}
       - ${create_fss}
+      - ${mount_target_count}
       - ${nfs_target_path}
       - ${nfs_source_IP}
       - ${nfs_source_path}
       - ${nfs_options}
       - ${fss_compartment}
       - ${fss_ad}
-      - ${mount_target_count}
-      - ${manual_multiple_mount_target}
-  - title: "Advanced storage options"
-    variables:
-      - ${use_advanced}
-      - ${home_nfs}
-      - ${home_fss}
       - ${compute_node_ssh_key}
-      - ${use_cluster_nfs}
-      - ${cluster_nfs_path}
-      - ${controller_block}
-      - ${controller_block_volume_size}
-      - ${controller_block_volume_performance}
-      - ${use_scratch_nfs}
-      - ${scratch_nfs_path}
-      - ${scratch_nfs_type_cluster}
-      - ${scratch_nfs_type_pool}
-      - ${cluster_block_volume_size}
-      - ${cluster_block_volume_performance}
+
+  - title: "Storage options: Local Storage (NVMe)"
+    variables:
       - ${localdisk}
       - ${log_vol}
       - ${redundancy}
+
+  - title: "Storage options: General"
+    variables:
+      - ${shared_home}
+
   - title: "Network options"
     variables:
       - ${use_existing_vcn}
@@ -197,18 +206,22 @@ variableGroups:
       - ${vcn_subnet}
       - ${public_subnet}
       - ${private_subnet}
-      - ${rdma_subnet}
       - ${additional_subnet}
-      - ${dns_entries}
       - ${zone_name}
+
   - title: "Software"
     variables:
       - ${privilege_sudo} 
       - ${privilege_group_name} 
       - ${slurm}
-      - ${slurm_nfs}
-      - ${slurm_ha}
-      - ${rack_aware}
+      - ${slurm_version}
+      - ${slurm_federation}
+      - ${ip_slurmdbd}
+      - ${munge_key}
+      - ${slurm_ha} 
+      - ${mysql_shape}     
+      - ${mysql_admin_username}
+      - ${mysql_admin_password}
       - ${queue}
       - ${spack}
       - ${enroot}
@@ -216,15 +229,13 @@ variableGroups:
       - ${pam}
       - ${sacct_limits}
       - ${healthchecks}
+      - ${active_healthchecks}
 
   - title: "Hidden"
     variables:
       - ${region}
+      - ${current_user_ocid}
       - ${tenancy_ocid}
-      - ${cluster_nfs_mount}
-      - ${cluster_nfs_export}
-      - ${scratch_nfs_export}
-      - ${scratch_nfs_mount}
       - ${marketplace_listing_id}
       - ${marketplace_listing_id_GPU}
       - ${marketplace_listing_id_HPC}
@@ -235,26 +246,23 @@ variableGroups:
       - ${controller_boot_volume_backup_retention_seconds}
       - ${controller_boot_volume_backup_time_zone}
       - ${controller_boot_volume_backup_type}
-      - ${use_compute_agent}
       - ${nfs_list_of_mount_target_IPs}
-      - ${lfs_ad}
-      - ${controller_object_storage_par}
-      
+      - ${OCI_generated_container_namespace}
+      - ${OCI_generated_container_name}
+      - ${wildcard_dns_domain}
+      - ${rdma_subnet}
     visible: false
-  - title: "Debug"
-    variables: 
-      - ${configure}
+
+
+    
 variables:
+
   targetCompartment:
-    title: "target compartment"
+    title: "Cluster compartment"
     type: oci:identity:compartment:id
     default: ${compartment_ocid}
     required: true
-  use_multiple_ads:
-    type: boolean
-    title: "Multiple ADs"
-    description: "Use multiple ADs in case of capacity constraints (Autoscaling Only) Autoscaling will try another AD upon failure."
-    default: false
+
   ad:
     type: oci:identity:availabilitydomain:name
     visible: complexExpression
@@ -263,55 +271,45 @@ variables:
     required: true
     description: "Availability Domain"
     title: "Availability Domain"
-  secondary_ad:
-    type: oci:identity:availabilitydomain:name
-    visible: ${use_multiple_ads}
-    dependsOn:
-      compartmentId: ${targetCompartment}
-    required: false
-    description: "Secondary Availability Domain"
-    title: "Secondary Availability Domain"
-  third_ad:
-    type: oci:identity:availabilitydomain:name
-    visible: ${use_multiple_ads}
-    dependsOn:
-      compartmentId: ${targetCompartment}
-    required: false
-    description: "Third Availability Domain"
-    title: "Third Availability Domain"
+
   ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key"
-    description: "Public SSH key"
+    description: "Public SSH key."
     required: true
+
   use_custom_name:
     type: boolean
-    title: "use custom cluster name"
-    description: "Use custom name for the cluster"
+    title: "Use custom cluster name"
+    description: "Use custom name for the cluster."
     default: false
+
   ldap:
     type: boolean
     title: "Configure LDAP authentication from controller"
     description: "When selected nodes will be configured to use LDAP authentication. User and group management can be performed using cluster commands."
     default: true
+
   cluster_name:
-    title: "Name of the cluster"
-    description: "Custom cluster name"
+    title: "Cluster name"
+    description: "The custom cluster name must be lower case letters, digits and - only."
+    pattern: "^[-a-z0-9]+$"
     default: ""
     type: string
     visible:
       and:
         - ${use_custom_name}
     required: true
+
   controller_ad:
     type: oci:identity:availabilitydomain:name
     dependsOn:
       compartmentId: ${targetCompartment}
     visible: complexExpression
     required: true
-    description: "Availability Domain for controller host"
+    description: "Availability Domain for controller host."
     title: "Availability Domain"
-    #default: ${ad}
+
   controller_shape:
     title: "Controller Shape"
     type: oci:core:instanceshape:name
@@ -319,10 +317,11 @@ variables:
       compartmentId: ${targetCompartment}
     required: true
     default: VM.Standard.E5.Flex
+
   controller_ocpus:
-    title: "Cores"
+    title: Cores
     type: integer
-    description: Number of OCPU's for flex shape
+    description: Number of OCPUs for Flex shape.
     minimum: 1
     maximum: 64
     default: 4
@@ -340,19 +339,34 @@ variables:
             - "VM.Standard.E5.Flex"
           - eq:
             - ${controller_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - ${controller_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${controller_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${controller_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${controller_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.AMD.Generic"
     required: true
 
   controller_ocpus_denseIO_flex:
-    title: "Cores"
+    title: Cores
     type: enum
-    description: Number of OCPU's for Dense IO flex shape
+    description: Number of OCPUs for Dense IO Flex shape.
     enum:
       - 8
       - 16
@@ -382,22 +396,38 @@ variables:
           - eq:
             - ${controller_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${controller_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${controller_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${controller_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${controller_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${controller_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${controller_shape}
+            - "VM.Standard.AMD.Generic"
+
   controller_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
-    description: Number of memory for flex shape. Minimum 1GB per core.
+    description: Amount of memory for flex shape. Minimum 1 GB per core.
     minimum: 1
     maximum: 1024
     default: 32
@@ -411,97 +441,35 @@ variables:
             - eq:
               - ${controller_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${controller_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${controller_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${controller_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${controller_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${controller_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${controller_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${controller_custom_memory}
-    required: true
-  controller_object_storage_par:
-    title: Create Object Storage PAR
-    description: "Create a PAR (i.e. Pre-Authenticated Request), so that user could use that PAR to upload monitoring metrics to Object Storage and share the URL with OCI service teams."
-    type: boolean
-    default: false
-
-  unsupported_controller: 
-    title: "Use unsupported image" 
-    description: "Custom image ID for controller"
-    type: boolean
-    default: false
-    visible: 
-      not: 
-        - ${use_marketplace_image_controller}
-
-  use_marketplace_image_controller:
-    type: boolean
-    title: "use marketplace image"
-    description: "Use marketplace image, otherwise provide custom image OCID"
-    default: true
-    visible: true
-
-
-  marketplace_listing_controller:
-    type: enum
-    title: "Image version"
-    description: "Marketplace listing to use"
-    required: true
-    enum:
-      - "HPC_OL8"
-      - "GPU_OL8_NV570"
-      - "GPU_OL8_NV550"
-      - "GPU_OL8_AMD632"
-    default: "HPC_OL8"
-    visible: ${use_marketplace_image_controller}
-
-  controller_username: 
-    title: "Default username for controller" 
-    description: "Custom image ID for controller"
-    type: string
-    default: "opc"
-    required: true
-    visible: true
- 
-  unsupported_controller_image:
-    title: "Image OCID"
-    description: "Custom image ID for compute nodes. Please note that only Oracle Linux 7 and Ubuntu 22.04 are supported as controller image at this moment."
-    type: string
-    required: true
-    visible: ${unsupported_controller}
-    default: "image.ocid"
-  
-  controller_image_compartment:
-    title: "controller image compartment"
-    type: oci:identity:compartment:id
-    default: ${targetCompartment}
-    visible:
-      and: 
-        - not: 
-          - ${unsupported_controller}
-        - not:
-          - ${use_marketplace_image_controller}
-    required: true
-
-  custom_controller_image:
-    title: "controller Image ID"
-    description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 22.04 are supported as controller image at this moment. "
-    type: oci:core:image:id
-    dependsOn:
-      compartmentId: ${controller_image_compartment}
-    visible: 
-      and: 
-        - not: 
-          - ${unsupported_controller}
-        - not:
-          - ${use_marketplace_image_controller}
     required: true
 
   controller_boot_volume_size:
@@ -516,123 +484,187 @@ variables:
     title: "Enable boot volume backup"
     description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
     default: true
-  
-  controller_block:
+
+  use_marketplace_image_controller:
     type: boolean
-    title: Additional block volume for shared space
-    visible:
-      and:
-        - ${use_advanced}
+    title: "Use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID."
+    default: true
+    visible: true
+
+  unsupported_controller: 
+    title: "Use specific image" 
+    description: "Use an image that is not listed for the management nodes (controller, controller backup, login and monitoring nodes)."
+    type: boolean
     default: false
-  controller_block_volume_size:
-    required: true
-    type: integer
-    title: "Size of the additional volume in GB"
-    default: 1000
-    visible:
-      and:
-        - and:
-            - ${controller_block}
-            - ${use_advanced}
-  controller_block_volume_performance:
+    visible: 
+      not: 
+        - ${use_marketplace_image_controller}
+
+  marketplace_listing_controller:
     type: enum
-    title: "Block volume performance"
+    title: "Image version"
+    description: "Marketplace listing to use."
     required: true
     enum:
-      - "0.  Lower performance"
-      - "10. Balanced performance"
-      - "20. High Performance"
-      - "30. Ultra High Performance"
-    default: "10. Balanced performance"
-    visible:
-      and:
-        - and:
-            - ${controller_block}
-            - ${use_advanced}
-  home_nfs:
-    type: boolean
-    title: "shared NFS /home from controller. To use FSS, make sure you created one or added NFS mount information"
-    visible:
-      and:
-        - ${use_advanced}
-    default: true
+      - "HPC_OL8"
+      - "GPU_OL8_NV570"
+      - "GPU_OL8_NV550"
+      - "GPU_OL8_AMD632"
+    default: "HPC_OL8"
+    visible: ${use_marketplace_image_controller}
 
-  home_fss:
-    type: boolean
-    title: "Use the mounted FSS/NFS as /home."
-    description: "If not creating a new FSS, it will create a nfs_source_path/home directory"
-    visible:
-      and:
-        - ${use_advanced}
-        - ${home_nfs}
-        - ${add_nfs}
-    default: false
+  controller_username: 
+    title: "Controller username" 
+    description: "Default username for controller."
+    type: string
+    default: "opc"
+    required: true
+    visible: true
 
+  unsupported_controller_image:
+    title: "Image OCID"
+    description: "Unlisted image ID for management nodes. Please note that only Oracle Linux 7 and Ubuntu 22.04 are supported as controller image at this moment."
+    type: string
+    required: true
+    visible: ${unsupported_controller}
+    default: "image.ocid"
+
+  controller_image_compartment:
+    title: "Controller image compartment"
+    type: oci:identity:compartment:id
+    default: ${targetCompartment}
+    visible:
+      and: 
+        - not: 
+          - ${unsupported_controller}
+        - not:
+          - ${use_marketplace_image_controller}
+    required: true
+
+  custom_controller_image:
+    title: "Controller image"
+    description: "Custom image for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 22.04 are supported as controller image at this moment."
+    type: oci:core:image:id
+    dependsOn:
+      compartmentId: ${controller_image_compartment}
+    visible: 
+      and: 
+        - not: 
+          - ${unsupported_controller}
+        - not:
+          - ${use_marketplace_image_controller}
+    required: true
+
+  shared_home:
+    type: enum
+    title: "Shared /home folder"
+    description": "Cluster /home folder can be shared across the nodes, either from the controller (NFS) or from the File Storage Service (FSS). To use FSS, make sure you created one or added NFS mount information."
+    visible: true
+    enum:
+      - "none"
+      - "nfs"
+      - "fss"
+    default: "nfs"
 
   compute_node_ssh_key:
     type: oci:core:ssh:publickey
     title: "Public SSH key of the compute nodes"
-    description: "Public SSH key of the compute nodes. If re-using an existing FSS/NFS as /home, the public key must match the default private in the ~/.ssh directory.  "
+    description: "Public SSH key of the compute nodes. If re-using an existing FSS/NFS as /home, the public key must match the default private in the ~/.ssh directory."
     visible:
       and:
-        - ${use_advanced}
-        - ${home_nfs}
         - ${add_nfs}
-        - ${home_fss}
-        - not: 
-          - ${create_fss}
+        - or:
+          - eq:
+            - ${shared_home}
+            - "nfs"
+          - eq:
+            - ${shared_home}
+            - "fss"
+        - not:
+          - eq:
+            - ${create_fss}
+            - "new"
 
-  use_cluster_nfs:
-    type: boolean
-    title: "shared NFS volume from controller"
-    visible:
-      and:
-        - ${use_advanced}
-    default: true
-  cluster_nfs_path:
-    title: "Cluster share mount point"
-    description: "Path to NFS share"
-    default: "/nfs/cluster"
-    type: string
-    visible:
-      and:
-        - ${use_advanced}
-        - ${use_cluster_nfs}
-    reguired: true
-
-  cluster_network:
+  rdma_enabled:
     title: Use cluster network
     type: boolean
     description: Use ROCEv2 cluster network
     default: true
+    visible: 
+      not:
+        - or:
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v2.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v3.4"            
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB300.4"            
 
-  compute_cluster:
-    title: Use compute cluster rather than cluster network
+  stand_alone:
+    title: Use Stand-Alone instances
     type: boolean
-    description: Use compute cluster instead of cluster network
+    description: Do not use instance pools (or Cluster Network), but Stand-Alone instance or Compute Clusters.
     default: false
-    visible: ${cluster_network}
+    visible: 
+      not:
+        - or:
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v2.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v3.4"            
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB300.4"
 
   compute_cluster_exists:
     title: Use existing Compute Cluster
     type: boolean
-    description: The compute cluster already exists
+    description: The compute cluster already exists.
     default: false
-    visible: ${compute_cluster}
+    visible: 
+      and:
+        - ${stand_alone}
+        - ${rdma_enabled}
 
   compute_cluster_id: 
     title: Compute Cluster ID
     type: string
-    description: Specify the compute cluster OCID
+    description: Specify the compute cluster OCID.
     default: ""
     visible: ${compute_cluster_exists}
 
-  compute_cluster_start_index: 
-    title: Start Index
-    type: integer
-    description: Specify the start Index of the nodes in the compute cluster
-    default: 0
-    visible: ${compute_cluster_exists}
+  memory_fabric_id: 
+    title: Memory Fabric ID
+    type: string
+    description: Specify the memory Fabric OCID. Only one memory cluster can be spun up for the initial spin up. Use the CLI to create additionnal Memory Cluster.
+    default: ""
+    visible: 
+      and:
+        - or:
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v2.4"
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB200-v3.4"            
+          - eq:
+            - ${cluster_network_shape}
+            - "BM.GPU.GB300.4"
 
   cluster_network_shape:
     type: enum
@@ -644,17 +676,25 @@ variables:
       - "BM.GPU.H100.8"
       - "BM.GPU.H200.8"
       - "BM.GPU.B200.8"
+      - "BM.GPU.B300.8"
+      - "BM.GPU.GB200.4"
+      - "BM.GPU.GB200-v2.4"
+      - "BM.GPU.GB200-v3.4"
+      - "BM.GPU.GB300.4"
       - "BM.GPU.MI300X.8"
+      - "BM.GPU.MI355X-v0.8"
+      - "BM.GPU.MI355X.8"
+      - "BM.GPU.MI355X-v1.8"
       - "BM.GPU.L40S.4"
       - "BM.Optimized3.36"
       - "BM.HPC.E5.144"
     default: "BM.GPU.H100.8"
     title: "Shape of the Compute Nodes"
-    description: "Shape of compute nodes used in permanent/initial cluster"
+    description: "Shape of compute nodes used in permanent/initial cluster."
     required: true
     visible:
       and:
-        - ${cluster_network}
+        - ${rdma_enabled}
 
   instance_pool_shape:
     title: "Shape of the Compute Nodes"
@@ -665,20 +705,20 @@ variables:
       compartmentId: ${targetCompartment}
     visible:
       not:
-        - ${cluster_network}
-    description: "Shape of compute nodes used in permanent/initial cluster"
+        - ${rdma_enabled}
+    description: "Shape of compute nodes used in permanent/initial cluster."
 
   instance_pool_ocpus:
     title: Cores
     type: integer
-    description: Number of OCPU's for flex shape
+    description: Number of OCPUs for flex shape
     minimum: 1
     maximum: 64
     default: 2
     visible:
       and: 
         - not: 
-          - ${cluster_network}
+          - ${rdma_enabled}
         - or: 
           - eq:
             - ${instance_pool_shape}
@@ -686,24 +726,39 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${instance_pool_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.AMD.Generic"
     required: true
 
   instance_pool_ocpus_denseIO_flex:
     title: Cores
     type: enum
-    description: Number of OCPU's for Dense IO flex shape
+    description: Number of OCPUs for Dense IO flex shape.
     enum:
       - 8
       - 16
@@ -727,7 +782,7 @@ variables:
     visible:
       and: 
         - not: 
-          - ${cluster_network}
+          - ${rdma_enabled}
         - or: 
           - eq:
             - ${instance_pool_shape}
@@ -735,22 +790,38 @@ variables:
           - eq:
             - ${instance_pool_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${instance_pool_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${instance_pool_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${instance_pool_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${instance_pool_shape}
+            - "VM.Standard.AMD.Generic"
+
   instance_pool_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
-    description: Number of memory for flex shape. Minimum 1GB per core.
+    description: Amount of memory for Flex shapes. Minimum 1 GB per core.
     minimum: 1
     maximum: 1024
     default: 16
@@ -764,23 +835,53 @@ variables:
             - eq:
               - ${instance_pool_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${instance_pool_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${instance_pool_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${instance_pool_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${instance_pool_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${instance_pool_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${instance_pool_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${instance_pool_custom_memory}
             - not: 
-              - ${cluster_network}
+              - ${rdma_enabled}
     required: true
+
+  ondemand_partition:
+    type: boolean
+    title: "On-Demand Partition"
+    default: false
+    description: "Add another partition for nodes on-demand."
+
+  ondemand_partition_count:
+    required: true
+    type: integer
+    minimum: 0
+    title: "Maximum number of nodes in the on-demand partition"
+    default: 100
+    description: "Number of Compute Instances (Permanent Cluster when autoscaling)."
+    visible: ${ondemand_partition}
 
   node_count:
     required: true
@@ -788,13 +889,13 @@ variables:
     minimum: 0
     title: "Initial cluster size"
     default: 2
-    description: "Number of Compute Instances (Permanent Cluster when autoscaling)"
+    description: "Number of Compute Instances (Permanent Cluster when autoscaling)."
 
   hyperthreading:
     type: boolean
     title: "Hyperthreading enabled"
     default: true
-    description: "When unchecked SMT will be disabled" 
+    description: "When unchecked SMT will be disabled."
 
   boot_volume_size:
     type: integer
@@ -802,18 +903,18 @@ variables:
     minimum: 50
     title: "Size of the boot volume in GB"
     default: 256
-    description: "Boot volume size in GB of each compute node" 
+    description: "Boot volume size in GB of each compute node."
 
   use_marketplace_image:
     type: boolean
-    title: "use marketplace image"
-    description: "Use marketplace image, otherwise provide custom image OCID"
+    title: "Use marketplace image"
+    description: "Use marketplace image, otherwise provide custom image OCID."
     default: true
 
   marketplace_listing:
     type: enum
     title: "Image version"
-    description: "Marketplace listing to use"
+    description: "Marketplace listing to use."
     required: true
     enum:
       - "HPC_OL8"
@@ -824,7 +925,7 @@ variables:
     visible: ${use_marketplace_image}
 
   compute_image_compartment:
-    title: "compute image compartment"
+    title: "Compute image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -836,7 +937,7 @@ variables:
 
   image:
     title: "Image"
-    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)"
+    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)."
     type: oci:core:image:id
     required: true
     dependsOn:
@@ -850,7 +951,7 @@ variables:
 
   compute_username: 
     title: "Default username for compute hosts" 
-    description: "Custom image ID for compute hosts"
+    description: "Custom image ID for compute hosts."
     type: string
     default: "opc"
     visible:
@@ -860,7 +961,7 @@ variables:
 
   unsupported: 
     title: "Use unsupported image" 
-    description: "Custom image ID for compute nodes"
+    description: "Custom image ID for compute nodes."
     type: boolean
     default: false
     visible:
@@ -870,7 +971,7 @@ variables:
 
   image_ocid:
     title: "Image OCID"
-    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)"
+    description: "Custom image ID for compute nodes. Supported OS are OL8, CentOS7 and Ubuntu 22.04 (OL7 should still work but is not supported anymore)."
     type: string
     required: true
     visible:
@@ -901,21 +1002,21 @@ variables:
 
   virt_instr: 
     title: "Virtualization instructions" 
-    description: "Virtualization instructions include Secure Virtual Machine for AMD shapes or VT-x for Intel shapes"
+    description: "Virtualization instructions include Secure Virtual Machine for AMD shapes or VT-x for Intel shapes."
     type: boolean
     default: false
-    visible: ${BIOS}    
+    visible: ${BIOS}
 
   access_ctrl: 
     title: "Access Control Service" 
-    description: "Access control service lets the platform enforce PCIe device isolation"
+    description: "Access control service lets the platform enforce PCIe device isolation."
     type: boolean
     default: false
-    visible: ${BIOS} 
+    visible: ${BIOS}
 
   numa_nodes_per_socket: 
     title: "Numa Node per Socket" 
-    description: "NUMA Settings"
+    description: "NUMA Settings."
     type: enum
     enum:
       - "Default"
@@ -924,11 +1025,11 @@ variables:
       - "NPS2"
       - "NPS4"
     default: "Default"
-    visible: ${BIOS} 
+    visible: ${BIOS}
 
   percentage_of_cores_enabled: 
     title: "Numa Node per Socket" 
-    description: "NUMA Settings"
+    description: "NUMA Settings."
     type: enum
     enum:
       - "Default"
@@ -937,11 +1038,11 @@ variables:
       - "75"
       - "100"
     default: "Default"
-    visible: ${BIOS} 
-    
+    visible: ${BIOS}
+
   change_hostname: 
     title: "Change hostname" 
-    description: "Will modify the hostname of the node but not in the oci console"
+    description: "Will modify the hostname of the node and display name in the oci console."
     type: boolean
     default: true
     required: true
@@ -949,136 +1050,40 @@ variables:
   hostname_convention:
     type: string
     title: "Hostname Convention"
-    description: "Will add -INDEX at the end with the index of the IP in the subnet"
+    description: "Will add -INDEX at the end with the index of the IP in the subnet."
     default: "GPU"
     visible: ${change_hostname}
-      
-  use_advanced:
-    type: boolean
-    title: "Show advanced storage options"
-    default: false
-    description: "Including running home on FSS."
-    visible: true
 
-  use_scratch_nfs:
+  preemptible: 
+    title: "Use preemptible instances" 
+    description: "Not available for instance pools, Cluster Network or Compute Cluster."
     type: boolean
-    title: "Shared NFS scratch space from NVME or Block volume"
-    visible:
-      and:
-        - ${use_advanced}
     default: false
-
-  scratch_nfs_type_cluster:
-    type: enum
-    title: "Scratch storage configuration"
-    enum:
-      - "none"
-      - "nvme"
-      - "block"
-    default: "nvme"
-    visible:
+    visible: 
       and:
-        - ${cluster_network}
-        - ${use_advanced}
-        - ${use_scratch_nfs}
-    required: true
-  scratch_nfs_type_pool:
-    type: enum
-    title: "Scratch storage configuration"
-    enum:
-      - "none"
-      - "block"
-    default: "none"
-    required: true
-    visible:
-      and: 
+        - ${stand_alone} 
         - not:
-            - ${cluster_network}
-            - ${use_scratch_nfs}
-        - and: 
-            - ${use_advanced}
-  cluster_block_volume_size:
-    required: true
-    type: integer
-    title: "Size of the additional volume in GB"
-    default: 1000
-    visible:
-      and:
-        - or:
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_cluster}
-                    - "block"
-                - and:
-                    - ${use_advanced}
-                    - ${cluster_network}
-                    - ${use_scratch_nfs}
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_pool}
-                    - "block"
-                - and:
-                    - not:
-                        - ${cluster_network}
-                    - and: 
-                        - ${use_scratch_nfs}
-                        - ${use_advanced}
-  cluster_block_volume_performance:
-    type: enum
-    title: "Block volume performance"
-    required: true
-    enum:
-      - "0.  Lower performance"
-      - "10. Balanced performance"
-      - "20. High Performance"
-    default: "10. Balanced performance"
-    visible:
-      and:
-        - or:
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_cluster}
-                    - "block"
-                - and:
-                    - ${cluster_network}
-                    - ${use_scratch_nfs}
-                    - ${use_advanced}
-            - and: 
-                - eq:
-                    - ${scratch_nfs_type_pool}
-                    - "block"
-                - and:
-                    - not:
-                        - ${cluster_network}
-                    - and: 
-                        - ${use_scratch_nfs}
-                        - ${use_advanced}
-  scratch_nfs_path:
-    title: "NFS scratch space mount point"
-    description: "Path to NFS share"
-    default: "/nfs/scratch"
-    required: true
-    type: string
-    visible:
-      and:
-        - ${use_advanced}
-        - ${use_scratch_nfs}
+          - ${rdma_enabled}
+
   private_deployment:
     type: boolean
-    title: "Deploy Master Node without a public IP"
-    description: "Deploy with no Public IP for the master node. 'Master Node Subnet' must be a Private subnet. This will require the creation of a controller service, VPN or FastConnect to connect via ssh to the master node"      
+    title: "Private deployment"
+    description: "Deploy the controller, controller backup, login and monitoring nodes in a private subnet."      
     default: false
+
   use_existing_vcn:
     type: boolean
     title: "Use Existing VCN"
-    description: "Use existing VCN or create new one. If true, make sure the security lists are correctly set in the subnets (ex: Open traffic within VCN)"
+    description: "Use existing VCN or create new one. If true, make sure the security lists are correctly set in the subnets (ex: Open traffic within VCN)."
     default: false
+
   vcn_compartment:
     title: "VCN compartment"
     type: oci:identity:compartment:id
     visible: true
     default: ${targetCompartment}
     required: true
+
   vcn_id:
     type: oci:core:vcn:id
     visible:
@@ -1089,8 +1094,9 @@ variables:
     required: true
     dependsOn:
       compartmentId: ${vcn_compartment}
+
   public_subnet_id:
-    title: Master Node Subnet
+    title: Controller node subnet
     type: oci:core:subnet:id
     dependsOn:
       compartmentId: ${vcn_compartment}
@@ -1098,6 +1104,7 @@ variables:
       hidePrivateSubnet: false
     visible: ${use_existing_vcn}  
     required: true
+
   private_subnet_id:
     title: Private Subnet
     type: oci:core:subnet:id
@@ -1107,308 +1114,328 @@ variables:
       hidePublicSubnet: true
     visible: ${use_existing_vcn}
     required: true
-  dns_entries: 
-    title: DNS entry
-    type: boolean
-    default: true
-    description: "Only available for a private zone" 
+
   zone_name:
     title: Private Zone Name
-    description: "DANGER ZONE: The zone needs to be private and unprotected for the stack to be able to add entries. If you do not have one created or are unsure, uncheck USE DNS"
+    description: "The zone needs to be private and unprotected for the stack to be able to add entries."
     type: string
-    visible: 
-      and:
-        - ${dns_entries}
-        - ${use_existing_vcn}
-    required: ${dns_entries}
+    visible: ${use_existing_vcn}
+    required: true
+
   vcn_subnet:
     type: string
     title: "VCN IP range"
-    description: "VCN subnet"
-    default: "172.16.0.0/21"
+    description: "VCN subnet (The RDMA subnet will be at 10.224.0.0/12)"
+    default: "172.16.0.0/18"
     required: true
     visible:
       not:
         - ${use_existing_vcn}
+
   public_subnet:
     type: string
     title: "Master Node subnet IP range"
     default: "172.16.0.0/24"
-    description: "Must be within VCN subnet"
+    description: "Must be within VCN subnet."
     required: true
     visible:
       not:
         - ${use_existing_vcn}
+
   additional_subnet:
     type: string
     title: "Additional subnet IP range"
     default: "172.16.1.0/24"
-    description: "Must be within VCN subnet"
+    description: "Must be within VCN subnet."
     required: true
     visible:
       not:
         - ${use_existing_vcn}
+
   rdma_subnet:
     type: string
     title: "RDMA subnet IP range"
     default: "10.224.0.0/12"
-    description: "Must be at least the same size as private subnet for HPC and at least 16 times the size of the private subnet for GPUs, currently cannnot be modified with the compute agent"
+    description: "Must be at least the same size as private subnet for HPC and at least 16 times the size of the private subnet for GPUs, currently cannnot be modified with the compute agent."
     required: true
+
   private_subnet:
     type: string
     title: "Private subnet IP range"
-    default: "172.16.4.0/22"
-    description: "Must be within VCN subnet"
+    default: "172.16.32.0/19"
+    description: "Must be within VCN subnet."
     required: true
     visible:
       not:
         - ${use_existing_vcn}
+
   ssh_cidr:
     type: string
-    title: "Initial CIDR range allowed to SSH"
+    title: "Initial CIDR range allowed to ssh"
     default: "0.0.0.0/0"
-    description: "Allowed SSH network in CIDR notation"
+    description: "Allowed ssh network in CIDR notation."
     required: true
+
   slurm:
     type: boolean
     title: "Install SLURM"
     default: true
-    description: "Needed for autoscaling" 
+    description: "Install slurm job scheduler."
 
-  slurm_nfs:
-    type: boolean
-    title: "Share spool directory"
-    default: false
-    description: "Install Slurm spool directory on user NFS"
-    visible:
-      and:
-        - ${slurm}
-        - ${add_nfs}
+  slurm_version:
+    type: enum
+    title: "SLURM version"
+    description: "24.xx has new feature but topology plugin is broken." 
+    enum:
+      - "24.11.7-1"
+      - "23.11.11-2"
+      - "25.11.0-1"
+    default: "25.11.0-1"
+    visible: ${slurm}
+    required: true
 
   slurm_ha:
     type: boolean
-    title: "Create a back-up Slurm Controller"
+    title: "Create a back-up slurm controller"
     default: false
     required: true
-    description: "Add a second master of the same shape as the controller as a back-up controller node. We recommend using a FSS to save the state and share between masters" 
+    description: "Add a second controller of the same shape as the controller as a back-up controller node and MySQL service hosted on OCI. We recommend using a FSS to save the state and share between controllers." 
     visible: ${slurm}
+
+  mysql_shape:
+    type: enum
+    title: "MySQL shapes"
+    required: true
+    description: "MySQL shapes https://docs.oracle.com/en-us/iaas/mysql-database/doc/supported-shapes.html" 
+    enum:
+      - "MySQL.Free"
+      - "MySQL.2"
+      - "MySQL.4"
+      - "MySQL.8"
+      - "MySQL.16"
+      - "MySQL.32"
+      - "MySQL.48"
+      - "MySQL.64"
+    default: "MySQL.4"    
+    visible: ${slurm_ha}
+
+  mysql_admin_username:
+    type: string
+    title: "Admin username for MySQL service"
+    required: true
+    description: "Admin username for MySQL service" 
+    visible: ${slurm_ha}
+
+  mysql_admin_password:
+    type: string
+    title: "Admin password for MySQL service. Administrator password must be between 8 and 32 characters, and contain at least 1 uppercase, 1 lowercase, 1 numeric, and 1 special characters."
+    required: true
+    pattern: "^(?=.*[!@#%^*_+\\-:?.,\\[\\]\\{\\}])(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?!.*[$\\(\\)]).{8,32}$"
+    description: "Admin password for MySQL service" 
+    visible: ${slurm_ha}
+
+  slurm_federation:
+    type: boolean
+    title: "Join Slurm federation"
+    default: false
+    required: true
+    description: "Join an existing Slurm federation. Use only for additial Slurm clusters" 
+    visible: ${slurm}
+
+  ip_slurmdbd:
+    type: string
+    title: "slurmdbd host IP"
+    required: true
+    description: "For Slurm federation. IP of the initial controller where slurmdbd runs. Make sure to adapt the secutiry list accordingly. Default port: 6819" 
+    visible:
+      and:
+        - ${slurm}
+        - ${slurm_federation}  
+
+  munge_key:
+    type: string
+    title: "Base64 of the Munge key"
+    required: true
+    description: "If you need to connect to another slurm cluster for federation, provide the base64 munge key here. This will get you the string: sudo cat /etc/munge/munge.key | base64 -w 0"
+    visible:
+      and:
+        - ${slurm_federation}
 
   pyxis:
     type: boolean
-    title: "Install Nvidia Pyxis plugin for Slurm"
+    title: "Install Nvidia Pyxis plugin for slurm"
     default: true
-    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with Slurm. (Warning: using Pyxis with autoscaling is causing an issue that prevents jobs from being scheduled on nodes to be spun up)"
+    description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with slurm. (Warning: using Pyxis with autoscaling is causing an issue that prevents jobs from being scheduled on nodes to be spun up)."
     visible:
       and:
         - ${slurm}
         - ${enroot}
-  
-  rack_aware:
-    type: boolean
-    title: "Create Rack aware topology"
-    default: true
-    required: true
-    description: "Slurm topology can define rack aware topologies to prioritize nodes on same racks per job.\n This is a LA feature and your tenancy needs to be whitelisted" 
-    visible: ${slurm}
 
 
   queue:
     type: String
-    title: "Queue Name"
+    title: "Queue name"
     default: "compute"
     required: true
-    description: "Add the permanent cluster to a specific queue, compute is the default queue" 
+    description: "Add the permanent cluster to a specific queue, compute is the default queue." 
     visible: ${slurm}
 
   spack:
     type: boolean
     title: "Install Spack package manager"
     default: false
-    description: "Install Spack package manager. Requires shared folder" 
+    description: "Install Spack package manager. Requires shared folder."
 
   enroot:
     type: boolean
     title: "Install Nvidia Enroot for containerized GPU workloads"
     default: true
-    description: "Install Enroot, Nvidia Container Toolkit, and docker."
+    description: "Install Enroot, either the Nvidia or AMD Container Toolkit, and docker."
     visible: ${slurm}
 
   cluster_monitoring:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
-    default: false
-    description: "Install Grafana, Node Exporter, and Prometheus for system monitoring (Note: Node Exporter uses ports 9100–9900, Prometheus uses port 9090, and Grafana uses port 3000)."
+    default: true
+    description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
+
+  use_lets_encrypt_prod_ep:
+    title: "Use Let's Encrypt Production Endpoint"
+    description: "Use Let's Encrypt Production Endpoint to generate TLS certificate for Grafana"
+    type: boolean
+    default: true
+    visible: 
+     and:
+      - ${cluster_monitoring}
+      - not:
+        - ${private_deployment}
 
   alerting:
     type: boolean
-    title: "Install HPC Cluster alerting Tools"
+    title: "Install HPC Cluster alerting tools"
     default: false
-    description: "Creates a topic that you can subscribe to (Note: the alert webhook uses port 5000)."
+    description: "Creates a Topic that you can subscribe to."
     visible: ${cluster_monitoring}
+
+  ingest_oci_metrics:
+    type: boolean
+    title: "Ingest OCI metrics in Prometheus"
+    description: "Setup pipeline to ingest cluster resources metrics from OCI Metrics into Prometheus"
+    default: false
+    visible: cluster_monitoring
 
   pam:
     type: boolean
     title: "Enable PAM"
     default: false
-    description: "Enable PAM for the Slurm cluster (Supported on OL with RHCK kernel and Ubuntu at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
+    description: "Enable PAM for the slurm cluster (Supported on OL with RHCK kernel and Ubuntu at this time). When PAM is enabled, users that are not in the sudo group will not be able to SSH into the compute nodes unless they have an active job running in Slurm."
     visible: ${slurm}
 
   sacct_limits:
     type: boolean
-    title: "Enable Limits for Slurm jobs"
+    title: "Enable Limits for slurm jobs"
     default: false
-    description: "Enable Limits for the Slurm cluster When enabled, users will not be able to submit jobs if the right limits are not set"
+    description: "Enable Limits for the slurm cluster When enabled, users will not be able to submit jobs if the right limits are not set."
     visible: ${slurm}
 
   healthchecks:
     type: boolean
     title: "Turn on Healthchecks for GPU nodes"
     default: true
-    description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state"
+    description: "Will run tests on GPU nodes before starting a job. Nodes that are showing issues will be set in drain state."
     visible: ${slurm}
 
-  autoscaling:
+  active_healthchecks:
     type: boolean
-    title: "Scheduler based autoscaling"
-    default: false
-    description: "Requires SLURM installation. Scheduler will launch new clusters based on job requirements"
-    
-  latency_check:
-    type: boolean
-    title: "RDMA Latency check"
+    title: "Turn on Active Healthchecks for GPU nodes"
     default: true
-    description: "Verify RDMA connection for Cluster Networks of HPC and Optimized shapes during autoscaling"
-    
-  inst_prin:
-    type: boolean
-    title: "Use Instance Principal instead of configuration file" 
-    description: "You will need to set a dynamic group and policy to allow the controller to authenticate. This will not be created automatically." 
-    default: true
-
-  api_user_key:
-    type: file
-    title: "API private key"
-    default: ""
-    visible:
-      not:
-        - ${inst_prin}
-    required: true
-
-  api_fingerprint:
-    type: string
-    title: "API fingerprint"
-    default: ""
-    visible:
-      not:
-        - ${inst_prin}
-    required: true
-
-  api_user_ocid:
-    type: string
-    title: "API User OCID"
-    default: ""
-    visible:
-      not:
-        - ${inst_prin}
-    required: true
-        
-  configure: 
-    type: boolean
-    title: "Configure system"
-    default: true
-    description: "If unchecked, cluster will be launched but left unconfigured"
+    description: "Will schedule Slurm active healthchecks jobs in a preemptible partition to validate GPU nodes every day"
+    visible: 
+      and:
+        - ${healthchecks}
+        - ${slurm}
 
   add_nfs:
     type: boolean
-    title: "Add another NFS filesystem"
+    title: "Add File Storage Service (network file system)"
     default: false
-    description: "For FSS, leave options filed empty. Do not mount /home from here. There is a flag to do that in the Advanced Storage Options."
+    description: "Use an existing File Storage service or create a new one."
     visible: true
 
   create_fss:
-    type: boolean
-    title: "Create FSS"
-    default: false
-    description: "For FSS, leave options filed empty."
+    type: enum
+    title: "FSS type"
+    enum:
+      - "existing"
+      - "new"
+    default: "new"
+    required: true
     visible: ${add_nfs}
-  
+
   mount_target_count:
     title: "Number of FSS mount targets"
-    description: "Number of FSS Mount Target to use with File System"
+    description: "Number of FSS Mount Target to use with File System."
     type: integer
     default: 1
     required: true
     visible: 
       and:
         - ${add_nfs}
-        - ${create_fss}
+        - eq:
+          - ${create_fss}
+          - "new"
 
-  # We are disabling manaul multiple mount target. By default, for 1 or more than 1 mount target, we will be using DNS round robin. 
-  # We are keeping the code in case we need to use it for a use case. It made sense a while ago to use multiple mounts, but now that 
-  # we have 80Gbps mount for FSS, and knowing that with multiple MT (mount target), we loose metadata caching and Lustre being available 
-  # for more extreme case, we will do DNS round robin all the time. In addition, it's impossible to predict how many nodes on a particular
-  # MT will be idle, and how many will be using a particular MT. For using manual multiple mount target, you need to remove the word "false" 
-  # under "visible" section below.  
-  manual_multiple_mount_target:
-    type: boolean
-    title: "Mount multiple mount targets via script and not DNS round robin"
-    default: false
-    description: "For FSS, this will look at the current distribution of the mount targets and mount the nodes using a mount target that has been used the least using a script."
-    visible:
-      and:
-        - false
-        - ${add_nfs}
-        - ${create_fss}
- 
   fss_compartment:
     title: "FSS compartment"
-    description: "Compartment to add the FSS Mount Target and File System"
+    description: "Compartment to add the FSS Mount Target and File System."
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     required: true
     visible: 
       and:
         - ${add_nfs}
-        - ${create_fss}
+        - eq:
+          - ${create_fss}
+          - "new"
 
   fss_ad:
+    title: "FSS Availability Domain"
+    description: "FSS Availability Domain."
     type: oci:identity:availabilitydomain:name
     dependsOn:
       compartmentId: ${fss_compartment}
     visible: 
       and:
         - ${add_nfs}
-        - ${create_fss}
+        - eq:
+          - ${create_fss}
+          - "new"
     default: ${ad}
-    description: "FSS Availability Domain"
-    title: "FSS Availability Domain"
     required: true
 
   localdisk:
     type: boolean
     title: "Mount Localdisk"
     default: true
-    description: "For nodes using a NVMe, mount the localdisk"
-    visible: ${use_advanced}
+    description: "Mount the NVMe disks (if applicable)."
+    visible: true
 
   log_vol:
     type: boolean
     title: "One Logical Volume"
     default: true
-    description: "Mount all NVMe's as one logical volume"
+    description: "Mount all NVMe's as one logical volume."
     visible: 
       and: 
-        - ${use_advanced}
         - ${localdisk}
-    
+
   redundancy:
     type: boolean
     title: "Redundancy"
-    default: true
-    description: "Use RAID for redundancy"
+    default: false
+    description: "Use RAID for redundancy."
     visible: 
       and: 
-        - ${use_advanced}
         - ${localdisk}
         - ${log_vol}
 
@@ -1416,27 +1443,30 @@ variables:
     type: string
     title: "NFS Path"
     default: "/fss"
-    description: "Value of the path on which you can mount the drive"
+    description: "Value of the path on which you can mount the drive."
     visible: 
       and:
         - ${add_nfs}
     required: true
+
   nfs_source_IP:
     type: string
     title: "NFS server IP"
     default: "0.0.0.0"
     required: true
-    description: "IP address of the NFS server"
+    description: "IP address of the NFS server."
     visible: 
       and:
-        - ${add_nfs} 
-        - not:
+        - ${add_nfs}
+        - eq:
           - ${create_fss}
+          - "existing"
+
   nfs_source_path:
     type: string
     title: "NFS server Path"
     default: "/fss"
-    description: "Value of the path on the NFS server"
+    description: "Value of the path on the NFS server."
     visible: ${add_nfs}
     required: true
 
@@ -1444,65 +1474,19 @@ variables:
     type: string
     title: "Options"
     default: ""
-    description: "Mount options, FSS requires empty string"
+    description: "Mount options, FSS requires empty string."
     visible: 
       and:
-        - ${add_nfs} 
-        - not:
+        - ${add_nfs}
+        - eq:
           - ${create_fss}
-  monitoring_shape_name:
-    type: string
-    title: "MySQL Shape Name"
-    default: "MySQL.VM.Standard.E3.1.16GB"
-    required: true
-    description: "MySQL Shape Name"
-    visible: 
-      and:
-        - ${autoscaling_mysql_service} 
-    
-  admin_username:
-    type: string
-    title: "MySQL Monitoring username"
-    default: "admin"
-    required: true
-    description: ""
-    visible: 
-      and:
-        - ${autoscaling_mysql_service}
-
-  admin_password:
-    title: "MySQL Monitoring password"
-    default: "Monitor1234!"
-    description: "" 
-    visible: 
-      and:
-        - ${autoscaling_mysql_service}
-    required: true
-
-  autoscaling_monitoring:
-    type: boolean
-    title: "Monitor the autoscaling"
-    default: false
-    description: ""
-    visible: 
-      and:
-        - ${autoscaling}
-
-  autoscaling_mysql_service:
-    type: boolean
-    title: "Create a Mysql Service"
-    default: false
-    description: "false will use the controller as mysqlDB"
-    visible: 
-      and:
-        - ${autoscaling}
-        - ${autoscaling_monitoring}
+          - "existing"
 
   privilege_sudo:
     type: boolean
     title: "Sudo Access"
     default: true
-    description: "Give sudo access to the privilege group"
+    description: "Give sudo access to the privilege group."
 
   privilege_group_name:
     type: string
@@ -1513,13 +1497,11 @@ variables:
       and:
         - ${privilege_sudo}
 
-
-
   login_node:
     type: boolean
     title: "Login Node"
     default: true
-    description: "Create an additional login node for users"
+    description: "Create a login node for users."
 
   login_ad:
     type: oci:identity:availabilitydomain:name
@@ -1530,11 +1512,12 @@ variables:
         - complexExpression
         - ${login_node}
     required: true
-    description: "Availability Domain for login node"
+    description: "Availability Domain."
     title: "Availability Domain For Login Node"
-    default: ${ad}  
+    default: ${ad}
 
   login_shape:
+    title: Shape of the login node
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -1544,7 +1527,8 @@ variables:
 
   login_ocpus:
     type: integer
-    description: Number of OCPU's for flex shape
+    title: Cores
+    description: Number of OCPUs for the Flex shape.
     minimum: 1
     maximum: 64
     default: 16
@@ -1554,28 +1538,43 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.Standard.E3.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E5.Flex"
           - eq:
             - ${login_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - ${login_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${login_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${login_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.AMD.Generic"
         - ${login_node}
     required: true
 
   login_ocpus_denseIO_flex:
     title: Cores
     type: enum
-    description: Number of OCPU's for Dense IO flex shape
+    description: Number of OCPUs for Dense IO Flex shape.
     enum:
       - 8
       - 16
@@ -1592,7 +1591,7 @@ variables:
             - "VM.DenseIO.E5.Flex"
         - ${login_node}
     required: true
-    
+
   login_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -1606,23 +1605,39 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${login_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${login_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${login_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${login_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${login_shape}
+            - "VM.Standard.AMD.Generic"
         - ${login_node}
+
   login_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
-    description: Number of memory for flex shape. Minimum 1GB per core.
+    description: Number of memory for Flex shape. Minimum 1 GB per core.
     minimum: 1
     maximum: 1024
     default: 128
@@ -1636,23 +1651,38 @@ variables:
             - eq:
               - ${login_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${login_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${login_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${login_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${login_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${login_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${login_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${login_custom_memory}
             - ${login_node}
     required: true
-    
+
   login_boot_volume_size:
     type: integer
     required: true
@@ -1661,125 +1691,11 @@ variables:
     default: 512
     visible:  ${login_node}
 
-  login_block:
-    type: boolean
-    title: Additional block volume for login node
-    default: false
-    visible:  ${login_node}
-
-  login_block_volume_size:
-    required: true
-    type: integer
-    title: "Size of the additional volume in GB"
-    default: 1000
-    visible:
-      and:
-        - and:
-            - ${login_block}
-            - ${login_node}
-  login_block_volume_performance:
-    type: enum
-    title: "Block volume performance"
-    required: true
-    enum:
-      - "0.  Lower performance"
-      - "10. Balanced performance"
-      - "20. High Performance"
-    default: "20. High Performance"
-    visible:
-      and:
-        - and:
-            - ${login_block}
-            - ${login_node}
-
-  unsupported_login: 
-    title: "Use unsupported image" 
-    description: "Custom image ID for Login Node"
-    type: boolean
-    default: false
-    visible: 
-      and:
-        - ${login_node}
-        - not: 
-          - ${use_marketplace_image_login}
-
-  login_image_compartment:
-    title: "login image compartment"
-    type: oci:identity:compartment:id
-    default: ${targetCompartment}
-    visible:
-      and: 
-          - ${login_node}
-          - not: 
-              - ${unsupported_login}
-          - not: 
-              - ${use_marketplace_image_login}
-    required: true
-
-  custom_login_image:
-    title: "Login Image ID"
-    description: "Custom image ID for login nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as login image at this moment. "
-    type: oci:core:image:id
-    dependsOn:
-      compartmentId: ${login_image_compartment}
-    visible:
-      and: 
-          - ${login_node}
-          - not: 
-              - ${unsupported_login}
-          - not: 
-              - ${use_marketplace_image_login}
-    required: true
-  unsupported_login_image:
-    title: "Image OCID"
-    description: "Custom image ID for login nodes"
-    type: string
-    required: true
-    visible:
-      and: 
-        - ${unsupported_login}
-        - not: 
-            - ${use_marketplace_image_login}
-    default: "image.ocid"
-    
-  login_username: 
-    title: "Default username for login node" 
-    description: "Custom image ID for login node"
-    type: string
-    default: "opc"
-    required: true
-    visible: ${login_node}
-
-  use_marketplace_image_login:
-    type: boolean
-    title: "use marketplace image"
-    description: "Use marketplace image, otherwise provide custom image OCID"
-    default: true
-    visible: ${login_node}
-
-  marketplace_listing_login:
-    type: enum
-    title: "Image version"
-    description: "Marketplace listing to use"
-    required: true
-    enum:
-      - "HPC_OL8"
-      - "GPU_OL8_NV570"
-      - "GPU_OL8_NV550"
-      - "GPU_OL8_AMD632"
-    default: "HPC_OL8"
-    visible:
-      and:
-        - ${use_marketplace_image_login}
-        - ${login_node}
-
-
-
   monitoring_node:
     type: boolean
     title: "Monitoring Node"
     default: false
-    description: "Create an additional monitoring node"
+    description: "Create a monitoring node."
     visible: cluster_monitoring
 
   monitoring_ad:
@@ -1791,11 +1707,12 @@ variables:
         - complexExpression
         - ${monitoring_node}
     required: true
-    description: "Availability Domain for monitoring node"
+    description: "Availability Domain for monitoring node."
     title: "Availability Domain For monitoring Node"
-    default: ${ad}  
+    default: ${ad}
 
   monitoring_shape:
+    title: "Monitoring node shape"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -1804,8 +1721,9 @@ variables:
     visible: ${monitoring_node}
 
   monitoring_ocpus:
+    title: Cores
     type: integer
-    description: Number of OCPU's for flex shape
+    description: Number of OCPUs for Flex shape.
     minimum: 1
     maximum: 64
     default: 32
@@ -1815,28 +1733,43 @@ variables:
           - eq:
             - ${monitoring_shape}
             - "VM.Standard.E3.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E5.Flex"
           - eq:
             - ${monitoring_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
+            - ${monitoring_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${monitoring_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${monitoring_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.AMD.Generic"
         - ${monitoring_node}
     required: true
 
   monitoring_ocpus_denseIO_flex:
     title: Cores
     type: enum
-    description: Number of OCPU's for Dense IO flex shape
+    description: Number of OCPUs for Dense IO Flex shape.
     enum:
       - 8
       - 16
@@ -1853,7 +1786,7 @@ variables:
             - "VM.DenseIO.E5.Flex"
         - ${monitoring_node}
     required: true
-    
+
   monitoring_custom_memory: 
     title: Use custom memory size
     type: boolean
@@ -1867,23 +1800,39 @@ variables:
           - eq:
             - ${monitoring_shape}
             - "VM.Optimized3.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E4.Flex"
-          - eq: 
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.E5.Flex"
-          - eq: 
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.E6.Flex"
+          - eq:
             - ${monitoring_shape}
             - "VM.Standard.A1.Flex"
           - eq:
             - ${monitoring_shape}
+            - "VM.Standard.A2.Flex"
+          - eq:
+            - ${monitoring_shape}
             - "VM.Standard3.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.x86.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.Intel.Generic"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.Standard.AMD.Generic"
         - ${monitoring_node}
+
   monitoring_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
-    description: Number of memory for flex shape. Minimum 1GB per core.
+    description: Amount of memory for Flex shape. Minimum 1 GB per core.
     minimum: 1
     maximum: 1024
     default: 256
@@ -1897,23 +1846,41 @@ variables:
             - eq:
               - ${monitoring_shape}
               - "VM.Optimized3.Flex"
-            - eq: 
+            - eq:
               - ${monitoring_shape}
               - "VM.Standard.E4.Flex"
-            - eq: 
+            - eq:
               - ${monitoring_shape}
               - "VM.Standard.E5.Flex"
-            - eq: 
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.E6.Flex"
+            - eq:
               - ${monitoring_shape}
               - "VM.Standard.A1.Flex"
             - eq:
               - ${monitoring_shape}
+              - "VM.Standard.A2.Flex"
+            - eq:
+              - ${monitoring_shape}
               - "VM.Standard3.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard3.Flex"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.x86.Generic"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.Intel.Generic"
+            - eq:
+              - ${monitoring_shape}
+              - "VM.Standard.AMD.Generic"
         - and: 
             - ${monitoring_custom_memory}
             - ${monitoring_node}
     required: true
-    
+
   monitoring_boot_volume_size:
     type: integer
     required: true
@@ -1922,113 +1889,101 @@ variables:
     default: 512
     visible:  ${monitoring_node}
 
-  unsupported_monitoring: 
-    title: "Use unsupported image" 
-    description: "Custom image ID for monitoring Node"
+  use_OCI_generated_container:
     type: boolean
-    default: false
-    visible: 
-      and:
-        - ${monitoring_node}
-        - not: 
-          - ${use_marketplace_image_monitoring}
-
-  monitoring_image_compartment:
-    title: "monitoring image compartment"
-    type: oci:identity:compartment:id
-    default: ${targetCompartment}
-    visible:
-      and: 
-          - ${monitoring_node}
-          - not: 
-              - ${unsupported_monitoring}
-          - not: 
-              - ${use_marketplace_image_monitoring}
+    title: "Point to an existing OCIR"
+    description: "Point to an existing public OCIR available in the region. Does not work for Gov and Defense regions"
+    default : true
     required: true
 
-  custom_monitoring_image:
-    title: "monitoring Image ID"
-    description: "Custom image ID for monitoring nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as monitoring image at this moment. "
-    type: oci:core:image:id
-    dependsOn:
-      compartmentId: ${monitoring_image_compartment}
-    visible:
-      and: 
-          - ${monitoring_node}
-          - not: 
-              - ${unsupported_monitoring}
-          - not: 
-              - ${use_marketplace_image_monitoring}
-    required: true
-  unsupported_monitoring_image:
-    title: "Image OCID"
-    description: "Custom image ID for monitoring nodes"
-    type: string
-    required: true
-    visible:
-      and: 
-        - ${unsupported_monitoring}
-        - not: 
-            - ${use_marketplace_image_monitoring}
-    default: "image.ocid"
-    
-  monitoring_username: 
-    title: "Default username for monitoring node" 
-    description: "Custom image ID for monitoring node"
-    type: string
-    default: "opc"
-    required: true
-    visible: ${monitoring_node}
-
-  use_marketplace_image_monitoring:
+  use_existing_auth_token:
     type: boolean
-    title: "use marketplace image"
-    description: "Use marketplace image, otherwise provide custom image OCID"
-    default: true
-    visible: ${monitoring_node}
-
-  marketplace_listing_monitoring:
-    type: enum
-    title: "Image version"
-    description: "Marketplace listing to use"
+    title: "Use existing auth token"
+    default : "false"
+    description: "Use existing auth token to authenticate to registry."
     required: true
-    enum:
-      - "HPC_OL8"
-      - "GPU_OL8_NV570"
-      - "GPU_OL8_NV550"
-      - "GPU_OL8_AMD632"
-    default: "HPC_OL8"
+    visible:
+      not:
+        - ${use_OCI_generated_container}
+
+  auth_token:
+    title: "Auth token"
+    type: password
+    default : ""
+    description: "Auth token as a string."
+    required: true
     visible:
       and:
-        - ${use_marketplace_image_monitoring}
-        - ${monitoring_node}
+        - ${use_existing_auth_token}
+        - not:
+            - ${use_OCI_generated_container}
+
+  home_region:
+    type: oci:identity:region:name 
+    title: "Home Region"
+    default: ${region}
+    required: true
+    description: "Home region to generate Auth Token."
+    visible:
+      and:
+      - not: 
+        - ${use_existing_auth_token}        
+      - not: 
+        - ${use_OCI_generated_container}
+
+  use_existing_registry:
+    type: boolean
+    title: "Use existing registry"
+    default : "false"
+    description: "Use existing registry to push serverless function."
+    required: true
+    visible:
+      not: 
+        - ${use_OCI_generated_container}
+
+  registry_id:
+    type: string
+    title: "OCID of existing registry"
+    default : ""
+    description: "OCID of existing registry."
+    required: true
+    visible:
+      and:
+        - ${use_existing_registry}
+        - not: 
+          - ${use_OCI_generated_container}
 
   add_lfs:
     type: boolean
-    title: "Include Existing Lustre Filesystem"
+    title: "Add Lustre Filesystem"
     default: false
-    description: "The Lustre filesystem being included should pre-exist and be in the same subnet as the GPU/HPC compute nodes."
+    description: "If chosing an existing Lustre filesystem, it should pre-exist and be in the same subnet as the GPU/HPC compute nodes."
     visible: true
 
   create_lfs:
-    type: boolean
+    type: enum
     title: "Create Lustre Filesystem"
-    default: false
-    description: "For Lustre, leave options field as-is unless you require specific options"
+    enum:
+      - "existing"
+      - "new"
+    default: "new"
+    description: "For Lustre, leave options field as-is unless you require specific options."
     visible:
       and:
         - ${add_lfs}
 
   lfs_compartment:
     title: "Lustre File System Compartment"
-    description: "Compartment for provisioning Lustre File System"
+    description: "Compartment for provisioning Lustre File System."
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     required: true
     visible:
       and:
         - ${add_lfs}
-        - ${create_lfs}
+        - eq:
+          - ${create_lfs}
+          - "new"
 
   lfs_ad:
     type: oci:identity:availabilitydomain:name
@@ -2037,9 +1992,11 @@ variables:
     visible:
       and:
         - ${add_lfs}
-        - ${create_lfs}
+        - eq:
+          - ${create_lfs}
+          - "new"
     default: ${ad}
-    description: " Availability Domain (Should be the same as CPU/GPU compute instances for best performance)"
+    description: "Availability Domain (should be the same as CPU/GPU compute instances for best performance)."
     title: "LFS Availability Domain"
     required: true
 
@@ -2052,7 +2009,9 @@ variables:
     visible:
       and:
         - ${add_lfs}
-        - ${create_lfs}
+        - eq:
+          - ${create_lfs}
+          - "new"
 
   lfs_perf_tier:
     type: enum
@@ -2067,12 +2026,14 @@ variables:
     visible:
       and:
         - ${add_lfs}
-        - ${create_lfs}
+        - eq:
+          - ${create_lfs}
+          - "new"
 
   lfs_target_path:
     type: string
     title: "LFS Path"
-    description: "Local path on which Lustre filesystem will be mounted"
+    description: "Local path on which Lustre filesystem will be mounted."
     required: true
     default: "/lfs"
     visible:
@@ -2082,14 +2043,15 @@ variables:
   lfs_source_IP:
     type: string
     title: "Lustre Server IP"
-    description: "IP address of the Lustre server"
+    description: "IP address of the Lustre server."
     required: true
     default: "0.0.0.0"
     visible:
       and:
         - ${add_lfs}
-        - not:
-            - ${create_lfs}
+        - eq:
+          - ${create_lfs}
+          - "existing"
 
   lfs_source_path:
     type: string
@@ -2097,7 +2059,7 @@ variables:
     default: "lustrefs"
     minLength: 1
     maxLength: 8
-    description: "Lustre filesystem share path on the Lustre server"
+    description: "Lustre filesystem share path on the Lustre server."
     visible:
       and:
         - ${add_lfs}
@@ -2107,8 +2069,7 @@ variables:
     type: string
     title: "Options"
     default: "defaults,_netdev"
-    description: "Recommended mount options for LFS. Do not modify unless you require custom options"
+    description: "Recommended mount options for LFS. Do not modify unless you require custom options."
     visible:
       and:
         - ${add_lfs}
-

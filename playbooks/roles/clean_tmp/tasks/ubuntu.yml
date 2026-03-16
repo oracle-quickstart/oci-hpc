@@ -1,0 +1,18 @@
+- name: Create custom tmpfiles configuration
+  ansible.builtin.template:
+    src: custom-cleanup.conf.j2
+    dest: /etc/tmpfiles.d/custom-cleanup.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart systemd-tmpfiles-clean
+
+- name: Ensure systemd-tmpfiles-clean timer is enabled and started
+  ansible.builtin.systemd:
+    name: systemd-tmpfiles-clean.timer
+    enabled: true
+    state: started
+
+# - name: Force an immediate cleanup run (optional)
+#   ansible.builtin.command: systemd-tmpfiles --clean
+#   changed_when: false

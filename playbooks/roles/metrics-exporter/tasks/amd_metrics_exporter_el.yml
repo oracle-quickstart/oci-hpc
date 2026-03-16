@@ -1,0 +1,29 @@
+- name: Install Podman for AMD metrics exporter
+  become: true
+  ansible.builtin.package:
+    name: podman
+    state: present
+
+- name: Create systemd service for AMD metrics exporter container
+  become: true
+  ansible.builtin.template:
+    src: amd-metrics-exporter-container.service.j2
+    dest: /etc/systemd/system/amd-metrics-exporter.service
+    mode: '0644'
+
+- name: Reload systemd daemon
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable AMD metrics exporter service
+  become: true
+  ansible.builtin.systemd:
+    name: amd-metrics-exporter.service
+    enabled: true
+
+- name: Start AMD metrics exporter service
+  become: true
+  ansible.builtin.systemd:
+    name: amd-metrics-exporter.service
+    state: started

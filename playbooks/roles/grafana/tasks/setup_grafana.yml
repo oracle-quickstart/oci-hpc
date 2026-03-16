@@ -1,0 +1,182 @@
+---
+- name: Check if the Grafana token file exists
+  stat:
+    path: "{{ grafana_service_account.token_file }}"
+  register: grafana_token_file_stat_result
+
+- name: Wait for Grafana to be ready
+  uri:
+    url: "http://localhost:3000/api/health"
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 30
+  delay: 5
+
+- name: Change admin default password
+  uri:
+    url: "http://localhost:3000/api/user/password"
+    method: PUT
+    user: "{{ grafana_security.admin_user }}"
+    password: "{{ grafana_security.default_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    status_code: [200]
+    body:
+      oldPassword: "{{ grafana_security.default_admin_password }}"
+      newPassword: "{{ grafana_initial_creds | b64decode }}"
+      confirmNew: "{{ grafana_initial_creds | b64decode }}"
+  register: service_account_result
+  retries: 5
+  delay: 10
+  when: not grafana_token_file_stat_result.stat.exists
+
+- name: Create service account for API access
+  uri:
+    url: "http://localhost:3000/api/serviceaccounts"
+    method: POST
+    user: "{{ grafana_security.admin_user }}"
+    password: "{{ grafana_initial_creds | b64decode }}"
+    force_basic_auth: true
+    body_format: json
+    status_code: [200, 201]
+    body:
+      name: "{{ grafana_service_account.name }}"
+      role: "{{ grafana_service_account.role }}"
+  register: service_account_result
+  retries: 5
+  delay: 10
+  when: not grafana_token_file_stat_result.stat.exists
+
+- name: Set service account ID
+  set_fact:
+    service_account_id: "{{ service_account_result.json.id if service_account_result.json is defined else (existing_service_accounts.json | selectattr('name', 'equalto',
+      'oci-hpc-monitoring') | first).id }}"
+  when: not grafana_token_file_stat_result.stat.exists
+
+- name: Create service account token
+  uri:
+    url: "http://localhost:3000/api/serviceaccounts/{{ service_account_id }}/tokens"
+    method: POST
+    user: "{{ grafana_security.admin_user }}"
+    password: "{{ grafana_initial_creds | b64decode }}"
+    force_basic_auth: true
+    body_format: json
+    status_code: [200, 201]
+    body:
+      name: "{{ grafana_service_account.token_name }}"
+  register: service_account_token
+  retries: 3
+  delay: 3
+  when: not grafana_token_file_stat_result.stat.exists
+
+- name: Store service account token
+  become: true
+  copy:
+    owner: "{{ user }}"
+    group: "{{ user }}"
+    content: "{{ service_account_token.json.key | b64encode }}"
+    dest: "{{ grafana_service_account.token_file }}"
+    mode: "0400"
+  when: (service_account_token.json.key is defined) and (not grafana_token_file_stat_result.stat.exists)
+
+- name: Read Grafana token from file
+  slurp:
+    src: "{{ grafana_service_account.token_file }}"
+  register: grafana_token
+
+- name: Set Grafana token
+  set_fact:
+    grafana_api_token: "{{ grafana_token.content | b64decode | b64decode }}"
+
+- name: Setup Grafana Alert Webhook
+  include_tasks: setup_alert_webhook.yml
+  when: ons_topic_ocid != ""
+
+- name: Create Prometheus datasource in Grafana
+  grafana_datasource:
+    name: "Prometheus"
+    grafana_url: "{{ grafana_api_url }}"
+    grafana_api_key: "{{ grafana_api_token }}"
+    ds_type: "prometheus"
+    ds_url: "http://localhost:9090"
+    is_default: true
+  ignore_errors: true
+  register: output
+
+- name: Copy alert rules to grafana provisioning
+  become: true
+  copy:
+    src: files/alert-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    mode: "0777"
+  register: alert_rules
+  until: alert_rules is not failed
+  retries: 3
+  delay: 5
+
+- name: Copy delete rules to grafana provisioning
+  become: true
+  copy:
+    src: files/delete-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/delete-rules.yaml
+    mode: "0777"
+  register: delete_rules
+  until: delete_rules is not failed
+  retries: 3
+  delay: 5
+
+- name: Replace all occurrences of a specific string in files
+  become: true
+  ansible.builtin.replace:
+    path: /etc/grafana/provisioning/alerting/alert-rules.yaml
+    regexp: "DATASOURCE_UID"
+    replace: "{{ output.datasource.uid }}"
+
+- name: Get instance VNICs
+  uri:
+    url: "http://169.254.169.254/opc/v2/vnics/"
+    status_code: [200]
+    body_format: "json"
+    headers:
+      Authorization: "Bearer Oracle"
+  register: instance_vnics
+  until: instance_vnics is not failed
+  retries: 3
+  delay: 3
+
+- name: Get VNIC details from OCI API
+  become: true
+  oracle.oci.oci_network_vnic_facts:
+    auth_type: "instance_principal"
+    vnic_id: "{{ instance_vnics.json[0].vnicId }}"
+  register: vnic_details
+  delegate_to: localhost
+
+- name: Set grafana domain if public IP exists and is not empty
+  set_fact:
+    grafana_domain: "grafana.{{ vnic_details.vnic.public_ip }}.{{ wildcard_dns_domain }}"
+  when: (vnic_details.vnic.public_ip | default('', true) | length) > 0
+
+- name: Set grafana domain if no public IP exists
+  set_fact:
+    grafana_domain: "{{ vnic_details.vnic.private_ip }}"
+  when: (vnic_details.vnic.public_ip | default('', true) | length) == 0
+
+- name: Set Grafana domain
+  become: true
+  community.general.ini_file:
+    path: /etc/grafana/grafana.ini
+    section: server
+    option: domain
+    value: "{{ grafana_domain }}"
+    state: present
+
+- name: Setup Caddy
+  include_tasks: setup_caddy.yml
+
+- name: Restart grafana
+  become: true
+  ansible.builtin.service:
+    name: grafana-server
+    state: restarted

@@ -1,0 +1,2 @@
+#!/bin/bash
+ssh {{controller_hostname}} COLUMNS=`tput cols` {{venv_path}}/bin/python3 /config/mgmt/manage.py "$@"

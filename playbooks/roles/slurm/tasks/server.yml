@@ -1,65 +1,73 @@
 ---
+- name: Get All configurations in the DB
+  ansible.builtin.command: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
+  register: get_configurations_results
+
+- name: Convert the Python script output to a list of dictionaries
+  ansible.builtin.set_fact:
+    json_list: "{{ get_configurations_results.stdout | from_json }}"
+
+- name: Convert the Python script output to a list of dictionaries
+  ansible.builtin.set_fact:
+    queues: "{{ json_list.queues }}"
+
 - name: Generate password for DB user and save it to /etc/trinity/passwords
-  set_fact:
-    tmp_pwd: '{{ lookup("password",
-                           "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
-                            chars=ascii_letters,digits,hexdigits") }}'
+  ansible.builtin.set_fact:
+    tmp_pwd: '{{ lookup("password", "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt chars=ascii_letters,digits,hexdigits") }}'
 
 - name: Get password for DB user from /etc/trinity/passwords)
-  set_fact:
-    slurmdbd_sql_pwd: '{{ lookup("password",
-                           "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
-                            chars=ascii_letters,digits,hexdigits") }}'
+  ansible.builtin.set_fact:
+    slurmdbd_sql_pwd: '{{ lookup("password", "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt chars=ascii_letters,digits,hexdigits") }}'
 
 - name: Install PyMySQL
-  vars: 
+  vars:
     package_name:
-      - python2-PyMySQL
-    package_repo: "{{slurm_repos}}"
+      - python3-PyMySQL
+    package_repo: "{{ slurm_repos }}"
     package_state: present
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Install libmariadb-dev
-  vars: 
+  vars:
     package_name:
       - libmariadb-dev
     package_state: present
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: install SLURM server packages Ubuntu
+- name: Install SLURM server packages Ubuntu
   vars:
-    package_name: '{{ slurm_server_packages }}'
+    package_name: "{{ slurm_server_packages }}"
     package_state: present
-  include_role:
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: install SLURM server packages RedHat
-  vars: 
-    package_name: '{{ slurm_server_packages }}'
-    disable_gpg_check_var: True
-  include_role: 
+- name: Install SLURM server packages RedHat
+  vars:
+    package_name: "{{ slurm_server_packages }}"
+    disable_gpg_check_var: true
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
-  
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Render systemd units for slurm and slurmdbd
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.j2'
-    dest: '/lib/systemd/system/{{ item }}.service'
-    backup: "yes"
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.j2"
+    dest: "/lib/systemd/system/{{ item }}.service"
+    backup: true
   with_items:
     - slurmdbd
     - slurmctld
 
 - name: Create systemd unit dirs
   become: true
-  file:
-    name: '/etc/systemd/system/{{ item }}.service.d'
+  ansible.builtin.file:
+    name: "/etc/systemd/system/{{ item }}.service.d"
     state: directory
   with_items:
     - munge
@@ -68,50 +76,62 @@
 
 - name: Render systemd units for slurm, slurmdbd and munge
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
-    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
-    backup: "yes"
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.d/unit.conf.j2"
+    dest: "/etc/systemd/system/{{ item }}.service.d/unit.conf"
+    backup: true
   with_items:
     - munge
     - slurmdbd
     - slurmctld
 
 - block:
-    - name: Create {{ slurm_nfs_path }}/spool/slurm
+    - name: Create {{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm
       become: true
-      file:
-        name: "{{ slurm_nfs_path }}/spool/slurm"
+      ansible.builtin.file:
+        name: "{{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm"
         state: directory
-        owner: 'slurm'
-        group: 'slurm'
-        mode: '0750'
-        recurse: yes
+        owner: "slurm"
+        group: "slurm"
+        mode: "0750"
+        recurse: true
+
+    - name: Copy munge.key
+      become: true
+      ansible.builtin.copy:
+        src: "/config/key/munge.key"
+        dest: "{{ munge_conf_path }}/munge.key"
+      when: slurm_federation | default(false) | bool
 
     - name: Create munge.key
       become: true
-      command: 'dd if=/dev/urandom bs=1 count=1024 of={{ munge_conf_path }}/munge.key'
+      ansible.builtin.command: "dd if=/dev/urandom bs=1 count=1024 of={{ munge_conf_path }}/munge.key"
       args:
-        creates: '{{ munge_conf_path }}/munge.key'
+        creates: "{{ munge_conf_path }}/munge.key"
+      when: not slurm_federation | default(false) | bool
 
     - name: Set munge.key permissions
       become: true
-      file:
-        name: '{{ munge_conf_path }}/munge.key'
+      ansible.builtin.file:
+        name: "{{ munge_conf_path }}/munge.key"
         state: file
         owner: munge
         group: munge
-        mode: 0400
-      notify: restart munge
+        mode: "0400"
+      notify: Restart munge
 
-    - name: copy munge.key
+    - name: Copy munge.key
       become: true
-      shell:
-        cmd: "cp {{ munge_conf_path }}/munge.key /tmp/munge.key"
-    - name: set permissions
+      ansible.builtin.copy:
+        src: "{{ munge_conf_path }}/munge.key"
+        dest: "/config/key/munge.key"
+        remote_src: true
+      when: not slurm_federation | default(false) | bool
+
+    - name: Set permissions
       become: true
-      shell:
-        cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
+      ansible.builtin.command:
+        cmd: "chown {{ ansible_user }}:{{ ansible_user }} /config/key/munge.key"
 
 - name: Generate JWT key if it does not exist
   openssl_privatekey:
@@ -124,47 +144,84 @@
     path: "{{ slurm_jwt_key_path }}"
     owner: "slurm"
     group: "slurm"
-    mode: 0700
+    mode: "0700"
   become: true
 
 - name: Create DB for accounting
   become: true
   mysql_db:
-      config_file: '/root/.my.cnf'
-      name: '{{ slurm_db_name }}'
-      state: present
+    config_file: "/root/.my.cnf"
+    name: "{{ slurm_db_name }}"
+    state: present
+  when: groups['slurm_backup'] | length == 0
 
 - name: Create DB user for accounting
   become: true
   mysql_user:
-      config_file: '/root/.my.cnf'
-      name: '{{ slurm_db_user }}'
-      password: '{{ slurmdbd_sql_pwd }}'
-      priv: '{{ slurm_db_name }}.*:ALL'
-      state: present
+    config_file: "/root/.my.cnf"
+    name: "{{ slurm_db_user }}"
+    password: "{{ slurmdbd_sql_pwd }}"
+    priv: "{{ slurm_db_name }}.*:ALL"
+    state: present
+  when: groups['slurm_backup'] | length == 0
+
+- name: Create DB for accounting on mysql service
+  mysql_db:
+    login_user: "{{ mysql_admin_username }}"
+    login_password: "{{ mysql_admin_password }}"
+    login_host: "{{ mysql_service_host }}"
+    name: "{{ slurm_db_name }}"
+    state: present
+  when: groups['slurm_backup'] | length > 0
+
+- name: Create DB user for accounting on mysql service
+  mysql_user:
+    login_user: "{{ mysql_admin_username }}"
+    login_password: "{{ mysql_admin_password }}"
+    login_host: "{{ mysql_service_host }}"
+    host: "%"
+    name: "{{ slurm_db_user }}"
+    priv: "{{ slurm_db_name }}.*:ALL"
+    plugin: caching_sha2_password
+    plugin_auth_string: "{{ slurmdbd_sql_pwd }}"
+    salt: 1234567890abcdefghij
+    state: present
+  when: groups['slurm_backup'] | length > 0
 
 - name: Copy cgroup file
   become: true
-  copy:
-    src: '{{ cgroup_conf_file }}'
-    dest: '{{ slurm_conf_path }}/cgroup.conf'
-    force: no
+  ansible.builtin.copy:
+    src: "{{ cgroup_conf_file }}"
+    dest: "{{ slurm_conf_path }}/cgroup.conf"
+    force: false
     owner: slurm
     group: slurm
+
+- name: Copy resume and suspend script
+  become: true
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/slurm/
+    owner: slurm
+    group: slurm
+    mode: "0700"
+  with_items:
+    - resume.sh
+    - suspend.sh
 
 - name: Generate slurmdbd.conf
   become: true
-  template: 
-    src: '{{ slurmdbd_conf_file }}'
-    dest: '{{ slurm_conf_path }}/slurmdbd.conf'
-    mode: '0600'
+  ansible.builtin.template:
+    src: "{{ slurmdbd_conf_file }}"
+    dest: "{{ slurm_conf_path }}/slurmdbd.conf"
+    mode: "0600"
     owner: slurm
     group: slurm
-    backup: yes
+    backup: true
 
 - name: Create empty GRES.conf
   become: true
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ slurm_conf_path }}/gres.conf"
     regexp: "#GRES.conf"
     line: "#GRES.conf"
@@ -173,47 +230,103 @@
 
 - name: Generate slurm.conf
   become: true
-  template: 
-    src: '{{ slurm_conf_file }}'
-    dest: '{{ slurm_conf_path }}/slurm.conf'
-    mode: '0644'
-    backup: yes
+  ansible.builtin.template:
+    src: "{{ slurm_conf_file }}"
+    dest: "{{ slurm_conf_path }}/slurm.conf"
+    mode: "0644"
+    backup: true
     owner: slurm
     group: slurm
-  notify: restart slurm server
-  when: initial | bool
+  notify: Restart slurm server
 
-- name: add alias for node status
-  lineinfile:
-    path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias status='tail /opt/oci-hpc/logs/crontab_slurm.log | grep -A50 -m1 -e `date +"%Y-%m-%d"`'
-    state: present
-
-- name: add alias for max nodes distributed evenly
-  lineinfile:
-    path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias max_nodes="python3 /opt/oci-hpc/scripts/max_nodes_partition.py"
-    state: present
-
-- name: add alias for validation of number of nodes, pcie, and gpu throttle check
-  lineinfile:
-    path: '/home/{{ ansible_user }}/.bashrc'
-    line: alias validate="python3 /opt/oci-hpc/scripts/validation.py"
-    state: present
+- name: Generate job_container.conf
+  become: true
+  ansible.builtin.template:
+    src: "{{ slurm_job_container_conf_file }}"
+    dest: "{{ slurm_conf_path }}/job_container.conf"
+    mode: "0644"
+    backup: true
+    owner: slurm
+    group: slurm
+  notify: Restart slurm server
 
 - name: Generate topology.conf
   become: true
-  template: 
+  ansible.builtin.template:
     src: topology.conf.j2
-    dest: '{{ slurm_conf_path }}/topology.conf'
-    mode: '0644'
-    force: no
+    dest: "{{ slurm_conf_path }}/topology.conf"
+    mode: "0644"
+    force: false
     owner: slurm
     group: slurm
-  delegate_to: 127.0.0.1
   register: initial_topology
   run_once: true
-  notify: reconfigure slurm
+  notify: Reconfigure slurm
 
-- name: run handlers
-  meta: flush_handlers
+- name: Run handlers
+  ansible.builtin.meta: flush_handlers
+- name: Create empty directory
+  ansible.builtin.set_fact:
+    nodesname_dict: "{{ nodesname_dict | default({}) }}"
+
+- name: Generate a list of types to check
+  vars:
+    temp_list: >-
+      {%- set tl = [] -%}
+      {%- for instancetype in item.instance_types -%}
+        {%- if not instancetype.permanent -%}
+          {{ tl.append(instancetype.hostname_convention ~ "-[1-" ~ instancetype.max_number_nodes ~ "]") }}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ tl | join(',') | default('') }}
+  ansible.builtin.set_fact:
+    nodesname_dict: "{{ nodesname_dict | default({}) | combine({item.name: temp_list}, recursive=True) }}"
+  with_items: "{{ queues }}"
+
+- name: Check if shapes need to be added
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{ item.name }}:inactive\\sNodes.*"
+    state: absent
+  check_mode: true
+  with_items: "{{ queues }}"
+  run_once: true
+  register: shape_added
+  when: not initial_topology.changed and nodesname_dict[item.name] | length > 0
+
+- name: Add new shapes to existing topology.conf
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{ item.item.name }}:inactive\\sNodes.*"
+    line: "SwitchName={{ item.item.name }}:inactive Nodes={{ nodesname_dict[item.item.name] }}"
+    state: present
+  with_items: "{{ shape_added.results }}"
+  run_once: true
+  when: not initial_topology.changed and nodesname_dict[item.item.name] | length > 0 and not ( item.changed | bool)
+
+- name: Check if shapes need to be added
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{ item.name }}\\sSwitches.*"
+    state: absent
+  check_mode: true
+  with_items: "{{ queues }}"
+  run_once: true
+  register: switch_added
+  when: not initial_topology.changed and nodesname_dict[item.name] | length > 0
+  notify: Reconfigure slurm
+
+- name: Add new shapes to existing topology.conf, Upper Switch
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/topology.conf"
+    regexp: "SwitchName={{ item.item.name }}\\sSwitches.*"
+    line: "SwitchName={{ item.item.name }} Switches={{ item.item.name }}:inactive"
+    state: present
+  with_items: "{{ switch_added.results }}"
+  run_once: true
+  when: not initial_topology.changed and nodesname_dict[item.item.name] | length > 0 and not ( item.changed | bool)
+  notify: Reconfigure slurm

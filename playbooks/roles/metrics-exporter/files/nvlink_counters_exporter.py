@@ -80,4 +80,3 @@ if __name__ == '__main__':
     while True:
         get_nvlink_metrics()
         time.sleep(60)
-

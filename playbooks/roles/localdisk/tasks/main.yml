@@ -1,1 +1,8 @@
-- include_tasks: common.yml
+---
+- name: Run recovery tasks
+  ansible.builtin.include_tasks: recover.yml
+  when: localdisk_recover | bool
+
+- name: Run standard setup
+  ansible.builtin.include_tasks: common.yml
+  when: not (localdisk_recover | bool)

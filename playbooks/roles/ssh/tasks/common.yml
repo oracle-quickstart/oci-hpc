@@ -1,28 +1,24 @@
 ---
 - name: Update ssh configuration
-  copy: 
+  ansible.builtin.copy:
     src: files/ssh_config
     dest: /etc/ssh/ssh_config
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
 
 - name: Install private ssh key on all nodes
-  copy:
-    dest: "/home/{{ ansible_user }}/.ssh/id_rsa"
-    src: "/home/{{ controller_username }}/.ssh/{{ item }}"
+  ansible.builtin.copy:
+    dest: "/home/{{ ansible_user }}/.ssh/id_ed25519"
+    src: "/config/key/cluster.key"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: '0600'
-  with_items:
-    - cluster.key
+    mode: "0600"
 
 - name: Install public ssh key on all nodes
-  copy:
-    dest: "/home/{{ ansible_user }}/.ssh/id_rsa.pub"
-    src: "/home/{{ controller_username }}/.ssh/{{ item }}"
+  ansible.builtin.copy:
+    dest: "/home/{{ ansible_user }}/.ssh/id_ed25519.pub"
+    src: "/config/key/public"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: '0644'
-  with_items:
-    - id_rsa.pub
+    mode: "0644"

@@ -1,0 +1,136 @@
+---
+- name: Add InfluxData repository - for Telegraf
+  become: true
+  ansible.builtin.yum_repository:
+    name: influxdata
+    description: InfluxData Repository - Stable
+    baseurl: https://repos.influxdata.com/stable/$basearch/main
+    enabled: 1
+    gpgcheck: 1
+    gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Remove old InfluxData GPG key if exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/influxdata.gpg
+    state: absent
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Download and install InfluxData GPG key
+  become: true
+  ansible.builtin.shell: |
+    set -eo pipefail
+    curl -fsSL https://repos.influxdata.com/influxdata-archive.key | gpg --dearmor -o /etc/apt/keyrings/influxdata.gpg
+    chmod 0644 /etc/apt/keyrings/influxdata.gpg
+  args:
+    executable: /bin/bash
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Manage InfluxData APT repositories - for Telegraf
+  become: true
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/influxdata.gpg] https://repos.influxdata.com/debian stable main"
+    filename: influxdata
+    state: present
+    update_cache: false
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Update apt cache for InfluxData repository only
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+  environment:
+    APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: "1"
+  when: ansible_facts['os_family'] == 'Debian'
+  ignore_errors: true
+
+- name: Install Telegraf
+  vars:
+    package_name:
+      - telegraf
+    package_state: latest
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Force Telegraf gid 995
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/group
+    state: present
+    regexp: "^telegraf:x:(.*)$"
+    line: "telegraf:x:995:"
+    backrefs: true
+
+- name: Force Telegraf uid 995
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/passwd
+    state: present
+    regexp: "^telegraf:x:(.*)$"
+    line: "telegraf:x:995:995::/etc/telegraf:/bin/false"
+    backrefs: true
+
+- name: Copy telegraf.conf
+  become: true
+  ansible.builtin.copy:
+    src: "telegraf.conf"
+    dest: /etc/telegraf/telegraf.conf
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+  notify: Restart telegraf
+
+- name: Render Telegraf configuration files
+  become: true
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/telegraf/telegraf.d/{{ item }}
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+  with_items:
+    - filter.conf
+    - input.conf
+    - output.conf
+  notify: Restart telegraf
+
+- name: Render OCI Metric Python files
+  become: true
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /usr/local/bin/{{ item }}
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+  with_items:
+    - "{{ telegraf_streaming_input }}"
+
+- name: Copy OCI Metric Python files
+  become: true
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /usr/local/bin/{{ item }}
+    force: true
+    owner: telegraf
+    group: telegraf
+    mode: "0755"
+  with_items:
+    - "{{ telegraf_monitoring_input }}"
+    - "{{ telegraf_utils }}"
+    - "{{ telegraf_filter }}"
+  notify: Restart telegraf
+
+- name: Add environment variable to file
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/default/telegraf
+    line: PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart telegraf

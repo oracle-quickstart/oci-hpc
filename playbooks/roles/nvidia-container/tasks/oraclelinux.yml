@@ -1,0 +1,43 @@
+---
+- name: Download nvidia-container-toolkit.repo.
+  ansible.builtin.get_url:
+    url: "https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
+    dest: "/etc/yum.repos.d/nvidia-toolkit-demo.repo"
+    mode: "0644"
+    owner: root
+    group: root
+    force: true
+  environment:
+    REQUESTS_CA_BUNDLE: /etc/pki/tls/certs/ca-bundle.crt
+    SSL_CERT_FILE: /etc/pki/tls/certs/ca-bundle.crt
+  when: ansible_facts['distribution_major_version'] | int == 8
+
+- name: Download nvidia-container-toolkit.repo.
+  ansible.builtin.get_url:
+    url: "https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
+    dest: "/etc/yum.repos.d/nvidia-toolkit-demo.repo"
+    mode: "0644"
+    owner: root
+    group: root
+    force: true
+  when: ansible_facts['distribution_major_version'] | int != 8
+
+- name: Clean DNF caches
+  ansible.builtin.command: dnf clean expire-cache
+
+- name: Install nvidia-container-toolkit
+  vars:
+    package_name:
+      - nvidia-container-toolkit
+    package_state: latest
+    package_cache: true
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Configure nvidia-container-toolkit
+  ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
+
+- name: Start Docker
+  ansible.builtin.service:
+    name: "docker"
+    state: restarted

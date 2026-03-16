@@ -1,39 +1,39 @@
 ---
 - name: Make sure directory exist
   become: true
-  file: 
+  ansible.builtin.file:
     path: /opt/oci-hpc/sbin
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: Copy script
   become: true
-  copy: 
+  ansible.builtin.copy:
     src: control_hyperthreading.sh
     dest: /opt/oci-hpc/sbin/control_hyperthreading.sh
-    mode: '0755'
+    mode: "0755"
 
 - name: Copy service unit
   become: true
-  copy: 
+  ansible.builtin.copy:
     src: disable-hyperthreading.service
     dest: /etc/systemd/system/disable-hyperthreading.service
 
 - name: Create a unit file
   become: true
-  copy: 
+  ansible.builtin.copy:
     src: disable-hyperthreading.service
     dest: /etc/systemd/system/disable-hyperthreading.service
 
 - name: Force systemd to reread configs
   ansible.builtin.systemd:
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Start HT service
   ansible.builtin.systemd:
     name: disable-hyperthreading.service
     state: started
-    enabled: yes
+    enabled: true
   when: not hyperthreading|default(true)|bool
 
       #- name: disable Hyperthreading

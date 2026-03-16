@@ -20,5 +20,5 @@ deb_mariadb_packages:
   - python3-pymysql
 # added above for mariadb
 
-mariadb_db_path: '/var/lib/mysql'
-mysql_db_path: '/var/lib/mysql'
+mariadb_db_path: "/var/lib/mysql"
+mysql_db_path: "/var/lib/mysql"

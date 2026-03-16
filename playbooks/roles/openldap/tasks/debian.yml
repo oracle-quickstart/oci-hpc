@@ -1,34 +1,69 @@
 ---
 # tasks file for openldap
 
+- name: Stop Apparmor service
+  service:
+    name: apparmor
+    state: stopped
+  failed_when: false
+
+- name: Remove Apparmor service
+  service:
+    name: apparmor
+    enabled: false
+  failed_when: false
+
+- name: Remove Apparmor package
+  vars:
+    package_name:
+      - apparmor
+    package_state: absent
+    package_purge: true
+  include_role:
+    name: safe_yum
+
 - name: Create /etc/opt/oci-hpc/passwords/openldap
   become: true
   file:
     path: /etc/opt/oci-hpc/passwords/openldap
     state: directory
     owner: ubuntu
-    mode: 0770
+    mode: "0770"
     group: ubuntu
-    recurse: yes
+    recurse: true
 
 - name: Generate openldap root password
   set_fact:
     tmp_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc/passwords/openldap/root.txt
-                           chars=ascii_letters,digits,hexdigits') }}"
+                          '/etc/opt/oci-hpc/passwords/openldap/root.txt',
+                          chars=['ascii_letters', 'digits', 'hexdigits']) }}"
+  run_once: true
+  delegate_to: 127.0.0.1
 
 - name: Get openldap root password
   set_fact:
     openldap_root_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc//passwords/openldap/root.txt
-                           chars=ascii_letters,digits,hexdigits') }}"
+                          '/etc/opt/oci-hpc/passwords/openldap/root.txt',
+                          chars=['ascii_letters', 'digits', 'hexdigits']) }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- block:
+    - name: Write openldap root password to backup
+      copy:
+        content: "{{ openldap_root_pwd }}"
+        dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
+      delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
+  when:
+    - groups['slurm_backup'] is defined
+    - groups['slurm_backup'] | length > 0
 
 - name: Install the openldap and required Packages for Ubuntu
-  vars: 
+  vars:
     package_name: "{{ openldap_packages }}"
     package_state: present
     package_cache: true
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Hash OpenLDAP root password
@@ -40,137 +75,142 @@
   copy:
     src: slapd
     dest: /etc/default/slapd
-    mode: 0755 
+    mode: "0755"
 
 - name: Adjust OpenLDAP server TLS configuration
   lineinfile:
-    path: '{{ openldap_server_defaults_file }}'
-    regexp: '^SLAPD_SERVICES='
+    path: "{{ openldap_server_defaults_file }}"
+    regexp: "^SLAPD_SERVICES="
     line: 'SLAPD_SERVICES="{{ openldap_endpoints }}"'
 
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
-    path: '/etc/ldap/ldap.conf'
-    line: 'TLS_CACERT   /etc/ssl/certs/cluster-ca.crt'
-
-- name: Enable OpenLDAP service
-  systemd:
-    name: slapd
-    enabled: "yes"
+    path: "/etc/ldap/ldap.conf"
+    line: "TLS_CACERT   /etc/ssl/certs/cluster-ca.crt"
 
 - name: Get /etc/ldap/slapd.d status
   stat:
-    path: '/etc/ldap/slapd.d'
+    path: "/etc/ldap/slapd.d"
   register: default_openldap_path
 
 - name: Add cluster CA certificate to /etc/openldap/certs
   copy:
-    src: '{{ openldap_tls_cacrt }}'
-    dest: '/etc/ssl/certs/'
+    src: "{{ openldap_tls_cacrt }}"
+    dest: "/etc/ssl/certs/"
 
 - name: Ensure OpenLDAP has access to the ssl certificates
   user:
-    name: '{{ openldap_default_user }}'
-    groups: '{{ ssl_cert_group }}'
+    name: "{{ openldap_default_user }}"
+    groups: "{{ ssl_cert_group }}"
+
+- name: Enable OpenLDAP service
+  systemd:
+    name: slapd
+    enabled: true
 
 - block:
+    - name: Stop OpenLDAP service
+      systemd:
+        name: slapd
+        state: stopped
+      become: true
 
     - name: Ensure OpenLDAP data directory exists
       file:
-        path: '{{ openldap_server_dir_path }}'
+        path: "{{ openldap_server_dir_path }}"
         state: directory
-        owner: '{{ openldap_default_user }}'
-        group: '{{ openldap_default_group }}'
+        owner: "{{ openldap_default_user }}"
+        group: "{{ openldap_default_group }}"
         setype: slapd_db_t
-        seuser: system_u         
-
-    - name: Start OpenLDAP service
-      systemd:
-        name: slapd
-        state: started
-        enabled: "yes"
+        seuser: system_u
 
     - name: Copy OpenLDAP schemas
       copy:
-        src: '{{ item }}'
-        dest: '/etc/ldap/schema/'
-        owner: '{{ openldap_default_user }}'
-        group: '{{ openldap_default_group }}'
-        mode: '0644'
+        src: "{{ item }}"
+        dest: "/etc/ldap/schema/"
+        owner: "{{ openldap_default_user }}"
+        group: "{{ openldap_default_group }}"
+        mode: "0644"
       with_items:
         - rfc2307bis.ldif
+        - sudo.ldif
         - autoinc.ldif
         - local_schema.ldif
 
     - name: Ensure that we haven't ran dpkg-configure before for slapd
       lineinfile:
         name: /usr/share/slapd/slapd.init.ldif
-        regexp: 'file:///etc/ldap/schema/rfc2307bis.ldif'
+        regexp: "file:///etc/ldap/schema/rfc2307bis.ldif"
         state: absent
-      check_mode: yes
+      check_mode: true
       changed_when: false
       register: dpkgcheck
 
     - name: Edit /usr/share/slapd/slapd.init.ldif
       replace:
         path: /usr/share/slapd/slapd.init.ldif
-        regexp: '^include: file:///etc/ldap/schema/nis.ldif'
-        replace: 'include: file:///etc/ldap/schema/rfc2307bis.ldif'
+        regexp: "^include: file:///etc/ldap/schema/nis.ldif"
+        replace: "include: file:///etc/ldap/schema/rfc2307bis.ldif"
       when: not dpkgcheck.found
-            
+
     - name: Reconfigure slapd for rfc2307bis instead of nis
       command: dpkg-reconfigure -f noninteractive slapd
       when: not dpkgcheck.found
-    
+
+    - name: Start OpenLDAP service
+      systemd:
+        name: slapd
+        state: started
+        enabled: true
 
     - name: Load OpenLDAP schemas 20.04
       command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
       args:
-        creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
-      with_items: '{{ openldap_schemas }}'
-      when: ansible_distribution_version == '20.04'
+        creates: "/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif"
+      with_items: "{{ openldap_schemas }}"
+      when: ansible_facts['distribution_version'] == '20.04'
 
     - name: Load OpenLDAP schemas 22.04
       command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/ldap/schema/{{ item }}.ldif
       args:
-        creates: '/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif'
-      with_items: '{{ openldap_schemas_22 }}'
-      when: ansible_distribution_version == '22.04'
+        creates: "/etc/ldap/slapd.d/cn=config/cn=schema/cn={?}{{ item }}.ldif"
+      with_items: "{{ openldap_schemas_22 }}"
+      when: ansible_facts['distribution_version'] == '22.04' or ansible_facts['distribution_version'] == '24.04'
 
     - name: Render OpenLDAP configuration - config
       template:
-        src: '{{ item }}.j2'
-        dest: '/tmp/{{ item }}'
+        src: "{{ item }}.j2"
+        dest: "/tmp/{{ item }}"
       with_items:
         - config.ldif
       changed_when: false
 
     - name: Render OpenLDAP configuration - local
       template:
-        src: 'debian_local.ldif.j2'
-        dest: '/tmp/local.ldif'
+        src: "debian_local.ldif.j2"
+        dest: "/tmp/local.ldif"
       changed_when: false
 
     - name: Copy OpenLDAP overlay configurations - ppolicy
       copy:
-        src: 'debian_ppolicy.ldif'
-        dest: '/tmp/ppolicy.ldif'
-    
+        src: "debian_ppolicy.ldif"
+        dest: "/tmp/ppolicy.ldif"
+
     - name: Copy OpenLDAP overlay configurations - memberof
       copy:
-        src: 'debian_memberof.ldif'
-        dest: '/tmp/memberof.ldif'
+        src: "debian_memberof.ldif"
+        dest: "/tmp/memberof.ldif"
 
     - name: Load OpenLDAP global configuration
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
       args:
-        creates: '/etc/ldap/slapd.d/cn=config.ldif'
-      notify: restart openldap
+        creates: "/etc/ldap/slapd.d/cn=config.ldif"
+      notify: Restart openldap
 
     - name: Load OpenLDAP local configuration 20.04
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
-        creates: '/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
+        creates: "/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif"
       register: result
       failed_when: ( result.rc not in [ 0, 20 ] )
       with_items:
@@ -178,21 +218,21 @@
         - local.ldif
         - ppolicy.ldif
         - memberof.ldif
-      when: ansible_distribution_version == '20.04'
-      notify: restart openldap
+      when: ansible_facts['distribution_version'] == '20.04'
+      notify: Restart openldap
 
     - name: Load OpenLDAP local configuration 22.04
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
-        creates: '/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif'
+        creates: "/etc/ldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif"
       register: result
       failed_when: ( result.rc not in [ 0, 20 ] )
       with_items:
         - config.ldif
         - local.ldif
         - memberof.ldif
-      when: ansible_distribution_version == '22.04'
-      notify: restart openldap
+      when: ansible_facts['distribution_version'] == '22.04' or ansible_facts['distribution_version'] == '24.04'
+      notify: Restart openldap
 
     - name: Check local schemas
       command: 'ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"'
@@ -206,5 +246,40 @@
                              -f /etc/ldap/schema/local_schema.ldif
       ignore_errors: true
       when: ldapsearch.rc == 32
+
+- name: Enable replication
+  when:
+    - groups['slurm_backup'] is defined
+    - groups['slurm_backup'] | length > 0
+  block:
+    - name: Copy OpenLDAP schemas
+      template:
+        src: '{{ item }}.j2'
+        dest: '/tmp/{{ item }}'
+        owner: '{{ openldap_default_user }}'
+        group: '{{ openldap_default_group }}'
+        mode: '0640'
+      become: true
+      with_items:
+        - mod_syncprov_debian.ldif
+        - replicate_config.ldif
+        - replicate_database_debian.ldif
+
+    - name: Add syncprov module to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/mod_syncprov_debian.ldif'
+      ignore_errors: true  #set to get around erroring out that items already exist
+      become: true
+
+    - name: Add replicate configuration to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_config.ldif'
+      ignore_errors: true  #set to get around erroring out that items already exist
+      become: true
+
+    - name: Add replicate database to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_debian.ldif'
+      ignore_errors: true  #set to get around erroring out that items already exist
+      become: true
+      notify: Restart openldap
+
 
 - meta: flush_handlers

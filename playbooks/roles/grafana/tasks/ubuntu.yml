@@ -1,166 +1,57 @@
 ---
-- name: Add Grafana GPG key
+- name: Ensure keyrings directory exists
   become: true
-  apt_key:
-    url: https://packages.grafana.com/gpg.key
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/grafana-archive-keyring.gpg
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
 
-- name: Add Grafana repository
+- name: Download Grafana APT GPG key
   become: true
-  apt_repository:
-    repo: 'deb https://packages.grafana.com/oss/deb stable main'
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /tmp/grafana.gpg.key
+    mode: '0644'
+
+- name: Convert Grafana key to dearmored keyring
+  become: true
+  ansible.builtin.shell: |
+    gpg --dearmor -o /etc/apt/keyrings/grafana.gpg /tmp/grafana.gpg.key
+    chmod 0644 /etc/apt/keyrings/grafana.gpg
+  args:
+    creates: /etc/apt/keyrings/grafana.gpg
+
+- name: Add Grafana APT repository
+  become: true
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+    filename: grafana
     state: present
-    filename: 'grafana'
+  register: apt_repo
+  until: apt_repo is not failed
+  retries: 10
+  delay: 20
 
 - name: Update apt cache
   become: true
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
 
+# Install packages directly with apt on Ubuntu/Debian
 - name: Install Grafana and Tempo
   become: true
-  vars:
-    package_name:
-      - grafana=12.0.3
-      - tempo
-    package_state: present
-  apt:
-    allow_downgrade: true 
-    name: "{{ package_name }}"
-    state: "{{ package_state }}"
-
-- name: Hold Grafana package to prevent upgrades
-  become: true
-  dpkg_selections:
-    name: grafana
-    selection: hold
-
-- name: Install Python dependencies
-  pip:
+  ansible.builtin.apt:
     name:
-      - Flask
-      - oci
-      - waitress
-    extra_args: --ignore-installed
-  become: true
-
-- name: Create ons_webhook DB directory
-  become: true
-  file:
-    path: "{{ grafana_ons_webhook_db_dir }}"
-    state: directory
-    mode: '0755'
-    owner: "{{ user }}"
-    group: "{{ user }}"
-
-- name: Copy webhook script to server
-  become: true
-  template:
-    src: templates/ons_webhook.py.j2
-    dest: /usr/local/bin/ons_webhook.py
-    mode: '0755'
-    remote_src: true
-
-- name: Copy message template to server
-  become: true
-  copy:
-    src: files/raw_message_template.txt
-    dest: "{{ grafana_ons_wehbook_template_path }}"
-    mode: '0755'
-
-- name: Render systemd service for webhook
-  become: true
-  template:
-    src: ons-webhook.service.j2
-    dest: /etc/systemd/system/ons-webhook.service
-    force: yes
-    backup: yes
-    mode: '0644'
-    remote_src: true
-
-- name: Start and enable webhook service
-  become: true
-  systemd:
-    name: ons-webhook.service
-    state: started
-    enabled: yes
-    daemon_reload: yes
-  when: ons_topic_ocid != ""
+      - grafana
+      - tempo
+    state: present
 
 - name: Start and enable Grafana service
-  become: true
-  service:
-    name: grafana-server
-    state: restarted
-    enabled: yes
-
-- name: Ensure Grafana key directory exists
-  file:
-    path: "/etc/opt/oci-hpc/passwords/grafana"
-    state: directory
-  delegate_to: localhost
-
-- name: Check Grafana API key list
-  uri:
-    url: "{{ grafana_api_url }}/api/auth/keys"
-    method: GET
-    user: "{{ grafana_security.admin_user }}"
-    password: "{{ grafana_security.admin_password }}"
-    force_basic_auth: true
-    return_content: true
-  no_log: false
-  register: result
-  until: result is not failed
-  retries: 5
-  delay: 5
-
-- name: Create Prometheus datasource in Grafana
-  grafana_datasource:
-    name: "Prometheus"
-    grafana_url: "{{ grafana_api_url }}"
-    grafana_user: "{{ grafana_security.admin_user }}"
-    grafana_password: "{{ grafana_security.admin_password }}"
-    ds_type: "prometheus"
-    ds_url: "http://localhost:9090"
-  ignore_errors: true
-  register: output
-
-- name: Create Tempo datasource in Grafana
-  grafana_datasource:
-    name: "Tempo"
-    grafana_url: "{{ grafana_api_url }}"
-    grafana_user: "{{ grafana_security.admin_user }}"
-    grafana_password: "{{ grafana_security.admin_password }}"
-    ds_type: "tempo"
-    ds_url: "http://localhost:3200"
-    access: "proxy"
-    is_default: false
-  register: tempo_output
-
-- name: Copy alert rules to grafana provisioning
-  become: true
-  copy:
-    src: files/alert-rules.yaml
-    dest: /etc/grafana/provisioning/alerting/alert-rules.yaml
-    mode: '0777'
-
-- name: Copy delete rules to grafana provisioning
-  become: true
-  copy:
-    src: files/delete-rules.yaml
-    dest: /etc/grafana/provisioning/alerting/delete-rules.yaml
-    mode: '0777'
-
-- name: Replace all occurrences of a specific string in files
-  become: true
-  ansible.builtin.replace:
-    path: /etc/grafana/provisioning/alerting/alert-rules.yaml
-    regexp: "DATASOURCE_UID"
-    replace: "{{ output.datasource.uid }}"
-
-- name: Restart grafana
   become: true
   ansible.builtin.service:
     name: grafana-server
     state: restarted
+    enabled: true
+
+- name: Setup Grafana
+  ansible.builtin.include_tasks: setup_grafana.yml

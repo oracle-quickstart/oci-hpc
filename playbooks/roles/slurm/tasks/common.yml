@@ -1,15 +1,14 @@
 ---
-- name: create munge group
+- name: Create munge group
   become: true
-  group:
+  ansible.builtin.group:
     name: munge
     gid: "{{ munge_gid }}"
     state: present
-    system: yes
-
-- name: create munge user
+    system: true
+- name: Create munge user
   become: true
-  user:
+  ansible.builtin.user:
     name: munge
     comment: "munge"
     uid: "{{ munge_uid }}"
@@ -17,18 +16,16 @@
     shell: /sbin/nologin
     home: /var/lib/munge
     state: present
-
-- name: create slurm group
+- name: Create slurm group
   become: true
-  group:
+  ansible.builtin.group:
     name: slurm
     gid: "{{ slurm_gid }}"
     state: present
-    system: yes
-
-- name: create slurm user
+    system: true
+- name: Create slurm user
   become: true
-  user:
+  ansible.builtin.user:
     name: slurm
     comment: "Slurm user"
     uid: "{{ slurm_uid }}"
@@ -37,248 +34,255 @@
     home: /var/lib/slurm
     state: present
 
-- name: install munge
+- name: Install munge
   vars:
-    package_name: '{{ munge_packages }}'
+    package_name: "{{ munge_packages }}"
     package_repo: "{{ slurm_repos }}"
-  include_role:
+  ansible.builtin.include_role:
     name: safe_yum
 
 - name: Create Slurm RPM directory
   become: true
-  file:
-    path: "{{ download_path }}/slurm_rpms"
+  ansible.builtin.file:
+    path: "{{ slurm_nfs_path }}/slurm_rpms"
     state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
-  when: download_path == '/tmp'
-
-- name: Create Slurm RPM directory
-  become: true
-  file:
-    path: "{{ download_path }}/slurm_rpms"
-    state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
   delegate_to: 127.0.0.1
   run_once: true
-  when: download_path != '/tmp'
+
+- name: Get DEB architecture # noqa no-changed-when
+  ansible.builtin.command: dpkg --print-architecture
+  register: deb_architecture_out
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Map system architecture to suffix
+  ansible.builtin.set_fact:
+    deb_architecture: "{{ deb_architecture_out.stdout }}"
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Download Slurm DEB
+  when: ansible_facts['os_family'] == 'Debian'
+
   block:
     - name: Download in shared location
-      block: 
-      - name: Check if the deb file exists 
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        register: slurm_dwld
-        delegate_to: 127.0.0.1
-        run_once: true
-      - name: First try downloading .deb
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not slurm_dwld.stat.exists )
-        delegate_to: 127.0.0.1
-        run_once: true  
-      when: download_path != '/tmp'
-    - name: Download on each node
-      block:  
-      - name: Check if the deb file exists in /tmp
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        register: slurm_dwld
-      - name: First try downloading .deb in /tmp
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not slurm_dwld.stat.exists )
-      when: download_path == '/tmp'
+      block:
+        - name: Check if the deb file exists
+          ansible.builtin.stat:
+            path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
+          register: slurm_dwld
+          delegate_to: 127.0.0.1
+          run_once: true
+        - name: First try downloading .deb
+          ansible.builtin.get_url:
+            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
+            dest: "{{ slurm_nfs_path }}/slurm_rpms"
+          when: ( not slurm_dwld.stat.exists )
+          delegate_to: 127.0.0.1
+          run_once: true
   rescue:
     - name: Second try downloading .deb
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path != '/tmp'
+      ansible.builtin.get_url:
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
+        dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
-      run_once: true 
-    - name: Second try downloading .deb in /tmp
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path == '/tmp'
-  when: ansible_os_family == 'Debian'
-
+      run_once: true
 - name: Download Slurm RPMs
+  when: ansible_facts['os_family'] == 'RedHat'
+
   block:
-    - name: Download on each node
-      block: 
-      - name: Check if the RPMs exist in tmp
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/{{item}}"
-        register: slurm_dwld_tmp
-        with_items: "{{slurm_all_packages}}"
-      - name: First try downloading RPMs in tmp
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"        
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not item.stat.exists )
-        with_items: "{{slurm_dwld_tmp.results}}"
-      when: download_path == '/tmp'
     - name: Download in shared location
-      block:   
-      - name: Check if the RPMs exist
-        stat: 
-          path: "{{ download_path }}/slurm_rpms/{{item}}"
-        register: slurm_dwld
-        delegate_to: 127.0.0.1
-        run_once: true
-        with_items: "{{slurm_all_packages}}"
-      - name: First try downloading RPMs
-        get_url:
-          url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"        
-          dest: "{{ download_path }}/slurm_rpms"
-        when: ( not item.stat.exists )
-        delegate_to: 127.0.0.1
-        run_once: true  
-        with_items: "{{slurm_dwld.results}}"
-      when: download_path != '/tmp'
+      block:
+        - name: Check if the RPMs exist
+          ansible.builtin.stat:
+            path: "{{ slurm_nfs_path }}/slurm_rpms/{{ item }}"
+          register: slurm_dwld
+          delegate_to: 127.0.0.1
+          run_once: true
+          with_items: "{{ slurm_all_packages }}"
+        - name: First try downloading RPMs
+          environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
+          ansible.builtin.get_url:
+            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/lQBJduG5m6xQWauRMPkouaOoliEHbbDIqgfQXou050XAcDav2UveFlRjvFv-0JIn/n/hpc_limited_availability/b/source/o/slurm/{{ item.item }}"
+            dest: "{{ slurm_nfs_path }}/slurm_rpms"
+          when: ( not item.stat.exists )
+          delegate_to: 127.0.0.1
+          run_once: true
+          with_items: "{{ slurm_dwld.results }}"
 
   rescue:
     - name: Second try downloading RPMs
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path != '/tmp'
+      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
+      ansible.builtin.get_url:
+        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/{{ item
+          }}"
+        dest: "{{ slurm_nfs_path }}/slurm_rpms"
       delegate_to: 127.0.0.1
       run_once: true
-      with_items: "{{slurm_all_packages}}"
-    - name: Second try downloading RPMs in tmp
-      get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/VnkLhYXOSNVilVa9d24Riz1fz4Ul-KTXeK4HCKoyqv0ghW3gry3Xz8CZqloqphLw/n/hpc/b/source/o/slurm/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
-        dest: "{{ download_path }}/slurm_rpms"
-      when: download_path == '/tmp'
-      with_items: "{{slurm_all_packages}}"
-  when: ansible_os_family == 'RedHat'
-
+      with_items: "{{ slurm_all_packages }}"
 - name: Install .deb
   vars:
     deb_name:
-      - "{{ download_path }}/slurm_rpms/slurm-{{slurm_version}}_{{ansible_distribution_version}}_amd64.deb"
+      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
     package_state: present
-  include_role:
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: install SLURM common packages RedHat
+- name: Install SLURM common packages RedHat
   vars:
-    package_name: '{{ slurm_common_packages }}'
-    package_repo: "{{slurm_repos}}"
-    disable_gpg_check_var: True
-  include_role:
+    package_name: "{{ slurm_common_packages }}"
+    package_repo: "{{ slurm_repos }}"
+    disable_gpg_check_var: true
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Add Environment variable file for SLurm
   become: true
-  template:
-    src: 'systemd/slurm_env.j2'
-    dest: '/etc/default/slurm'
-    backup: "yes"
-  when: ansible_os_family == 'Debian'
+  ansible.builtin.template:
+    src: "systemd/slurm_env.j2"
+    dest: "/etc/default/slurm"
+    backup: true
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Create {{ slurm_spool_path }}
   become: true
-  file:
+  ansible.builtin.file:
     name: "{{ slurm_spool_path }}"
     state: directory
-    owner: 'slurm'
-    group: 'slurm'
-    mode: '0755'
+    owner: "slurm"
+    group: "slurm"
+    mode: "0755"
 
 - name: Create /run/slurm/
   become: true
-  file:
+  ansible.builtin.file:
     name: /run/slurm/
     state: directory
-    owner: 'slurm'
-    group: 'slurm'
-    mode: '0755'
+    owner: "slurm"
+    group: "slurm"
+    mode: "0755"
 
 - name: Create munge dir
   become: true
-  file:
-    name: '{{ munge_conf_path }}'
+  ansible.builtin.file:
+    name: "{{ munge_conf_path }}"
     state: directory
     owner: munge
     group: munge
-    mode: 0700
-    
+    mode: "0700"
+
 - name: Ensure {{ slurm_log_path }} exists
   become: true
-  file:
-    path: '{{ slurm_log_path }}'
+  ansible.builtin.file:
+    path: "{{ slurm_log_path }}"
     owner: slurm
     group: slurm
-    mode: 0750
+    mode: "0750"
     state: directory
 
 - name: Ensure {{ slurm_conf_path }} exists
   become: true
-  file:
-    path: '{{ slurm_conf_path }}'
+  ansible.builtin.file:
+    path: "{{ slurm_conf_path }}"
     state: directory
 
 - name: Ensure {{ munge_run_path }} has the correct permissions
   become: true
-  file:
-    path: '{{ munge_run_path }}'
+  ansible.builtin.file:
+    path: "{{ munge_run_path }}"
     owner: munge
     group: munge
-    mode: 0755
+    mode: "0755"
     state: directory
 
 - name: Ensure {{ munge_log_path }} has the correct permissions
   become: true
-  file:
-    path: '{{ munge_log_path }}'
+  ansible.builtin.file:
+    path: "{{ munge_log_path }}"
     owner: munge
     group: munge
-    mode: 0755
+    mode: "0755"
     state: directory
 
 - name: Ensure {{ slurm_conf_path }} has the correct permissions
   become: true
-  file:
-    path: '{{ slurm_conf_path }}'
+  ansible.builtin.file:
+    path: "{{ slurm_conf_path }}"
     owner: slurm
     group: slurm
-    mode: 0755
+    mode: "0755"
     state: directory
 
 - name: Include pyxis prolog files
-  include_tasks: common_pyxis.yml
+  ansible.builtin.include_tasks: common_pyxis.yml
   when: pyxis|bool
 
 - name: Include pmix prolog files
-  include_tasks: common_pmix.yml
-  when: ansible_os_family == 'RedHat'
+  ansible.builtin.include_tasks: common_pmix.yml
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Ensure prolog directory exists
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ slurm_conf_path }}/prolog.d"
     state: directory
     owner: root
     group: root
-  when: healthchecks|bool
 
-- name: copy healthchecks
+- name: Ensure epilog directory exists
   become: true
-  copy: 
+  ansible.builtin.file:
+    path: "{{ slurm_conf_path }}/epilog.d"
+    state: directory
+    owner: root
+    group: root
+
+- name: Copy healthchecks
+  become: true
+  ansible.builtin.copy:
     src: healthchecks.sh
     dest: "{{ slurm_conf_path }}/prolog.d/healthchecks.sh"
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   when: healthchecks|bool
+
+- name: Copy imex prolog
+  become: true
+  ansible.builtin.copy:
+    src: imex_prolog.sh
+    dest: "{{ slurm_conf_path }}/prolog.d/imex_prolog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy imex epilog
+  become: true
+  ansible.builtin.copy:
+    src: imex_epilog.sh
+    dest: "{{ slurm_conf_path }}/epilog.d/imex_epilog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy AMD Slurm metrics prolog
+  become: true
+  ansible.builtin.copy:
+    src: amd_prolog.sh
+    dest: "{{ slurm_conf_path }}/prolog.d/amd_prolog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'BM.GPU.MI' in shape"
+
+- name: Copy AMD Slurm metrics epilog
+  become: true
+  ansible.builtin.copy:
+    src: amd_epilog.sh
+    dest: "{{ slurm_conf_path }}/epilog.d/amd_epilog.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'BM.GPU.MI' in shape"

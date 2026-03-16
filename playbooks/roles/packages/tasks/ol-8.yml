@@ -1,37 +1,23 @@
 ---
 - name: Enable ol8_developer_EPEL repo
-  shell: yum-config-manager --enable ol8_developer_EPEL
-
+  ansible.builtin.command: yum-config-manager --enable ol8_developer_EPEL
 - name: Make sure python OpenSSL and parallel ssh is installed
-  vars: 
+  vars:
     package_name:
-      #- pyOpenSSL
-      #- python2-cryptography
       - python3-oci-cli
       - pssh
       - pdsh
       - python3-pip
     package_state: latest
     package_repo: "ol8_developer_EPEL"
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
   ignore_errors: true
 
-
 - name: Upgrade Pip3
   become: true
-  pip:
+  ansible.builtin.pip:
     name: [pip]
     state: latest
-    executable: pip3
-  ignore_errors: yes
-  
-- name: install oci-cli latest version
-  become: true
-  pip:
-    name: [oci-cli]
-    state: latest
-    executable: pip3
-  ignore_errors: yes
-  when: ('controller' in group_names)
-
+    executable: /usr/bin/pip3
+  ignore_errors: true

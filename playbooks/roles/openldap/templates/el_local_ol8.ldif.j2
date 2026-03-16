@@ -1,4 +1,9 @@
 # local database configuration
+#dn: cn=module{0},cn=config
+#changetype: modify
+#add: olcModuleLoad
+#olcModuleLoad: back_mdb
+
 dn: cn=module{0},cn=config
 changetype: add
 objectClass: olcModuleList
@@ -31,13 +36,29 @@ olcDbIndex: mail eq,sub
 olcDbIndex: givenName eq,sub
 olcDbIndex: sn eq,sub
 olcDbIndex: ou eq
+olcDbIndex: objectClass eq
+olcDbIndex: modifyTimestamp eq
 
 dn: olcDatabase={2}mdb,cn=config
 changetype: modify
 replace: olcAccess
-olcAccess: {1}to attrs=userPassword,givenName,sn by self write by anonymous auth by dn.base="cn=manager,dc=local" write by * none
-olcAccess: {2}to * by self read by dn.base="cn=manager,dc=local" write by * read
-olcAccess: {3}to * by dn.base="cn=manager,dc=local" read by * none
+olcAccess: {1}to attrs=userPassword,shadowLastChange 
+  by self write 
+  by anonymous auth 
+  by dn.base="cn=manager,dc=local" write 
+  by * none
+olcAccess: {2}to attrs=userPassword,givenName,sn 
+  by self write 
+  by anonymous auth 
+  by dn.base="cn=manager,dc=local" write 
+  by * none
+olcAccess: {3}to * 
+  by self read 
+  by dn.base="cn=manager,dc=local" write 
+  by * read
+#olcAccess: {1}to attrs=userPassword,givenName,sn by self write by anonymous auth by dn.base="cn=manager,dc=local" write by * none
+#olcAccess: {2}to * by self read by dn.base="cn=manager,dc=local" write by * read
+#olcAccess: {3}to * by dn.base="cn=manager,dc=local" read by * none
 
 #dn: olcDatabase={2}hdb,cn=config
 #changetype: modify

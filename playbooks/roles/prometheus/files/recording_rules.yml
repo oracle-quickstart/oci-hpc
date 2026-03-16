@@ -1,153 +1,482 @@
+---
 groups:
+  - name: node_health
+    rules:
+      # Node memory and boot volume checks
+      - record: node_disk_free_ok
+        expr: avg by (hostname, cluster_name, vendor) (node_filesystem_avail_bytes{mountpoint="/"}) >= bool 50 * 1024 * 1024 * 1024
 
-- name: node_health
-  rules:
-  # Node memory and boot volume checks
-  - record: node_disk_free_ok
-    expr: avg by (hostname, cluster_name) (node_filesystem_avail_bytes{mountpoint="/",device=~"/dev/sd.*"}) >= bool 50 * 1024 * 1024 * 1024
+      - record: node_memory_pressure_score
+        expr: (((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100 + (15 / clamp_min(log2(node_memory_MemTotal_bytes / (16*1024^3)), 0.5)))
 
-  - record: node_memory_availability_ok
-    expr: avg by (hostname, cluster_name) (node_memory_MemAvailable_bytes) >= bool 50 * 1024 * 1024 * 1024
+      - record: node_memory_availability_ok
+        expr: avg by (hostname, cluster_name) (node_memory_pressure_score) <= bool 90
 
-  # GPU throttling checks
-  - record: node_gpu_power_violation_ok
-    expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) == bool 0)
+      # GPU throttling checks
+      - record: node_gpu_power_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) / 300000000000) * 100
 
-  - record: node_gpu_board_limit_violation_ok  
-    expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) == bool 0)
+      - record: node_gpu_board_limit_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) / 300000000000) * 100
 
-  - record: node_gpu_thermal_violation_ok
-    expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) == bool 0)
+      - record: node_gpu_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000000) * 100
 
-  - record: node_gpu_sync_boost_violation_ok
-    expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m]) == bool 0)
+      - record: node_gpu_sync_boost_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m]) / 300000000000) * 100
 
-  - record: node_gpu_reliability_violation_ok
-    expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m]) == bool 0)
+      - record: node_gpu_reliability_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m]) / 300000000000) * 100
 
-  # PCIe error checks
-  - record: node_pcie_aer_correctable_errors_ok
-    expr: min by (hostname, cluster_name) (increase(pcie_aer_correctable_error_count[5m]) == bool 0)
+      - record: node_gpu_power_violation_ok
+        expr: (min by (hostname, cluster_name, vendor) (node_gpu_power_violation_percentage)) < bool 50
 
-  - record: node_pcie_aer_fatal_errors_ok
-    expr: min by (hostname, cluster_name) (increase(pcie_aer_fatal_error_count[5m]) == bool 0)
+      - record: node_gpu_board_limit_violation_ok
+        expr: (min by (hostname, cluster_name, vendor) (node_gpu_board_limit_violation_percentage)) < bool 50
 
-  - record: node_pcie_aer_nonfatal_errors_ok
-    expr: min by(hostname, cluster_name) (increase(pcie_aer_nonfatal_error_count[5m]) == bool 0)
+      - record: node_gpu_thermal_violation_ok
+        expr: (min by (hostname, cluster_name, vendor) (node_gpu_thermal_violation_percentage)) < bool 50
 
-  - record: node_pcie_bus_inaccessible_ok
-    expr: min by (hostname, cluster_name) (pcie_bus_inaccessible_status == bool 0)
+      - record: node_gpu_sync_boost_violation_ok
+        expr: (min by (hostname, cluster_name, vendor) (node_gpu_sync_boost_violation_percentage)) < bool 50
 
-  - record: node_pcie_bus_linkwidth_ok
-    expr: min by (hostname, cluster_name) (pcie_bus_linkwidth_status == bool 0)
+      - record: node_gpu_reliability_violation_ok
+        expr: (min by (hostname, cluster_name, vendor) (node_gpu_reliability_violation_percentage)) < bool 50
 
-  # Health checks via custom metrics
-  - record: node_rttcc_ok
-    expr: min by(hostname, cluster_name) (rttcc_status == bool 0)
+      # DCGM GPU Health Status Checks
+      # DCGM_EXP_GPU_HEALTH_STATUS: 0 = healthy, >0 = unhealthy
+      # health_watch labels: PCIE, NVLINK, PMU, MCU, MEM, SM, INFOROM, THERMAL, POWER, DRIVER
 
-  - record: node_oca_ver_ok
-    expr: oca_version * on(hostname, cluster_name) oca_version
+      # Node-level health by watch type (1=all GPUs healthy, 0=any GPU unhealthy)
+      # DCGM_EXP_GPU_HEALTH_STATUS is only available in DCGM 4.x+
+      # Fallback to active_nodes ensures rules return 1 (healthy) when metric is absent
+      - record: node_nvidia_gpu_health_pcie_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PCIE"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  - record: node_rdma_device_status_ok
-    expr: min by(hostname, cluster_name) (rdma_device_status)
+      - record: node_nvidia_gpu_health_nvlink_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="NVLINK"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  - record: node_check_bus_issue_count_ok
-    expr: (check_bus_issue_count == bool 0) * on (hostname, cluster_name) (check_bus_issue_count == bool 0)
+      - record: node_nvidia_gpu_health_pmu_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PMU"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  - record: node_rdma_link_flapping_ok
-    expr: min by(hostname, cluster_name) (rdma_link_noflap)
+      - record: node_nvidia_gpu_health_mcu_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="MCU"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  - record: node_ecc_error_check_ok
-    expr: (gpu_ecc_error_check) * on (hostname, cluster_name) (gpu_ecc_error_check)
+      - record: node_nvidia_gpu_health_mem_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="MEM"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  - record: node_gpu_row_remap_error_check
-    expr: (gpu_row_remap_error_check== bool 0) * on (hostname, cluster_name) (gpu_row_remap_error_check== bool 0)
+      - record: node_nvidia_gpu_health_sm_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="SM"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  - record: node_xid_error_check
-    expr: (xid_error_check) * on (hostname, cluster_name) (xid_error_check)
+      - record: node_nvidia_gpu_health_inforom_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="INFOROM"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  - record: node_up_check
-    expr: (up{instance=~".*:9100$"}) * on (hostname, cluster_name) (up{instance=~".*:9100$"})
+      - record: node_nvidia_gpu_health_thermal_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="THERMAL"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
 
-  # combine them: this will be 1 only if *all* success‑flags are 1
-  - record: node_health_status
-    expr: |
-      (
-        node_rttcc_ok or node_up_check
-      )
-      *
-      (
-        node_oca_ver_ok or node_up_check
-      )
-      *
-      (
-        node_rdma_device_status_ok or node_up_check
-      )
-      *
-      (
-        node_check_bus_issue_count_ok or node_up_check
-      )
-      *
-      (
-        node_rdma_link_flapping_ok or node_up_check
-      )
-      *
-      (
-        node_ecc_error_check_ok or node_up_check
-      )
-      *
-      (
-        node_gpu_row_remap_error_check or node_up_check
-      )
-      *
-      (
-        node_xid_error_check or node_up_check
-      )
-      *
-      (
-        node_gpu_power_violation_ok or node_up_check
-      )
-      *
-      (
-        node_gpu_board_limit_violation_ok or node_up_check
-      )
-      *
-      (
-        node_gpu_thermal_violation_ok or node_up_check
-      )
-      *
-      (
-        node_gpu_sync_boost_violation_ok or node_up_check 
-      )
-      *
-      (
-        node_gpu_reliability_violation_ok or node_up_check
-      )
-      *
-      (
-        node_pcie_aer_correctable_errors_ok or node_up_check
-      )
-      *
-      (
-        node_pcie_aer_fatal_errors_ok or node_up_check
-      )
-      *
-      (
-        node_pcie_aer_nonfatal_errors_ok or node_up_check
-      )
-      *
-      (
-        node_pcie_bus_inaccessible_ok or node_up_check
-      )
-      *
-      (
-        node_pcie_bus_linkwidth_ok or node_up_check
-      )
-      *
-      (
-        node_memory_availability_ok or node_up_check
-      )
-      *
-      (
-        node_disk_free_ok or node_up_check
-      )
+      - record: node_nvidia_gpu_health_power_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="POWER"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
+
+      - record: node_nvidia_gpu_health_driver_ok
+        expr: |
+          min by (hostname, cluster_name, vendor) (DCGM_EXP_GPU_HEALTH_STATUS{health_watch="DRIVER"} == bool 0)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
+
+      # Combined DCGM health status (all watches must pass)
+      # Returns 1 (healthy) for nodes without DCGM 4.x (metric absent)
+      - record: node_nvidia_gpu_health_ok
+        expr: |
+          (
+            node_nvidia_gpu_health_pcie_ok
+            * node_nvidia_gpu_health_nvlink_ok
+            * node_nvidia_gpu_health_pmu_ok
+            * node_nvidia_gpu_health_mcu_ok
+            * node_nvidia_gpu_health_mem_ok
+            * node_nvidia_gpu_health_sm_ok
+            * node_nvidia_gpu_health_inforom_ok
+            * node_nvidia_gpu_health_thermal_ok
+            * node_nvidia_gpu_health_power_ok
+            * node_nvidia_gpu_health_driver_ok
+          )
+
+      # PCIe error checks
+      - record: node_pcie_aer_correctable_errors_ok
+        expr: min by (hostname, cluster_name, vendor) (increase(pcie_aer_correctable_error_count[5m]) == bool 0)
+
+      - record: node_pcie_aer_fatal_errors_ok
+        expr: min by (hostname, cluster_name, vendor) (increase(pcie_aer_fatal_error_count[5m]) == bool 0)
+
+      - record: node_pcie_aer_nonfatal_errors_ok
+        expr: min by(hostname, cluster_name, vendor) (increase(pcie_aer_nonfatal_error_count[5m]) == bool 0)
+
+      - record: node_pcie_bus_inaccessible_ok
+        expr: min by (hostname, cluster_name, vendor) (pcie_bus_inaccessible_status == bool 0)
+
+      - record: node_pcie_bus_linkwidth_ok
+        expr: min by (hostname, cluster_name, vendor) (pcie_bus_linkwidth_status == bool 0)
+
+      # Health checks via custom metrics
+      - record: node_rttcc_ok
+        expr: min by(hostname, cluster_name, vendor) (rttcc_status == bool 0)
+
+      - record: node_oca_ver_ok
+        expr: oca_version * on(hostname, cluster_name, vendor) oca_version
+
+      - record: node_rdma_device_status_ok
+        expr: min by(hostname, cluster_name, vendor) (rdma_device_status)
+
+      - record: node_check_bus_issue_count_ok
+        expr: (check_bus_issue_count == bool 0) * on (hostname, cluster_name, vendor) (check_bus_issue_count == bool 0)
+
+      - record: node_rdma_link_flapping_ok
+        expr: min by(hostname, cluster_name, vendor) (rdma_link_noflap)
+
+      #Replaced with DCGM
+      #- record: node_ecc_error_check_ok
+      #  expr: (gpu_ecc_error_check) * on (hostname, cluster_name, vendor) (gpu_ecc_error_check)
+
+      - record: node_gpu_count_ok
+        expr: (gpu_count) * on (hostname, cluster_name, vendor) (gpu_count)
+
+      #Replaced with DCGM
+      #- record: node_gpu_row_remap_error_check
+      #  expr: (gpu_row_remap_error_check== bool 0) * on (hostname, cluster_name, vendor) (gpu_row_remap_error_check== bool 0)
+
+      #Replaced with DCGM
+      #- record: node_xid_error_check
+      #  expr: (xid_error_check) * on (hostname, cluster_name, vendor) (xid_error_check)
+
+      - record: node_up_check
+        expr: (up{instance=~".*:9100$"}) * on (hostname, cluster_name, vendor) (up{instance=~".*:9100$"})
+
+      - record: active_nodes
+        expr: group by (hostname, cluster_name, vendor) (up{instance=~".*:9100$"} == 1 and (time() - timestamp(up{instance=~".*:9100$"}) < 300))
+
+      # AMD GPU ECC checks
+      - record: node_amd_ecc_correctable_ok
+        expr: |
+          (
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_correct_umc) < bool 100)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_correct_gfx) < bool 50)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_correct_xgmi_wafl) < bool 10)
+          ) or on(hostname, cluster_name, vendor) (amd_gpu_ecc_correct_total * 0 + 1)
+
+      - record: node_amd_ecc_uncorrectable_ok
+        expr: |
+          (
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_umc) == bool 0)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_gfx) == bool 0)
+            *
+            (max by (hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_xgmi_wafl) == bool 0)
+          ) or on(hostname, cluster_name, vendor) (amd_gpu_ecc_uncorrect_total * 0 + 1)
+
+      # AMD GPU health check
+      - record: node_amd_gpu_health_ok
+        expr: (min by (hostname, cluster_name, vendor) (amd_gpu_health) == bool 1) or on (hostname, cluster_name, vendor) (amd_gpu_health * 0 + 1)
+
+      - record: node_amd_gpu_power_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_ppt_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_power_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_power_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_socket_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_thermal_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_hbm_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_hbm_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_hbm_thermal_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_hbm_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_processor_hot_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_processor_hot_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_processor_hot_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_processor_hot_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_vr_thermal_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_vr_thermal_residency_accumulated[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_vr_thermal_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_vr_thermal_violation_percentage) < bool 50
+
+      - record: node_amd_gpu_current_violation_percentage
+        expr: avg by (hostname, cluster_name, vendor) (increase(amd_gpu_violation_current_accumulated_counter[5m]) / 300000000000) * 100
+
+      - record: node_amd_gpu_current_violation_ok
+        expr: min by (hostname, cluster_name, vendor) (node_amd_gpu_current_violation_percentage) < bool 50
+
+      # AMD PCIe health checks
+      - record: node_amd_pcie_link_speed_ok
+        expr: (min by (hostname, cluster_name, vendor) (amd_pcie_speed) >= bool 32) or on(hostname, cluster_name, vendor) (amd_pcie_speed * 0 + 1)
+
+      - record: node_amd_pcie_link_width_ok
+        expr: (min by (hostname, cluster_name, vendor) (amd_pcie_bandwidth) >= bool 16) or on(hostname, cluster_name, vendor) (amd_pcie_bandwidth * 0 + 1)
+
+      - record: node_amd_pcie_replay_ok
+        expr: (min by (hostname, cluster_name, vendor) (increase(amd_pcie_replay_count[5m])) == bool 0) or on(hostname, cluster_name, vendor) (amd_pcie_replay_count * 0 + 1)
+
+      - record: node_amd_pcie_nack_ok
+        expr: (min by (hostname, cluster_name, vendor) (increase(amd_pcie_nack_sent_count[5m])) == bool 0) or on(hostname, cluster_name, vendor) (amd_pcie_nack_sent_count * 0 + 1)
+
+      - record: node_amd_pcie_recovery_ok
+        expr: (min by (hostname, cluster_name, vendor) (increase(amd_pcie_recovery_count[5m])) < bool 5) or on(hostname, cluster_name, vendor) (amd_pcie_recovery_count * 0 + 1)
+
+      # DCGM metrics based checks, aligned to 3 categories
+
+      # 1) Critical XIDs (CONTACT_SUPPORT, CHECK_MECHANICALS)
+      - record: node_gpu_xid_severity_critical
+        expr: |
+          DCGM_FI_DEV_XID_ERRORS{err_code=~"1|2|3|4|5|6|7|9|10|12|15|16|17|18|19|20|21|22|23|24|26|27|28|29|30|33|34|35|36|42|47|49|50|51|52|53|54|55|56|57|58|59|61|72|73|74|76|77|78|81|87|90|91|111|112|113|114|115|116|117|118|122|123|124|125|138|142"} > 0
+
+      # 2) GPU reset / reboot XIDs (RESET_GPU, RESTART_BM, RESTART_VM)
+      - record: node_gpu_xid_severity_gpu_reset_reboot
+        expr: |
+          DCGM_FI_DEV_XID_ERRORS{err_code=~"46|62|64|79|95|109|110|119|120|136|140|143"} > 0
+
+      # 3) Warning XIDs (everything else in your catalog)
+      - record: node_gpu_xid_severity_warning
+        expr: |
+          DCGM_FI_DEV_XID_ERRORS{err_code=~"8|11|13|14|25|31|32|37|38|39|40|41|43|44|45|48|60|63|66|67|68|69|70|71|72? (fill full list from computed set)"} > 0
+
+      - record: node_gpu_xid_health_status
+        expr: |
+          (
+            (node_gpu_xid_severity_critical > 0) * 3
+            or
+            (node_gpu_xid_severity_gpu_reset_reboot > 0) * 2
+            or
+            (node_gpu_xid_severity_warning > 0) * 1
+            or
+            0 * DCGM_FI_DEV_XID_ERRORS
+          )
+
+      - record: node_xid_severity_status
+        expr: max by (hostname, cluster_name, vendor) (node_gpu_xid_health_status)
+
+      # OK if no critical or reset_reboot; allow warnings
+      - record: node_xid_severity_ok
+        expr: |
+          (node_xid_severity_status < bool 2)
+          or on(hostname, cluster_name, vendor) (active_nodes * 0 + 1)
+
+      # Cluster-level counts by severity
+      - record: cluster_xid_gpu_count_by_severity
+        expr: |
+          count by (cluster_name, severity) (
+            (node_gpu_xid_severity_critical > 0)
+            or (node_gpu_xid_severity_gpu_reset_reboot > 0)
+            or (node_gpu_xid_severity_warning > 0)
+          )
+
+      - record: cluster_xid_gpu_unhealthy_percentage
+        expr: |
+          (
+            count by (cluster_name) (node_gpu_xid_health_status > 0) /
+            count by (cluster_name) (DCGM_FI_DEV_XID_ERRORS >= 0)
+          ) * 100
+
+      - record: node_gpu_xid_persistent_error
+        expr: (DCGM_FI_DEV_XID_ERRORS > 0)
+              and (changes(DCGM_FI_DEV_XID_ERRORS[1h]) == 0)
+
+      # DBE: any new double-bit ECC error is considered a failure
+      - record: node_gpu_ecc_dbe_errors
+        expr: increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[5m]) or increase(DCGM_FI_DEV_ECC_DBE_AGG_TOTAL[5m])
+
+      # SBE: use rate; high sustained rate is unhealthy
+      - record: node_gpu_ecc_sbe_errors
+        expr: rate(DCGM_FI_DEV_ECC_SBE_VOL_TOTAL[1h]) or rate(DCGM_FI_DEV_ECC_SBE_AGG_TOTAL[1h])
+
+      # Node-level ECC health status (worst case across all GPUs)
+      - record: node_ecc_dbe_status
+        expr: max by (hostname, cluster_name, vendor) (node_gpu_ecc_dbe_errors)
+
+      - record: node_ecc_sbe_status
+        expr: max by (hostname, cluster_name, vendor) (node_gpu_ecc_sbe_errors)
+
+      - record: node_ecc_dbe_ok
+        expr: (node_ecc_dbe_status == bool 0) or on(hostname, cluster_name, vendor) (node_ecc_dbe_status * 0 + 1)
+
+      # OK if SBE rate is below 1 error/hour (per worst GPU on node)
+      - record: node_ecc_sbe_ok
+        expr: |
+          (node_ecc_sbe_status < bool 1) or on(hostname, cluster_name, vendor) (node_ecc_sbe_status * 0 + 1)
+
+      # Row remap health
+      - record: node_gpu_row_remap_failure
+        expr: DCGM_FI_DEV_ROW_REMAP_FAILURE > 0
+
+      - record: node_gpu_row_remap_pending
+        expr: DCGM_FI_DEV_ROW_REMAP_PENDING > 0
+
+      # Uncorrectable remap status:
+      # 2 = new uncorrectable remap in last 24h
+      # 1 = has uncorrectable remaps but none in last 24h
+      # 0 = no uncorrectable remaps
+      - record: node_gpu_uncorrectable_remapped_rows_status
+        expr: |
+          (
+            (increase(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS[24h]) > 0) * 2
+            or
+            (DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS > 0) * 1
+            or
+            0 * DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS
+          )
+
+      # Correctable remap status:
+      # 1 = any new correctable remap in last 24h
+      # 0 = no new correctable remaps in last 24h
+      - record: node_gpu_correctable_remapped_rows_status
+        expr: |
+          (
+            (increase(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS[24h]) > 0) * 1
+            or
+            0 * DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS
+          )
+
+      - record: node_row_remap_failure_ok
+        expr: |
+          (max by (hostname, cluster_name, vendor) (DCGM_FI_DEV_ROW_REMAP_FAILURE) == bool 0) or on(hostname, cluster_name, vendor) (DCGM_FI_DEV_ROW_REMAP_FAILURE * 0 + 1)
+
+      - record: node_row_remap_pending_ok
+        expr: |
+          (max by (hostname, cluster_name, vendor) (DCGM_FI_DEV_ROW_REMAP_PENDING) == bool 0) or on(hostname, cluster_name, vendor) (DCGM_FI_DEV_ROW_REMAP_PENDING * 0 + 1)
+
+      # OK if there were no new uncorrectable remaps in the last 24h
+      - record: node_uncorrectable_remapped_rows_ok
+        expr: |
+          (max by (hostname, cluster_name, vendor) (increase(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS[24h])) == bool 0)
+          or on(hostname, cluster_name, vendor) (DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS * 0 + 1)
+
+      # OK if correctable remap rate is very low (< 0.1 rows/hour); not used in node_health_status
+      - record: node_correctable_remapped_rows_ok
+        expr: |
+          (max by (hostname, cluster_name, vendor) (rate(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS[1h])) < bool 0.1)
+          or on(hostname, cluster_name, vendor) (DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS * 0 + 1)
+
+      # combine them: this will be 1 only if *all* success-flags are 1
+      - record: node_health_status
+        expr: |
+          (
+          (
+            node_rttcc_ok or node_up_check
+          )
+          *
+          (
+            node_oca_ver_ok or node_up_check
+          )
+          *
+          (
+            node_rdma_device_status_ok or node_up_check
+          )
+          *
+          (
+            node_check_bus_issue_count_ok or node_up_check
+          )
+          *
+          (
+            node_rdma_link_flapping_ok or node_up_check
+          )
+          *
+          (
+            node_ecc_dbe_ok or node_up_check
+          )
+          *
+          (
+            node_ecc_sbe_ok or node_up_check
+          )
+          *
+          (
+            node_gpu_count_ok or node_up_check
+          )
+          *
+          (
+            node_row_remap_pending_ok or node_up_check
+          )
+          *
+          (
+            node_row_remap_failure_ok or node_up_check
+          )
+          *
+          (
+            node_uncorrectable_remapped_rows_ok or node_up_check
+          )
+          *
+          (
+            node_xid_severity_ok or node_up_check
+          )
+          *
+          (
+            node_pcie_aer_correctable_errors_ok or node_up_check
+          )
+          *
+          (
+            node_pcie_aer_fatal_errors_ok or node_up_check
+          )
+          *
+          (
+            node_pcie_aer_nonfatal_errors_ok or node_up_check
+          )
+          *
+          (
+            node_pcie_bus_inaccessible_ok or node_up_check
+          )
+          *
+          (
+            node_pcie_bus_linkwidth_ok or node_up_check
+          )
+          *
+          (
+            node_memory_availability_ok or node_up_check
+          )
+          *
+          (
+            node_amd_gpu_health_ok or node_up_check
+          )
+          *
+          (
+            node_amd_ecc_uncorrectable_ok or node_up_check
+          )
+          *
+          (
+            node_amd_pcie_link_speed_ok or node_up_check
+          )
+          *
+          (
+            node_amd_pcie_link_width_ok or node_up_check
+          )
+          *
+          (
+            node_nvidia_gpu_health_ok or node_up_check
+          )
+          *
+          (
+            node_disk_free_ok or node_up_check
+          )
+          ) and on(hostname, cluster_name, vendor) active_nodes

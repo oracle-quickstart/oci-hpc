@@ -1,0 +1,761 @@
+# NHC Configuration file generated for node shape: {{ nhc_node_shape }}
+
+*||check_fs_mount_rw -f "/"
+*||check_fs_mount_rw -f "/run"
+*||check_fs_mount_rw -f "/boot/efi"
+*||check_fs_mount_rw -f "/dev/shm"
+
+
+#----------------------------------------------
+# Filesystem Checks (based on nhc_mounts)
+#----------------------------------------------
+{% for m in nhc_mounts %}
+{% if m.options is search('(^|,)ro($|,)') %}
+*||check_fs_mount_ro -t "{{ m.fstype }}" -s "{{ m.device }}" -f "{{ m.mount }}"
+{% else %}
+*||check_fs_mount_rw -t "{{ m.fstype }}" -s "{{ m.device }}" -f "{{ m.mount }}"
+{% endif %}
+*||check_fs_used {{ m.mount }} 90%
+*||check_fs_iused {{ m.mount }} 95%
+{% endfor %}
+
+
+{% if 'BM.GPU.B4.8' in nhc_node_shape %}
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 254
+{% else %}
+*||check_hw_cpuinfo 2 128 128
+{% endif %}
+
+*||check_hw_physmem 2147483648kB 2147483648kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 512
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+*||check_hw_ib 50 mlx5_0:1
+*||check_hw_ib 100 mlx5_5:1
+*||check_hw_ib 100 mlx5_6:1
+*||check_hw_ib 100 mlx5_7:1
+*||check_hw_ib 100 mlx5_8:1
+*||check_hw_ib 100 mlx5_1:1
+*||check_hw_ib 100 mlx5_2:1
+*||check_hw_ib 100 mlx5_3:1
+*||check_hw_ib 100 mlx5_4:1
+*||check_hw_ib 100 mlx5_14:1
+*||check_hw_ib 100 mlx5_15:1
+*||check_hw_ib 100 mlx5_16:1
+*||check_hw_ib 100 mlx5_17:1
+*||check_hw_ib 100 mlx5_9:1
+*||check_hw_ib 100 mlx5_10:1
+*||check_hw_ib 100 mlx5_11:1
+*||check_hw_ib 100 mlx5_12:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+#----------------------------------------------
+{% elif 'BM.GPU.A100-v2.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.A100-v2.8 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 254
+{% else %}
+*||check_hw_cpuinfo 2 128 128
+{% endif %}
+
+*||check_hw_physmem 2147483648kB 2147483648kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 512
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+*||check_hw_ib 100 mlx5_5:1
+*||check_hw_ib 100 mlx5_6:1
+*||check_hw_ib 100 mlx5_7:1
+*||check_hw_ib 100 mlx5_8:1
+*||check_hw_ib 100 mlx5_1:1
+*||check_hw_ib 100 mlx5_2:1
+*||check_hw_ib 100 mlx5_3:1
+*||check_hw_ib 100 mlx5_4:1
+*||check_hw_ib 100 mlx5_14:1
+*||check_hw_ib 100 mlx5_15:1
+*||check_hw_ib 100 mlx5_16:1
+*||check_hw_ib 100 mlx5_17:1
+*||check_hw_ib 100 mlx5_9:1
+*||check_hw_ib 100 mlx5_10:1
+*||check_hw_ib 100 mlx5_11:1
+*||check_hw_ib 100 mlx5_12:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+#----------------------------------------------
+{% elif 'BM.GPU.A10.4' in nhc_node_shape %}
+# Add checks specific to BM.GPU.A10.4 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 64 128
+{% else %}
+*||check_hw_cpuinfo 2 64 64
+{% endif %}
+
+*||check_hw_physmem 1073741824kB 1073741824kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 256
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU4.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU4.8 compute shape here.
+
+ {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 64 128
+{% else %}
+*||check_hw_cpuinfo 2 64 64
+{% endif %}
+
+*||check_hw_physmem 2147483648kB 2147483648kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 256
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+*||check_hw_ib 50 mlx5_4:1
+*||check_hw_ib 100 mlx5_0:1
+*||check_hw_ib 100 mlx5_2:1
+*||check_hw_ib 100 mlx5_6:1
+*||check_hw_ib 100 mlx5_8:1
+*||check_hw_ib 100 mlx5_10:1
+*||check_hw_ib 100 mlx5_12:1
+*||check_hw_ib 100 mlx5_14:1
+*||check_hw_ib 100 mlx5_16:1
+*||check_hw_ib 100 mlx5_1:1
+*||check_hw_ib 100 mlx5_3:1
+*||check_hw_ib 100 mlx5_7:1
+*||check_hw_ib 100 mlx5_9:1
+*||check_hw_ib 100 mlx5_11:1
+*||check_hw_ib 100 mlx5_13:1
+*||check_hw_ib 100 mlx5_15:1
+*||check_hw_ib 100 mlx5_17:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.H100.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.H100.8 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 112 224
+{% else %}
+*||check_hw_cpuinfo 2 112 112
+{% endif %}
+
+*||check_hw_physmem 2147483648kB 2147483648kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 448
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+*||check_hw_ib 200 mlx5_0:1
+*||check_hw_ib 200 mlx5_1:1
+*||check_hw_ib 200 mlx5_3:1
+*||check_hw_ib 200 mlx5_4:1
+*||check_hw_ib 200 mlx5_5:1
+*||check_hw_ib 200 mlx5_6:1
+*||check_hw_ib 200 mlx5_7:1
+*||check_hw_ib 200 mlx5_8:1
+*||check_hw_ib 200 mlx5_9:1
+*||check_hw_ib 200 mlx5_10:1
+*||check_hw_ib 200 mlx5_12:1
+*||check_hw_ib 200 mlx5_13:1
+*||check_hw_ib 200 mlx5_14:1
+*||check_hw_ib 200 mlx5_15:1
+*||check_hw_ib 200 mlx5_16:1
+*||check_hw_ib 200 mlx5_17:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme8n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme9n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme10n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme11n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme12n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme13n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme14n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme15n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.H200.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.H200.8 compute shapes here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 112 224
+{% else %}
+*||check_hw_cpuinfo 2 112 112
+{% endif %}
+
+*||check_hw_physmem 3221225472kB 3221225472kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 448
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_4:1
+*||check_hw_ib 400 mlx5_5:1
+*||check_hw_ib 400 mlx5_6:1
+*||check_hw_ib 400 mlx5_9:1
+*||check_hw_ib 400 mlx5_10:1
+*||check_hw_ib 400 mlx5_11:1
+
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.B200.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.B200.8 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 256
+{% else %}
+*||check_hw_cpuinfo 2 128 128
+{% endif %}
+
+*||check_hw_physmem 4294967296kB 4294967296kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 512
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_4:1
+*||check_hw_ib 400 mlx5_5:1
+*||check_hw_ib 400 mlx5_6:1
+*||check_hw_ib 400 mlx5_9:1
+*||check_hw_ib 400 mlx5_10:1
+*||check_hw_ib 400 mlx5_11:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.B300.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.B300.8 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 256
+{% else %}
+*||check_hw_cpuinfo 2 128 128
+{% endif %}
+
+*||check_hw_physmem 4294967296kB 4294967296kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+*||check_hw_eth rdma8
+*||check_hw_eth rdma9
+*||check_hw_eth rdma10
+*||check_hw_eth rdma11
+*||check_hw_eth rdma12
+*||check_hw_eth rdma13
+*||check_hw_eth rdma14
+*||check_hw_eth rdma15
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 448
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
+*||check_hw_ib 400 mlx5_9:1
+*||check_hw_ib 400 mlx5_10:1
+*||check_hw_ib 400 mlx5_11:1
+*||check_hw_ib 400 mlx5_12:1
+*||check_hw_ib 400 mlx5_13:1
+*||check_hw_ib 400 mlx5_14:1
+*||check_hw_ib 400 mlx5_16:1
+*||check_hw_ib 400 mlx5_17:1
+*||check_hw_ib 400 mlx5_18:1
+*||check_hw_ib 400 mlx5_19:1
+*||check_hw_ib 400 mlx5_20:1
+*||check_hw_ib 400 mlx5_21:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.GB200.4' in nhc_node_shape or
+        'BM.GPU.GB200-v2.4' in nhc_node_shape or
+        'BM.GPU.GB200-v3.4' in nhc_node_shape %}
+# Add checks specific to BM.GPU.GB200 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 144 288
+{% else %}
+*||check_hw_cpuinfo 2 144 144
+{% endif %}
+
+*||check_hw_physmem 1006632960kB 1006632960kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 576
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_4:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.GB300.4' in nhc_node_shape %}
+# Add checks specific to BM.GPU.GB300 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 144 288
+{% else %}
+*||check_hw_cpuinfo 2 144 144
+{% endif %}
+
+*||check_hw_physmem 1006632960kB 1006632960kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 576
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_2:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_5:1
+*||check_hw_ib 400 mlx5_6:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
+
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.MI300X.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.MI300X compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 112 224
+{% else %}
+*||check_hw_cpuinfo 2 112 112
+{% endif %}
+
+*||check_hw_physmem 2147483648kB 2147483648kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 448
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_2:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_4:1
+*||check_hw_ib 400 mlx5_5:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
+*||check_hw_ib 400 mlx5_9:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.MI355X.8' in nhc_node_shape or
+        'BM.GPU.MI355X-v0.8' in nhc_node_shape or
+        'BM.GPU.MI355X-v1.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.MI355 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 256
+{% else %}
+*||check_hw_cpuinfo 2 128 128
+{% endif %}
+
+*||check_hw_physmem 3221225472kB 3221225472kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 512
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_2:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_4:1
+*||check_hw_ib 400 mlx5_5:1
+*||check_hw_ib 400 mlx5_6:1
+*||check_hw_ib 400 mlx5_7:1
+
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.L40S-NC.4' in nhc_node_shape %}
+# Add checks specific to BM.GPU.L40S-NC.4 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 112 224
+{% else %}
+*||check_hw_cpuinfo 2 112 112
+{% endif %}
+
+*||check_hw_physmem 1073741824kB 1073741824kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 448
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+{% else %}
+# -------------------------------------------------
+# Generic NHC checks for non-GPU shapes
+# -------------------------------------------------
+
+# --- CPU ---
+*||check_hw_cpuinfo {{ nhc_cpu_sockets }} {{ nhc_cpu_cores_per_socket }} {{ nhc_expected_threads }}
+
+
+# --- Memory ---
+*||check_hw_physmem {{ nhc_expected_mem_kb }}kB {{ nhc_expected_mem_kb }}kB 3%
+
+
+# --- Ethernet checks (auto-detected NICs) ---
+{% for iface in ansible_facts["interfaces"] %}
+{% if iface not in ['lo', 'docker0'] %}
+*||check_hw_eth {{ iface }}
+{% endif %}
+{% endfor %}
+
+
+{% for dev in nhc_nvme_devices %}
+*||check_cmd_output -e "sudo nvme smart-log /dev/{{ dev }}" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+{% endfor %}
+
+
+# --- Load average ---
+*||check_ps_loadavg {{ nhc_load_threshold }}
+
+# --- Required services ---
+*||check_ps_service -r rpcbind
+
+
+
+{% endif %}

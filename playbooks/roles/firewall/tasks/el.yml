@@ -1,7 +1,21 @@
 ---
-
-- name: disable firewalld
-  service: 
+- name: Disable firewalld
+  ansible.builtin.service:
     name: firewalld
     state: stopped
-    enabled: no
+    enabled: false
+
+- name: Set SELinux to permissive at runtime
+  ansible.builtin.command: setenforce 0
+  when:
+    - ansible_facts['selinux'] is defined
+    - ansible_facts['selinux'] != false
+    - ansible_facts['selinux']['status'] == 'enabled'
+  become: true
+
+- name: Persist SELinux in permissive mode (optional)
+  ansible.builtin.replace:
+    path: /etc/selinux/config
+    regexp: "^SELINUX=.*"
+    replace: "SELINUX=permissive"
+  become: true

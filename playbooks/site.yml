@@ -1,361 +1,143 @@
-- hosts: compute
-  become: true
-  vars: 
-    initial: true
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
-  gather_facts: true
+---
+- hosts: controller
   tasks:
-    - include_role:
-        name: hostname
-      when: change_hostname  | default(false) | bool
+    - name: Remove legacy InfluxData repo (without signed-by)
+      become: true
+      ansible.builtin.apt_repository:
+        repo: "deb https://repos.influxdata.com/debian stable main"
+        state: absent
+      when: ansible_facts['distribution'] == 'Ubuntu'
 
-# for ubuntu, on all compute nodes, run --fix-broken install
-- hosts: compute, login, monitoring
+- hosts: controller
   become: true
+  vars:
+    export_path: "/config"
+    export_name: "config"
+    local_path: "/config"
   tasks:
     - include_role:
-        name: fix_broken
-      when: ansible_os_family == 'Debian'
+        name: privilege_group
+    - include_role:
+        name: nfs-server
+      when: create_fss == "existing"
 
 - hosts: controller, slurm_backup
   become: true
-  tasks:
-    - include_role: 
-        name: yaml
-        
-- hosts: all
-  become: true
-  vars: 
-    destroy: false
-    initial: true
   gather_facts: true
-  roles: 
+  roles:
+    - yaml
     - oci-cloud-agent
     - privilege_group
     - oci-legacy
     - packages
-    - firewall 
+    - firewall
     - oci-hostname
     - ssh
     - limits
-    - mpi-hostfiles
-    - etc-hosts
     - boot-volume
     - mpivars
-    - oom-adjust
 
-- hosts: all
+- hosts: controller, slurm_backup
   become: true
-  tasks: 
-    - include_role: 
+  tasks:
+    - include_role:
         name: localdisk
       when: localdisk | default(true) | bool
-    - include_role: 
+    - include_role:
         name: healthchecks
-
-- hosts: compute
-  become: true
-  gather_facts: true
-  tasks: 
-    - include_role: 
-        name: nvidia_peermem
 
 - hosts: controller
   become: true
   vars:
     export_path: "/home"
     export_name: "home"
-    local_path:  "/home"
+    local_path: "/home"
   tasks:
     - include_role:
         name: nfs-server
-      when: home_nfs|bool and (not home_fss|bool)
+      when: shared_home == "nfs"
 
 - hosts: controller
   become: true
   vars:
     tmp_home: "/tmp/home_tmp/"
-    remote_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}{% endif %}"
+    remote_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}{% endif %}"
   tasks:
     - include_role:
         name: nfs-client
       vars:
-        local_path: "{{tmp_home}}"
+        local_path: "{{ tmp_home }}"
         export_host: "{{ nfs_source_IP }}"
         export_path: "{{ remote_path }}"
         options: ""
         lock: "none"
-      when: add_nfs|bool and home_fss|bool
+      when: add_nfs | bool and shared_home == "fss"
     - include_role:
         name: fss-home
-      when: add_nfs|bool and home_fss|bool
-
-- hosts: controller, slurm_backup, login, monitoring
-  become: true
-  tasks:
-    - include_role: 
-        name: passwords
-
-- hosts: controller, slurm_backup, login, compute, monitoring
-  become: true
-  tasks:
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ nfs_source_IP }}"
-        export_path: "{% if create_fss|bool %}/home{% else%}{{nfs_source_path}}/home{% endif %}"
-        options: ""
-        lock: "none"
-      when: add_nfs|bool and home_fss|bool and not (manual_multiple_mount_target|default(false)|bool)
-
-- hosts: controller, slurm_backup, login, compute, monitoring
-  become: true
-  tasks: 
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "{{ nfs_target_path }}"
-        export_host: "{{ nfs_source_IP }}"
-        export_path: "{{ nfs_source_path }} "
-        options: "{{ nfs_options }}"
-        lock: "none"
-      when: add_nfs|default(false)|bool and not (manual_multiple_mount_target|default(false)|bool)
-
-- hosts: controller, slurm_backup, login, compute, monitoring
-  become: true
-  tasks: 
-    - include_role:
-        name: multiple-mount-target
-      vars:
-        cmd_mmt: "mmt.py --current {} --new {{ [groups['controller'], groups['login'], groups['slurm_backup'], groups['monitoring'], groups['compute']] | flatten | unique }} --mount_targets {{ nfs_list_of_mount_target_IPs }} --nfs_path {{nfs_source_path}}"
-        home_fss_var: "{% if home_fss|bool and home_nfs|bool %}true{% else%}false{% endif %}"
-        local_path_home: "/home"
-        export_path_home: "/home"
-        options_home: ""
-        local_path: "{{ nfs_target_path }}"
-        export_path: "{{ nfs_source_path }} "
-        options: "{{ nfs_options }}"
-        lock: "none"
-      when: add_nfs|default(false)|bool and create_fss|bool and mount_target_count > 1 and manual_multiple_mount_target|default(false)|bool
-
-- hosts: controller
-  become: true
-  tasks:
-    - include_role: 
-        name: ssl
-      when: ldap|default(true)|bool
-    - include_role: 
-        name: openldap
-      when: ldap|default(true)|bool
-    - include_role: 
-        name: cluster-cli
-      when: ldap|default(true)|bool
-    - include_role:
-        name: no_instance_principal
-      when: not inst_prin|bool 
-
-- hosts: compute, login, monitoring
-  become: true
-  tasks:
-    - include_role:
-        name: home_nfs
-      when: home_nfs|default(true)|bool or home_fss|bool
-    - include_role:
-        name: nfs-client
-      vars:
-        local_path: "/home"
-        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "/home"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        lock: "all"
-      when: home_nfs|bool and (not home_fss|bool)
-
-- hosts: controller
-  become: true
-  vars: 
-    export_path: "{{ cluster_nfs_path }}"
-    export_name: "cluster"
-    local_path:  "/export/cluster"
-    iscsi_ip: "{{ controller_mount_ip }}"
-  tasks:
-    - include_role: 
-        name: iscsi
-      when: controller_block|default(false)|bool
-    - include_role: 
-        name: nfs-server
-      when: cluster_nfs|default(true)|bool
-    - include_role: 
-        name: mysql
-
-- hosts: slurm_backup
-  become: true
-  vars:
-    iscsi_ip: "{{ controller_mount_ip }}"
-    local_path: "/mnt/nfs_backup"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: controller_block|default(false)|bool
-
-- hosts: login
-  become: true
-  vars:
-    iscsi_ip: "{{ login_mount_ip }}"
-    local_path: "/mnt/block"
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: login_block|default(false)|bool
-
-- hosts: nfs
-  become: true
-  vars:
-     export_path: "{{ scratch_nfs_path }}"
-     export_name: "scratch"
-     local_path:  "/mnt/localdisk/nfs"
-     iscsi_ip: "{{ cluster_mount_ip }}"
-
-  tasks: 
-    - include_role: 
-        name: iscsi
-      when: scratch_nfs_type == "block" and scratch_nfs|default(true)|bool
-    - include_role: 
-        name: nfs-server
-      when: scratch_nfs|default(true)|bool
-
-- hosts: all
-  become: true
-  tasks: 
-    - include_role: 
-        name: nfs-client
-      vars: 
-        local_path: "{{ cluster_nfs_path }}"
-        export_host: "{{ hostvars[groups['controller'][0]]['ansible_default_ipv4']['address'] }}"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        export_path: "/export/cluster"
-        lock: "all"
-      when: cluster_nfs|default(true)|bool
-    - include_role: 
-        name: nfs-client
-      vars: 
-        local_path: "{{ scratch_nfs_path }}"
-        export_host: "{{ hostvars[groups['nfs'][0]]['ansible_default_ipv4']['address'] }}"
-        export_path: "/mnt/localdisk/nfs"
-        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
-        lock: "none" 
-      when: scratch_nfs|default(true)|bool and ( (autoscaling|default(true)|bool and 'compute' in group_names) or not autoscaling|default(true)|bool ) 
-
-- hosts: all
-  become: true
-  tasks: 
-    - include_role: 
-        name: sssd
-      when: ldap|default(true)|bool
-
-- hosts: compute
-  become: true
-  gather_facts: true
-  tasks: 
-    - include_role: 
-        name: hyperthreading
-      when: not hyperthreading|default(false)|bool
-    - include_role: 
-        name: nccl-conf
-      when: cluster_network|bool
-
-- hosts: all,!monitoring
-  tasks: 
-    - include_role: 
-        name: metrics-exporter
-      when: cluster_monitoring|default(false)|bool
-
-- hosts: controller
-  tasks:
-    - include_role:
-        name: oci-metrics
-      when: cluster_monitoring|default(false)|bool
-
-- hosts: monitoring
-  tasks: 
-    - include_role: 
-        name: grafana
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) 
-
-- hosts: controller
-  tasks: 
-    - include_role: 
-        name: grafana
-      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) 
-
-- hosts: all
-  vars:
-    initial: true
-  tasks: 
-    - include_role: 
-        name: prometheus
-      when: cluster_monitoring|default(false)|bool
-
-- hosts: controller
-  tasks: 
-    - include_role: 
-        name: autoscaling_mon
-      when: autoscaling_monitoring|default(false)|bool
-    - include_role: 
-        name: cron
-
-- hosts: compute
-  become: true
-  vars:
-    enroot_top_path: "{{ nvme_path }}/enroot/"
-  tasks:
-    - include_role: 
-        name: docker
-      when: enroot|default(true)|bool
-    - include_role: 
-        name: nvidia-container
-      when: enroot|default(true)|bool
-    - include_role: 
-        name: nvidia-enroot
-      when: enroot|default(true)|bool
-    - include_role:
-        name: tuned
-
-- hosts: all
-  become: true
-  tasks: 
-    - include_role: 
-        name: fix_ldap
-      when: ldap|default(true)|bool
-
-- hosts: all
-  vars:
-    destroy: false
-    initial: true
-    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
-    resize: false
-    enroot_top_path: "{{ nvme_path }}/enroot/"
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
-  tasks: 
-    - include_role: 
-        name: rack-aware
-      when: rack_aware|default(false)|bool
-    - include_role: 
-        name: spack
-      when: spack|default(false)|bool
-    - include_role: 
-        name: slurm
-      when: slurm|default(false)|bool
+      when: add_nfs | bool and shared_home == "fss"
 
 - hosts: controller, slurm_backup
+  become: true
   tasks:
     - include_role:
-        name: slurm_rest_api
-      when: slurm|default(false)|bool
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}/home{% endif %}"
+        options: ""
+        lock: "none"
+      when: add_nfs | bool and shared_home == "fss"
+    - include_role:
+        name: passwords
 
-- hosts: compute, controller, login, slurm_backup
+- hosts: controller, slurm_backup
+  become: true
+  tasks:
+    - include_role:
+        name: ssl
+      when: ldap | default(true) | bool
+    - include_role:
+        name: openldap
+      when: ldap | default(true) | bool
+    - include_role:
+        name: cluster-cli
+      when: ldap | default(true) | bool
+
+- hosts: controller
+  become: true
+  tasks:
+    - include_role:
+        name: mysql
+
+- hosts: controller, slurm_backup
+  become: true
+  tasks:
+    - include_role:
+        name: nfs-client
+      vars:
+        local_path: "{{ nfs_target_path }}"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{{ nfs_source_path }} "
+        options: "{{ nfs_options }}"
+        lock: "none"
+      when: add_nfs | default(false) | bool
+
+- hosts: controller, slurm_backup
+  become: true
+  tasks:
+    - include_role:
+        name: sssd
+      when: ldap | default(true) | bool
+
+- hosts: controller, slurm_backup
+  become: true
+  tasks:
+    - include_role:
+        name: fix_ldap
+      when: ldap | default(true) | bool
+
+- hosts: controller, slurm_backup
   become: true
   tasks:
     - include_role:
@@ -364,10 +146,97 @@
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+        download_path: "/config/3rdparty"
         local_path: "{{ lfs_target_path }}"
         export_host: "{{ lfs_source_IP }}"
         options: "{{ lfs_options }}"
         export_path: "{{ lfs_source_path }}"
         lock: "none"
-      when: add_lfs|default(false)|bool
+      when: add_lfs | default(false) | bool
+
+- hosts: controller
+  become: true
+  tasks:
+    - include_role:
+        name: mgmt
+    - include_role:
+        name: queue_write
+
+- hosts: controller, slurm_backup
+  vars:
+    slurm_mode: "controller"
+    resize: false
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+  tasks:
+    - include_role:
+        name: rack-aware
+    - include_role:
+        name: spack
+      when: spack | default(false) | bool
+    - include_role:
+        name: slurm
+      when: slurm | default(false) | bool
+
+- hosts: controller, slurm_backup
+  vars:
+    compute_node: false
+  tasks:
+    - include_role:
+        name: metrics-exporter
+    - include_role:
+        name: oci-metrics
+      when: cluster_monitoring | default(false) | bool
+
+- hosts: controller, slurm_backup
+  tasks:
+    - include_role:
+        name: slurm_rest_api
+      when: slurm | default(false) | bool
+
+- hosts: monitoring
+  tasks:
+    - include_role:
+        name: wait_for_cloud_init
+    - include_role:
+        name: grafana
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length > 0)
+
+# New role to clean old tmp dir files
+- hosts: all
+  become: true
+  tasks:
+    - include_role:
+        name: clean_tmp
+
+- hosts: controller
+  tasks:
+    - include_role:
+        name: grafana
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length == 0)
+
+- hosts: monitoring
+  tasks:
+    - include_role:
+        name: oci-metrics-telegraf
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length > 0) and ((metrics_stream_ocid | default('')) | length > 0)
+
+- hosts: controller
+  tasks:
+    - include_role:
+        name: oci-metrics-telegraf
+      when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length == 0) and ((metrics_stream_ocid | default('')) | length > 0)
+
+- hosts: controller, monitoring
+  tasks:
+    - include_role:
+        name: prometheus
+      when: cluster_monitoring | default(false) | bool
+
+- hosts: controller, slurm_backup
+  become: true
+  vars:
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+    http_server_status: "configured"
+  gather_facts: true
+  roles:
+    - http_server

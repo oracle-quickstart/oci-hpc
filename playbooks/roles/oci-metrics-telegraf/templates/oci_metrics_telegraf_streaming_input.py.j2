@@ -1,0 +1,722 @@
+#!/usr/bin/env python3
+"""
+OCI Streaming to Telegraf InfluxDB Line Protocol Converter
+
+This script continuously consumes metrics from an Oracle Cloud Infrastructure (OCI) Streaming stream
+and outputs them in the Telegraf InfluxDB line protocol format for consumption by Telegraf.
+
+The script implements a multi-threaded consumer architecture that:
+- Reads raw metrics from one or more stream partitions
+- Aggregates metrics by minute intervals with configurable windows
+- Applies appropriate aggregation functions (sum, mean, count) per metric type
+- Outputs aggregated metrics to stdout in InfluxDB line protocol format
+
+Architecture:
+    1. Consumer threads read messages from OCI Streaming partitions
+    2. Raw metrics are placed in a shared queue
+    3. Aggregator thread processes metrics from the queue
+    4. Metrics are aggregated by timestamp minute and dimensions
+    5. Aggregated metrics are emitted when they fall outside the aggregation window
+    6. Timeout mechanism ensures stale metrics are emitted
+
+Environment Variables:
+    OCI_CONFIG_PATH: Path to OCI configuration file (optional). If not set, instance principal
+                     authentication will be attempted.
+    OCI_PROFILE: OCI profile name to use from config file (default: "DEFAULT")
+    GROUP_NAME: Consumer group name for stream consumption (default: "telegraf")
+    MESSAGES_ENDPOINT: Streaming service endpoint URL (optional, auto-discovered if not set)
+    STREAM_OCID: OCID of the stream to consume from (default: Jinja2 template variable)
+    OCI_REGION: OCI region identifier. If not set, will be auto-detected from instance metadata.
+    METRIC_AGGREGATION_WINDOW_MINUTES: Window size for metric aggregation in minutes (default: 2)
+    METRIC_AGGREGATION_TIMEOUT: Timeout for emitting stale metrics in minutes (default: 10)
+    STREAM_READ_INTERVAL: Seconds to wait between stream reads (default: 0.5)
+
+Usage:
+    Run as a standalone script (typically invoked by Telegraf exec input plugin):
+        $ python3 oci_metrics_telegraf_streaming_input.py
+
+    The script outputs metrics to stdout in InfluxDB line protocol format:
+        <measurement>,<tag_key>=<tag_value> <field_key>=<field_value> <timestamp_ns>
+
+Metric Aggregation:
+    Different metrics use different aggregation functions:
+    - Sum: Counters and cumulative metrics (e.g., bytes, packets, operations)
+    - Mean: Gauges and averages (e.g., throughput, utilization percentages)
+    - Count: Event counts (e.g., number of operations)
+
+    The metric_stats dictionary defines the aggregation function for each metric type.
+
+Graceful Shutdown:
+    - SIGHUP signal triggers graceful shutdown
+    - Ctrl+C (KeyboardInterrupt) also triggers graceful shutdown
+"""
+
+import json
+import logging
+import os
+import signal
+import sys
+import time
+import traceback
+import uuid
+from typing import Dict, Any, Optional, List, Tuple
+
+from base64 import b64decode
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from queue import Queue, Empty
+from threading import Thread, Event
+from urllib.request import Request, urlopen
+
+from influx_line_protocol import Metric
+
+# Disable OCI SDK service imports to speed up initialization
+os.environ["OCI_PYTHON_SDK_NO_SERVICE_IMPORTS"] = "1"
+from oci.streaming import StreamClient, StreamAdminClient
+from oci.streaming.models import CreateGroupCursorDetails, UpdateGroupDetails
+from oci.exceptions import ServiceError
+from oci.retry import DEFAULT_RETRY_STRATEGY
+
+# ============================================================================
+# Configuration from environment variables
+# See module docstring for details on each variable
+# ============================================================================
+OCI_CONFIG_PATH = os.environ.get("OCI_CONFIG_PATH", "")
+OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
+GROUP_NAME = os.environ.get("GROUP_NAME", "telegraf")
+MESSAGES_ENDPOINT = os.environ.get("MESSAGES_ENDPOINT", None)
+STREAM_OCID = os.environ.get("STREAM_OCID", "{{ metrics_stream_ocid }}")
+OCI_REGION = os.environ.get("OCI_REGION", None)
+METRIC_AGGREGATION_WINDOW_MINUTES = int(os.environ.get("METRIC_AGGREGATION_WINDOW_MINUTES", 2))
+METRIC_AGGREGATION_TIMEOUT = int(os.environ.get("METRIC_AGGREGATION_TIMEOUT", 10))
+STREAM_READ_INTERVAL = float(os.environ.get("STREAM_READ_INTERVAL", 0.5))
+
+# ============================================================================
+# Metric Aggregation Configuration
+# Maps metric names to their aggregation function: "sum", "mean", or "count"
+# ============================================================================
+metric_stats: Dict[str, str] = {
+    # sum
+    "oci_blockstore:VolumeReadThroughput": "sum",
+    "oci_blockstore:VolumeWriteThroughput": "sum",
+    "oci_blockstore:VolumeReadOps": "sum",
+    "oci_blockstore:VolumeWriteOps": "sum",
+    "oci_blockstore:VolumeThrottledIOs": "sum",
+    "oci_filestorage:MountTargetConnections": "sum",
+    "oci_dynamic_routing_gateway:BytesToDrgAttachment": "sum",
+    "oci_dynamic_routing_gateway:BytesFromDrgAttachment": "sum",
+    "oci_dynamic_routing_gateway:PacketsToDrgAttachment": "sum",
+    "oci_dynamic_routing_gateway:PacketsFromDrgAttachment": "sum",
+    "oci_dynamic_routing_gateway:PacketDropsToDrgAttachment": "sum",
+    "oci_dynamic_routing_gateway:PacketDropsFromDrgAttachment": "sum",
+    "oci_internet_gateway:BytesToIgw": "sum",
+    "oci_internet_gateway:BytesFromIgw": "sum",
+    "oci_internet_gateway:PacketsToIgw": "sum",
+    "oci_internet_gateway:PacketsFromIgw": "sum",
+    "oci_internet_gateway:PacketDropsToIgw": "sum",
+    "oci_internet_gateway:PacketDropsFromIgw": "sum",
+    "oci_nat_gateway:BytesToNATgw": "sum",
+    "oci_nat_gateway:BytesFromNATgw": "sum",
+    "oci_nat_gateway:PacketsToNATgw": "sum",
+    "oci_nat_gateway:PacketsFromNATgw": "sum",
+    "oci_nat_gateway:DropsToNATgw": "sum",
+    "oci_service_gateway:packetsToService": "sum",
+    "oci_service_gateway:packetsFromService": "sum",
+    "oci_service_gateway:bytesToService": "sum",
+    "oci_service_gateway:bytesFromService": "sum",
+    "oci_service_gateway:sgwDropsToService": "sum",
+    "oci_service_gateway:sgwDropsFromService": "sum",
+    "oci_vcn:VnicConntrackIsFull": "sum",
+    "oci_vcn:VnicConntrackUtilPercent": "sum",
+    "oci_vcn:VnicEgressDropsThrottle": "sum",
+    "oci_vcn:VnicIngressDropsThrottle": "sum",
+    "oci_vcn:VnicToNetworkBytes": "sum",
+    "oci_vcn:VnicFromNetworkBytes": "sum",
+    "oci_vcn:VnicToNetworkPacket": "sum",
+    "oci_vcn:VnicFromNetworkPacket": "sum",
+    "oci_vcn:SmartnicBufferDropsFromHost": "sum",
+    "oci_vcn:SmartnicBufferDropsFromNetwork": "sum",
+    "oci_fastconnect:BitsReceived": "sum",
+    "oci_fastconnect:BitsSent": "sum",
+    "oci_fastconnect:PacketsReceived": "sum",
+    "oci_fastconnect:PacketsSent": "sum",
+    "oci_fastconnect:PacketsDiscarded": "sum",
+    "oci_fastconnect:PacketsError": "sum",
+    "oci_nlb:ProcessedBytes": "sum",
+    "oci_nlb:ProcessedPackets": "sum",
+    "oci_nlb:IngressPacketsDroppedBySL": "sum",
+    "oci_nlb:EgressPacketsDroppedBySL": "sum",
+    "oci_nlb:NewConnections": "sum",
+    "oci_nlb:NewConnectionsTCP": "sum",
+    "oci_nlb:NewConnectionsUDP": "sum",
+    "oci_nlb:ActiveConnections": "sum",
+    "oci_nlb:ActiveConnectionsTCP": "sum",
+    "oci_nlb:ActiveConnectionsUDP": "sum",
+
+    # max
+    "oci_nlb:HealthyBackendsPerNlb": "max",
+    "oci_nlb:UnhealthyBackendsPerNlb": "max",
+    "oci_nlb:HealthyBackends": "max",
+    "oci_nlb:HealthyBackends": "max",
+
+    # count
+    "oci_lustrefilesystem:DataReadOperations": "count",
+    "oci_lustrefilesystem:DataWriteOperations": "count",
+    "oci_lustrefilesystem:MetadataOperations": "count",
+
+    # mean
+    "oci_blockstore:VolumeGuaranteedIOPS": "mean",
+    "oci_blockstore:VolumeGuaranteedThroughput": "mean",
+    "oci_filestorage:FileSystemReadThroughput": "mean",
+    "oci_filestorage:FileSystemWriteThroughput": "mean",
+    "oci_filestorage:MetadataRequestAverageLatency": "mean",
+    "oci_filestorage:MetadataIOPS": "mean",
+    "oci_filestorage:FileSystemUsage": "mean",
+    "oci_filestorage:MountTargetReadThroughput": "mean",
+    "oci_filestorage:MountTargetWriteThroughput": "mean",
+    "oci_filestorage:MountTargetHealth": "mean",
+    "oci_lustrefilesystem:ReadThroughput": "mean",
+    "oci_lustrefilesystem:WriteThroughput": "mean",
+    "oci_lustrefilesystem:FileSystemCapacity": "mean",
+    "oci_lustrefilesystem:FileSystemInodeCapacity": "mean",
+    "oci_fastconnect:ConnectionState": "mean",
+    "gpu_infrastructure_health:Fault": "mean",
+    "gpu_infrastructure_health:GpuUtilization": "mean",
+    "gpu_infrastructure_health:GpuMemoryUtilization": "mean",
+    "gpu_infrastructure_health:GpuPowerDraw": "mean",
+    "gpu_infrastructure_health:GpuTemperature": "mean",
+    "gpu_infrastructure_health:GpuEccSingleBitErrors": "mean",
+    "gpu_infrastructure_health:GpuEccDoubleBitErrors": "mean",
+    "rdma_infrastructure_health:RdmaTxBytes": "mean",
+    "rdma_infrastructure_health:RdmaRxBytes": "mean",
+    "rdma_infrastructure_health:RdmaTxPackets": "mean",
+    "rdma_infrastructure_health:RdmaRxPackets": "mean",
+    "rdma_infrastructure_health:RdmaLinkSpeedFault": "mean",
+    "rdma_infrastructure_health:RdmaPcieAddressFault": "mean",
+    "rdma_infrastructure_health:RdmaPcieBerCheckFault": "mean",
+    "rdma_infrastructure_health:RdmaPcieCableFlapFault": "mean",
+    "rdma_infrastructure_health:RdmaPcieCablePlugFault": "mean",
+    "rdma_infrastructure_health:RdmaPcieCableStateFault": "mean",
+}
+
+logger = logging.getLogger(__name__)
+
+# Global queue for passing metrics from consumer threads to aggregator thread
+metric_queue: Queue = Queue()
+
+
+class TelegrafFormatter(logging.Formatter):
+    """
+    Custom log formatter that prefixes log messages with level indicators.
+
+    Prefixes log messages with single-letter level indicators:
+    - 'I:' for INFO
+    - 'E:' for ERROR
+    - 'W:' for WARNING
+    - 'D:' for DEBUG
+
+    This format is compatible with Telegraf's log parsing expectations.
+    """
+
+    def __init__(self, **kwargs):
+        """Initialize the formatter with parent class arguments."""
+        super().__init__(**kwargs)
+
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        if record.levelno == logging.INFO:
+            return f"I: {super().formatMessage(record)}"
+        elif record.levelno == logging.ERROR:
+            return f"E: {super().formatMessage(record)}"
+        elif record.levelno == logging.WARNING:
+            return f"W: {super().formatMessage(record)}"
+        elif record.levelno == logging.DEBUG:
+            return f"D: {super().formatMessage(record)}"
+        else:
+            return super().formatMessage(record)
+
+class Consumer:
+    """
+    OCI Streaming consumer that reads metrics from a stream partition.
+
+    The Consumer connects to an OCI Streaming stream using a consumer group
+    and continuously reads messages. Messages are decoded from base64 and
+    parsed into metric format for downstream processing.
+
+    Attributes:
+        config (dict): OCI configuration dictionary
+        signer: OCI authentication signer (config-based or instance principal)
+        _stop_event (Event): Threading event to signal graceful shutdown
+        stream_client (StreamClient): OCI Streaming client for reading messages
+        instance_name (str): Unique identifier for this consumer instance
+        cursor (str): Stream cursor for tracking read position
+
+    Note:
+        Multiple Consumer instances can read from different partitions of the
+        same stream in parallel, using the same consumer group for coordination.
+    """
+
+    def __init__(self, config: Dict[str, Any], signer: Any) -> None:
+        self.config = config
+        self.signer = signer
+        self._stop_event = Event()
+        self.stream_client = StreamClient(config, signer=signer, service_endpoint=MESSAGES_ENDPOINT)
+        self.instance_name = "instance-" + uuid.uuid4().hex
+        self.cursor = self.__get_cursor__(cursor_type=CreateGroupCursorDetails.TYPE_LATEST)
+
+    def stop(self) -> None:
+        """Signal the consumer to stop gracefully."""
+        self._stop_event.set()
+
+    def get_messages(self) -> List[Dict[str, str]]:
+        """
+        Read messages from the OCI Streaming stream.
+
+        Fetches messages from the stream using the current cursor. Handles
+        cursor expiration by creating a new cursor when needed. Messages
+        are decoded from base64 encoding.
+
+        Returns:
+            List of decoded message dictionaries with "key" and "value" string fields.
+
+        Note:
+            - Automatically refreshes expired cursors (HTTP 400)
+            - Updates cursor to next position for iterative reading
+            - Message keys and values are base64-decoded
+        """
+        messages = []
+        if self.stream_client and self.cursor:
+            # Read the messages from the stream
+            get_response = None
+            try:
+                get_response = self.stream_client.get_messages(STREAM_OCID, self.cursor)
+            except ServiceError as err:
+                if err.status == 400:
+                    logger.debug("The cursor has expired, will create a new one.")
+                    self.stream_client.update_group(STREAM_OCID,
+                                                    GROUP_NAME,
+                                                    UpdateGroupDetails(type=CreateGroupCursorDetails.TYPE_LATEST))
+                    self.cursor = self.__get_cursor__()
+                else:
+                    logger.error(f"Request to get message from stream failed with status: {err.status}\nMessage: {err.message}")
+            if not get_response or not get_response.data:
+                return messages
+            for message in get_response.data:
+                if message.key is None:
+                    key = "Null"
+                else:
+                    key = b64decode(message.key.encode()).decode()
+                value = b64decode(message.value.encode()).decode()
+                messages.append({"key": key, "value": value})
+            # use the next-cursor for iteration
+            self.cursor = get_response.headers["opc-next-cursor"]
+            return messages
+
+    def __get_cursor__(self, cursor_type: str = CreateGroupCursorDetails.TYPE_LATEST) -> str:
+        if self.stream_client and self.instance_name:
+            logger.info("Creating a cursor for group {}, instance {} of type {}".format(GROUP_NAME,
+                                                                                        self.instance_name,
+                                                                                        str(cursor_type)))
+            # The cursor will point to the beginning of the stream (to read the oldest messages first)
+            cursor_details = CreateGroupCursorDetails(group_name=GROUP_NAME,
+                                                                           instance_name=self.instance_name,
+                                                                           type=cursor_type,
+                                                                           commit_on_get=True)
+            response = self.stream_client.create_group_cursor(STREAM_OCID, cursor_details)
+            return response.data.value
+
+    def run(self, interval: float = STREAM_READ_INTERVAL) -> None:
+        """
+        Main consumer loop that reads messages from OCI Streaming.
+
+        Continuously polls the stream for new messages, converts them to
+        InfluxDB line protocol format, and places them in the metric queue
+        for aggregation. Runs until stop event is set.
+
+        Args:
+            interval: Seconds to wait between stream reads (default: STREAM_READ_INTERVAL)
+
+        Note:
+            - Converts messages to InfluxDB line protocol format
+            - Places metrics in global metric_queue for aggregation
+            - Handles errors gracefully without terminating the thread
+        """
+        logger.info(f"{self.instance_name} thread started to read from OCI streaming.")
+        while not self._stop_event.is_set():
+            try:
+                messages = self.get_messages()
+                for message in messages:
+                    line_protocol_metrics = to_influxdb_line_protocol(message)
+
+                    if line_protocol_metrics:
+                        for metric in line_protocol_metrics:
+                            metric_queue.put(metric)
+                            logger.debug(metric)
+
+            except Exception as e:
+                logger.error(f"Error in consumer loop: {traceback.format_exc()}")
+            
+            time.sleep(interval)
+
+
+def get_region() -> Optional[str]:
+    """
+    Fetch the OCI region from instance metadata service.
+
+    Queries the OCI instance metadata endpoint (169.254.169.254) to retrieve
+    the canonical region name of the compute instance.
+
+    Returns:
+        The OCI region identifier (e.g., "us-phoenix-1"), or None if retrieval fails.
+
+    Note:
+        Only works when running on an OCI compute instance.
+    """
+    try:
+        req = Request('http://169.254.169.254/opc/v2/instance/')
+        req.add_header('Authorization', 'Bearer Oracle')
+        content = urlopen(req).read()
+
+        instance_metadata = json.loads(content.decode('utf-8'))
+        return instance_metadata['canonicalRegionName']
+    except Exception as e:
+        logger.error(f"Failed to get region: {traceback.format_exc()}")
+        return None
+
+
+def to_influxdb_line_protocol(message: Dict[str, str]) -> Optional[List[Any]]:
+    """
+    Convert OCI metric message from stream to InfluxDB line protocol format.
+
+    Parses the JSON message value from the stream, extracts metric datapoints,
+    and converts them to Metric objects compatible with InfluxDB line protocol.
+
+    Args:
+        message: Dictionary containing "key" and "value" fields. The value is
+                 a JSON string with 'datapoints', 'namespace', 'name', and 'dimensions'.
+
+    Returns:
+        List of Metric objects in InfluxDB line protocol format,
+        or None if conversion fails or required fields are missing.
+
+    Note:
+        - Extracts namespace, name, and dimensions as tags
+        - Each datapoint becomes a separate metric with timestamp and value
+        - Invalid messages are logged as warnings
+    """
+    """Converts OCI metric message to InfluxDB line protocol format"""
+    try:
+        metric_json = json.loads(message["value"])
+
+        # Validate required fields
+        if 'datapoints' not in metric_json or 'namespace' not in metric_json or 'name' not in metric_json:
+            logger.warning(f"Invalid metric format: missing required fields in {message['key']}")
+            return None
+
+        namespace = metric_json["namespace"]
+        metric_name = f'{namespace}:{metric_json["name"]}'
+
+        results = []
+
+        for entry in metric_json['datapoints']:
+            if 'timestamp' not in entry or 'value' not in entry:
+                continue
+
+            influx_metric = Metric(metric_name)
+            
+            influx_metric.with_timestamp(int(entry["timestamp"]))
+            
+            # Handle dimensions safely
+            if "dimensions" in metric_json:
+                for key, value in metric_json["dimensions"].items():
+                    if value:
+                        influx_metric.add_tag(key, str(value))
+
+            influx_metric.add_value("count", entry["value"])
+            results.append(influx_metric)
+
+        return results
+
+    except Exception as e:
+        logger.error(f"Failed to convert to InfluxDB line protocol: {traceback.format_exc()}")
+        return None
+
+
+def aggregate_metrics() -> None:
+    """
+    Aggregate metrics by timestamp minute and emit completed aggregations.
+
+    This is the main aggregation worker function. It:
+    1. Reads raw metrics from the queue
+    2. Groups them by timestamp minute, metric name, and dimensions (tags)
+    3. Tracks the latest emitted timestamp for each metric to ensure ordering
+    4. Emits aggregations when they fall outside the aggregation window
+    5. Emits stale metrics when timeout is reached
+
+    The aggregation window ensures late-arriving metrics are included in the
+    correct aggregation, while the timeout prevents indefinite waiting.
+
+    Aggregation Logic:
+        - pending[timestamp_minute][metric_name][metric_key] stores sum and count
+        - metric_key is the JSON-serialized dimensions dictionary
+        - Metrics are emitted when timestamp_minute < (current - aggregation_window)
+        - Out-of-order metrics (for already-emitted minutes) are dropped
+
+    Note:
+        This function runs in an infinite loop in a separate daemon thread.
+    """
+    # Nested defaultdict structure: pending[minute][metric_name][metric_key] -> {"sum": float, "count": int}
+    # metric_key is JSON-serialized dimensions to uniquely identify metric series
+    pending = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {"sum": 0.0, "count": 0})))
+
+    # Track the latest emitted timestamp minute for each metric name
+    # This ensures we emit metrics in chronological order and drop out-of-order data
+    latest_emitted_per_metric_name = {}
+
+    while True:
+        try:
+            metric = metric_queue.get(block=True, timeout=2)
+
+            # Use as key the metric name and tags (metric dimensions from OCI)
+            metric_key = f"{json.dumps(metric.tags, sort_keys=True)}"
+
+            metric_timestamp = metric.timestamp
+            metric_value = metric.values.get("count", 0)
+
+            timestamp_minute = datetime.fromtimestamp(metric_timestamp/1e3, timezone.utc).replace(second=0, microsecond=0)
+
+            # Extract the metric name (format: namespace:metric_name)
+            metric_name = metric.measurement
+
+            # Drop metrics that arrive out of order for minutes already emitted
+            # This prevents late-arriving data from affecting already-processed aggregations
+            if metric_name in latest_emitted_per_metric_name:
+                if timestamp_minute <= latest_emitted_per_metric_name[metric_name]:
+                    logger.error(f"Dropping out-of-order metric {metric_name}:{metric_key} at {timestamp_minute}. Last emitted: {latest_emitted_per_metric_name[metric_name]})")
+                    continue
+
+            # Add to pending aggregation
+            pending[timestamp_minute][metric_name][metric_key]["sum"] += metric_value
+            pending[timestamp_minute][metric_name][metric_key]["count"] += 1
+            if "max" in pending[timestamp_minute][metric_name][metric_key]:
+                pending[timestamp_minute][metric_name][metric_key]["max"] = max(pending[timestamp_minute][metric_name][metric_key]["max"], metric_value)
+            else:
+                pending[timestamp_minute][metric_name][metric_key]["max"] = metric_value
+
+            # Determine the emit boundary: minutes older than this are ready to be emitted
+            # The window allows late-arriving metrics to be included in the correct aggregation
+            emit_boundary = timestamp_minute - timedelta(minutes=METRIC_AGGREGATION_WINDOW_MINUTES)
+
+            # Find the starting point for emission
+            if metric_name in latest_emitted_per_metric_name:
+                current = latest_emitted_per_metric_name[metric_name] + timedelta(minutes=1)
+            else:
+                # First time seeing this metric: find the earliest minute to emit
+                # We start from the oldest pending minute for this metric, but only if it's outside the window
+                # Otherwise, we track the boundary as the latest emitted (no data ready yet)
+                earliest_minute = None
+                for minute in sorted(pending.keys()):
+                    if metric_name in pending[minute]:
+                        earliest_minute = minute
+                        break
+                
+                if earliest_minute and earliest_minute <= emit_boundary:
+                    current = earliest_minute
+                else:
+                    # No data to emit yet, just track the boundary
+                    latest_emitted_per_metric_name[metric_name] = emit_boundary
+                    current = None
+
+            # Emit all minutes from current up to emit_boundary (inclusive)
+            # This processes the aggregation window and emits completed minutes
+            if current is not None:
+                while current <= emit_boundary:
+                    if current in pending and metric_name in pending[current]:
+                        # Emit all aggregated metrics for this minute and metric_name
+                        emit_metrics(pending[current][metric_name], current, metric_name)
+                        # Remove this metric_name from pending for this minute
+                        del pending[current][metric_name]
+                        # Clean up empty minutes
+                        if not pending[current]:
+                            del pending[current]
+                    latest_emitted_per_metric_name[metric_name] = current
+                    current += timedelta(minutes=1)
+
+            # Emit remaining minutes that have timed out
+            # This handles the case where data stops arriving - we don't want to wait indefinitely
+            # The timeout ensures stale metrics are eventually emitted
+            timeout_boundary = datetime.now(timezone.utc) - timedelta(minutes=METRIC_AGGREGATION_TIMEOUT)
+            for minute in sorted(pending.keys()):
+                if minute < timeout_boundary:
+                    for metric_name_key in list(pending[minute].keys()):
+                        emit_metrics(pending[minute][metric_name_key], minute, metric_name_key)
+                        del pending[minute][metric_name_key]
+                    if not pending[minute]:
+                        del pending[minute]
+                else:
+                    break
+        except Empty:
+            # Queue is empty - use this opportunity to emit any timed-out metrics
+            # This ensures we don't hold metrics indefinitely when data stops arriving
+            timeout_boundary = datetime.now(timezone.utc) - timedelta(minutes=METRIC_AGGREGATION_TIMEOUT)
+            for minute in sorted(pending.keys()):
+                if minute < timeout_boundary:
+                    for metric_name_key in list(pending[minute].keys()):
+                        emit_metrics(pending[minute][metric_name_key], minute, metric_name_key)
+                        del pending[minute][metric_name_key]
+                    if not pending[minute]:
+                        del pending[minute]
+                else:
+                    break
+        except Exception as e:
+            logger.error(f"Error in metrics aggregator thread: {traceback.format_exc()}")
+
+def emit_metrics(metrics: Dict[str, Dict[str, Any]], minute: datetime, metric_name: str) -> None:
+    """
+    Emit aggregated metrics to stdout in InfluxDB line protocol format.
+
+    For each metric in the aggregation, applies the appropriate aggregation
+    function (sum, mean, or count) based on the metric_stats configuration,
+    then outputs the result to stdout.
+
+    Args:
+        metrics: Dictionary mapping metric_key (JSON dimensions) to aggregation data
+                 with "sum" and "count" fields
+        minute: The timestamp minute for this aggregation
+        metric_name: The full metric name (e.g., "oci_vcn:VnicToNetworkBytes")
+
+    Note:
+        - Timestamp is set to the end of the minute (minute + 1 minute)
+        - Namespace is extracted from metric name and added as a tag
+        - Dimensions are reconstructed from the metric_key
+        - Output is flushed immediately for Telegraf consumption
+    """
+    for metric_key, data in metrics.items():
+        # Extract namespace from metric name
+        oci_metric_namespace = metric_name.split(":")[0]
+
+        influx_metric = Metric(metric_name)
+
+        influx_metric.add_tag("namespace", oci_metric_namespace)
+        influx_metric.with_timestamp((minute+timedelta(minutes=1)).timestamp() * 1e9)
+
+        for key, value in json.loads(metric_key).items():
+            influx_metric.add_tag(key, value)
+
+        stat = metric_stats.get(metric_name, "sum")
+        if stat == "sum":
+            influx_metric.add_value("count", data["sum"])
+        elif stat == "mean":
+            influx_metric.add_value("count", data["sum"]/data["count"])
+        elif stat == "count":
+            influx_metric.add_value("count", data["count"])
+        elif stat == "max":
+            influx_metric.add_value("count", data.get("max", 0))
+        else:
+            logger.error(f"Unexpected metric stat for metric {metric_name}: {stat}")
+            continue
+
+        # Output in InfluxDB line protocol
+        print(str(influx_metric), file=sys.stdout, flush=True)
+
+
+def handle_sighup(signum: int, frame: Any) -> None:
+    """
+    Signal handler for SIGHUP that triggers graceful shutdown.
+
+    Args:
+        signum: The signal number received (unused, part of signal handler signature)
+        frame: The current stack frame (unused, part of signal handler signature)
+    """
+    logger.info("Received SIGHUP, exiting...")
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    # Setup logging
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stderr)
+    formatter = TelegrafFormatter(fmt='%(asctime)s - %(name)s - %(threadName)s - %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    signal.signal(signal.SIGHUP, handle_sighup)
+
+    if not OCI_REGION:
+        OCI_REGION = get_region()
+        if not OCI_REGION:
+            logger.error("Could not determine OCI region")
+            sys.exit(1)
+    logger.info("Using OCI region: {}".format(OCI_REGION))
+
+    auth = False
+    try:
+        from oci.config import from_file
+        if OCI_CONFIG_PATH:
+            logger.info(f"OCI CONFIG PATH: {OCI_CONFIG_PATH}")
+            config = from_file(file_location=OCI_CONFIG_PATH, profile_name="DEFAULT")
+        else:
+            config = from_file(profile_name="DEFAULT")
+
+        from oci import Signer
+        signer = Signer.from_config(config)
+        auth = True
+    except Exception as e:
+        logger.error(f'Failed to load profile and signer from the OCI config file: {e}')
+
+    if not auth:
+        logger.info('Attempting to use instance_principal...')
+        try:
+            from oci.auth.signers import InstancePrincipalsSecurityTokenSigner
+            config = {}
+            signer = InstancePrincipalsSecurityTokenSigner()
+        except Exception as e:
+            logger.error(f"Failed to load instance principal signer. No supported signer found: {traceback.format_exc()}")
+            sys.exit(1)
+    
+    # Get the messages endpoint for the stream
+    # If it's not set, we'll try to get it from the Stream Admin Client
+    # If that fails, we'll use a default endpoint
+    partitions = 1
+
+    logger.info(f'Getting stream details: {STREAM_OCID}')
+
+    streaming_client = StreamAdminClient(config=config, signer=signer, retry_strategy=DEFAULT_RETRY_STRATEGY)
+    get_stream_response = streaming_client.get_stream(
+        stream_id=STREAM_OCID,
+    )
+    
+    if get_stream_response.status == 200:
+        if not MESSAGES_ENDPOINT:
+            MESSAGES_ENDPOINT = get_stream_response.data.messages_endpoint
+        else:
+            MESSAGES_ENDPOINT = f"https://cell-1.streaming.{OCI_REGION}.oci.oraclecloud.com"
+        partitions = get_stream_response.data.partitions
+    else:
+        logger.error("Failed to get stream {STREAM_OCID} details.")
+        sys.exit(1)
+    
+    threads = {}
+    consumers = {}
+    for i in range(partitions):
+        consumers[i] = Consumer(config, signer)
+        threads[i] = Thread(target=consumers[i].run, args=(STREAM_READ_INTERVAL,))
+        threads[i].start()
+    
+    # Keep main thread alive
+    try:
+        threads['aggregator'] = Thread(target=aggregate_metrics, daemon=True)
+        threads['aggregator'].start()
+        for i in range(partitions):
+            threads[i].join()
+        
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user, exiting...")
+        for consumer in consumers:
+            consumer.stop()
+
+        for i in range(partitions):
+            threads[i].join(timeout=5)
+            if threads[i].is_alive():
+                logger.warning(f"Thread {i} did not stop gracefully")
+        
+        logger.info("Shutdown complete")

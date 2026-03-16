@@ -1,23 +1,22 @@
 ---
 #
-# Detecting MLX interface name by PCI ID. 
-# Another option is to detect the mlx5_core driver, but it's harder to tell whch interface can be activated 
+# Detecting MLX interface name by PCI ID.
+# Another option is to detect the mlx5_core driver, but it's harder to tell whch interface can be activated
 #
-- name: detect shape
+- name: Detect shape
   uri:
     url: http://169.254.169.254/opc/v2/instance/
     method: GET
     headers:
-      Authorization: 'Bearer Oracle'
-    return_content: yes
+      Authorization: "Bearer Oracle"
+    return_content: true
   register: i_metadata
 
-- name: set fact
+- name: Set fact
   set_fact:
-    instance_metadata: "{{ i_metadata['content'] }}"
+    instance_metadata: "{{ i_metadata['content'] | from_json }}"
 
-
-- name: Are we running on an image with OCI-CN-AUTH packages? 
+- name: Are we running on an image with OCI-CN-AUTH packages?
   stat:
     path: /sbin/oci-rdma-configure
   register: new_image
@@ -26,8 +25,8 @@
   become: true
   replace:
     path: /etc/oci-hpc/rdma-network.conf
-    regexp: 'rdma_network=192.168.0.0/255.255.0.0'
-    replace: 'rdma_network={{rdma_network}}/{{rdma_netmask}}'
+    regexp: "rdma_network=192.168.0.0/255.255.0.0"
+    replace: "rdma_network={{ rdma_network }}/{{ rdma_netmask }}"
 
 - name: Append subnet part to /etc/oci-hpc/rdma-network.conf
   blockinfile:
@@ -35,72 +34,73 @@
     block: |
       [subnet]
       modify_arp=true
-      override_netconfig_netmask={{rdma_netmask}}
+      override_netconfig_netmask={{ rdma_netmask }}
   when: new_image.stat.exists
 
 - name: Start the OCI RDMA service
   become: true
-  service: 
+  service:
     name: oci-rdma-configure
     state: started
-    enabled: yes
+    enabled: true
   when: new_image.stat.exists
 
-
-- name: detect mellanox interfaces
+- name: Detect mellanox interfaces
   set_fact:
-    ansible_mlx: "{% set ansible_mlx = ansible_mlx|default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx|list }}"
-  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]) and ( not new_image.stat.exists )
+    ansible_mlx: "{% set ansible_mlx = ansible_mlx | default([]) + [hostvars[inventory_hostname]['ansible_' + item]] %}{{ ansible_mlx | list }}"
+  when: rdma_pci_ids[instance_metadata['shape']] is defined and (hostvars[inventory_hostname]['ansible_' + item]['type'] == 'ether' and
+    hostvars[inventory_hostname]['ansible_' + item]['pciid'] in rdma_pci_ids[instance_metadata['shape']]) and ( not new_image.stat.exists )
   with_items:
     - "{{ hostvars[inventory_hostname]['ansible_interfaces'] | sort }}"
 
-- name: create interface files
+- name: Create interface files
   register: rdma_interface
   template:
     src: ifcfg.j2
     dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item['device'] }}"
-    mode: '0644'
+    mode: "0644"
   when: ( ansible_mlx is defined ) and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
 
-- name: restart_interface
+- name: Restart interface
   command: bash -c "ifdown {{ item['item']['device'] }} && ifup {{ item['item']['device'] }}"
   when: ansible_mlx is defined and ( item.changed|default(false) ) and ( not new_image.stat.exists )
   with_items: "{{ rdma_interface['results'] }}"
-  
-  
-- name: update rp_filter arp settings to make all RDMA nics routable from each other
+
+- name: Update rp_filter arp settings to make all RDMA nics routable from each other
   ansible.posix.sysctl:
     name: net.ipv4.conf.{{ item['device'] }}.rp_filter
-    value: '2'
+    value: "2"
     sysctl_file: /etc/sysctl.d/80-network.conf
-    reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape == 'BM.GPU.H200.8') and ( not new_image.stat.exists )
+    reload: true
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape ==
+    'BM.GPU.H200.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
 
-- name: update arp_ignore arp settings to make all RDMA nics routable from each other
+- name: Update arp_ignore arp settings to make all RDMA nics routable from each other
   ansible.posix.sysctl:
     name: net.ipv4.conf.{{ item['device'] }}.arp_ignore
-    value: '2'
+    value: "2"
     sysctl_file: /etc/sysctl.d/80-network.conf
-    reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape == 'BM.GPU.H200.8') and ( not new_image.stat.exists )
+    reload: true
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape ==
+    'BM.GPU.H200.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index
 
-
-- name: update arp_announce arp settings to make all RDMA nics routable from each other
+- name: Update arp_announce arp settings to make all RDMA nics routable from each other
   ansible.posix.sysctl:
     name: net.ipv4.conf.{{ item['device'] }}.arp_announce
-    value: '1'
+    value: "1"
     sysctl_file: /etc/sysctl.d/80-network.conf
-    reload: yes
-  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape == 'BM.GPU.H200.8') and ( not new_image.stat.exists )
+    reload: true
+  when: ansible_mlx is defined and (shape == 'BM.GPU.B4.8' or shape == 'BM.GPU4.8' or shape == 'BM.GPU.A100-v2.8' or shape == 'BM.GPU.H100.8' or shape ==
+    'BM.GPU.H200.8') and ( not new_image.stat.exists )
   loop: "{{ ansible_mlx }}"
   loop_control:
     index_var: index

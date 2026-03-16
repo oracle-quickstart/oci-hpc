@@ -1,86 +1,109 @@
 ---
 - name: Check NVMe path and names
-  set_fact: 
-    nvme_path_edited: "{% if nvme_path[-1] == '/' %}{{nvme_path[:-1]}}{% else%}{{nvme_path}}{% endif %}"
-    nvmes: "{{ (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[1-9][0-9]n1') | list ) + (hostvars[inventory_hostname]['ansible_devices'] | select('match','nvme[0-9]n1') | list) }}"
-    dev_prefix: "/dev/" 
+  ansible.builtin.set_fact:
+    nvme_path_edited: "{% if nvme_path[-1] == '/' %}{{ nvme_path[:-1] }}{% else %}{{ nvme_path }}{% endif %}"
+    nvmes: "{{ (ansible_facts[\"devices\"]| select('match', 'nvme[1-9][0-9]n1') | list) + (ansible_facts[\"devices\"] |
+      select('match', 'nvme[0-9]n1') | list) }}"
+    dev_prefix: "/dev/"
 
 - name: Prefix Devices
-  set_fact:
+  ansible.builtin.set_fact:
     nvme_devices: "{{ [dev_prefix] | product(nvmes) | map('join') | list }}"
 
 - name: Create Mdadm Raid?
-  set_fact:
-    mdadm_vol: "{{( log_vol | bool ) and ( ( nvmes | count ) > 1 )}}"
-
+  ansible.builtin.set_fact:
+    mdadm_vol: "{{ (log_vol | bool) and ((nvmes | count) > 1) }}"
 
 - name: Partition Per Disk
+  when: not ( mdadm_vol | bool )
+
   block:
     - name: Create A New Primary Partition
       parted:
-        device: "/dev/{{item}}"
+        device: "/dev/{{ item }}"
         number: 1
         state: present
         label: gpt
       with_items:
         - "{{ nvmes }}"
-    
+
     - name: Create A Filesystem
       filesystem:
-        dev: "/dev/{{item}}p1"
+        dev: "/dev/{{ item }}p1"
         fstype: xfs
-        opts: "-L locscratch{{item | replace('nvme','') | replace('n1','')}}"
+        opts: "-L locscratch{{ item | replace('nvme', '') | replace('n1', '') }}"
       with_items:
         - "{{ nvmes }}"
-    
+
     - name: Mount Local Volume
       mount:
-        path: "{% if item | replace('nvme','') | replace('n1','') == '0' %}{{ nvme_path_edited}}{% else%}{{ nvme_path_edited}}{{item | replace('nvme','') | replace('n1','')}}{% endif %}"
-        src: "LABEL=locscratch{{item | replace('nvme','') | replace('n1','')}}"
+        path: "{% if item | replace('nvme', '') | replace('n1', '') == '0' %}{{ nvme_path_edited }}{% else %}{{ nvme_path_edited }}{{ item | replace('nvme', '') |
+          replace('n1', '') }}{% endif %}"
+        src: "LABEL=locscratch{{ item | replace('nvme', '') | replace('n1', '') }}"
         fstype: xfs
         opts: defaults,noatime
         state: mounted
       with_items:
         - "{{ nvmes }}"
-    
-    - name: "set permissions on {{ nvme_path_edited }}"
+
+    - name: "Set permissions on {{ nvme_path_edited }}"
       become: true
-      file:
-        path: "{% if item | replace('nvme','') | replace('n1','') == '0' %}{{ nvme_path_edited}}{% else%}{{ nvme_path_edited}}{{item | replace('nvme','') | replace('n1','')}}{% endif %}"
+      ansible.builtin.file:
+        path: "{% if item | replace('nvme', '') | replace('n1', '') == '0' %}{{ nvme_path_edited }}{% else %}{{ nvme_path_edited }}{{ item | replace('nvme', '') |
+          replace('n1', '') }}{% endif %}"
         state: directory
         owner: "{{ ansible_user }}"
-        mode: 0775
-        group: "{{privilege_group_name}}"
-        recurse: no
+        mode: "0775"
+        group: "{{ privilege_group_name }}"
+        recurse: false
       with_items:
         - "{{ nvmes }}"
-      
-  when: not ( mdadm_vol | bool )
 
 - name: Arrays
+  when:
+    - mdadm_vol | bool
   block:
-    - name: Checking Status Of Array
-      shell: "cat /proc/mdstat | grep md0"
+    - name: Check Status Of RAID Array md0
+      ansible.builtin.shell: "cat /proc/mdstat | grep md0"
       register: "array_check"
       changed_when: false
       failed_when: false
-      check_mode: no
-    
-    - debug: 
+      check_mode: false
+
+    - ansible.builtin.debug:
         msg: "{{ array_check.rc }}"
 
-    # Creating raid arrays
+    - name: Check Status of RAID array other than md0
+      ansible.builtin.shell: "cat /proc/mdstat | grep -v md0 | grep md"
+      register: "array_check_all"
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # Scan and stop the raid array if there's one other than md0
+    - name: Scan and stop all RAID arrays
+      ansible.builtin.command: "mdadm --stop --scan"
+      when: array_check_all.rc == 0
+
+    # Scan and asemble the raid array to ensure it's configured as md0
+    - name: Scan and asemble the raid array
+      ansible.builtin.command: "mdadm --assemble --scan"
+      register: "array_assemble"
+      when: array_check_all.rc == 0
+
+    # Creating RAID array
     - name: Creating Array
-      shell: "yes | mdadm --create /dev/md0 {% if redundancy | bool %}--level=10{% else%}--level=0{% endif%} --raid-devices={{ nvmes | count }} {{ nvme_devices | join(' ') }}"
+      ansible.builtin.shell: "yes | mdadm --create /dev/md0 {% if redundancy | bool %}--level=10{% else %}--level=0{% endif %} --raid-devices={{ nvmes | count }} {{
+        nvme_devices | join(' ') }}"
       register: "array_created"
-      when: array_check.rc != 0 
-     
-    # Capture the raid array details to append to mdadm.conf
+      when: array_check.rc != 0 and array_check_all.rc != 0
+
+    # Capture the raid array details for updating mdadm.conf
     - name: Capturing Array Details
-      command: "mdadm --detail --scan --verbose"
+      ansible.builtin.command: "mdadm --detail --scan --verbose"
       register: "array_details"
       changed_when: false
-    
+
     - name: Create Filesystem
       filesystem:
         fstype: xfs
@@ -89,7 +112,7 @@
 
     - name: Mount Array
       mount:
-        path: "{{ nvme_path_edited}}"
+        path: "{{ nvme_path_edited }}"
         src: "/dev/md0"
         fstype: xfs
         opts: defaults,nofail,noatime,discard
@@ -97,40 +120,49 @@
 
     - name: "Set Permissions On {{ nvme_path_edited }}"
       become: true
-      file:
-        path: "{{ nvme_path_edited}}"
+      ansible.builtin.file:
+        path: "{{ nvme_path_edited }}"
         state: directory
         owner: "{{ ansible_user }}"
-        mode: 0775
-        group: "{{privilege_group_name}}"
-        recurse: no
-     
+        mode: "0775"
+        group: "{{ privilege_group_name }}"
+        recurse: false
+
     - name: Ensure mdadm_conf's directory exists
-      file:
+      ansible.builtin.file:
         path: /etc/mdadm
         state: directory
-    
-    - name: Ensure mdadm_conf file exists
-      copy:
+
+    - name: Create empty mdadm_conf file if the array was assembled or created afresh
+      ansible.builtin.copy:
         content: ""
         dest: /etc/mdadm/mdadm.conf
-        force: no
-    
+        force: true
+      when: array_check_all.rc == 0 or ( array_check.rc != 0 and array_check_all.rc != 0 )
+
+    - name: Create empty mdadm_conf file only if it doesn't exist
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/mdadm/mdadm.conf
+        force: false
+
+    - name: Get stats of mdadm configuration file
+      ansible.builtin.stat:
+        path: /etc/mdadm/mdadm.conf
+      register: mdadm_conf
+
     # Updating mdadm.conf in order to persist between reboots
-    - name: Updating mdadm_conf
-      lineinfile:
+    - name: Update mdadm_conf file if RAID config was created afresh or if the file is empty
+      ansible.builtin.lineinfile:
         dest: /etc/mdadm/mdadm.conf
         regexp: "^{{ item }}"
         line: "{{ item }}"
         state: "present"
-      with_items: '{{ array_details.stdout_lines }}'
-      when: array_created.changed
-   
-    - name: rebuild initramfs if ubuntu
-      shell: update-initramfs -k all -u
-      when: ansible_facts['distribution'] == "Ubuntu" and array_created.changed 
-  
-  when:
-    - mdadm_vol | bool 
+      with_items: "{{ array_details.stdout_lines }}"
+      when: array_created.changed or array_assemble.changed or ( mdadm_conf.stat.size == 0 )
 
-
+    - name: Rebuild initramfs if OS is Ubuntu and mdadm_conf file was updated by the role
+      ansible.builtin.command: update-initramfs -k all -u
+      when:
+        - ansible_facts['distribution'] == "Ubuntu"
+        - array_created.changed or array_assemble.changed or ( mdadm_conf.stat.size == 0 )

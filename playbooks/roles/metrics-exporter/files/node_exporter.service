@@ -5,7 +5,8 @@ After=network-online.target
 
 [Service]
 User=prometheus
-ExecStart=/usr/bin/node_exporter --collector.nfs --collector.mountstats --collector.systemd --collector.processes --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
+ExecStart=/usr/bin/node_exporter --collector.nfs --collector.mountstats --collector.systemd --collector.processes --collector.textfile.directory=/var/lib/node_exporter/textfile_collector --no-collector.infiniband
 
 [Install]
 WantedBy=default.target
+

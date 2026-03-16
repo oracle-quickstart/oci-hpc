@@ -1,14 +1,15 @@
+---
 - include_vars: el_vars.yml
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - include_vars: debian_vars.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - include_tasks: el.yml
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 #- include_tasks: el-8.yml
-#  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version == '8'
+#  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '8'
 
 - include_tasks: debian.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'

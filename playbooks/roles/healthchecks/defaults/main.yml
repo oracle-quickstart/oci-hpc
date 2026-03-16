@@ -1,2 +1,4 @@
-mp_download_link: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/f0EgpgGOU5FlPzDwbSHuxdVQc7A8VgOaThd5KARkDG8Y60QJc53xhg-6m6nlyxRI/n/iding8g8fv8l/b/bm_meshpinger_artifacts/o/meshpinger_bm.tar.gz"
+---
+mp_download_link_x86: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/DB7ZwZiA_ah1w7S5Wi14dZXoBDorKNLcEAdaiaqsMK_UiUlxuN5HxrjKWOAcf-CG/n/iding8g8fv8l/b/bm_meshpinger_artifacts/o/meshpinger_bm.x86_64.tgz"
+mp_download_link_arm: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/isURBgBpLHLPF9bz5Jv4bjtQouD3AshcuQeceYm1W9oOmCTG174SmT3Dos1VHDEF/n/iding8g8fv8l/b/bm_meshpinger_artifacts/o/meshpinger_bm.arm64.tgz"
 mp_filename: "meshpinger_bm.tar.gz"

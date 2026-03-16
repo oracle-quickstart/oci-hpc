@@ -1,0 +1,19 @@
+---
+- name: Make sure clustershell is installed for node status script
+  vars:
+    package_name:
+      - clustershell
+    package_state: latest
+  include_role:
+    name: safe_yum
+  ignore_errors: true
+
+- name: Copy mgmt utility
+  become: true
+  ansible.builtin.template:
+    src: templates/mgmt_remote.j2
+    dest: "/usr/local/bin/mgmt"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+  run_once: true

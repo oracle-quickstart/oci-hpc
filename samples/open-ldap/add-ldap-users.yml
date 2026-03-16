@@ -9,9 +9,9 @@
       private: no
     - name: password
       prompt: What is the password?
-      private: yes
+      private: true
     - name: publickey
-      prompt: What is the user's public key (id_rsa.pub)?
+      prompt: What is the user's public key (id_ed25519.pub)?
       private: no
   tasks:
     - name: Create user account in 'groupname' group (gid 9876)
@@ -34,19 +34,19 @@
     - name: Generate new RSA public key for access within the cluster
       become: true
       become_user: "{{username}}"
-      command: "ssh-keygen -q -t rsa -f /home/{{username}}/.ssh/id_rsa_cluster -C '' -N ''"
+      command: "ssh-keygen -q -t rsa -f /home/{{username}}/.ssh/id_ed25519_cluster -C '' -N ''"
       args:
-        creates: "/home/{{username}}/.ssh/id_rsa_cluster"
+        creates: "/home/{{username}}/.ssh/id_ed25519_cluster"
 
     - name: Read new RSA public key
       slurp:
-        src: "/home/{{username}}/.ssh/id_rsa_cluster.pub"
-      register: id_rsa_cluster_pub
+        src: "/home/{{username}}/.ssh/id_ed25519_cluster.pub"
+      register: id_ed25519_cluster_pub
 
     - name: Add new RSA public key to authorized keys
       authorized_key:
         user: "{{username}}"
-        key: "{{id_rsa_cluster_pub.content | b64decode}}"
+        key: "{{id_ed25519_cluster_pub.content | b64decode}}"
 
     - name: Configure ~/.ssh/config to use new RSA key
       become: true
@@ -56,7 +56,7 @@
         create=yes
         owner="{{username}}"
         content="Host inst-*
-            IdentityFile ~/.ssh/id_rsa_cluster
+            IdentityFile ~/.ssh/id_ed25519_cluster
             Host compute-permanent-node-*
-            IdentityFile ~/.ssh/id_rsa_cluster"
+            IdentityFile ~/.ssh/id_ed25519_cluster"
 

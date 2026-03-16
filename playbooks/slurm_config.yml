@@ -1,13 +1,10 @@
-- hosts: controller,slurm_backup,compute,login, monitoring
+---
+- hosts: controller,slurm_backup,compute, monitoring
   gather_facts: true
   vars:
-    destroy: false
-    initial: true
-    download_path: "{{ nfs_target_path if create_fss | bool else ( cluster_nfs_path if cluster_nfs|bool else '/tmp')  }}"
+    slurm_mode: "controller"
     enroot_top_path: "{{ nvme_path }}/enroot/"
-  vars_files:
-    - "/opt/oci-hpc/conf/queues.conf"
   tasks:
     - include_role:
         name: slurm
-      when: slurm|default(true)|bool
+      when: slurm | default(true) | bool

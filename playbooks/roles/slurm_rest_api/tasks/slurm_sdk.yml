@@ -1,46 +1,60 @@
 ---
-- name: Install NVM
-  uri:
-    url: "{{ nvm_install_url }}"
-    dest: "/tmp/nvm_install.sh"  # Save the script to a temporary file
-    mode: 0755  # Make the script executable
-  register: nvm_download_result
+- name: Set Python/UV facts from venv
+  set_fact:
+    python_executable: "{{ venv_path }}/bin/python3"
+    uv_cmd: "{{ (venv_path | regex_replace('/oci$', '')) ~ '/uv' }}"
+
+- name: Verify venv Python exists
+  stat:
+    path: "{{ python_executable }}"
+  register: venv_python_stat
+  failed_when: not venv_python_stat.stat.exists
+
+- name: Get Python version from venv
+  command: "{{ python_executable }} --version"
+  register: python_version_output
+  changed_when: false
+
+# Extract version number for backward compatibility with templates
+- name: Extract Python version number
+  set_fact:
+    python_version: "{{ python_version_output.stdout | regex_replace('^Python ([0-9]+\\.[0-9]+).*', '\\1') }}"
+
+- name: Display detected Python
+  debug:
+    msg: "Using Python: {{ python_executable }} (version {{ python_version }})"
+
+# ----------------- Ensure OpenAPI download directory -----------------
+- name: Ensure OpenAPI download dir
+  file:
+    path: "{{ openapi_download_path }}"
+    state: directory
+    mode: '0755'
   become: true
-  when: not ansible_env.HOME is undefined
 
-- name: Execute NVM install script
-  shell: "/tmp/nvm_install.sh"
-  args:
-    executable: /bin/bash
-  environment:
-    HOME: "{{ ansible_env.HOME }}"
-  when: nvm_download_result.status == 200
+# ----------------- OpenAPI Generator JAR -----------------
+- name: Download openapi-generator jar directly
+  get_url:
+    url: "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/{{ openapi_generator_jar_version }}/openapi-generator-cli-{{ openapi_generator_jar_version }}.jar"
+    dest: "{{ openapi_download_path }}/openapi-generator.jar"
+    mode: '0644'
+    validate_certs: "{{ false if ansible_facts['distribution'] == 'OracleLinux' else true }}"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
+  become: true
 
-- name: Load NVM in current shell
-  shell: ". ~/.nvm/nvm.sh"
-  args:
-    executable: /bin/bash
+- name: Verify jar file exists
+  stat:
+    path: "{{ openapi_download_path }}/openapi-generator.jar"
+  register: jar_stat
+  failed_when: not jar_stat.stat.exists
 
-- name: Install Node LTS and latest npm
-  shell: |
-    source ~/.nvm/nvm.sh
-    nvm install --lts
-    nvm install-latest-npm
-  args:
-    executable: /bin/bash
-
-- name: Install OpenAPI generator CLI via npm
-  shell: |
-    source ~/.nvm/nvm.sh
-    npm install -g {{ openapi_generator_cli_pkg }}
-    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json
-  args:
-    executable: /bin/bash
-
+# ----------------- JWT + OpenAPI Spec -----------------
 - name: Generate JWT token
-  command: "scontrol token lifespan=31556926"
+  command: "scontrol token lifespan=infinite"
   become_user: "{{ slurm_user }}"
   register: jwt_token_result
+  delegate_to: 127.0.0.1
+  run_once: true
 
 - name: Save JWT token to file
   copy:
@@ -50,21 +64,47 @@
     group: "{{ slurm_group }}"
     mode: "0600"
   become: true
+  delegate_to: 127.0.0.1
+  run_once: true
 
 - name: Read JWT token from file
   slurp:
     src: "{{ slurm_jwt_token_path }}"
   register: jwt_token_file
   become: true
+  delegate_to: 127.0.0.1
+  run_once: true
 
 - name: Set JWT token fact
   set_fact:
     slurm_jwt_token: "{{ (jwt_token_file.content | b64decode).split('=')[1] }}"
+  delegate_to: 127.0.0.1
+  run_once: true
 
-- name: Create sdk output directory
-  ansible.builtin.file:
-    path: "{{ openapi_download_path }}"
-    state: directory
+- name: Fetch Slurm API versions
+  ansible.builtin.uri:
+    url: "{{ slurm_rest_api_spec_url }}"
+    return_content: true
+    headers:
+      X-SLURM-USER-NAME: "{{ slurm_user }}"
+      X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
+  register: api_response
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Extract all version strings
+  ansible.builtin.set_fact:
+    version_strings: >-
+      {{ api_response.content | regex_findall('slurm_v([0-9]+)_get_jobs') }}
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Set highest version string
+  ansible.builtin.set_fact:
+    slurm_api_version: >-
+      {{ version_strings | max | string }}
+  delegate_to: 127.0.0.1
+  run_once: true
 
 - name: Download Slurm OpenAPI spec
   uri:
@@ -74,111 +114,64 @@
       X-SLURM-USER-NAME: "{{ slurm_user }}"
       X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
   become: true
-
-- name: Find the openapi-generator jar
-  find:
-    paths: "{{ ansible_env.HOME }}/.nvm"
-    patterns: "{{ openapi_generator_jar_version }}.jar"
-    file_type: file
-    recurse: yes
-  register: openapi_jar_find
-
-- name: Copy openapi-generator jar to local path
-  copy:
-    remote_src: true
-    src: "{{ item.path }}"
-    dest: "{{ openapi_download_path }}/openapi-generator.jar"
-  with_items: "{{ openapi_jar_find.files }}"
-  when: openapi_jar_find.matched > 0
-  become: true
-
-- name: Create SDK output directory
+  delegate_to: 127.0.0.1
+  run_once: true
+# ----------------- Generate SDK -----------------
+- name: Ensure SDK output directory
   file:
     path: "{{ sdk_output_dir }}"
     state: directory
-
-- name: Generate Slurm python-pydantic SDK
-  shell: |
-    java -jar {{ openapi_download_path }}/openapi-generator.jar generate \
-      -g python \
-      -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }} \
-      -o {{ sdk_output_dir }}/ 
-  args:
-    chdir: "{{ sdk_output_dir }}"
-
-- name: Install wheel package (Debian)
   become: true
-  shell: |
-    /usr/bin/python3.10 -m pip install wheel
-  when: ansible_os_family == "Debian"
+  delegate_to: 127.0.0.1
+  run_once: true
 
-- name: Upgrade Packaging Library
-  shell: |
-    pip install --upgrade packaging==25.0
-  when: ansible_os_family == "Debian"
-
-- name: Build slurm sdk python wheel
-  shell: |
-    /usr/bin/python3.10 setup.py bdist_wheel
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "Debian"
-
-- name: Install slurm sdk the python wheel
+- name: Generate Slurm python SDK from OpenAPI
+  command:
+    cmd: >
+      java -jar {{ openapi_download_path }}/openapi-generator.jar generate
+      -g python
+      -i {{ openapi_download_path }}/{{ slurm_rest_api_spec_filename }}
+      -o {{ sdk_output_dir }}/
+    chdir: "{{ openapi_download_path }}"
   become: true
-  shell: |
-    /usr/bin/python3.10 -m pip install --upgrade pip
-    /usr/bin/python3.10 -m pip install pydantic>=2
-    /usr/bin/python3.10 -m pip install openapi_client
-    /usr/bin/python3.10 -m pip install --force-reinstall --upgrade dist/*.whl
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "Debian"
+  delegate_to: 127.0.0.1
+  run_once: true
 
-- name: Build python wheel
+# ----------------- Build & install SDK wheel using venv -----------------
+- name: Build slurm sdk python wheel using venv
+  command:
+    cmd: "{{ python_executable }} setup.py bdist_wheel"
+    chdir: "{{ sdk_output_dir }}"
   become: true
-  shell: |
-    /usr/bin/pip3.8 install wheel
-    /usr/bin/python3.8 setup.py bdist_wheel
+  register: build_sdk_wheel
+  changed_when: "'Building' in build_sdk_wheel.stdout or 'Wrote' in build_sdk_wheel.stdout"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Install slurm sdk wheel into venv with uv
+  ansible.builtin.shell: |
+    {{ uv_cmd }} pip install \
+      -p {{ python_executable }} \
+      --force-reinstall --upgrade {{ sdk_output_dir }}/dist/*.whl
   args:
     chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "RedHat"
-
-- name: Install the python wheel
+  environment:
+    UV_PYTHON: "{{ python_executable }}"
   become: true
-  shell: |
-    /usr/bin/python3.8 -m pip install --upgrade pip
-    /usr/bin/python3.8 -m pip install pydantic>=2
-    /usr/bin/python3.8 -m pip install openapi_client
-    /usr/bin/python3.8 -m pip install --force-reinstall --upgrade dist/*.whl
-  args:
-    chdir: "{{ sdk_output_dir }}"
-    executable: /bin/bash
-  when: ansible_os_family == "RedHat"
+  delegate_to: 127.0.0.1
+  run_once: true
 
-- name: Install test requirements (ubuntu)
-  pip:
-    requirements: "{{ sdk_output_dir }}/test-requirements.txt"
-    executable: /usr/bin/pip3.10
-    state: present
-  when: >
-    ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True and
-    ansible_os_family == "Debian"
-  vars:
-    ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
+- name: Verify SDK installation
+  command: "{{ python_executable }} -c \"import importlib; importlib.import_module('openapi_client')\""
+  register: sdk_verify
+  changed_when: false
+  failed_when: sdk_verify.rc != 0
+  become: true
+  delegate_to: 127.0.0.1
+  run_once: true
 
-- name: Install test requirements
-  pip:
-    requirements: "{{ sdk_output_dir }}/test-requirements.txt"
-    executable: /usr/bin/pip3.8
-    state: present
-  when: >
-    ansible_stat.stat.exists is defined and
-    ansible_stat.stat.exists == True and
-    ansible_os_family == "RedHat"
-  vars:
-    ansible_stat: "{{ lookup('file', sdk_output_dir + '/test-requirements.txt', errors='ignore') }}"
+- name: Display SDK installation info
+  debug:
+    msg: "{{ sdk_verify.stdout_lines }}"
+  delegate_to: 127.0.0.1
+  run_once: true

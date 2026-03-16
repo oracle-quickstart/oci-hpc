@@ -1,5 +1,7 @@
 [Unit]
 Requires=munge.service
 
+{% if not slurm_federation %}
 [Service]
 Restart=always
+{% endif %}

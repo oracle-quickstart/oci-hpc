@@ -8,6 +8,8 @@ g.dashboard.new('Multi-Node Metrics')
   Multi-Node Metrics Dashboard for cluster comparison
 |||)
 + g.dashboard.withTimezone('browser')
++ g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([
   variables.prometheus,
@@ -171,7 +173,7 @@ g.dashboard.new('Multi-Node Metrics')
     ),
     timeseriesPanel(
       'ROCEv2 Combined B/W by Node',
-      'avg by (hostname) ((rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])))',
+      'avg by (hostname) ((rate(ib_port_rcv_data{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]) + rate(ib_port_xmit_data{hostname=~"$hostname", oci_name=~"$oci_name"}[5m])))',
       '{{ hostname }}',
       'Bps',
       {w:8, h:10, x:0, y:72},
@@ -179,7 +181,7 @@ g.dashboard.new('Multi-Node Metrics')
     ),
     timeseriesPanel(
       'ROCEv2 TX B/W by Node',
-      'avg by (hostname) (rate(node_infiniband_port_data_transmitted_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
+      'avg by (hostname) (rate(ib_port_xmit_data{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ hostname }}',
       'Bps',
       {w:8, h:10, x:8, y:72},
@@ -187,7 +189,7 @@ g.dashboard.new('Multi-Node Metrics')
     ),
     timeseriesPanel(
       'ROCEv2 RX B/W by Node',
-      'avg by (hostname) (rate(node_infiniband_port_data_received_bytes_total{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
+      'avg by (hostname) (rate(ib_port_rcv_data{hostname=~"$hostname", oci_name=~"$oci_name"}[5m]))',
       '{{ hostname }}',
       'Bps',
       {w:8, h:10, x:16, y:72},

@@ -1,0 +1,11 @@
+[Unit]
+Description=Python Node Updater
+
+[Service]
+User={{ ansible_user }}
+Group={{ ansible_user }}
+#Environment="MGMT_DEBUG=1"
+ExecStart={{venv_path}}/bin/python3 /config/mgmt/manage.py services all
+StandardOutput=append:/config/logs/mgmt.log
+StandardError=append:/config/logs/mgmt.log
+TimeoutStartSec=300

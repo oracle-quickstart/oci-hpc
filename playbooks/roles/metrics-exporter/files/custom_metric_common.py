@@ -98,7 +98,16 @@ def get_rdma_devices(oci_shape):
         rdma_devices = ["mlx5_2", "mlx5_3"]
     elif oci_shape == "BM.GPU.H200.8" or oci_shape == "BM.GPU.B200.8":
         rdma_devices = ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"]
-
+    elif oci_shape == "BM.GPU.MI300X.8":
+        rdma_devices = ["mlx5_0", "mlx5_2", "mlx5_3","mlx5_4", "mlx5_5", "mlx5_7", "mlx5_8", "mlx5_9"]
+    elif oci_shape == "BM.GPU.MI355X.8":
+        rdma_devices = ["mlx5_0", "mlx5_1", "mlx5_2","mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7"]
+    elif oci_shape == "BM.GPU.MI355X-v0.8":
+        rdma_devices = ["mlx5_0", "mlx5_1", "mlx5_2","mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7"]
+    elif oci_shape == "BM.GPU.MI355X-v1.8":
+        rdma_devices = ["mlx5_0", "mlx5_1", "mlx5_2","mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7"]
+    elif oci_shape == "BM.GPU.B300.8":
+        rdma_devices = ["mlx5_0", "mlx5_1", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_16", "mlx5_17", "mlx5_18", "mlx5_19", "mlx5_20", "mlx5_21"]
     return rdma_devices
 
 def create_textfile_dir(ne_dir, tf_dir_name, ne_user, ne_group):

@@ -1,1 +1,15 @@
 ### Topology File
+SwitchName=initial_startup_bugfix Nodes=non_existent_node
+{% for partition in queues %}
+{%- set ns = namespace(nodesList=[], has_ondemand=0) %}
+{%- for instance in partition.instance_types %}
+    {%- if not instance.permanent %}
+        {{- ns.nodesList.append(instance.hostname_convention ~ '-[1-' ~ instance.max_number_nodes ~ ']') -}}
+    {%- endif %}
+{%- endfor %}
+{%- if ns.nodesList != [] %}
+SwitchName={{ partition.name }}:inactive Nodes={{ ns.nodesList | join(',') }}
+SwitchName={{ partition.name }} Switches={{ partition.name }}:inactive
+{{ "\n" -}}
+{% endif %}
+{%- endfor %}

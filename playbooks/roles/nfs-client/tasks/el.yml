@@ -1,18 +1,18 @@
 ---
 - name: Install nfs packages
-  vars: 
-    package_name: '{{ nfs_rpm_packages }}'
-  include_role: 
+  vars:
+    package_name: "{{ nfs_rpm_packages }}"
+  ansible.builtin.include_role:
     name: safe_yum
 
-- name: create share directory
+- name: Create share directory
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ local_path }}"
     state: directory
     owner: opc
-    group: "{{privilege_group_name}}"
-    mode: 0775
+    group: "{{ privilege_group_name }}"
+    mode: "0775"
 
 - name: Mount NFS with options
   mount:
@@ -27,14 +27,15 @@
     path: "{{ local_path }}"
     src: "{{ export_host }}:{{ export_path | trim() }}"
     fstype: nfs
+    opts: defaults,nconnect=16
     state: mounted
   when: options==""
 
-- name: make sure the permissions of the share directory are right
+- name: Make sure the permissions of the share directory are right
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ local_path }}"
     state: directory
     owner: opc
-    group: "{{privilege_group_name}}"
-    mode: 0775
+    group: "{{ privilege_group_name }}"
+    mode: "0775"

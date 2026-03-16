@@ -1,27 +1,27 @@
-{% set controller = hostvars[groups['controller'][0]]['ansible_fqdn'].split('.') %}
-SlurmctldHost={{ controller[0] }}
-{% if (groups['slurm_backup']| length ) > 0 %}
-SlurmctldHost={{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'].split('.')[0] }}
+SlurmctldHost={{ controller_hostname }}
+{% if groups['slurm_backup'] | length > 0 %}
+SlurmctldHost={{ slurm_backup_hostname }}
 {% endif %}
 MpiDefault=none
 ProctrackType=proctrack/cgroup
 ReturnToService=1
-SlurmctldPidFile=/var/run/slurmctld.pid
+SlurmctldPidFile=/run/slurmctld.pid
 SlurmctldPort=6817
-SlurmdPidFile=/var/run/slurmd.pid
+SlurmdPidFile=/run/slurmd.pid
 SlurmdPort=6818
 SlurmdSpoolDir=/var/spool/slurmd
 SlurmUser=slurm
-{% if pyxis|bool or healthchecks|bool%}
 Prolog={{slurm_conf_path}}/prolog.d/*
+Epilog={{slurm_conf_path}}/epilog.d/*
 SchedulerParameters=nohold_on_prolog_fail
-{% endif %}
+MessageTimeout=120
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmdLogFile=/var/log/slurm/slurmd.log
-StateSaveLocation={{ slurm_nfs_path }}/spool/slurm
+StateSaveLocation={{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm
 SwitchType=switch/none
 TaskPlugin=task/affinity,task/cgroup
-PrologFlags=contain,serial
+JobContainerType=job_container/tmpfs
+PrologFlags=alloc,contain,serial
 InactiveLimit=0
 KillWait=30
 MinJobAge=300
@@ -32,10 +32,13 @@ GresTypes=gpu
 SchedulerType=sched/backfill
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core_Memory
-AccountingStorageHost={{ controller[0] }}
+AccountingStorageHost={{ ip_slurmdbd if slurm_federation | bool else controller_hostname}}
+{% if groups['slurm_backup'] | length > 0 %}
+AccountingStorageBackupHost={{ slurm_backup_hostname }}
+{% endif %}
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStoreFlags=job_comment
-ClusterName=cluster
+ClusterName={{ cluster_name }}
 JobAcctGatherFrequency=30
 JobAcctGatherType=jobacct_gather/linux
 SlurmctldDebug=info
@@ -45,16 +48,20 @@ PropagateResourceLimitsExcept=MEMLOCK
 CommunicationParameters=block_null_hash
 TopologyPlugin=topology/tree
 TopologyParam=SwitchAsNodeRank
-TreeWidth=2048
+TreeWidth=64
 SlurmctldParameters=enable_configless
+SlurmdParameters=numa_node_as_socket
 MaxNodeCount=10000
-UnkillableStepTimeout=128
+UnkillableStepTimeout=600
 AuthAltTypes=auth/jwt
-AuthAltParameters=jwt_key={{ slurm_nfs_path }}/spool/slurm/jwt_hs256.key
+AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}
 {% if healthchecks|bool %}
 HealthCheckProgram={{slurm_conf_path}}/prolog.d/healthchecks.sh
 HealthCheckInterval=300
 HealthCheckNodeState=IDLE,CYCLE
+PreemptMode=CANCEL
+PreemptType=preempt/partition_prio
+PreemptExemptTime=-1
 {% endif %}
 {% if sacct_limits|bool %}
 AccountingStorageTRES=gres/gpu
@@ -62,25 +69,136 @@ AccountingStorageEnforce=limits,associations,qos,safe
 JobCompType=jobcomp/none
 TrackWckey=no
 {% endif %}
+ResumeProgram=/etc/slurm/resume.sh
+SuspendProgram=/etc/slurm/suspend.sh
+ResumeRate=0
+SuspendRate=0
 
 {% for partition in queues %}
 {% for instance in partition.instance_types %}
+{% if instance.permanent  %}
 Nodeset={{instance.name}} Feature={{instance.name}}
+{% else %}
+{% if instance.hyperthreading | bool %}
+{% set threadspercore = 2 %}
+{% else %}
+{% set threadspercore = 1 %}
+{% endif %}
+{% if instance.shape == "BM.GPU2.2"%}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=14 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:P100:2
+{% elif instance.shape == "VM.GPU2.1" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=12 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:P100:1
+{% elif instance.shape == "VM.GPU3.1" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=6 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:V100:1
+{% elif instance.shape == "VM.GPU3.2" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=12 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:V100:2
+{% elif instance.shape == "VM.GPU3.4" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=24 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:V100:4
+{% elif instance.shape == "BM.GPU3.8" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=26 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:V100:8
+{% elif instance.shape == "BM.GPU4.8" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:A100:8
+{% elif instance.shape == "BM.GPU.B4.8" and threadspercore == 1 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=8 CoresPerSocket=16 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}} Gres=gpu:A100:8
+{% elif instance.shape == "BM.GPU.B4.8" and threadspercore == 2 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=255 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}} Gres=gpu:A100:8
+{% elif instance.shape == "BM.GPU.A100-v2.8" and threadspercore == 1 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=8 CoresPerSocket=16 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}} Gres=gpu:A100:8
+{% elif instance.shape == "BM.GPU.A100-v2.8" and threadspercore == 2 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=255 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}} Gres=gpu:A100:8
+{% elif instance.shape == "BM.GPU.H100.8"%}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=56 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:H100:8
+{% elif instance.shape == "BM.GPU.H200.8" and threadspercore == 2 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=56 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:H200:8
+{% elif instance.shape == "BM.GPU.T1.2" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=32 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:A10:2
+{% elif instance.shape == "BM.GPU.A10.4" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:A10:4
+{% elif instance.shape == "VM.GPU.A10.2" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=30 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:A10:2
+{% elif instance.shape == "VM.GPU.A10.1" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=15 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}} Gres=gpu:A10:1
+{% elif instance.shape == "VM.Standard.E3.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.Standard.E4.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.Standard.E5.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.Standard.E6.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.Optimized3.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.Standard3.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.DenseIO.E4.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.DenseIO.E5.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.Standard.A1.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore=1  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard.E3.128" and threadspercore == 1%}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard.E3.128" and threadspercore == 2%}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=255 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard.E4.128" and threadspercore == 1 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard.E4.128" and threadspercore == 2 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=255 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.DenseIO.E4.128" and threadspercore == 1 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.DenseIO.E4.128" and threadspercore == 2 %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket=255 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.DenseIO.E5.128" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=64 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.HPC2.36" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=18 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.HPC.E5.144" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=72 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard.E5.192" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=96 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Optimized3.36" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=18 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif "VM.Standard2." in instance.shape %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance.shape.split('.')[-1]|int }} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard2.52" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=26 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard3.64" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif "VM.Standard.E2." in instance.shape %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{ instance.shape.split('.')[-1]|int }} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard.E2.64" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=32 ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "BM.Standard.A1.160" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=2 CoresPerSocket=80 ThreadsPerCore=1  State=CLOUD Feature={{instance.name}}
+{% endif %}{% endif %}
 {% endfor %}
 {% endfor %}
 
-{% for partition in queues %}
-{% if partition.default  %}
-{% set nodesList = [] %}
-{% for instance in partition.instance_types %}
-{{ nodesList.append(instance.name)}}
+
+{%- for partition in queues %}
+{%- set ns = namespace(nodesList=[], has_ondemand=0) %}
+{%- for instance in partition.instance_types %}
+    {%- if instance.permanent %}
+        {{- ns.nodesList.append(instance.name) -}}
+    {%- else %}
+        {{- ns.nodesList.append(instance.hostname_convention ~ '-[1-' ~ instance.max_number_nodes ~ ']') -}}
+        {%- set ns.has_ondemand = 1 -%}
+    {%- endif %}
 {%- endfor %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=YES
-{% else %}
-{% set nodesList = [] %}
-{% for instance in partition.instance_types %}
-{{ nodesList.append(instance.name)}}
+{%- if partition.default %}
+    {%- if ns.has_ondemand == 1 %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
+    {%- else %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES
+PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
+    {%- endif %}
+{%- else %}
+    {%- if ns.has_ondemand == 1 %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
+    {%- else %}
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO
+PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
+    {%- endif %}
+{%- endif %}
+{{ "\n" -}}
 {%- endfor %}
-PartitionName={{partition.name}} Nodes={{nodesList|join(',')}} Default=NO
-{% endif %}
-{% endfor %}

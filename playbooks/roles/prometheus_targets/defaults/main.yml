@@ -1,0 +1,53 @@
+---
+# vars file for prometheus
+prometheus_user: prometheus
+prometheus_dest_dir: /etc/prometheus
+prometheus_targets_dir: /etc/prometheus/targets
+
+# vars file for prometheus
+# 9100 - node exporter - exports cpu, memory, network, disk metrics for each node.
+# 9200 - Deprecated - OCI FSS metrics exporter - downloads metrics from OCI and pushes them to our prometheus instance.
+# 9250 - Deprecated - OCI Lustre metrics exporter - downloads metrics from OCI and pushes them to our prometheus instance.
+# 9300 - OCI RDMA faults exporter - downloads RDMA faults as reported by OCA agents from OCI and pushes them to our prometheus instance for alerts.
+# 9400 - DCGM metrics exporter for GPU nodes.
+# 9500 - NVLink metrics exporter for GPU nodes.
+# 9600 - ROCEv2/RDMA link metrics exporter for GPU nodes.
+# 9700 - PCIe Alerts.
+# 9800 - Slurm job accounting metrics (NVML) - GPU compute, memory and CPU compute, memory utilization by Slurm job.
+# 9900 - Slurm Metrics from SlurmRestd.
+
+# mapping between the cluster exported label and prometheus label
+prometheus_labels:
+  availability_domain: "availability_domain"
+  cluster_name: "cluster_name"
+  compartment_id: "compartment_id"
+  fss_mount: "fss_mount"
+  gpu_memory_fabric: "gpu_memory_fabric"
+  hostname: "hostname"
+  hpc_island: "hpc_island"
+  ip_address: "ip"
+  memory_cluster_name: "memory_cluster_name"
+  network_block_id: "network_block_id"
+  oci_name: "oci_name"
+  ocid: "ocid"
+  rack_id: "rack_id"
+  rail_id: "rail_id"
+  role: "role"
+  serial: "serial"
+  shape: "shape"
+
+compute_ports:
+  - "9100"
+  - "9400"
+  - "9500"
+  - "9600"
+  - "9700"
+  - "9800"
+
+controller_ports:
+  - "9100"
+  - "9300"
+  - "9900"
+
+login_ports:
+  - "9100"

@@ -1,62 +1,61 @@
 ---
 - block:
+    - name: Install yum utils
+      vars:
+        package_name:
+          - yum-utils
+        package_state: latest
+      ansible.builtin.include_role:
+        name: safe_yum
 
-  - name: Install yum utils
-    vars: 
-      package_name: 
-        - yum-utils
-      package_state: latest
-    include_role: 
-      name: safe_yum
+    - name: Add centos-extras repo required for docker-ce
+      become: true
+      ansible.builtin.yum_repository:
+        name: centos-extras
+        description: Centos extras - $basearch
+        baseurl: http://mirror.centos.org/centos/{{ ansible_facts['distribution_major_version'] }}/extras/{{ ansible_facts['architecture'] }}
+        enabled: 1
+        gpgcheck: 0
+      when: ansible_facts['distribution_major_version'] == '7'
 
-  - name: Add centos-extras repo required for docker-ce
-    become: true
-    yum_repository: 
-      name: centos-extras
-      description: Centos extras - $basearch
-      baseurl: http://mirror.centos.org/centos/{{ ansible_distribution_major_version }}/extras/x86_64
-      enabled: 1
-      gpgcheck: 0
-    when: ansible_distribution_major_version == '7'
+    - name: Add docker-ce repository
+      become: true
+      ansible.builtin.yum_repository:
+        name: docker-ce
+        description: Docker CE Stable - $basearch
+        baseurl: https://download.docker.com/linux/centos/{{ ansible_facts['distribution_major_version'] }}/$basearch/stable
+        enabled: 1
+        gpgcheck: 1
+        gpgkey: https://download.docker.com/linux/centos/gpg
 
-  - name: Add docker-ce repository
-    become: true
-    yum_repository: 
-      name: docker-ce
-      description: Docker CE Stable - $basearch
-      baseurl: https://download.docker.com/linux/centos/{{ ansible_distribution_major_version }}/$basearch/stable
-      enabled: 1
-      gpgcheck: 1
-      gpgkey: https://download.docker.com/linux/centos/gpg
+    - name: Install Docker
+      vars:
+        package_name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        package_state: latest
+        package_cache: true
+      ansible.builtin.include_role:
+        name: safe_yum
 
-  - name: Install Docker
-    vars: 
-      package_name: 
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
-      package_state: latest
-      package_cache: true
-    include_role: 
-      name: safe_yum
+    - name: Start Docker
+      ansible.builtin.service:
+        name: "docker"
+        enabled: true
+        state: started
 
-  - name: Start Docker
-    ansible.builtin.service:
-      name: "docker"
-      enabled: true
-      state: started
+    - name: Enable service containerd
+      ansible.builtin.service:
+        name: containerd
+        enabled: true
 
-  - name: Enable service containerd
-    ansible.builtin.service:
-      name: containerd
-      enabled: yes
-
-  - name: create docker group
-    group:
-      name: docker
-      state: present
-  - name: add opc user to docker group
-    user:
-      name: opc
-      groups: docker
-      append: yes
+    - name: Create docker group
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: Add opc user to docker group
+      ansible.builtin.user:
+        name: opc
+        groups: docker
+        append: true

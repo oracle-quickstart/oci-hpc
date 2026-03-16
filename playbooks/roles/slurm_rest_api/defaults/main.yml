@@ -1,7 +1,7 @@
 ---
 slurm_user: "slurm"
 slurm_group: "slurm"
-slurm_jwt_token_path: "{{ slurm_nfs_path }}/spool/slurm/jwt_hs256.token"
+slurm_jwt_token_path: "{{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm/jwt_hs256.token"
 slurm_conf_path: "/etc/slurm/slurm.conf"
 slurmdbd_conf_path: "/etc/slurm/slurmdbd.conf"
 slurm_conf_authalt_types_line: "AuthAltTypes=auth/jwt"
@@ -10,7 +10,7 @@ slurm_conf_authalt_parameters_line: "AuthAltParameters=jwt_key={{ slurm_jwt_key_
 slurmctld_service: "slurmctld.service"
 slurmdbd_service: "slurmdbd.service"
 slurmrestd_service: "slurmrestd.service"
-slurmrestd_path: "{{ '/usr/local/sbin/slurmrestd' if ansible_os_family == 'Debian' else '/usr/sbin/slurmrestd' }}"
+slurmrestd_path: "{{ '/usr/local/sbin/slurmrestd' if ansible_facts['os_family'] == 'Debian' else '/usr/sbin/slurmrestd' }}"
 
 nvm_install_url: "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh"
 

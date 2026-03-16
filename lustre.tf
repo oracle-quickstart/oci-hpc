@@ -1,6 +1,6 @@
 resource "oci_lustre_file_storage_lustre_file_system" "lustre_file_system" {
   #Required
-  count               = var.create_lfs ? 1 : 0
+  count               = var.add_lfs && var.create_lfs == "new" ? 1 : 0
   availability_domain = var.ad
   capacity_in_gbs     = var.lfs_capacity_in_gbs
   compartment_id      = var.lfs_compartment
@@ -23,7 +23,9 @@ resource "oci_lustre_file_storage_lustre_file_system" "lustre_file_system" {
   display_name            = "${local.cluster_name}-lfs"            	# File system name
   #file_system_description = var.lfs_file_system_description # File system description Optional
   freeform_tags = {
-    "lfs_cluster_name"   = local.cluster_name
+    "lfs_cluster_name" = local.cluster_name
+    "cluster_name"     = local.cluster_name
+    "parent_cluster"   = local.cluster_name
   }
   # kms_key_id = oci_kms_key.test_key.id
   # nsg_ids = var.lustre_file_system_nsg_ids

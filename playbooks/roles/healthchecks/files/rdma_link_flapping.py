@@ -6,8 +6,10 @@ import time
 import datetime
 import re
 import argparse
+import socket
 import subprocess
 from shared_logging import logger
+
 
 class LinkFlappingTest:
     def __init__(self, time_interval=6):
@@ -15,39 +17,43 @@ class LinkFlappingTest:
         self.time_interval = int(time_interval)
         self.link_data = None
 
-        self.log_file = "/var/log/messages"
-        if not os.path.exists(self.log_file):
-            self.log_file = "/var/log/syslog"
+            
+        # Check if the log file exists
+        msg_file = "/var/log/messages"
+        if not os.path.exists(msg_file):
+            msg_file = "/var/log/syslog"
+        self.log_file = msg_file
 
     def get_rdma_link_failures(self):
-        pattern1 = "CTRL-EVENT-EAP-FAILURE EAP authentication failed"
-        pattern2 = "mlx5_core.*Link down"
 
-        cmd1 = f"grep '{pattern1}' {self.log_file}"
-        cmd2 = f"grep '{pattern2}' {self.log_file}"
-
+        pattern  = r"(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+\S+\s+wpa_supplicant(?:\[\d+\])?: (\w+): CTRL-EVENT-EAP-FAILURE EAP authentication failed"
+        pattern2 = r"(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+\S+\s+kernel: (?:\[\d+\.\d+\]\s)?mlx5_core \S+ (\w+): Link down"
+        
         self.link_data = {}
-
-        for cmd, key in [(cmd1, "failures"), (cmd2, "link_down")]:
-            try:
-                output = subprocess.check_output(cmd, shell=True, text=True).splitlines()
-            except subprocess.CalledProcessError:
-                output = []
-
-            for line in output:
-                if key == "failures":
-                    match = re.search(r"(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+.*?:\s*(\w+): CTRL-EVENT-EAP-FAILURE", line)
-                else:
-                    match = re.search(r"(\w{3}\s+\d+\s+\d+:\d+:\d+)\s+.*?mlx5_core .*? (\w+): Link down", line)
-
+        with open(self.log_file, "r") as f:
+            for line in f:
+                match = re.search(pattern, line)
                 if match:
-                    time_str, interface = match.groups()
+                    time_str = match.group(1)
+                    interface = match.group(2)
                     logger.debug(f"time: {time_str}, interface: {interface}")
                     if interface not in self.link_data:
-                        self.link_data[interface] = {"failures": [], "link_down": []}
-                    self.link_data[interface][key].append(time_str)
+                        self.link_data[interface] = {"failures": [time_str], "link_down": []}
+                    else:
+                        self.link_data[interface]["failures"].append(time_str)
 
-        logger.debug(f"Link Data: {self.link_data}")
+                
+                match = re.search(pattern2, line)
+                if match:
+                    time_str = match.group(1)
+                    interface = match.group(2)
+                    logger.debug(f"time: {time_str}, interface: {interface}")
+                    if interface not in self.link_data:
+                        self.link_data[interface] = {"failures": [], "link_down": [time_str]}
+                    else:
+                        self.link_data[interface]["link_down"].append(time_str)
+                        
+        logger.debug("Link Data: {}".format(self.link_data))
         return self.link_data
 
     def process_rdma_link_flapping(self):
@@ -79,11 +85,15 @@ class LinkFlappingTest:
                     last_date_failure_str = self.link_data[interface]["failures"][-1]
                     last_date_failure = datetime.datetime.strptime(last_date_failure_str, "%b %d %H:%M:%S")
 
+                    # Compare the month of the last failure date with the current month
                     if last_date_failure.month > current_date.month:
+                        # If the last failure month is greater than the current month, subtract one from the current year
                         last_date_failure = last_date_failure.replace(year=current_date.year - 1)
                     else:
+                        # Otherwise, set the year of the last failure date to the current year
                         last_date_failure = last_date_failure.replace(year=current_date.year)
 
+                    # Convert the last failure date to seconds since the epoch
                     last_date_failure_sec = int(time.mktime(last_date_failure.timetuple()))
                 
                 if last_date_failure_str != None and last_date_failure_str != current_date_str:
@@ -107,12 +117,17 @@ class LinkFlappingTest:
                         last_date_down_str = self.link_data[interface]["link_down"][-1]
                         last_date_down = datetime.datetime.strptime(last_date_down_str, "%b %d %H:%M:%S")
 
+                        # Compare the month of the last failure date with the current month
                         if last_date_down.month > current_date.month:
+                            # If the last failure month is greater than the current month, subtract one from the current year
                             last_date_down = last_date_down.replace(year=current_date.year - 1)
                         else:
+                            # Otherwise, set the year of the last failure date to the current year
                             last_date_down = last_date_down.replace(year=current_date.year)
 
+                        # Convert the last failure date to seconds since the epoch
                         last_date_down_sec = int(time.mktime(last_date_down.timetuple()))
+
 
                 if last_date_down_str != None and last_date_down_str != current_date_str:
                     diff_secs = current_date_sec - last_date_down_sec
@@ -137,13 +152,20 @@ class LinkFlappingTest:
             logger.warning("RDMA link flapping/down test: Failed")
         return link_issues
 
+
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="Process RDMA link flapping data")
-    parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO")
+    parser.add_argument("-l", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO", help="Set the logging level")
     args = parser.parse_args()
 
     logger.setLevel(args.log_level)
 
-    lft = LinkFlappingTest(time_interval=6)
-    lft.get_rdma_link_failures()
+    auth_failure_file = "/tmp/last_auth_failure_date"
+    msg_file = "/var/log/messages"
+    if not os.path.exists(msg_file):
+        msg_file = "/var/log/syslog"
+    time_interval_hours = 6
+    lft = LinkFlappingTest(time_interval=time_interval_hours)
+    link_data = lft.get_rdma_link_failures()
     lft.process_rdma_link_flapping()

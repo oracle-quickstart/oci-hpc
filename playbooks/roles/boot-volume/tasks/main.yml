@@ -1,2 +1,3 @@
-- include_tasks: el.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
+---
+- ansible.builtin.include_tasks: el.yml
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux'

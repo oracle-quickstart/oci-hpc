@@ -1,0 +1,105 @@
+---
+- name: Get all nodes with this controller
+  shell: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py nodes list --format json --columns ALL"
+  register: get_cluster_nodes_results
+  changed_when: false
+
+- name: Parse JSON results
+  set_fact:
+    query_results: "{{ get_cluster_nodes_results.stdout | from_json | list }}"
+
+- name: Debug output
+  debug:
+    var: query_results
+
+- name: Build new_compute_info (compute + configuring/reconfiguring)
+  set_fact:
+    new_compute_info: >-
+      {{
+        dict(
+          query_results
+              | selectattr("role", "equalto", "compute")
+              | selectattr("controller_status", "in", ["configuring", "reconfiguring"])
+              | map(attribute="ip_address")
+              | zip(
+                  query_results
+                  | selectattr("role", "equalto", "compute")
+                  | selectattr("controller_status", "in", ["configuring", "reconfiguring"])
+                  | map("combine", {})
+              )
+            )
+          }}
+
+- name: Build new_hosts_info (non-compute + configuring/reconfiguring)
+  set_fact:
+    new_hosts_info: >-
+      {{
+        dict(
+          query_results
+              | rejectattr("role", "equalto", "compute")
+              | selectattr("controller_status", "in", ["configuring", "reconfiguring"])
+              | map(attribute="ip_address")
+              | zip(
+                  query_results
+                  | rejectattr("role", "equalto", "compute")
+                  | selectattr("controller_status", "in", ["configuring", "reconfiguring"])
+                  | map("combine", {})
+              )
+            )
+          }}
+
+- name: Build remove_compute_info (compute + terminating)
+  set_fact:
+    remove_compute_info: >-
+      {{
+        dict(
+          query_results
+              | selectattr("role", "equalto", "compute")
+              | selectattr("controller_status", "equalto", "terminating")
+              | map(attribute="ip_address")
+              | zip(
+                  query_results
+                  | selectattr("role", "equalto", "compute")
+                  | selectattr("controller_status", "equalto", "terminating")
+                  | map("combine", {})
+              )
+            )
+          }}
+
+- name: Build all_hosts_info (all nodes keyed by IP)
+  set_fact:
+    all_hosts_info: >-
+      {{
+        dict(
+          query_results
+              | map(attribute="ip_address")
+              | zip(
+                  query_results
+                  | map("combine", {})
+              )
+            )
+          }}
+
+- name: Debug new_compute_info
+  debug:
+    msg: >-
+      Count={{ new_compute_info | length }},
+      First={{ (new_compute_info | dict2items | first) if new_compute_info | length > 0 else 'None' }}
+
+- name: Debug new_hosts_info
+  debug:
+    msg: >-
+      Count={{ new_hosts_info | length }},
+      First={{ (new_hosts_info | dict2items | first) if new_hosts_info | length > 0 else 'None' }}
+
+- name: Debug remove_compute_info
+  debug:
+    msg: >-
+      Count={{ remove_compute_info | length }},
+      First={{ (remove_compute_info | dict2items | first) if remove_compute_info | length > 0 else 'None' }}
+
+- name: Debug all_hosts_info
+  debug:
+    msg: >-
+      Count={{ all_hosts_info | length }},
+      First={{ (all_hosts_info | dict2items | first) if all_hosts_info | length > 0 else 'None' }}

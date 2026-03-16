@@ -1,39 +1,39 @@
 ---
 - name: Make sure that directory exists
-  file: 
+  file:
     state: directory
-    mode: '0755'
+    mode: "0755"
     path: /etc/opt/oci-hpc
 
-- name: create rdma hostfile
+- name: Create rdma hostfile
   template:
     src: templates/hostfile_rdma.j2
     dest: /etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}
-    mode: '0644'
+    mode: "0644"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
   delegate_to: 127.0.0.1
   run_once: true
-  when: cluster_network|bool
+  when: rdma_enabled|bool
 
-- name: create tcp hostfile
+- name: Create tcp hostfile
   template:
     src: templates/hostfile_tcp.j2
     dest: /etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}
-    mode: '0644'
+    mode: "0644"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
   delegate_to: 127.0.0.1
   run_once: true
 
 - name: Copy to all hosts
-  copy: 
+  copy:
     src: /etc/opt/oci-hpc/hostfile.rdma.{{ cluster_name }}
     dest: /etc/opt/oci-hpc/hostfile.rdma
-  when: cluster_network|bool
+  when: rdma_enabled|bool
 
 - name: Copy to all hosts
-  copy: 
+  copy:
     src: /etc/opt/oci-hpc/hostfile.tcp.{{ cluster_name }}
     dest: /etc/opt/oci-hpc/hostfile.tcp
 
@@ -44,11 +44,11 @@
     owner: root
     group: root
     state: link
-    mode: '0644'
-  with_items: 
+    mode: "0644"
+  with_items:
     - "hostfile.rdma"
-  when: cluster_network|bool
-   
+  when: rdma_enabled|bool
+
 - name: Create a symbolic link
   file:
     src: "/etc/opt/oci-hpc/{{ item }}"
@@ -56,9 +56,7 @@
     owner: root
     group: root
     state: link
-    mode: '0644'
-  with_items: 
+    mode: "0644"
+  with_items:
     - "hostfile.tcp"
-  when: not cluster_network|bool
-
-
+  when: not rdma_enabled|bool

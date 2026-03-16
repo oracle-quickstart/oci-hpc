@@ -16,7 +16,7 @@ prometheus_metrics = {}
 oci_metric_names = {}
 
 def get_compartment_id():
-    url = "http://169.254.169.254/opc/v1/instance/"
+    url = "http://169.254.169.254/opc/v2/instance/"
     headers = {
         "Authorization": "Bearer Oracle"
     }

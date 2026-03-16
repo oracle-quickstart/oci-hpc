@@ -42,7 +42,7 @@ def json_to_csv(flattened_results, csv_file):
 
 def process_entry(entry, username):
     # Replace this with the path to your private key
-    ssh_key = "/home/"+username+"/.ssh/id_rsa"
+    ssh_key = "/home/"+username+"/.ssh/id_ed25519"
 
     # Replace this with your SSH connection details
     ssh_host = entry

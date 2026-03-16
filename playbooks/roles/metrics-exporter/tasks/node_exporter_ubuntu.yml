@@ -1,66 +1,86 @@
 ---
+- name: Get DEB architecture # noqa no-changed-when
+  ansible.builtin.command: dpkg --print-architecture
+  register: deb_architecture
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Set DPKG architecture
+  ansible.builtin.set_fact:
+    arch_suffix: "{{ deb_architecture.stdout }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: Create prometheus group on compute
   become: true
-  group:
+  ansible.builtin.group:
     name: prometheus
     state: present
-    system: yes
+    system: true
 
 - name: Create prometheus user on compute
   become: true
-  user:
+  ansible.builtin.user:
     name: prometheus
     comment: "prometheus user"
     group: prometheus
-    createhome: no  # Optional: depending on if you want to create a home directory
+    createhome: false # Optional: depending on if you want to create a home directory
 
 - name: Create /var/lib/prometheus/node_exporter directory
   become: true
-  file:
+  ansible.builtin.file:
     path: "/var/lib/prometheus/node_exporter"
     state: directory
-    owner: 'prometheus'
-    group: 'prometheus'
-  
+    owner: "prometheus"
+    group: "prometheus"
+
+- name: Check if file already exists
+  ansible.builtin.stat:
+    path: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz"
+  register: node_exporter_file
+  delegate_to: 127.0.0.1
+  run_once: true
+
 - name: Download node_exporter {{ node_exporter }}
   become: true
-  get_url:
-    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
-    dest: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter }}/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz"
+    dest: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz"
+  when: not node_exporter_file.stat.exists | bool
+  delegate_to: 127.0.0.1
+  run_once: true
 
-- name: Extract node_exporter {{ node_exporter }}.linux-amd64.tar.gz into /var/lib/prometheus/node_exporter/
+- name: Extract node_exporter {{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz into /var/lib/prometheus/node_exporter/
   become: true
-  unarchive:
-    src: "/tmp/node_exporter-{{ node_exporter }}.linux-amd64.tar.gz"
+  ansible.builtin.unarchive:
+    src: "/config/3rdparty/node_exporter-{{ node_exporter }}.linux-{{ arch_suffix }}.tar.gz"
     dest: "/var/lib/prometheus/node_exporter/"
     extra_opts: ["--strip-components=1"]
     remote_src: true
 
 - name: Recursively change ownership of /var/lib/prometheus/node_exporter/
   become: true
-  file:
+  ansible.builtin.file:
     path: /var/lib/prometheus/node_exporter
     state: directory
-    recurse: yes
+    recurse: true
     owner: prometheus
-    group: prometheus 
+    group: prometheus
 
 - name: Create a symbolic link for node_exporter
   become: true
-  file:
+  ansible.builtin.file:
     src: /var/lib/prometheus/node_exporter/node_exporter
     dest: /usr/bin/node_exporter
-    state: link     
+    state: link
 
 - name: Configure node_exporter service
   become: true
-  copy:
-    src: 'node_exporter.service'
-    dest: '/etc/systemd/system/node_exporter.service' 
+  ansible.builtin.copy:
+    src: "node_exporter.service"
+    dest: "/etc/systemd/system/node_exporter.service"
 
 - name: Start and enable node_exporter service
   become: true
-  systemd:
+  ansible.builtin.systemd:
     name: node_exporter.service
     state: restarted
     enabled: true

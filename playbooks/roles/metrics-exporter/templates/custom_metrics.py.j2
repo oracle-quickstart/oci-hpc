@@ -387,6 +387,8 @@ def check_nvidia_gpu_count():
          alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.B200.8":
          alloc_gpu_count = 8
+    elif oci_shape == "BM.GPU.B300.8":
+         alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.B4.8":
          alloc_gpu_count = 8
     elif oci_shape == "BM.GPU.A100-v2.8":
@@ -404,9 +406,7 @@ def check_nvidia_gpu_count():
     command = ['nvidia-smi', '--list-gpus']
     result = subprocess.run(command, stdout=subprocess.PIPE)
     output = result.stdout.decode('utf-8')
-    output_to_lines = output.split('\n')
-    # remove empty lines and total entries
-    lines = [line for line in output_to_lines if line]
+    lines = [line for line in output.split('\n') if "GPU" in line and line.strip().startswith("GPU")]
     avail_gpu_count = len(lines)
 
     # Check if available count is equal to allocated
@@ -468,18 +468,24 @@ def check_ecc_errors():
 
     for i, gpu in enumerate(gpu_matches):
         logger.debug(f"GPU: {gpu}")
-        if vol_sram_line[i] != "0":
-            logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
-            ecc_issues.append(f"{gpu_matches[i]} - Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
-        if vol_dram_line[i] != "0":
-            logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
-            ecc_issues.append(f"{gpu_matches[i]} - Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
-        if agg_sram_line[i] != "0":
-            logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
-            ecc_issues.append(f"{gpu_matches[i]} - Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
-        if agg_dram_line[i] != "0":
-            logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
-            ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
+
+        vol_sram = vol_sram_line[i] if i < len(vol_sram_line) else "N/A"
+        vol_dram = vol_dram_line[i] if i < len(vol_dram_line) else "N/A"
+        agg_sram = agg_sram_line[i] if i < len(agg_sram_line) else "N/A"
+        agg_dram = agg_dram_line[i] if i < len(agg_dram_line) else "N/A"
+
+        if vol_sram != "0" and vol_sram != "N/A":
+           logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram}")
+           ecc_issues.append(f"{gpu} - Volatile SRAM Uncorrectable: {vol_sram}")
+        if vol_dram != "0" and vol_dram != "N/A":
+           logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram}")
+           ecc_issues.append(f"{gpu} - Volatile DRAM Uncorrectable: {vol_dram}")
+        if agg_sram != "0" and agg_sram != "N/A":
+           logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram}")
+           ecc_issues.append(f"{gpu} - Aggregate SRAM Uncorrectable: {agg_sram}")
+        if agg_dram != "0" and agg_dram != "N/A":
+           logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram}")
+           ecc_issues.append(f"{gpu} - Aggregate DRAM Uncorrectable: {agg_dram}")        
 
     # Textfile name for metrics
     tf_name = 'gpu_ecc_error_check.prom'
@@ -546,13 +552,13 @@ def check_row_remap_errors():
             continue
         tmp_data = line.split(",")
         tmp_data = [x.strip() for x in tmp_data]
-        if tmp_data[0] != "0" and tmp_data[0] != "No":
+        if tmp_data[0] not in ["0", "No", "[N/A]"]:
             logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
             remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
-        if tmp_data[1] != "0" and tmp_data[1] != "No":
+        if tmp_data[1] not in ["0", "No", "[N/A]"]:
             logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
             #remap_issues.append(f"GPU: {i} Row Remap Failure: {tmp_data[1]}")
-        if tmp_data[2] != "0" and tmp_data[2] != "No":
+        if tmp_data[2] not in ["0", "No", "[N/A]"]:
             logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
             if int(tmp_data[2]) > 512:
                 remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")

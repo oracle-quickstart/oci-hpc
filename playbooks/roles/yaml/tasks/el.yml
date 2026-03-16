@@ -1,20 +1,29 @@
 ---
+- name: Map system architecture to suffix
+  set_fact:
+    deb_architecture: "{{ arch_map[ansible_facts['architecture']] }}"
+  vars:
+    arch_map:
+      x86_64: amd64
+      aarch64: arm64
+
 - name: Download yq RPMs.
-  get_url:
-    url: "https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64.tar.gz"
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
+  ansible.builtin.get_url:
+    url: "https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_{{ deb_architecture }}.tar.gz"
     dest: "/tmp"
   retries: 10
   delay: 10
   register: result
   until: result is not failed
-- name: untar yq
+
+- name: Untar yq
   unarchive:
-    src: "/tmp/yq_linux_amd64.tar.gz"
+    src: "/tmp/yq_linux_{{ deb_architecture }}.tar.gz"
     dest: "/tmp"
-- name: move
+- name: Move yq
   become: true
   copy:
-    src: "/tmp/yq_linux_amd64"
+    src: "/tmp/yq_linux_{{ deb_architecture }}"
     dest: "/usr/bin/yq"
     mode: "0755"
-

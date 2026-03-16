@@ -1,0 +1,7 @@
+---
+- name: Run mgmt
+  ansible.builtin.include_tasks: controller.yml
+  when: controller_hostname == inventory_hostname
+- name: Run remote directives
+  ansible.builtin.include_tasks: remote.yml
+  when: controller_hostname != inventory_hostname

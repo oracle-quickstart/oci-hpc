@@ -2,5 +2,5 @@
 nfs_rpm_packages:
   - nfs-utils
 
-nfs_deb_packages: 
+nfs_deb_packages:
   - nfs-common

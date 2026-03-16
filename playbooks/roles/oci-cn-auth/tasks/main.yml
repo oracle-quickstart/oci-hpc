@@ -1,6 +1,0 @@
----
-- include_tasks: el.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
-
-- include_tasks: ubuntu.yml
-  when: ansible_os_family == 'Debian' and ansible_distribution == 'Ubuntu'

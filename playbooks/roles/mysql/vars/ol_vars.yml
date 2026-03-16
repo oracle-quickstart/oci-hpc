@@ -13,6 +13,10 @@ mysql_packages_ol8:
   - mysql-server
   - mysql
 
+mysql_packages_ol9:
+  - mysql-server
+  - mysql
+
 deb_mariadb_packages:
   - mariadb-server
   - mariadb-common
@@ -20,5 +24,5 @@ deb_mariadb_packages:
   - python3-pymysql
 # added above for mariadb
 
-mariadb_db_path: '/var/lib/mysql'
-mysql_db_path: '/var/lib/mysql'
+mariadb_db_path: "/var/lib/mysql"
+mysql_db_path: "/var/lib/mysql"

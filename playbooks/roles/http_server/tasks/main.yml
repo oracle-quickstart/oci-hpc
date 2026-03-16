@@ -1,0 +1,188 @@
+---
+- name: Create directory
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+    recurse: true
+  with_items:
+    - "{{ http_server_directory }}/files"
+    - "{{ http_server_directory }}/bin"
+
+- name: Copy Python script
+  become: true
+  ansible.builtin.template:
+    src: templates/http_server.py.j2
+    dest: "{{ http_server_directory }}/bin/http_server.py"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+
+- name: Create systemd service unit file
+  ansible.builtin.template:
+    src: templates/systemd/python-http-server.service
+    dest: /etc/systemd/system/python-http-server.service
+    mode: "0644"
+
+- name: Read existing info file if it exists
+  ansible.builtin.stat:
+    path: "{{ http_server_directory }}/files/info"
+  register: info_stat
+
+- name: Read existing info file if it exists
+  ansible.builtin.slurp:
+    src: "{{ http_server_directory }}/files/info"
+  register: info_file
+  when: info_stat.stat.exists
+
+- name: Parse JSON content
+  ansible.builtin.set_fact:
+    previous_info: "{{ info_file.content | b64decode | from_json }}"
+  when: info_stat.stat.exists
+
+- name: Set empty dict if file doesn't exist
+  ansible.builtin.set_fact:
+    previous_info: {}
+  when: not info_stat.stat.exists
+
+- name: Gather serial number
+  ansible.builtin.command: "sudo dmidecode -s system-serial-number"
+  register: serial_output
+
+- name: Gather FSS IP
+  ansible.builtin.shell: "cat /etc/fstab | grep {{ nfs_source_path }}"
+  register: nfs_output
+  ignore_errors: true
+
+- name: Extract the IP address using regex
+  ansible.builtin.set_fact:
+    ip_address: "{{ nfs_output.stdout | regex_search('([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})') }}"
+  when: nfs_output.rc == 0
+
+- name: Extract the IP address using regex
+  ansible.builtin.set_fact:
+    ip_address: "None"
+  when: nfs_output.rc != 0
+
+- name: Gather metadata
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: i_metadata
+
+- name: Set fact
+  ansible.builtin.set_fact:
+    instance_metadata: "{{ i_metadata['content'] | from_json }}"
+
+- name: Make sure freeformTags in included
+  ansible.builtin.set_fact:
+    instance_metadata: "{{ instance_metadata | combine({'freeformTags': {'cluster_name': '', 'controller_name': ''}}) }}"
+  when: "not 'freeformTags' in instance_metadata"
+
+- name: Make sure cluster_name in included
+  ansible.builtin.set_fact:
+    cluster_name: "{{ instance_metadata['displayName'].split('-') | slice(2, 10) | join('-') }}"
+  when: "not 'cluster_name' in instance_metadata['freeformTags']"
+
+- name: Make sure cluster_name in included
+  ansible.builtin.set_fact:
+    cluster_name: "{{ instance_metadata['freeformTags']['cluster_name'] }}"
+  when: "'cluster_name' in instance_metadata['freeformTags']"
+
+- name: Make sure cluster_name in included
+  ansible.builtin.set_fact:
+    memory_cluster_name: "None"
+  when: "not 'memory_cluster_name' in instance_metadata['freeformTags']"
+
+- name: Make sure cluster_name in included
+  ansible.builtin.set_fact:
+    memory_cluster_name: "{{ instance_metadata['freeformTags']['memory_cluster_name'] }}"
+  when: "'memory_cluster_name' in instance_metadata['freeformTags']"
+
+- name: Gather RDMA metadata
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/host/
+    method: GET
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: h_metadata
+
+- name: Set fact
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ h_metadata['content'] | from_json }}"
+
+- name: Add empty rdmaTopologyData
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None', 'customerLocalBlock': 'None', 'customerNetworkBlock': 'None',
+      'customerGpuMemoryFabric': 'None'}}) }}"
+  when: "not 'rdmaTopologyData' in rdma_metadata"
+
+- name: Add empty customerGpuMemoryFabric
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}, recursive=True) }}"
+  when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerHPCIslandId
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None'}}, recursive=True) }}"
+  when: "not 'customerHPCIslandId' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerLocalBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerLocalBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerLocalBlock' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerNetworkBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerNetworkBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerNetworkBlock' in rdma_metadata['rdmaTopologyData']"
+
+- name: Set http_role based on hostvars or default to "compute"
+  ansible.builtin.set_fact:
+    http_role: "{{ hostvars[inventory_hostname]['role'] }}"
+  when: not http_server_role is defined and "role" in hostvars[inventory_hostname]
+
+- name: Set http_role based on hostvars or default to "compute"
+  ansible.builtin.set_fact:
+    http_role: "{{ info_stat['role'] }}"
+  when: not http_server_role is defined and not "role" in hostvars[inventory_hostname]
+
+- name: Set http_role based on hostvars or default to "compute"
+  ansible.builtin.set_fact:
+    http_role: "{{ http_server_role }}"
+  when: http_server_role is defined
+
+- name: Build the host_info dictionary
+  ansible.builtin.set_fact:
+    host_info: "{{ {'host': ansible_facts['hostname'], 'role': http_role, 'serial_number': serial_output.stdout, 'cluster_name': cluster_name, 'memory_cluster_name': memory_cluster_name, 'instance_type': instance_type,
+      'controller_name': instance_metadata['freeformTags']['controller_name'], 'shape': instance_metadata['shape'], 'ocid': instance_metadata['id'], 'oci_name': instance_metadata['hostname'],
+      'availability_domain': instance_metadata['availabilityDomain'], 'tenancy_id': instance_metadata['tenantId'], 'compartment_id': instance_metadata['compartmentId'],
+      'rack_id': rdma_metadata['rackId'], 'rail_id': rdma_metadata['rdmaTopologyData']['customerLocalBlock'], 'network_block_id': rdma_metadata['rdmaTopologyData']['customerNetworkBlock'],
+      'gpu_memory_fabric': rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'], 'fss_ip': ip_address, 'hpc_island': rdma_metadata['rdmaTopologyData']['customerHPCIslandId'],
+      'image_id': instance_metadata['image']} }}"
+
+- name: Copying the info to the HTTP directory
+  become: true
+  ansible.builtin.template:
+    src: templates/initial_info.j2
+    dest: "{{ http_server_directory }}/files/info"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+
+- name: Reload systemd daemon
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Start and enable the service
+  ansible.builtin.service:
+    name: python-http-server
+    state: started
+    enabled: true

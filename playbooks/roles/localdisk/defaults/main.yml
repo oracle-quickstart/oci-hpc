@@ -1,1 +1,7 @@
+---
 nvme_path: "/scratch"
+
+# Recovery mode settings
+localdisk_recover: false    # Set to true to run recovery (destructive)
+force_recovery: false       # Set to true to force recovery even if filesystem is healthy
+redundancy: "auto"          # auto=detect from mdadm.conf, true=RAID10, false=RAID0

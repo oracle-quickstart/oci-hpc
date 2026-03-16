@@ -4,6 +4,11 @@ resource "oci_core_vcn" "vcn" {
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_VCN"
   dns_label      = "cluster"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_security_list" "internal-security-list" {
@@ -11,6 +16,11 @@ resource "oci_core_security_list" "internal-security-list" {
   vcn_id         = oci_core_vcn.vcn[0].id
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_private_sec_list"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 
   ingress_security_rules {
     protocol = "all"
@@ -45,6 +55,11 @@ resource "oci_core_security_list" "public-security-list" {
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_public_sec_list"
 
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+
   ingress_security_rules {
     protocol = "all"
     source   = var.vcn_subnet
@@ -60,21 +75,57 @@ resource "oci_core_security_list" "public-security-list" {
   }
 
   ingress_security_rules {
-    protocol = "6"
-    source   = var.ssh_cidr
+    protocol    = "6"
+    source      = var.ssh_cidr
+    description = "Open port for Grafana"
     tcp_options {
-      max = "3000"
-      min = "3000"
+      max = "80"
+      min = "80"
+    }
+  }
+  
+  ingress_security_rules {
+    protocol    = "6"
+    source      = var.ssh_cidr
+    description = "Open port for Grafana"
+    tcp_options {
+      max = "443"
+      min = "443"
     }
   }
   ingress_security_rules {
-    protocol = "6"
-    source   = var.ssh_cidr
+    protocol    = "6"
+    source      = var.ssh_cidr
+    description = "Open port for alerts"
     tcp_options {
       max = "5000"
       min = "5000"
     }
   }
+  dynamic "ingress_security_rules" {
+    for_each = var.slurm_federation ? [1] : []
+    content {
+      protocol    = "6"
+      source      = "${var.ip_slurmdbd}/32"
+      description = "Allow slurmdbd access from initial cluster"
+      tcp_options {
+        max = "6819"
+        min = "6819"
+      }
+    }
+  }  
+  dynamic "ingress_security_rules" {
+    for_each = var.slurm_federation ? [1] : []
+    content {
+      protocol    = "6"
+      source      = "${var.ip_slurmdbd}/32"
+      description = "Allow slurmctld access from initial cluster"
+      tcp_options {
+        max = "6817"
+        min = "6817"
+      }
+    }
+  }    
   ingress_security_rules {
     protocol = "1"
     source   = "0.0.0.0/0"
@@ -103,6 +154,11 @@ resource "oci_core_internet_gateway" "ig1" {
   vcn_id         = oci_core_vcn.vcn[0].id
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_internet-gateway"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_nat_gateway" "ng1" {
@@ -110,6 +166,11 @@ resource "oci_core_nat_gateway" "ng1" {
   vcn_id         = oci_core_vcn.vcn[0].id
   compartment_id = var.vcn_compartment
   display_name   = "${local.cluster_name}_nat-gateway"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 
@@ -122,6 +183,11 @@ resource "oci_core_service_gateway" "sg1" {
   services {
     service_id = data.oci_core_services.services.services[0]["id"]
   }
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_route_table" "public_route_table" {
@@ -129,6 +195,11 @@ resource "oci_core_route_table" "public_route_table" {
   compartment_id = var.vcn_compartment
   vcn_id         = oci_core_vcn.vcn[0].id
   display_name   = "${local.cluster_name}_public_route_table"
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 
   route_rules {
     destination       = "0.0.0.0/0"
@@ -143,6 +214,11 @@ resource "oci_core_route_table" "private_route_table" {
   compartment_id = var.vcn_compartment
   vcn_id         = oci_core_vcn.vcn[0].id
 
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+
   route_rules {
     destination       = "0.0.0.0/0"
     destination_type  = "CIDR_BLOCK"
@@ -155,6 +231,7 @@ resource "oci_core_route_table" "private_route_table" {
     network_entity_id = oci_core_service_gateway.sg1[0].id
   }
 }
+
 resource "oci_core_dhcp_options" "cluster_dhcp_options" {
   count          = var.use_existing_vcn ? 0 : 1
   compartment_id = var.vcn_compartment
@@ -164,11 +241,12 @@ resource "oci_core_dhcp_options" "cluster_dhcp_options" {
   }
   options {
     type                = "SearchDomain"
-    search_domain_names = [var.dns_entries ? local.zone_name : "cluster.oraclevcn.com"]
+    search_domain_names = [local.zone_name]
   }
   vcn_id       = oci_core_vcn.vcn[0].id
   display_name = "${local.cluster_name}_DHCP"
 }
+
 resource "oci_core_subnet" "public-subnet" {
   count = (var.use_existing_vcn || var.private_deployment) ? 0 : 1
   # availability_domain = var.ad
@@ -180,6 +258,11 @@ resource "oci_core_subnet" "public-subnet" {
   display_name      = "${local.cluster_name}_public_subnet"
   route_table_id    = oci_core_route_table.public_route_table[0].id
   dhcp_options_id   = oci_core_dhcp_options.cluster_dhcp_options[0].id
+  
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_core_subnet" "private-subnet" {
@@ -194,6 +277,11 @@ resource "oci_core_subnet" "private-subnet" {
   prohibit_public_ip_on_vnic = true
   route_table_id             = oci_core_route_table.private_route_table[0].id
   dhcp_options_id            = oci_core_dhcp_options.cluster_dhcp_options[0].id
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
 }
 
 resource "oci_dns_zone" "dns_zone" {
@@ -203,54 +291,55 @@ resource "oci_dns_zone" "dns_zone" {
   zone_type      = "PRIMARY"
   scope          = "PRIVATE"
   view_id        = data.oci_dns_views.dns_views.views[0].id
-}
 
-resource "oci_dns_rrset" "rrset-cluster-network-OCI" {
-  for_each        = var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
-  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "${local.cluster_instances_names[tonumber(each.key)]}.${local.zone_name}"
-  rtype           = "A"
-  items {
-    domain = "${local.cluster_instances_names[tonumber(each.key)]}.${local.zone_name}"
-    rtype  = "A"
-    rdata  = local.cluster_instances_ips[tonumber(each.key)]
-    ttl    = 3600
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
   }
-  scope   = "PRIVATE"
-  view_id = data.oci_dns_views.dns_views.views[0].id
 }
 
-resource "oci_dns_rrset" "rrset-cluster-network-SLURM" {
-
-  for_each        = var.slurm && var.dns_entries ? toset([for v in range(var.node_count) : tostring(v)]) : []
-  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
-  rtype           = "A"
-  items {
-    domain = "${var.hostname_convention}-${local.cluster_instances_ips_index[tonumber(each.key)]}.${local.zone_name}"
-    rtype  = "A"
-    rdata  = local.cluster_instances_ips[tonumber(each.key)]
-    ttl    = 3600
-  }
-  scope   = "PRIVATE"
-  view_id = data.oci_dns_views.dns_views.views[0].id
-}
 
 resource "oci_dns_rrset" "fss-dns-round-robin" {
-  count           = var.create_fss && var.dns_entries ? 1 : 0
+  count           = var.create_fss == "new" ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "fss-${var.hostname_convention}.${local.zone_name}"
+  domain          = "fss-${local.cluster_name}-controller.${local.zone_name}"
   rtype           = "A"
   dynamic "items" {
     for_each = oci_file_storage_mount_target.FSSMountTarget[*]
     iterator = target
     content {
-      domain = "fss-${var.hostname_convention}.${local.zone_name}"
+      domain = "fss-${local.cluster_name}-controller.${local.zone_name}"
       rtype  = "A"
       rdata  = target.value["ip_address"]
       ttl    = 1
     }
   }
-  scope   = "PRIVATE"
   view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
+resource "oci_dns_rrset" "controller" {
+  count           = var.create_fss == "existing" ? 1 : 0
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "fss-${local.cluster_name}-controller.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "fss-${local.cluster_name}-controller.${local.zone_name}"
+    rtype  = "A"
+    rdata  = oci_core_instance.controller.private_ip
+    ttl    = 3600
+  }
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
+resource "null_resource" "dns_ready" {
+  triggers = {
+    fss_rrset        = try(oci_dns_rrset.fss-dns-round-robin[0].id, "")
+    controller_rrset = try(oci_dns_rrset.controller[0].id, "")
+    monitoring_rrset = try(oci_dns_rrset.rrset-monitoring[0].id, "")
+  }
+}
+
+resource "time_sleep" "dns_sleep" {
+  depends_on = [null_resource.dns_ready]
+  create_duration = "120s"
 }

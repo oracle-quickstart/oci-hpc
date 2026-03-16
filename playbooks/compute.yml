@@ -1,0 +1,205 @@
+---
+- hosts: localhost
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Change hostname
+      ansible.builtin.include_role:
+        name: hostname
+      when: change_hostname | default(false) | bool
+    - name: Disable daily updates on Ubuntu, "hold" kernel, fix broken packages
+      ansible.builtin.include_role:
+        name: fix_broken
+      when: ansible_facts['os_family'] == 'Debian'
+
+- hosts: localhost
+  become: true
+  vars:
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
+    http_server_status: "configuring"
+    http_server_role: "compute"
+  gather_facts: true
+  roles:
+    - oci-cloud-agent
+    - http_server
+    - privilege_group
+    - oci-legacy
+    - packages
+    - firewall
+    - oci-hostname
+    - ssh
+    - limits
+    - boot-volume
+    - mpivars
+    - queue_read
+    - mgmt
+
+- hosts: localhost
+  become: true
+  gather_facts: true
+  vars:
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
+  tasks:
+    - name: Configure local NVMe drives
+      ansible.builtin.include_role:
+        name: localdisk
+      when: localdisk | default(true) | bool
+    - name: Load the nvidia_peermem kernel module
+      ansible.builtin.include_role:
+        name: nvidia_peermem
+    - name: Install health check scripts
+      ansible.builtin.include_role:
+        name: healthchecks
+
+# New role to clean old tmp dir files
+- hosts: all
+  become: true
+  tasks:
+    - name: Install systemd service to clean tmp
+      ansible.builtin.include_role:
+        name: clean_tmp
+
+- hosts: localhost
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install the hyperthreading controlling service
+      ansible.builtin.include_role:
+        name: hyperthreading
+      when: not hyperthreading | default(true) | bool
+
+- hosts: localhost
+  become: true
+  tasks:
+    - name: Enable NFS home directories in SELinux
+      ansible.builtin.include_role:
+        name: home_nfs
+      when: shared_home != "none"
+    - name: Configure shared home directories via NFS
+      ansible.builtin.include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ controller_hostname }}"
+        export_path: "/home"
+        options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
+        lock: "all"
+      when: shared_home == "nfs"
+    - name: Configure shared home directories via FSS
+      ansible.builtin.include_role:
+        name: nfs-client
+      vars:
+        local_path: "/home"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}/home{% endif %}"
+        options: ""
+        lock: "none"
+      when: shared_home == "fss"
+    - name: Configure the generic NFS client
+      ansible.builtin.include_role:
+        name: nfs-client
+      vars:
+        local_path: "{{ nfs_target_path }}"
+        export_host: "{{ nfs_source_IP }}"
+        export_path: "{{ nfs_source_path }} "
+        options: "{{ nfs_options }}"
+        lock: "none"
+      when: add_nfs | default(false) | bool
+
+- hosts: localhost
+  become: true
+  tasks:
+    - name: Set up the Systems Security Services Demon
+      include_role:
+        name: sssd
+      when: ldap | default(true) | bool
+
+- hosts: localhost
+  become: true
+  vars:
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
+  tasks:
+    - name: Configure Enroot/Pyxis/Container runtimes
+      when: enroot | default(true) | bool
+      block:
+        - name: Install and configure Docker
+          ansible.builtin.include_role:
+            name: docker
+        - name: Configure the AMD container runtime
+          ansible.builtin.include_role:
+            name: amd-container
+          when: "'BM.GPU.MI' in shape"
+        - name: Configure the NVIDIA container runtime
+          ansible.builtin.include_role:
+            name: nvidia-container
+          when: "'BM.GPU.MI' not in shape"
+        - name: Set up Enroot
+          ansible.builtin.include_role:
+            name: nvidia-enroot
+    - name: Add nccl-conf role for RDMA clusters
+      ansible.builtin.include_role:
+        name: nccl-conf
+      when: rdma_enabled | bool
+
+- hosts: localhost
+  become: true
+  tasks:
+    - name: Add lustre-client when LFS is added to the cluster
+      ansible.builtin.include_role:
+        name: lustre-client
+        apply:
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+      vars:
+        download_path: "/config/3rdparty"
+        local_path: "{{ lfs_target_path }}"
+        export_host: "{{ lfs_source_IP }}"
+        options: "{{ lfs_options }}"
+        export_path: "{{ lfs_source_path }}"
+        lock: "none"
+      when: add_lfs | default(false) | bool
+    - name: Configure NHC
+      ansible.builtin.include_role:
+        name: nhc
+
+- hosts: localhost
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Run custom test role
+      ansible.builtin.include_role:
+        name: custom
+
+- hosts: localhost
+  vars:
+    slurm_mode: "compute"
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
+    compute_node: true
+  tasks:
+    - name: Install rack aware helper scripts
+      ansible.builtin.include_role:
+        name: rack-aware
+    - name: Set up Spack
+      ansible.builtin.include_role:
+        name: spack
+      when: spack | default(false) | bool
+    - name: Set up SLURM
+      ansible.builtin.include_role:
+        name: slurm
+      when: slurm | default(false) | bool
+    - name: Install metrics exporter
+      ansible.builtin.include_role:
+        name: metrics-exporter
+      when: cluster_monitoring | default(false) | bool
+
+- hosts: localhost
+  become: true
+  vars:
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
+    http_server_status: "configured"
+    http_server_role: "compute"
+  gather_facts: true
+  roles:
+    - http_server

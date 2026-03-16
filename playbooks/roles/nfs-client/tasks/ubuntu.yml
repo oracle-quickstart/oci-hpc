@@ -4,14 +4,14 @@
     name: "{{ nfs_deb_packages }}"
     state: present
 
-- name: create share directory
+- name: Create share directory
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ local_path }}"
     state: directory
     owner: ubuntu
-    group: "{{privilege_group_name}}"
-    mode: 0775
+    group: "{{ privilege_group_name }}"
+    mode: "0775"
 
 - name: Mount NFS with options
   mount:
@@ -21,28 +21,21 @@
     opts: "{{ options }}"
     state: mounted
   when: options!=""
-  retries: 5
-  delay: 1
-  register: result
-  until: result is not failed
-  
+
 - name: Mount NFS without options
   mount:
     path: "{{ local_path }}"
     src: "{{ export_host }}:{{ export_path | trim() }}"
     fstype: nfs
+    opts: defaults,nconnect=16
     state: mounted
   when: options==""
-  retries: 5
-  delay: 1
-  register: result
-  until: result is not failed
 
-- name: make sure the permissions of the share directory are right
+- name: Make sure the permissions of the share directory are right
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ local_path }}"
     state: directory
     owner: ubuntu
-    group: "{{privilege_group_name}}"
-    mode: 0775
+    group: "{{ privilege_group_name }}"
+    mode: "0775"

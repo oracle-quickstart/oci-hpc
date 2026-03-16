@@ -1,24 +1,34 @@
-- include_tasks: node_exporter_el.yml
-  when: ansible_os_family == 'RedHat'
+---
+- ansible.builtin.include_tasks: node_exporter_el.yml
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- include_tasks: node_exporter_ubuntu.yml
-  when: ansible_distribution == 'Ubuntu'
+- ansible.builtin.include_tasks: node_exporter_ubuntu.yml
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
-- include_tasks: dcgm_exporter.yml
-  when: ('compute' in group_names) and 'GPU' in shape
+- ansible.builtin.include_tasks: dcgm_exporter.yml
+  when: compute_node|bool and 'GPU' in shape and not 'BM.GPU.MI' in shape
 
-- include_tasks: rdma_exporter.yml
-  when: ('compute' in group_names) and cluster_network|bool
+- ansible.builtin.include_tasks: rdma_exporter.yml
+  when: compute_node|bool and rdma_enabled|bool
 
-- include_tasks: nvlink_exporter.yml
-  when: ('compute' in group_names) and 'GPU' in shape
+- ansible.builtin.include_tasks: nvlink_exporter.yml
+  when: compute_node|bool and 'GPU' in shape and not 'BM.GPU.MI' in shape
 
-- include_tasks: custom_metrics.yml
-  when: ('compute' in group_names) and (cluster_network|bool or 'GPU' in shape)
+- ansible.builtin.include_tasks: custom_metrics.yml
+  when: compute_node|bool and rdma_enabled|bool
 
 - include_tasks: nvml_exporter.yml
-  when: ('compute' in group_names) and 'GPU' in shape
+  when: compute_node|bool and 'GPU' in shape
 
 - include_tasks: pcie_faults.yml
-  when: ('compute' in group_names) and 'GPU' in shape
+  when: compute_node|bool and 'GPU' in shape
 
+- include_tasks: nccl_profiler.yml
+  when: compute_node|bool and 'GPU' in shape
+# - ansible.builtin.include_tasks: critical_process_monitor.yml
+
+- ansible.builtin.include_tasks: amd_metrics_exporter_el.yml
+  when: compute_node|bool and ansible_facts['os_family'] == 'RedHat' and 'BM.GPU.MI' in shape
+
+- ansible.builtin.include_tasks: amd_metrics_exporter_ubuntu.yml
+  when: compute_node|bool and ansible_facts['distribution'] == 'Ubuntu' and 'BM.GPU.MI' in shape
