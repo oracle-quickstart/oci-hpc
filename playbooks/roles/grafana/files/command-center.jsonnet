@@ -7,6 +7,8 @@ g.dashboard.new('Command Center')
   Command Center
 |||)
 + g.dashboard.withTimezone('browser')
++ g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([
   variables.prometheus,
@@ -20,27 +22,27 @@ g.dashboard.new('Command Center')
     ),
     statPanel(
       'Management Nodes',
-      'count(node_uname_info{hostname=~".*controller*|.*login*"})',
+      'count(node_uname_info{hostname=~".*controller*|.*login*|.*backup*"})',
       {w:4, h:4, x:4, y:0}
     ),
     statPanel(
       'Compute Nodes',
-      'count(node_uname_info{hostname!~".*controller*|.*login*",cluster_name=~"$cluster_name"})',
+      'count(node_health_status{hostname!~".*controller*|.*login*|.*backup*",cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:8, y:0}
     ),
     statPanel(
       'Healthy Nodes',
-      'sum(count by (cluster_name) (node_health_status{cluster_name=~"$cluster_name"} == 1))',
+      'sum(count by (cluster_name) (node_health_status{hostname!~".*controller*|.*login*|.*backup*",cluster_name=~"$cluster_name"} == 1))',
       {w:4, h:4, x:12, y:0}
     ),
     statPanel(
       'Total GPUs',
-      'sum(max by (instance) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}))',
+      'sum(max by (Hostname) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}) or max by (hostname) (amd_gpu_nodes_total{cluster_name=~"$cluster_name"}) )',
       {w:4, h:4, x:16, y:0}
     ),    
     statPanel(
       'Healthy GPUs',
-      'sum(available_gpu_count{cluster_name=~"$cluster_name"})',
+      'sum(available_gpu_count{cluster_name=~"$cluster_name"}) or sum(amd_gpu_nodes_total{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:20, y:0}
     ),
     /*
@@ -59,7 +61,7 @@ g.dashboard.new('Command Center')
         + g.panel.stat.queryOptions.withTargets([
             g.query.prometheus.new(
                 '$PROMETHEUS_DS',
-                'node_health_status{cluster_name=~"$cluster_name", hostname!~".*controller.*"}'
+                'node_health_status{cluster_name=~"$cluster_name", hostname!~".*controller.*|.*login*|.*backup*"}'
             )
         + g.query.prometheus.withLegendFormat('{{hostname}}')
         ])
@@ -101,12 +103,12 @@ g.dashboard.new('Command Center')
             },
             {
               title: 'GPU Metrics',
-              url: '/d/gpu-metrics-single/gpu-metrics?var-hostname=${__field.labels.hostname}',
+              url: '/d/${__field.labels.vendor}-gpu-metrics-single/gpu-metrics?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             },
             {
               title: 'GPU Health',
-              url: '/d/gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
+              url: '/d/${__field.labels.vendor}-gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             }
         ]),

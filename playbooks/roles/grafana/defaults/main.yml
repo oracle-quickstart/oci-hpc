@@ -1,16 +1,18 @@
-user: "{{ ol_user if ansible_os_family == 'RedHat' else ubuntu_user }}"
+---
+user: "{{ ol_user if ansible_facts['os_family'] == 'RedHat' else ubuntu_user }}"
 ol_user: "opc"
 ubuntu_user: "ubuntu"
 dashboard_build_dir: "/tmp/dashboard-build"
 grafonnet_lib_repo_url: "github.com/grafana/grafonnet-lib/grafonnet@master"
 grafonnet_gen_repo_url: "github.com/grafana/grafonnet/gen/grafonnet-latest@main"
-grafana_api_keys_dir: /etc/opt/oci-hpc/passwords/grafana
 grafana_api_url: "http://localhost:3000"
 grafana_security:
   admin_user: admin
-  admin_password: admin
-grafana_api_keys: 
-  - name: "admin"
-    role: "Admin"
-grafana_ons_webhook_db_dir: "/opt/oci-hpc/ons_wehbook"
-grafana_ons_wehbook_template_path: "/etc/raw_message_template.txt"
+  default_admin_password: admin
+grafana_service_account:
+  name: "oci-hpc-monitoring"
+  role: "Admin"
+  token_file: "/etc/grafana/.token"
+  token_name: "oci-hpc-token"
+grafana_ons_webhook_db_dir: "/opt/oci-hpc/ons_webhook"
+grafana_ons_webhook_template_path: "/etc/raw_message_template.txt"

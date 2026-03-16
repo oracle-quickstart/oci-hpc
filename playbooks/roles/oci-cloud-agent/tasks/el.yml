@@ -1,117 +1,27 @@
---- 
-
-- name: call oracle cloud agent updater role
-  include_role: 
+---
+- name: Call oracle cloud agent updater role
+  ansible.builtin.include_role:
     name: oci-cloud-agent-updater
 
-- name: Check if agent.yml exists
-  stat:
-    path: /etc/oracle-cloud-agent/agent.yml
-  register: agent_file
-
-- name: Read the agent configuration
-  slurp:
-    path: /etc/oracle-cloud-agent/agent.yml
-  register: r_myfile
-  when: agent_file.stat.exists
-
-- name: extract the data
-  set_fact:
-    mydata: "{{ r_myfile['content'] | b64decode | from_yaml }}"
-  when: agent_file.stat.exists
-
-- name: Create configuration for core - modify params
-  set_fact:
-    mydata: "{{ mydata | combine(newdata, recursive=True) }}"
-  vars: 
-    newdata:
-      plugins:
-        osms:
-          disabled: true
-  when: agent_file.stat.exists
-    
-- name: Write back to a file
-  copy:
-    content: '{{ mydata | to_nice_yaml }}'
-    dest: /etc/oracle-cloud-agent/agent.yml
-  when: agent_file.stat.exists
-
-
-- name: Install yum-plugin-versionlock for OL8
-  yum:
-    name: python3-dnf-plugin-versionlock
-    state: latest
-    disable_gpg_check: yes
-  when:
-    - ansible_os_family == 'RedHat' and ansible_distribution_major_version == '8'
-- name: Hold latest OCA for OL
-  community.general.yum_versionlock:
-    name: oracle-cloud-agent
-    state: present
-  when:
-    - ansible_os_family == 'RedHat'
-    
-- name: Disable OCA updater
-  replace:
-    path: /etc/oracle-cloud-agent/updater.yml
-    regexp: 'upgrade_interval: 3600'
-    replace: 'upgrade_interval: -1'
-
-- name: Restart cloud agent updater
-  service: 
-    name: oracle-cloud-agent-updater
-    state: restarted
-  retries: 5
-  register: restart_cloud_agent_updater
-  until: restart_cloud_agent_updater is not failed
-  ignore_errors: True
-
-- name: Restart cloud agent
-  service: 
-    name: oracle-cloud-agent
-    state: restarted
-  when: agent_file.stat.exists
-  retries: 5
-  register: restart_cloud_agent
-  until: restart_cloud_agent is not failed
-
 - name: Unregister agent
-  command: osms unregister
-  when: agent_file.stat.exists
+  ansible.builtin.command: osms unregister
   retries: 5
-  ignore_errors: True
-
-# Present in OL images prior to May/June 2020, later replaced with oracle cloud agent
-- name: Check if osms-agent service exist
-  shell: service osms-agent status
-  register: osms_agent_status
-  failed_when: not(osms_agent_status.rc == 3 or osms_agent_status.rc == 0 or osms_agent_status.rc == 4)
-  ignore_errors: True
-
-- name: disable osms-agent.service
-  service:
-    name: osms-agent
-    state: stopped
-    enabled: no
-  when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
-
-- name: Unregister agent
-  command: osms unregister
-  when: (osms_agent_status.rc == 0 or osms_agent_status.rc == 3)
-  ignore_errors: True
+  register: unregister_cloud_agent
+  until: unregister_cloud_agent is not failed
+  when: ansible_facts['distribution_major_version'] == '8' or ansible_facts['distribution_major_version'] == '7'
+  ignore_errors: true
 
 # incase it takes time to get all repo ready after osms unregister
-
 - name: Sleep 5 seconds
-  pause: 
+  ansible.builtin.pause:
     seconds: 5
 
-# There seem to be a yum process from the cloud-agent that is randomly hanging and is blocking for other tasks. 
-- name: Make sure the yum process is destroyed. 
-  shell: "ps -ef | grep /v[a]r/lib/oracle-cloud-agent/plugins/unifiedmonitoring/temp-unified-monitoring.rpm | head -n 1 | awk '{print $2}'"
+# There seem to be a yum process from the cloud-agent that is randomly hanging and is blocking for other tasks.
+- name: Make sure the yum process is destroyed.
+  ansible.builtin.shell: "ps -ef | grep /v[a]r/lib/oracle-cloud-agent/plugins/unifiedmonitoring/temp-unified-monitoring.rpm | head -n 1 | awk '{print $2}'"
   register: yum_process
 
 - name: Kill Yum Process
-  shell: "sudo kill -9 {{yum_process.stdout}}"
+  ansible.builtin.command: "sudo kill -9 {{ yum_process.stdout }}"
   when: yum_process.stdout != ""
-  ignore_errors: True
+  ignore_errors: true

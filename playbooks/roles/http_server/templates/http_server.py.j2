@@ -1,0 +1,36 @@
+import os
+import http.server
+import socketserver
+
+# Directory to be served
+DIRECTORY_TO_SERVE = "{{http_server_directory}}/files"
+PORT = {{http_server_port}}
+
+# Custom handler to serve files from the specific directory
+class CustomHandler(http.server.SimpleHTTPRequestHandler):
+    def translate_path(self, path):
+        # Modify the path to serve files from the DIRECTORY_TO_SERVE
+        path = super().translate_path(path)
+        relpath = os.path.relpath(path, os.getcwd())
+        fullpath = os.path.join(DIRECTORY_TO_SERVE, relpath)
+        return fullpath
+    # Overriding end_headers to disable caching
+    def end_headers(self):
+        # Disable caching by setting appropriate headers
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
+def run_server():
+    with socketserver.TCPServer(("", PORT), CustomHandler) as httpd:
+        print(f"Serving directory '{DIRECTORY_TO_SERVE}' at http://localhost:{PORT}")
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("\nShutting down server.")
+        finally:
+            httpd.server_close()
+
+if __name__ == "__main__":
+    run_server()

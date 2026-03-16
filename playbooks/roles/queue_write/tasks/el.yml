@@ -1,0 +1,16 @@
+---
+- name: Ensure monitoring directory exists
+  file:
+    path: "/opt/oci-hpc/bin"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Copying the queue write script
+  become: true
+  template:
+    src: run_command.py.j2
+    dest: "/opt/oci-hpc/bin/run_command.py"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"

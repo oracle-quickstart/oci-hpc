@@ -1,137 +1,238 @@
----   
-
-- name: install SLURM server packages RedHat
-  vars: 
-    package_name: '{{ slurm_server_packages }}'
-    disable_gpg_check_var: True
-  include_role: 
-    name: safe_yum
-  when: ansible_os_family == 'RedHat'
-
-- name: install SLURM server packages Ubuntu
+---
+- name: Install SLURM server packages RedHat
   vars:
-    package_name: '{{ slurm_server_packages }}'
-    package_state: present
-  include_role:
+    package_name: "{{ slurm_server_packages }}"
+    disable_gpg_check_var: true
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'Debian'
-  
+
+- name: Install SLURM server packages Ubuntu
+  vars:
+    package_name: "{{ slurm_server_packages }}"
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install PyMySQL
+  vars:
+    package_name:
+      - python3-PyMySQL
+    package_repo: "{{ slurm_repos }}"
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install libmariadb-dev
+  vars:
+    package_name:
+      - libmariadb-dev
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: Render systemd units for slurmd and slurmdbd
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.j2'
-    dest: '/lib/systemd/system/{{ item }}.service'
-    backup: "yes"
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.j2"
+    dest: "/lib/systemd/system/{{ item }}.service"
+    backup: true
   with_items:
     - slurmctld
+    - slurmdbd
 
 - name: Create systemd unit dirs
   become: true
-  file:
-    name: '/etc/systemd/system/{{ item }}.service.d'
+  ansible.builtin.file:
+    name: "/etc/systemd/system/{{ item }}.service.d"
     state: directory
   with_items:
     - munge
     - slurmctld
+    - slurmdbd
 
 - name: Render systemd units for munge
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
-    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
-    backup: "yes"
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.d/unit.conf.j2"
+    dest: "/etc/systemd/system/{{ item }}.service.d/unit.conf"
+    backup: true
   with_items:
     - munge
 
 - name: Render systemd units for slurmctld on backup controller
   become: true
-  template:
-    src: 'systemd/slurmctld_backup.service.d/unit.conf.j2'
-    dest: '/etc/systemd/system/slurmctld.service.d/unit.conf'
-    backup: "yes"
+  ansible.builtin.template:
+    src: "systemd/slurmctld_backup.service.d/unit.conf.j2"
+    dest: "/etc/systemd/system/slurmctld.service.d/unit.conf"
+    backup: true
 
 - name: Create munge dir
   become: true
-  file:
-    name: '{{ munge_conf_path }}'
+  ansible.builtin.file:
+    name: "{{ munge_conf_path }}"
     state: directory
     owner: munge
     group: munge
-    mode: 0700
+    mode: "0700"
 
-- name: copy munge.key to tmp
+- name: Copy munge.key to tmp
   become: true
-  shell:
-    cmd: cp /etc/munge/munge.key /tmp/munge.key
+  ansible.builtin.command:
+    cmd: cp {{ munge_conf_path }}/munge.key /tmp/munge.key
   delegate_to: 127.0.0.1
   run_once: true
 
-- name: set permissions
+- name: Set permissions
   become: true
-  shell:
+  ansible.builtin.command:
     cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
   delegate_to: 127.0.0.1
   run_once: true
 
 - name: Copy munge key
   become: true
-  copy:
+  ansible.builtin.copy:
     src: /tmp/munge.key
     dest: /etc/munge/munge.key
     owner: munge
     group: munge
-    mode: '0400'
-  notify: restart munge
+    mode: "0400"
+  notify: Restart munge
+  register: job_result
+  until: job_result is not failed
+  retries: 10
+  delay: 30
 
-- name: restart munge
+- name: Restart munge
   become: true
-  service:
+  ansible.builtin.service:
     name: munge
     state: restarted
     enabled: true
 
+- name: Slurp cgroup.conf from controller
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ slurm_conf_path }}/cgroup.conf"
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: cgroup_conf_content
+  run_once: true
 
 - name: Copy cgroup file
   become: true
-  copy:
-    src: '{{ cgroup_conf_file }}'
-    dest: '{{ slurm_conf_path }}/cgroup.conf'
-    force: no
+  ansible.builtin.copy:
+    content: "{{ cgroup_conf_content.content | b64decode }}"
+    dest: "{{ slurm_conf_path }}/cgroup.conf"
+    force: false
     owner: slurm
     group: slurm
+  delegate_to: "{{ groups['controller'][0] }}"
 
-- name: move slurm.conf on backup servers
+- name: Slurp slurmdbd.conf from controller
   become: true
-  copy:
-    dest: '{{ slurm_conf_path }}/slurm.conf'
-    src: '{{ slurm_conf_path }}/slurm.conf'
-    force: yes
+  ansible.builtin.slurp:
+    src: "{{ slurm_conf_path }}/slurmdbd.conf"
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: slurmdbd_conf_content
+  run_once: true
 
-- name: move topology.conf on backup servers
+- name: Generate slurmdbd.conf on slurm_backup
   become: true
-  copy:
-    dest: '{{ slurm_conf_path }}/topology.conf'
-    src: '{{ slurm_conf_path }}/topology.conf'
-    force: yes
-  register: topology_copied
-  until: topology_copied is not failed
-  retries: 10
-  delay: 5
+  ansible.builtin.copy:
+    content: "{{ slurmdbd_conf_content.content | b64decode }}"
+    dest: "{{ slurm_conf_path }}/slurmdbd.conf"
+    mode: "0600"
+    owner: slurm
+    group: slurm
+    backup: true
 
-- name: move gres.conf on backup servers
+- name: Slurp slurm.conf from controller
   become: true
-  copy:
-    dest: '{{ slurm_conf_path }}/gres.conf'
-    src: '{{ slurm_conf_path }}/gres.conf'
-    force: yes
-  register: gres_copied
-  until: gres_copied is not failed
-  retries: 10
-  delay: 5
+  ansible.builtin.slurp:
+    src: "{{ slurm_conf_path }}/slurm.conf"
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: slurm_conf_content
+  run_once: true
 
-- name: start slurmctld
+- name: Generate slurm.conf on slurm_backup
   become: true
-  service:
+  ansible.builtin.copy:
+    content: "{{ slurm_conf_content.content | b64decode }}"
+    dest: "{{ slurm_conf_path }}/slurm.conf"
+    mode: "0644"
+    owner: slurm
+    group: slurm
+    backup: true
+
+- name: Slurp job_container.conf from controller
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ slurm_conf_path }}/job_container.conf"
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: slurm_job_container_conf_content
+  run_once: true
+
+- name: Generate job_container.conf
+  become: true
+  ansible.builtin.template:
+    src: "{{ slurm_job_container_conf_file }}"
+    dest: "{{ slurm_conf_path }}/job_container.conf"
+    mode: "0644"
+    backup: true
+    owner: slurm
+    group: slurm
+  notify: Restart slurm server
+
+- name: Slurp topology.conf from controller
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ slurm_conf_path }}/topology.conf"
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: topology_conf_content
+  run_once: true
+
+- name: Generate topology.conf on slurm_backup
+  become: true
+  ansible.builtin.copy:
+    content: "{{ topology_conf_content.content | b64decode }}"
+    dest: "{{ slurm_conf_path }}/topology.conf"
+    mode: "0644"
+    owner: slurm
+    group: slurm
+    backup: true
+
+- name: Slurp gres.conf from controller
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ slurm_conf_path }}/gres.conf"
+  delegate_to: "{{ groups['controller'][0] }}"
+  register: gres_conf_content
+  run_once: true
+
+- name: Generate gres.conf on slurm_backup
+  become: true
+  ansible.builtin.copy:
+    content: "{{ gres_conf_content.content | b64decode }}"
+    dest: "{{ slurm_conf_path }}/gres.conf"
+    mode: "0600"
+    owner: slurm
+    group: slurm
+    backup: true
+    force: true
+
+- name: Start slurmdbd
+  become: true
+  ansible.builtin.service:
+    name: slurmdbd
+    state: restarted
+    enabled: true
+
+- name: Start slurmctld
+  become: true
+  ansible.builtin.service:
     name: slurmctld
     state: restarted
     enabled: true

@@ -1,0 +1,10 @@
+---
+- name: Restart fail2ban
+  systemd:
+    name: fail2ban
+    state: restarted
+
+- name: Reload ssh
+  systemd:
+    name: ssh
+    state: reloaded

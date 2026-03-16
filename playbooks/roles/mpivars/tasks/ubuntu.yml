@@ -1,24 +1,22 @@
 ---
 - name: Get the openmpi version
-  shell: 
+  ansible.builtin.command:
     cmd: ls /usr/mpi/gcc/
   register: openmpi
   failed_when: false
 
-
 - name: Check if mpivars.sh exists
-  stat:
+  ansible.builtin.stat:
     path: /usr/mpi/gcc/{{ openmpi.stdout_lines[0] }}/bin/mpivars.sh
   register: mpivars
   when: openmpi.stdout_lines | length > 0
 
-
 - name: Create mpivars.sh
   become: true
-  template: 
-    src: mpivars.j2 
+  ansible.builtin.template:
+    src: mpivars.j2
     dest: /usr/mpi/gcc/{{ openmpi.stdout_lines[0] }}/bin/mpivars.sh
-    force: yes
+    force: true
     owner: root
     group: root
   when: openmpi.stdout_lines | length > 0 and not mpivars.stat.exists

@@ -1,60 +1,99 @@
+---
 - name: Create systemd unit dirs
   become: true
-  file:
-    name: '/opt/oci-hpc/healthchecks'
+  ansible.builtin.file:
+    name: "/opt/oci-hpc/healthchecks"
     state: directory
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Create systemd unit dirs
+  become: true
+  ansible.builtin.file:
+    name: "/var/log/healthchecks"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
 
 - name: Copy files
   become: true
-  copy: 
-    src: '{{ item }}'
-    dest: '/opt/oci-hpc/healthchecks/{{ item }}'
-    force: no
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
-  with_items: 
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/opt/oci-hpc/healthchecks/{{ item }}"
+    force: false
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  with_items:
     - check_gpu_setup.py
+    - active_healthcheck.py
+    - active_HC.sbatch
     - gpu_bw_test.py
     - rdma_link_flapping.py
     - xid_checker.py
     - shared_logging.py
+    - multi_node_active_HC.sbatch
+    - multi_node_active_healthcheck.py
+    - gpu_sdc_checker.py
+    - gpu_reset.sh
+
+- name: Change gpu_reset.sh file mode to 0755
+  ansible.builtin.file:
+    path: /opt/oci-hpc/healthchecks/gpu_reset.sh
+    mode: '0755'
 
 - name: Download oci-mesh-pinger
-  get_url:
-    url: "{{mp_download_link}}"
-    dest: "/tmp/"
-  when: ('controller' in group_names)
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
+  ansible.builtin.get_url:
+    url: "{{ mp_download_link_x86 }}"
+    dest: "/tmp/{{ mp_filename }}"
+  when: ('controller' in group_names) and ansible_facts['architecture'] == "x86_64"
 
-- name: untar meshpinger
-  unarchive:
-    src: "/tmp/{{mp_filename}}"
+- name: Download oci-mesh-pinger
+  ansible.builtin.get_url:
+    url: "{{ mp_download_link_arm }}"
+    dest: "/tmp/{{ mp_filename }}"
+  when: ('controller' in group_names) and ansible_facts['architecture'] == "aarch64" and ansible_facts['distribution_major_version'] != "8"
+
+- name: Untar meshpinger
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ mp_filename }}"
     dest: "/opt/oci-hpc/healthchecks"
   when: ('controller' in group_names)
 
 - name: Copy files
   become: true
-  copy: 
-    src: '{{ item }}'
-    dest: '/opt/oci-hpc/healthchecks/{{ item }}'
-    force: no
-    owner: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
-    mode: 0755
-  with_items: 
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/opt/oci-hpc/healthchecks/{{ item }}"
+    force: false
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  with_items:
     - run_meshpinger.sh
   when: ('controller' in group_names)
 
-- name: Make sure meshpinger dependencies are installed. 
-  vars: 
-    package_name: 
+- name: Make sure meshpinger dependencies are installed.
+  vars:
+    package_name:
       - fping
       - jq
       - lshw
       - ethtool
     package_state: latest
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
   ignore_errors: true
-  
+
+- name: Make sure healthcheck dependencies are installed.
+  vars:
+    package_name:
+      - python3-psutil
+      - python3-distro
+      - nvme-cli
+      - fio
+    package_state: latest
+  ansible.builtin.include_role:
+    name: safe_yum
+  ignore_errors: true

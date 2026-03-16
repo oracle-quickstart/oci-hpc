@@ -1,41 +1,49 @@
-- name: install pssh and parallel-ssh
-  become: true
+---
+- name: Install required packages
   vars:
-    ansible_python_interpreter: /usr/bin/python3
-  pip:
-    name: ['pssh', 'parallel-ssh']
-    executable: pip3
-    state: latest
-  ignore_errors: true
+    package_name:
+      - pssh
+    package_state: present
+    package_cache: true
+  ansible.builtin.include_role:
+    name: safe_yum
 
 - name: Make sure /opt/oci-hpc/bin/ exists
   become: true
-  file:
+  ansible.builtin.file:
     path: /opt/oci-hpc/bin/
     state: directory
-    recurse: yes
-    mode: '0755'
+    recurse: true
+    mode: "0755"
     owner: "{{ ansible_user }}"
     group: "{{ privilege_group_name }}"
 
 - name: Copy node_ordering_by_rack.py
   block:
-    - name: copy node_ordering_by_rack.py
+    - name: Copy node_ordering_by_rack.py
       become: true
-      copy:
+      ansible.builtin.copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/
         owner: "{{ ansible_user }}"
-        group: "{{privilege_group_name}}"
-        mode: '0755'
+        group: "{{ privilege_group_name }}"
+        mode: "0755"
   rescue:
-    - name: copy node_ordering_by_rack.py
+    - name: Copy node_ordering_by_rack.py
       become: true
-      copy:
+      ansible.builtin.copy:
         src: node_ordering_by_rack.py
         dest: /opt/oci-hpc/bin/
         owner: "{{ ansible_user }}"
-        group: "{{privilege_group_name}}"
-        mode: '0755'
+        group: "{{ privilege_group_name }}"
+        mode: "0755"
       ignore_errors: true
-  
+
+- name: Copy node_ordering_by_rack.py to home directory
+  become: true
+  ansible.builtin.copy:
+    src: node_ordering_by_rack.py
+    dest: /home/{{ ansible_user }}
+    owner: "{{ ansible_user }}"
+    group: "{{ privilege_group_name }}"
+    mode: "0755"

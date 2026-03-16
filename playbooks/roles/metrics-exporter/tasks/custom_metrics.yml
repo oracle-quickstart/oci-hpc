@@ -4,35 +4,35 @@
   become: true
   vars:
     ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
-  file:
+  ansible.builtin.file:
     path: "{{ ne_script_dir }}"
     state: directory
-    owner: "{{ ansible_user }}" 
-    group: "{{ ansible_user }}"    
-    mode: '0775'
-    recurse: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+    recurse: true
 
 - name: Copying custom metrics main script
   become: true
   vars:
     ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
-  template:  
+  ansible.builtin.template:
     src: templates/custom_metrics.py.j2
     dest: "{{ ne_script_dir }}/custom_metrics.py"
-    owner: "{{ ansible_user }}" 
-    group: "{{ ansible_user }}" 
-    mode: '0775'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
 
 - name: Copying additional custom metric scripts
   become: true
   vars:
     ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
-  copy:  
+  ansible.builtin.copy:
     src: "files/{{ item }}"
     dest: "{{ ne_script_dir }}"
-    owner: "{{ ansible_user }}" 
-    group: "{{ ansible_user }}" 
-    mode: '0775'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
   with_items:
     - custom_metric_common.py
     - shared_logging.py
@@ -43,17 +43,13 @@
   become: true
   vars:
     ne_script_dir: /opt/oci-hpc/nodeexporter/scripts
-  template:  
+  ansible.builtin.template:
     src: templates/customMetrics.service.j2
     dest: /etc/systemd/system/customMetrics.service
-    owner: root  
+    owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
 
 - name: Enable and Start Custom Metric Service
   become: true
-  service:
-    name=customMetrics.service
-    state=started
-    enabled=yes
-
+  ansible.builtin.service: name=customMetrics.service state=started enabled=yes

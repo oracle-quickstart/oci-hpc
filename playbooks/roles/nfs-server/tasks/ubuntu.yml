@@ -1,13 +1,13 @@
 ---
 - name: Ensure NFS utilities are installed.
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - nfs-kernel-server
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Start NFS server
-  service: 
+  service:
     name: nfs-kernel-server
     state: started
     enabled: true
@@ -18,26 +18,26 @@
     state: "{{ nfs_rpcbind_state }}"
     enabled: "{{ nfs_rpcbind_enabled }}"
 
-- name: create local storage directory
-  file: 
+- name: Create local storage directory
+  file:
     path: "{{ local_path }}"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ privilege_group_name }}"
 
-- name: create exports.d
+- name: Create exports.d
   file:
     path: /etc/exports.d
     owner: root
     group: root
     state: directory
 
-- name: create exports file
+- name: Create exports file
   register: nfs_config
-  notify: reload_nfs
+  notify: Reload NFS
   template:
-      src: exports.j2
-      dest: "/etc/exports.d/{{ export_name }}.exports"
+    src: exports.j2
+    dest: "/etc/exports.d/{{ export_name }}.exports"
 
-- name: export folders
-  command: 'exportfs -ra'
+- name: Export folders
+  command: "exportfs -ra"

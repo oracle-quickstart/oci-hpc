@@ -1,0 +1,6 @@
+---
+#- ansible.builtin.include_tasks: oraclelinux-9.yml
+#  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux' and ansible_distribution_major_version == '9'
+
+- ansible.builtin.include_tasks: ubuntu.yml
+  when: ansible_distribution == 'Ubuntu'

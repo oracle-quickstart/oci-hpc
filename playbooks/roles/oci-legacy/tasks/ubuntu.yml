@@ -1,20 +1,20 @@
 ---
 - name: Check if oci-hpc bashrc config exists
-  stat: 
+  ansible.builtin.stat:
     path: /etc/opt/oci-hpc/bashrc/.bashrc_config
   register: bashrc_config
 
-- name: update NFS_CONFIGURED if needed
-  lineinfile: 
+- name: Update NFS_CONFIGURED if needed
+  ansible.builtin.lineinfile:
     dest: /etc/opt/oci-hpc/bashrc/.bashrc_config
     state: present
     regexp: 'export NFS_CONFIGURED="no"'
     line: 'export NFS_CONFIGURED="yes"'
-  when: bashrc_config.stat.exists|bool and cluster_nfs|bool
-  
+  when: bashrc_config.stat.exists|bool
+
 - name: Update NFS_MOUNT_PATH
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/opt/oci-hpc/bashrc/.bashrc_config
-    regexp: '^export NFS_MOUNT_PATH'
-    line: 'export NFS_MOUNT_PATH="{{ cluster_nfs_path }}"'
-  when: bashrc_config.stat.exists|bool and cluster_nfs|bool
+    regexp: "^export NFS_MOUNT_PATH"
+    line: 'export NFS_MOUNT_PATH="/config"'
+  when: bashrc_config.stat.exists|bool

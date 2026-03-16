@@ -18,16 +18,26 @@ elif [ "$shape" == "BM.GPU.H200.8" ]; then
    HCA="mlx5_0 mlx5_3 mlx5_4 mlx5_5 mlx5_6 mlx5_9 mlx5_10 mlx5_11"
 elif [ "$shape" == "BM.GPU.B200.8" ]; then
    HCA="mlx5_0 mlx5_3 mlx5_4 mlx5_5 mlx5_6 mlx5_9 mlx5_10 mlx5_11"
+elif [ "$shape" == "BM.GPU.B300.8" ]; then
+   HCA="mlx5_0 mlx5_1 mlx5_7 mlx5_8 mlx5_9 mlx5_10 mlx5_11 mlx5_12 mlx5_13 mlx5_14 mlx5_16 mlx5_17 mlx5_18 mlx5_19 mlx5_20 mlx5_21"
+elif [ "$shape" == "BM.GPU.GB200.4" ]; then
+   HCA="mlx5_0 mlx5_1 mlx5_3 mlx5_4"
+elif [ "$shape" == "BM.GPU.GB200-v2.4" ]; then
+   HCA="mlx5_0 mlx5_1 mlx5_3 mlx5_4"
+elif [ "$shape" == "BM.GPU.GB200-v3.4" ]; then
+   HCA="mlx5_0 mlx5_1 mlx5_2 mlx5_3 mlx5_5 mlx5_6 mlx5_7 mlx5_8"
+elif [ "$shape" == "BM.GPU.GB300.4" ]; then
+   HCA="mlx5_0 mlx5_1 mlx5_2 mlx5_3 mlx5_5 mlx5_6 mlx5_7 mlx5_8"
 elif [ "$shape" == "BM.GPU.B4.8" ]; then
    HCA="mlx5_1 mlx5_2 mlx5_3 mlx5_4 mlx5_5 mlx5_6 mlx5_7 mlx5_8 mlx5_9 mlx5_10 mlx5_11 mlx5_12 mlx5_14 mlx5_15 mlx5_16 mlx5_17"
 elif [ "$shape" == "BM.Optimized3.36" ]; then
    HCA="mlx5_2"
+elif [ "$shape" == "BM.GPU.MI355X-v1.8" ]; then
+   HCA="mlx5_0 mlx5_1 mlx5_2 mlx5_3 mlx5_4 mlx5_5 mlx5_6 mlx5_7"
 else
    echo "Shape $shape not supported"
 fi
-cmd_base="/usr/bin/ib_write_bw -a -F -q 2 --report_gbits"
-cmd_base="/usr/bin/ib_write_bw -b -F -q 2 -x 3 --report_gbits"
-cmd_base="/usr/bin/ib_write_bw -b -F -q 2 -x 3 --report_gbits"
+cmd_base="/usr/bin/ib_write_bw -F -q 2 -x 3 --report_gbits"
 for Dev in $HCA; do
    echo -e "$Server $Client $Dev \c"
    ssh $Server exec $cmd_base -d $Dev > /dev/null 2>&1 &

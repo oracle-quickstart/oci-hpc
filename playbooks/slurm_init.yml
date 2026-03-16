@@ -1,0 +1,8 @@
+---
+- hosts: controller, slurm_backup
+  vars:
+    slurm_mode: "re-init"
+  tasks:
+    - include_role:
+        name: slurm
+      when: slurm | default(false) | bool

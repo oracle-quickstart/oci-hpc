@@ -1,5 +1,5 @@
 [Unit]
-Requires=munge.service slurmdbd.service
+Requires=munge.service {{ "slurmdbd.service" if not slurm_federation }}
 
 [Service]
 Environment="SLURMCTLD_OPTIONS=-R"

@@ -3,65 +3,57 @@
   copy:
     src: nvidia-allow-prof.conf
     dest: /etc/modprobe.d
-    mode: 0755
-  become: yes
+    mode: "0755"
+  become: true
+  when: not 'BM.GPU.MI' in shape
+
 
 - name: Get list of GPUs using nvidia-smi
   shell: "nvidia-smi -L | cut -d':' -f 1 | cut -d' ' -f 2"
   register: nvidia_smi_output
+  when: not 'BM.GPU.MI' in shape
+
 
 - name: Extract GPU IDs from nvidia-smi output
   set_fact:
-    gpu_ids: "{{ nvidia_smi_output.stdout_lines | list }}" 
+    gpu_ids: "{{ nvidia_smi_output.stdout_lines | list }}"
+  when: not 'BM.GPU.MI' in shape
+
 
 - debug:
     msg: "GPU IDs found: {{ gpu_ids }}"
+  when: not 'BM.GPU.MI' in shape
+
 
 - name: Enable accounting mode on each GPU
   command: nvidia-smi --accounting-mode=1 --gpu {{ item }}
   loop: "{{ gpu_ids }}"
-  become: yes
-
-- name: Install prometheus_client python package
-  ansible.builtin.pip:
-    name: prometheus_client 
-    executable: /usr/bin/pip3  
-  become: yes
-
-- name: Install pynvml python package
-  ansible.builtin.pip:
-    name: pynvml
-    executable: /usr/bin/pip3
-  become: yes
-
-- name: Install psutil python package
-  ansible.builtin.pip:
-    name: psutil
-    executable: /usr/bin/pip3
-  become: yes
+  become: true
+  ignore_errors: true
+  when: not 'BM.GPU.MI' in shape
 
 - name: Copy exporter file to scripts directory
   copy:
     src: nvml_metrics_exporter.py
     dest: /usr/local/bin
-    mode: 0755
-  become: yes
+    mode: "0755"
+  become: true
 
 - name: Render systemd service file
   become: true
-  template: 
+  template:
     src: nvml-exporter.service.j2
     dest: /etc/systemd/system/nvml-exporter.service
-    force: yes
-    backup: yes
+    force: true
+    backup: true
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
-    mode: 0744
+    mode: "0744"
 
-- name: start nvml exporter
+- name: Start nvml exporter
   become: true
   service:
     name: nvml-exporter
     daemon_reload: true
     state: restarted
-    enabled: yes
+    enabled: true

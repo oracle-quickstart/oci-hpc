@@ -1,4 +1,7 @@
-- include_tasks: el.yml
-  when: ansible_os_family == 'RedHat'
-- include_tasks: ubuntu.yml
-  when: ansible_os_family == 'Debian'
+---
+- name: Set hostname for RedHat-based OS
+  ansible.builtin.include_tasks: el.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+- name: Set hostname for Debian-based OS
+  ansible.builtin.include_tasks: ubuntu.yml
+  when: ansible_facts['os_family'] == 'Debian'

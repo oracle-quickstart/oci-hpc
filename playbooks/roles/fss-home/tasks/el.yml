@@ -1,32 +1,31 @@
 ---
 - name: Make sure the /home directory exist
   file:
-    path: "{{tmp_home}}"
+    path: "{{ tmp_home }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: Make sure the remote home directory exist
   file:
-    path: "{{tmp_home}}/home"
+    path: "{{ tmp_home }}/home"
     state: directory
-    mode: '0755'
-  when: not create_fss|bool
+    mode: "0755"
+  when: create_fss != "new"
 
 - name: Report if opc dir exist
   file:
-    path: "{{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/opc/"
+    path: "{{ tmp_home }}{% if create_fss != 'new' %}/home{% endif %}/opc/"
     state: directory
-    mode: '0700'
+    mode: "0700"
     owner: opc
     group: opc
   register: opc_directory
 
-- name: copy opc/ dir
-  command: "cp -rpT /home/opc {{tmp_home}}{% if not create_fss|bool %}/home{% endif %}/opc"
+- name: Copy opc/ dir
+  command: "cp -rpT /home/opc {{ tmp_home }}{% if create_fss != 'new' %}/home{% endif %}/opc"
   when: opc_directory.changed
 
-
-- name: Unmount {{tmp_home}} mount
+- name: Unmount {{ tmp_home }} mount
   mount:
-    path: "{{tmp_home}}"
+    path: "{{ tmp_home }}"
     state: absent

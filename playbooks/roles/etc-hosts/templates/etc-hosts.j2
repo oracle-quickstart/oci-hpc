@@ -1,19 +1,19 @@
 {% for item in groups['compute'] %}
 {%- set rdma_subnet = hostvars[item]['rdma_network'] + '/' + hostvars[item]['rdma_netmask'] -%}
-{%- set rdma_subnet_prefix = rdma_subnet | ansible.netcommon.ipaddr('prefix') -%}
-{%- set rdma_subnet_cidr = rdma_subnet | ansible.netcommon.ipaddr('network/prefix') -%}
-{%- set host_index = hostvars[item]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet'])  -%}
+{%- set rdma_subnet_prefix = rdma_subnet | ansible.utils.ipaddr('prefix') -%}
+{%- set rdma_subnet_cidr = rdma_subnet | ansible.utils.ipaddr('network/prefix') -%}
+{%- set host_index = hostvars[item]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet'])  -%}
 {# THIS WHOLE ROUTINE IS USED TO FIND THE NEXT SUBNET #}
 {%- set subnets = [rdma_subnet_cidr] -%}
 {%- for i in range(0) -%}
-  {%- set nsip = subnets|last | ansible.netcommon.ipaddr('net') | ansible.netcommon.ipaddr('-1') | ansible.netcommon.ipmath(1) -%}
+  {%- set nsip = subnets|last | ansible.utils.ipaddr('net') | ansible.utils.ipaddr('-1') | ansible.utils.ipmath(1) -%}
   {%- set ns = nsip + '/' + rdma_subnet_prefix|string -%}
   {{ subnets.append(ns) }}
 {%- endfor -%}
-{%- set rdma_address = subnets|last | ansible.netcommon.ipmath(host_index | int -1) -%}
+{%- set rdma_address = subnets|last | ansible.utils.ipmath(host_index | int -1) -%}
 {% set short_name = hostvars[item]['ansible_fqdn'].split('.') %}
 {{ hostvars[item]['ansible_host'] }} {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.local.vcn {{ hostvars[item]['inventory_hostname'] }} {{ hostvars[item]['ansible_fqdn'] }} {{ short_name[0] }}
-{% if cluster_network | bool %}
+{% if rdma_enabled | bool %}
 {{rdma_address}}  {{ hostvars[item]['ansible_hostname'] }}-rdma.local.rdma {{ hostvars[item]['ansible_hostname'] }}-rdma {{ hostvars[item]['inventory_hostname'] }}-rdma {{ hostvars[item]['inventory_hostname'] }}-rdma.local.rdma
 {% endif %}
 {% endfor %}

@@ -1,9 +1,9 @@
 ---
-- name: call oracle cloud agent updater
-  include_role: 
+- name: Call oracle cloud agent updater
+  ansible.builtin.include_role:
     name: oci-cloud-agent-updater
 
-# oracle-cloud-agent runs by default on ubuntu 
+# oracle-cloud-agent runs by default on ubuntu
 # However it doesn't have osms (OS Management Service) which we had to disable on Oracle Linux
 # sudo snap list  | grep oracle-cloud-agent
 # to check for version

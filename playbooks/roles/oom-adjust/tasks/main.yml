@@ -13,9 +13,9 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   with_items: "{{ existing_services }}"
-  
+
 - name: Copy oom-adjust.conf to the override directory
   become: true
   ansible.builtin.copy:
@@ -23,7 +23,7 @@
     dest: "/etc/systemd/system/{{ item }}.d/override.conf"
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   with_items: "{{ existing_services }}"
 
 - name: Reload systemd daemon

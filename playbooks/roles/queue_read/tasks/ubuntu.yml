@@ -1,0 +1,45 @@
+---
+- name: Ensure monitoring directory exists
+  ansible.builtin.file:
+    path: "/opt/oci-hpc/bin"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Ensure monitoring directory exists
+  ansible.builtin.file:
+    path: "/config/logs"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Copying the DB Scraper config
+  become: true
+  ansible.builtin.template:
+    src: queue_read.py.j2
+    dest: "/opt/oci-hpc/bin/queue_read.py"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+
+- name: Create systemd service unit file
+  ansible.builtin.template:
+    src: templates/systemd/queue_read.service
+    dest: /etc/systemd/system/queue_read.service
+    mode: "0644"
+
+- name: Create systemd service unit file
+  ansible.builtin.template:
+    src: templates/systemd/queue_read.timer
+    dest: /etc/systemd/system/queue_read.timer
+    mode: "0644"
+
+- name: Reload systemd daemon
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Start and enable the service
+  ansible.builtin.service:
+    name: queue_read.timer
+    state: started

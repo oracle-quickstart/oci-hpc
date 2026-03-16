@@ -5,40 +5,21 @@
 
 - name: Create /etc/opt/oci-hpc/passwords/mysql
   become: true
-  file: 
+  file:
     path: /etc/opt/oci-hpc/passwords/mysql
     state: directory
     owner: opc
-    mode: 0770
+    mode: "0770"
     group: opc
-    recurse: yes
+    recurse: true
 
-- name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords 
+- name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords
   set_fact:
-    tmp_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
-                           chars=ascii_letters,digits') }}"
+    tmp_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/mysql/root.txt chars=ascii_letters,digits') }}"
 
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
-    mysql_root_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc/passwords/mysql/root.txt  
-                           chars=ascii_letters,digits') }}"
-- block:
-    - name: Install MySQL packages ol7
-      vars: 
-        package_name: 
-          - mysql-release-el7
-      include_role: 
-        name: safe_yum
-
-    - name: Install MySQL packages
-      vars: 
-        package_name: '{{ mysql_packages }}'
-        package_repo: ol7_MySQL80
-      include_role: 
-        name: safe_yum
-  when: ansible_distribution_major_version == '7' 
+    mysql_root_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/mysql/root.txt chars=ascii_letters,digits') }}"
 
 - block:
     - name: Select mysql package ol8
@@ -46,32 +27,44 @@
         package_name: mysql-release-el8
 
     - name: Install MySQL packages ol8
-      vars: 
+      vars:
         package_name: "{{ mysql_packages_ol8 }}"
         package_repo: ol8_MySQL80
-      include_role: 
+      include_role:
         name: safe_yum
+  when: ansible_facts['distribution_major_version'] == '8'
 
-    - name: Make sure pymysql is present
-      become: true 
-      pip:
-        name: pymysql
-        state: present
-  when: ansible_distribution_major_version == '8' 
+- block:
+    - name: Select mysql package ol9
+      set_fact:
+        package_name: mysql-release-el9
+
+    - name: Install MySQL packages ol9
+      vars:
+        package_name: "{{ mysql_packages_ol9 }}"
+        package_repo: ol9_MySQL80
+      include_role:
+        name: safe_yum
+  when: ansible_facts['distribution_major_version'] == '9'
 
 - name: Update SELinux context for {{ mysql_db_path }}
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   become: true
   sefcontext:
-    target: '{{ mysql_db_path }}(/.*)?'
+    target: "{{ mysql_db_path }}(/.*)?"
     setype: mysqld_db_t
     seuser: system_u
     state: present
-  when: ansible_selinux.status == "enabled"
+  when:
+    - ansible_facts['selinux'] is defined
+    - ansible_facts['selinux'] != false
+    - ansible_facts['selinux']['status'] == 'enabled'
 
 - name: Ensure {{ mysql_db_path }} exists
   become: true
   file:
-    path: '{{ mysql_db_path }}'
+    path: "{{ mysql_db_path }}"
     owner: mysql
     group: mysql
     state: directory
@@ -81,22 +74,22 @@
 - name: Render /etc/my.cnf
   become: true
   template:
-    src: 'mysqld_etc_my.cnf.j2'
-    dest: '/etc/my.cnf'
-    backup: yes
-  notify: restart mysqld
+    src: "mysqld_etc_my.cnf.j2"
+    dest: "/etc/my.cnf"
+    backup: true
+  notify: Restart mysqld
 
-- name: create configuration directory
+- name: Create configuration directory
   become: true
-  file: 
+  file:
     path: /etc/my.cnf.d/
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
 
 - name: Copy innodb.cnf
   become: true
-  copy: 
+  copy:
     src: innodb.cnf
     dest: /etc/my.cnf.d/innodb.cnf
 
@@ -104,84 +97,72 @@
   become: true
   service:
     name: mysqld
-    enabled: yes
+    enabled: true
 
 - block:
-  - name: Start MySQL service
-    become: true
-    service:
-      name: mysqld
-      state: started
-  
-  - meta: flush_handlers
+    - name: Start MySQL service
+      become: true
+      service:
+        name: mysqld
+        state: started
 
-  - name: get root password
-    shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
-    register: m_root_password
-      
-  - name: check if DB exists
-    shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
-    register: dbstatus
-    ignore_errors: true
-    no_log: true
+    - meta: flush_handlers
 
-  - block:    
-      - name: fix user password
-        command: mysql --user root -p'{{ m_root_password.stdout }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ m_root_password.stdout }}';"
-        when: dbstatus.rc != 0 
-        
-      - name: fix password policy
-        command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
-        when: dbstatus.rc != 0 
+    - name: Get root password
+      shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
+      register: m_root_password
 
-      - name: update expired root user password
-        command: mysql --user root --password={{ m_root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
-        when: dbstatus.rc != 0
-    when: ansible_distribution_major_version == '7'
+    - name: Check if DB exists
+      shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
+      register: dbstatus
+      ignore_errors: true
+      no_log: true
 
-  - block:
-      - name: Set MySQL root pasword ol8
-        become: true
-        mysql_user: 
-          name: root
-          password: '{{ mysql_root_pwd }}'
-          host_all: yes
-          check_implicit_admin: yes
-          state: present
+    - block:
+        - name: Set MySQL root pasword ol8
+          become: true
+          mysql_user:
+            name: root
+            password: "{{ mysql_root_pwd }}"
+            host_all: true
+            check_implicit_admin: true
+            state: present
 
-      - name: check if DB exists
-        shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
-        register: dbstatus
-        ignore_errors: true
-        no_log: true
-          
-      - name: fix user password
-        command: mysql --user root -p'{{ mysql_root_pwd }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
-        when: dbstatus.rc != 0 
-        
-      - name: fix password policy
-        command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
-        when: dbstatus.rc != 0 
+        - name: Check if DB exists
+          shell: mysql --user root -p'{{ mysql_root_pwd }}' -e 'SHOW DATABASES;'
+          register: dbstatus
+          ignore_errors: true
+          no_log: true
 
-      - name: update expired root user password
-        command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_pwd }}';"
-        when: dbstatus.rc != 0 
-    when: ansible_distribution_major_version == '8'
-  
-  - name: Render /root/.my.cnf
-    become: true
-    template:
-      src: my.cnf.j2
-      dest: /root/.my.cnf
-      owner: root
-      group: root
-      mode: 0600
+        - name: Fix user password
+          command: mysql --user root -p'{{ mysql_root_pwd }}' --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{
+            mysql_root_pwd }}';"
+          when: dbstatus.rc != 0
 
-  - name: Remove test db
-    become: true
-    mysql_db:
-      config_file: '/root/.my.cnf'
-      name: test
-      state: absent
-      login_password: "{{ mysql_root_pwd }}"
-      login_user: root
+        - name: Fix password policy
+          command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="SET GLOBAL validate_password.policy=LOW;"
+          when: dbstatus.rc != 0
+
+        - name: Update expired root user password
+          command: mysql --user root --password={{ mysql_root_pwd }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED BY '{{
+            mysql_root_pwd }}';"
+          when: dbstatus.rc != 0
+      when: ansible_facts['distribution_major_version'] == '8' or ansible_facts['distribution_major_version'] == '9'
+
+    - name: Render /root/.my.cnf
+      become: true
+      template:
+        src: my.cnf.j2
+        dest: /root/.my.cnf
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Remove test db
+      become: true
+      mysql_db:
+        config_file: "/root/.my.cnf"
+        name: test
+        state: absent
+        login_password: "{{ mysql_root_pwd }}"
+        login_user: root

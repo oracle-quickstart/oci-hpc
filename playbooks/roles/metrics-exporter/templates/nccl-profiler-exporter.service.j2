@@ -6,8 +6,11 @@ After=network.target
 User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple
-ExecStart=/usr/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint 
-
+{% if (groups['monitoring']| length ) > 0 %}
+ExecStart={{venv_path}}/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint  {{ controller_hostname }}:4317
+{% else %}
+ExecStart={{venv_path}}/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint  {{ monitoring_hostname }}:4317
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target

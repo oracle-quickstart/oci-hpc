@@ -1,36 +1,22 @@
 ---
-- name: restart sshd
-  listen: restart login services
+- name: Restart sshd
+  listen: Restart login services
   service:
     name: sshd
     state: restarted
-    enabled: yes
+    enabled: true
+  when: not ( ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int >= 24 )
 
-- name: restart sssd
-  listen: restart ns daemons
+- name: Restart sssd
+  listen: Restart ns daemons
   service:
     name: sssd
     state: restarted
-    enabled: yes
+    enabled: true
 
-- name: restart nscd
-  listen: restart ns daemons
-  systemd:
-    name: nscd
-    state: restarted
-    daemon_reload: yes
-    enabled: yes
-
-- name: restart_nslcd
-  listen: restart ns daemons
-  service:
-    name: nslcd
-    state: restarted
-    enabled: yes
-
-- name: restart_systemd_logind
-  listen: restart login services
+- name: Restart systemd_logind
+  listen: Restart login services
   service:
     name: systemd-logind
     state: restarted
-    enabled: yes
+    enabled: true

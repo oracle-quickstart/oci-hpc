@@ -1,0 +1,55 @@
+import subprocess
+import re
+import sys
+import json
+from datetime import datetime, timedelta
+
+import oci
+
+# Get the current date and time with milliseconds
+current_time = datetime.now()
+current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+queue_ocid = "{{queue_ocid}}"
+hostname= "{{hostvars[inventory_hostname]['ansible_facts']['hostname']}}"
+ip_address= "{{hostvars[inventory_hostname]['ansible_default_ipv4']['address']}}"
+
+# Initialize Queue Client
+signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
+endpoint = cp_client.get_queue(queue_ocid).data.messages_endpoint
+queue_client = oci.queue.QueueClient(config={}, signer=signer, service_endpoint=endpoint)
+
+
+def scan_queue():
+    commands=[]
+    while True:
+        messages_response_hostname = queue_client.get_messages(queue_ocid,limit=20,channel_filter=hostname)
+        messages_response_ip = queue_client.get_messages(queue_ocid,limit=20,channel_filter=ip_address)
+        if len(messages_response_hostname.data.messages)+ len(messages_response_ip.data.messages) == 0:
+            break
+        messages = messages_response_hostname.data.messages + messages_response_ip.data.messages
+        for message in messages:
+            content=eval(message.content)
+            if 'command' in content:
+                commands.append(content['command'])
+            # Delete the message after processing
+            queue_client.delete_message(queue_ocid, message.receipt)
+            print("Message deleted:", content['command'])
+    return commands
+
+# Run Ansible
+def run_command(command):
+    try:
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        return result.stdout
+    except Exception as e:
+        print(f"Error running ansible: {e}")
+        sys.exit(1)
+
+# Main function
+if __name__ == "__main__":
+    commands=scan_queue()
+    for i in commands:
+        run_command(i)

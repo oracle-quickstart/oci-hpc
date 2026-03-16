@@ -19,5 +19,5 @@ pssh -i -h /opt/oci-hpc/samples/nfs/machinefile 'sudo sed -i_bak -e "/ \/nfs\/sc
 PID=$!
 wait $PID
 
-ansible-playbook /opt/oci-hpc/playbooks/site.yml
+ansible-playbook /config/site.yml
 

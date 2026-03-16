@@ -1,125 +1,153 @@
 ---
 - name: Install dependencies
   become: true
-  package:
+  ansible.builtin.package:
     name: "{{ dependencies }}"
     state: present
 
-- name: Download Go tarball
+- name: Check if Go tarball already cached
+  ansible.builtin.stat:
+    path: "/config/3rdparty/{{ go_tarball }}"
+  register: go_cache
+  delegate_to: localhost
+  run_once: true
+
+- name: Download Go tarball to shared storage
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   become: true
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ go_url }}"
-    dest: "/tmp/{{ go_tarball }}"
+    dest: "/config/3rdparty/{{ go_tarball }}"
+  delegate_to: localhost
+  run_once: true
+  when: not go_cache.stat.exists | bool
 
 - name: Remove old Go installation
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ go_install_dir }}/go"
     state: absent
 
-- name: Extract Go tarball
+- name: Extract Go tarball from shared storage
   become: true
-  unarchive:
-    src: "/tmp/{{ go_tarball }}"
+  ansible.builtin.unarchive:
+    src: "/config/3rdparty/{{ go_tarball }}"
     dest: "{{ go_install_dir }}"
     remote_src: true
 
 - name: Ensure Go binary path is in PATH
   become: true
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/profile.d/go.sh
     line: "export PATH=$PATH:{{ go_path }}"
-    create: yes
+    create: true
     state: present
 
-- name: Get dcgmi version
-  shell: "dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'"
-  register: dcgm_version_output
-  delegate_to: "{{ groups['compute'][0] }}"        
-  run_once: true  
+- name: Check if dcgm-exporter file already exists
+  ansible.builtin.stat:
+    path: /config/3rdparty/dcgm-exporter/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}
+  register: dcgm_exporter
 
-- name: Set dcgmi version globally
-  set_fact:
-    dcgm_version: "{{ dcgm_version_output.stdout }}"
-  delegate_to: localhost
-  run_once: true
-
-- name: Find DCGM Exporter releases
+- name: Get current DCGM version
   become: true
-  shell:
-    cmd: curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"'
-  register: dcgm_exporter_releases
-  delegate_to: localhost
+  ansible.builtin.shell:
+    cmd: dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'
+  register: dcgm_version
+  changed_when: false
+
+- name: Extract DCGM major version
+  ansible.builtin.set_fact:
+    dcgm_major_version: "{{ dcgm_version.stdout.split('.')[0] }}"
+
+- name: Fetch and cache DCGM Exporter releases
+  become: true
+  ansible.builtin.shell:
+    cmd: |
+      if [ -f /config/3rdparty/dcgm-exporter-releases.txt ]; then
+        cat /config/3rdparty/dcgm-exporter-releases.txt
+      else
+        releases=$(curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"')
+        tmp=$(mktemp /config/3rdparty/.dcgm-releases.XXXXXX)
+        echo "$releases" > "$tmp"
+        mv "$tmp" /config/3rdparty/dcgm-exporter-releases.txt
+        echo "$releases"
+      fi
+  register: dcgm_exporter_releases_result
   run_once: true
+  when: not dcgm_exporter.stat.exists | bool
+
+- name: Set DCGM Exporter releases fact
+  ansible.builtin.set_fact:
+    dcgm_exporter_releases:
+      stdout_lines: "{{ dcgm_exporter_releases_result.stdout_lines | default([]) | select | list }}"
+  when: not dcgm_exporter.stat.exists | bool
+
+#- name: Extract major.minor version from DCGM version
+#  set_fact:
+#    dcgm_major_minor: "{{ dcgm_version.stdout | regex_replace('^(\\d+\\.\\d+)\\.\\d+$', '\\1') }}"
 
 - name: Select appropriate DCGM Exporter version
-  set_fact:
-    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version) | first | split(' ') | last }}"
-  delegate_to: localhost
-  run_once: true
+  ansible.builtin.set_fact:
+    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version.stdout) | first | split(' ') | last }}"
+  when: not dcgm_exporter.stat.exists | bool
 
 - name: Download DCGM Exporter tarball
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
   become: true
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ dcgm_exporter_url }}"
-    dest: "/tmp/dcgm-exporter.tar.gz"        
-  delegate_to: localhost
-  run_once: true
-
-- name: Copy DCGM Exporter tarball to target
-  become: true
-  copy:
-    src: "/tmp/dcgm-exporter.tar.gz"
-    dest: "/tmp/dcgm-exporter.tar.gz"
-  delegate_to: localhost
-  run_once: true
+    dest: "/config/3rdparty/dcgm-exporter.tar.gz"
+  when: not dcgm_exporter.stat.exists | bool
 
 - name: Extract DCGM Exporter tarball
   become: true
-  unarchive:
-    src: "/tmp/dcgm-exporter.tar.gz"
-    dest: "/tmp"
+  ansible.builtin.unarchive:
+    src: "/config/3rdparty/dcgm-exporter.tar.gz"
+    dest: "/config/3rdparty"
+    remote_src: true
+  when: not dcgm_exporter.stat.exists | bool
 
-- name: get directory
-  shell: "ls -d /tmp/NVIDIA-dcgm-exporter-*"
+- name: Get directory
+  ansible.builtin.shell: "ls -ltd /config/3rdparty/NVIDIA-dcgm-exporter-* | head -n 1 | awk '{print $9}'"
   register: dcgm_directory
 
 - name: Build DCGM Exporter binary
   become: true
-  command: make binary
+  ansible.builtin.command: make binary
   args:
-    chdir: "{{dcgm_directory.stdout}}"
+    chdir: "{{ dcgm_directory.stdout }}"
   environment:
-    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+    PATH: "{{ go_path }}:{{ ansible_facts['env']['PATH'] }}"
+  when: not dcgm_exporter.stat.exists | bool
 
 - name: Install DCGM Exporter
   become: true
-  command: make install
+  ansible.builtin.command: make install
   args:
-    chdir: "{{dcgm_directory.stdout}}"
+    chdir: "{{ dcgm_directory.stdout }}"
   environment:
-    PATH: "{{ go_path }}:{{ ansible_env.PATH }}"
+    PATH: "{{ go_path }}:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Create systemd service for DCGM-Exporter
   become: true
-  template:
+  ansible.builtin.template:
     src: dcgm-exporter.service.j2
     dest: "{{ dcgm_service_path }}"
 
-- name: Copy DCGM-Exporter counter configuration
+- name: Template DCGM-Exporter counter configuration
   become: true
-  copy:
-    src: files/dcgm-counters.csv
-    dest: "{{ dcgm_counter_config_path }}"
+  ansible.builtin.template:
+    src: dcgm-counters.csv.j2
+    dest: "/etc/dcgm-counters.csv"
 
 - name: Reload systemd daemon
   become: true
-  systemd:
-    daemon_reload: yes
+  ansible.builtin.systemd:
+    daemon_reload: true
 
 - name: Enable and start DCGM-Exporter service
   become: true
-  systemd:
+  ansible.builtin.systemd:
     name: dcgm-exporter
-    enabled: yes
+    enabled: true
     state: started

@@ -33,10 +33,13 @@ local var = g.dashboard.variable;
   slurm_job_id:
     var.query.new('slurm_job_id')
     + var.query.withDatasourceFromVariable(self.prometheus)
-    + var.query.queryTypes.withLabelValues('slurm_job_id', 'slurm_job_cpu_util_seconds')
     + var.query.selectionOptions.withMulti()
     + var.query.selectionOptions.withIncludeAll()
-    + var.query.withRefresh(1),
+    + var.query.withRefresh(1)
+    + var.query.withRegex('/slurm_job_id="([^"]+)"/')
+    + {
+      query: 'query_result(group by (slurm_job_id) (slurm_job_cpu_util_seconds) or group by (slurm_job_id) (label_replace(amd_gpu_gfx_activity, "slurm_job_id", "$1", "job_id", "(.*)")))',
+    },
     
   user:
     var.query.new('user')

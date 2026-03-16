@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 60s
+  external_labels:
+    monitor: 'prometheus'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+{% for host in all_hosts_info.keys() %}
+      - targets: [{% for port in exporter_ports  %}{{ host }}:{{port}}{{ "," if not loop.last }}{%- endfor %}]
+        labels:
+          serial: {{ all_hosts_info[host]['serial'] }}
+          hostname: {{ all_hosts_info[host]['hostname'] }}
+          ip: {{ host }}
+          cluster_name: {{ all_hosts_info[host]['cluster_name'] }}
+          ocid: {{ all_hosts_info[host]['ocid'] }}
+          oci_name: {{ all_hosts_info[host]['oci_name'] }}
+          availability_domain: {{ all_hosts_info[host]['availability_domain'] }}
+          compartment_id: {{ all_hosts_info[host]['compartment_id'] }}
+          rack_id: {{ all_hosts_info[host]['rack_id'] }}
+          gpu_memory_fabric: {{ all_hosts_info[host]['gpu_memory_fabric'] }}
+          memory_cluster_name: {{ all_hosts_info[host]['memory_cluster_name'] }}
+          network_block_id: {{ all_hosts_info[host]['network_block_id'] }}
+          rail_id: {{ all_hosts_info[host]['rail_id'] }}
+          hpc_island: {{ all_hosts_info[host]['hpc_island'] }}
+          fss_mount: {{ all_hosts_info[host]['fss_mount'] }}
+{% endfor %}

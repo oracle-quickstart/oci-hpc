@@ -1,8 +1,9 @@
-- include_tasks: el.yml
-  when: ansible_os_family == 'RedHat'
+---
+- ansible.builtin.include_tasks: el.yml
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- include_tasks: debian.yml
-  when: ansible_distribution == 'Ubuntu'
+- ansible.builtin.include_tasks: debian.yml
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
-- include_tasks: debian.yml
-  when: ansible_distribution == 'Debian'
+- ansible.builtin.include_tasks: debian.yml
+  when: ansible_facts['distribution'] == 'Debian'

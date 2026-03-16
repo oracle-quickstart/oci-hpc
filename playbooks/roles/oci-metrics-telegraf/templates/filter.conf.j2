@@ -1,0 +1,134 @@
+
+[[processors.filter]]
+  order = 1
+  ## Default action if no rule applies
+  default = "drop"
+  alias = "filter"
+
+  ## Rules to apply on the incoming metrics (multiple rules are possible)
+  ## The rules are evaluated in order and the first matching rule is applied.
+  ## In case no rule matches the "default" is applied.
+  ## All filter criteria in a rule must apply for the rule to match the metric
+  ## i.e. the criteria are combined by a logical AND. If a criterion is
+  ## omitted it is NOT applied at all and ignored.
+  [[processors.filter.rule]]
+      ## List of metric names to match including glob expressions
+      name = [
+        "oci_blockstore:VolumeThrottledIOs",
+        "oci_blockstore:VolumeReadOps",
+        "oci_blockstore:VolumeWriteOps",
+        "oci_blockstore:VolumeGuaranteedIOPS",
+        "oci_blockstore:VolumeReadThroughput",
+        "oci_blockstore:VolumeWriteThroughput",
+        "oci_blockstore:VolumeGuaranteedThroughput",
+        "oci_filestorage:FileSystemReadThroughput",
+        "oci_filestorage:FileSystemWriteThroughput",
+        "oci_filestorage:MetadataRequestAverageLatency",
+        "oci_filestorage:MetadataIOPS",
+        "oci_filestorage:FileSystemUsage",
+        "oci_filestorage:MountTargetHealth",
+        "oci_filestorage:MountTargetReadThroughput",
+        "oci_filestorage:MountTargetWriteThroughput",
+        "oci_filestorage:MountTargetConnections",
+        "oci_lustrefilesystem:FileSystemCapacity",
+        "oci_lustrefilesystem:FileSystemInodeCapacity",
+        "oci_lustrefilesystem:ReadThroughput",
+        "oci_lustrefilesystem:WriteThroughput",
+        "oci_lustrefilesystem:DataReadOperations",
+        "oci_lustrefilesystem:DataWriteOperations",
+        "oci_lustrefilesystem:MetadataOperations",
+        "oci_objectstorage:ObjectCount",
+        "oci_objectstorage:StoredBytes",
+        "oci_objectstorage:AllRequests",
+        "oci_objectstorage:ClientErrors",
+        "oci_objectstorage:EnabledOLM",
+        "oci_objectstorage:FirstByteLatency",
+        "oci_objectstorage:PostRequests",
+        "oci_objectstorage:PutRequests",
+        "oci_objectstorage:TotalRequestLatency",
+        "oci_objectstorage:UncommittedParts",
+        "oci_objectstorage:ListRequests",
+        "oci_objectstorage:GetRequests",
+        "oci_objectstorage:HeadRequests",
+        "oci_objectstorage:DeleteRequests",
+        "oci_objectstorage:CopyRequests",
+        "oci_objectstorage:RenameRequests",
+        "oci_objectstorage:ArchiveRequests",
+        "oci_dynamic_routing_gateway:BytesToDrgAttachment",
+        "oci_dynamic_routing_gateway:BytesFromDrgAttachment",
+        "oci_dynamic_routing_gateway:PacketsToDrgAttachment",
+        "oci_dynamic_routing_gateway:PacketsFromDrgAttachment",
+        "oci_dynamic_routing_gateway:PacketDropsToDrgAttachment",
+        "oci_dynamic_routing_gateway:PacketDropsFromDrgAttachment",
+        "oci_internet_gateway:BytesToIgw",
+        "oci_internet_gateway:BytesFromIgw",
+        "oci_internet_gateway:PacketsToIgw",
+        "oci_internet_gateway:PacketsFromIgw",
+        "oci_internet_gateway:PacketDropsToIgw",
+        "oci_internet_gateway:PacketDropsFromIgw",
+        "oci_nat_gateway:BytesToNATgw",
+        "oci_nat_gateway:BytesFromNATgw",
+        "oci_nat_gateway:PacketsToNATgw",
+        "oci_nat_gateway:PacketsFromNATgw",
+        "oci_nat_gateway:DropsToNATgw",
+        "oci_service_gateway:packetsToService",
+        "oci_service_gateway:packetsFromService",
+        "oci_service_gateway:bytesToService",
+        "oci_service_gateway:bytesFromService",
+        "oci_service_gateway:sgwDropsToService",
+        "oci_service_gateway:sgwDropsFromService",
+        "oci_vcn:VnicConntrackIsFull",
+        "oci_vcn:VnicConntrackUtilPercent",
+        "oci_vcn:VnicEgressDropsThrottle",
+        "oci_vcn:VnicIngressDropsThrottle",
+        "oci_vcn:VnicToNetworkBytes",
+        "oci_vcn:VnicFromNetworkBytes",
+        "oci_vcn:VnicToNetworkPacket",
+        "oci_vcn:VnicFromNetworkPacket",
+        "oci_vcn:SmartnicBufferDropsFromHost",
+        "oci_vcn:SmartnicBufferDropsFromNetwork",
+        "oci_fastconnect:BitsReceived",
+        "oci_fastconnect:BitsSent",
+        "oci_fastconnect:PacketsReceived",
+        "oci_fastconnect:PacketsSent",
+        "oci_fastconnect:PacketsDiscarded",
+        "oci_fastconnect:PacketsError",
+        "oci_fastconnect:ConnectionState",
+        "gpu_infrastructure_health:GpuUtilization",
+        "gpu_infrastructure_health:GpuMemoryUtilization",
+        "gpu_infrastructure_health:GpuPowerDraw",
+        "gpu_infrastructure_health:GpuTemperature",
+        "gpu_infrastructure_health:GpuEccSingleBitErrors",
+        "gpu_infrastructure_health:GpuEccDoubleBitErrors",
+        "gpu_infrastructure_health:Fault",
+        "rdma_infrastructure_health:RdmaTxBytes",
+        "rdma_infrastructure_health:RdmaRxBytes",
+        "rdma_infrastructure_health:RdmaTxPackets",
+        "rdma_infrastructure_health:RdmaRxPackets",
+        "rdma_infrastructure_health:RdmaLinkSpeedFault",
+        "rdma_infrastructure_health:RdmaPcieAddressFault",
+        "rdma_infrastructure_health:RdmaPcieBerCheckFault",
+        "rdma_infrastructure_health:RdmaPcieCableFlapFault",
+        "rdma_infrastructure_health:RdmaPcieCablePlugFault",
+        "rdma_infrastructure_health:RdmaPcieCableStateFault"
+      ]
+
+      ## List of tag key/values pairs to match including glob expressions
+      ## ALL given tags keys must exist and at least one value must match
+      ## for the metric to match the rule.
+      # tags = {}
+
+      ## List of field keys to match including glob expressions
+      ## At least one field must exist for the metric to match the rule.
+      # fields = []
+
+      ## Action to apply for this rule
+      ## "pass" will keep the metric and pass it on, while "drop" will remove
+      ## the metric
+      action = "pass"
+
+[[processors.execd]]
+  order = 2
+  alias = "metrics_enrich"
+  command = ["{{venv_path}}/bin/python3", "/usr/local/bin/{{ telegraf_filter }}"]
+  environment = ["ENRICH_METRICS=true"]

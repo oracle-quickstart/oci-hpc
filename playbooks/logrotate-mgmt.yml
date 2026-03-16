@@ -1,0 +1,38 @@
+---
+- name: Configure log rotation for mgmt.log
+  hosts: controller
+  become: true
+
+  tasks:
+    - name: Ensure logrotate is installed
+      ansible.builtin.package:
+        name: logrotate
+        state: present
+
+    - name: Create logrotate config for mgmt.log
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/mgmt
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          /config/logs/mgmt.log {
+              weekly
+              rotate 3
+              compress
+              missingok
+              notifempty
+              create 0644 root root
+              su ubuntu ubuntu
+              dateext
+          }
+
+    - name: Test logrotate configuration for mgmt.log (dry run)
+      ansible.builtin.command:
+        cmd: logrotate -d /etc/logrotate.d/mgmt
+      register: logrotate_test
+      changed_when: false
+
+    - name: Display dry-run result
+      ansible.builtin.debug:
+        var: logrotate_test.stdout_lines

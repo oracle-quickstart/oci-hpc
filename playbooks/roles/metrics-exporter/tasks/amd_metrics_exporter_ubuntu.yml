@@ -1,0 +1,90 @@
+---
+- name: Update apt cache
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install APT prerequisites
+  become: true
+  ansible.builtin.apt:
+    name:
+      - vim
+      - wget
+      - gpg
+    state: present
+
+- name: Create keyrings directory with proper permissions
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download and add ROCm GPG key
+  become: true
+  ansible.builtin.shell:
+    cmd: wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null
+    creates: /etc/apt/keyrings/rocm.gpg
+
+- name: Set Ubuntu codename for ROCm repository
+  ansible.builtin.set_fact:
+    ubuntu_codename: "{{ 'noble' if ansible_facts['distribution_version'] == '24.04' else 'jammy' }}"
+
+- name: Add AMD device metrics exporter repository
+  become: true
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/device-metrics-exporter/apt/{{ amd_exporter_version }} {{ ubuntu_codename }} main"
+    state: present
+    filename: amd-device-metrics-exporter
+
+- name: Update apt cache after adding repository
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install AMD GPU exporter package
+  become: true
+  ansible.builtin.apt:
+    name: amdgpu-exporter
+    state: present
+
+- name: Render amd_gpu_exporter config file
+  become: true
+  ansible.builtin.template:
+    src: amd_exporter_config.json.j2
+    dest: /etc/metrics/config.json
+    mode: "0744"
+
+- name: Create systemd override directory for AMD metrics exporter
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/amd-metrics-exporter.service.d
+    state: directory
+    mode: '0755'
+
+- name: Override AMD metrics exporter service to use custom config
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/amd-metrics-exporter.service.d/override.conf
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/local/bin/amd-metrics-exporter -amd-metrics-config /etc/metrics/config.json
+    mode: '0644'
+
+- name: Reload systemd daemon
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable AMD metrics exporter service
+  become: true
+  ansible.builtin.systemd:
+    name: amd-metrics-exporter.service
+    enabled: true
+
+- name: Start AMD metrics exporter service
+  become: true
+  ansible.builtin.systemd:
+    name: amd-metrics-exporter.service
+    state: started

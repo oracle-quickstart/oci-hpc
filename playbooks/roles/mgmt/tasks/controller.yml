@@ -1,0 +1,162 @@
+---
+- name: Make sure clustershell is installed for node status script
+  vars:
+    package_name:
+      - clustershell
+      #- python3-ansible-runner
+    package_state: latest
+  include_role:
+    name: safe_yum
+  ignore_errors: true
+
+- name: Ensure db directory exists
+  file:
+    path: "/opt/oci-hpc/db"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Generate env file
+  template:
+    src: env.j2
+    dest: /opt/oci-hpc/db/env
+
+- name: Copy files
+  become: true
+  copy:
+    src: "initial.sql"
+    dest: "/opt/oci-hpc/db/initial.sql"
+    force: false
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Get root password from /etc/opt/oci-hpc/passwords
+  set_fact:
+    mysql_root_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/mysql/root.txt chars=ascii_letters,digits') }}"
+
+- name: Create database 'clusterDB'
+  mysql_db:
+    login_user: "root"
+    login_password: "{{ mysql_root_pwd }}"
+    name: clusterDB
+    state: present
+
+- name: Create database user with name 'clusterUser' and password
+  mysql_user:
+    login_user: "root"
+    login_password: "{{ mysql_root_pwd }}"
+    name: clusterUser
+    password: Cluster1234!
+    priv: clusterDB.*:SELECT,INSERT,UPDATE,DELETE
+    state: present
+
+- name: Create initial DB
+  shell: "source /opt/oci-hpc/db/env; mysql -u root -p{{ mysql_root_pwd }} < /opt/oci-hpc/db/initial.sql"
+  ignore_errors: true
+
+- name: Ensure db directory exists
+  file:
+    path: "/opt/oci-hpc/db"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Create systemd service unit file
+  template:
+    src: templates/systemd/mgmt.service
+    dest: /etc/systemd/system/mgmt.service
+    mode: "0644"
+
+- name: Create systemd service unit file
+  template:
+    src: templates/systemd/mgmt.timer
+    dest: /etc/systemd/system/mgmt.timer
+    mode: "0644"
+
+- name: Reload systemd daemon
+  become: true
+  systemd:
+    daemon_reload: true
+
+- name: Start and enable the service
+  service:
+    name: mgmt.timer
+    state: started
+
+- name: Make sure the /home directory exist
+  file:
+    path: "/config/mgmt"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+# - name: Git checkout
+#   ansible.builtin.git:
+#     repo: 'https://github.com/oracle-quickstart/oci-cluster-management'
+#     dest: "/config/mgmt"
+
+- name: Copy mgmt utility
+  become: true
+  ansible.builtin.template:
+    src: templates/mgmt.ini.j2
+    dest: "/config/mgmt/mgmt.ini"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+  run_once: true
+
+
+- name: Copy mgmt utility
+  become: true
+  ansible.builtin.template:
+    src: templates/mgmt_controller.j2
+    dest: "/usr/local/bin/mgmt"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0775"
+  run_once: true
+
+- name: Import the initial_configs into the DB
+  shell: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py configurations create from-file --file /config/conf/initial_configs.conf"
+
+- name: Ensure logrotate package is installed
+  become: true
+  ansible.builtin.package:
+    name: logrotate
+    state: present
+
+# Log rotation setup for mgmt.log
+
+- name: Create logrotate configuration for mgmt.log
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/mgmt
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      /config/logs/mgmt.log {
+          weekly
+          rotate 3
+          compress
+          missingok
+          notifempty
+          create 0644 root root
+          su ubuntu ubuntu
+          dateext
+      }
+  # Creates a clean, valid logrotate configuration file
+
+- name: Validate logrotate configuration for mgmt.log (dry run)
+  become: true
+  ansible.builtin.command:
+    cmd: logrotate -d /etc/logrotate.d/mgmt
+  register: logrotate_test
+  changed_when: false
+  failed_when: logrotate_test.rc not in [0,1]
+  # Allows non-zero exit code 1 since logrotate -d sometimes exits with 1 after warnings
+
+- name: Display logrotate dry-run output
+  ansible.builtin.debug:
+    var: logrotate_test.stdout_lines

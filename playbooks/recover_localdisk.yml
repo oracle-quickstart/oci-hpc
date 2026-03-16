@@ -1,0 +1,29 @@
+---
+# Recovery Playbook for /mnt/localdisk RAID Array
+#
+# Run on a node when /mnt/localdisk is corrupted or unavailable.
+# or
+# to switch from RAID 0 to RAID 10 or vice versa.
+# WARNING: This will destroy all data on the local NVMe drives.
+#
+# Usage:
+# ssh into a compute node and run the playbook with appropriate variables:
+#
+# Switch to RAID10 on healthy node
+# ansible-playbook /config/playbooks/recover_localdisk.yml -e redundancy=true -e force_recovery=true
+#
+# Switch to RAID0 on healthy node
+# ansible-playbook /config/playbooks/recover_localdisk.yml -e redundancy=false -e force_recovery=true
+#
+# Recover a corrupted localdisk on a node
+# ansible-playbook /config/playbooks/recover_localdisk.yml
+
+- name: Recover /mnt/localdisk RAID Array
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  roles:
+    - role: localdisk
+      localdisk_recover: true
+      nvme_path: /mnt/localdisk

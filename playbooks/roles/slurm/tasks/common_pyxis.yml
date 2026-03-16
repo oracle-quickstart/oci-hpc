@@ -1,69 +1,75 @@
 ---
-- set_fact: 
+- ansible.builtin.set_fact:
     enroot_top_path_checked: "/etc/enroot/"
-  when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+  when: " not 'nvme0n1' in ansible_facts[\"devices\"]"
 
-- set_fact: 
-    enroot_top_path_checked: "{{enroot_top_path}}"
-  when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices" 
-  
+- ansible.builtin.set_fact:
+    enroot_top_path_checked: "{{ enroot_top_path }}"
+  when: "'nvme0n1' in ansible_facts[\"devices\"]"
+
 - name: Ensure prolog directory exists
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ slurm_conf_path }}/prolog.d"
     state: directory
     owner: root
     group: root
 
-- name: copy files
+- name: Copy files
   become: true
   become_method: sudo
-  template:
+  ansible.builtin.template:
     src: pyxis.sh.j2
     dest: "{{ slurm_conf_path }}/prolog.d/pyxis.sh"
     owner: root
     group: root
-    mode: 0755
-    force: yes
-    backup: yes  
+    mode: "0755"
+    force: true
+    backup: true
 
-- name: install required packages
-  vars: 
-    package_name: 
+- name: Install required packages
+  vars:
+    package_name:
       - gcc-c++
       - git
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: install required packages
-  vars: 
-    package_name: 
+- name: Install required packages
+  vars:
+    package_name:
       - gcc
       - git
       - make
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: clone pyxis repo
-  git:
+- name: Check if pyxis directory is present
+  ansible.builtin.stat:
+    path: "/config/3rdparty/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}"
+  register: pyxis_present
+
+- name: Clone pyxis repo
+  ansible.builtin.git:
     repo: https://github.com/NVIDIA/pyxis.git
-    dest: /tmp/pyxis
+    dest: "/config/3rdparty/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}"
   ignore_errors: true
+  when: not pyxis_present.stat.exists
 
-- name: compile 
-  command: bash -c "sudo make install"
+- name: Compile
+  ansible.builtin.command: bash -c "sudo make install"
   args:
-    chdir: /tmp/pyxis/
+    chdir: "/config/3rdparty/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}"
   ignore_errors: true
 
-- name: create plugstack.conf
+- name: Create plugstack.conf
   become: true
-  copy:
+  ansible.builtin.copy:
     dest: "{{ slurm_conf_path }}/plugstack.conf"
     content: |
       required /usr/local/lib/slurm/spank_pyxis.so
-    mode: '0775'
-    owner: "{{controller_username}}"
-    group: "{{privilege_group_name}}"
+    mode: "0775"
+    owner: "{{ controller_username }}"
+    group: "{{ privilege_group_name }}"

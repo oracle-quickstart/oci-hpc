@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S /config/bin/uv_wrapper.sh run --script
+#
+# /// script
+# dependencies = ["parallel-ssh"]
+# ///
 import json
 import os
 import argparse
@@ -12,7 +16,7 @@ def write_ordered_hostfile(ordered_hosts=[],hostfile=None,srun=False):
    fhandler = open(hostfile,"w")
    for h in ordered_hosts:
       if srun:
-        for x in range(8):
+        for x in range(gpus):
           fhandler.write(h+"\n")
       else:
         fhandler.write(h+"\n")
@@ -28,9 +32,9 @@ def write_ordered_rankfile(ordered_hosts=[],hostfile=None):
     fhandler.close()
 
 
-def get_swicthname(host):
+def get_switchname(host):
     try:
-        command = "scontrol show topology "+host+" | grep Level=0"
+        command = "scontrol show topology node="+host+" | grep Level=0"
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         switchname=result.stdout.split(" ")[0].replace("SwitchName=","")
         return switchname
@@ -41,8 +45,13 @@ def get_swicthname(host):
 gpus=8
 parser = argparse.ArgumentParser(description='Script to order hostnames for optimal performance based on rack Id')
 parser.add_argument('--input_file', help='Path of the input file which has host names. One hostname on each line in the file')
+parser.add_argument('--gpus', help='Number of GPUs per node')
 args = parser.parse_args()
 
+if args.gpus is None:
+    gpus=8
+else:
+    gpus=int(args.gpus)
 if args.input_file is None:
     input_file=''
     #/etc/opt/oci-hpc/hostfile.tcp'
@@ -72,7 +81,7 @@ except:
     slurm = False
 if slurm:
     for host in hosts:
-        switch=get_swicthname(host)
+        switch=get_switchname(host)
         if switch in r.keys():
             r[switch].append( host )
         else:
@@ -82,7 +91,7 @@ else:
     try:
         from pssh.clients import ParallelSSHClient
         client = ParallelSSHClient(hosts)
-        output = client.run_command('curl http://169.254.169.254/opc/v1/host/')
+        output = client.run_command('curl http://169.254.169.254/opc/v2/host/')
         for host_out in output:
             j = json.loads(bytearray(''.join(list(host_out.stdout)).encode()))
             try:
@@ -101,7 +110,7 @@ else:
     except ImportError:
         try:
             for h in hosts:
-                out = subprocess.run(["ssh "+h+" \"curl -s http://169.254.169.254/opc/v1/host/\""],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
+                out = subprocess.run(["ssh "+h+" 'curl -sH \"Authorization: Bearer Oracle\" -L http://169.254.169.254/opc/v2/host/'"],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True, check=True)
                 x = out.stdout.splitlines()
                 json_str = ''.join(x)
                 json_data = json.loads(json_str)

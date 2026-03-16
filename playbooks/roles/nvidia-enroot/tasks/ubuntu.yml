@@ -1,119 +1,155 @@
 ---
 - block:
+    - name: Get DEB architecture # noqa no-changed-when
+      ansible.builtin.command: dpkg --print-architecture
+      register: deb_architecture
 
-  - name: Set DPKG architecture
-    set_fact:
-      dpkg_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+    - name: Set DPKG architecture
+      ansible.builtin.set_fact:
+        dpkg_arch: "{{ deb_architecture.stdout }}"
 
-  - name: install required packages
-    vars: 
-      deb_name: 
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot_3.4.0-1_{{ dpkg_arch }}.deb"
-        - "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot+caps_3.4.0-1_{{ dpkg_arch }}.deb"
-      package_state: present
-    include_role: 
-      name: safe_yum
-  - name: set kernel.unprivileged_userns_clone using sysctl
-    ansible.posix.sysctl:
-      name: kernel.unprivileged_userns_clone
-      value: '1'
-      sysctl_file: /etc/sysctl.d/81-enroot.conf
-      reload: yes
+    - name: Ensure /config/3rdparty exists
+      ansible.builtin.file:
+        path: /config/3rdparty/
+        state: directory
+        mode: "0755"
 
+    - name: Check if required debs are already downloaded
+      ansible.builtin.stat:
+        path: "/config/3rdparty/{{ item | basename }}"
+      register: deb_files
+      with_items:
+        - "{{ enroot_file }}"
+        - "{{ enroot_caps_file }}"
 
-  - name: Download enroot-check
-    get_url:
-      url: "https://github.com/NVIDIA/enroot/releases/download/v3.4.0/enroot-check_3.4.0_{{ ansible_architecture }}.run"
-      dest: "/tmp"
-      mode: '0755'
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
+    - name: Download DEBs if not already present
+      ansible.builtin.get_url:
+        url: "{{ item.item }}"
+        dest: "/config/3rdparty/{{ item.item | basename }}"
+        mode: "0755"
+        owner: opc
+        group: opc
+      when: not item.stat.exists
+      with_items: "{{ deb_files.results }}"
 
-  - name: execute enroot-check_*.run
-    command: bash -c "/tmp/enroot-check_*.run --verify"
+    - name: Install required packages
+      vars:
+        deb_name:
+          - "/config/3rdparty/{{ enroot_file | basename }}"
+          - "/config/3rdparty/{{ enroot_caps_file | basename }}"
+        package_state: present
+      ansible.builtin.include_role:
+        name: safe_yum
 
-  - name: set enroot_top_path
-    set_fact: 
-      enroot_top_path_checked: "/etc/enroot/"
-    when: " not 'nvme0n1' in hostvars[inventory_hostname].ansible_devices"
+    - name: Set kernel.unprivileged_userns_clone using sysctl
+      ansible.posix.sysctl:
+        name: kernel.unprivileged_userns_clone
+        value: "1"
+        sysctl_file: /etc/sysctl.d/81-enroot.conf
+        reload: true
 
-  - name: set enroot_top_path
-    set_fact: 
-      enroot_top_path_checked: "{{enroot_top_path}}"
-    when: "'nvme0n1' in hostvars[inventory_hostname].ansible_devices" 
+    - name: Check if enroot check DEBs are already downloaded
+      ansible.builtin.stat:
+        path: "/config/3rdparty/{{ enroot_check_file | basename }}"
+      register: enroot_check_files
 
-  - name: update ENROOT_RUNTIME_PATH
-    lineinfile: 
-      dest: /etc/enroot/enroot.conf
-      state: present
-      regexp: '^#ENROOT_RUNTIME_PATH.*'
-      line: 'ENROOT_RUNTIME_PATH        {{enroot_top_path_checked}}/enroot_runtime/user-$(id -u)'
-      backup: yes
+    - name: Download enroot-check
+      ansible.builtin.get_url:
+        url: "{{ enroot_check_file }}"
+        dest: "/config/3rdparty"
+        mode: "0755"
+        owner: opc
+        group: opc
+      when: not enroot_check_files.stat.exists | bool
 
-  - name: update ENROOT_DATA_PATH
-    lineinfile: 
-      dest: /etc/enroot/enroot.conf
-      state: present
-      regexp: '^#ENROOT_DATA_PATH.*'
-      line: 'ENROOT_DATA_PATH        {{enroot_top_path_checked}}/enroot_data/user-$(id -u)'
-      backup: yes
+    - name: Download enroot-check
+      ansible.builtin.copy:
+        src: "/config/3rdparty/{{ enroot_check_file | basename }}"
+        dest: "/tmp"
+        mode: "0755"
+        owner: opc
+        group: opc
 
-  - name: update ENROOT_CACHE_PATH
-    lineinfile:
-      dest: /etc/enroot/enroot.conf
-      state: present
-      regexp: '^#ENROOT_CACHE_PATH.*'
-      line: 'ENROOT_CACHE_PATH        {{enroot_top_path_checked}}/enroot_cache'
-      backup: yes
+    - name: Execute enroot-check_*.run
+      ansible.builtin.command: bash -c "/tmp/enroot-check_*.run --verify"
+    - name: Set enroot_top_path
+      ansible.builtin.set_fact:
+        enroot_top_path_checked: "/etc/enroot/"
+      when: " not 'nvme0n1' in ansible_facts[\"devices\"]"
 
-  - name: update ENROOT_TEMP_PATH
-    lineinfile:
-      dest: /etc/enroot/enroot.conf
-      state: present
-      regexp: '^#ENROOT_TEMP_PATH.*'
-      line: 'ENROOT_TEMP_PATH        {{enroot_top_path_checked}}/enroot_tmp'
-      backup: yes
+    - name: Set enroot_top_path
+      ansible.builtin.set_fact:
+        enroot_top_path_checked: "{{ enroot_top_path }}"
+      when: "'nvme0n1' in ansible_facts[\"devices\"]"
 
-  - name: update ENROOT_SQUASH_OPTIONS
-    lineinfile: 
-      dest: /etc/enroot/enroot.conf
-      state: present
-      regexp: '^#ENROOT_SQUASH_OPTIONS.*'
-      line: 'ENROOT_SQUASH_OPTIONS        -b 262144'
-      backup: yes
+    - name: Update ENROOT_RUNTIME_PATH
+      ansible.builtin.lineinfile:
+        dest: /etc/enroot/enroot.conf
+        state: present
+        regexp: "^#ENROOT_RUNTIME_PATH.*"
+        line: "ENROOT_RUNTIME_PATH        {{ enroot_top_path_checked }}/enroot_runtime/user-$(id -u)"
+        backup: true
 
-  - name: update ENROOT_ROOTFS_WRITABLE
-    lineinfile: 
-      dest: /etc/enroot/enroot.conf
-      state: present
-      regexp: '^#ENROOT_ROOTFS_WRITABLE.*'
-      line: 'ENROOT_ROOTFS_WRITABLE        yes'
-      backup: yes
+    - name: Update ENROOT_DATA_PATH
+      ansible.builtin.lineinfile:
+        dest: /etc/enroot/enroot.conf
+        state: present
+        regexp: "^#ENROOT_DATA_PATH.*"
+        line: "ENROOT_DATA_PATH        {{ enroot_top_path_checked }}/enroot_data/user-$(id -u)"
+        backup: true
 
+    - name: Update ENROOT_CACHE_PATH
+      ansible.builtin.lineinfile:
+        dest: /etc/enroot/enroot.conf
+        state: present
+        regexp: "^#ENROOT_CACHE_PATH.*"
+        line: "ENROOT_CACHE_PATH        {{ enroot_top_path_checked }}/enroot_cache"
+        backup: true
 
-  - name: set permissions on {{enroot_top_path_checked}}
-    become: true
-    file:
-      path: "{{enroot_top_path_checked}}"
-      state: directory
-      owner: "{{ ansible_user }}"
-      mode: 0777
-      group: "{{privilege_group_name}}"
-      recurse: no
+    - name: Update ENROOT_TEMP_PATH
+      ansible.builtin.lineinfile:
+        dest: /etc/enroot/enroot.conf
+        state: present
+        regexp: "^#ENROOT_TEMP_PATH.*"
+        line: "ENROOT_TEMP_PATH        {{ enroot_top_path_checked }}/enroot_tmp"
+        backup: true
 
+    - name: Update ENROOT_SQUASH_OPTIONS
+      ansible.builtin.lineinfile:
+        dest: /etc/enroot/enroot.conf
+        state: present
+        regexp: "^#ENROOT_SQUASH_OPTIONS.*"
+        line: "ENROOT_SQUASH_OPTIONS        -b 262144"
+        backup: true
 
-  - name: Make sure all {{enroot_top_path_checked}} directories exist
-    file:
-      path: "{{enroot_top_path_checked}}/{{item}}"
-      state: directory
-      mode: '0777'
-      owner: "{{ ansible_user }}"
-      group: "{{privilege_group_name}}"
-      recurse: no
-    with_items: 
-      - enroot_data
-      - enroot_tmp
-      - enroot_cache
-      - enroot_runtime
+    - name: Update ENROOT_ROOTFS_WRITABLE
+      ansible.builtin.lineinfile:
+        dest: /etc/enroot/enroot.conf
+        state: present
+        regexp: "^#ENROOT_ROOTFS_WRITABLE.*"
+        line: "ENROOT_ROOTFS_WRITABLE        yes"
+        backup: true
 
-  
+    - name: Set permissions on {{ enroot_top_path_checked }}
+      become: true
+      ansible.builtin.file:
+        path: "{{ enroot_top_path_checked }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: "0777"
+        group: "{{ privilege_group_name }}"
+        recurse: false
+
+    - name: Make sure all {{ enroot_top_path_checked }} directories exist
+      ansible.builtin.file:
+        path: "{{ enroot_top_path_checked }}/{{ item }}"
+        state: directory
+        mode: "0777"
+        owner: "{{ ansible_user }}"
+        group: "{{ privilege_group_name }}"
+        recurse: false
+      with_items:
+        - enroot_data
+        - enroot_tmp
+        - enroot_cache
+        - enroot_runtime

@@ -6,7 +6,7 @@
 #SBATCH --constraint hpc-default
 
 
-cd /nfs/scratch
+cd /fss
 mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 MACHINEFILE="hostfile"

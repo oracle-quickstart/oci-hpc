@@ -1,0 +1,38 @@
+---
+- name: Create empty GRES.conf
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ slurm_conf_path }}/gres.conf"
+    content: "#GRES.conf\n"
+    force: true
+
+
+- name: Get All configurations in the DB
+  vars:
+    venv_path: "{% if ansible_facts['distribution'] == 'Ubuntu' %}/config/venv/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}{% elif ansible_facts['distribution'] == 'OracleLinux' %}/config/venv/Ol_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}{% endif %}"
+  ansible.builtin.command: "{{ venv_path }}/oci/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
+  register: get_configurations_results
+
+- name: Convert the Python script output to a list of dictionaries
+  ansible.builtin.set_fact:
+    json_list: "{{ get_configurations_results.stdout | from_json }}"
+
+- name: Convert the Python script output to a list of dictionaries
+  ansible.builtin.set_fact:
+    queues: "{{ json_list.queues }}"
+
+- name: Generate topology.conf
+  become: true
+  ansible.builtin.template:
+    src: topology.conf.j2
+    dest: "{{ slurm_conf_path }}/topology.conf"
+    mode: "0644"
+    force: true
+    owner: slurm
+    group: slurm
+  register: initial_topology
+  run_once: true
+  notify: Reconfigure slurm
+
+- name: Run handlers
+  ansible.builtin.meta: flush_handlers

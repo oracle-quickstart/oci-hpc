@@ -1,7 +1,40 @@
 ---
-- name: update hostname for HPC cluster
+- name: Gather metadata
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: i_metadata
+
+- name: Set fact
+  ansible.builtin.set_fact:
+    instance_metadata: "{{ i_metadata['content'] | from_json }}"
+
+- name: Make sure freeformTags in included
+  ansible.builtin.set_fact:
+    instance_metadata: "{{ instance_metadata | combine({'freeformTags': {}}) }}"
+  when: "not 'freeformTags' in instance_metadata"
+
+- name: Make sure freeformTags in included
+  ansible.builtin.set_fact:
+    change_hostname_tag: false
+  when: "not 'hostname_convention' in instance_metadata['freeformTags']"
+
+- name: Make sure freeformTags in included
+  ansible.builtin.set_fact:
+    change_hostname_tag: true
+  when: "'hostname_convention' in instance_metadata['freeformTags']"
+
+- name: Update hostname for HPC cluster
   vars:
-    - index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.netcommon.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
-  hostname:
-    name: "{{hostname_convention}}-{{index}}"
-  when: ('compute' in group_names )
+    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+  ansible.builtin.hostname:
+    name: "{{ hostname_convention }}-{{ index }}"
+  when: change_hostname_tag
+
+- name: Update hostname for HPC cluster
+  ansible.builtin.hostname:
+    name: "{{ instance_metadata['displayName'] }}"
+  when: not change_hostname_tag

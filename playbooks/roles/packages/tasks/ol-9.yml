@@ -1,0 +1,23 @@
+---
+- name: Enable ol9_developer_EPEL repo
+  ansible.builtin.command: yum-config-manager --enable ol9_developer_EPEL
+- name: Make sure python OpenSSL and parallel ssh is installed
+  vars:
+    package_name:
+      - python3-oci-cli
+      - pssh
+      - pdsh
+      - python3-pip
+    package_state: latest
+    package_repo: "ol9_developer_EPEL"
+  ansible.builtin.include_role:
+    name: safe_yum
+  ignore_errors: true
+
+- name: Upgrade Pip3
+  become: true
+  ansible.builtin.pip:
+    name: [pip]
+    state: latest
+    executable: /usr/bin/pip3
+  ignore_errors: true

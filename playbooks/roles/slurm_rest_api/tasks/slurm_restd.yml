@@ -1,69 +1,169 @@
----
-- name: Install python build dependencies (apt)
-  package:
-    name:
-      - gcc
-      - make
-      - patch
-      - zlib1g-dev
-      - libbz2-dev
-      - libreadline-dev
-      - sqlite3
-      - libsqlite3-dev
-      - libssl-dev
-      - tk-dev
-      - libffi-dev
-      - xz-utils
-      - libjwt-dev
-      - libhttp-parser-dev
-      - default-jre
-      - python3.10
-      - python3.10-dev
-      - python3-pip
-    state: present
-  become: true
-  when: ansible_os_family == "Debian"
+- name: Choose Java package on OL/RHEL
+  set_fact:
+    java_pkg: "{{ 'java-17-openjdk' if (ansible_facts['distribution'] == 'OracleLinux' and (ansible_facts['distribution_major_version'] | int) >= 9) else 'java-11-openjdk' }}"
+  when: ansible_facts['os_family'] == "RedHat"
 
-- name: Install python build dependencies (dnf)
+- name: Install required deps (Ubuntu)
+  apt:
+    name:
+      - default-jre
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == "Debian"
+  become: true
+
+- name: Install required deps (OL/RHEL)
   dnf:
     name:
-      - gcc
-      - make
-      - patch
-      - zlib-devel
-      - bzip2
-      - bzip2-devel
-      - readline-devel
-      - sqlite
-      - sqlite-devel
-      - openssl-devel
-      - tk-devel
-      - libffi-devel
-      - xz-devel
-      - libjwt-devel
-      - http-parser-devel
-      - java-1.8.0-openjdk
-      - python38
-      - python38-devel
-      - python38-pip
-    enablerepo: ol8_codeready_builder
+      - "{{ java_pkg }}"
     state: present
+  when: ansible_facts['os_family'] == "RedHat"
   become: true
-  when: ansible_os_family == "RedHat"
-  
+
+# ==================== NVM / OpenAPI Generator ====================
+# (unchanged logic; we only add robust cert env for OL and JAVA_HOME detection)
+
+- name: Download NVM install script
+  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
+  ansible.builtin.get_url:
+    url: "{{ nvm_install_url }}"
+    dest: /tmp/nvm_install.sh
+    mode: '0755'
+  become: true
+
+- name: Check if NVM is already installed
+  stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
+  register: nvm_exists
+
+- name: Execute NVM install script no FSS Home
+  shell: "/tmp/nvm_install.sh"
+  args:
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_facts['env']['HOME'] }}"
+  # when: (not nvm_exists.stat.exists) and (not home_fss|bool)
+  when: (not nvm_exists.stat.exists) and (not shared_home == 'fss')
+
+- name: Execute NVM install script with FFS Home
+  shell: "/tmp/nvm_install.sh"
+  args:
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_facts['env']['HOME'] }}"
+  # when: (not nvm_exists.stat.exists) and home_fss|bool
+  when: (not nvm_exists.stat.exists) and shared_home == 'fss'
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Check if Node.js is already installed via NVM
+  shell: |
+    set -e
+    source ~/.nvm/nvm.sh
+    nvm list --no-colors | grep -c "lts" || true
+  args:
+    executable: /bin/bash
+  register: node_lts_check
+  changed_when: false
+  failed_when: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Install Node LTS and latest npm
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm install --lts
+    nvm install-latest-npm
+  args:
+    executable: /bin/bash
+  when: node_lts_check.rc != 0 or (node_lts_check.stdout | int) == 0
+  delegate_to: 127.0.0.1
+  run_once: true
+
+# ---- Java home detection for openapi-generator-cli ----
+- name: Detect JAVA_HOME from current java on PATH
+  shell: |
+    set -e
+    JAVA_BIN="$(command -v java || true)"
+    if [ -n "$JAVA_BIN" ]; then
+      readlink -f "$JAVA_BIN" | awk -F'/bin/java' '{print $1}'
+    fi
+  args:
+    executable: /bin/bash
+  register: java_home_cmd
+  changed_when: false
+  failed_when: false
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Set JAVA_HOME fact (may be empty)
+  set_fact:
+    JAVA_HOME: "{{ (java_home_cmd.stdout | default('')) | trim }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Check if OpenAPI generator CLI is already installed
+  shell: |
+    set -e
+    source ~/.nvm/nvm.sh
+    npm list -g @openapitools/openapi-generator-cli || true
+  args:
+    executable: /bin/bash
+  register: openapi_cli_check
+  changed_when: false
+  failed_when: false
+  environment:
+    JAVA_HOME: "{{ JAVA_HOME }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_facts['env']['PATH'], ansible_facts['env']['PATH']) }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Install OpenAPI generator CLI via npm (and select version)
+  shell: |
+    source ~/.nvm/nvm.sh
+    npm install -g @openapitools/openapi-generator-cli
+    openapi-generator-cli version-manager set 7.10.0 --openapitools /tmp/openapitools.json
+  args:
+    executable: /bin/bash
+  when: openapi_cli_check.rc != 0
+  environment:
+    JAVA_HOME: "{{ JAVA_HOME }}"
+    PATH: "{{ (JAVA_HOME|length > 0) | ternary(JAVA_HOME ~ '/bin:' ~ ansible_facts['env']['PATH'], ansible_facts['env']['PATH']) }}"
+  delegate_to: 127.0.0.1
+  run_once: true
+
+# ==================== slurmrestd service ====================
+- name: Create the slurmrestd group
+  become: true
+  ansible.builtin.group:
+    name: slurmrestd
+    system: true
+    state: present
+
+- name: Create slurmrestd user
+  become: true
+  user:
+    comment: "Slurmrestd user"
+    name: slurmrestd
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+    group: slurmrestd
+    state: present
+
 - name: Render slurmrestd systemd service file
   become: true
-  template: 
+  template:
     src: slurmrestd.service.j2
     dest: /etc/systemd/system/slurmrestd.service
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: 0744
+    owner: root
+    group: root
+    mode: "0644"
 
-- name: start slurmrestd service
+- name: Start slurmrestd service
   become: true
   service:
     name: slurmrestd
     daemon_reload: true
     state: restarted
-    enabled: yes
+    enabled: true

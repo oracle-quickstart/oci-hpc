@@ -1,76 +1,70 @@
-
 ---
 - block:
+    # added register, until, retries, delay so that if the apt lock is held by other process, it can finish and then retry to install packages.
+    - name: Update apt and install pre-req packages for docker
+      vars:
+        package_name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        package_state: latest
+      ansible.builtin.include_role:
+        name: safe_yum
+      ignore_errors: true
+    - name: Download Docker APT repo GPG key
+      become: true
+      ansible.builtin.get_url:
+        url: "https://download.docker.com/linux/ubuntu/gpg"
+        dest: /tmp/docker.asc.gpg
+        mode: '0644'
+        force: true
+    - name: Convert Docker APT repo key to binary keyring
+      become: true
+      ansible.builtin.command:
+        cmd: "gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.asc.gpg"
+        creates: /etc/apt/keyrings/docker.gpg
+    - name: Add Docker repository
+      become: true
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
+        state: present
+        update_cache: true
+    - name: Update apt and install pre-req packages for docker
+      vars:
+        package_name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        package_state: latest
+      ansible.builtin.include_role:
+        name: safe_yum
+      ignore_errors: true
 
-  # added register, until, retries, delay so that if the apt lock is held by other process, it can finish and then retry to install packages. 
-  - name: Update apt and install pre-req packages for docker
-    vars: 
-      package_name: 
-        - ca-certificates
-        - curl
-        - gnupg
-        - lsb-release
-      package_state: latest
-    include_role: 
-      name: safe_yum
-    ignore_errors: true
+    - name: Force docker gid 999
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/group
+        state: present
+        regexp: "^docker:x:(.*)$"
+        line: "docker:x:999:{{ ansible_user }}"
+        backrefs: true
 
+    - name: Restart docker
+      become: true
+      ansible.builtin.service:
+        name: docker.socket
+        state: restarted
+        enabled: true
 
-  - name: Add Docker GPG apt Key
-    apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
-      state: present
+    # start is not needed - it starts dokcer as part of install
+    - name: Enable service Docker
+      ansible.builtin.service:
+        name: "docker"
+        enabled: true
 
-  - name: Add Docker Repository
-    apt_repository:
-      repo: deb https://download.docker.com/linux/ubuntu focal stable
-      state: present
-
-  - name: Update apt and install pre-req packages for docker
-    vars: 
-      package_name: 
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
-        - docker-compose-plugin
-      package_state: latest
-    include_role: 
-      name: safe_yum
-    ignore_errors: true
-
-  - name: force docker gid 999
-    become: true
-    lineinfile:
-      path: /etc/group
-      state: present
-      regexp: '^docker:x:(.*)$'
-      line: 'docker:x:999:{{ansible_user}}'
-      backrefs: yes
-
-  - name: restart docker
-    become: true
-    service:
-      name: docker.socket
-      state: restarted
-      enabled: yes
-
-# start is not needed - it starts dokcer as part of install
-  - name: Enable service Docker
-    ansible.builtin.service:
-      name: "docker"
-      enabled: true
-
-  - name: Enable service containerd
-    ansible.builtin.service:
-      name: containerd
-      enabled: yes
-
-#  - name: Install Docker Module for Python
-#    pip:
-#      name: docker
-
-#  - name: add ubuntu user to docker group
-#    user:
-#      name: ubuntu
-#      groups: docker
-#      append: yes
+    - name: Enable service containerd
+      ansible.builtin.service:
+        name: containerd
+        enabled: true

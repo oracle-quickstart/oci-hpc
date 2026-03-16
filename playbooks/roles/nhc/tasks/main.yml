@@ -1,0 +1,208 @@
+# tasks file for nhc
+---
+
+# -----------------------------------------
+# Node detection
+# -----------------------------------------
+
+- name: Get the instance shape
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: nhc_instance_metadata
+  changed_when: false
+
+- name: Set node shape
+  ansible.builtin.set_fact:
+    nhc_node_shape: "{{ nhc_instance_metadata.json.shape }}"
+    nhc_shape_ocpus: "{{ nhc_instance_metadata.json.shapeConfig.ocpus }}"
+    nhc_shape_memory_gb: "{{ nhc_instance_metadata.json.shapeConfig.memoryInGBs }}"
+
+- name: Determine if this node shape is eligible for NHC role
+  ansible.builtin.set_fact:
+    nhc_is_gpu_shape: "{{ nhc_node_shape is match('^BM\\.GPU') }}"
+    nhc_is_supported_gpu_shape: "{{ nhc_node_shape in nhc_supported_gpu_shapes }}"
+
+- name: Skip NHC role for unsupported GPU shape
+  ansible.builtin.debug:
+    msg: "Skipping NHC role for unsupported GPU shape: {{ nhc_node_shape }}"
+  when:
+    - nhc_is_gpu_shape | bool
+    - not (nhc_is_supported_gpu_shape | bool)
+
+# -----------------------------------------
+# NHC tasks
+# -----------------------------------------
+
+- name: Install and configure NHC
+  when: (not (nhc_is_gpu_shape | bool)) or (nhc_is_supported_gpu_shape | bool)
+  block:
+
+    # -----------------------------------------
+    # Install NHC if not already installed
+    # -----------------------------------------
+
+    - name: Check if NHC is already installed
+      stat:
+        path: /usr/sbin/nhc
+      register: nhc_installed
+
+    - name: Check if NHC tarball already cached
+      ansible.builtin.stat:
+        path: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
+      register: nhc_cache
+      delegate_to: localhost
+      run_once: true
+
+    - name: Download NHC tarball to shared storage
+      get_url:
+        url: https://github.com/mej/nhc/releases/download/1.4.3/lbnl-nhc-1.4.3.tar.xz
+        dest: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
+        mode: '0644'
+        validate_certs: false
+      delegate_to: localhost
+      run_once: true
+      when: not nhc_cache.stat.exists | bool
+
+    - name: Extract NHC source from shared storage
+      unarchive:
+        src: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
+        dest: /tmp
+        remote_src: true
+      when: not nhc_installed.stat.exists
+
+    - name: Run configure
+      command: ./configure --prefix=/usr --sysconfdir=/etc --libexecdir=/usr/libexec
+      args:
+        chdir: /tmp/lbnl-nhc-1.4.3
+      when: not nhc_installed.stat.exists
+
+    - name: Run make test
+      become: true
+      command: make test
+      args:
+        chdir: /tmp/lbnl-nhc-1.4.3
+      when: not nhc_installed.stat.exists
+
+    - name: Run make install
+      become: true
+      command: make install
+      args:
+        chdir: /tmp/lbnl-nhc-1.4.3
+      when: not nhc_installed.stat.exists
+
+    # -----------------------------------------
+    # Cleanup /tmp
+    # -----------------------------------------
+
+    - name: Remove NHC source directory from /tmp
+      file:
+        path: /tmp/lbnl-nhc-1.4.3
+        state: absent
+
+    # -----------------------------------------
+    # Detect hyperthreading
+    # -----------------------------------------
+
+    - name: Detect hyperthreading (kernel-level)
+      command: cat /sys/devices/system/cpu/smt/active
+      register: nhc_smt_status
+      changed_when: false
+      failed_when: false
+
+    - name: Set hyperthreading flag
+      set_fact:
+        nhc_ht_enabled: "{{ nhc_smt_status.stdout | trim == '1' }}"
+
+    - name: Debug HT flag
+      debug:
+        msg: "HT enabled = {{ nhc_ht_enabled }}"
+
+    # -----------------------------------------
+    # Filesystem checks
+    # -----------------------------------------
+
+    - name: Filter mounts for dynamic checking
+      ansible.builtin.set_fact:
+        nhc_mounts: >-
+          {{
+            ansible_facts['mounts']
+            | rejectattr('fstype', 'in',
+                ['proc','sysfs','devpts','cgroup','tmpfs','autofs','swap','squashfs'])
+            | rejectattr('mount', 'in',
+                ['/', '/boot/efi', '/run'])
+            | rejectattr('mount', 'search', '^/snap')
+            | rejectattr('device', 'search', '^/dev/loop')
+            | rejectattr('mount', 'search', '^/mnt/localdisk/slurm-tmp/')
+            | list
+          }}
+
+
+    - name: Detect NFS mounts
+      set_fact:
+        nhc_has_nfs: >-
+          {{
+            nhc_mounts
+            | selectattr('fstype', 'in', ['nfs', 'nfs4'])
+            | list
+            | length > 0
+          }}
+
+
+    # -----------------------------------------
+    # Generic shape checks
+    # -----------------------------------------
+    - name: Set CPU expectations from OCI metadata
+      ansible.builtin.set_fact:
+        nhc_cpu_sockets: 1
+        nhc_cpu_cores_per_socket: "{{ nhc_shape_ocpus | int }}"
+        nhc_expected_threads: >-
+          {{
+            (nhc_shape_ocpus | int) *
+            (2 if nhc_ht_enabled else 1)
+          }}
+
+    - name: Set memory expectation from metadata
+      ansible.builtin.set_fact:
+        nhc_expected_mem_kb: "{{ nhc_shape_memory_gb | int * 1024 * 1024 }}"
+
+    - name: Detect NVMe devices
+      command: lsblk -d -n -o NAME
+      register: nhc_lsblk_output
+      changed_when: false
+
+    - name: Set NVMe device list
+      set_fact:
+        nhc_nvme_devices: >-
+          {{
+            nhc_lsblk_output.stdout_lines
+            | select('match', '^nvme')
+            | list
+          }}
+
+
+    - name: Set load threshold dynamically
+      set_fact:
+        nhc_load_threshold: "{{ nhc_expected_threads | int * 2 }}"
+
+    # -----------------------------------------
+    # NHC config
+    # -----------------------------------------
+
+    - name: Ensure /etc/nhc exists
+      file:
+        path: /etc/nhc
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Render NHC config
+      template:
+        src: oci.nhc.conf.j2
+        dest: /etc/nhc/oci.nhc.conf
+        owner: root
+        group: root
+        mode: '0644'

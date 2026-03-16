@@ -1,0 +1,9 @@
+---
+- name: Check if /config is mounted
+  ansible.builtin.shell: mountpoint -q /config
+  register: config_mount_check
+  retries: 20
+  delay: 30
+  until: config_mount_check.rc == 0
+  changed_when: false
+  failed_when: config_mount_check.rc != 0

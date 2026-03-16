@@ -1,6 +1,7 @@
-slurm_conf_path: '/etc/slurm'
-slurm_log_path: '/var/log/slurm'
-slurm_exec: '/usr/local'
+---
+slurm_conf_path: "/etc/slurm"
+slurm_log_path: "/var/log/slurm"
+slurm_exec: "/usr/local"
 slurm_conf_file: slurm.conf.j2
 slurmdbd_conf_file: slurmdbd.conf.j2
 
@@ -13,8 +14,7 @@ munge_packages:
   - libpmix-dev
 
 slurm_common_packages: []
-
-slurm_server_packages: 
+slurm_server_packages:
   - libjwt-dev
 
 slurm_compute_packages:
@@ -25,5 +25,3 @@ slurm_backup_server_packages:
 
 slurm_login_packages:
   - libpmi0
-
-slurm_jwt_key_path: "{{ slurm_nfs_path }}/spool/slurm/jwt_hs256.key"

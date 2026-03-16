@@ -1,33 +1,49 @@
 resource "oci_core_instance_configuration" "instance_pool_configuration" {
-  count          = (!var.cluster_network) && (var.node_count > 0) ? 1 : 0
-  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription]
+  count          = (!var.rdma_enabled) && (!var.stand_alone) && (var.node_count > 0) ? 1 : 0
+  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_shape_management.compute-shape]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
 
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+  
   instance_details {
     instance_type = "compute"
     launch_details {
       availability_domain = var.ad
       compartment_id      = var.targetCompartment
-      display_name = local.cluster_name
+      create_vnic_details {
+        subnet_id        = local.subnet_id
+        assign_public_ip = false
+      }
       freeform_tags = {
-        "cluster_name"   = local.cluster_name
-        "parent_cluster" = local.cluster_name
+        "cluster_name"        = local.cluster_name
+        "controller_name"     = oci_core_instance.controller.display_name
+        "hostname_convention" = var.hostname_convention
       }
       metadata = {
         # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
-        user_data           = base64encode(data.template_file.config.rendered)
+        user_data           = base64encode(file("cloud-init.sh"))
+      }
+      instance_options {
+        are_legacy_imds_endpoints_disabled = true
       }
       agent_config {
 
         are_all_plugins_disabled = false
-        is_management_disabled   = true
         is_monitoring_disabled   = false
 
         plugins_config {
           desired_state = "DISABLED"
           name          = "OS Management Service Agent"
+        }
+
+        plugins_config {
+          desired_state = "DISABLED"
+          name          = "Compute Instance Run Command"
         }
         dynamic "plugins_config" {
           for_each = length(regexall(".*GPU.*", var.instance_pool_shape)) > 0 ? ["ENABLED"] : ["DISABLED"]
@@ -63,11 +79,15 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
         source_type             = "image"
         boot_volume_size_in_gbs = var.boot_volume_size
         boot_volume_vpus_per_gb = 30
-        image_id                = local.instance_pool_image
+        image_id                = local.compute_image
       }
     }
   }
 
   source = "NONE"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 

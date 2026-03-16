@@ -1,0 +1,6 @@
+---
+- include_tasks: sync_targets.yml
+  when: (all_hosts_info | default({}) | length ) > 0
+
+- include_tasks: remove_targets.yml
+  when: (remove_compute_info | default({}) | length ) > 0

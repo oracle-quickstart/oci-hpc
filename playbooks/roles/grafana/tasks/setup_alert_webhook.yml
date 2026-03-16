@@ -1,0 +1,42 @@
+---
+- name: Create ons_webhook DB directory
+  become: true
+  file:
+    path: "{{ grafana_ons_webhook_db_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ user }}"
+    group: "{{ user }}"
+
+- name: Copy webhook script to server
+  become: true
+  template:
+    src: templates/ons_webhook.py.j2
+    dest: /usr/local/bin/ons_webhook.py
+    mode: "0755"
+    force: true
+
+- name: Copy message template to server
+  become: true
+  copy:
+    src: files/raw_message_template.txt
+    dest: "{{ grafana_ons_webhook_template_path }}"
+    mode: "0755"
+    force: true
+
+- name: Render systemd service for webhook
+  become: true
+  template:
+    src: ons-webhook.service.j2
+    dest: /etc/systemd/system/ons-webhook.service
+    force: true
+    backup: true
+    mode: "0644"
+
+- name: Start and enable webhook service
+  become: true
+  systemd:
+    name: ons-webhook.service
+    state: restarted
+    enabled: true
+    daemon_reload: true

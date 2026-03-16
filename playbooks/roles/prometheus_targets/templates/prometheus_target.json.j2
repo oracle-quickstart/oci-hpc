@@ -1,0 +1,17 @@
+[
+  {
+    "labels": {
+{% for node_attr, prom_label in prometheus_labels.items() if item.value[node_attr] is not none %}
+      "{{ prom_label }}": "{{ item.value[node_attr] | default('None') }}"{% if not loop.last %},{% endif %}
+{% endfor %}
+{% if item.value.shape is defined and item.value.shape is not none and 'GPU' in item.value.shape %},
+     "vendor": "{% if 'BM.GPU.MI' in item.value.shape %}amd{% else %}nvidia{% endif %}"
+{% endif %}
+    },
+    "targets": [
+{% for port in exporter_ports %}
+      "{{ item.value.hostname }}:{{ port }}"{% if not loop.last %},{% endif %}
+{% endfor %}
+    ]
+  }
+]

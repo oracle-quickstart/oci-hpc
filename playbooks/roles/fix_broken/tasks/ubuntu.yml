@@ -1,54 +1,66 @@
 ---
-
 - name: Ensure apt process is completed
   become: true
-  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  ansible.builtin.shell: ps aux | grep "apt update" | grep -v grep | wc -l
   register: result
   retries: 30
   delay: 10
   until: result.stdout | int == 0
 
 - name: Wait for any possibly running unattended upgrade to finish
-  raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+  ansible.builtin.command: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+  async: 300
+  poll: 0
+  register: yum_sleeper
 
-- name: remove unattended-upgrades
-  systemd: 
+- name: Check on an async task
+  ansible.builtin.async_status:
+    jid: "{{ yum_sleeper.ansible_job_id }}"
+  register: job_result
+  until: job_result is not failed
+  retries: 30
+  delay: 10
+  ignore_errors: true
+  when: yum_sleeper.ansible_job_id is defined
+
+- name: Remove unattended-upgrades
+  ansible.builtin.systemd:
     name: unattended-upgrades
     state: stopped
-    enabled: no 
+    enabled: false
   ignore_errors: true
 
 - name: Ensure apt process is completed
   become: true
-  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  ansible.builtin.shell: ps aux | grep "apt update" | grep -v grep | wc -l
   register: result
   retries: 30
   delay: 10
   until: result.stdout | int == 0
 
 - name: Purge unattended-upgrades
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - unattended-upgrades
     package_state: absent
     package_purge: true
-  include_role: 
+  ansible.builtin.include_role:
     name: safe_yum
   ignore_errors: true
 
-- name: stop and mask timers
-  systemd: 
-    name: "{{item}}"
+- name: Stop and mask timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
     state: stopped
-    enabled: no 
-    masked: yes
-  with_items: 
+    enabled: false
+    masked: true
+  with_items:
     - apt-daily-upgrade.timer
     - apt-daily.timer
 
 - name: Ensure apt process is completed
   become: true
-  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  ansible.builtin.shell: ps aux | grep "apt update" | grep -v grep | wc -l
   register: result
   retries: 30
   delay: 10
@@ -56,18 +68,18 @@
 
 - name: Mark packages
   become: true
-  dpkg_selections:
-    name: "{{item}}"
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
     selection: hold
   with_items:
-    - linux-oracle 
-    - linux-headers-oracle 
+    - linux-oracle
+    - linux-headers-oracle
     - linux-image-oracle
   ignore_errors: true
 
 - name: Ensure apt process is completed
   become: true
-  shell: ps aux | grep "apt update" | grep -v grep | wc -l
+  ansible.builtin.shell: ps aux | grep "apt update" | grep -v grep | wc -l
   register: result
   retries: 30
   delay: 10
@@ -75,7 +87,7 @@
 
 - name: Ensure lock file is removed
   become: true
-  file: 
+  ansible.builtin.file:
     path: "/var/lib/apt/lists/lock"
     state: absent
   retries: 30
@@ -84,14 +96,13 @@
 
 - name: Run apt-get update
   become: true
-  shell: |
+  ansible.builtin.shell: |
     sudo apt-get update &
     PID1=$!
     wait $PID1
-
 - name: Run fix-broken
   become: true
-  shell: |
+  ansible.builtin.shell: |
     sudo apt -y --fix-broken install &
     PID1=$!
     wait $PID1

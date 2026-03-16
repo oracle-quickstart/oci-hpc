@@ -1,30 +1,80 @@
 ---
-- name: Run Pam settings
-  include_tasks: compute_pam.yml
-  when: pam|bool
-
-- name: install SLURM compute packages
-  vars: 
-    package_name: '{{ slurm_compute_packages }}'
+- name: Install SLURM compute packages
+  vars:
+    package_name: "{{ slurm_compute_packages }}"
     package_repo: "{{ slurm_repos }}"
-    disable_gpg_check_var: True
-  include_role: 
+    disable_gpg_check_var: true
+  ansible.builtin.include_role:
     name: safe_yum
+
+- name: Gather RDMA metadata
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/host/
+    method: GET
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: h_metadata
+
+- name: Set fact
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ h_metadata['content'] | from_json }}"
+
+- name: Add empty rdmaTopologyData
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None', 'customerLocalBlock': 'None', 'customerNetworkBlock': 'None',
+      'customerGpuMemoryFabric': 'None'}}) }}"
+  when: "not 'rdmaTopologyData' in rdma_metadata"
+
+- name: Add empty customerGpuMemoryFabric
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerGpuMemoryFabric': 'None'}}, recursive=True) }}"
+  when: "not 'customerGpuMemoryFabric' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerHPCIslandId
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerHPCIslandId': 'None'}}, recursive=True) }}"
+  when: "not 'customerHPCIslandId' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerLocalBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerLocalBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerLocalBlock' in rdma_metadata['rdmaTopologyData']"
+
+- name: Add empty customerNetworkBlock
+  ansible.builtin.set_fact:
+    rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerNetworkBlock': 'None'}}, recursive=True) }}"
+  when: "not 'customerNetworkBlock' in rdma_metadata['rdmaTopologyData']"
+
+- name: Set topology var
+  ansible.builtin.set_fact:
+    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerLocalBlock'][-40:] }}"
+  when: "'GPU.H' in shape"
+
+- name: Set topology var
+  ansible.builtin.set_fact:
+    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'][-40:] }}"
+  when: "'GPU.GB' in shape"
+
+- name: Set topology var
+  ansible.builtin.set_fact:
+    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rackId'][-40:] }}"
+  when: "not 'GPU.GB' in shape and not 'GPU.H' in shape"
 
 - name: Render systemd units for slurmd
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.j2'
-    dest: '/lib/systemd/system/{{ item }}.service'
-    backup: "yes"
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.j2"
+    dest: "/lib/systemd/system/{{ item }}.service"
+    backup: true
   with_items:
     - slurmd
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: Create systemd unit dirs
+- name: Create systemd unit dirs for slurmd and munge
   become: true
-  file:
-    name: '/etc/systemd/system/{{ item }}.service.d'
+  ansible.builtin.file:
+    name: "/etc/systemd/system/{{ item }}.service.d"
     state: directory
   with_items:
     - munge
@@ -32,117 +82,134 @@
 
 - name: Render systemd units for slurmd and munge
   become: true
-  template:
-    src: 'systemd/{{ item }}.service.d/unit.conf.j2'
-    dest: '/etc/systemd/system/{{ item }}.service.d/unit.conf'
-    backup: "yes"
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.service.d/unit.conf.j2"
+    dest: "/etc/systemd/system/{{ item }}.service.d/unit.conf"
+    backup: true
   with_items:
     - munge
     - slurmd
 
 - name: Create munge dir
   become: true
-  file:
-    name: '{{ munge_conf_path }}'
+  ansible.builtin.file:
+    name: "{{ munge_conf_path }}"
     state: directory
     owner: munge
     group: munge
-    mode: 0700
+    mode: "0700"
 
-- name: copy munge.key to tmp
+- name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
   become: true
-  shell:
-    cmd: cp /etc/munge/munge.key /tmp/munge.key
-  delegate_to: 127.0.0.1
-  run_once: true
-
-- name: set permissions
-  become: true
-  shell:
-    cmd: chown {{ controller_username }}:{{ controller_username }} /tmp/munge.key
-  delegate_to: 127.0.0.1
-  run_once: true
+  ansible.builtin.file:
+    path: /mnt/localdisk/slurm-tmp
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: "01777"
 
 - name: Copy munge key
   become: true
-  copy:
-    src: /tmp/munge.key
+  ansible.builtin.copy:
+    src: /config/key/munge.key
     dest: /etc/munge/munge.key
     owner: munge
     group: munge
-    mode: '0400'
-  notify: restart munge
+    mode: "0400"
+  notify: Restart munge
+  register: job_result
+  until: job_result is not failed
+  retries: 10
+  delay: 30
 
-- name: restart munge
+- name: Restart munge
   become: true
-  service:
+  ansible.builtin.service:
     name: munge
     state: restarted
     enabled: true
 
-- name: Add to the gres.conf file on the controller.
-  become: true
-  blockinfile:
-    block: "{{ lookup('template', 'gres.conf.j2') }}"
-    path: "{{ slurm_conf_path }}/gres.conf"
-    marker: "### {mark} {{ansible_hostname}}"
-  throttle: 1
-  delegate_to: 127.0.0.1
-  when: "'GPU' in shape"
-
-- name: Get hostnames
-  set_fact:
-    nodes_to_add_temp: "{{hostvars[item]['ansible_hostname']}}"
-  with_items: "{{ play_hosts | difference(groups['controller']) | difference(groups['slurm_backup']) | difference(groups['login']) | difference(groups['monitoring']) }}"
-  run_once: true
-  register: nodes_to_add_temp_results
-
-- name: Make a list of nodes to add
-  set_fact: nodes_to_add="{{nodes_to_add_temp_results.results | map(attribute='ansible_facts.nodes_to_add_temp') | list }}"
-  run_once: true
-
-- name: Get nodes from Cluster Switch
-  block:
-    - name: Get nodes from topology.conf
-      shell: "cat {{ slurm_conf_path }}/topology.conf | grep \"SwitchName={{cluster_name}}\""
-      register: cluster_switch
-    - name: Get cluster_hostlist
-      command: "scontrol show hostname {{cluster_switch.stdout.split('Nodes=')[1]}}"
-      register: cluster_hostlist
-    - name: Create new cluster_hostlist
-      command: "scontrol show hostlistsorted {{cluster_hostlist.stdout_lines | union(nodes_to_add) | join(',') }}"
-      register: cluster_hostlist_condensed_results
-  rescue:
-    - name: Create existing cluster list
-      command: "scontrol show hostlistsorted {{ nodes_to_add | join(',') }}"
-      register: cluster_hostlist_condensed_results
-  delegate_to: 127.0.0.1
-  #run_once: true # There is a bug in Ansible that is causing nodes to fail with the block and run_once combo. Uncomment when fixed. 
-
-- name: add nodes to Switch
-  become: true
-  lineinfile:
-    path: "{{ slurm_conf_path }}/topology.conf"
-    regexp: "SwitchName={{cluster_name}}\\sNodes.*"
-    line: "SwitchName={{cluster_name}} Nodes={{ cluster_hostlist_condensed_results.stdout }}"
-    state: present
-  run_once: true
-  delegate_to: 127.0.0.1
-  notify: reconfigure slurm
-
 - name: Run Pam settings
-  include_tasks: compute_pam.yml
+  ansible.builtin.include_tasks: compute_pam.yml
   when: pam|bool
 
-- name: start slurmd
+- name: Run handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Start slurmd
   become: true
-  service:
+  ansible.builtin.service:
     name: slurmd
     state: restarted
     enabled: true
-    
-- name: Reconfigure Slurm for topology
+
+- name: Reconfigure slurm
   become: true
-  command: "scontrol reconfigure"
-  delegate_to: 127.0.0.1
-  run_once: true
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+
+- name: Check if reservation exists
+  become: true
+  ansible.builtin.command: "scontrol show reservation InitialValidation"
+  register: reservation
+  ignore_errors: true
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled|bool
+    - active_healthchecks|bool
+
+- name: Create Reservation
+  become: true
+  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ ansible_facts['hostname'] }} user=ubuntu reservation=InitialValidation"
+  register: create_reservation
+  until: create_reservation is not failed
+  retries: 5
+  delay: 5
+  ignore_errors: true
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled | bool
+    - reservation is defined
+    - reservation.rc != 0
+    - active_healthchecks|bool
+
+- name: Append to reservation
+  become: true
+  ansible.builtin.command: "scontrol update reservation reservation=InitialValidation Nodes+={{ ansible_facts['hostname'] }}"
+  register: append_reservation
+  until: append_reservation is not failed
+  retries: 5
+  delay: 5
+  ignore_errors: true
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled | bool
+    - (reservation is defined and reservation.rc == 0) or (create_reservation is defined and create_reservation.rc != 0)
+    - active_healthchecks|bool
+
+- name: Test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 --reservation InitialValidation -w {{ ansible_facts['hostname'] }} hostname"
+  ignore_errors: true
+  register: test_result
+  when:
+    - "'GPU' in shape"
+    - rdma_enabled | bool
+    - active_healthchecks|bool
+
+- name: Reconfigure slurm
+  become: true
+  ansible.builtin.command: "scontrol reconfigure"
+  register: result
+  until: result is not failed
+  retries: 5
+  delay: 5
+  when: not ('GPU' in shape and (rdma_enabled|bool) and (active_healthchecks|bool))
+
+- name: Test the node
+  ansible.builtin.shell: "timeout 60s srun -N 1 -w {{ ansible_facts['hostname'] }} hostname"
+  ignore_errors: true
+  register: test_result
+  when: not ('GPU' in shape and (rdma_enabled|bool) and (active_healthchecks|bool))

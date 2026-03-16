@@ -1,0 +1,10 @@
+---
+- hosts: controller
+  vars:
+    slurm_mode: "compute-ctld"
+  roles:
+    - get_nodes_in_cluster
+    - prometheus_targets
+    - slurm
+
+    #- fix_ldap_add_node

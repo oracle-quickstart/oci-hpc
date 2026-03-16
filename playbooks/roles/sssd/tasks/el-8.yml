@@ -1,42 +1,42 @@
 ---
 - name: Install sssd packages
-  vars: 
-    package_name: 
+  vars:
+    package_name:
       - sssd
       - authconfig
-  include_role: 
+  include_role:
     name: safe_yum
 
 - name: Add configuration file to /etc/sssd/sssd.conf
   template:
-    src: 'sssd.conf.j2'
-    dest: '/etc/sssd/sssd.conf'
-    owner: 'root'
-    group: 'root'
-    mode: '0600'
-  notify: restart sssd
+    src: "sssd.conf.j2"
+    dest: "/etc/sssd/sssd.conf"
+    owner: "root"
+    group: "root"
+    mode: "0600"
+  notify: Restart sssd
 
 - name: Update /etc/sssd/sssd.conf
   lineinfile:
     path: /etc/sssd/sssd.conf
     line: "ldap_tls_reqcert = allow"
     state: present
-  notify: restart sssd
+  notify: Restart sssd
 
 - name: Copy CA certificate
   copy:
-    src: "{{ ssl_ca_cert }}"
+    src: "/config/key/cluster-ca.crt"
     dest: /etc/openldap/certs/cluster-ca.crt
 
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
-    path: '/etc/openldap/ldap.conf'
-    line: 'TLS_CACERT   /etc/openldap/certs/cluster-ca.crt'
+    path: "/etc/openldap/ldap.conf"
+    line: "TLS_CACERT   /etc/openldap/certs/cluster-ca.crt"
 
 - name: Enable sssd service
   systemd:
     name: sssd
-    enabled: "yes"
+    enabled: true
 
 - name: Start sssd service
   systemd:
@@ -44,11 +44,11 @@
     state: started
 
 - name: Update sshd configuration
-  lineinfile: 
+  lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^PasswordAuthentication'
+    regexp: "^PasswordAuthentication"
     line: PasswordAuthentication no
-  notify: restart sshd
+  notify: Restart sshd
 
 - name: Setting up the system to use sssd for authentication
   command: authconfig --enablemkhomedir --enablesssd --enablesssdauth --update

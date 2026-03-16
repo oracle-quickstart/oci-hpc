@@ -1,0 +1,32 @@
+---
+- name: Download and install AMD ROCm GPG key
+  ansible.builtin.shell:
+    cmd: wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null
+  args:
+    creates: /etc/apt/keyrings/rocm.gpg
+
+- name: Add AMD Container Toolkit repository to sources list
+  ansible.builtin.shell:
+    cmd: echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/amd-container-toolkit/apt/ jammy  main" | tee /etc/apt/sources.list.d/amd-container-toolkit.list
+  args:
+    creates: /etc/apt/sources.list.d/amd-container-toolkit.list
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install the AMD Container Toolkit package
+  ansible.builtin.apt:
+    name: amd-container-toolkit
+    state: present
+    update_cache: true
+
+- name: Configure the AMD container runtime
+  ansible.builtin.command:
+    cmd: amd-ctk runtime configure
+
+- name: Restart the Docker daemon to apply changes
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+    daemon_reload: true

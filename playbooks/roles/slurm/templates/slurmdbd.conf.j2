@@ -1,23 +1,34 @@
+
 # See the slurmdbd.conf man page for more information.
 #
+
 # Authentication info
 AuthType=auth/munge
 #AuthInfo=/var/run/munge/munge.socket.2
 AuthAltTypes=auth/jwt
-AuthAltParameters=jwt_key={{ slurm_nfs_path }}/spool/slurm/jwt_hs256.key
+AuthAltParameters=jwt_key={{ slurm_jwt_key_path }}
 
 # slurmDBD info
+{% if groups['slurm_backup'] | length == 0 %}
 DbdHost=localhost
+{% else %}
+DbdHost={{ controller_hostname }}
+DbdBackupHost={{ slurm_backup_hostname }}
+{% endif %}
 SlurmUser=slurm
 #MessageTimeout=300
 DebugLevel=4
 LogFile=/var/log/slurm/slurmdbd.log
-PidFile=/var/run/slurmdbd.pid
+PidFile=/run/slurmdbd.pid
 #PrivateData=accounts,users,usage,jobs
 
 # Database info
 StorageType=accounting_storage/mysql
+{% if groups['slurm_backup'] | length == 0 %}
 StorageHost=localhost
+{% else %}
+StorageHost={{mysql_service_host }}
+{% endif %}
 StoragePort=3306
 StoragePass={{ slurmdbd_sql_pwd }}
 StorageUser={{ slurm_db_user }}

@@ -12,4 +12,4 @@ commonName          = Common Name (e.g. server FQDN)
 subjectAltName = @alt_names                         
 
 [alt_names]               
-DNS.1 = {{ ssl_cert_altname }}
+DNS.1 = {% if 'slurm_backup' in group_names %}backup.cluster{% else %}controller.cluster{% endif %}

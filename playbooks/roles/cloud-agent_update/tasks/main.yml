@@ -1,4 +1,7 @@
-- include_tasks: el.yml
-  when: ansible_os_family == 'RedHat' and ansible_distribution == 'OracleLinux'
-- include_tasks: ubuntu.yml
-  when: ansible_os_family == 'Debian'
+---
+- name: Update Oracle Cloud Agent (Oracle Linux)
+  include_tasks: el.yml
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux'
+- name: Update Oracle Cloud Agent (Ubuntu)
+  include_tasks: ubuntu.yml
+  when: ansible_facts['os_family'] == 'Debian'

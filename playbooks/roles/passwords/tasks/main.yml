@@ -5,6 +5,6 @@
     path: /etc/opt/oci-hpc/passwords/
     state: directory
     owner: "{{ ansible_user }}"
-    mode: 0770
+    mode: "0770"
     group: "{{ ansible_user }}"
-    recurse: yes
+    recurse: true

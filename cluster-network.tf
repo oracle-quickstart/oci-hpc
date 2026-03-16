@@ -1,25 +1,6 @@
-resource "oci_core_volume" "nfs-cluster-network-volume" {
-  count               = (!var.compute_cluster) && var.scratch_nfs_type_cluster == "block" && var.node_count > 0 ? 1 : 0
-  availability_domain = var.ad
-  compartment_id      = var.targetCompartment
-  display_name        = "${local.cluster_name}-nfs-volume"
-
-  size_in_gbs = var.cluster_block_volume_size
-  vpus_per_gb = split(".", var.cluster_block_volume_performance)[0]
-}
-
-resource "oci_core_volume_attachment" "cluster_network_volume_attachment" {
-  count           = (!var.compute_cluster) && var.scratch_nfs_type_cluster == "block" && var.node_count > 0 ? 1 : 0
-  attachment_type = "iscsi"
-  volume_id       = oci_core_volume.nfs-cluster-network-volume[0].id
-  instance_id     = local.cluster_instances_ids[0]
-  display_name    = "${local.cluster_name}-cluster-network-volume-attachment"
-  device          = "/dev/oracleoci/oraclevdb"
-}
-
 resource "oci_core_cluster_network" "cluster_network" {
-  count          = (!var.compute_cluster) && var.cluster_network && var.node_count > 0 ? 1 : 0
-  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_core_instance.controller]
+  count          = (!var.stand_alone) && var.rdma_enabled && var.node_count > 0 && (var.cluster_network_shape != "BM.GPU.GB200.4" && var.cluster_network_shape != "BM.GPU.GB200-v2.4" && var.cluster_network_shape != "BM.GPU.GB200-v3.4" && var.cluster_network_shape != "BM.GPU.GB300.4") ? 1 : 0
+  depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_subnet.private-subnet, oci_core_subnet.public-subnet, oci_functions_function.function, null_resource.controller]
   compartment_id = var.targetCompartment
   instance_pools {
     instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id
@@ -27,8 +8,9 @@ resource "oci_core_cluster_network" "cluster_network" {
     display_name              = local.cluster_name
   }
   freeform_tags = {
-    "cluster_name"   = local.cluster_name
-    "parent_cluster" = local.cluster_name
+    "cluster_name"        = local.cluster_name
+    "controller_name"     = oci_core_instance.controller.display_name
+    "hostname_convention" = var.hostname_convention
   }
   placement_configuration {
     availability_domain = var.ad
@@ -40,3 +22,20 @@ resource "oci_core_cluster_network" "cluster_network" {
   display_name = local.cluster_name
 }
 
+
+resource "oci_core_compute_gpu_memory_cluster" "compute_gpu_memory_cluster" {
+  count                     = var.node_count > 0 && (var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4") ? 1 : 0
+  availability_domain       = var.ad
+  compartment_id            = var.targetCompartment
+  compute_cluster_id        = oci_core_compute_cluster.compute_cluster[0].id
+  instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id
+
+  freeform_tags = {
+    "cluster_name"    = local.cluster_name
+    "controller_name" = "${local.cluster_name}-controller"
+  }
+
+  display_name         = "${local.cluster_name}-fabric1"
+  gpu_memory_fabric_id = var.memory_fabric_id
+  size                 = var.node_count
+}
