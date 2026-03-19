@@ -7,8 +7,8 @@ set -eu -o pipefail
 # 
 # If not, do it ourselves.
 # If yes, wait for 1200s. Then use the install or (if failed, try to install ourselves).
-marker_install="${UV_INSTALL_DIR}/ansible_install_success"
-marker_in_progress="${UV_INSTALL_DIR}/ansible_install_in_progress"
+marker_install="/config/playbooks/ansible_install_success"
+marker_in_progress="/config/playbooks/ansible_install_in_progress"
 
 # SECONDS is a bash built-in, counts seconds since invocation
 timeout=$(( SECONDS + 1200 ))
