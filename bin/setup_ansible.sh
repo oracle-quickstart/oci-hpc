@@ -60,7 +60,7 @@ collections:
 EOF_ANSIBLE
   fi
 
-  uv run ansible-galaxy collection install --upgrade --force -r "${ansible_requirements}"
+  uv run ansible-galaxy collection install --upgrade --force -r "${ansible_requirements}" -p /config/playbooks/collections
 
   touch "${marker_install}"
 fi
