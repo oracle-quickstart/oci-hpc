@@ -3,7 +3,7 @@
 The below section willl guide the user through the stack deployment steps and usage.
 
 > [!WARNING]
-> Don't forget to complete all the [prerequisites](/documentation/Prerequisites.md) before starting any configuration or deployment.
+> Don't forget to complete all the [prerequisites](./documentation/Prerequisites.md) before starting any configuration or deployment.
 
 * [Setup.md](/documentation/Setup.md): how to configure and deploy the cluster.
 * [Userguide.md](/documentation/Userguide.md): how to use the cluster.
