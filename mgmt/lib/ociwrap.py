@@ -198,13 +198,13 @@ def run_reboot(node,soft):
     except oci.exceptions.ServiceError as e:
         logger.error(f"Error: {e}")
 
-def run_reboot(node,soft):
+def run_stop(node,soft):
     try:
         if soft:
-            logger.info("Soft Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
+            logger.info("Soft Stopping: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
             CLIENTS.compute_client.instance_action(instance_id=node.ocid,action="SOFTSTOP")
         else:
-            logger.info("Force Rebooting: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
+            logger.info("Stopping: "+str(node.hostname)+" with oci name "+str(node.oci_name)+" with IP "+str(node.ip_address)+" and OCID:"+str(node.ocid))
             CLIENTS.compute_client.instance_action(instance_id=node.ocid,action="STOP")
     except oci.exceptions.ServiceError as e:
         logger.error(f"Error: {e}")

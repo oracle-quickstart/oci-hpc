@@ -1524,13 +1524,13 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: (DCGM_FI_DEV_GPU_TEMP > 70) and on(hostname, gpu) (DCGM_FI_DEV_GPU_UTIL < 10)
+              expr: (avg_over_time(DCGM_FI_DEV_GPU_TEMP[5m]) > bool 70) * (avg_over_time(DCGM_FI_DEV_GPU_UTIL[5m]) < bool 10)
               hide: false
-              instant: true
+              instant: false
               intervalMs: 60000
               legendFormat: "{{ hostname }} {{ gpu }}"
               maxDataPoints: 43200
-              range: false
+              range: true
               refId: A
           - refId: B
             datasourceUid: __expr__
