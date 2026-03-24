@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "requests",
+#   "psutil",
+#   "distro"
+# ]
+# ///
 
 """
 ===========================================================================================
@@ -20,6 +27,9 @@ This is a Health Check script which covered below in order:
 14. Fabric Manager Status Check
 15. CPU Performance Profile Check
 16. Pending Bad Pages Check (AMD GPUs)
+17. Check if all interfaces have an IP address
+18. Check NVLinks speeds
+19. Run dcgmi health check
 
 ===========================================================================================
 Usage:
@@ -35,8 +45,6 @@ Usage:
 import subprocess
 import re
 import argparse
-from datetime import datetime, timedelta
-from shared_logging import logger
 from gpu_bw_test import BandwidthTest
 from rdma_link_flapping import LinkFlappingTest
 from xid_checker import XidChecker
@@ -45,6 +53,20 @@ import os
 import requests
 import json
 import time
+import sys
+import socket
+import psutil
+
+version = sys.version_info
+if version >= (3, 12):
+    from datetime import datetime, timedelta, UTC
+else:
+    from datetime import datetime, timedelta
+
+
+from shared_logging import logger
+
+SMI_TIMEOUT_SEC = 10
 
 #Section 0: Common Functions for all Health Checks.
 ###################################################
@@ -73,10 +95,14 @@ def get_devices():
         "BM.GPU.H100.8": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.H200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
         "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
+        "BM.GPU.GB200.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
+        "BM.GPU.GB200-v2.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
+        "BM.GPU.GB200-v3.4": ["mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"],
+        "BM.GPU.GB300.4": ["mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8"],
         "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
         "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
-        "BM.GPU.MI300X.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9"]
+        "BM.GPU.MI300X.8": ["mlx5_0", "mlx5_2", "mlx5_3","mlx5_4", "mlx5_5", "mlx5_7", "mlx5_8", "mlx5_9"]
     }
     
     return shape_devices.get(shape, [])
@@ -107,22 +133,22 @@ def get_host_serial():
     return "Unknown Instance"  # Final fallback if all methods fail
 
 # Initialize global variables for Slurm reasons and error count
-slurm_drain_reason = ""
+slurm_drain_reason = []
 slurm_error_count = 0
 
 # Function to provide slurm reason for a node to be drained or down
 def slurm_reason(message):
     global slurm_drain_reason
     global slurm_error_count
-    slurm_drain_reason+=(message+"\n")
+    slurm_drain_reason.append(message)
     slurm_error_count+=1
 
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in [None,"FabricManagerRestart","Reboot","Terminate"]:
-        print("No action was found")
+    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Reset_GPU"):
+        logger.error("No action was found")
         return 0
-    if action == "Reboot" or action == "FabricManagerRestart":
+    if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Reset_GPU"):
         if current == "Terminate":
             return current
         else:
@@ -131,9 +157,13 @@ def recommended_action(current, action):
         return current
     if action == "Terminate":
         return action
+    if action in ("Wait_For_OCA"):
+        if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU"):
+            return current
+        else:
+            return action
 
 # Check the reboot counts
-
 def get_reboots_count():
     result = subprocess.run(["last", "-x", "reboot"], stdout=subprocess.PIPE)
     # Decode the output from bytes to string
@@ -141,9 +171,11 @@ def get_reboots_count():
     now = datetime.now()
     one_day_ago = now - timedelta(hours=24)
     two_hours_ago = now - timedelta(hours=2)
+    twelve_hours_ago = now - timedelta(hours=12)
 
     reboot_count_last_day = 0
     last_reboot_within_2hour = 0
+    last_reboot_within_12hours = 0
     reboot_lines=[]
     for line in output.splitlines():
         parts = line.split()
@@ -156,15 +188,117 @@ def get_reboots_count():
         date_str = " ".join(parts[4:8])  # Extract date/time part
         reboot_time = datetime.strptime(date_str, "%a %b %d %H:%M")
         reboot_time = reboot_time.replace(year=now.year)  # Assume current year
-        # Count reboots in the last 12 hours
+        # Count reboots in the last 24 hours
         if reboot_time >= one_day_ago:
             reboot_count_last_day += 1
 
-        # Check if the last reboot was within the last hour
+        # Check if the last reboot was within the last 2 hours
         if reboot_time >= two_hours_ago:
             last_reboot_within_2hour += 1
 
-    return reboot_count_last_day, last_reboot_within_2hour
+        # Check if the last reboot was within the last 12 hours
+        if reboot_time >= twelve_hours_ago:
+            last_reboot_within_12hours += 1
+
+    return reboot_count_last_day, last_reboot_within_2hour, last_reboot_within_12hours
+
+# This function is called only when Xid error is present and when the remediation of the Xid is GPU reset.
+# Check section 12.3 for details.
+def gpu_reset_reboot(xc):
+    
+    # The below function checks 
+    #       Recently rebooted: Tag and terminate
+    #       Not recently rebooted: GPU reset
+    def gpu_reset_logic():
+        number_of_reboots,last_2hour_reboot,last_12hour_reboot = get_reboots_count()
+        if last_12hour_reboot > 0 or number_of_reboots > 3:
+            # Tag and Terminate
+            logger.error("Xid Error Check: Failed")
+            return "Terminate", False
+        else:
+            # GPU reset
+            logger.error("Xid Error Check: Failed")
+            return "GPU_Reset", False
+
+    # List of (index, line, timestamp) for lines that contain nvidia-nvswitch: Probing device. These are the lines that indicate a GPU Reset.
+    gpu_reset_indices = []
+    # List of indices for lines that contain NVRM: Xid
+    xid_indices = []
+
+    # Get the dmesg output
+    dmesg_output = xc.get_dmesg()
+    if dmesg_output == "":
+        return "", True
+    dmesg_lines = dmesg_output.splitlines()
+
+    # get the indices of the lines with Xid error and GPU reset
+    for idx, line in enumerate(dmesg_lines):
+        if "nvidia-nvswitch: Probing device" in line:
+            # Parse the timestamp for the lines that mention GPU has been reset. 
+            ts = XidChecker.parse_dmesg_timestamp(line)
+            gpu_reset_indices.append((idx, line, ts))
+        if "NVRM: Xid" in line:
+            xid_indices.append(idx)
+    
+    gpu_reset_present = len(gpu_reset_indices) > 0
+    now = datetime.now()
+    
+    # Get all the GPU resets in the last 24 hours
+    gpu_reset_recent = []
+    for gpi in gpu_reset_indices:
+        timestamp = gpi[2]
+        if timestamp is not None:
+            time_difference = now - timestamp
+            seconds_difference = time_difference.total_seconds()
+            if seconds_difference <= 86400:
+                gpu_reset_recent.append(gpi)
+    
+    # Logic for GPU reset:
+    # 1. Xid error and no GPU reset or Xid error and GPU reset before more than 24 hours ago
+    #       Recently rebooted: Tag and terminate
+    #       Not recently rebooted: GPU reset
+    # 2. Xid Error and GPU reset was done after the last Xid --> Healthy
+    # 3. Xid Error and GPU reset before in the last 24 hours:
+    #       If not rebooted even once in the last 12 hours: GPU reset
+    #       Recently rebooted: Tag and Terminate
+    #       Else: Reboot
+
+    # If GPU reset was done
+    if gpu_reset_present:
+        last_xid = xid_indices[-1]
+        last_probing = gpu_reset_indices[-1][0]
+        # GPU reset was done after the last Xid --> Healthy
+        if last_xid < last_probing:
+            logger.info("Xid Error Check: Passed")
+            return "", True
+        elif gpu_reset_recent:
+            # GPU reset before in the last 24 hours:
+            #       If not rebooted even once in the last 12 hours: GPU reset
+            #       Recently rebooted: Tag and Terminate
+            #       Else: Reboot
+            number_of_reboots,last_2hour_reboot,last_12hour_reboot = get_reboots_count()
+            if last_12hour_reboot > 0 or number_of_reboots > 3:
+                # Tag and Terminate
+                logger.error("Xid Error Check: Failed")
+                return "Terminate", False
+            elif last_12hour_reboot == 0:
+                # Reset GPU
+                logger.error("Xid Error Check: Failed")
+                return "GPU_Reset", False
+            else:
+                # Reboot
+                logger.error("Xid Error Check: Failed")
+                return "Reboot", False
+        else:
+            # GPU reset before more than 24 hours ago
+            #       Recently rebooted: Tag and terminate
+            #       Not recently rebooted: GPU reset
+            return gpu_reset_logic()
+    else:
+        # No GPU reset was done
+        #       Recently rebooted: Tag and terminate
+        #       Not recently rebooted: GPU reset
+        return gpu_reset_logic()
 
 #Section 1: All Health Check functions.
 ########################################
@@ -285,7 +419,7 @@ def check_ecc_errors():
     ecc_issues = []
 
     try:
-        result = subprocess.run(['nvidia-smi', '-q'], stdout=subprocess.PIPE)
+        result = subprocess.run(['nvidia-smi', '-q'], stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
         if result.returncode == 0:
             output = result.stdout.decode('utf-8')
             sram_matches = re.findall(r'SRAM Uncorrectable\s+:\s+(\d+)', output)
@@ -300,25 +434,22 @@ def check_ecc_errors():
 
             for i, gpu in enumerate(gpu_matches):
                 logger.debug(f"GPU: {gpu}")
+                if vol_sram_line[i] != "0":
+                    logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
+                    ecc_issues.append(f"{gpu_matches[i]} - Volatile SRAM Uncorrectable: {vol_sram_line[i]}")
+                if vol_dram_line[i] != "0":
+                    logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
+                    ecc_issues.append(f"{gpu_matches[i]} - Volatile DRAM Uncorrectable: {vol_dram_line[i]}")
+                if agg_sram_line[i] != "0":
+                    logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
+                    ecc_issues.append(f"{gpu_matches[i]} - Aggregate SRAM Uncorrectable: {agg_sram_line[i]}")
+                if agg_dram_line[i] != "0":
+                    logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
+                    ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
 
-                # Check and handle N/A or missing values
-                vol_sram = vol_sram_line[i] if i < len(vol_sram_line) else "N/A"
-                vol_dram = vol_dram_line[i] if i < len(vol_dram_line) else "N/A"
-                agg_sram = agg_sram_line[i] if i < len(agg_sram_line) else "N/A"
-                agg_dram = agg_dram_line[i] if i < len(agg_dram_line) else "N/A"
-
-                if vol_sram != "0" and vol_sram != "N/A":
-                    logger.debug(f"Volatile SRAM Uncorrectable: {vol_sram}")
-                    ecc_issues.append(f"{gpu} - Volatile SRAM Uncorrectable: {vol_sram}")
-                if vol_dram != "0" and vol_dram != "N/A":
-                    logger.debug(f"Volatile DRAM Uncorrectable: {vol_dram}")
-                    ecc_issues.append(f"{gpu} - Volatile DRAM Uncorrectable: {vol_dram}")
-                if agg_sram != "0" and agg_sram != "N/A":
-                    logger.debug(f"Aggregate SRAM Uncorrectable: {agg_sram}")
-                    ecc_issues.append(f"{gpu} - Aggregate SRAM Uncorrectable: {agg_sram}")
-                if agg_dram != "0" and agg_dram != "N/A":
-                    logger.debug(f"Aggregate DRAM Uncorrectable: {agg_dram}")
-                    ecc_issues.append(f"{gpu} - Aggregate DRAM Uncorrectable: {agg_dram}")
+    except subprocess.TimeoutExpired:
+        logger.warning(f"GPU ECC Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        ecc_issues.append(f"nvidia-smi -q timed out after {SMI_TIMEOUT_SEC}s")
 
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
@@ -326,13 +457,17 @@ def check_ecc_errors():
         try:
             THRESHOLD = 5
             # Try detecting AMD GPU
-            result = subprocess.run(["amd-smi", "metric", "--ecc", "--json"], capture_output=True, check=True)
+            result = subprocess.run(["amd-smi", "metric", "--ecc", "--json"], capture_output=True, check=True, timeout=SMI_TIMEOUT_SEC)
 
             # Parse JSON output
             gpu_data = json.loads(result.stdout.decode('utf-8'))
             for gpu in gpu_data:
                 if gpu["ecc"]["total_uncorrectable_count"] > THRESHOLD:
                     ecc_issues.append(f"GPU {gpu['gpu']} - ECC Errors: {gpu['ecc']['total_uncorrectable_count']}")
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"SRAM/DRAM ECC Test: Failed - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
+            ecc_issues.append(f"amd-smi metric --ecc --json timed out after {SMI_TIMEOUT_SEC}s")
 
         except (subprocess.CalledProcessError, FileNotFoundError):
             logger.warning("Skipping SRAM/DRAM ECC Test: nvidia-smi | amd-smi command not found.")
@@ -367,7 +502,7 @@ def check_row_remap_errors():
         # Run the nvidia-smi -q command
         result = subprocess.run(
             ['nvidia-smi', '--query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable', '--format=csv,noheader'],
-            stdout=subprocess.PIPE
+            stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC
         )
 
         if result.returncode != 0:
@@ -376,6 +511,10 @@ def check_row_remap_errors():
     except FileNotFoundError:
         logger.warning("Skipping Row Remap Test: nvidia-smi command not found")
         return remap_issues, recommended_action
+
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Row Remap Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        remap_issues.append(f"nvidia-smi --query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable --format=csv,noheader timed out after {SMI_TIMEOUT_SEC}s")
 
     # Decode the output from bytes to string
     output = result.stdout.decode('utf-8')
@@ -386,24 +525,22 @@ def check_row_remap_errors():
             continue
         tmp_data = line.split(",")
         tmp_data = [x.strip() for x in tmp_data]
-        if tmp_data[0] not in ["0", "No", "[N/A]"]:
+        if tmp_data[0] != "0" and tmp_data[0] != "No":
             logger.debug(f"GPU: {i} - Row Remap Pending: {tmp_data[0]}")
             remap_issues.append(f"GPU: {i} Row Remap Pending: {tmp_data[0]}")
             recommended_action = "Reboot"
-        #if tmp_data[1] != "0" and tmp_data[1] != "No":
-        if tmp_data[1] not in ["0", "No", "[N/A]"]:
+        if tmp_data[1] != "0" and tmp_data[1] != "No":
             logger.debug(f"GPU: {i} - Row Remap Failure: {tmp_data[1]}")
             recommended_action = "Terminate"
-        if tmp_data[2] not in ["0", "No", "[N/A]"]:  # Add [N/A] to the list of handled values
-            try:
-                if int(tmp_data[2]) > 512:
-                    remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
-                    recommended_action = "Terminate"
-                else:
-                    remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable <512: {tmp_data[2]}")
-                    recommended_action = "Reboot"
-            except ValueError:
-                logger.warning(f"Invalid value for uncorrectable remapped rows: {tmp_data[2]}")
+        if tmp_data[2] != "0" and tmp_data[2] != "No":
+            logger.debug(f"GPU: {i} - Row Remap Uncorrectable: {tmp_data[2]}")
+            if int(tmp_data[2]) > 512:
+                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable >512: {tmp_data[2]}")
+                recommended_action = "Terminate"
+            else:
+                remap_issues.append(f"GPU: {i} - Row Remap Uncorrectable <512: {tmp_data[2]}")
+                recommended_action = "Reboot"
+
     if len(remap_issues) == 0:
         logger.info("GPU Row Remap Test: Passed")
     else:
@@ -437,13 +574,34 @@ def check_gpu_count():
         'ca:00.0 3D controller: NVIDIA Corporation GA102GL [A10] (rev a1)'
     ]
 
+    lspci_expected_results_gb200 = [
+        '0008:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0009:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0018:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0019:01:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+    ]
+
+    lspci_expected_results_gb200_v3 = [
+        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0019:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+    ]
+
+    lspci_expected_results_gb300 = [
+        '0008:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0009:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0018:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)',
+        '0019:06:00.0 3D controller: NVIDIA Corporation Device 2941 (rev a1)'
+    ]
+
     shape = metadata.get('shape')
     tmp_results = []
 
     # Check the number of GPUs for AMD
     if shape == "BM.GPU.MI300X.8":
         try:
-            result = subprocess.run(['amd-smi', 'list'], stdout=subprocess.PIPE)
+            result = subprocess.run(['amd-smi', 'list'], stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
             output = result.stdout.decode('utf-8')
             gpu_count = output.count("GPU")  # Count occurrences of "GPU"
             tmp_results = []
@@ -455,6 +613,10 @@ def check_gpu_count():
                 logger.warning("GPU Count Test: Failed")
                 tmp_results.append(f"Expected {expected_no_gpu} GPUs, found {gpu_count} using amd-smi command")
 
+        except subprocess.TimeoutExpired:
+            logger.warning("GPU Count Test: Failed - amd-smi list timed out")
+            tmp_results.append(f"amd-smi list timed out after {SMI_TIMEOUT_SEC}s")
+
         except FileNotFoundError:
             logger.warning("Skipping GPU count test: amd-smi command not found")
 
@@ -462,7 +624,7 @@ def check_gpu_count():
 
     # Check the number of GPUs for NVIDIA
     try:
-        result = subprocess.run(['nvidia-smi', '--list-gpus'], stdout=subprocess.PIPE)
+        result = subprocess.run(['nvidia-smi', '--list-gpus'], stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
         output = result.stdout.decode('utf-8').strip()
 
         # Handle "No devices found" case
@@ -470,10 +632,14 @@ def check_gpu_count():
             logger.error("GPU Count Test: Failed - No devices found using nvidia-smi")
             return ["No GPUs detected"]
 
-        lines = [line for line in output.split('\n') if "GPU" in line and line.strip().startswith("GPU")]
+        if "Unable to determine the device handle" in output:
+            logger.error("GPU Count Test: Failed - Unable to determine the device handle for one or more devices")
+            return ["GPU device handle problem"]
+      
+        lines = output.split('\n')
         # Remove empty lines
         lines = [line for line in lines if line]
-        if shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"]:
+        if "GPU.GB" in shape or shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"]:
             expected_gpus = 4
         elif shape in ["VM.GPU.A10.1", "VM.GPU.A100.40G.1", "VM.GPU.A100.80G.1"]:
             expected_gpus = 1
@@ -525,6 +691,18 @@ def check_gpu_count():
                 else:
                     expected_gpus = 8
                 lspci_expected_results = lspci_expected_results_gpu
+            elif "GPU.GB" in shape:
+                find_number = "2941"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_gb200
+            elif shape in ["BM.GPU.GB200-v3.4"]:
+                find_number = "2941"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_gb200_v3
+            elif shape in ["BM.GPU.GB300.4"]:
+                find_number = "2941"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_gb300                
 
             for line in lines:
                 if line.find("NVIDIA") != -1 and line.find(find_number) != -1:
@@ -539,9 +717,14 @@ def check_gpu_count():
             else:
                 logger.warning("GPU Count Test: Failed")
             return missing_gpus
+
         except FileNotFoundError:
             logger.warning("Skipping GPU count test: nvidia-smi and lspci commands not found")
             return None
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"GPU Count Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+            return [f"nvidia-smi --list-gpus timed out after {SMI_TIMEOUT_SEC}s"]
 
 # 7.1 Checks PCIe link width for NVIDIA or AMD based on instance shape.
 def check_gpu_pcie():
@@ -551,7 +734,7 @@ def check_gpu_pcie():
 
     if shape == "BM.GPU.MI300X.8":
         try:
-            result = subprocess.run(['amd-smi', 'metric', '--pcie'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run(['amd-smi', 'metric', '--pcie'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
             output = result.stdout.decode('utf-8').strip()
 
             if result.returncode != 0 or "No devices were found" in output:
@@ -568,6 +751,10 @@ def check_gpu_pcie():
                 logger.error("GPU PCIe Width Test: Failed")
                 return [f"Expected PCIe width {expected_pcie_width}, but found {pcie_widths}"]
 
+        except subprocess.TimeoutExpired:
+            logger.error(f"GPU PCIe Width Test: Failed - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
+            return [f"amd-smi metric --pcie timed out after {SMI_TIMEOUT_SEC}s"]
+
         except FileNotFoundError:
             logger.warning("GPU PCIe Width Test: Skipping - amd-smi command not found")
             return ["AMD PCIe Width Test Skipped"]
@@ -576,7 +763,7 @@ def check_gpu_pcie():
         try:
             result = subprocess.run(
                 ['nvidia-smi', '--query-gpu=pcie.link.width.current', '--format=csv,noheader'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC
             )
             output = result.stdout.decode('utf-8').strip()
 
@@ -585,7 +772,6 @@ def check_gpu_pcie():
                 return ["No GPUs detected"]
 
             widths = list(map(int, output.split("\n")))
-
             if all(width == expected_pcie_width for width in widths):
                 logger.info("GPU PCIe Width Test: Passed")
             else:
@@ -600,6 +786,10 @@ def check_gpu_pcie():
         except FileNotFoundError:
             logger.warning("GPU PCIe Width Test: Skipping - `nvidia-smi` command not found")
             return ["NVIDIA PCIe Width Test Skipped"]
+        
+        except subprocess.TimeoutExpired:
+            logger.error(f"GPU PCIe Width Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+            return [f"nvidia-smi PCIe query timed out after {SMI_TIMEOUT_SEC}s"]
 
     return []
 
@@ -705,10 +895,19 @@ def check_wpa_auth(metadata):
         pass
         return []
 
-    if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"]:
+    if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8","BM.GPU.B4.8"]:
         interface_range = range(16)
         required_authenticated = 16
     elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.MI300X.8"]:
+        interface_range = range(8)
+        required_authenticated = 8
+    elif "GPU.GB" in shape:
+        interface_range = range(4)
+        required_authenticated = 0
+    elif shape in ["BM.GPU.GB200-v3.4"]:
+        interface_range = range(8)
+        required_authenticated = 8
+    elif shape in ["BM.GPU.GB300.4"]:
         interface_range = range(8)
         required_authenticated = 8
     else:
@@ -721,7 +920,7 @@ def check_wpa_auth(metadata):
     interface_names = ["rdma" + str(i) for i in interface_range]
     auth_status = {key: 0 for key in interface_names}
     warning = {key: [] for key in interface_names}
-
+    action = None
     for i in range(5):
         # Check each RDMA interface for WPA authentication status
         for interface in interface_names:
@@ -750,12 +949,12 @@ def check_wpa_auth(metadata):
 
     # Determine action based on authentication result
     if authenticated_count < required_authenticated:
-        action = "Reboot"  # Set action as needed, e.g., "Reboot" if a reset is recommended
+        #action = "Reboot"  # Set action as needed, e.g., "Reboot" if a reset is recommended
         wpa_auth_issues.append(f"Only {authenticated_count} interfaces are AUTHENTICATED; expected at least {required_authenticated}.")
         for i in warning.keys():
             if auth_status[i] == 0:
                 logger.warning(warning[i])
-        logger.error("WPA Authentication Check: Failed")
+        logger.warning("WPA Authentication Check: Failed")
     else:
         action = None  # No action if check passes
         logger.info("WPA Authentication Check: Passed")
@@ -770,13 +969,17 @@ def check_fabric_manager():
     fabric_manager_health = False
     try:
         # Run the nvidia-smi -q -i 0 | grep -i -A 2 Fabric
-        result = subprocess.run('nvidia-smi -q -i 0 | grep -i -A 2 Fabric', shell=True, stdout=subprocess.PIPE)
+        result = subprocess.run('nvidia-smi -q -i 0 | grep -i -A 2 Fabric', shell=True, stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
         if result.returncode != 0:
             logger.debug(f"Fabric Manager Check exited with error code: {result.returncode}")
 
     except FileNotFoundError:
         logger.warning("Skipping Fabric Manager test: nvidia-smi command not found")
         return fabric_manager_health
+ 
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Fabric Manager Check: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        return False
 
     # Decode the output from bytes to string
     output = result.stdout.decode('utf-8')
@@ -870,25 +1073,206 @@ def get_current_cpu_profile():
 # 16.1 Check for pending bad pages on GPUs, for AMD only.
 def check_bad_pages():
     try:
-        result = subprocess.run(["amd-smi", "bad-pages", "--json"], capture_output=True, check=True)
+        result = subprocess.run(["amd-smi", "bad-pages", "--json"], capture_output=True, check=True, timeout=SMI_TIMEOUT_SEC)
         data = json.loads(result.stdout.decode('utf-8'))
+    except subprocess.TimeoutExpired:
+        return [f"amd-smi bad-pages --json timed out after {SMI_TIMEOUT_SEC}s"]
+    except FileNotFoundError:
+        logger.warning("GPU Pending Bad Pages Check: Skipping - amd-smi command not found")
+        return ["AMD bad-pages check skipped (amd-smi not found)"]
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-        print(f"Error executing amd-smi or parsing JSON: {e}")
-        return
+        logger.error(f"Error executing amd-smi or parsing JSON: {e}")
+        return [f"amd-smi bad-pages failed or returned invalid JSON: {e}"]
 
     errors = []
 
     for gpu in data:
         if gpu.get("pending") != "No bad pages found.":
             errors.append(f"Error: GPU {gpu['gpu']} has bad pages pending: {gpu['pending']}")
-
+    
     if errors:
         for error in errors:
-            print(error)
+            logger.error(error)
     else:
         logger.info("GPU Pending Bad Pages Check: Passed")
 
-#Section 2: Main function and args to run all checks (1.2 - 16.2)
+# 17.1 Check if all interfaces have an IP address
+def check_ip_addresses():
+    devices = get_devices()    
+    devices_per_interface={}
+    infiniband_dir="/sys/class/infiniband"
+    for device in devices:
+        device_path = os.path.join(infiniband_dir, device, "device", "net")
+        if os.path.exists(device_path):
+            for interface in os.listdir(device_path):
+                devices_per_interface[interface]=device
+                break
+
+    missing_ips=[]
+    interface_map = {}
+    for interface, addrs in psutil.net_if_addrs().items():
+        if not interface in devices_per_interface.keys():
+            continue
+        ip_address = None
+        # Get IPv4 address
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                ip_address = addr.address
+                break  # Only take the first IPv4 address
+        if devices_per_interface[interface] in devices and ip_address is None:
+            missing_ips.append(interface)
+        # Store details
+        interface_map[interface] = {
+            "device_name": devices_per_interface[interface],
+            "interface": interface,
+            "ip_address": ip_address
+        }
+    return missing_ips,interface_map
+
+# 18.1 Check NVLinks speeds
+def get_nvlink_speed():
+    gpu_nvlink_info = {
+        "BM.GPU4.8":         {"count": 12, "speed": 25,      "gpu": 8},
+        "BM.GPU.B4.8":       {"count": 12, "speed": 25,      "gpu": 8},
+        "BM.GPU.A100-v2.8":  {"count": 12, "speed": 25,      "gpu": 8},
+        "BM.GPU.H100.8":     {"count": 18, "speed": 25,      "gpu": 8},
+        "BM.GPU.H200.8":     {"count": 18, "speed": 25,      "gpu": 8},
+        "BM.GPU.B200.8":     {"count": 18, "speed": 50,      "gpu": 8},
+        "BM.GPU.GB200.4":    {"count": 18, "speed": 50,      "gpu": 4},
+        "BM.GPU.GB200-v2.4": {"count": 18, "speed": 50,      "gpu": 4},
+        "BM.GPU.GB200-v3.4": {"count": 18, "speed": 50,      "gpu": 4},
+        "BM.GPU.GB300.4":    {"count": 18, "speed": 50,      "gpu": 4},
+        "VM.GPU.A100.40G.1": {"count": 12, "speed": 25,      "gpu": 1},
+        "VM.GPU.A100.80G.1": {"count": 12, "speed": 25,      "gpu": 1}
+    }
+
+    shape = metadata.get('shape')
+    info = gpu_nvlink_info[shape]
+    if not info:
+        logger.info(f"Skipping NVLink speed check: unsupported GPU shape {shape}")
+        return []
+    count_expected = info['count']
+    speed_expected = info['speed']
+    expected_gpu = info['gpu']
+
+    error = False
+    checked = 0
+    for gpu_index in range(expected_gpu):
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=mig.mode.current", "--format=csv,noheader", "-i", str(gpu_index)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=SMI_TIMEOUT_SEC,
+                check=True
+            )
+            mig_output = result.stdout.decode()
+
+            if "enabled" in mig_output.lower():
+                logger.info(f"Skipping NVLINK check on MIG enabled GPU: {gpu_index}")
+                continue
+
+        except subprocess.TimeoutExpired:
+            logger.warning(f"GPU {gpu_index}: MIG status check command timed out after {SMI_TIMEOUT_SEC}s.")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"GPU {gpu_index}: MIG status check command failed with return code {e.returncode}.")
+        except Exception as e:
+            logger.warning(f"GPU {gpu_index}: MIG status check unexpected error: {e}")
+
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "nvlink", "-s", "-i", str(gpu_index)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=SMI_TIMEOUT_SEC,
+                check=True
+            )
+            gpu_output = result.stdout.decode()
+            
+            link_speeds = re.findall(r'Link \d+: ([\d.]+) GB/s', gpu_output)
+            speeds_float = [float(s) for s in link_speeds]
+
+            count = len(speeds_float)
+            speeds_match = all(speed >= speed_expected for speed in speeds_float)
+
+            if count != count_expected:
+                logger.error(f"GPU {gpu_index}: ERROR: NVLink count mismatch!")
+                error = True
+            if not speeds_match:
+                logger.error(f"GPU {gpu_index}: ERROR: One or more link speeds do not match expected ({speed_expected} GB/s)")
+                error = True
+        except subprocess.TimeoutExpired:
+            logger.warning(f"GPU {gpu_index}: NVLink speed check command timed out after {SMI_TIMEOUT_SEC}s.")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"GPU {gpu_index}: NVLink speed check command failed with return code {e.returncode}.")
+        except Exception as e:
+            logger.warning(f"GPU {gpu_index}: NVLink speed check unexpected error: {e}")
+        checked += 1
+    if error:
+        return False
+    else:
+        if checked:
+            logger.info(f"For {checked} GPUs, {count_expected} links detected as expected and all speeds as expected {speed_expected} GB/s : Passed")
+        return True
+
+# 19.1 Run dcgmi health check
+def run_dcgmi_health():
+    # Check dcgmi version
+    try:
+        version_out = subprocess.check_output(['dcgmi', '--version'], universal_newlines=True, timeout=10)
+    except FileNotFoundError:
+        logger.warning("dcgmi is not installed or not in PATH.")
+        return True
+
+    # Check if health is set up using output of `dcgmi health -c`
+    try:
+        health_output = subprocess.check_output(['dcgmi', 'health', '-c'], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
+        need_setup = "Error: Health watches not enabled. Please enable watches." in health_output
+    except subprocess.CalledProcessError as e:
+        health_output = e.output
+        need_setup = "Error: Health watches not enabled. Please enable watches." in health_output
+
+    first_time_setup = False
+    if need_setup:
+        # dcgmi health not set up, running `dcgmi health -s a`
+        try:
+            setup_output = subprocess.check_output(['dcgmi', 'health', '-s', 'a'], universal_newlines=True, stderr=subprocess.STDOUT, timeout=10)
+            if "Health monitor systems set successfully." not in setup_output:
+                logger.warning("Unexpected dcgmi health setup output:\n", setup_output)
+                return True
+            first_time_setup = True
+        except subprocess.CalledProcessError as e:
+            logger.warning("Error: Could not set up dcgmi health.\nOutput:", e.output)
+            return True 
+
+    # Wait 5 seconds on first setup
+    if first_time_setup:
+        time.sleep(5)
+
+    # Run dcgmi health check and extract health with jq
+    try:
+        health_status = subprocess.check_output(
+            "dcgmi health -c -j | jq -r '.body[\"Overall Health\"].value'",
+            shell=True,
+            #text=True,
+            universal_newlines=True,
+            timeout=10
+        ).strip()
+        status_norm = health_status.lower()
+
+        if status_norm == "healthy":
+            return True
+        elif status_norm == "warning":
+            logger.warning("Overall dcgmi Health is 'Warning'")
+            return True
+        else:
+            logger.error(f"Overall Health is '{health_status}' (expected 'Healthy' or 'Warning')")
+            return False
+    except subprocess.CalledProcessError:
+        logger.warning("Error running dcgmi health check or parsing JSON (is jq installed?).")
+        return True
+
+#Section 2: Main function and args to run all checks (1.2 - 19.2)
 #################################################################
 
 if __name__ == '__main__':
@@ -915,6 +1299,9 @@ if __name__ == '__main__':
     parser.add_argument('--fabric-mgr', action='store_true', help='Run Fabric Manager check')
     parser.add_argument('--cpu-profile', action='store_true', help='Run CPU profile check')
     parser.add_argument('--bad-page', action='store_true', help='Run bad pages check')
+    parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have an IP address')
+    parser.add_argument('--nvlink-speed', action='store_true', help='Check NVLinks speeds')
+    parser.add_argument('--dcgmi-health', action='store_true', help='Run dcgmi health check')
 
     args = parser.parse_args()
     metadata = get_metadata()
@@ -922,14 +1309,26 @@ if __name__ == '__main__':
     logger.setLevel(args.log_level)
     datetime_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
     logger.info(f"Started GPU host setup check at: {datetime_str}")
+    hostname = metadata['displayName']
+    ocid = metadata['id']
+    # Get host serial number and slurm drain reason
+    try:
+        host_serial = get_host_serial()
+    except Exception as e:
+        logger.warning(f"Failed to get host serial number with error: {e}")
+        host_serial = "Unknown"
+    logger.info(f"Node details: {hostname} - {host_serial} - {shape}")
+    logger.info(f"Node details: {ocid}")
+
 
 #Section 3: Function calls to run all health checks.
 ####################################################
 
     # Run everything if no arguments are provided
-    run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool)) or args.slurm
+    run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool) and arg != 'log_level') or args.slurm
+
     # 1.3 Check OCA Status
-    if run_all or args.oca_stat:
+    if (run_all or args.oca_stat) and (not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -965,7 +1364,7 @@ if __name__ == '__main__':
                 rttcc_issues = []
     
     # 4.3 Check for ECC errors
-    if run_all or args.ecc_err:
+    if (run_all or args.ecc_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         try:
             ecc_issues = check_ecc_errors()
         except Exception as e:
@@ -973,7 +1372,7 @@ if __name__ == '__main__':
             ecc_issues = []
 
     # 5.3 Check for row remap errors
-    if run_all or args.rowremap_err:
+    if (run_all or args.rowremap_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         try:
             remap_results, row_remap_action = check_row_remap_errors()
         except Exception as e:
@@ -989,7 +1388,7 @@ if __name__ == '__main__':
             gpu_results = None
 
     # 7.3 Check GPU PCIe width
-    if run_all or args.gpu_pcie:    
+    if (run_all or args.gpu_pcie) and ( not "GPU.GB" in shape):    
         try:
             gpu_pcie_results = check_gpu_pcie()
         except Exception as e:
@@ -1018,22 +1417,28 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check the bus with error: {e}")
             bus_results = None
 
-    # 10.3 Check RDMA link status
+    # 10.3 Check RDMA link status (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_stat:
-        try:
-            rdma_link_issues = check_rdma_link_status()
-        except Exception as e:
-            logger.warning(f"Failed to check RDMA link status with error: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                rdma_link_issues = check_rdma_link_status()
+            except Exception as e:
+                logger.warning(f"Failed to check RDMA link status with error: {e}")
+                rdma_link_issues = []
+        else:
             rdma_link_issues = []
 
-    # 11.3 Check RDMA link flapping
+    # 11.3 Check RDMA link flapping (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_flap:
-        try:
-            lft = LinkFlappingTest(time_interval=args.lf_interval)
-            lft.get_rdma_link_failures()
-            lft_issues = lft.process_rdma_link_flapping()
-        except Exception as e:
-            logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                lft = LinkFlappingTest(time_interval=args.lf_interval)
+                lft.get_rdma_link_failures()
+                lft_issues = lft.process_rdma_link_flapping()
+            except Exception as e:
+                logger.warning(f"Failed to check RDMA link flapping with error: {e}")
+                lft_issues = {"failures": [], "link_down": []}
+        else:
             lft_issues = {"failures": [], "link_down": []}
  
     # 12.3 Check GPU Xid errors
@@ -1041,16 +1446,28 @@ if __name__ == '__main__':
         try:
             xc = XidChecker()
             xid_results = xc.check_gpu_xid()
+            critical_xids = xid_results["categories"].get("critical", {})
+            reset_xids = xid_results["categories"].get("gpu_reset_reboot", {})
+            warning_xids  = xid_results["categories"].get("warning", {})
+            if critical_xids:
+                logger.debug("Xid critical error")
+            elif reset_xids:
+                gpu_reset_action, gpu_reset_status = gpu_reset_reboot(xc)
+            elif warning_xids:
+                logger.debug("Xid warning")
         except Exception as e:
             logger.warning(f"Failed to check GPU Xid errors with error: {e}")
             xid_results = {"status": "None", "results": {}}
 
-    # 13.3 Check WPA Authentication status
+    # 13.3 Check WPA Authentication status (only if OCA status is COMPLETED)
     if run_all or args.wpa_auth:
-        try:
-            wpa_auth_results = check_wpa_auth(metadata)
-        except Exception as e:
-            logger.warning(f"Failed to get WPA Authentication status: {e}")
+        if oca_state == "COMPLETED":
+            try:
+                wpa_auth_results = check_wpa_auth(metadata)
+            except Exception as e:
+                logger.warning(f"Failed to get WPA Authentication status: {e}")
+                wpa_auth_results = None
+        else:
             wpa_auth_results = None
 
     # 14.3 Check Fabric Manager status
@@ -1086,23 +1503,48 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check pending bad pages: {e}")
             bad_page_issues = []
 
+    # 17.3 Check if all interfaces have an IP address
+    if (run_all or args.ip_address) and ( not "GPU.GB" in shape):  
+        if oca_state == "COMPLETED":
+            try:
+                missing_ips,ip_list = check_ip_addresses()
+                if len(missing_ips) == 0:
+                    logger.info("All interfaces have an IP defined: Passed")
+            except Exception as e:
+                logger.warning(f"Failed to get all IPS: {e}")
+                missing_ips = []
+        else:
+            missing_ips = []
+
+    # 18.3 Check if NVLink speed is correct
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
+        nvlink_speed = get_nvlink_speed()
+    
+    # 19.3 Check the node health using dcgmi health check
+    if run_all or args.dcgmi_health:
+        if shape != "BM.GPU.MI300X.8":
+            try:
+                dcgmi_health_check = run_dcgmi_health()
+            except Exception as e:
+                logger.warning(f"Failed to run dcgmi health check with error: {e}")
+                dcgmi_health_check = True
+
+            if dcgmi_health_check:
+                logger.info("dcgmi health check: Passed")
+        else:
+            dcgmi_health_check = True
+
 #Section 4: Summarize the results and recommend actions.
 ########################################################
-    
-    # Get host serial number and slurm drain reason
-    try:
-        host_serial = get_host_serial()
-    except Exception as e:
-        logger.warning(f"Failed to get host serial number with error: {e}")
-        host_serial = "Unknown"
 
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if run_all or args.oca_stat:
+    if (run_all or args.oca_stat) and ( not ("GPU.GB" in shape or shape in ["BM.GPU.L40S.4", "BM.GPU.A10.4"])):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
+            action = recommended_action(action, "Wait_For_OCA")
     
     # 2.4 Summarize OCA version check
     if run_all or args.oca_ver:
@@ -1118,7 +1560,7 @@ if __name__ == '__main__':
                 slurm_reason("RTTCC Error")
 
     # 4.4 Summarize ECC errors check
-    if run_all or args.ecc_err:
+    if (run_all or args.ecc_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         if len(ecc_issues) > 0:
             ecc_error = False
             for issue in ecc_issues:
@@ -1135,7 +1577,7 @@ if __name__ == '__main__':
                 action = recommended_action(action, "Reboot")
 
     # 5.4 Summarize row remap errors check
-    if run_all or args.rowremap_err:
+    if (run_all or args.rowremap_err) and "GPU" in shape and not "BM.GPU.MI" in shape:
         if len(remap_results) > 0:
             remap_error = False
             for issue in remap_results:
@@ -1156,11 +1598,11 @@ if __name__ == '__main__':
             action = recommended_action(action, "Reboot")
 
     # 7.4 Summarize GPU PCIe width check
-    if run_all or args.gpu_pcie:
-        if gpu_pcie_results:
-            logger.error(f"{host_serial} - GPU PCIe Width: {gpu_pcie_results}")
-            slurm_reason("GPU PCIe Width Error")
-            action = recommended_action(action, "Terminate")
+    if (run_all or args.gpu_pcie) and ( not "GPU.GB" in shape):
+            if gpu_pcie_results:
+                logger.error(f"{host_serial} - GPU PCIe Width: {gpu_pcie_results}")
+                slurm_reason("GPU PCIe Width Error")
+                action = recommended_action(action, "Terminate")
 
     # 8.4 Summarize GPU bandwidth test
     if run_all or args.bw_test:
@@ -1181,39 +1623,85 @@ if __name__ == '__main__':
     if run_all or args.rdmalink_stat:
         if len(rdma_link_issues) > 0:
             for issue in rdma_link_issues:
-                logger.error(f"{host_serial} - RDMA link issues: {issue}")
-                slurm_reason("RDMA Link Error")
+                logger.warning(f"{host_serial} - RDMA link issues: {issue}")
+                #slurm_reason("RDMA Link Error")
                 if "signal not detected" in issue:
                     logger.info("No signal detected doesn't always come from a bad cable and require a termination for investigation")
-                action = recommended_action(action, "Terminate")
+                #action = recommended_action(action, "Terminate")
 
     # 11.4 Summarize RDMA link flapping check
     if run_all or args.rdmalink_flap:
         if len(lft_issues["failures"]) > 0 or len(lft_issues["link_down"]) > 0:
-           if len(lft_issues["failures"]) > 0:
+           if len(lft_issues["failures"]) == 1:
+              issue = lft_issues["failures"][0]
+              logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
+           elif len(lft_issues["failures"]) > 1:
               for issue in lft_issues["failures"]:
-                  logger.error(f"{host_serial} - RDMA link flapping issues: {issue}")
-                  slurm_reason("RDMA Link Flapping Error")
-           if len(lft_issues["link_down"]) > 0:
+                  logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
+                  #slurm_reason("RDMA Link Flapping Error")
+           if len(lft_issues["link_down"]) == 1:
+              issue = lft_issues["link_down"][0]
+              logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
+           elif len(lft_issues["link_down"]) > 1:
               for issue in lft_issues["link_down"]:
-                  logger.error(f"{host_serial} - RDMA link down issues: {issue}")
-                  slurm_reason("RDMA Link Down Error")
+                  logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
+                  #slurm_reason("RDMA Link Down Error")
 
     # 12.4 Summarize GPU Xid errors check
     if run_all or args.xid_err:
-        if xid_results["status"] == "Failed":
-         for xid in xid_results["results"]:
-             for pci in xid_results["results"][xid]["results"]:
-                 logger.error(f"{host_serial} - GPU Xid {xid} device: {pci}, {xid_results['results'][xid]['description']}")
-                 slurm_reason("XID Error")
+        critical_xids = xid_results["categories"].get("critical", {})
+        reset_xids = xid_results["categories"].get("gpu_reset_reboot", {})
+        warning_xids  = xid_results["categories"].get("warning", {})
+
+        # Log & set action for Xids
+        if critical_xids:
+            action = recommended_action(action, "Terminate")
+            for xid, info in critical_xids.items():
+                desc = info["description"]
+                for pci, count in info["results"].items():
+                    logger.error(
+                        f"{host_serial} - [critical] GPU Xid {xid} "
+                        f"device: {pci}, count: {count}, {desc}"
+                    )
+                    slurm_reason("Xid Error")
+        if reset_xids:
+            if not gpu_reset_status:
+                if gpu_reset_action == "Reboot":
+                    action = recommended_action(action, "Reboot")
+                    slurm_reason("Xid Error")
+                elif gpu_reset_action == "Terminate":
+                    action = recommended_action(action, "Terminate")
+                    slurm_reason("Xid Error")
+                elif gpu_reset_action == "GPU_Reset":
+                    action = recommended_action(action, "Reset_GPU")
+                    slurm_reason("Reset_GPU")
+                else:
+                    action = recommended_action(action, "Reboot")
+                    slurm_reason("Xid Error")
+                if gpu_reset_action != "":
+                    for xid, info in reset_xids.items():
+                        desc = info["description"]
+                        for pci, count in info["results"].items():
+                            logger.error(
+                                f"{host_serial} - [gpu_reset_reboot] GPU Xid {xid} "
+                                f"device: {pci}, count: {count}, {desc}"
+                            )
+        if warning_xids:
+            for xid, info in warning_xids.items():
+                desc = info["description"]
+                for pci, count in info["results"].items():
+                    logger.warning(
+                        f"{host_serial} - [warning] GPU Xid {xid} "
+                        f"device: {pci}, count: {count}, {desc}"
+                    )
 
     # 13.4 Summarize WPA Authentication check
     if run_all or args.wpa_auth:
         if wpa_auth_results:
             for issue in wpa_auth_results:
-                logger.error(f"{host_serial} - WPA authentication issue: {issue}")
-            slurm_reason("WPA Auth Error")
-            action = recommended_action(action, "Reboot")
+                logger.warning(f"{host_serial} - WPA authentication issue: {issue}")
+            #slurm_reason("WPA Auth Error")
+            #action = recommended_action(action, "Reboot")
 
     # 14.4 Summarize Fabric Manager check
     if run_all or args.fabric_mgr:
@@ -1225,11 +1713,11 @@ if __name__ == '__main__':
     # 15.4 Summarize CPU profile check
     if run_all or args.cpu_profile:
         if cpu_profile_issues:
-            logger.error(f"CPU Profile need to be 'performance'.")
-            for issue in cpu_profile_issues:
-                logger.error(f" - {issue}")
-            slurm_reason("CPU Profile error")
-            action = recommended_action(action, "Terminate")
+            logger.warning(f"CPU Profile need to be 'performance'.")
+            #for issue in cpu_profile_issues:
+            #    logger.error(f" - {issue}")
+            #slurm_reason("CPU Profile error")
+            #action = recommended_action(action, "Terminate")
 
     # 16.4 Summarize pending bad pages check for AMD
     if run_all or args.bad_page:
@@ -1239,19 +1727,42 @@ if __name__ == '__main__':
             slurm_reason("GPU Bad page error")
             action = recommended_action(action, "Reboot")
 
+    # 17.4 Summarize all interfaces have an IP address check
+    if (run_all or args.ip_address) and ( not "GPU.GB" in shape):
+        if len(missing_ips) > 0:
+            logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
+            slurm_reason("Missing IPs")
+            action = recommended_action(action, "Reboot")
+    
+    # 18.4 Summarize NVLink speed check
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S.4", "BM.GPU.MI300X.8", "BM.GPU.A10.4"]):
+        if not nvlink_speed:
+            logger.error(f"NVLink speed Error for one or more GPUs")
+            slurm_reason("NVLink speed Error")
+            action = recommended_action(action, "Reboot")
+
+    # 19.4 Summarize dcgmi health check
+    if run_all or args.dcgmi_health:
+        if not dcgmi_health_check:
+            logger.error(f"{host_serial} - dcgmi health check failed. Run `dcgmi health -c` to get full output.")
+            slurm_reason("dcgmi health check failed")
+            action = recommended_action(action, "Reboot")
+
     # Print recommended action and slurm message
     if action == "Reboot":
-        number_of_reboots,last_2hour_reboot = get_reboots_count()
+        number_of_reboots,last_2hour_reboot,last_12hour_reboot = get_reboots_count()
         if last_2hour_reboot > 0 or number_of_reboots > 5:
             action = "Terminate"
             logger.error(f"The node has already been rebooted {last_2hour_reboot} time(s) in the last 2 hours and {number_of_reboots} in the last day")
         else:
             logger.error("Recommended Action is to Force Reboot from the console or API")
     if action == "Terminate":
-        logger.error("Recommended Action is to Terminate the node and Create a SR")
+        logger.error("Recommended Action is to Tag the node Unhealthy and Terminate the node")
+    if action == "Wait_For_OCA":
+        logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
     if slurm_error_count > 0 and args.slurm:
-        print("Healthcheck:: " + slurm_drain_reason[:-1])
-        print("Healthcheck:: Recommended Action:" + str(action))
+        logger.error("Healthcheck:: " + ", ".join(slurm_drain_reason))
+        logger.error("Healthcheck:: Recommended Action:" + str(action))
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")

@@ -4,6 +4,11 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
 
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
+
   instance_details {
     instance_type = "compute"
     launch_details {
@@ -17,7 +22,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       metadata = {
         # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
-        user_data           = base64encode(data.template_file.config.rendered)
+        user_data           = base64encode(local.config)
       }
       agent_config {
 
@@ -69,5 +74,9 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
   }
 
   source = "NONE"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 

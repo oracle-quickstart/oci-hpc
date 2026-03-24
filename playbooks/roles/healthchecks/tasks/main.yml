@@ -20,6 +20,12 @@
     - rdma_link_flapping.py
     - xid_checker.py
     - shared_logging.py
+    - gpu_reset.sh
+
+- name: Change gpu_reset.sh file mode to 0755
+  ansible.builtin.file:
+    path: /opt/oci-hpc/healthchecks/gpu_reset.sh
+    mode: '0755'
 
 - name: Download oci-mesh-pinger
   get_url:

@@ -149,7 +149,10 @@ def getNFSnode(inventory):
 
 def get_summary(comp_ocid,cluster_name,ocicore):
     CN = "CN"
-    cn_summaries = ocicore.computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
+    try:
+        cn_summaries = ocicore.computeManagementClient.list_cluster_networks(comp_ocid,display_name=cluster_name).data
+    except:
+        cn_summaries = []
     running_clusters = 0
     scaling_clusters = 0
     cn_summary=None

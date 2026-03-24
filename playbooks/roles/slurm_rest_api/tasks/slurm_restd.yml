@@ -60,6 +60,22 @@
     group: "{{ ansible_user }}"
     mode: 0744
 
+- name: Create the slurmrestd group
+  become: true
+  ansible.builtin.group:
+    name: slurmrestd
+    system: yes
+    state: present
+
+- name: Create the slurmrestd system user
+  become: true
+  ansible.builtin.user:
+    name: slurmrestd
+    system: yes
+    shell: /usr/sbin/nologin
+    create_home: no
+    group: slurmrestd
+
 - name: start slurmrestd service
   become: true
   service:

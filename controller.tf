@@ -6,6 +6,11 @@ resource "oci_core_volume" "controller_volume" {
 
   size_in_gbs = var.controller_block_volume_size
   vpus_per_gb = split(".", var.controller_block_volume_performance)[0]
+
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 }
 
 resource "oci_core_volume_attachment" "controller_volume_attachment" {
@@ -28,6 +33,10 @@ resource "oci_core_volume_backup_policy" "controller_boot_volume_backup_policy" 
     retention_seconds = var.controller_boot_volume_backup_retention_seconds
     time_zone         = var.controller_boot_volume_backup_time_zone
   }
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 }
 
 resource "oci_core_volume_backup_policy_assignment" "boot_volume_backup_policy" {
@@ -44,6 +53,10 @@ resource "oci_resourcemanager_private_endpoint" "rms_private_endpoint" {
   description    = "rms_private_endpoint_description"
   vcn_id         = local.vcn_id
   subnet_id      = local.subnet_id
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 }
 
 resource "oci_ons_notification_topic" "grafana_alerts" {
@@ -51,6 +64,10 @@ resource "oci_ons_notification_topic" "grafana_alerts" {
   compartment_id = var.targetCompartment
   name           = "grafana-alerts-${random_pet.name.id}"
   description    = "Topic for Grafana Alerts"
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 }
 
 resource "null_resource" "boot_volume_backup_policy" {
@@ -85,7 +102,7 @@ resource "oci_core_instance" "controller" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}"
-    user_data           = base64encode(data.template_file.controller_config.rendered)
+    user_data           = base64encode(local.controller_config)
   }
   source_details {
     //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
@@ -98,6 +115,10 @@ resource "oci_core_instance" "controller" {
   create_vnic_details {
     subnet_id        = local.controller_subnet_id
     assign_public_ip = local.controller_bool_ip
+    freeform_tags = {
+      "cluster_name"   = local.cluster_name
+      "parent_cluster" = local.cluster_name
+    }
   }
 }
 
@@ -278,6 +299,7 @@ resource "null_resource" "cluster" {
       localdisk                 = var.localdisk,
       log_vol                   = var.log_vol,
       redundancy                = var.redundancy,
+      tmp_to_nvme               = var.tmp_to_nvme,
       cluster_network           = var.cluster_network,
       use_compute_agent         = var.use_compute_agent,
       slurm                     = var.slurm,
@@ -320,7 +342,11 @@ resource "null_resource" "cluster" {
       healthchecks              = var.healthchecks,
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
-      ons_topic_ocid            = local.topic_id
+      ons_topic_ocid            = local.topic_id,
+      grafana_initial_creds     = base64encode(random_password.grafana_admin_pwd.result),
+      metrics_stream_ocid       = local.metrics_stream_ocid,
+      wildcard_dns_domain       = var.wildcard_dns_domain,
+      use_lets_encrypt_prod_ep  = var.use_lets_encrypt_prod_ep
     })
 
     destination = "/opt/oci-hpc/playbooks/inventory"
@@ -460,6 +486,7 @@ resource "null_resource" "cluster" {
       localdisk                           = var.localdisk,
       log_vol                             = var.log_vol,
       redundancy                          = var.redundancy,
+      tmp_to_nvme                         = var.tmp_to_nvme,
       cluster_monitoring                  = var.cluster_monitoring,
       hyperthreading                      = var.hyperthreading,
       unsupported                         = var.unsupported,
@@ -484,7 +511,11 @@ resource "null_resource" "cluster" {
       numa_nodes_per_socket               = var.numa_nodes_per_socket,
       percentage_of_cores_enabled         = var.percentage_of_cores_enabled,
       healthchecks                        = var.healthchecks,
-      ons_topic_ocid                      = local.topic_id
+      ons_topic_ocid                      = local.topic_id,
+      grafana_initial_creds               = base64encode(random_password.grafana_admin_pwd.result),
+      metrics_stream_ocid                 = local.metrics_stream_ocid,
+      wildcard_dns_domain                 = var.wildcard_dns_domain,
+      use_lets_encrypt_prod_ep            = var.use_lets_encrypt_prod_ep
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"
@@ -572,6 +603,10 @@ resource "oci_objectstorage_bucket" "RDMA_NIC_metrics_bucket" {
   name           = local.rdma_nic_metric_bucket_name
   namespace      = data.oci_objectstorage_namespace.compartment_namespace.namespace
   versioning     = "Enabled"
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 }
 
 resource "oci_objectstorage_preauthrequest" "RDMA_NIC_metrics_par" {

@@ -92,7 +92,11 @@ resource "local_file" "inventory" {
     healthchecks=var.healthchecks,
     change_hostname=var.change_hostname,
     hostname_convention=var.hostname_convention,
-    ons_topic_ocid=var.ons_topic_ocid
+    ons_topic_ocid=var.ons_topic_ocid,
+    grafana_initial_creds=var.grafana_initial_creds,
+    metrics_stream_ocid=var.metrics_stream_ocid,
+    wildcard_dns_domain=var.wildcard_dns_domain,
+    use_lets_encrypt_prod_ep=var.use_lets_encrypt_prod_ep
     })
   filename   = "${local.controller_path}/inventory"
 }

@@ -1,0 +1,6 @@
+---
+# vars file for telegraf
+telegraf_input_path: /usr/local/bin/oci_metrics_telegraf_input.py
+telegraf_filter_path: /usr/local/bin/oci_metrics_telegraf_filter.py
+telegraf_utils_path: /usr/local/bin/oci_metrics_telegraf_utils.py
+telegraf_prometheus_port: "9273"

@@ -1,0 +1,77 @@
+---
+- name: Install Caddy prerequisites
+  vars:
+    package_name:
+      - yum-plugin-copr
+    package_state: present
+  include_role:
+    name: safe_yum
+  when: ansible_os_family == 'RedHat'
+
+- name: Gather OS release info
+  ansible.builtin.setup:
+    filter: ansible_distribution*
+    gather_subset: min
+  when: ansible_os_family == 'RedHat'
+
+- name: Determine Oracle Linux major version
+  set_fact:
+    ol_major_version: "{{ ansible_distribution_major_version }}"
+  when: ansible_os_family == 'RedHat'
+
+- name: Add copr repository
+  become: true
+  community.general.copr:
+    name: "@caddy/caddy"
+    includepkgs:
+      - caddy
+    chroot: "epel-{{ ol_major_version }}-{{ ansible_architecture }}"
+  when: ansible_os_family == 'RedHat'
+
+- name: Add Caddy repository gpg key
+  become: true
+  apt_key:
+    state: present
+    url: https://dl.cloudsmith.io/public/caddy/stable/gpg.key
+  retries: 3
+  delay: 3
+  when: ansible_os_family == 'Debian'
+
+- name: Add Caddy apt repository
+  become: true
+  apt_repository:
+    repo: deb https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install caddy
+  vars:
+    package_name:
+      - caddy
+    package_state: present
+  include_role:
+    name: safe_yum
+
+- name: Render the Caddyfile
+  become: true
+  template:
+    src: "Caddyfile.j2"
+    dest: /etc/caddy/Caddyfile
+    force: true
+    mode: "0644"
+    
+- name: Create the log directory for caddy
+  become: true
+  ansible.builtin.file:
+    path: /var/log/caddy
+    state: directory
+    owner: caddy
+    group: caddy
+    mode: "0755"
+
+- name: Start Caddy
+  become: true
+  ansible.builtin.service:
+    name: caddy
+    enabled: true
+    state: restarted

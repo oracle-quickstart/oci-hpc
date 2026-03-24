@@ -1,3 +1,14 @@
+- name: Ensuring the prometheus targets dir
+  become: true
+  file:
+    path: "{{ prometheus_targets_dir }}"
+    state: directory
+    owner: "{{ prometheus_user }}" 
+    group: "{{ prometheus_user }}"    
+    mode: '0777'
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}127.0.0.1{% endif %}"
+  
 - name: Look for existing target files
   find:
     paths: "{{ prometheus_targets_dir }}"

@@ -6,6 +6,8 @@
       - libev-devel 
       - libevent-devel 
       - hwloc 
+      - hwloc-devel
+    package_repo: "{{ slurm_repos }}"
   include_role: 
     name: safe_yum
   when: ansible_os_family == 'RedHat'

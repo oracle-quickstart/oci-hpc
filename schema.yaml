@@ -11,12 +11,63 @@ source:
   reference: 67628143
 locale: "en"
 
+outputGroups:
+- title: "Cluster deployment details"
+  outputs:
+    - controller
+    - backup
+    - login
+    - monitoring
+    - private_ips
+    - RDMA_NIC_metrics_url
+
+- title: "Cluster monitoring details"
+  outputs:
+    - grafana_url
+    - grafana_password
+
 outputs:
   controller:
-    title: "controller Instance Public IP"
+    title: "Controller Instance Public IP"
     type: copyableString
     visible: true
 
+  backup:
+    title: "Backup Instance Public IP"
+    type: copyableString
+    visible: ${slurm_ha}
+  
+  login:
+    title: "Login Instance IP"
+    type: copyableString
+    visible: ${login_node}
+
+  monitoring:
+    title: "Monitoring Instance IP"
+    type: copyableString
+    visible: ${monitoring_node}
+
+  grafana_url:
+    title: "Grafana URL"
+    type: link
+    visible: ${cluster_monitoring}
+
+  grafana_password:
+    title: "Grafana admin password"
+    type: copyableString
+    visible: ${cluster_monitoring}
+    sensitive: true
+
+  private_ips:
+    title: "Private IPs of the nodes in the cluster"
+    type: copyableString
+    visible: true
+
+  RDMA_NIC_metrics_url:
+    title: "RDMA NIC metrics URL"
+    type: link
+    visible: true
+  
 variableGroups:
   - title: "Cluster configuration"
     variables:
@@ -103,7 +154,9 @@ variableGroups:
   - title: "Cluster Monitoring"
     variables:
       - ${cluster_monitoring}
+      - ${use_lets_encrypt_prod_ep}
       - ${alerting}
+      - ${avoid_waiting_for_delete_target}
       - ${monitoring_node}
       - ${monitoring_ad}
       - ${monitoring_shape}
@@ -119,6 +172,7 @@ variableGroups:
       - ${custom_monitoring_image}
       - ${unsupported_monitoring_image}
       - ${monitoring_username}
+      - ${ingest_oci_metrics}
 
   - title: Autoscaling
     variables:
@@ -186,6 +240,7 @@ variableGroups:
       - ${localdisk}
       - ${log_vol}
       - ${redundancy}
+      - ${tmp_to_nvme}
   - title: "Network options"
     variables:
       - ${use_existing_vcn}
@@ -239,6 +294,7 @@ variableGroups:
       - ${nfs_list_of_mount_target_IPs}
       - ${lfs_ad}
       - ${controller_object_storage_par}
+      - ${wildcard_dns_domain}
       
     visible: false
   - title: "Debug"
@@ -246,7 +302,7 @@ variableGroups:
       - ${configure}
 variables:
   targetCompartment:
-    title: "target compartment"
+    title: "Target compartment"
     type: oci:identity:compartment:id
     default: ${compartment_ocid}
     required: true
@@ -286,7 +342,7 @@ variables:
     required: true
   use_custom_name:
     type: boolean
-    title: "use custom cluster name"
+    title: "Use custom cluster name"
     description: "Use custom name for the cluster"
     default: false
   ldap:
@@ -395,7 +451,7 @@ variables:
             - ${controller_shape}
             - "VM.Standard3.Flex"
   controller_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -443,7 +499,7 @@ variables:
 
   use_marketplace_image_controller:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
     visible: true
@@ -479,7 +535,7 @@ variables:
     default: "image.ocid"
   
   controller_image_compartment:
-    title: "controller image compartment"
+    title: "Controller image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -491,7 +547,7 @@ variables:
     required: true
 
   custom_controller_image:
-    title: "controller Image ID"
+    title: "Controller Image ID"
     description: "Custom image ID for controller nodes. Please note that only Oracle Linux 7, 8 and Ubuntu 22.04 are supported as controller image at this moment. "
     type: oci:core:image:id
     dependsOn:
@@ -551,7 +607,7 @@ variables:
             - ${use_advanced}
   home_nfs:
     type: boolean
-    title: "shared NFS /home from controller. To use FSS, make sure you created one or added NFS mount information"
+    title: "Shared NFS /home from controller. To use FSS, make sure you created one or added NFS mount information"
     visible:
       and:
         - ${use_advanced}
@@ -584,7 +640,7 @@ variables:
 
   use_cluster_nfs:
     type: boolean
-    title: "shared NFS volume from controller"
+    title: "Shared NFS volume from controller"
     visible:
       and:
         - ${use_advanced}
@@ -748,7 +804,7 @@ variables:
             - ${instance_pool_shape}
             - "VM.Standard3.Flex"
   instance_pool_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -806,7 +862,7 @@ variables:
 
   use_marketplace_image:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
 
@@ -824,7 +880,7 @@ variables:
     visible: ${use_marketplace_image}
 
   compute_image_compartment:
-    title: "compute image compartment"
+    title: "Compute image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -1239,12 +1295,33 @@ variables:
     default: false
     description: "Install Grafana, Node Exporter, and Prometheus for system monitoring (Note: Node Exporter uses ports 9100–9900, Prometheus uses port 9090, and Grafana uses port 3000)."
 
+  use_lets_encrypt_prod_ep:
+    title: "Use Let's Encrypt Production Endpoint"
+    description: "Use Let's Encrypt Production Endpoint to generate TLS certificate for Grafana"
+    type: boolean
+    default: true
+    visible: 
+     and:
+      - ${cluster_monitoring}
+      - not:
+        - ${private_deployment}
+
   alerting:
     type: boolean
     title: "Install HPC Cluster alerting Tools"
     default: false
     description: "Creates a topic that you can subscribe to (Note: the alert webhook uses port 5000)."
     visible: ${cluster_monitoring}
+  
+  avoid_waiting_for_delete_target:
+    type: boolean
+    title: "Accelerate topic deletion on stack destroy"
+    description: Terminate the topic asynchronously. Don't wait for 15 minute until the topic is deleted. Supported only via ORM."
+    default: false
+    visible: 
+      and:
+        - ${cluster_monitoring}
+        - ${alerting}
 
   pam:
     type: boolean
@@ -1412,6 +1489,16 @@ variables:
         - ${localdisk}
         - ${log_vol}
 
+  tmp_to_nvme:
+    type: boolean
+    title: "Move /tmp to localdisk (nvme)"
+    defualt: false 
+    descripton: "Moves tmp directory to /mnt/localdisk/tmp"
+    visible: 
+    and: 
+      - ${use_advanced}
+      - ${localdisk}
+
   nfs_target_path:
     type: string
     title: "NFS Path"
@@ -1421,6 +1508,7 @@ variables:
       and:
         - ${add_nfs}
     required: true
+
   nfs_source_IP:
     type: string
     title: "NFS server IP"
@@ -1535,6 +1623,7 @@ variables:
     default: ${ad}  
 
   login_shape:
+    title: "The shape of the login node"
     type: oci:core:instanceshape:name
     dependsOn:
       compartmentId: ${targetCompartment}
@@ -1544,6 +1633,7 @@ variables:
 
   login_ocpus:
     type: integer
+    title: Cores
     description: Number of OCPU's for flex shape
     minimum: 1
     maximum: 64
@@ -1620,7 +1710,7 @@ variables:
             - "VM.Standard3.Flex"
         - ${login_node}
   login_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -1704,7 +1794,7 @@ variables:
           - ${use_marketplace_image_login}
 
   login_image_compartment:
-    title: "login image compartment"
+    title: "Login image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -1752,7 +1842,7 @@ variables:
 
   use_marketplace_image_login:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
     visible: ${login_node}
@@ -1881,7 +1971,7 @@ variables:
             - "VM.Standard3.Flex"
         - ${monitoring_node}
   monitoring_memory:
-    title: Memory in GBS
+    title: Memory in GBs
     type: integer
     description: Number of memory for flex shape. Minimum 1GB per core.
     minimum: 1
@@ -1934,7 +2024,7 @@ variables:
           - ${use_marketplace_image_monitoring}
 
   monitoring_image_compartment:
-    title: "monitoring image compartment"
+    title: "Monitoring image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
@@ -1947,7 +2037,7 @@ variables:
     required: true
 
   custom_monitoring_image:
-    title: "monitoring Image ID"
+    title: "Monitoring Image ID"
     description: "Custom image ID for monitoring nodes. Please note that only Oracle Linux and Ubuntu 22.04 are supported as monitoring image at this moment. "
     type: oci:core:image:id
     dependsOn:
@@ -1982,7 +2072,7 @@ variables:
 
   use_marketplace_image_monitoring:
     type: boolean
-    title: "use marketplace image"
+    title: "Use marketplace image"
     description: "Use marketplace image, otherwise provide custom image OCID"
     default: true
     visible: ${monitoring_node}
@@ -2002,6 +2092,13 @@ variables:
       and:
         - ${use_marketplace_image_monitoring}
         - ${monitoring_node}
+
+  ingest_oci_metrics:
+    type: boolean
+    title: "Ingest OCI metrics in Prometheus"
+    description: "Setup pipeline to ingest relevant OCI Metrics into Prometheus"
+    default: false
+    visible: cluster_monitoring
 
   add_lfs:
     type: boolean

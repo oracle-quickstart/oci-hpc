@@ -114,6 +114,8 @@
 
 - name: Copying the scrape config
   become: true
+  vars:
+    oci_metrics_host: "{% if groups['monitoring'] | length > 0 %}{{groups['monitoring'][0]}}{% else%}{{ansible_hostname}}{% endif %}"
   template:
     src: templates/prometheus.yml.j2
     dest: "{{ prometheus_dest_dir }}/prometheus.yml"

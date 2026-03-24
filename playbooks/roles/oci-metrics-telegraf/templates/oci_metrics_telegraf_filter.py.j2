@@ -1,0 +1,403 @@
+#!/usr/bin/env python3
+
+import json
+import logging
+import os
+import re
+import signal
+import sys
+import time
+import traceback
+
+from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
+
+import flatdict
+from cachetools.func import lfu_cache
+from line_protocol_parser import parse_line
+from influx_line_protocol import Metric
+from urllib.request import Request, urlopen
+
+
+os.environ["OCI_PYTHON_SDK_NO_SERVICE_IMPORTS"] = "1"
+
+from oci.retry import RetryStrategyBuilder, BACKOFF_FULL_JITTER_EQUAL_ON_THROTTLE_VALUE
+
+from oci_metrics_telegraf_utils import OCIMetaClient
+
+logger = logging.getLogger(__name__)
+
+oci_client = None
+
+class TelegrafFormatter(logging.Formatter):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def formatMessage(self, record):
+        if record.levelno == logging.INFO:
+            return f"I: {super().formatMessage(record)}"
+        elif record.levelno == logging.ERROR:
+            return f"E: {super().formatMessage(record)}"
+        elif record.levelno == logging.WARNING:
+            return f"W: {super().formatMessage(record)}"
+        elif record.levelno == logging.DEBUG:
+            return f"D: {super().formatMessage(record)}"
+        else:
+            return super().formatMessage(record)
+
+ONLY_CLUSTER_TAGGED_METRICS = os.environ.get("ONLY_CLUSTER_TAGGED_METRICS", "true").lower()  == "true"
+ENRICH_METRICS = os.environ.get("ENRICH_METRICS", "false").lower()  == "true"
+TAG_DISCOVER_WORKERS = int(os.environ.get("TAG_DISCOVER_WORKERS", "10"))
+OCI_CONFIG_PATH = os.environ.get("OCI_CONFIG_PATH", "")
+
+FREEFORM_TAGS_FILTERS = {
+    "cluster_name": "",
+    "controller_name": ""
+} # The values will be populated with the freeform tags of the hosting node
+
+def camelCase_to_snake_case(camel_case_str):
+    """Convert camelCase to snake_case."""
+    return re.sub(r'([a-z])([A-Z])', r'\1_\2', camel_case_str).lower()
+
+
+@lfu_cache(maxsize=10240)
+def fetch_resource_tags(namespace, tags):
+    """Fetch resource tags from OCI API."""
+    api_resource_tags = {}
+    
+    try:
+        metric_tags = json.loads(tags)
+        resource_info, resource_additional_tags = oci_client.get_resource(namespace, metric_tags)
+
+        if resource_info.status != 200:
+            logger.error(f"API returned unexpected status code: {resource_info.status}. Response: {resource_info}")
+            return api_resource_tags
+        
+        for k, v in FREEFORM_TAGS_FILTERS.items():
+            if not ( resource_info.data.freeform_tags.get(k, None) and resource_info.data.freeform_tags.get(k) == v ):
+                return {"discard": True}
+
+        additional_tags = {}
+
+        # Use the resource_additional_tags dictionary to selectively enrich the metric with resource based metadata.
+        for k, v in resource_additional_tags.items():
+            if hasattr(resource_info.data, k):
+                additional_tags[v] = getattr(resource_info.data, k)
+            
+        # Add slurm instance details for blockstore and vnic resources
+        slurm_host = ""
+        instance_display_name = ""
+        
+        if namespace == "oci_blockstore":
+            instance_id = None
+            attachment_id = metric_tags.get("attachmentId", "")
+
+            if "volumeattachment" in attachment_id:                    
+                # Get the instance using the block volume based on attachment_id
+                
+                volume_attachments = oci_client.handlers["oci_compute"].get_client("ComputeClient").list_volume_attachments(
+                    compartment_id=resource_info.data.compartment_id, 
+                    availability_domain=resource_info.data.availability_domain
+                )
+                
+                if volume_attachments.status == 200:
+                    for entry in volume_attachments.data:
+                        if entry.id == attachment_id:
+                            instance_id = entry.instance_id
+                            break
+
+                
+                    while volume_attachments.has_next_page and instance_id is None:
+                        volume_attachments = oci_client.handlers["oci_compute"].get_client("ComputeClient").list_volume_attachments(
+                            compartment_id=resource_info.data.compartment_id,
+                            availability_domain=resource_info.data.availability_domain, 
+                            page=volume_attachments.next_page
+                        )
+                        if volume_attachments.status == 200:
+                            for entry in volume_attachments.data:
+                                if entry.id == attachment_id:
+                                    instance_id = entry.instance_id
+                                    break
+                
+            elif "instance" in attachment_id:
+                instance_id = attachment_id
+            
+            # Fetch the instance details
+            if instance_id:
+                logger.debug(f"Looking up instance_id {instance_id}")
+                instance_details = fetch_resource_tags("oci_compute", json.dumps({"resourceId": instance_id}))
+                if instance_details:
+                    instance_display_name = instance_details.get("display_name", "")
+                    logger.debug(f"Instance: {instance_display_name} discovered for: {metric_tags}")
+            
+        # Process VCN resources
+        elif namespace == "oci_vcn" and "vnic" in metric_tags.get("resourceId", ""):
+            vnic_attachments = oci_client.handlers["oci_compute"].get_client("ComputeClient").list_vnic_attachments(
+                    compartment_id=resource_info.data.compartment_id, 
+                    vnic_id=resource_info.data.id
+                )
+            if vnic_attachments.status == 200 and len(vnic_attachments.data) > 0:
+                instance_id = vnic_attachments.data[0].instance_id
+                logger.debug(f"Found instance_id {instance_id} for VNIC resource {resource_info.data.id}")
+                instance_details = fetch_resource_tags("oci_compute", json.dumps({"resourceId": instance_id}))
+                if instance_details:
+                    instance_display_name = instance_details.get("display_name", "")
+                    logger.debug(f"Instance: {instance_display_name} discovered for: {metric_tags}")
+
+        # Resolve the SLURM hostname
+        if instance_display_name:
+            additional_tags["oci_name"] = instance_display_name
+            slurm_host = _resolve_slurm_hostname(instance_display_name)
+            if slurm_host:
+                additional_tags["hostname"] = slurm_host
+            else:
+                additional_tags["hostname"] = instance_display_name
+
+        # Merge tags
+        if additional_tags:
+            api_resource_tags = dict(flatdict.FlatDict({ **resource_info.data.freeform_tags, **additional_tags }, delimiter = ".").items())
+        else:
+            api_resource_tags = dict(flatdict.FlatDict({ **resource_info.data.freeform_tags }, delimiter = ".").items())
+    
+    except Exception as e:
+        logger.error(f"Error fetching resource tags for namespace {namespace}, tags {tags}: {traceback.format_exc()}")
+
+    return api_resource_tags
+
+
+@lfu_cache(maxsize=5192)
+def _resolve_slurm_hostname(instance_display_name):
+    """Resolve slurm hostname from /etc/hosts."""
+    try:
+        with open("/etc/hosts", "r") as hosts_file:
+            lines = hosts_file.readlines()
+            
+        in_managed_block = False
+        in_controller_block = False
+        
+        for line in lines:
+            if line.startswith("# BEGIN ANSIBLE MANAGED BLOCK controller"):
+                in_controller_block = True
+            elif line.startswith("# END ANSIBLE MANAGED BLOCK controller"):
+                in_controller_block = False
+            elif line.startswith("# BEGIN ANSIBLE MANAGED BLOCK") and "controller" not in line:
+                in_managed_block = True
+            elif line.startswith("# END ANSIBLE MANAGED BLOCK") and "controller" not in line:
+                in_managed_block = False
+            elif in_controller_block:
+                if line.strip() and instance_display_name in line:
+                    groups = re.findall(r"\S+", line.strip())
+                    return groups[-1] if groups else ""
+            elif in_managed_block:
+                if line.strip() and instance_display_name in line:
+                    groups = re.findall(r"\S+", line.strip())
+                    return groups[1] if len(groups) > 1 else ""
+                    
+    except Exception as e:
+        logger.error(f"Error processing /etc/hosts: {traceback.format_exc()}")
+
+    return ""
+
+def metric_to_stdout(fn):
+    """Callback function to output metrics to stdout."""
+    if fn.done():
+        error = fn.exception()
+        if error:
+            logger.error(f'Request to enrich metric with tags returned the error: {error}.')
+        else:
+            oci_metric, oci_tags = fn.result()
+
+            if oci_tags.get("discard", False):
+                return
+
+            metric = Metric(camelCase_to_snake_case(oci_metric["measurement"]))
+            metric.with_timestamp(oci_metric["time"])
+            
+            for k, v in oci_metric.get("tags", {}).items():
+                metric.add_tag(camelCase_to_snake_case(k), v)
+            
+            for k, v in oci_tags.items():
+                metric.add_tag(camelCase_to_snake_case(k), v)
+
+            for k, v in oci_metric.get("fields", {}).items():
+                metric.add_value(k, v)
+
+            logger.debug(f"Constructed metric: {metric}")
+            print(metric, file=sys.stdout, flush=True)
+
+
+def fetch_resource(namespace, metric):
+    """Fetch resource tags for a given metric."""
+    tags = metric.get("tags", {})
+    resource_tags = fetch_resource_tags(namespace, json.dumps(tags))
+    return metric, resource_tags
+
+
+def main(oci_config, oci_signer):
+    """Main function with tag enrichment."""
+    global oci_client
+    logger.info("Initializing main loop.")
+
+    # Configure retry strategy
+    oci_retry_strategy = RetryStrategyBuilder(
+        max_attempts_check=True,
+        max_attempts=3,
+        retry_max_wait_between_calls_seconds=3,
+        service_error_check=True,
+        service_error_retry_on_any_5xx=True,
+        service_error_retry_config={
+            429: []
+        },
+        backoff_type=BACKOFF_FULL_JITTER_EQUAL_ON_THROTTLE_VALUE
+    ).get_retry_strategy()
+
+    logger.debug("Setting up OCI API clients.")
+    logger.debug("Setting up ThreadPoolExecutor.")
+
+    # Initialize thread pool
+    executor = ThreadPoolExecutor(TAG_DISCOVER_WORKERS)
+    
+    #Ensure the oci_client is created
+    oci_client = OCIMetaClient(config=oci_config, signer=oci_signer, retry_strategy=oci_retry_strategy)
+
+    logger.info("Entering the main loop with metric tag enrichment.")
+    
+    stat_thread = Thread(target=cache_status, daemon=True)
+    stat_thread.start()
+    
+    try:
+        while True:
+            try:
+                for entry in sys.stdin:
+                    try:
+                        metric = parse_line(entry)
+                        namespace = metric.get("tags", {}).get("namespace", "")
+
+                        if not namespace:
+                            logger.warning("Namespace is null, skipping metric")
+                            continue
+
+                        job = executor.submit(fetch_resource, namespace, metric)
+                        job.add_done_callback(metric_to_stdout)
+                    except Exception as e:
+                        logger.error(f"Couldn't process the input {entry}: {traceback.format_exc()}")
+                
+                break
+            except KeyboardInterrupt:
+                logger.info("Received keyboard interrupt, exiting...")
+                break
+    finally:
+        logger.info("Shutting down executor...")
+        executor.shutdown(wait=True, cancel_futures=False)
+        logger.info("Shutdown complete.")
+
+def main_no_tags():
+    """Main function without tag enrichment. Useful for debugging."""
+    logger.info("Entering the main loop without metric tag enrichment.")
+    
+    while True:
+        try:
+            for entry in sys.stdin:
+                try:
+                    metric_from_input = parse_line(entry)
+                
+                    metric = Metric(camelCase_to_snake_case(metric_from_input["measurement"]))
+                    metric.with_timestamp(metric_from_input["time"])
+                    
+                    for k, v in metric_from_input.get("tags", {}).items():
+                        metric.add_tag(camelCase_to_snake_case(k), v)
+                    
+                    for k, v in metric_from_input.get("fields", {}).items():
+                        metric.add_value(k, v)
+
+                    logger.debug(f"Constructed metric: {metric}")
+                    print(metric, file=sys.stdout, flush=True)
+                
+                except Exception as e:
+                    logger.error(f"Couldn't process the input {entry}: {traceback.format_exc()}")
+        except KeyboardInterrupt:
+            logger.info("Received keyboard interrupt, exiting...")
+            break
+
+
+def handle_sighup(signum, frame):
+    """Handle SIGHUP signal."""
+    logger.info("Received SIGHUP, exiting...")
+    sys.exit(0)
+
+def fetch_instance_freeform_tags():
+    """
+    Fetch instance freeform tags from Oracle Cloud IMDS endpoint.
+    
+    Returns:
+        dict: Instance freeform tags as JSON object, or None if request fails
+    """
+    try:
+        req = Request('http://169.254.169.254/opc/v2/instance/')
+        req.add_header('Authorization', 'Bearer Oracle')
+        content = urlopen(req).read()
+
+        instance_metadata = json.loads(content.decode('utf-8'))
+        return instance_metadata.get("freeformTags", {})
+    except Exception as e:
+        logger.error(f"Failed to get instance freeform tags: {traceback.format_exc()}")
+        return None
+
+def cache_status():
+    while True:
+        logger.info(f"OCI resource tags lru_cache utilization: {fetch_resource_tags.cache.currsize}/{fetch_resource_tags.cache.maxsize}")
+        logger.info(f"OCI instance info lru_cache utilization: {_resolve_slurm_hostname.cache.currsize}/{_resolve_slurm_hostname.cache.maxsize}")
+        time.sleep(300)
+
+if __name__ == "__main__":
+    # Setup logging
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stderr)
+    formatter = TelegrafFormatter(fmt='%(asctime)s - %(name)s - %(threadName)s - %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger = logging.getLogger(__name__)
+
+    signal.signal(signal.SIGHUP, handle_sighup)
+
+    if ENRICH_METRICS:
+        auth = False
+        try:
+            from oci.config import from_file
+            if OCI_CONFIG_PATH:
+                logger.info(f"OCI CONFIG PATH: {OCI_CONFIG_PATH}")
+                config = from_file(file_location=OCI_CONFIG_PATH, profile_name="DEFAULT")
+            else:
+                config = from_file(profile_name="DEFAULT")
+
+            from oci import Signer
+            signer = Signer.from_config(config)
+            auth = True
+        except Exception as e:
+            logger.error(f'Failed to load profile and signer from the OCI config file: {e}')
+            
+
+        if not auth:
+            logger.info('Attempting to use instance_principal...')
+            try:
+                from oci.auth.signers import InstancePrincipalsSecurityTokenSigner
+                config = {}
+                signer = InstancePrincipalsSecurityTokenSigner()
+            except Exception as e:
+                logger.error(f"Failed to load instance_principal signer. No supported signer found: {traceback.format_exc()}")
+                sys.exit(1)
+        
+        node_tags = fetch_instance_freeform_tags()
+        if node_tags:
+            for key in FREEFORM_TAGS_FILTERS.keys():
+                if key in node_tags.keys():
+                    FREEFORM_TAGS_FILTERS[key] = node_tags[key]
+
+        # Remove keys with no value from the FREEFORM_TAGS_FILTERS dict
+        for key, value in tuple(FREEFORM_TAGS_FILTERS.items()):
+            if value == "":
+                FREEFORM_TAGS_FILTERS.pop(key)
+        
+        main(config, signer)
+    else:
+        main_no_tags()

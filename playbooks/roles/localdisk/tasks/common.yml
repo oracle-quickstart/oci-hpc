@@ -133,4 +133,69 @@
   when:
     - mdadm_vol | bool 
 
+- name: Use NVMe-backed /tmp via bind mount
+  when: tmp_to_nvme | bool
+  become: true
+  block:
+    - name: Ensure /mnt/localdisk exists
+      file:
+        path: /mnt/localdisk
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure /mnt/localdisk/tmp exists with sticky bit
+      file:
+        path: /mnt/localdisk/tmp
+        state: directory
+        owner: root
+        group: root
+        mode: '1777'
+
+    - name: Ensure /tmp exists (pre-mount)
+      file:
+        path: /tmp
+        state: directory
+        owner: root
+        group: root
+        mode: '1777'
+
+    - name: Check if /tmp is already a mountpoint
+      command: mountpoint -q /tmp
+      register: tmp_mountpoint_check
+      changed_when: false
+      failed_when: false
+
+    - name: Migrate existing /tmp contents (one-time, before bind)
+      shell: |
+        shopt -s dotglob nullglob
+        mv -f /tmp/* /mnt/localdisk/tmp/ || true
+      args:
+        executable: /bin/bash
+      when: tmp_mountpoint_check.rc != 0
+
+    - name: Mask systemd tmp.mount if present
+      systemd:
+        name: tmp.mount
+        state: stopped
+        enabled: false
+        masked: true
+      failed_when: false
+
+    - name: Bind-mount /mnt/localdisk/tmp onto /tmp and persist
+      mount:
+        src: /mnt/localdisk/tmp
+        path: /tmp
+        fstype: none
+        opts: bind,x-systemd.requires-mounts-for=/mnt/localdisk
+        state: mounted
+
+    - name: Re-assert sticky bit on target after mount
+      file:
+        path: /tmp
+        state: directory
+        owner: root
+        group: root
+        mode: '1777'
 

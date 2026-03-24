@@ -8,6 +8,8 @@ g.dashboard.new('Multi-Node Metrics')
   Multi-Node Metrics Dashboard for cluster comparison
 |||)
 + g.dashboard.withTimezone('browser')
++ g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([
   variables.prometheus,

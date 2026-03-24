@@ -34,6 +34,48 @@
           -keyout '{{ ssl_cert_path }}/cluster-ca.key'
       args:
         creates: '{{ ssl_cert_path }}/cluster-ca.crt'
+      delegate_to: 127.0.0.1
+      run_once: true
+
+    - name: Get the ca.crt value
+      become: true
+      slurp:
+        src: "{{ ssl_cert_path }}/cluster-ca.crt"
+      register: cluster_ca_crt_raw
+      delegate_to: 127.0.0.1
+      run_once: true
+      when: (groups['slurm_backup']|length > 0)|bool
+
+    - name: Get the ca.key value
+      become: true
+      slurp:
+        src: "{{ ssl_cert_path }}/cluster-ca.key"
+      register: cluster_ca_key_raw
+      delegate_to: 127.0.0.1
+      run_once: true
+      when: (groups['slurm_backup']|length > 0)|bool
+
+    - name: Create ca.crt file on slurm_backup node
+      copy:
+        content: "{{ cluster_ca_crt_raw.content | b64decode }}"
+        dest: "{{ ssl_cert_path }}/cluster-ca.crt"
+        owner: root
+        group: ssl
+        mode: 0644
+      delegate_to: "{{ groups['slurm_backup'][0] }}"
+      run_once: true
+      when: (groups['slurm_backup']|length > 0)|bool
+
+    - name: Create ca.key file on slurm_backup node
+      copy:
+        content: "{{ cluster_ca_key_raw.content | b64decode }}"
+        dest: "{{ ssl_cert_path }}/cluster-ca.key"
+        owner: root
+        group: ssl
+        mode: 0640
+      delegate_to: "{{ groups['slurm_backup'][0] }}"
+      run_once: true
+      when: (groups['slurm_backup']|length > 0)|bool
 
     - name: Render subjectAltName configuration
       template:
@@ -65,13 +107,19 @@
       args:
         creates: '{{ ssl_cert_path }}/{{ ansible_fqdn }}.crt'
 
+    - name: Find all .key files on remote host
+      find:
+        paths: "{{ ssl_cert_path }}"
+        patterns: "*.key"
+        file_type: file
+      register: key_files
+
     - name: Restrict access permissions to the private keys
       file:
-        path: '{{ item }}'
-        mode: 0640
-      with_fileglob:
-        - '{{ ssl_cert_path }}/*.key'
-
+        path: "{{ item.path }}"
+        mode: "0640"
+      loop: "{{ key_files.files }}"
+    
     - name: Update ownership of the certificates
       file:
         path: '{{ ssl_cert_path }}/'
@@ -84,9 +132,10 @@
 - name: Add CA certificate to default trust store
   copy:
     src: '{{ ssl_cert_path }}/cluster-ca.crt'
-    dest: '/usr/local/share/ca-certificates//cluster-ca.crt'
+    dest: '/usr/local/share/ca-certificates/cluster-ca.crt'
   register: cert_copy
 
 - name: Update certificate trust store
+  become: true
   shell: update-ca-certificates
   changed_when: cert_copy.changed

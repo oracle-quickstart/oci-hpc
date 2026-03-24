@@ -18,6 +18,18 @@
         name: grafana
       when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) 
 
+- hosts: monitoring
+  tasks: 
+    - include_role: 
+        name: oci-metrics-telegraf
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length > 0 ) and ( (metrics_stream_ocid | default('')) | length > 0 )
+
+- hosts: controller
+  tasks: 
+    - include_role: 
+        name: oci-metrics-telegraf
+      when: cluster_monitoring|default(false)|bool and ( groups['monitoring'] | length == 0 ) and ( (metrics_stream_ocid | default('')) | length > 0 )
+
 - hosts: all,!monitoring
   gather_facts: true
   vars:

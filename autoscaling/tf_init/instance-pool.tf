@@ -6,6 +6,11 @@ resource "oci_core_volume" "nfs-instance-pool-volume" {
   
   size_in_gbs = var.cluster_block_volume_size
   vpus_per_gb = split(".", var.cluster_block_volume_performance)[0]
+  freeform_tags = {
+    "user" = var.tags
+    "cluster_name" = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 } 
 
 resource "oci_core_volume_attachment" "instance_pool_volume_attachment" { 
@@ -26,9 +31,9 @@ resource "oci_core_instance_pool" "instance_pool" {
   size                      = var.node_count
   display_name              = local.cluster_name
   freeform_tags = {
-      "user" = var.tags
-      "cluster_name" = local.cluster_name
-      "parent_cluster" = local.cluster_name
+    "user" = var.tags
+    "cluster_name" = local.cluster_name
+    "parent_cluster" = local.cluster_name
   }
   placement_configurations {
     availability_domain = var.ad

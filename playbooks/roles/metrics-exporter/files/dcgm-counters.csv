@@ -81,3 +81,12 @@ DCGM_FI_DEV_MEM_MAX_OP_TEMP, gauge, Maximum operating temperature for the memory
 DCGM_FI_DEV_GPU_MAX_OP_TEMP, gauge, Maximum operating temperature for this GPU
 DCGM_FI_DEV_SLOWDOWN_TEMP, gauge, Slowdown temperature for the device
 DCGM_FI_DEV_SHUTDOWN_TEMP, gauge, Shutdown temperature for the device
+
+DCGM_FI_PROF_SM_ACTIVE,          gauge, The ratio of cycles an SM has at least 1 warp assigned (in %).
+DCGM_FI_PROF_SM_OCCUPANCY,       gauge, The ratio of number of warps resident on an SM (in %).
+DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, gauge, Ratio of cycles the tensor (HMMA) pipe is active (in %).
+DCGM_FI_PROF_DRAM_ACTIVE,        gauge, Ratio of cycles the device memory interface is active sending or receiving data (in %).
+DCGM_FI_PROF_PIPE_FP64_ACTIVE,   gauge, Ratio of cycles the fp64 pipes are active (in %).
+DCGM_FI_PROF_PIPE_FP32_ACTIVE,   gauge, Ratio of cycles the fp32 pipes are active (in %).
+DCGM_FI_PROF_PIPE_FP16_ACTIVE,   gauge, Ratio of cycles the fp16 pipes are active (in %).
+
