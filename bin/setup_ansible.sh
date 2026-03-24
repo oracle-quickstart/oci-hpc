@@ -60,7 +60,8 @@ collections:
 EOF_ANSIBLE
   fi
 
-  uv run ansible-galaxy collection install --upgrade --force -r "${ansible_requirements}" -p /config/playbooks/collections
+  ansible-galaxy collection install --upgrade --force -r "${ansible_requirements}" -p /config/playbooks/collections
+  echo "Ansible galaxy collection install complete."
 
   touch "${marker_install}"
 fi
@@ -77,7 +78,7 @@ if [ ! -d /etc/ansible ] ; then
   fi
 fi
 
-uv run ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
+ansible-config init --disabled -t all | sudo tee /etc/ansible/ansible.cfg > /dev/null
 sudo sed -i "s/^\(#\|;\)forks.*/forks = ${forks}/" /etc/ansible/ansible.cfg
 sudo sed -i "s/^\(#\|;\)fact_caching=.*/fact_caching=jsonfile/" /etc/ansible/ansible.cfg
 sudo sed -i "0,/^\(#\|;\)fact_caching_connection.*/s//fact_caching_connection=\/tmp\/ansible/" /etc/ansible/ansible.cfg
