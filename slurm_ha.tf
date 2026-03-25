@@ -34,7 +34,7 @@ resource "oci_core_instance" "backup" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
-    user_data           = base64encode(data.template_file.controller_config.rendered)
+    user_data           = base64encode(local.controller_config)
   }
   source_details {
     //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
@@ -47,6 +47,10 @@ resource "oci_core_instance" "backup" {
   create_vnic_details {
     subnet_id        = local.controller_subnet_id
     assign_public_ip = local.controller_bool_ip
+    freeform_tags = {
+      "cluster_name"   = local.cluster_name
+      "parent_cluster" = local.cluster_name
+    }
   }
 }
 
@@ -225,6 +229,7 @@ resource "null_resource" "cluster_backup" {
       localdisk                 = var.localdisk,
       log_vol                   = var.log_vol,
       redundancy                = var.redundancy,
+      tmp_to_nvme               = var.tmp_to_nvme,
       cluster_network           = var.cluster_network,
       use_compute_agent         = var.use_compute_agent,
       slurm                     = var.slurm,
@@ -269,7 +274,11 @@ resource "null_resource" "cluster_backup" {
       hostname_convention       = var.hostname_convention,
       change_hostname           = var.change_hostname,
       hostname_convention       = var.hostname_convention,
-      ons_topic_ocid            = local.topic_id
+      ons_topic_ocid            = local.topic_id,
+      grafana_initial_creds     = base64encode(random_password.grafana_admin_pwd.result),
+      metrics_stream_ocid       = local.metrics_stream_ocid,
+      wildcard_dns_domain       = var.wildcard_dns_domain,
+      use_lets_encrypt_prod_ep  = var.use_lets_encrypt_prod_ep
     })
 
     destination = "/opt/oci-hpc/playbooks/inventory"
@@ -410,6 +419,7 @@ resource "null_resource" "cluster_backup" {
       localdisk                           = var.localdisk,
       log_vol                             = var.log_vol,
       redundancy                          = var.redundancy,
+      tmp_to_nvme                         = var.tmp_to_nvme,
       cluster_monitoring                  = var.cluster_monitoring,
       hyperthreading                      = var.hyperthreading,
       unsupported                         = var.unsupported,
@@ -436,7 +446,11 @@ resource "null_resource" "cluster_backup" {
       healthchecks                        = var.healthchecks,
       change_hostname                     = var.change_hostname,
       hostname_convention                 = var.hostname_convention,
-      ons_topic_ocid                      = local.topic_id
+      ons_topic_ocid                      = local.topic_id,
+      grafana_initial_creds               = base64encode(random_password.grafana_admin_pwd.result),
+      metrics_stream_ocid                 = local.metrics_stream_ocid,
+      wildcard_dns_domain       = var.wildcard_dns_domain,
+      use_lets_encrypt_prod_ep  = var.use_lets_encrypt_prod_ep
     })
 
     destination = "/opt/oci-hpc/conf/variables.tf"

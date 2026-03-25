@@ -21,6 +21,7 @@
   command: nvidia-smi --accounting-mode=1 --gpu {{ item }}
   loop: "{{ gpu_ids }}"
   become: yes
+  ignore_errors: true
 
 - name: Install prometheus_client python package
   ansible.builtin.pip:

@@ -8,18 +8,62 @@
   become: true
   when: not ansible_env.HOME is undefined
 
+- name: Check if NVM is already installed
+  stat:
+    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+  register: nvm_exists
+
+- name: Execute NVM install script (mounted /home)
+  shell: "/tmp/nvm_install.sh"
+  args:
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  when: 
+  - nvm_download_result.status == 200 
+  - not nvm_exists.stat.exists 
+  - ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length > 0
+  run_once: true
+  delegate_to: 127.0.0.1
+
 - name: Execute NVM install script
   shell: "/tmp/nvm_install.sh"
   args:
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
-  when: nvm_download_result.status == 200
+  when: 
+  - nvm_download_result.status == 200
+  - not nvm_exists.stat.exists
+  - ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length == 0
 
 - name: Load NVM in current shell
   shell: ". ~/.nvm/nvm.sh"
   args:
     executable: /bin/bash
+
+- name: Check if Node.js is already installed via NVM
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm list --no-colors | grep -c "lts"
+  args:
+    executable: /bin/bash
+  register: node_lts_check
+  ignore_errors: true
+
+- name: Install Node LTS and latest npm (mounted /home)
+  shell: |
+    source ~/.nvm/nvm.sh
+    nvm install --lts
+    nvm install-latest-npm
+  args:
+    executable: /bin/bash
+  when: 
+  - node_lts_check.rc != 0 
+  - node_lts_check.stdout | int == 0
+  - ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length > 0
+  run_once: true
+  delegate_to: 127.0.0.1
 
 - name: Install Node LTS and latest npm
   shell: |
@@ -28,6 +72,32 @@
     nvm install-latest-npm
   args:
     executable: /bin/bash
+  when: 
+  - node_lts_check.rc != 0 
+  - node_lts_check.stdout | int == 0
+  - ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length == 0
+
+- name: Check if OpenAPI generator CLI is already installed
+  shell: |
+    source ~/.nvm/nvm.sh
+    npm list -g {{ openapi_generator_cli_pkg }}
+  args:
+    executable: /bin/bash
+  register: openapi_cli_check
+  ignore_errors: true
+
+- name: Install OpenAPI generator CLI via npm (mounted /home)
+  shell: |
+    source ~/.nvm/nvm.sh
+    npm install -g {{ openapi_generator_cli_pkg }}
+    openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json
+  args:
+    executable: /bin/bash
+  when:
+  - openapi_cli_check.rc != 0
+  - ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length > 0
+  run_once: true
+  delegate_to: 127.0.0.1
 
 - name: Install OpenAPI generator CLI via npm
   shell: |
@@ -36,6 +106,9 @@
     openapi-generator-cli version-manager set {{ openapi_generator_jar_version }} --openapitools /tmp/openapitools.json
   args:
     executable: /bin/bash
+  when:
+  - openapi_cli_check.rc != 0
+  - ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length == 0
 
 - name: Generate JWT token
   command: "scontrol token lifespan=31556926"
@@ -60,6 +133,25 @@
 - name: Set JWT token fact
   set_fact:
     slurm_jwt_token: "{{ (jwt_token_file.content | b64decode).split('=')[1] }}"
+
+- name: Fetch Slurm API versions
+  ansible.builtin.uri:
+    url: "{{ slurm_rest_api_spec_url }}"
+    return_content: true
+    headers:
+      X-SLURM-USER-NAME: "{{ slurm_user }}"
+      X-SLURM-USER-TOKEN: "{{ slurm_jwt_token }}"
+  register: api_response  
+
+- name: Extract all version strings
+  ansible.builtin.set_fact:
+    version_strings: >-
+      {{ api_response.content | regex_findall('slurm_v([0-9]+)_get_jobs') }}
+
+- name: Set highest version string
+  ansible.builtin.set_fact:
+    slurm_api_version: >-
+      {{ version_strings | max | string }}
 
 - name: Create sdk output directory
   ansible.builtin.file:

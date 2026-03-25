@@ -186,6 +186,8 @@ class XidChecker:
                     if self.XID_EC[XID]['severity'] == "Critical":
                         status = "Failed"
                     self.results[XID] = {"results": tmp_dict, "description": self.XID_EC[XID]['description']}
+            if status != "Failed":
+                logger.info("Xid Check: Passed")
         else:
             logger.info("Xid Check: Passed")
         return {"status": status, "results": self.results}

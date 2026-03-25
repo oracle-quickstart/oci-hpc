@@ -10,6 +10,8 @@ g.dashboard.new('Cluster Level Metrics')
   Cluster Level Aggregated Metrics Dashboard
 |||)
 + g.dashboard.withTimezone('browser')
++ g.dashboard.withRefresh('30s')
++ g.dashboard.time.withFrom('now-5m')
 + g.dashboard.graphTooltip.withSharedCrosshair()
 + g.dashboard.withVariables([
   variables.prometheus,

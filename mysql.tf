@@ -13,4 +13,8 @@ resource "oci_mysql_mysql_db_system" "monitoring_mysql_db_system" {
   backup_policy {
     is_enabled = false
   }
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 }

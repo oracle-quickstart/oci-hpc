@@ -4,19 +4,26 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
 
+  freeform_tags = {
+      "user" = var.tags
+      "cluster_name" = local.cluster_name
+      "parent_cluster" = local.cluster_name
+  }
+  
   instance_details {
     instance_type = "compute"
     launch_details {
       availability_domain = var.ad
       compartment_id      = var.targetCompartment
       freeform_tags = {
-        "cluster_name"   = local.cluster_name
+        "user" = var.tags
+        "cluster_name" = local.cluster_name
         "parent_cluster" = local.cluster_name
       }
       metadata = {
 # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/id_rsa.pub")
-        user_data           = base64encode(data.template_file.config.rendered)
+        user_data           = base64encode(local.config)
       }
       agent_config {
 

@@ -41,33 +41,50 @@
     owner: "{{ user }}"
     group: "{{ user }}"
   loop:
+    - cluster-level-variables.libsonnet
+    - cluster-level.jsonnet
+    - command-center-variables.libsonnet
+    - command-center.jsonnet
     - g.libsonnet
     - gauge-panel.libsonnet
     - gauge-panel-util.libsonnet
-    - stat-health-panel.libsonnet
-    - stat-panel-single.libsonnet
-    - stat-panel.libsonnet
-    - statetimeline-panel.libsonnet
-    - timeseries-panel.libsonnet
-    - command-center-variables.libsonnet
-    - command-center.jsonnet
-    - cluster-level-variables.libsonnet
-    - cluster-level.jsonnet
-    - multi-node-variables.libsonnet
-    - multi-node.jsonnet
+    - gpu-health.jsonnet
     - gpu-metrics-single-variables.libsonnet
     - gpu-metrics-single.jsonnet
     - host-metrics-single-variables.libsonnet
     - host-metrics-single.jsonnet
-    - gpu-health.jsonnet
-    - slurm-variables.libsonnet
+    - multi-node-variables.libsonnet
+    - multi-node.jsonnet
+    - nccl-traces.jsonnet
+    - oci-block-variables.libsonnet
+    - oci-block.jsonnet
+    - oci-drg-variables.libsonnet
+    - oci-drg.jsonnet
+    - oci-fastconnect-variables.libsonnet
+    - oci-fastconnect.jsonnet
+    - oci-fss-variables.libsonnet
+    - oci-fss.jsonnet
+    - oci-igw-variables.libsonnet
+    - oci-igw.jsonnet
+    - oci-lustre-variables.libsonnet
+    - oci-lustre.jsonnet
+    - oci-natgw-variables.libsonnet
+    - oci-natgw.jsonnet
+    - oci-sgw-variables.libsonnet
+    - oci-sgw.jsonnet
+    - oci-vcn-variables.libsonnet
+    - oci-vcn.jsonnet
     - slurm-dashboard.jsonnet
-    - oci-variables.libsonnet
-    - oci-dashboard.jsonnet
-    - table-panel.libsonnet
-    - nccl-traces.jsonnet    
+    - slurm-variables.libsonnet
+    - stat-health-panel.libsonnet
+    - stat-panel-single.libsonnet
+    - stat-panel.libsonnet
+    - statetimeline-panel.libsonnet
     - storage-metrics.jsonnet
     - storage-metrics-variables.libsonnet
+    - table-panel.libsonnet
+    - timeseries-panel.libsonnet
+
 
 - name: Build dashboards with Jsonnet
   become: true  
@@ -75,15 +92,23 @@
     /usr/local/bin/jb init
     /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
     /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
-    /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
     /usr/local/bin/jsonnet -J vendor cluster-level.jsonnet -o cluster-level.json
-    /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
+    /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
     /usr/local/bin/jsonnet -J vendor gpu-metrics-single.jsonnet -o gpu-metrics-single.json
-    /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
     /usr/local/bin/jsonnet -J vendor gpu-health.jsonnet -o gpu-health.json
-    /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
-    /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
+    /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
+    /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
     /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
+    /usr/local/bin/jsonnet -J vendor oci-block.jsonnet -o oci-block.json
+    /usr/local/bin/jsonnet -J vendor oci-drg.jsonnet -o oci-drg.json
+    /usr/local/bin/jsonnet -J vendor oci-fastconnect.jsonnet -o oci-fastconnect.json
+    /usr/local/bin/jsonnet -J vendor oci-fss.jsonnet -o oci-fss.json
+    /usr/local/bin/jsonnet -J vendor oci-igw.jsonnet -o oci-igw.json
+    /usr/local/bin/jsonnet -J vendor oci-lustre.jsonnet -o oci-lustre.json
+    /usr/local/bin/jsonnet -J vendor oci-natgw.jsonnet -o oci-natgw.json
+    /usr/local/bin/jsonnet -J vendor oci-sgw.jsonnet -o oci-sgw.json
+    /usr/local/bin/jsonnet -J vendor oci-vcn.jsonnet -o oci-vcn.json
+    /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
     /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
   environment:
   args:
@@ -103,22 +128,30 @@
     dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
   loop:
-    - command-center.json
     - cluster-level.json
-    - multi-node.json
+    - command-center.json
+    - gpu-health.json
     - gpu-metrics-single.json
     - host-metrics-single.json
-    - gpu-health.json
-    - slurm-dashboard.json
-    - oci-dashboard.json
+    - multi-node.json
     - nccl-traces.json
+    - oci-block.json
+    - oci-drg.json
+    - oci-fastconnect.json
+    - oci-fss.json
+    - oci-igw.json
+    - oci-lustre.json
+    - oci-natgw.json
+    - oci-sgw.json
+    - oci-vcn.json    
+    - slurm-dashboard.json
     - storage-metrics.json
-
+      
+# Do not change the order of dashboard creation.
 - name: Import Grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
-    grafana_user: "{{ grafana_security.admin_user }}"
-    grafana_password: "{{ grafana_security.admin_password }}"    
+    grafana_api_key: "{{ grafana_api_token }}"
     state: present
     commit_message: Updated by ansible
     overwrite: true
@@ -127,10 +160,18 @@
     - command-center.json
     - cluster-level.json
     - multi-node.json
-    - gpu-metrics-single.json
     - host-metrics-single.json
-    - gpu-health.json
-    - slurm-dashboard.json
-    - oci-dashboard.json
-    - nccl-traces.json
     - storage-metrics.json
+    - gpu-metrics-single.json
+    - gpu-health.json
+    - oci-vcn.json
+    - oci-block.json
+    - oci-igw.json
+    - oci-natgw.json
+    - oci-sgw.json
+    - oci-drg.json
+    - oci-fss.json
+    - oci-lustre.json
+    - oci-fastconnect.json
+    - slurm-dashboard.json
+    - nccl-traces.json

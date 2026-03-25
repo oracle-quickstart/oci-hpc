@@ -1,0 +1,115 @@
+---
+- name: Add InfluxData repository - for Telegraf
+  become: true
+  yum_repository: 
+    name: influxdata
+    description: InfluxData Repository - Stable
+    baseurl: https://repos.influxdata.com/stable/$basearch/main
+    enabled: 1
+    gpgcheck: 1
+    gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+  when: ansible_os_family == 'RedHat'
+
+- name: Add InfluxData repository - for Telegraf
+  become: true
+  block:
+    - name: Download Influx repo GPG key
+      ansible.builtin.get_url:
+        url: "https://repos.influxdata.com/influxdata-archive_compat.key"
+        dest: /tmp/influxdata-archive_compat.key
+        mode: '0644'
+        force: true
+    - name: Convert Docker APT repo key to binary keyring
+      ansible.builtin.command:
+        cmd: "gpg --dearmor -o /usr/share/keyrings/influxdata-archive.gpg /tmp/influxdata-archive_compat.key"
+        creates: /usr/share/keyrings/influxdata-archive.gpg 
+  when: ansible_os_family == 'Debian'
+
+- name: Manage InfluxData APT repositories - for Telegraf
+  become: true
+  apt_repository:
+    filename: influxdata_repo
+    repo: deb [signed-by=/usr/share/keyrings/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install Telegraf
+  vars: 
+    package_name:
+      - telegraf
+    package_state: latest
+  include_role:
+    name: safe_yum
+
+- name: Force Telegraf gid 995
+  become: true
+  lineinfile:
+    path: /etc/group
+    state: present
+    regexp: '^telegraf:x:(.*)$'
+    line: 'telegraf:x:995:'
+    backrefs: yes
+
+- name: Force Telegraf uid 995
+  become: true
+  lineinfile:
+    path: /etc/passwd
+    state: present
+    regexp: '^telegraf:x:(.*)$'
+    line: 'telegraf:x:995:995::/etc/telegraf:/bin/false'
+    backrefs: yes
+
+- name: Copy telegraf.conf
+  become: true
+  copy:
+    src: "telegraf.conf"
+    dest: /etc/telegraf/telegraf.conf
+    force: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0755
+
+- name: Render Telegraf configuration files
+  become: true
+  template: 
+    src: "{{ item }}.j2"
+    dest: /etc/telegraf/telegraf.d/{{item}}
+    force: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0755
+  with_items: 
+    - filter.conf
+    - input.conf
+    - output.conf
+
+- name: Render OCI Metric Python files
+  become: true
+  template: 
+    src: "{{ item }}.j2"
+    dest: /usr/local/bin/{{item}}
+    force: yes
+    owner: telegraf
+    group: telegraf
+    mode: 0755
+  with_items: 
+    - oci_metrics_telegraf_input.py
+    - oci_metrics_telegraf_filter.py
+    - oci_metrics_telegraf_utils.py
+
+- name: Install Python dependencies
+  pip:
+    name:
+      - line-protocol-parser
+      - influx-line-protocol
+      - flatdict
+      - oci
+      - cachetools
+  become: true
+
+- name: Restart Telegraf
+  become: true
+  service:
+    name: telegraf
+    state: restarted
+    enabled: yes

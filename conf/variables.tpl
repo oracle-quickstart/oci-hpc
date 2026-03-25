@@ -169,6 +169,9 @@ variable "hostname_convention" {
 variable "ons_topic_ocid" {
   default = "${ons_topic_ocid}"
 }
+variable "metrics_stream_ocid" {
+  default = "${metrics_stream_ocid}"
+}
 variable "add_lfs" {
   default = "${add_lfs}"
   type = bool
@@ -188,4 +191,17 @@ variable "lfs_source_path" {
 variable "lfs_options" {
   default = "${lfs_options}"
   type = string
+}
+variable "grafana_initial_creds" {
+  default = "${grafana_initial_creds}"
+  type = string
+}
+variable "wildcard_dns_domain" {
+  default = "${wildcard_dns_domain}"
+  type    = string
+}
+
+variable "use_lets_encrypt_prod_ep" {
+  default = "${use_lets_encrypt_prod_ep}"
+  type    = bool
 }

@@ -6,8 +6,11 @@ After=network.target
 User={{ ansible_user }}
 Group={{ ansible_user }}
 Type=simple
-ExecStart=/usr/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint 
-
+{% if (groups['monitoring']| length ) > 0 %}
+ExecStart=/usr/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint  {{ hostvars[groups['monitoring'][0]]['ansible_fqdn'].split('.')[0] }}:4317
+{% else %}
+ExecStart=/usr/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint  {{ hostvars[groups['controller'][0]]['ansible_fqdn'].split('.')[0] }}:4317
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target

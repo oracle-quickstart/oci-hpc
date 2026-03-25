@@ -1,0 +1,16 @@
+{% if use_lets_encrypt_prod_ep != 'true' %}
+{
+	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+{% endif %}
+
+{{ ('https://' + grafana_domain) if wildcard_dns_domain in grafana_domain else ':80' }} {
+    log {
+        output file /var/log/caddy/caddy-access.log {
+            roll_size 2MB # Create new file when size exceeds 2MB
+            roll_keep 5 # Keep at most 5 rolled files
+            roll_keep_for 336h # Delete files older than 14 days
+        }
+    }
+    reverse_proxy localhost:3000
+}

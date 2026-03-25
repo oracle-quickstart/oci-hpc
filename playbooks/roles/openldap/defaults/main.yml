@@ -19,9 +19,11 @@ openldap_schemas:
   - rfc2307bis
   - autoinc
   - ppolicy
+  - sudo
 
 openldap_schemas_22:
   - cosine
   - inetorgperson
   - rfc2307bis
   - autoinc
+  - sudo

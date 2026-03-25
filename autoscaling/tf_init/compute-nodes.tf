@@ -6,6 +6,12 @@ resource "oci_core_volume" "nfs-compute-cluster-volume" {
   
   size_in_gbs = var.cluster_block_volume_size
   vpus_per_gb = split(".", var.cluster_block_volume_performance)[0]
+
+  freeform_tags = {
+      "user" = var.tags
+      "cluster_name" = local.cluster_name
+      "parent_cluster" = local.cluster_name
+  }
 }
 
 resource "oci_core_volume_attachment" "compute_cluster_volume_attachment" { 
@@ -38,7 +44,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
 
   metadata = {
     ssh_authorized_keys = file("/home/${var.controller_username}/.ssh/id_rsa.pub")
-    user_data           = base64encode(data.template_file.config.rendered)
+    user_data           = base64encode(local.config)
   }
   source_details {
     source_id = local.cluster_network_image
@@ -49,5 +55,10 @@ resource "oci_core_instance" "compute_cluster_instances" {
   create_vnic_details {
     subnet_id = local.subnet_id
     assign_public_ip = false
+    freeform_tags = {
+      "cluster_name" = local.cluster_name
+      "parent_cluster" = local.cluster_name
+      "user" = var.tags
+    }
   }
 } 

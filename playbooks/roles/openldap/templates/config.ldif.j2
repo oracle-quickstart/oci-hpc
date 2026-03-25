@@ -30,6 +30,8 @@ dn: olcDatabase={0}config,cn=config
 changetype: modify
 replace: olcRootDN
 olcRootDN: cn=config
--
+
+dn: olcDatabase={0}config,cn=config
+changetype: modify
 replace: olcRootPW
 olcRootPW: {{ openldap_root_pwd_hash.stdout }}

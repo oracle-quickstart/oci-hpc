@@ -2,18 +2,21 @@ groups:
 
 - name: node_health
   rules:
-  # Node memory and boot volume checks
+  # Node memory and boot volume checks  
   - record: node_disk_free_ok
     expr: avg by (hostname, cluster_name) (node_filesystem_avail_bytes{mountpoint="/",device=~"/dev/sd.*"}) >= bool 50 * 1024 * 1024 * 1024
 
+  - record: node_memory_pressure_score
+    expr: (((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100 + (15 / clamp_min(log2(node_memory_MemTotal_bytes / (16*1024^3)), 0.5)))    
+
   - record: node_memory_availability_ok
-    expr: avg by (hostname, cluster_name) (node_memory_MemAvailable_bytes) >= bool 50 * 1024 * 1024 * 1024
+    expr: avg by (hostname, cluster_name) (node_memory_pressure_score) <= bool 90
 
   # GPU throttling checks
   - record: node_gpu_power_violation_ok
     expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) == bool 0)
 
-  - record: node_gpu_board_limit_violation_ok  
+  - record: node_gpu_board_limit_violation_ok
     expr: min by (hostname, cluster_name) (increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) == bool 0)
 
   - record: node_gpu_thermal_violation_ok
@@ -60,6 +63,9 @@ groups:
   - record: node_ecc_error_check_ok
     expr: (gpu_ecc_error_check) * on (hostname, cluster_name) (gpu_ecc_error_check)
 
+  - record: node_gpu_count_ok
+    expr: (gpu_count) * on (hostname, cluster_name) (gpu_count)
+
   - record: node_gpu_row_remap_error_check
     expr: (gpu_row_remap_error_check== bool 0) * on (hostname, cluster_name) (gpu_row_remap_error_check== bool 0)
 
@@ -69,9 +75,13 @@ groups:
   - record: node_up_check
     expr: (up{instance=~".*:9100$"}) * on (hostname, cluster_name) (up{instance=~".*:9100$"})
 
+  - record: active_nodes
+    expr: group by (hostname, cluster_name) (up{instance=~".*:9100$"} == 1 and (time() - timestamp(up{instance=~".*:9100$"}) < 300))
+
   # combine them: this will be 1 only if *all* success‑flags are 1
   - record: node_health_status
     expr: |
+      (
       (
         node_rttcc_ok or node_up_check
       )
@@ -97,31 +107,15 @@ groups:
       )
       *
       (
+        node_gpu_count_ok or node_up_check
+      )
+      *
+      (
         node_gpu_row_remap_error_check or node_up_check
       )
       *
       (
         node_xid_error_check or node_up_check
-      )
-      *
-      (
-        node_gpu_power_violation_ok or node_up_check
-      )
-      *
-      (
-        node_gpu_board_limit_violation_ok or node_up_check
-      )
-      *
-      (
-        node_gpu_thermal_violation_ok or node_up_check
-      )
-      *
-      (
-        node_gpu_sync_boost_violation_ok or node_up_check 
-      )
-      *
-      (
-        node_gpu_reliability_violation_ok or node_up_check
       )
       *
       (
@@ -151,3 +145,5 @@ groups:
       (
         node_disk_free_ok or node_up_check
       )
+      ) and on(hostname, cluster_name) active_nodes
+

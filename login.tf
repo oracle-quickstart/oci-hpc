@@ -5,6 +5,10 @@ resource "oci_core_volume" "login_volume" {
   display_name        = "${local.cluster_name}-login"
   size_in_gbs         = var.login_block_volume_size
   vpus_per_gb         = split(".", var.login_block_volume_performance)[0]
+  freeform_tags = {
+    "cluster_name"   = local.cluster_name
+    "parent_cluster" = local.cluster_name
+  }
 }
 
 
@@ -43,7 +47,7 @@ resource "oci_core_instance" "login" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
-    user_data           = base64encode(data.template_file.controller_config.rendered)
+    user_data           = base64encode(local.controller_config)
   }
   source_details {
     //    source_id   = var.use_standard_image ? data.oci_core_images.linux.images.0.id : local.custom_controller_image_ocid
@@ -56,6 +60,10 @@ resource "oci_core_instance" "login" {
   create_vnic_details {
     subnet_id        = local.controller_subnet_id
     assign_public_ip = local.login_bool_ip
+    freeform_tags = {
+      "cluster_name"   = local.cluster_name
+      "parent_cluster" = local.cluster_name
+    }
   }
 }
 

@@ -39,14 +39,25 @@
 - name: Generate openldap root password 
   set_fact:
     tmp_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc/passwords/openldap/root.txt
-                           chars=ascii_letters,digits,hexdigits') }}"
+                          '/etc/opt/oci-hpc/passwords/openldap/root.txt',
+                          chars=['ascii_letters','digits','hexdigits']) }}"
+  run_once: true
+  delegate_to: 127.0.0.1
 
 - name: Get openldap root password 
   set_fact:
     openldap_root_pwd: "{{ lookup('password',
-                          '/etc/opt/oci-hpc//passwords/openldap/root.txt
-                           chars=ascii_letters,digits,hexdigits') }}"
+                          '/etc/opt/oci-hpc/passwords/openldap/root.txt',
+                          chars=['ascii_letters','digits','hexdigits']) }}"
+  run_once: true
+  delegate_to: 127.0.0.1
+
+- name: Write openldap root password to backup
+  copy:
+    content: "{{ openldap_root_pwd }}"
+    dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
+  when: (groups['slurm_backup']|length > 0)|bool
+  delegate_to: "{{ groups['slurm_backup'][0] }}"
 
 - name: Install OpenLDAP packages ol7
   vars: 
@@ -91,11 +102,6 @@
     path: '/etc/openldap/ldap.conf'
     line: 'TLS_CACERT   /etc/openldap/certs/cluster-ca.crt'
 
-- name: Enable OpenLDAP service
-  systemd:
-    name: slapd
-    enabled: "yes"
-
 - name: Get /etc/openldap/slapd.d status
   stat:
     path: '/etc/openldap/slapd.d'
@@ -110,6 +116,11 @@
   user:
     name: '{{ openldap_default_user }}'
     groups: '{{ ssl_cert_group }}'
+
+- name: Enable OpenLDAP service
+  systemd:
+    name: slapd
+    enabled: "yes"
 
 - block:
     - name: Install and upgrade pip
@@ -154,6 +165,7 @@
         mode: '0644'
       with_items:
         - rfc2307bis.ldif
+        - sudo.ldif
         - autoinc.ldif
         - local_schema.ldif
 
@@ -233,13 +245,6 @@
       notify: restart openldap
       when: ansible_distribution_major_version == '7'
 
-    - name: restart openldap
-      service:
-        name: slapd
-        state: restarted
-        enabled: yes
-      when: ansible_distribution_major_version == '8'
-
     - name: Load OpenLDAP local configuration ol8
       command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
       args:
@@ -263,5 +268,43 @@
                              -f /etc/openldap/schema/local_schema.ldif
       ignore_errors: "yes"
       when: ldapsearch.rc == 32
+
+    - name: restart openldap
+      service:
+        name: slapd
+        state: restarted
+        enabled: yes
+
+- name: Enable replication
+  when: (groups['slurm_backup']|length > 0)|bool
+  block:
+    - name: Copy OpenLDAP schemas
+      template:
+        src: '{{ item }}.j2'
+        dest: '/tmp/{{ item }}'
+        owner: '{{ openldap_default_user }}'
+        group: '{{ openldap_default_group }}'
+        mode: '0640'
+      become: yes
+      with_items:
+        - mod_syncprov_el.ldif
+        - replicate_config.ldif
+        - replicate_database_el.ldif
+  
+    - name: Add syncprov module to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/mod_syncprov_el.ldif'
+      ignore_errors: yes  #set to get around erroring out that items already exist
+      become: yes
+
+    - name: Add replicate configuration to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_config.ldif'
+      ignore_errors: yes  #set to get around erroring out that items already exist
+      become: yes
+
+    - name: Add replicate database to openLDAP
+      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_el.ldif'
+      ignore_errors: yes  #set to get around erroring out that items already exist
+      become: yes
+      notify: restart openldap
 
 - meta: flush_handlers

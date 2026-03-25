@@ -521,6 +521,10 @@ variable "alerting" {
   default = false
   type = bool
   }
+variable "avoid_waiting_for_delete_target" {
+  default = false
+  type = bool
+}
 variable "pyxis" { 
   default = false
   type = bool
@@ -637,6 +641,11 @@ variable "redundancy" {
   type = bool
   }
 
+variable "tmp_to_nvme" { 
+  default = false
+  type = bool
+  }
+
 variable "use_marketplace_image_login" { 
   default = true
   type = bool
@@ -745,4 +754,16 @@ variable "lfs_source_path" {
 variable "lfs_options" {
   default = "defaults,_netdev"
   type = string
+}
+variable "ingest_oci_metrics" {
+  default = false
+  type    = bool
+}
+variable "wildcard_dns_domain" {
+  default = "endpoint.oci-hpc.ai"
+  type    = string
+}
+variable "use_lets_encrypt_prod_ep" {
+  default = true
+  type    = bool
 }

@@ -5,3 +5,34 @@ deleteRules:
     uid: disk-20pct
   - orgId: 1
     uid: mem-20pct
+  - orgId: 1
+    uid: throttle-power
+  - orgId: 1
+    uid: throttle-board
+  - orgId: 1
+    uid: throttle-thermal
+  - orgId: 1
+    uid: throttle-sync
+  - orgId: 1
+    uid: throttle-reliability
+  - orgId: 1
+    uid: gpu-mem-temp-shutdown
+  - orgId: 1
+    uid: gpu-mem-temp-slowdown
+  - orgId: 1
+    uid: gpu-temp-shutdown
+  - orgId: 1
+    uid: gpu-temp-slowdown
+  # If there is no login node, this rule can be removed
+  - orgId: 1
+    uid: login-node-critical-service-down
+  - orgId: 1
+    uid: pcie-correctable-error-increase
+  - orgId: 1
+    uid: pcie-fatal-error-increase
+  - orgId: 1
+    uid: pcie-nonfatal-error-increase
+  - orgId: 1
+    uid: pcie-bus-inaccessible-fault
+  - orgId: 1
+    uid: pcie-bus-linkwidth-fault
