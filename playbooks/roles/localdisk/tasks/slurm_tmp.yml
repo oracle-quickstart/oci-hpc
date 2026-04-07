@@ -1,0 +1,9 @@
+---
+- name: Create slurm-tmp directory if slurm user exists
+  file:
+    path: /mnt/localdisk/slurm-tmp
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+  ignore_errors: true
