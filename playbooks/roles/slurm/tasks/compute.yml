@@ -99,15 +99,6 @@
     group: munge
     mode: "0700"
 
-- name: Ensure /mnt/localdisk/slurm-tmp exists for job_container/tmpfs feature
-  become: true
-  ansible.builtin.file:
-    path: /mnt/localdisk/slurm-tmp
-    state: directory
-    owner: slurm
-    group: slurm
-    mode: "01777"
-
 - name: Copy munge key
   become: true
   ansible.builtin.copy:

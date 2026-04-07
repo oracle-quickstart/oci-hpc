@@ -6,3 +6,6 @@
 - name: Run standard setup
   ansible.builtin.include_tasks: common.yml
   when: not (localdisk_recover | bool)
+
+- name: Run slurm_tmp
+  ansible.builtin.include_tasks: slurm_tmp.yml
