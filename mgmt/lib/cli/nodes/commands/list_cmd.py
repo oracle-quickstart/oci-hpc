@@ -6,9 +6,19 @@ This command allows nodes to be displayed in a variety of formats/styles.
 
 import click
 
+from lib.cli import completion
 import lib.database as db
 from lib.cli.nodes import display
 from lib.logger import logger
+
+DEFAULT_SORT_FIELDS = [
+    "cluster_name",
+    "network_block_id",
+    "rail_id",
+    "memory_cluster_name",
+    "hostname",
+]
+
 
 def callback_fields(ctx, param, value):
     """Process the fields spec for the --fields argument"""
@@ -24,6 +34,18 @@ def callback_fields(ctx, param, value):
     except display.InvalidField as exc:
         raise click.BadParameter(str(exc)) from exc
 
+
+def callback_sort(ctx, param, value):
+    """Process the fields spec for the --sort argument"""
+
+    # ctx and param aren't used
+    # pylint: disable=unused-argument
+
+    try:
+        return display.parse_sort_spec(value)
+    except display.InvalidField as exc:
+        raise click.BadParameter(str(exc)) from exc
+
 # oops, redefined "format", and "filter"
 # pylint: disable=redefined-builtin
 
@@ -36,10 +58,13 @@ def callback_fields(ctx, param, value):
 )
 @click.option(
     "--cluster",
-    help="List nodes that are part of named cluster.")
+    help="List nodes that are part of named cluster.",
+    shell_complete=completion.complete_clusters,
+)
 @click.option(
     "--memory-cluster",
-    help="List nodes that are part of named memory cluster."
+    help="List nodes that are part of named memory cluster.",
+    shell_complete=completion.complete_memory_clusters,
 )
 @click.option(
     "--style",
@@ -61,10 +86,16 @@ def callback_fields(ctx, param, value):
 @click.option(
     "--columns",
     callback=callback_fields,
+    shell_complete=completion.complete_display_columns,
     help="""
         Comma separated list of fields to display. Also accepts ALL, DEFAULT,
         SIMPLE (all single-line fields), HC (all healthcheck fields + simple fields), or LIST (to list field names and exit)
     """
+)
+@click.option(
+    "--sort",
+    callback=callback_sort,
+    help="Comma separated list of fields to sort by."
 )
 @click.option(
     "--no-header",
@@ -74,7 +105,8 @@ def callback_fields(ctx, param, value):
 @click.option(
     '--fields',
     required=False,
-    help='Add a list of fields to filter, Example: role=compute,status=running'
+    help='Add a list of fields to filter, Example: role=compute,status=running',
+    shell_complete=completion.complete_node_fields,
 )
 @click.option(
     "--terminated",
@@ -98,10 +130,13 @@ def list_cmd(columns, format, **options):
   
   # Lists all compute nodes in a json format with all fields\n
   mgmt nodes list --format json --columns all --fields role=compute
+
+  # Lists nodes sorted by cluster_name, memory_cluster_name, and hostname\n
+  mgmt nodes list --sort cluster_name,memory_cluster_name,hostname
   """
 
     field_dict = {}
-    if not options["fields"] is None:
+    if options["fields"] is not None:
         for field in options["fields"].split(','):
             if '=' not in field:
                 raise click.BadParameter(f"Field must be in key=value format: {field}")
@@ -120,7 +155,7 @@ def list_cmd(columns, format, **options):
         field_dict["cluster_name"] = options["cluster"]
 
     if options["memory_cluster"] is not None:
-        field_dict["memory_cluster_name"] = options["memory_cluster"]
+        field_dict["memory_cluster_id"] = options["memory_cluster"]
 
     if options.get("terminated"):
         logger.debug("Using terminated nodes query")
@@ -132,6 +167,8 @@ def list_cmd(columns, format, **options):
     nodes = query.all()
     if not nodes:
         click.echo("No nodes found.", err=True)
+    else:
+        nodes = display.sort_nodes(nodes, options["sort"] or DEFAULT_SORT_FIELDS)
 
     display.display_nodes(
         nodes, format, columns,

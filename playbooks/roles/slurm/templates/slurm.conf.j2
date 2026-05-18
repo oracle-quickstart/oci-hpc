@@ -5,14 +5,13 @@ SlurmctldHost={{ slurm_backup_hostname }}
 MpiDefault=none
 ProctrackType=proctrack/cgroup
 ReturnToService=1
-SlurmctldPidFile=/run/slurmctld.pid
+SlurmctldPidFile=/run/slurmctld/slurmctld.pid
 SlurmctldPort=6817
 SlurmdPidFile=/run/slurmd.pid
 SlurmdPort=6818
 SlurmdSpoolDir=/var/spool/slurmd
 SlurmUser=slurm
 Prolog={{slurm_conf_path}}/prolog.d/*
-Epilog={{slurm_conf_path}}/epilog.d/*
 SchedulerParameters=nohold_on_prolog_fail
 MessageTimeout=120
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
@@ -20,7 +19,7 @@ SlurmdLogFile=/var/log/slurm/slurmd.log
 StateSaveLocation={{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm
 SwitchType=switch/none
 TaskPlugin=task/affinity,task/cgroup
-JobContainerType=job_container/tmpfs
+NamespaceType=namespace/tmpfs
 PrologFlags=alloc,contain,serial
 InactiveLimit=0
 KillWait=30
@@ -46,7 +45,7 @@ SlurmdDebug=info
 EnforcePartLimits=NO
 PropagateResourceLimitsExcept=MEMLOCK
 CommunicationParameters=block_null_hash
-TopologyPlugin=topology/tree
+# topology.yaml in {{ slurm_conf_path }} is used by Slurm when present.
 TopologyParam=SwitchAsNodeRank
 TreeWidth=64
 SlurmctldParameters=enable_configless
@@ -187,17 +186,17 @@ NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | strin
 {%- endfor %}
 {%- if partition.default %}
     {%- if ns.has_ondemand == 1 %}
-PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES Topology=tree ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
     {%- else %}
-PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES
-PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES Topology=tree
+PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree PriorityTier=0
     {%- endif %}
 {%- else %}
     {%- if ns.has_ondemand == 1 %}
-PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
     {%- else %}
-PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO
-PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO PriorityTier=0
+PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree
+PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree PriorityTier=0
     {%- endif %}
 {%- endif %}
 {{ "\n" -}}

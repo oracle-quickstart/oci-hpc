@@ -1,5 +1,6 @@
 
 import click
+from lib.cli import completion
 from lib.cli.nodes.display import display_nodes, parse_fields_spec
 from lib.database import get_nodes_by_id, get_nodes_by_serial, get_nodes_by_name, get_nodes_by_ip, get_nodes_by_any
 from lib.logger import logger
@@ -26,7 +27,7 @@ def get():
     pass
 
 @get.command()
-@click.argument('serials', required=True)
+@click.argument('serials', required=True, shell_complete=completion.complete_node_identifiers)
 @click.option(
     "--format",
     type=click.Choice(["node", "csv", "json"]),
@@ -43,7 +44,7 @@ def serials(serials, format):
         display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command()
-@click.argument('names', required=True)
+@click.argument('names', required=True, shell_complete=completion.complete_node_identifiers)
 @click.option(
     "--format",
     type=click.Choice(["node", "csv", "json"]),
@@ -60,7 +61,7 @@ def names(names, format):
         display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command()
-@click.argument('ids', required=True)
+@click.argument('ids', required=True, shell_complete=completion.complete_node_identifiers)
 @click.option(
     "--format",
     type=click.Choice(["node", "csv", "json"]),
@@ -77,7 +78,7 @@ def ids(ids, format):
         display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command()
-@click.argument('ips', required=True)
+@click.argument('ips', required=True, shell_complete=completion.complete_node_identifiers)
 @click.option(
     "--format",
     type=click.Choice(["node", "csv", "json"]),
@@ -94,7 +95,7 @@ def ips(ips, format):
         display_nodes(nodes, format, parse_fields_spec("all"), table_style=None, one_line=False, show_header=True, width=None)
 
 @get.command(name='any')
-@click.argument('identifiers')
+@click.argument('identifiers', shell_complete=completion.complete_node_identifiers)
 @click.option(
     "--format",
     type=click.Choice(["node", "csv", "json"]),

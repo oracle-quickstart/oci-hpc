@@ -1,12 +1,11 @@
 
 import click
+from lib.cli import completion
 from lib.cli.configurations.display import print_config_info
 from lib.database import get_config_by_name
-from lib.logger import logger
-from ClusterShell.NodeSet import NodeSet
 
 @click.command()
-@click.option('--name', required=True, help='Get configuration name.')
+@click.option('--name', required=True, help='Get configuration name.', shell_complete=completion.complete_configurations_all)
 def get(name):
     """Get information about the configuration."""
 

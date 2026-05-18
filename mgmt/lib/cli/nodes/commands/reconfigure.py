@@ -1,5 +1,6 @@
 from collections import defaultdict
 import click
+from lib.cli import completion
 from lib.functions import (
     get_slurm_state,
     delete_nodes_from_slurm,
@@ -46,11 +47,13 @@ def filter_cmd(ctx, nodes, fields):
     "--nodes",
     required=False,
     help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)",
+    shell_complete=completion.complete_node_identifiers,
 )
 @click.option(
     "--fields",
     required=False,
     help="Fields to filter nodes (e.g., role=compute,status=running)",
+    shell_complete=completion.complete_node_fields,
 )
 
 @click.option(
@@ -63,6 +66,7 @@ def filter_cmd(ctx, nodes, fields):
             "custom",
             "command",
             "ansible",
+            "install-lfs",
             "slurm-reinit",
             "metadata",
             "localdisk-recover",
@@ -88,6 +92,9 @@ def filter_cmd(ctx, nodes, fields):
         custom will execute the custom Ansible playbook on the nodes.
 
         ansible will execute an Ansible playbook on the nodes (requires --playbook).
+
+        install-lfs will build and install the Lustre client on the nodes using
+        the shared /config/3rdparty artifact path.
 
         metadata will execute a metadata update on the nodes.  May require a SLURM
         topology reconfiguration on the controller to fully take effect.
@@ -154,6 +161,10 @@ def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
     if action == "ansible":
         logger.info("Running Ansible playbook '%s' on nodes: %s", playbook, nodeset)
         command_to_run = f"/config/bin/custom_ansible.sh {playbook}"
+        run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
+    if action == "install-lfs":
+        logger.info("Running Lustre install workflow on nodes: %s", nodeset)
+        command_to_run = "/config/bin/custom_ansible.sh lustre_install"
         run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
     if action == "command":
         logger.info("Running custom command '%s' on nodes: %s", command, nodeset)

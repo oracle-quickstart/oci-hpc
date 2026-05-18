@@ -62,6 +62,21 @@ mgmt nodes reconfigure --action controller --nodes 1.0.0.2,1.0.0.3
 mgmt nodes reconfigure --action custom --nodes 2539XNG0J,2539XNG4J
 ```
 
+* Building and installing Lustre on compute nodes after updating the cluster inventory with `add_lfs=true` and the `lfs_*` settings:
+```
+mgmt nodes reconfigure --action install-lfs --fields role=compute
+```
+
+* Building and installing Lustre on login nodes:
+```
+mgmt nodes reconfigure --action install-lfs --fields role=login
+```
+
+Lustre notes:
+- `install-lfs` uses the inventory-backed `lfs_target_path`, `lfs_source_IP`, `lfs_source_path`, and `lfs_options` values. Update inventory first, then run the command.
+- Monitoring nodes are not supported targets for `install-lfs`.
+- Lustre package builds coordinate through a shared lock under `/config/3rdparty/<arch>/lustre_pkg/builds`. If a builder crashes and leaves a stale lock behind, remove the matching lock directory manually and rerun the command.
+
 [Local Disk Recovery](LocaldiskRecovery.md)
 
 ## Submiting jobs

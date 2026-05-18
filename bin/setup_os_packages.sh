@@ -1,139 +1,176 @@
-# Silence progress bars
-apt_options='-q -o Dpkg::Progress-Fancy="0" -o APT::Color="0" -o Dpkg::Use-Pty="0"'
+# Install baseline operating system packages for supported images, including
+# apt/dnf setup work and OCI CLI installation where needed.
+set -eu -o pipefail
+source "$(dirname "${0}")/common.sh"
+
+# Silence progress bars and wait briefly on dpkg frontend locks.
+apt_options=(-q -o Dpkg::Progress-Fancy=0 -o APT::Color=0 -o Dpkg::Use-Pty=0 -o DPkg::Lock::Timeout=60)
 export PIP_PROGRESS_BAR=off
 
-if [ ! -d /opt/oci-hpc ] ; then
-  sudo mkdir /opt/oci-hpc
-fi   
-if [ $ID == "ubuntu" ] ; then
+run_apt_command_after_wait() {
+  # Wait for package-manager locks left by cloud-init, unattended upgrades, or apt timers.
+  while sudo fuser /var/{lib/{dpkg/{lock,lock-frontend},apt/lists/lock},cache/apt/archives/lock} >/dev/null 2>&1; do
+    echo "Waiting for dpkg/apt lock"
+    sleep 2
+  done
+  "$@"
+}
+
+# Run apt commands through lock waits and retries for first-boot package races.
+run_apt_with_retry() {
+  local max_attempts="${1}"
+  shift
+
+  run_with_retry "${max_attempts}" 5 "APT command" run_apt_command_after_wait "$@"
+}
+
+# Check optional package names that vary between distro releases.
+apt_package_has_candidate() {
+  local package_name="${1}"
+  local candidate
+
+  candidate=$(apt-cache policy "${package_name}" 2>/dev/null | awk '/Candidate:/ {print $2; exit}')
+  [[ -n "${candidate}" && "${candidate}" != "(none)" ]]
+}
+
+# Disable unattended apt jobs so bootstrap package installs remain deterministic.
+disable_unattended_upgrades() {
+  export DEBIAN_FRONTEND=noninteractive
+
+  if [[ -f /etc/apt/apt.conf.d/20auto-upgrades ]]; then
+    sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
+  fi
+
+  run_apt_with_retry 5 sudo apt-get "${apt_options[@]}" purge -y --auto-remove unattended-upgrades
+
+  for unit in apt-daily-upgrade.timer apt-daily-upgrade.service apt-daily.timer apt-daily.service apt-news.timer apt-news.service; do
+    if systemctl list-unit-files "$unit" >/dev/null 2>&1; then
+      sudo systemctl disable --now "$unit" 2>/dev/null || true
+      sudo systemctl mask "$unit" 2>/dev/null || true
+    fi
+  done
+}
+
+# Install the latest OCI CLI release with retries, falling back if version lookup fails.
+install_oci_cli() {
+  cd /tmp
+
+  local latest_ver
+  latest_ver=$(curl -sSf -L --retry 3 --retry-delay 5 \
+    https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name' 2>/dev/null)
+
+  local max_attempts=5
+  local attempt=0
+  local success=false
+
+  while (( attempt < max_attempts )); do
+    attempt=$((attempt + 1))
+    echo "OCI CLI install attempt ${attempt} of ${max_attempts}..."
+
+    if [[ -z "${latest_ver}" || "${latest_ver}" == "null" ]]; then
+      echo "Warning: Could not determine version. Falling back to default installation..."
+      if bash -c "$(curl -L --retry 3 --retry-delay 5 https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
+           -s --accept-all-defaults --install-dir /opt/oci-cli 2>&1; then
+        success=true
+        break
+      fi
+    else
+      echo "Installing OCI CLI version: ${latest_ver}"
+      if bash -c "$(curl -L --retry 3 --retry-delay 5 https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)" \
+           -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version "${latest_ver}" 2>&1; then
+        success=true
+        break
+      fi
+    fi
+
+    echo "Installation failed on attempt ${attempt}."
+    if (( attempt < max_attempts )); then
+      echo "Sleeping for 10 seconds before retrying..."
+      sleep 10
+    fi
+  done
+
+  if [[ "${success}" != "true" ]]; then
+    echo "Error: OCI CLI installation failed after ${max_attempts} attempts."
+    exit 1
+  fi
+  echo "OCI CLI installed successfully!"
+}
+
+# Prepare the shared /opt area for bootstrap tools and generated content.
+sudo mkdir -p /opt/oci-hpc
+
+if [[ "${ID}" == "ubuntu" ]]; then
   sudo chown -R ubuntu:ubuntu /opt/
 else
   sudo chown -R opc:opc /opt/
 fi
 
-if [ $ID == "ol" ] ; then
-  if [[ "${VERSION_MAJOR}" == "8" ]]; then
-    repo="ol8_developer_EPEL"
-    if command -v osms >/dev/null 2>&1; then
-      sudo osms unregister 
+# Select package names and repository behavior for the detected OS family.
+case "$ID" in
+  ol)
+    case "$VERSION_MAJOR" in
+      8) repo="ol8_developer_EPEL" ;;
+      9) repo="ol9_developer_EPEL" ;;
+      *) repo="" ;;
+    esac
+    os_package_list="python3 python3-pip python3-dnf java-11-openjdk-headless http-parser rsync git jq"
+    ;;
+  debian|ubuntu)
+    repo=""
+    os_package_list="python3 python3-pip openjdk-11-jre-headless rsync git jq"
+    optional_os_package_list="libhttp-parser2.9 libhttp-parser2.10"
+    ;;
+  *)
+    repo=""
+    os_package_list="unsupported-os"
+    ;;
+esac
+
+# Install OS packages using the native package manager.
+case "$ID" in
+  ol)
+    if [[ "${VERSION_MAJOR}" == "8" ]]; then
+      # OL8 images may still be registered with OSMS, which can block dnf repository use.
+      if command -v osms >/dev/null 2>&1; then
+        sudo osms unregister
+      fi
+      sudo dnf makecache --enablerepo="$repo"
     fi
-  elif [[ "${VERSION_MAJOR}" == "9" ]]; then
-    repo="ol9_developer_EPEL"
-  fi
-elif [ $ID == "centos" ] ; then
-  repo="epel"
-fi
+    sudo dnf install -y ${os_package_list}
+    ;;
 
-# Install ansible and other required packages
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then 
-  if [[ "${VERSION_MAJOR}" == "8" ]]; then
-    sudo dnf makecache --enablerepo=$repo
-  fi
-  sudo dnf install -y python3 python3-pip python3-dnf java-11-openjdk-headless http-parser
+  debian|ubuntu)
+    # Prevent background apt activity and keep Oracle kernel packages unchanged.
+    disable_unattended_upgrades
 
-elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
-  # checking here as well to be sure that the lock file is not being held
-  function fix_apt {
-    apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-    apt_process=$(( apt_process -1 ))
-    while [ $apt_process -ge 1 ]
-      do
-        echo "wait until apt update is done"
-        sleep 10s
-        ps aux | grep "apt update" | grep -v grep
-        apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-        apt_process=$(( apt_process -1 ))
-      done
-  }
-  fix_apt
+    sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle || true
 
-  export DEBIAN_FRONTEND=noninteractive
+    run_apt_with_retry 5 sudo apt-get "${apt_options[@]}" -y --fix-broken install
 
-  if [ $ID == "debian" ] && [ $VERSION_ID == "9" ] ; then 
-    echo deb http://ppa.launchpad.net/ansible/ansible/ubuntu trusty main | sudo tee -a /etc/apt/sources.list
-    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 93C4A3FD7BB9C367
-  fi 
+    # Avoid interactive service restart prompts during noninteractive package installs.
+    if [[ -f /etc/needrestart/needrestart.conf ]]; then
+      sudo sed -i "s/#\\\$nrconf{restart} = 'i';/\\\$nrconf{restart} = 'a';/g" /etc/needrestart/needrestart.conf
+    fi
 
-  sudo sed -i 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
-  sudo apt ${apt_options} purge -y --auto-remove unattended-upgrades
-  sudo systemctl stop apt-daily-upgrade.timer
-  sudo systemctl disable apt-daily-upgrade.timer
-  sudo systemctl mask apt-daily-upgrade.service
-  sudo systemctl stop apt-daily.timer
-  sudo systemctl disable apt-daily.timer
-  sudo systemctl mask apt-daily.service
+    run_apt_with_retry 5 sudo apt-get "${apt_options[@]}" update
 
-  sleep 10s
-
-  sudo apt-mark hold linux-oracle linux-headers-oracle linux-image-oracle
-
-  fix_apt
-  sleep 10s
-  sudo apt ${apt_options} -y --fix-broken install
-
-  fix_apt
-  sudo apt ${apt_options} update
-  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    sudo apt-get ${apt_options} -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
-  else
-    sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
-    apt_success=1
-    while [ $apt_success -ge 1 ]
-      do
-        echo "wait until apt update is done"
-        sleep 10s
-        sudo apt-get ${apt_options} -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
-        apt_success=$?
-        echo $apt_success
-      done
-  fi
-  if [ $ID == "ubuntu" ] && [ $VERSION_ID == "20.04" ] ; then
-    fix_apt
-    sudo apt-get ${apt_options} -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
-  elif [ $ID == "ubuntu" ] && [ $VERSION_ID == "22.04" ] ; then
-    fix_apt
-    sudo apt-get ${apt_options} -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
-  else
-    fix_apt
-    sudo apt-get ${apt_options} -y install python3 python3-pip jq openjdk-11-jre-headless libhttp-parser2.9
-  fi
-  # install oci-cli (add --oci-cli-version 3.23.3 or version that you know works if the latest does not work ) 
-  cd /tmp
-  LATEST_OCICLI=$(curl -s -L https://api.github.com/repos/oracle/oci-cli/releases/latest | jq -r '.name' 2>/dev/null)
-
-  MAX_RETRIES=5
-  RETRY_COUNT=0
-  SUCCESS=false
-
-  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-      ((RETRY_COUNT++))
-      echo "Attempt $RETRY_COUNT of $MAX_RETRIES..."
-
-      # Check if the variable is empty or literal "null"
-      if [ -z "$LATEST_OCICLI" ] || [ "$LATEST_OCICLI" == "null" ]; then
-          echo "Warning: Could not determine version. Falling back to default installation..."
-          INSTALL_CMD="bash -c \"\$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)\" -s --accept-all-defaults --install-dir /opt/oci-cli"
-      else
-          echo "Installing OCI CLI version: $LATEST_OCICLI"
-          INSTALL_CMD="bash -c \"\$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)\" -s --accept-all-defaults --install-dir /opt/oci-cli --oci-cli-version \"$LATEST_OCICLI\""
+    for optional_package in ${optional_os_package_list:-}; do
+      if apt_package_has_candidate "${optional_package}"; then
+        os_package_list="${os_package_list} ${optional_package}"
+        break
       fi
+    done
 
-      # Execute the command
-      if eval "$INSTALL_CMD" 2>&1; then
-          echo "OCI CLI installed successfully!"
-          SUCCESS=true
-          break
-      else
-          echo "Installation failed on attempt $RETRY_COUNT."
-          if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-              echo "Sleeping for 30 seconds before retrying..."
-              sleep 30
-          fi
-      fi
-  done
-
-  if [ "$SUCCESS" = false ]; then
-      echo "Error: OCI CLI installation failed after $MAX_RETRIES attempts."
+    if ! run_apt_with_retry 5 sudo apt-get "${apt_options[@]}" -y install ${os_package_list}; then
+      echo "Error: Package installation failed after 5 attempts."
       exit 1
-  fi
-fi 
+    fi
+
+    # Debian-family images install OCI CLI through Oracle's GitHub installer.
+    install_oci_cli
+    ;;
+
+  *)
+    ;;
+esac

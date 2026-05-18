@@ -3,7 +3,8 @@ ${controller_name} ansible_host=${controller_ip} ansible_user=${controller_usern
 [slurm_backup]
 %{ if backup_name !="" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=controller%{ endif }
 [monitoring]
-%{ if monitoring_name !="" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring%{ endif }
+%{ if monitoring_name !="" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring ansible_interpreter_python_fallback=/config/venv/##VENV_OS_ARCH##/oci/bin/python3,/usr/bin/python3,python3 %{ endif }
+
 [compute_to_add]
 [compute_configured]
 [compute_to_destroy]
@@ -15,10 +16,11 @@ compute_configured
 ansible_connection=ssh
 rdma_network=${rdma_network}
 rdma_netmask=${rdma_netmask}
-public_subnet=${public_subnet} 
+public_subnet=${public_subnet}
 private_subnet=${private_subnet}
+vcn_cidr=${vcn_cidr}
 nvme_path=/mnt/localdisk/
-create_fss=${create_fss} 
+create_fss=${create_fss}
 shared_home=${shared_home}
 slurm_nfs_path=${slurm_nfs_path}
 rdma_enabled=${rdma_enabled}
@@ -32,6 +34,7 @@ nfs_target_path=${nfs_target_path}
 nfs_source_IP=${nfs_source_IP}
 nfs_source_path=${nfs_source_path}
 nfs_options=${nfs_options}
+config_fss_hostname=${config_fss_hostname}
 localdisk=${localdisk}
 redundancy=${redundancy}
 log_vol=${log_vol}
@@ -81,3 +84,8 @@ slurm_federation=${slurm_federation}
 ip_slurmdbd=${ip_slurmdbd}
 wildcard_dns_domain=${wildcard_dns_domain}
 use_lets_encrypt_prod_ep=${use_lets_encrypt_prod_ep}
+create_bucket=${create_bucket}
+bucket_access_key=${bucket_access_key}
+bucket_secret_key=${bucket_secret_key}
+ocir_namespace=${ocir_namespace}
+write_node_function_ocid = ${write_node_function_ocid}

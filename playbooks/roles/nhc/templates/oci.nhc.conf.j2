@@ -496,14 +496,13 @@
 
 #----------------------------------------------
 {% elif 'BM.GPU.GB200.4' in nhc_node_shape or
-        'BM.GPU.GB200-v2.4' in nhc_node_shape or
-        'BM.GPU.GB200-v3.4' in nhc_node_shape %}
+        'BM.GPU.GB200-v2.4' in nhc_node_shape %}
 # Add checks specific to BM.GPU.GB200 compute shape here.
 
 {% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 144 288
+*||check_hw_cpuinfo 144 144 288
 {% else %}
-*||check_hw_cpuinfo 2 144 144
+*||check_hw_cpuinfo 144 144 144
 {% endif %}
 
 *||check_hw_physmem 1006632960kB 1006632960kB 3%
@@ -537,13 +536,13 @@
 
 
 #----------------------------------------------
-{% elif 'BM.GPU.GB300.4' in nhc_node_shape %}
-# Add checks specific to BM.GPU.GB300 compute shape here.
+{% elif 'BM.GPU.GB200-v3.4' in nhc_node_shape %}
+# Add checks specific to BM.GPU.GB200 compute shape here.
 
 {% if nhc_ht_enabled %}
-*||check_hw_cpuinfo 2 144 288
+*||check_hw_cpuinfo 144 144 288
 {% else %}
-*||check_hw_cpuinfo 2 144 144
+*||check_hw_cpuinfo 144 144 144
 {% endif %}
 
 *||check_hw_physmem 1006632960kB 1006632960kB 3%
@@ -562,7 +561,6 @@
 *||check_hw_eth rdma6
 *||check_hw_eth rdma7
 
-
 # --- Process loadavg and required services ---
 *||check_ps_loadavg 576
 *||check_ps_service -r rpcbind
@@ -576,6 +574,63 @@
 *||check_hw_ib 400 mlx5_6:1
 *||check_hw_ib 400 mlx5_7:1
 *||check_hw_ib 400 mlx5_8:1
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.GB300.4' in nhc_node_shape %}
+# Add checks specific to BM.GPU.GB300 compute shape here.
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 144 144 288
+{% else %}
+*||check_hw_cpuinfo 144 144 144
+{% endif %}
+
+*||check_hw_physmem 1006632960kB 1006632960kB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+{% if nhc_rdma_planes | int < 1 %}
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+{% endif %}
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 576
+*||check_ps_service -r rpcbind
+
+# --- InfiniBand / RoCE checks ---
+{% if nhc_rdma_planes | int < 1 %}
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_2:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_5:1
+*||check_hw_ib 400 mlx5_6:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
+{% elif nhc_rdma_planes | int == 4 %}
+*||check_hw_ib 200 rdma_vf_rail0:1
+*||check_hw_ib 200 rdma_vf_rail1:1
+*||check_hw_ib 200 rdma_vf_rail2:1
+*||check_hw_ib 200 rdma_vf_rail3:1
+{% endif %}
 
 
 

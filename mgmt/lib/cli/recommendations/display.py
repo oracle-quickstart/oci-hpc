@@ -7,7 +7,7 @@ def print_node_list(nodes, title):
     table.add_column("compute_status", justify="left")
     table.add_column("passive_healthcheck_recommendation", justify="left")
     table.add_column("cluster_name", justify="left")
-    table.add_column("memory_cluster_name", justify="left")
+    table.add_column("memory_cluster_id", justify="left")
     table.add_column("ocid", justify="left")
     table.add_column("serial", justify="left")
     table.add_column("ip_address", justify="left")
@@ -17,7 +17,7 @@ def print_node_list(nodes, title):
         table.add_row(
             node.hostname, node.status, node.compute_status,
             node.passive_healthcheck_recommendation, node.cluster_name,
-            node.memory_cluster_name, str(node.ocid), node.serial,
+            node.memory_cluster_id, str(node.ocid), node.serial,
             node.ip_address, node.shape
         )
 

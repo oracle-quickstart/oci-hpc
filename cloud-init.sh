@@ -1,112 +1,125 @@
 #!/bin/bash
+#
+# First-boot entrypoint for cluster nodes. It reads OCI metadata, mounts the
+# shared /config filesystem, and dispatches to the login, monitoring, or
+# compute bootstrap script.
+#
+# Executed on every boot/cloud-init run:
+# - detect the OS and default user
+# - fetch OCI instance freeform tags and decide the node role
+# - configure and mount /config from the shared filesystem
+#
+# Role-specific bootstrap execution (in order):
+# - login nodes run /config/bin/login.sh
+# - monitoring nodes run /config/bin/monitoring.sh
+# - non-controller compute nodes run /config/bin/compute.sh
 source /etc/os-release
-if [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then 
+
+# Select the default login user.
+if [ "$ID" == "debian" ] || [ "$ID" == "ubuntu" ] ; then
     default_user=ubuntu
-    function fix_apt {
-        apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-        apt_process=$(( apt_process -1 ))
-        while [ $apt_process -ge 1 ]
-        do
-            echo "wait until apt update is done"
-            sleep 10s
-            ps aux | grep "apt update" | grep -v grep
-            apt_process=`ps aux | grep "apt update" | grep -v grep | wc -l`
-            apt_process=$(( apt_process -1 ))
-        done
-    }
-    fix_apt
-
-    sleep 10s
-    apt -y --fix-broken install
-
-    while true; do
-        apt update
-        apt install -y jq
-        if [ $? -eq 0 ]; then
-            echo "jq installed"
-            break
-        else
-            echo "jq install failed. Retrying in 10s..."
-            sleep 10  # Sleep for 10 seconds
-        fi
-    done
 else
     default_user=opc
 fi
 
-controller_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller_name`
-cluster_name=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.cluster_name`
-login=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.login`
-monitoring=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.monitoring`
-controller=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.controller`
-hostname_convention=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq -r .freeformTags.hostname_convention`
+function get_freeform_tag {
+    local tag_name="$1"
+    curl -fsL --retry 5 --retry-delay 2 -H "Authorization: Bearer Oracle" "http://169.254.169.254/opc/v2/instance/freeformTags/${tag_name}" 2>/dev/null || true
+}
 
-fss=fss-${controller_name}
+# Freeform tags drive which role script this node should execute.
+controller_name=$(get_freeform_tag controller_name)
+cluster_name=$(get_freeform_tag cluster_name)
+login=$(get_freeform_tag login)
+monitoring=$(get_freeform_tag monitoring)
+controller=$(get_freeform_tag controller)
 
-fss_ip=$(host "${fss}" | awk '{print $4}')
-controller_ip=$(host "${controller_name}"| awk '{print $4}')
-
-if [ "$controller" == "true" ] && [ "$controller_name" == `hostname` ]; then
+# The controller owns /config provisioning, so do not make it depend on /config.
+if [ "$controller" == "true" ] && [ "$controller_name" == "$(hostname)" ]; then
     echo "Do not run the cloud-init on the controller, this will create a circular dependency on the /config mount"
     exit
 fi
 
-mkdir /config
-
-if [ "$fss_ip" == "$controller_ip" ]; then
-    echo "FSS and controller are on the same host"
-    if ! grep -qF "$controller_name:/config /config nfs" /etc/fstab; then
-        echo "$controller_name:/config /config nfs defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock=all,mountproto=tcp,sec=sys,_netdev 0 0" >> /etc/fstab
-        systemctl daemon-reload
-        echo "Entry added to /etc/fstab."
-    else
-        echo "Entry already exists in /etc/fstab."
-    fi
-else
-    if ! grep -qF "$fss:/config /config nfs" /etc/fstab; then
-        echo "$fss:/config /config nfs defaults,nconnect=16 0 0" >> /etc/fstab
-        systemctl daemon-reload
-        echo "Entry added to /etc/fstab."
-    else
-        echo "Entry already exists in /etc/fstab."
-    fi
+role_script=""
+if [ "$login" == "true" ]; then
+    role_script="/config/bin/login.sh"
+elif [ "$monitoring" == "true" ]; then
+    role_script="/config/bin/monitoring.sh"
+elif [ "$controller" != "true" ] ; then
+    role_script="/config/bin/compute.sh"
 fi
 
-while true; do
-    if mountpoint -q /config; then
-        echo "/config is already mounted. Checking if files are present"
-        ls /config/bin/compute.sh
-        if [ $? -eq 0 ]; then 
-            echo "/config/bin/compute.sh is present"
-            break
-        else
-            echo "/config/bin/compute.sh is not present. Retrying in 2 minutes..."
-            sleep 120  # Sleep for 2 minutes (120 seconds)
-        fi     
+function bootstrap_files_ready {
+    local missing=0
+    local required_file
+
+    if [ -z "$role_script" ]; then
+        return 0
     fi
-    echo "Attempting to mount /config"
-    # Run the mount command and check if it succeeds
-    mount /config
-    
-    if [ $? -eq 0 ]; then
-        ls /config/bin/compute.sh
-        if [ $? -eq 0 ]; then
-            echo "Mount succeeded!"
-            break
-        else
-            echo "Mount failed. Retrying in 2 minutes..."
-            sleep 120  # Sleep for 2 minutes (120 seconds)
+
+    for required_file in \
+        "$role_script" \
+        /config/bin/common.sh \
+        /config/bin/setup_environment.sh \
+        /config/bin/setup_os_packages.sh \
+        /config/bin/setup_python_packages.sh \
+        /config/bin/setup_ansible.sh \
+        /config/bin/setup_run_ansible.sh; do
+        if [ ! -f "$required_file" ]; then
+            echo "$required_file is not present"
+            missing=1
         fi
+    done
+    if [ ! -x "$role_script" ]; then
+        echo "$role_script is not executable"
+        missing=1
+    fi
+
+    return "$missing"
+}
+
+# Configure the shared NFS mount used to fetch role-specific bootstrap scripts.
+mkdir -p /config
+
+# Remove stale /config entries before adding the expected mount definition.
+sed -Ei '/^[[:space:]]*[^#[:space:]]+[[:space:]]+\/config([[:space:]]+|$)/d' /etc/fstab
+echo "fss-config:/config /config nfs defaults,nconnect=16 0 0" >> /etc/fstab
+systemctl daemon-reload
+echo "Configured /config mount in /etc/fstab."
+
+# Mount /config and wait until the controller has populated the expected scripts.
+while true; do
+    if ! mountpoint -q /config; then
+        echo "Attempting to mount /config"
+        if ! mount /config; then
+            echo "Mount failed. Retrying in 15s..."
+            sleep 15
+            continue
+        fi
+    fi
+
+    echo "/config is mounted. Checking if bootstrap files are present"
+    if bootstrap_files_ready; then
+        echo "/config bootstrap files are present"
+        break
     else
-        echo "Mount failed. Retrying in 2 minutes..."
-        sleep 120  # Sleep for 2 minutes (120 seconds)
+        echo "/config bootstrap files are not ready. Retrying in 15s..."
+        sleep 15
     fi
 done
 
-if [ "$login" == "true" ]; then
-    su - $default_user /config/bin/login.sh 2>&1 | tee -a /tmp/cloud-init.log
-elif [ "$monitoring" == "true" ]; then
-    su - $default_user /config/bin/monitoring.sh 2>&1 | tee -a /tmp/cloud-init.log
-elif [ "$controller" != "true" ] ; then
-    su - $default_user /config/bin/compute.sh $cluster_name 2>&1 | tee -a /tmp/cloud-init.log
+# Run the selected role script as the image's default non-root user and log output.
+function run_role {
+    role_command=$1
+    su - "$default_user" -c "$role_command" 2>&1 | tee -a /tmp/cloud-init.log
+    return ${PIPESTATUS[0]}
+}
+
+# Quote the cluster name before embedding it in the su command line.
+cluster_name_arg=$(printf '%q' "$cluster_name")
+
+# Dispatch to exactly one role bootstrap script based on metadata tags.
+if [ -n "$role_script" ]; then
+    run_role "$role_script $cluster_name_arg"
+    exit $?
 fi

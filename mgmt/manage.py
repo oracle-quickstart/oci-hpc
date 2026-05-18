@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys, os
-sys.dont_write_bytecode = True
-
-import logging
-import click
 import configparser
+import logging
+import sys
 from pathlib import Path
 
+import click
+
 from lib.cli import subcommands
+
+sys.dont_write_bytecode = True
 
 
 DEFAULTS = {
@@ -18,6 +19,7 @@ DEFAULTS = {
     "active_healthchecks_frequency": 24,
     "multi_nodes_healthchecks": True,
     "multi_nodes_healthchecks_frequency": 24,
+    "manage_hosts": False,
 }
 
 DEFAULT_CONFIG_PATHS = [
@@ -48,6 +50,10 @@ def load_config(path: str | None) -> dict:
         "active_healthchecks_frequency": cfg.getint(section, "active_healthchecks_frequency"),
         "multi_nodes_healthchecks": cfg.getboolean(section, "multi_nodes_healthchecks"),
         "multi_nodes_healthchecks_frequency": cfg.getint(section, "multi_nodes_healthchecks_frequency"),
+        "manage_hosts": cfg.getboolean(section, "manage_hosts"),
+        "write_node_function_ocid": cfg.get(section, "write_node_function_ocid", fallback=None),
+
+
     }
 
 
@@ -98,11 +104,18 @@ def load_config(path: str | None) -> dict:
     show_default=False,
     help="Multi-node healthchecks frequency in hours (overrides config).",
 )
+@click.option(
+    "--manage-hosts/--no-manage-hosts",
+    default=None,
+    show_default=False,
+    help="Update /etc/hosts across nodes using DB data (overrides config).",
+)
 @click.pass_context
 def cli(ctx, config_path, debug,
         clush_parallel_executions,
         active_healthchecks, active_healthchecks_frequency,
-        multi_nodes_healthchecks, multi_nodes_healthchecks_frequency):
+        multi_nodes_healthchecks, multi_nodes_healthchecks_frequency,
+        manage_hosts):
     """CLI for managing your cluster."""
 
     # Load config (defaults -> config file)
@@ -121,6 +134,8 @@ def cli(ctx, config_path, debug,
         cfg["multi_nodes_healthchecks"] = multi_nodes_healthchecks
     if multi_nodes_healthchecks_frequency is not None:
         cfg["multi_nodes_healthchecks_frequency"] = multi_nodes_healthchecks_frequency
+    if manage_hosts is not None:
+        cfg["manage_hosts"] = manage_hosts
 
     # Store final config for subcommands to use
     ctx.ensure_object(dict)
@@ -132,7 +147,9 @@ def cli(ctx, config_path, debug,
     logging.getLogger("oci").setLevel(logging.WARNING)
 
 
+for subcommand in subcommands:
+    cli.add_command(subcommand)
+
+
 if __name__ == "__main__":
-    for subcommand in subcommands:
-        cli.add_command(subcommand)
-    cli(obj={})
+    cli(prog_name="mgmt", obj={})

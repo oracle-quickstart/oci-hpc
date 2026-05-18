@@ -1,0 +1,6 @@
+- name: Run the playbook for ol
+  ansible.builtin.include_tasks: el.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+- name: Run the playbook for ubuntu.yml
+  ansible.builtin.include_tasks: ubuntu.yml
+  when: ansible_facts['os_family'] == 'Debian'

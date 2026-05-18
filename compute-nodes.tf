@@ -8,14 +8,14 @@ resource "random_string" "cc_name" {
 
 resource "oci_core_instance" "compute_cluster_instances" {
   count               = var.stand_alone && var.rdma_enabled ? var.node_count : 0
-  depends_on          = [oci_core_compute_cluster.compute_cluster, oci_functions_function.function, null_resource.controller, oci_core_shape_management.compute-shape]
+  depends_on          = [oci_core_compute_cluster.compute_cluster, oci_functions_function.function, null_resource.controller, oci_core_shape_management.compute-shape, null_resource.invoke_and_assert]
   availability_domain = var.ad
   compartment_id      = var.targetCompartment
   shape               = var.cluster_network_shape
   instance_options {
 
     are_legacy_imds_endpoints_disabled = true
-  
+
   }
   agent_config {
 
@@ -61,7 +61,7 @@ resource "oci_core_instance" "compute_cluster_instances" {
 
   metadata = {
     ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
-    user_data           = base64encode(file("cloud-init.sh"))
+    user_data           = base64encode(file("${path.module}/cloud-init.sh"))
   }
   source_details {
     source_id               = local.compute_image
@@ -155,7 +155,7 @@ resource "oci_core_instance" "compute_instances" {
 
   metadata = {
     ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
-    user_data           = base64encode(file("cloud-init.sh"))
+    user_data           = base64encode(file("${path.module}/cloud-init.sh"))
   }
   source_details {
     source_id               = local.compute_image

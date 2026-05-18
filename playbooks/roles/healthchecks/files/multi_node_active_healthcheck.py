@@ -6,11 +6,9 @@ import json
 import requests
 import subprocess
 import logging
-from pathlib import Path
 import glob
 import shlex
 import time
-import re
 
 # Configure logger for multi_node_active_healthcheck
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -18,9 +16,9 @@ logger = logging.getLogger('multi_node_active_healthcheck')
 
 version = sys.version_info
 if version >= (3, 12):
-    from datetime import datetime, timedelta, UTC
+    from datetime import datetime, UTC
 else:
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
 # Set defaults
 # IMPORTANT: when adding var_NCCL_IB_HCA, make sure it has "=" sign in the front and the values are comma-separated with no extra space around the comma
@@ -349,7 +347,7 @@ def run_multi_node_nccl_test(hostfile, shape):
                             return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
                         if bw < threshold:
                             return False,f"NCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
-                if not bw is None:
+                if bw is not None:
                     return True,"NCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
                 else:
                     return False,"NCCL Test Failed: Avg bus bandwidth could not be found"
@@ -388,7 +386,7 @@ def run_multi_node_rccl_test(hostfile, shape):
             "--bind-to", "numa",
             "--mca", "plm_rsh_no_tree_spawn", "1",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
-            "-x", f"NCCL_SOCKET_IFNAME=eth0",
+            "-x", "NCCL_SOCKET_IFNAME=eth0",
             "-x", "NCCL_IB_SL=0",
             "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
             "-x", "coll_hcoll_enable=0",
@@ -444,7 +442,7 @@ def run_multi_node_rccl_test(hostfile, shape):
                             if i < 4:
                                 continue
                             return False,f"RCCL Test Failed: Avg bus bandwidth is {bw} which is less than {threshold}"
-                if not bw is None:
+                if bw is not None:
                     return True,"RCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
                 else:
                     if i < 4:

@@ -1,2 +1,3 @@
 ---
 spack_repo: https://github.com/spack/spack.git
+spack_path: "{{ thirdparty_root_path }}/spack"

@@ -3,7 +3,7 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
   depends_on     = [oci_core_app_catalog_subscription.mp_image_subscription, oci_core_shape_management.compute-shape]
   compartment_id = var.targetCompartment
   display_name   = local.cluster_name
-  
+
   freeform_tags = {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
@@ -22,12 +22,11 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
         "cluster_name"        = local.cluster_name
         "controller_name"     = oci_core_instance.controller.display_name
         "hostname_convention" = var.hostname_convention
-        "memory_cluster_name" = var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4" ? "${local.cluster_name}-fabric1" : ""
       }
       metadata = {
         # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
-        user_data           = base64encode(file("cloud-init.sh"))
+        user_data           = base64encode(file("${path.module}/cloud-init.sh"))
       }
       instance_options {
         are_legacy_imds_endpoints_disabled = true

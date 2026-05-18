@@ -9,9 +9,9 @@ from fdk import response
 
 queue_ocid = os.environ["QUEUE_OCID"]
 controller_name = os.environ["CONTROLLER_NAME"]
-private_subnet= os.environ["PRIVATE_SUBNET"]
 cluster_name = os.environ["CLUSTER_NAME"]
 zone_name = os.environ["ZONE_NAME"]
+vcn_compartment = os.environ["VCN_COMPARTMENT"]
 
 # define a retry strategy
 retry_strategy_via_constructor = oci.retry.RetryStrategyBuilder(
@@ -85,18 +85,17 @@ def get_tag_controller(instance_ocid, controller_name):
         return False, None, None, None, None
 
 
-def get_private_ip(instance_ocid,compartment_ocid):
+def get_instance_network_info(instance_ocid, compartment_ocid):
     """
-    fetch the private ip of the instance
+    Fetch instance primary private IP and subnet CIDR dynamically.
     inputs:
         instance_ocid: Instance OCID from event paylod, type=string
         compartment_ocid: Compartment OCID from event paylod (same as var.targetCompartment in terraform), type=string
     outputs:
-        private_ips_for_vnic: instance private IP, type=string
+        (private_ip, subnet_cidr)
     """
 
-    signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
-    #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    signer = oci.auth.signers.get_resource_principals_signer()
 
     core_client = oci.core.ComputeClient(config={}, signer=signer)
     virtual_network_client = oci.core.VirtualNetworkClient(config={}, signer=signer)
@@ -107,19 +106,24 @@ def get_private_ip(instance_ocid,compartment_ocid):
         instance_id=instance_ocid
     ).data
 
-    vnics = [virtual_network_client.get_vnic(va.vnic_id).data for va in vnic_attachments]
+    if not vnic_attachments:
+        raise RuntimeError(f"No VNIC attachments found for instance {instance_ocid}")
 
-    private_ips_for_vnic = oci.pagination.list_call_get_all_results(
-        virtual_network_client.list_private_ips,
-        vnic_id=vnics[0].id
-    ).data[0].ip_address
-    return private_ips_for_vnic
+    # pick primary if present, else first
+    primary_attachment = next((va for va in vnic_attachments if getattr(va, "is_primary", False)), vnic_attachments[0])
 
-def update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch, hostname, defined_hostname):
+    vnic = virtual_network_client.get_vnic(primary_attachment.vnic_id).data
+    subnet = virtual_network_client.get_subnet(vnic.subnet_id).data
+
+    private_ip = vnic.private_ip
+    subnet_cidr = subnet.cidr_block
+
+    return private_ip, subnet_cidr
+
+def update_dns(instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch, hostname, defined_hostname, vcn_compartment):
     """
     Update DNS for instance launching and instance terminating
     inputs: 
-        private_subnet: CIDR range of private subnet, type=string
         instance_ocid: Instance OCID from event paylod, type=string
         hostname_convention: Hostname convention as indicated in the stack option, type=string
         zone_name: <cluster_name>.local coming from Terraform, type=string
@@ -127,22 +131,21 @@ def update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, co
         instance_launch: launching or terminating instance type=boolean
         hostname: current instance name from OCI web console, type=string
         defined_hostname: New hostname to be set, type=string    or None if not matching
+        vcn_compartment: Compartment OCID for vcn (same as var.vcn_compartment in terraform), type=string
     output: 
         hostname: new display name in web console hostname_convention+"-"+str(index), type=string if updated or corresponds to hostname if not
         private_ip: private IP if instance is launch type=string, None otherwise
     """
-    signer = oci.auth.signers.get_resource_principals_signer() # Resource principal
-    #signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()    
+    signer = oci.auth.signers.get_resource_principals_signer()
     dns_client = oci.dns.DnsClient(config={}, signer=signer)
-    zone_id=dns_client.list_zones(compartment_id=compartment_ocid,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
+    zone_id=dns_client.list_zones(compartment_id=vcn_compartment,name=zone_name,zone_type="PRIMARY",scope="PRIVATE").data[0].id
     private_ip = None
     if instance_launch:
-        private_ip = get_private_ip(instance_ocid,compartment_ocid)
+        private_ip, runtime_subnet = get_instance_network_info(instance_ocid, compartment_ocid)
         if hostname_convention and not defined_hostname:
             ip = ipaddress.ip_address(private_ip)
-            private_subnet_cidr=ipaddress.ip_network(private_subnet)
-            index = list(private_subnet_cidr.hosts()).index(ip)+2
-            convention_zone=hostname_convention+"-"+str(index)+"."+zone_name
+            runtime_subnet_cidr = ipaddress.ip_network(runtime_subnet, strict=False)
+            index = list(runtime_subnet_cidr.hosts()).index(ip)+2
             hostname = hostname_convention+"-"+str(index)
         if defined_hostname:
             hostname = defined_hostname
@@ -189,7 +192,7 @@ def update_display_name(instance_ocid, new_hostname):
     return   
 
 
-def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, zone_name):
+def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, zone_name, vcn_compartment):
     """
     write message to queue with private ip and "starting" or "terminating" status
     inputs:
@@ -199,6 +202,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
         compartment_ocid: Compartment OCID from event payload (same as var.targetCompartment in terraform), type=string
         event_type: type of event from event payload, type=string
         zone_name: <cluster_name>.local coming from Terraform, type=string
+        vcn_compartment: Compartment OCID for vcn (same as var.vcn_compartment in terraform), type=string
     outputs:
         put_messages_response.data: response from teh API call. Returns the message
     """
@@ -214,7 +218,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
 
         if event_type == "com.oraclecloud.computeapi.launchinstance.end":
             instance_launch = True            
-            new_hostname, private_ip = update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname)
+            new_hostname, private_ip = update_dns(instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname, vcn_compartment)
             if hostname_convention:    
                 try:
                     update_display_name(instance_ocid, new_hostname)
@@ -224,7 +228,7 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
             content_dict = {"ip_address": private_ip,"cluster_name": cluster_name,"status": "starting","ocid":instance_ocid,"hostname":new_hostname,"compartment":compartment_ocid}
         else:
             instance_launch = False
-            update_dns(private_subnet, instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname)
+            update_dns(instance_ocid, hostname_convention, zone_name, compartment_ocid, instance_launch,hostname, defined_hostname, vcn_compartment)
             content_dict = {"hostname": hostname,"cluster_name": cluster_name,"status": "terminating","ocid":instance_ocid,"compartment_id":compartment_ocid}    
         content = json.dumps(content_dict, indent = 4) 
         cp_client = oci.queue.QueueAdminClient(config={}, signer=signer)
@@ -241,22 +245,230 @@ def write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_
                             channel_id=controller_name))]))
         return (put_messages_response.data)   
 
-def handler(ctx, data: io.BytesIO=None):
+
+def run_preflight_checks(cfg, vcn_compartment):
+    """
+    Run the full permission check against the existing controller resources.
+    This mirrors the standalone checker and avoids creating new instances.
+
+    Expected keys in cfg/payload:
+      COMPARTMENT_ID, ZONE_ID, ZONE_NAME, INSTANCE_ID, QUEUE_ID
+    """
+    compartment_id = cfg["COMPARTMENT_ID"]
+    zone_id        = cfg["ZONE_ID"]
+    zone_name      = cfg["ZONE_NAME"]
+    instance_id    = cfg["INSTANCE_ID"]
+    queue_id       = cfg.get("QUEUE_ID", queue_ocid)
+
+    signer  = oci.auth.signers.get_resource_principals_signer()
+    results = {}
+
+    # ── 1. Compute: GetInstance (used by get_tag_controller + update_display_name) 
     try:
-        payload_bytes = data.getvalue()
-        if payload_bytes==b'':
-            raise KeyError('No keys in payload')
-        payload = json.loads(payload_bytes)
+        compute = oci.core.ComputeClient(config={}, signer=signer)
+        instance = compute.get_instance(instance_id).data
+        original_name = instance.display_name
+        results["compute_get_instance"] = "OK"
+    except oci.exceptions.ServiceError as e:
+        results["compute_get_instance"] = _fail(e)
+        original_name = None
+
+    # ── 2. Compute: ListVnicAttachments ───────────────────────────────────────
+    vnic_id = None
+    try:
+        vnic_attachments = oci.pagination.list_call_get_all_results(
+            compute.list_vnic_attachments,
+            compartment_id=compartment_id,
+            instance_id=instance_id
+        ).data
+        vnic_id = vnic_attachments[0].vnic_id if vnic_attachments else None
+        results["network_list_vnic_attachments"] = "OK"
+    except oci.exceptions.ServiceError as e:
+        results["network_list_vnic_attachments"] = _fail(e)
+
+    # ── 3. Network: GetVnic ───────────────────────────────────────────────────
+    vnic_obj_id = None
+    if vnic_id:
+        try:
+            network = oci.core.VirtualNetworkClient(config={}, signer=signer)
+            vnic = network.get_vnic(vnic_id).data
+            vnic_obj_id = vnic.id
+            results["network_get_vnic"] = "OK"
+        except oci.exceptions.ServiceError as e:
+            results["network_get_vnic"] = _fail(e)
+    else:
+        results["network_get_vnic"] = "SKIP (no VNIC attachment found)"
+
+    # ── 4. Network: ListPrivateIps ────────────────────────────────────────────
+    private_ip = None
+    if vnic_obj_id:
+        try:
+            private_ips = oci.pagination.list_call_get_all_results(
+                network.list_private_ips,
+                vnic_id=vnic_obj_id
+            ).data
+            private_ip = private_ips[0].ip_address if private_ips else None
+            results["network_list_private_ips"] = "OK"
+        except oci.exceptions.ServiceError as e:
+            results["network_list_private_ips"] = _fail(e)
+    else:
+        results["network_list_private_ips"] = "SKIP (no VNIC found)"
+
+    # ── 5. DNS: ListZones (prod uses list_zones to resolve zone ID by name) ───
+    try:
+        dns_client = oci.dns.DnsClient(config={}, signer=signer)
+        zones = dns_client.list_zones(
+            compartment_id=vcn_compartment,
+            name=zone_name,
+            zone_type="PRIMARY",
+            scope="PRIVATE"
+        ).data
+        results["dns_list_zones"] = "OK" if zones else "FAIL (zone not found by name)"
+    except oci.exceptions.ServiceError as e:
+        results["dns_list_zones"] = _fail(e)
+
+    # ── 6. DNS: UpdateRRSet (add A record) ────────────────────────────────────
+    test_hostname = f"preflight-check.{zone_name}"
+    if private_ip:
+        try:
+            dns_client.update_rr_set(
+                zone_name_or_id=zone_id,
+                domain=test_hostname,
+                rtype="A",
+                update_rr_set_details=oci.dns.models.UpdateRRSetDetails(
+                    items=[oci.dns.models.RecordDetails(
+                        domain=test_hostname,
+                        rdata=private_ip,
+                        rtype="A",
+                        ttl=30,
+                    )]
+                ),
+                scope="PRIVATE"
+            )
+            results["dns_update_rr_set"] = "OK"
+        except oci.exceptions.ServiceError as e:
+            results["dns_update_rr_set"] = _fail(e)
+
+        # ── 7. DNS: DeleteRRSet (cleanup) ─────────────────────────────────────
+        try:
+            dns_client.delete_rr_set(
+                zone_name_or_id=zone_id,
+                domain=test_hostname,
+                rtype="A",
+                scope="PRIVATE"
+            )
+            results["dns_delete_rr_set"] = "OK"
+        except oci.exceptions.ServiceError as e:
+            results["dns_delete_rr_set"] = _fail(e)
+    else:
+        results["dns_delete_rr_set"] = "SKIP (no private IP resolved)"
+
+    # ── 8. Compute: UpdateInstance (rename + restore) ─────────────────────────
+    if original_name:
+        try:
+            update_display_name(instance_id, f"{original_name}_precheck")
+            results["compute_update_display_name"] = "OK"
+        except oci.exceptions.ServiceError as e:
+            results["compute_update_display_name"] = _fail(e)
+        # chaning it back
+        try:
+            update_display_name(instance_id, original_name)
+            results["compute_revert_display_name"] = "OK"
+        except oci.exceptions.ServiceError as e:
+            results["compute_revert_display_name"] = _fail(e)    
+
+    # ── 9. Queue: GetQueue (resolves messages_endpoint) ───────────────────────
+    messages_endpoint = None
+    try:
+        queue_admin = oci.queue.QueueAdminClient(config={}, signer=signer)
+        queue_data = queue_admin.get_queue(queue_id).data
+        messages_endpoint = queue_data.messages_endpoint
+        results["queue_get"] = "OK"
+    except oci.exceptions.ServiceError as e:
+        results["queue_get"] = _fail(e)
+
+    # ── 10. Queue: PutMessages (using endpoint from GetQueue) ─────────────────
+    if messages_endpoint:
+        try:
+            queue_client = oci.queue.QueueClient(
+                config={},
+                signer=signer,
+                service_endpoint=messages_endpoint
+            )
+            put_resp = queue_client.put_messages(
+                queue_id=queue_id,
+                put_messages_details=oci.queue.models.PutMessagesDetails(
+                    messages=[oci.queue.models.PutMessagesDetailsEntry(
+                        content=json.dumps({"preflight": "check"}),
+                        metadata=oci.queue.models.MessageMetadata(
+                            channel_id="preflight")
+                    )]
+                )
+            )           
+            results["queue_put_messages"] = "OK"
+
+            # Clean up the preflight message so it doesn't linger in the queue
+            try:
+                fetched = queue_client.get_messages(
+                    queue_id=queue_id,
+                    channel_filter = "preflight"
+                )
+                for msg in fetched.data.messages:
+                    queue_client.delete_message(
+                        queue_id=queue_id,
+                        message_receipt=msg.receipt
+                    )
+                results["queue_delete_message"] = "OK"
+            except oci.exceptions.ServiceError as e:
+                results["queue_delete_message"] = _fail(e)
+        except oci.exceptions.ServiceError as e:
+            results["queue_put_messages"] = _fail(e)
+    else:
+        results["queue_put_messages"] = "SKIP (no endpoint from GetQueue)"
+
+    return results
+
+def _fail(e: oci.exceptions.ServiceError) -> str:
+    return f"FAIL {e.status} ({e.code}): {e.message}"
+
+
+def _respond(ctx, results: dict):
+    all_ok = all(v == "OK" for v in results.values())
+    return response.Response(
+        ctx,
+        response_data=json.dumps(
+            {"status": "PASS" if all_ok else "FAIL", "checks": results},
+            indent=2,
+        ),
+        headers={"Content-Type": "application/json"},
+    )           
+def handler(ctx, data: io.BytesIO=None):
+    payload = {}
+    if data:
+        try:
+            raw = data.getvalue()
+            payload = json.loads(raw) if raw else {}
+        except Exception as ex:
+            print('ERROR: Failed to parse payload', ex, flush=True)
+            raise
+
+    # Manual invocation for permissions dry-run (payload must carry needed IDs)
+    if payload.get("action") == "preflight":
+        cfg = payload if "COMPARTMENT_ID" in payload else ctx.Config()
+        results = run_preflight_checks(cfg, vcn_compartment)
+        return _respond(ctx, results)
+
+    # Default: event-driven path
+    try:
         instance_ocid = payload["data"]["resourceId"]
         compartment_ocid = payload["data"]["compartmentId"]
         event_type = payload["eventType"]
-    except Exception as ex:
+    except KeyError as ex:
         print('ERROR: Missing key in payload', ex, flush=True)
         raise
 
     resp = ""
-    write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, zone_name)
-
+    write_message_queue(controller_name, queue_ocid, instance_ocid, compartment_ocid, event_type, zone_name, vcn_compartment)
 
     return response.Response(
         ctx,

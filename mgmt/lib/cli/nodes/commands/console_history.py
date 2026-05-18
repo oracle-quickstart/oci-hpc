@@ -1,5 +1,6 @@
 
 import click
+from lib.cli import completion
 import lib.database as db
 from lib.ociwrap import get_console_history
 from lib.logger import logger
@@ -32,12 +33,14 @@ def filter_cmd(ctx, nodes, fields):
 @click.option(
     "--nodes",
     required=False,
-    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)"
+    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)",
+    shell_complete=completion.complete_node_identifiers,
 )
 @click.option(
     '--fields',
     required=False,
-    help='Fields to filter nodes (e.g., role=compute,status=running)'
+    help='Fields to filter nodes (e.g., role=compute,status=running)',
+    shell_complete=completion.complete_node_fields,
 )
 @click.pass_context
 def console_history(ctx, nodes, fields):
@@ -73,4 +76,3 @@ def console_history(ctx, nodes, fields):
     
     
     
-

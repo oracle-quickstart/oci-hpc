@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import glob
-import json
 import time
 import argparse
 import logging

@@ -1,0 +1,59 @@
+---
+- name: Set Slurm topology inventory Python path
+  ansible.builtin.set_fact:
+    slurm_topology_inventory_python: >-
+      {% if ansible_facts['distribution'] == 'Ubuntu' %}
+      /config/venv/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}/oci/bin/python3
+      {% elif ansible_facts['distribution'] == 'OracleLinux' %}
+      /config/venv/Ol_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}/oci/bin/python3
+      {% elif venv_path is defined %}
+      {{ venv_path }}/bin/python3
+      {% else %}
+      python3
+      {% endif %}
+  run_once: true
+
+- name: Set Slurm topology inventory command
+  ansible.builtin.set_fact:
+    slurm_topology_inventory_command: >-
+      {{ slurm_topology_inventory_python }} /config/mgmt/manage.py nodes list
+      --columns hostname,shape,rack_id,rail_id,network_block_id,cluster_name
+      --fields role=compute
+      --format json
+  run_once: true
+
+- name: Install topology generator on controller
+  become: true
+  ansible.builtin.copy:
+    src: "generate_slurm_topology.py"
+    dest: "{{ slurm_conf_path }}/generate_slurm_topology.py"
+    mode: "0755"
+    owner: slurm
+    group: slurm
+  run_once: true
+
+- name: Generate topology.yaml
+  become: true
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_facts.python.executable | default('/usr/bin/python3') }}"
+      - "{{ slurm_conf_path }}/generate_slurm_topology.py"
+      - "--output-dir"
+      - "{{ slurm_conf_path }}"
+      - "--output-file"
+      - "topology.yaml"
+      - "--field-order"
+      - "hostname,rack_id,rail_id,network_block_id,cluster_name"
+      - "--shape-field"
+      - "shape"
+      - "--command"
+      - "{{ slurm_topology_inventory_command }}"
+  register: slurm_topology_result
+  changed_when: true
+  run_once: true
+
+- name: Notify reconfigure if needed
+  ansible.builtin.command: /bin/true
+  notify:
+    - Reconfigure slurm
+  when: reconfigure_slurm_state | default(false) | bool

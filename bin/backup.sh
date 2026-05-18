@@ -2,13 +2,36 @@
 #
 # Cluster init configuration script
 #
+
+exec > >(while IFS= read -r line; do printf "[%s] %s\n" "$(printf '%(%F %T)T' -1)" "$line"; done) 2>&1
+source "$(dirname "${0}")/common.sh"
+setup_bootstrap_error_trap "backup.sh"
+
+echo "Starting backup setup - waiting for cloud-init..."
 sudo cloud-init status --wait
+cloud_exit_code=$?
+if [[ "${cloud_exit_code}" -gt 0 ]]; then
+    # print the error, then quit for exit code 1 (non-recoverable error). Code
+    # status 2 is recoverable, proceed.
+    echo "Backup cloud-init reported status != 0:"
+    sudo cloud-init status -l
+    if [[ "${cloud_exit_code}" -eq 1 ]]; then
+        exit 1
+    fi
+fi
 
-set -eu -o pipefail
+set -Eeuo pipefail
 
-source $(dirname "${0}")/setup_environment.sh
+source "$(dirname "${0}")/setup_environment.sh"
 
-bash $(dirname "${0}")/setup_os_packages.sh
-bash $(dirname "${0}")/setup_ansible.sh
+echo "Starting OS packages setup..."
+bash "$(dirname "${0}")/setup_os_packages.sh"
+echo "OS packages setup complete"
 
-echo "Backup setup complete. VENV_PATH=${VENV_PATH}"
+echo "Starting Python packages setup..."
+bash "$(dirname "${0}")/setup_python_packages.sh"
+echo "Python packages setup complete"
+
+echo "Starting Ansible setup..."
+bash "$(dirname "${0}")/setup_ansible.sh"
+echo "Ansible setup complete"

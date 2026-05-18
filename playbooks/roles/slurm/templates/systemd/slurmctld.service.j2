@@ -5,11 +5,18 @@ ConditionPathExists={{slurm_conf_path}}/slurm.conf
 Documentation=man:slurmctld(8)
 
 [Service]
-Type=forking
+Type=notify
+User=slurm
+Group=slurm
 EnvironmentFile=-/etc/default/slurm
-ExecStart={{slurm_exec}}/sbin/slurmctld -i $SLURMCTLD_OPTIONS
+NotifyAccess=all
+RuntimeDirectory=slurmctld
+RuntimeDirectoryMode=0755
+LogsDirectory=slurm
+LogsDirectoryMode=0750
+ExecStart={{slurm_exec}}/sbin/slurmctld --systemd -i $SLURMCTLD_OPTIONS
 ExecReload=/bin/kill -HUP $MAINPID
-PIDFile=/run/slurmctld.pid
+PIDFile=/run/slurmctld/slurmctld.pid
 LimitNOFILE=65536
 TasksMax=infinity
 

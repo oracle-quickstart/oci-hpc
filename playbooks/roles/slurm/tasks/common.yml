@@ -215,10 +215,6 @@
     mode: "0755"
     state: directory
 
-- name: Include pyxis prolog files
-  ansible.builtin.include_tasks: common_pyxis.yml
-  when: pyxis|bool
-
 - name: Include pmix prolog files
   ansible.builtin.include_tasks: common_pmix.yml
   when: ansible_facts['os_family'] == 'RedHat'
@@ -239,6 +235,26 @@
     owner: root
     group: root
 
+- name: Ensure plugstack include directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ slurm_conf_path }}/plugstack.conf.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure plugstack.conf includes drop-in configs
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/plugstack.conf"
+    line: "include {{ slurm_conf_path }}/plugstack.conf.d/*.conf"
+    state: present
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+
 - name: Copy healthchecks
   become: true
   ansible.builtin.copy:
@@ -248,24 +264,6 @@
     group: root
     mode: "0755"
   when: healthchecks|bool
-
-- name: Copy imex prolog
-  become: true
-  ansible.builtin.copy:
-    src: imex_prolog.sh
-    dest: "{{ slurm_conf_path }}/prolog.d/imex_prolog.sh"
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: Copy imex epilog
-  become: true
-  ansible.builtin.copy:
-    src: imex_epilog.sh
-    dest: "{{ slurm_conf_path }}/epilog.d/imex_epilog.sh"
-    owner: root
-    group: root
-    mode: "0755"
 
 - name: Copy AMD Slurm metrics prolog
   become: true

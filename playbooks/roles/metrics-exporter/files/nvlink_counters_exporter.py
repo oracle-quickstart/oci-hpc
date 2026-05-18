@@ -2,7 +2,6 @@ from prometheus_client import start_http_server, Gauge
 import time
 import subprocess
 from io import StringIO
-import json
 import re
 gpu_data = {}
 link_data = {}

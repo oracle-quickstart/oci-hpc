@@ -1,13 +1,26 @@
 ---
 - name: Make sure clustershell is installed for node status script
   vars:
+    package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL"
     package_name:
       - clustershell
-      #- python3-ansible-runner
+      - bash-completion
     package_state: latest
-  include_role:
+  ansible.builtin.include_role:
     name: safe_yum
   ignore_errors: true
+  when: ansible_facts['distribution'] == 'OracleLinux'
+
+- name: Make sure clustershell is installed for node status script
+  vars:
+    package_name:
+      - clustershell
+      - bash-completion
+    package_state: latest
+  ansible.builtin.include_role:
+    name: safe_yum
+  ignore_errors: true
+  when: ansible_facts['distribution'] != 'OracleLinux'
 
 - name: Ensure db directory exists
   file:
@@ -15,6 +28,28 @@
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
+
+# Ignore the urllib deprecation warning triggered by the strict=True parameter
+# to OCIPoolManager, see here:
+#
+# https://github.com/oracle/oci-python-sdk/blob/v2.174.0/src/oci/base_client.py#L377
+#
+# FIXME Remove this once the upstream issue is fixed
+- name: Configure controller profile to ignore future warnings from oci
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/profile.d/mgmt-oci-python-warnings.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Ignore the urllib deprecation warning triggered by OCIPoolManager receiving
+      # strict=True.
+      # https://github.com/oracle/oci-python-sdk/blob/v2.174.0/src/oci/base_client.py#L377
+      if [ "$(id -un 2>/dev/null)" = "{{ ansible_user }}" ]; then
+          export PYTHONWARNINGS="ignore:the 'strict' parameter::urllib3.poolmanager"
+      fi
+  run_once: true
 
 - name: Generate env file
   template:
@@ -83,7 +118,7 @@
     name: mgmt.timer
     state: started
 
-- name: Make sure the /home directory exist
+- name: Make sure the /config/mgmt directory exist
   file:
     path: "/config/mgmt"
     state: directory
@@ -115,6 +150,16 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0775"
+  run_once: true
+
+- name: Install mgmt bash completion
+  become: true
+  ansible.builtin.template:
+    src: templates/mgmt.bash_completion.j2
+    dest: "/etc/bash_completion.d/mgmt"
+    owner: root
+    group: root
+    mode: "0644"
   run_once: true
 
 - name: Import the initial_configs into the DB

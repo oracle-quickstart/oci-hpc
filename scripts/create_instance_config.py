@@ -8,7 +8,7 @@ def list_instance_configurations(compartment_id, compute_mgmt_client):
     Lists available instance configurations in the compartment and lets the user choose one.
     Returns the selected instance configuration object.
     """
-    response = compute_mgmt_client.list_instance_configurations(compartment_id=compartment_id)
+    response = oci.pagination.list_call_get_all_results(compute_mgmt_client.list_instance_configurations,compartment_id)
     instance_configs = response.data
     if not instance_configs:
         print("No instance configurations found.")
@@ -29,16 +29,30 @@ def list_cluster_networks(compartment_id, compute_mgmt_client):
     Lists available cluster networks in the compartment and lets the user choose one.
     Returns the selected cluster network object.
     """
-    response = compute_mgmt_client.list_cluster_networks(compartment_id=compartment_id)
+    response = oci.pagination.list_call_get_all_results(compute_mgmt_client.list_cluster_networks, compartment_id)
     cluster_networks = response.data
-    if not cluster_networks:
-        print("No Cluster Networks found.")
-        return None
-    print("\nAvailable Cluster Networks:")
-    for idx, network in enumerate(cluster_networks, 1):
-        print(f"{idx}. {network.display_name} ({network.id})")
-    choice = int(input("\nEnter the number of the Cluster Network to use: ")) - 1
-    return cluster_networks[choice] if 0 <= choice < len(cluster_networks) else None
+    cluster_networks_instance_pools = {}
+    for cn in cluster_networks:
+        cluster_networks_instance_pools[cn.id] = []
+        instance_pools = compute_mgmt_client.get_cluster_network(cn.id).data.instance_pools
+        for instance_pool in instance_pools:
+            instance_pool_config = compute_mgmt_client.get_instance_pool(instance_pool.id).data
+            cluster_networks_instance_pools[cn.id].append(instance_pool_config)
+    return cluster_networks, cluster_networks_instance_pools
+
+
+def list_compute_gpu_memory_clusters(compartment_id, compute_client):
+    """
+    Lists available gpu memory clusters in the compartment and lets the user .
+    Returns the selected cluster network object.
+    """
+    response = compute_client.list_compute_gpu_memory_clusters(compartment_id=compartment_id)
+    gpu_memory_clusters = response.data
+    gmcs = []
+    for entry in gpu_memory_clusters.items:
+        gmc = compute_client.get_compute_gpu_memory_cluster(entry.id)
+        gmcs.append(gmc.data)
+    return gmcs
 
 # ------------------------------
 # Core Function: Full Replication with SSH Key Replacement
@@ -169,30 +183,34 @@ def create_instance_configuration_from_details(compartment_id, src_config, new_s
 # Attach Instance Config to Cluster Network
 # ------------------------------
 
-def attach_instance_config_to_cluster_network(cluster_network_id, new_instance_config_id, compute_mgmt_client):
-    try:
-        cluster_network = compute_mgmt_client.get_cluster_network(cluster_network_id).data
-    except oci.exceptions.ServiceError as e:
-        print(f"Error fetching cluster network details: {e}")
-        return
-    instance_pool_ids = [pool.id for pool in cluster_network.instance_pools]
-    if not instance_pool_ids:
-        print(f"No instance pools found in Cluster Network {cluster_network_id}. Cannot attach instance config.")
-        return
-    print(f"Found {len(instance_pool_ids)} instance pool(s) in Cluster Network.")
-    for pool_id in instance_pool_ids:
-        update_details = oci.core.models.UpdateInstancePoolDetails(
-            instance_configuration_id=new_instance_config_id
-        )
+def attach_instance_config_to_cluster_network(cluster_network_id, instance_pool_ids, new_instance_config_id, compute_mgmt_client):
+    for instance_pool_id in instance_pool_ids:
         try:
             response = compute_mgmt_client.update_instance_pool(
-                instance_pool_id=pool_id,
-                update_instance_pool_details=update_details
+                instance_pool_id=instance_pool_id,
+                update_instance_pool_details=oci.core.models.UpdateInstancePoolDetails(
+                    instance_configuration_id=new_instance_config_id
+                )
             )
-            print(f"Successfully updated Instance Pool {pool_id} with new Instance Config {new_instance_config_id}")
+            print(f"Successfully updated Cluster Network {cluster_network_id}/Instance Pool {instance_pool_id} with new Instance Config {new_instance_config_id}")
         except oci.exceptions.ServiceError as e:
-            print(f"Failed to update Instance Pool {pool_id}: {e}")
-    print("\nNow you can add new nodes to the cluster.")
+            print(f"Failed to update Cluster Network {cluster_network_id}/Instance Pool {instance_pool_id}: {e}")
+
+# ------------------------------
+# Attach Instance Config to GMC
+# ------------------------------
+
+def attach_instance_config_to_gpu_memory_cluster(gpu_memory_cluster_id, new_instance_config_id, compute_client):
+    try:
+        compute_client.update_compute_gpu_memory_cluster(
+            gpu_memory_cluster_id=gpu_memory_cluster_id,
+            update_compute_gpu_memory_cluster_details=oci.core.models.UpdateComputeGpuMemoryClusterDetails(
+                instance_configuration_id=new_instance_config_id
+            )
+        )
+        print(f"Successfully updated GPU Memory Cluster {gpu_memory_cluster_id} with new Instance Config {new_instance_config_id}")
+    except oci.exceptions.ServiceError as e:
+        print(f"Error updating GPU Memory Cluster {gpu_memory_cluster_id}: {e}")
 
 # ------------------------------
 # Main Function
@@ -207,6 +225,7 @@ def main():
 
     # Authenticate with OCI using Instance Principals
     signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    compute_client = oci.core.ComputeClient(config={}, signer=signer)
     compute_mgmt_client = oci.core.ComputeManagementClient(config={}, signer=signer)
 
     # Step 1: List and choose an instance configuration
@@ -236,16 +255,76 @@ def main():
         return
     print(f"\nNew Instance Configuration Created: {new_instance_config.id}")
 
-    # Step 6: List and choose a Cluster Network to attach the new instance config
-    chosen_cluster_network = list_cluster_networks(compartment_id, compute_mgmt_client)
-    if not chosen_cluster_network:
+    # Step 6: Choose RDMA deployment type to update (ClusterNetwork or GPUMemoryCluster)
+    rdma_deployment = input("\nChoose RDMA deployment type to update ([1]ClusterNetwork/[2]GPUMemoryCluster): ").strip().lower()
+
+    if rdma_deployment in ("1", "clusternetwork"):
+        cluster_networks, cluster_networks_instance_pools = list_cluster_networks(compartment_id, compute_mgmt_client)
+        if not cluster_networks:
+            print("No Cluster Networks found.")
+            return None
+        
+        cluster_networks_using_instance_config = {}
+        for cn_id, instance_pools in cluster_networks_instance_pools.items():
+            cluster_networks_using_instance_config[cn_id] = []
+            for instance_pool in instance_pools:
+                if instance_pool.instance_configuration_id == src_config.id:
+                    cluster_networks_using_instance_config[cn_id].append(instance_pool.id)
+            else:
+                if not cluster_networks_using_instance_config[cn_id]:
+                    del cluster_networks_using_instance_config[cn_id]
+        print(f"\nFound {len(cluster_networks_using_instance_config)}/{len(cluster_networks)} Cluster Networks in compartment {compartment_id} using the instance configuration {src_config.display_name}.")
+        
+        update_mode = input("\nChoose update mode ([1]Update all using selected instance config/[2]Update specific): ").strip().lower()
+        if update_mode == "1":
+            for cn_id, instance_pool_ids in cluster_networks_using_instance_config.items():
+                attach_instance_config_to_cluster_network(cn_id, instance_pool_ids, new_instance_config.id, compute_mgmt_client)
+            print("\nSuccess! Now you can add new nodes to the cluster using this instance configuration.")
+
+        elif update_mode == "2":
+            for idx, network in enumerate(cluster_networks, 1):
+                print(f"{idx}. {network.display_name} ({network.id})")
+            choice = int(input("\nEnter the number of the Cluster Network to use: ")) - 1
+            if choice < 0 or choice >= len(cluster_networks):
+                print("Invalid choice.")
+                return
+            instance_pool_ids = [entry.id for entry in cluster_networks_instance_pools[cluster_networks[choice].id]]
+            attach_instance_config_to_cluster_network(cluster_networks[choice].id, instance_pool_ids, new_instance_config.id, compute_mgmt_client)
+            print("\nSuccess! Now you can add new nodes to the cluster using this instance configuration.")
+        else:
+            return
+
+    elif rdma_deployment in ("2", "gpumemorycluster"):
+        gpu_memory_clusters = list_compute_gpu_memory_clusters(compartment_id, compute_client)
+        if not gpu_memory_clusters:
+            print("No GPU Memory Clusters found.")
+            return None
+        
+        gmcs_using_instance_config = []
+        for gmc in gpu_memory_clusters:
+            if gmc.instance_configuration_id == src_config.id:
+                gmcs_using_instance_config.append(gmc)
+        print(f"\nFound {len(gmcs_using_instance_config)}/{len(gpu_memory_clusters)} GPU Memory Clusters in compartment {compartment_id} using the instance configuration {src_config.display_name}.")
+        
+        update_mode = input("\nChoose update mode ([1]Update all using selected instance config/[2]Update specific): ").strip().lower()
+        if update_mode == "1":
+            for entry in gmcs_using_instance_config:
+                attach_instance_config_to_gpu_memory_cluster(entry.id, new_instance_config.id, compute_client)
+            print("\nSuccess! The new nodes in these GMCs will use the new instance configuration.")
+        elif update_mode == "2":
+            for idx, gmc in enumerate(gpu_memory_clusters, 1):
+                print(f"{idx}. {gmc.display_name} ({gmc.id})")
+            choice = int(input("\nEnter the number of the GPU Memory Cluster to use: ")) - 1
+            if choice < 0 or choice >= len(gpu_memory_clusters):
+                print("Invalid choice.")
+                return
+            attach_instance_config_to_gpu_memory_cluster(gpu_memory_clusters[choice].id, new_instance_config.id, compute_client)
+            print("\nSuccess! The new nodes in these GMCs will use the new instance configuration.")
+        else:
+            return
+    else:
+        print("Invalid work mode.")
         return
-
-    # Step 7: Attach the new instance configuration to the chosen Cluster Network
-    attach_instance_config_to_cluster_network(chosen_cluster_network.id, new_instance_config.id, compute_mgmt_client)
-    print(f"\nInstance Configuration {new_instance_config.id} attached to Cluster Network {chosen_cluster_network.id}")
-
-    print("\nSuccess! Now you can add new nodes to the cluster using this instance configuration.")
 
 if __name__ == "__main__":
     main()

@@ -1,13 +1,15 @@
 import click
+from lib.cli import completion
 from lib.database import db_update_configuration
 from lib.logger import logger
 
 @click.command()
-@click.option('--name', required=True, help='Name of the configuration to update')
+@click.option('--name', required=True, help='Name of the configuration to update', shell_complete=completion.complete_configurations_all)
 @click.option(
     '--fields',
     required=True,
-    help='Comma-separated list of updates to apply, Example: shape="VM.Standard.E5.Flex,instance_pool_ocpus=4"'
+    help='Comma-separated list of updates to apply, Example: shape="VM.Standard.E5.Flex,instance_pool_ocpus=4"',
+    shell_complete=completion.complete_configuration_fields,
 )
 def update(name, fields):
     """Update Configuration"""

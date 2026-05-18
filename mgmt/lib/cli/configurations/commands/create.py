@@ -1,4 +1,5 @@
 import click
+from lib.cli import completion
 from lib.database import db_duplicate_configuration, db_import_configuration
 from lib.logger import logger
 
@@ -8,7 +9,7 @@ def create():
     pass
 
 @create.command()       
-@click.option('--configuration', required=True, help='Name of the existing configuration to copy.')
+@click.option('--configuration', required=True, help='Name of the existing configuration to copy.', shell_complete=completion.complete_configurations_all)
 @click.option('--name', required=True, help='Name for the new configuration.')
 def from_existing(configuration,name):
     """Duplicate Configuration with new name."""

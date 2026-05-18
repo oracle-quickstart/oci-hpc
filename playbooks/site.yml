@@ -8,19 +8,6 @@
         state: absent
       when: ansible_facts['distribution'] == 'Ubuntu'
 
-- hosts: controller
-  become: true
-  vars:
-    export_path: "/config"
-    export_name: "config"
-    local_path: "/config"
-  tasks:
-    - include_role:
-        name: privilege_group
-    - include_role:
-        name: nfs-server
-      when: create_fss == "existing"
-
 - hosts: controller, slurm_backup
   become: true
   gather_facts: true
@@ -36,14 +23,15 @@
     - limits
     - boot-volume
     - mpivars
+    - oom-adjust
 
 - hosts: controller, slurm_backup
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: localdisk
       when: localdisk | default(true) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: healthchecks
 
 - hosts: controller
@@ -53,7 +41,7 @@
     export_name: "home"
     local_path: "/home"
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-server
       when: shared_home == "nfs"
 
@@ -63,7 +51,7 @@
     tmp_home: "/tmp/home_tmp/"
     remote_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}{% endif %}"
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "{{ tmp_home }}"
@@ -72,14 +60,14 @@
         options: ""
         lock: "none"
       when: add_nfs | bool and shared_home == "fss"
-    - include_role:
+    - ansible.builtin.include_role:
         name: fss-home
       when: add_nfs | bool and shared_home == "fss"
 
 - hosts: controller, slurm_backup
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "/home"
@@ -88,32 +76,32 @@
         options: ""
         lock: "none"
       when: add_nfs | bool and shared_home == "fss"
-    - include_role:
+    - ansible.builtin.include_role:
         name: passwords
 
 - hosts: controller, slurm_backup
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: ssl
       when: ldap | default(true) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: openldap
       when: ldap | default(true) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: cluster-cli
       when: ldap | default(true) | bool
 
 - hosts: controller
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: mysql
 
 - hosts: controller, slurm_backup
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "{{ nfs_target_path }}"
@@ -126,40 +114,63 @@
 - hosts: controller, slurm_backup
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: sssd
       when: ldap | default(true) | bool
 
 - hosts: controller, slurm_backup
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: fix_ldap
       when: ldap | default(true) | bool
 
 - hosts: controller, slurm_backup
+  vars:
+    enroot_top_path: "{{ nvme_path }}/enroot/"
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+  pre_tasks:
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
+  tasks:
+    - ansible.builtin.include_role:
+        name: docker
+      when: enroot | default(true) | bool
+    - ansible.builtin.include_role:
+        name: nvidia-enroot
+      when: enroot | default(true) | bool
+
+- hosts: controller, slurm_backup
   become: true
   tasks:
-    - include_role:
-        name: lustre-client
+    - ansible.builtin.include_role:
+        name: lustre_client
         apply:
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "/config/3rdparty"
-        local_path: "{{ lfs_target_path }}"
-        export_host: "{{ lfs_source_IP }}"
-        options: "{{ lfs_options }}"
-        export_path: "{{ lfs_source_path }}"
-        lock: "none"
+        lustre_client:
+          local_path: "{{ lfs_target_path }}"
+          export_host: "{{ lfs_source_IP }}"
+          options: "{{ lfs_options }}"
+          export_path: "{{ lfs_source_path }}"
+          lock: "none"
       when: add_lfs | default(false) | bool
+
+- hosts: controller, slurm_backup
+  gather_facts: true
+  tasks:
+    - name: Mount cluster bucket
+      ansible.builtin.include_role:
+        name: bucket-fs
+      when: create_bucket | bool
 
 - hosts: controller
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: mgmt
-    - include_role:
+    - ansible.builtin.include_role:
         name: queue_write
 
 - hosts: controller, slurm_backup
@@ -167,37 +178,47 @@
     slurm_mode: "controller"
     resize: false
     enroot_top_path: "{{ nvme_path }}/enroot/"
+  pre_tasks:
+    - name: Collect cluster archiecture context
+      ansible.builtin.import_tasks: tasks/collect_cluster_context.yml
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: rack-aware
-    - include_role:
+    - ansible.builtin.include_role:
         name: spack
       when: spack | default(false) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: slurm
       when: slurm | default(false) | bool
 
 - hosts: controller, slurm_backup
   vars:
     compute_node: false
+  pre_tasks:
+    - name: Collect cluster archiecture context
+      ansible.builtin.import_tasks: tasks/collect_cluster_context.yml
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: metrics-exporter
-    - include_role:
+    - ansible.builtin.include_role:
         name: oci-metrics
       when: cluster_monitoring | default(false) | bool
 
 - hosts: controller, slurm_backup
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: slurm_rest_api
       when: slurm | default(false) | bool
 
 - hosts: monitoring
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: wait_for_cloud_init
-    - include_role:
+    - ansible.builtin.include_role:
         name: grafana
       when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length > 0)
 
@@ -205,30 +226,30 @@
 - hosts: all
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: clean_tmp
 
 - hosts: controller
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: grafana
       when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length == 0)
 
 - hosts: monitoring
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: oci-metrics-telegraf
       when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length > 0) and ((metrics_stream_ocid | default('')) | length > 0)
 
 - hosts: controller
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: oci-metrics-telegraf
       when: cluster_monitoring | default(false) | bool and (groups['monitoring'] | length == 0) and ((metrics_stream_ocid | default('')) | length > 0)
 
 - hosts: controller, monitoring
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: prometheus
       when: cluster_monitoring | default(false) | bool
 

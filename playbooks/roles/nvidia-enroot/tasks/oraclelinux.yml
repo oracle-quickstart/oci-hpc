@@ -1,14 +1,14 @@
 ---
 - block:
-    - name: Ensure /config/3rdparty exists
+    - name: Ensure nvidia-enroot package cache directory exists
       ansible.builtin.file:
-        path: /config/3rdparty/
+        path: "{{ nvidia_enroot_download_path }}"
         state: directory
         mode: "0755"
 
     - name: Check if required RPMs are already downloaded
       ansible.builtin.stat:
-        path: "/config/3rdparty/{{ item | basename }}"
+        path: "{{ nvidia_enroot_download_path }}/{{ item | basename }}"
       register: rpm_files
       with_items:
         - "{{ enroot_file }}"
@@ -18,28 +18,24 @@
       when: not item.stat.exists and ansible_facts['distribution_major_version'] != "8"
       ansible.builtin.get_url:
         url: "{{ item.item }}"
-        dest: "/config/3rdparty/{{ item.item | basename }}"
+        dest: "{{ nvidia_enroot_download_path }}/{{ item.item | basename }}"
         mode: "0755"
-        owner: opc
-        group: opc
       with_items: "{{ rpm_files.results }}"
     - name: Download RPMs if not already present
       when: not item.stat.exists and ansible_facts['distribution_major_version'] == "8"
       environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
       ansible.builtin.get_url:
         url: "{{ item.item }}"
-        dest: "/config/3rdparty/{{ item.item | basename }}"
+        dest: "{{ nvidia_enroot_download_path }}/{{ item.item | basename }}"
         mode: "0755"
-        owner: opc
-        group: opc
       with_items: "{{ rpm_files.results }}"
 
     - name: Install required packages
       vars:
         package_name:
           - zstd
-          - "/config/3rdparty/{{ enroot_file | basename }}"
-          - "/config/3rdparty/{{ enroot_caps_file | basename }}"
+          - "{{ nvidia_enroot_download_path }}/{{ enroot_file | basename }}"
+          - "{{ nvidia_enroot_download_path }}/{{ enroot_caps_file | basename }}"
         package_repo: "epel,ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL"
         disable_gpg_check_var: true
       ansible.builtin.include_role:
@@ -47,10 +43,13 @@
 
     # needs reboot
     - name: Update namespace.unpriv_enable=1 kernel parameters
+      become: true
       ansible.builtin.command: bash -c "sudo grubby --args="namespace.unpriv_enable=1" --update-kernel=`sudo grubby --default-kernel`"
     - name: Update user_namespace.enable=1 kernel parameters
+      become: true
       ansible.builtin.command: bash -c "sudo grubby --args="user_namespace.enable=1" --update-kernel=`sudo grubby --default-kernel`"
     - name: Set user.max_user_namespaces using sysctl
+      become: true
       ansible.posix.sysctl:
         name: user.max_user_namespaces
         value: "15076"
@@ -59,35 +58,29 @@
 
     - name: Check if enroot check RPMs are already downloaded
       ansible.builtin.stat:
-        path: "/config/3rdparty/{{ enroot_check_file | basename }}"
+        path: "{{ nvidia_enroot_download_path }}/{{ enroot_check_file | basename }}"
       register: enroot_check_files
 
     - name: Download enroot-check
       ansible.builtin.get_url:
         url: "{{ enroot_check_file }}"
-        dest: "/config/3rdparty"
+        dest: "{{ nvidia_enroot_download_path }}"
         mode: "0755"
-        owner: opc
-        group: opc
       when: not enroot_check_files.stat.exists | bool and ansible_facts['distribution_major_version'] != "8"
 
     - name: Download enroot-check
       environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
       ansible.builtin.get_url:
         url: "{{ enroot_check_file }}"
-        dest: "/config/3rdparty"
+        dest: "{{ nvidia_enroot_download_path }}"
         mode: "0755"
-        owner: opc
-        group: opc
       when: not enroot_check_files.stat.exists | bool
 
-    - name: Download enroot-check
+    - name: Copy enroot-check to local /tmp
       ansible.builtin.copy:
-        src: "/config/3rdparty/{{ enroot_check_file | basename }}"
+        src: "{{ nvidia_enroot_download_path }}/{{ enroot_check_file | basename }}"
         dest: "/tmp"
         mode: "0755"
-        owner: opc
-        group: opc
 
     - name: Execute enroot-check_*.run
       ansible.builtin.command: bash -c "/tmp/enroot-check_*.run --verify"
@@ -100,6 +93,7 @@
       when: "'nvme0n1' in ansible_facts[\"devices\"]"
 
     - name: Update ENROOT_RUNTIME_PATH
+      become: true
       ansible.builtin.lineinfile:
         dest: /etc/enroot/enroot.conf
         state: present
@@ -108,6 +102,7 @@
         backup: true
 
     - name: Update ENROOT_DATA_PATH
+      become: true
       ansible.builtin.lineinfile:
         dest: /etc/enroot/enroot.conf
         state: present
@@ -116,6 +111,7 @@
         backup: true
 
     - name: Update ENROOT_CACHE_PATH
+      become: true
       ansible.builtin.lineinfile:
         dest: /etc/enroot/enroot.conf
         state: present
@@ -124,6 +120,7 @@
         backup: true
 
     - name: Update ENROOT_TEMP_PATH
+      become: true
       ansible.builtin.lineinfile:
         dest: /etc/enroot/enroot.conf
         state: present
@@ -132,6 +129,7 @@
         backup: true
 
     - name: Update ENROOT_SQUASH_OPTIONS
+      become: true
       ansible.builtin.lineinfile:
         dest: /etc/enroot/enroot.conf
         state: present
@@ -140,6 +138,7 @@
         backup: true
 
     - name: Update ENROOT_ROOTFS_WRITABLE
+      become: true
       ansible.builtin.lineinfile:
         dest: /etc/enroot/enroot.conf
         state: present
@@ -152,17 +151,18 @@
       ansible.builtin.file:
         path: "{{ enroot_top_path_checked }}"
         state: directory
-        owner: opc
         mode: "0777"
+        owner: "{{ ansible_user }}"
         group: "{{ privilege_group_name }}"
         recurse: false
 
     - name: Make sure all {{ enroot_top_path_checked }} directories exist
+      become: true
       ansible.builtin.file:
         path: "{{ enroot_top_path_checked }}/{{ item }}"
         state: directory
         mode: "0777"
-        owner: opc
+        owner: "{{ ansible_user }}"
         group: "{{ privilege_group_name }}"
         recurse: false
       with_items:

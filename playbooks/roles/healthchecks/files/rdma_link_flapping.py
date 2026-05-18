@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import time
 import datetime
 import re
 import argparse
-import socket
 import subprocess
 from shared_logging import logger
 
@@ -96,7 +94,7 @@ class LinkFlappingTest:
                     # Convert the last failure date to seconds since the epoch
                     last_date_failure_sec = int(time.mktime(last_date_failure.timetuple()))
                 
-                if last_date_failure_str != None and last_date_failure_str != current_date_str:
+                if last_date_failure_str is not None and last_date_failure_str != current_date_str:
                     diff_secs = current_date_sec - last_date_failure_sec
                     diff_hours = diff_secs // (60 * 60)
                     logger.debug(f"RDMA link ({interface}) failed  {diff_hours} hours ago")
@@ -129,7 +127,7 @@ class LinkFlappingTest:
                         last_date_down_sec = int(time.mktime(last_date_down.timetuple()))
 
 
-                if last_date_down_str != None and last_date_down_str != current_date_str:
+                if last_date_down_str is not None and last_date_down_str != current_date_str:
                     diff_secs = current_date_sec - last_date_down_sec
                     diff_hours = diff_secs // (60 * 60)
                     logger.debug(f"RDMA link ({interface}) down  {diff_hours} hours ago")

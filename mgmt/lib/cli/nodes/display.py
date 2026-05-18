@@ -44,15 +44,17 @@ def print_nodes_info(nodes, full=False):
             table.add_row("fss_mount", node.fss_mount)
             table.add_row("gpu_memory_fabric", node.gpu_memory_fabric)
             table.add_row("hostname", node.hostname)
+            table.add_row("alternate_hostname", node.alternate_hostname)
             table.add_row("hpc_island", node.hpc_island)
             table.add_row("image_id", node.image_id)
             table.add_row("instance_type", node.instance_type)
             table.add_row("last_time_reachable", node.last_time_reachable)
             table.add_row("network_block_id", node.network_block_id)
-            table.add_row("memory_cluster_name", node.memory_cluster_name)
+            table.add_row("memory_cluster_id", node.memory_cluster_id)
             table.add_row("oci_name", node.oci_name)
             table.add_row("ocid", node.ocid)
             table.add_row("rack_id", node.rack_id)
+            table.add_row("rack_index", str(node.rack_index))
             table.add_row("rail_id", node.rail_id)
             table.add_row("role", node.role)
             table.add_row("serial", node.serial)
@@ -77,17 +79,18 @@ def print_node_list(nodes, title):
     table.add_column("compute_status", justify="left")
     table.add_column("healthcheck_recommendation", justify="left")
     table.add_column("cluster_name", justify="left")
-    table.add_column("memory_cluster_name", justify="left")
+    table.add_column("memory_cluster_id", justify="left")
     table.add_column("ocid", justify="left")
     table.add_column("serial", justify="left")
     table.add_column("ip_address", justify="left")
     table.add_column("shape", justify="left")
+    table.add_column("alternate_hostname", justify="left")
 
     for node in nodes:        
         table.add_row(
             node.hostname, node.status, node.compute_status,node.healthcheck_recommendation, node.cluster_name,
-            node.memory_cluster_name, str(node.ocid), node.serial,
-            node.ip_address, node.shape
+            node.memory_cluster_id, str(node.ocid), node.serial,
+            node.ip_address, node.shape, node.alternate_hostname
         )
 
     console = rich.get_console()
@@ -119,6 +122,32 @@ class ListValidFields(Exception):
 
     def __str__(self):
         return "\n".join(sorted(self.valid_fields))
+
+
+def parse_sort_spec(sort_spec):
+    """
+    Parse a comma-separated list of fields for sorting.
+
+    Returns the requested sort field names in the user-specified order.
+    """
+
+    valid_fields = set(db.list_columns())
+
+    if sort_spec is None:
+        return []
+
+    sort_fields = []
+    invalid_fields = []
+    for field in [field.strip() for field in sort_spec.split(",") if field.strip()]:
+        if field not in valid_fields:
+            invalid_fields.append(field)
+        elif field not in sort_fields:
+            sort_fields.append(field)
+
+    if invalid_fields:
+        raise InvalidField(invalid_fields, valid_fields=valid_fields)
+
+    return sort_fields
 
 
 def parse_fields_spec(fields_spec):
@@ -179,11 +208,12 @@ def parse_fields_spec(fields_spec):
         "status",
         "compute_status",
         "cluster_name",
-        "memory_cluster_name",
+        "memory_cluster_id",
         "ocid",
         "serial",
         "ip_address",
-        "shape"
+        "shape",
+        "alternate_hostname"
     ]
 
     fields_all = db.list_columns()
@@ -238,6 +268,37 @@ def parse_fields_spec(fields_spec):
             raise InvalidField(invalid_fields, valid_fields=valid_fields)
 
     return fields
+
+
+def _normalize_sort_value(val):
+    """
+    Normalize values so mixed/nullable fields can be sorted consistently.
+    """
+
+    if val is None:
+        return (1, "")
+
+    if isinstance(val, bool):
+        return (0, int(val))
+
+    if isinstance(val, int):
+        return (0, val)
+
+    return (0, str(val).casefold())
+
+
+def sort_nodes(nodes, sort_fields):
+    """Sort nodes in-memory by the requested fields."""
+
+    if not sort_fields:
+        return nodes
+
+    return sorted(
+        nodes,
+        key=lambda node: tuple(
+            _normalize_sort_value(getattr(node, field, None)) for field in sort_fields
+        ),
+    )
 
 
 # oops, redefined "format", and "filter"

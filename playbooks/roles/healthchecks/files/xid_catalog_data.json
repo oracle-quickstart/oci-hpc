@@ -1,0 +1,1525 @@
+{
+  "metadata": {
+    "generated_by": "xid_checker.generate_xid_catalog_data()",
+    "source": "Xid-Catalog.xlsx",
+    "source_md5": "c895f0f0c6ff71e445b5cd67bb763a0b"
+  },
+  "nvl5_decoding_rules": {
+    "144": [
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000100001",
+        "intr_info_binary_r575": "------000000-------------0000001",
+        "mnemonic": "SAW_MVB",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000100001",
+        "intr_info_binary_r575": "------000000-------------0000001",
+        "mnemonic": "SAW_MVB",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000100001",
+        "intr_info_binary_r575": "------000000-------------0000001",
+        "mnemonic": "SAW_MVB",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000008"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000100001",
+        "intr_info_binary_r575": "------000000-------------0000001",
+        "mnemonic": "SAW_MVB",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000010"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000100001",
+        "intr_info_binary_r575": "------000000-------------0000001",
+        "mnemonic": "SAW_MVB",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000020"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000100001",
+        "intr_info_binary_r575": "------000000-------------0000001",
+        "mnemonic": "SAW_MVB",
+        "resolution": "IGNORE"
+      }
+    ],
+    "145": [
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0001100010",
+        "intr_info_binary_r575": "------000000-------------0000011",
+        "mnemonic": "RLW_CTRL",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000008"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000010"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000020"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000040"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000080"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000100"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000200"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010000010",
+        "intr_info_binary_r575": "------000000-------------0000100",
+        "mnemonic": "RLW_REMAP",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010100010",
+        "intr_info_binary_r575": "------000000-------------0000101",
+        "mnemonic": "RLW_RSPCOL",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010100010",
+        "intr_info_binary_r575": "------000000-------------0000101",
+        "mnemonic": "RLW_RSPCOL",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0010100010",
+        "intr_info_binary_r575": "------000000-------------0000101",
+        "mnemonic": "RLW_RSPCOL",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000---------00011000010",
+        "intr_info_binary_r575": "------000000------------00000110",
+        "mnemonic": "RLW_RXPIPE",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000---------00011000010",
+        "intr_info_binary_r575": "------000000------------00000110",
+        "mnemonic": "RLW_RXPIPE",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000---------00011000010",
+        "intr_info_binary_r575": "------000000------------00000110",
+        "mnemonic": "RLW_RXPIPE",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000008"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011000010",
+        "intr_info_binary_r575": "------000000-------------0000110",
+        "mnemonic": "RLW_RXPIPE",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011000010",
+        "intr_info_binary_r575": "------000000-------------0000110",
+        "mnemonic": "RLW_RXPIPE",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011100010",
+        "intr_info_binary_r575": "------000000-------------0000111",
+        "mnemonic": "RLW_SRC_TRACK",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011100010",
+        "intr_info_binary_r575": "------000000-------------0000111",
+        "mnemonic": "RLW_SRC_TRACK",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011100010",
+        "intr_info_binary_r575": "------000000-------------0000111",
+        "mnemonic": "RLW_SRC_TRACK",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000008"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011100010",
+        "intr_info_binary_r575": "------000000-------------0000111",
+        "mnemonic": "RLW_SRC_TRACK",
+        "resolution": "XID_154_EVAL"
+      },
+      {
+        "error_status_hex": [
+          "0x00000010"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011100010",
+        "intr_info_binary_r575": "------000000-------------0000111",
+        "mnemonic": "RLW_SRC_TRACK",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000020"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011100010",
+        "intr_info_binary_r575": "------000000-------------0000111",
+        "mnemonic": "RLW_SRC_TRACK",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0011100010",
+        "intr_info_binary_r575": "------000000-------------0000111",
+        "mnemonic": "RLW_SRC_TRACK",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100000010",
+        "intr_info_binary_r575": "------000000-------------0001000",
+        "mnemonic": "RLW_TAGSTATE",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100000010",
+        "intr_info_binary_r575": "------000000-------------0001000",
+        "mnemonic": "RLW_TAGSTATE",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00010000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100000010",
+        "intr_info_binary_r575": "------000000-------------0001000",
+        "mnemonic": "RLW_TAGSTATE",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00020000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100000010",
+        "intr_info_binary_r575": "------000000-------------0001000",
+        "mnemonic": "RLW_TAGSTATE",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00100000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100000010",
+        "intr_info_binary_r575": "------000000-------------0001000",
+        "mnemonic": "RLW_TAGSTATE",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100000010",
+        "intr_info_binary_r575": "------000000-------------0001000",
+        "mnemonic": "RLW_TAGSTATE",
+        "resolution": "IGNORE"
+      }
+    ],
+    "146": [
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100100011",
+        "intr_info_binary_r575": "------000000-------------0001001",
+        "mnemonic": "TLW_CTRL",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100100011",
+        "intr_info_binary_r575": "------000000-------------0001001",
+        "mnemonic": "TLW_CTRL",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100100011",
+        "intr_info_binary_r575": "------000000-------------0001001",
+        "mnemonic": "TLW_CTRL",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0100100011",
+        "intr_info_binary_r575": "------000000-------------0001001",
+        "mnemonic": "TLW_CTRL",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001010",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE0",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001010",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE0",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001010",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE0",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001010",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE0",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001011",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE1",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001011",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE1",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001011",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE1",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101000011",
+        "intr_info_binary_r575": "------000000-------------0001011",
+        "mnemonic": "TLW_RX/TLW_RX_PIPE1",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001100",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE0",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001100",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE0",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001100",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE0",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001100",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE0",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001101",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE1",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001101",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE1",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001101",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE1",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0101100011",
+        "intr_info_binary_r575": "------000000-------------0001101",
+        "mnemonic": "TLW_TX/TLW_TX_PIPE1",
+        "resolution": "IGNORE"
+      }
+    ],
+    "147": [
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0110000100",
+        "intr_info_binary_r575": "------000000-------------0001110",
+        "mnemonic": "TREX",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0110000100",
+        "intr_info_binary_r575": "------000000-------------0001110",
+        "mnemonic": "TREX",
+        "resolution": "IGNORE"
+      }
+    ],
+    "148": [
+      {
+        "error_status_hex": [
+          "0x80000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000000101",
+        "intr_info_binary_r575": "------000000-------------0001111",
+        "mnemonic": "NVLPW_CTRL/NVLPW",
+        "resolution": "IGNORE"
+      }
+    ],
+    "149": [
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------000000----------0000000110",
+        "intr_info_binary_r575": "------000000-------------0011000",
+        "mnemonic": "NETIR/NETIR_INT",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------000000----------0111000110",
+        "intr_info_binary_r575": "------000000-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------000001----------0111000110",
+        "intr_info_binary_r575": "------000001-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------000010----------0111000110",
+        "intr_info_binary_r575": "------000010-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------000100----------0111000110",
+        "intr_info_binary_r575": "------000100-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------001010----------0111000110",
+        "intr_info_binary_r575": "------001010-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------001111----------0111000110",
+        "intr_info_binary_r575": "------001111-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------010000----------0111000110",
+        "intr_info_binary_r575": "------010000-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------010001----------0111000110",
+        "intr_info_binary_r575": "------010001-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------010010----------0111000110",
+        "intr_info_binary_r575": "------010010-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------010101----------0111000110",
+        "intr_info_binary_r575": "------010101-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------010110----------0111000110",
+        "intr_info_binary_r575": "------010110-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------100000----------0111000110",
+        "intr_info_binary_r575": "------100000-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------100001----------0111000110",
+        "intr_info_binary_r575": "------100001-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------100010----------0111000110",
+        "intr_info_binary_r575": "------100010-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------100011----------0111000110",
+        "intr_info_binary_r575": "------100011-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------100100----------0111000110",
+        "intr_info_binary_r575": "------100100-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------100101----------0111000110",
+        "intr_info_binary_r575": "------100101-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------100110----------0111000110",
+        "intr_info_binary_r575": "------100110-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------101000----------0111000110",
+        "intr_info_binary_r575": "------101000-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------101010----------0111000110",
+        "intr_info_binary_r575": "------101010-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [],
+        "intr_info_binary_pre_r575": "------101011----------0111000110",
+        "intr_info_binary_r575": "------101011-------------0010001",
+        "mnemonic": "NETIR_LINK_EVT/NETIR_LINK_DOWN",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1000100110",
+        "intr_info_binary_r575": "------000000-------------0010011",
+        "mnemonic": "NETIR_BER_EVENT",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1000100110",
+        "intr_info_binary_r575": "------000000-------------0010011",
+        "mnemonic": "NETIR_BER_EVENT",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000002"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1000100110",
+        "intr_info_binary_r575": "------000000-------------0010011",
+        "mnemonic": "NETIR_BER_EVENT",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000003"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1000100110",
+        "intr_info_binary_r575": "------000000-------------0010011",
+        "mnemonic": "NETIR_BER_EVENT",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000001"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1001000110",
+        "intr_info_binary_r575": "------000000-------------0010100",
+        "mnemonic": "NETIR_MFDE_EVENT",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000003"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1001000110",
+        "intr_info_binary_r575": "------000000-------------0010100",
+        "mnemonic": "NETIR_MFDE_EVENT",
+        "resolution": "IGNORE"
+      },
+      {
+        "error_status_hex": [
+          "0x00000004"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1001000110",
+        "intr_info_binary_r575": "------000000-------------0010100",
+        "mnemonic": "NETIR_MFDE_EVENT",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000005"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1001000110",
+        "intr_info_binary_r575": "------000000-------------0010100",
+        "mnemonic": "NETIR_MFDE_EVENT",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000007"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------1001000110",
+        "intr_info_binary_r575": "------000000-------------0010100",
+        "mnemonic": "NETIR_MFDE_EVENT",
+        "resolution": "RESET_GPU"
+      }
+    ],
+    "150": [
+      {
+        "error_status_hex": [
+          "0x00000000",
+          "0xFFFFFFFF"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000000000",
+        "intr_info_binary_r575": "------000000-------------0000000",
+        "mnemonic": "MSE Degraded",
+        "resolution": "RESET_GPU"
+      },
+      {
+        "error_status_hex": [
+          "0x00000000"
+        ],
+        "intr_info_binary_pre_r575": "------000000----------0000000000",
+        "intr_info_binary_r575": "------000000-------------0000000",
+        "mnemonic": "MSE_WATCHDOG",
+        "resolution": "RESET_GPU"
+      }
+    ]
+  },
+  "xid_error_catalog": {
+    "1": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "2": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "3": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "4": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "5": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "6": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "7": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "8": {
+      "action": "RESTART_APP",
+      "description": "GPU stopped processing"
+    },
+    "9": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "10": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "11": {
+      "action": "RESTART_APP",
+      "description": "Invalid or corrupted push buffer stream"
+    },
+    "12": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "13": {
+      "action": "RESTART_APP",
+      "description": "Graphics Engine Exception"
+    },
+    "14": {
+      "action": "IGNORE",
+      "description": "Unused"
+    },
+    "15": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "16": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "17": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "18": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "19": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "20": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "21": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "22": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "23": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "24": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "25": {
+      "action": "RESTART_APP",
+      "description": "Invalid or illegal push buffer stream"
+    },
+    "26": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "27": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "28": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "29": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "30": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "31": {
+      "action": "RESTART_APP",
+      "description": "GPU memory page fault"
+    },
+    "32": {
+      "action": "RESTART_APP",
+      "description": "Invalid or corrupted push buffer stream"
+    },
+    "33": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "34": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "35": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "36": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "37": {
+      "action": "IGNORE",
+      "description": "Driver firmware error"
+    },
+    "38": {
+      "action": "IGNORE",
+      "description": "Driver firmware error"
+    },
+    "39": {
+      "action": "RESTART_APP",
+      "description": "Copy Engine Exception"
+    },
+    "40": {
+      "action": "RESTART_APP",
+      "description": "Copy Engine Exception"
+    },
+    "41": {
+      "action": "RESTART_APP",
+      "description": "Copy Engine Exception"
+    },
+    "42": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "43": {
+      "action": "IGNORE",
+      "description": "GPU stopped processing"
+    },
+    "44": {
+      "action": "IGNORE",
+      "description": "Graphics Engine fault during context switch"
+    },
+    "45": {
+      "action": "WORKFLOW_XID_45",
+      "description": "Preemptive cleanup, due to previous errors -- Most likely to see when running multiple cuda applications and hitting a DBE"
+    },
+    "46": {
+      "action": "RESET_GPU",
+      "description": "GPU stopped processing"
+    },
+    "47": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "48": {
+      "action": "WORKFLOW_XID_48",
+      "description": "Double Bit ECC Error"
+    },
+    "49": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "50": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "51": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "52": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "53": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "54": {
+      "action": "CHECK_MECHANICALS",
+      "description": "Auxiliary power is not connected to the GPU board"
+    },
+    "55": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "56": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "57": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "58": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "59": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "60": {
+      "action": "RESTART_APP",
+      "description": "Video processor exception"
+    },
+    "61": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "62": {
+      "action": "RESET_GPU",
+      "description": "Internal micro-controller halt\n(newer drivers)"
+    },
+    "63": {
+      "action": "IGNORE",
+      "description": "GPU memory remapping event"
+    },
+    "64": {
+      "action": "RESET_GPU",
+      "description": "GPU memory remapping failure"
+    },
+    "65": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "66": {
+      "action": "IGNORE",
+      "description": "Illegal access by driver"
+    },
+    "67": {
+      "action": "IGNORE",
+      "description": "Illegal access by driver"
+    },
+    "68": {
+      "action": "RESTART_APP",
+      "description": "NVDEC0 Exception"
+    },
+    "69": {
+      "action": "RESTART_APP",
+      "description": "Graphics Engine class error"
+    },
+    "70": {
+      "action": "RESTART_APP",
+      "description": "CE3: Unknown Error"
+    },
+    "71": {
+      "action": "RESTART_APP",
+      "description": "CE4: Unknown Error"
+    },
+    "72": {
+      "action": "RESTART_APP",
+      "description": "CE5: Unknown Error"
+    },
+    "73": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "74": {
+      "action": "WORKFLOW_NVLINK_ERR",
+      "description": "NVLINK Error"
+    },
+    "75": {
+      "action": "RESTART_APP",
+      "description": "CE6: Unknown Error"
+    },
+    "76": {
+      "action": "RESTART_APP",
+      "description": "CE7: Unknown Error"
+    },
+    "77": {
+      "action": "RESTART_APP",
+      "description": "CE8: Unknown Error"
+    },
+    "78": {
+      "action": "UPDATE_SWFW",
+      "description": "vGPU Start Error"
+    },
+    "79": {
+      "action": "RESTART_BM",
+      "description": "GPU has fallen off the bus"
+    },
+    "80": {
+      "action": "RESTART_APP",
+      "description": "Corrupted data sent to GPU"
+    },
+    "81": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "82": {
+      "action": "RESTART_APP",
+      "description": "NVJPG0 Error"
+    },
+    "83": {
+      "action": "RESTART_APP",
+      "description": "NVDEC1 Error"
+    },
+    "84": {
+      "action": "RESTART_APP",
+      "description": "NVDEC2 Error"
+    },
+    "85": {
+      "action": "RESTART_APP",
+      "description": "CE9: Unknown Error"
+    },
+    "86": {
+      "action": "RESTART_APP",
+      "description": "OFA Exception"
+    },
+    "87": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "88": {
+      "action": "RESTART_APP",
+      "description": "NVDEC3 Error"
+    },
+    "89": {
+      "action": "RESTART_APP",
+      "description": "NVDEC4 Error"
+    },
+    "90": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "91": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "92": {
+      "action": "IGNORE",
+      "description": "High single-bit ECC error rate"
+    },
+    "93": {
+      "action": "IGNORE",
+      "description": "Non-fatal violation of provisioned InfoROM wear limit"
+    },
+    "94": {
+      "action": "RESTART_APP",
+      "description": "Contained memory error"
+    },
+    "95": {
+      "action": "RESET_GPU",
+      "description": "Uncontained memory error"
+    },
+    "96": {
+      "action": "RESTART_APP",
+      "description": "NVDEC5 Error"
+    },
+    "97": {
+      "action": "RESTART_APP",
+      "description": "NVDEC6 Error"
+    },
+    "98": {
+      "action": "RESTART_APP",
+      "description": "NVDEC7 Error"
+    },
+    "99": {
+      "action": "RESTART_APP",
+      "description": "NVJPG1 Error"
+    },
+    "100": {
+      "action": "RESTART_APP",
+      "description": "NVJPG2 Error"
+    },
+    "101": {
+      "action": "RESTART_APP",
+      "description": "NVJPG3 Error"
+    },
+    "102": {
+      "action": "RESTART_APP",
+      "description": "NVJPG4 Error"
+    },
+    "103": {
+      "action": "RESTART_APP",
+      "description": "NVJPG5 Error"
+    },
+    "104": {
+      "action": "RESTART_APP",
+      "description": "NVJPG6 Error"
+    },
+    "105": {
+      "action": "RESTART_APP",
+      "description": "NVJPG7 Error"
+    },
+    "106": {
+      "action": "IGNORE",
+      "description": "SMBPBI Test Message"
+    },
+    "107": {
+      "action": "IGNORE",
+      "description": "SMBPBI Test Message Silent"
+    },
+    "108": {
+      "action": "IGNORE",
+      "description": "Unused"
+    },
+    "109": {
+      "action": "RESET_GPU",
+      "description": "Context Switch Timeout Error"
+    },
+    "110": {
+      "action": "RESET_GPU",
+      "description": "Security Fault Error"
+    },
+    "111": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "112": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "113": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "114": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "115": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "116": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "117": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "118": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "119": {
+      "action": "RESET_GPU",
+      "description": "GSP RPC Timeout"
+    },
+    "120": {
+      "action": "RESET_GPU",
+      "description": "GSP Error"
+    },
+    "121": {
+      "action": "IGNORE",
+      "description": "C2C Error"
+    },
+    "122": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "123": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "124": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "125": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "126": {
+      "action": "RESTART_APP",
+      "description": "CE10: Unknown Error"
+    },
+    "127": {
+      "action": "RESTART_APP",
+      "description": "CE11: Unknown Error"
+    },
+    "128": {
+      "action": "RESTART_APP",
+      "description": "CE12: Unknown Error"
+    },
+    "129": {
+      "action": "RESTART_APP",
+      "description": "CE13: Unknown Error"
+    },
+    "130": {
+      "action": "RESTART_APP",
+      "description": "CE14: Unknown Error"
+    },
+    "131": {
+      "action": "RESTART_APP",
+      "description": "CE15: Unknown Error"
+    },
+    "132": {
+      "action": "RESTART_APP",
+      "description": "CE16: Unknown Error"
+    },
+    "133": {
+      "action": "RESTART_APP",
+      "description": "CE17: Unknown Error"
+    },
+    "134": {
+      "action": "RESTART_APP",
+      "description": "CE18: Unknown Error"
+    },
+    "135": {
+      "action": "RESTART_APP",
+      "description": "CE19: Unknown Error"
+    },
+    "136": {
+      "action": "RESET_GPU",
+      "description": "Link Training Failed"
+    },
+    "137": {
+      "action": "IGNORE",
+      "description": "NVLink Privilege Error"
+    },
+    "138": {
+      "action": "CONTACT_SUPPORT",
+      "description": "Unused"
+    },
+    "139": {
+      "action": "RESTART_APP",
+      "description": "OFA1 Error"
+    },
+    "140": {
+      "action": "RESET_GPU",
+      "description": "ECC Unrecovered Error"
+    },
+    "141": {
+      "action": "IGNORE",
+      "description": "CUDA Fast Path Error"
+    },
+    "142": {
+      "action": "CONTACT_SUPPORT",
+      "description": "NVENC3 Error"
+    },
+    "143": {
+      "action": "RESET_GPU",
+      "description": "GPU Initialization Error"
+    },
+    "144": {
+      "action": "WORKFLOW_NVLINK5_ERR",
+      "description": "NVLINK: SAW Error"
+    },
+    "145": {
+      "action": "WORKFLOW_NVLINK5_ERR",
+      "description": "NVLINK: RLW Error"
+    },
+    "146": {
+      "action": "WORKFLOW_NVLINK5_ERR",
+      "description": "NVLINK: TLW Error"
+    },
+    "147": {
+      "action": "WORKFLOW_NVLINK5_ERR",
+      "description": "NVLINK: TREX Error"
+    },
+    "148": {
+      "action": "WORKFLOW_NVLINK5_ERR",
+      "description": "NVLINK: NVLPW_CTRL Error"
+    },
+    "149": {
+      "action": "WORKFLOW_NVLINK5_ERR",
+      "description": "NVLINK: NETIR Error"
+    },
+    "150": {
+      "action": "WORKFLOW_NVLINK5_ERR",
+      "description": "NVLINK: MSE Error"
+    },
+    "151": {
+      "action": "RESTART_VM",
+      "description": "Key rotation Error"
+    },
+    "152": {
+      "action": "IGNORE",
+      "description": "DLA SMMU Error"
+    },
+    "153": {
+      "action": "IGNORE",
+      "description": "DLA timeout Error"
+    },
+    "154": {
+      "action": "XID_154",
+      "description": "GPU Recovery Action Changed"
+    },
+    "155": {
+      "action": "RESET_GPU",
+      "description": "NVLINK: SW Defined Error"
+    },
+    "156": {
+      "action": "RESET_GPU",
+      "description": "Resource Retirement Event"
+    },
+    "157": {
+      "action": "IGNORE",
+      "description": "Resource Retirement Failure"
+    },
+    "158": {
+      "action": "RESET_GPU",
+      "description": "GPU Fatal Timeout"
+    },
+    "159": {
+      "action": "CHECK_UVM",
+      "description": "CHI Non-Data Error"
+    },
+    "160": {
+      "action": "IGNORE",
+      "description": "Channel Retirement Event"
+    },
+    "161": {
+      "action": "IGNORE",
+      "description": "Channel Retirement Failure"
+    },
+    "162": {
+      "action": "",
+      "description": "Power Smoothing HW Circuitry capability reengaged"
+    },
+    "163": {
+      "action": "",
+      "description": "Power Smoothing HW Circuitry capability disengaged"
+    },
+    "164": {
+      "action": "",
+      "description": "Power Smoothing HW Circuitry low lifetime reached"
+    },
+    "165": {
+      "action": "",
+      "description": "Power Smoothing HW Circuitry lifetime exhausted"
+    },
+    "166": {
+      "action": "",
+      "description": "CC traffic seen prior to link properly being configured for encrypted traffic"
+    },
+    "167": {
+      "action": "",
+      "description": "PCIE_FATAL_TIMEOUT"
+    },
+    "168": {
+      "action": "",
+      "description": "Errors found in WPR (write protected region)"
+    },
+    "169": {
+      "action": "",
+      "description": "Internal micro-controller halt"
+    },
+    "170": {
+      "action": "",
+      "description": "Interrupt seen in CC mode"
+    },
+    "171": {
+      "action": "",
+      "description": "Additional to Xid 48 providing more details on particulars of fault to differentiate DRAM/SRAM"
+    },
+    "172": {
+      "action": "",
+      "description": "Additional to Xid 48 providing more details on particulars of fault to differentiate DRAM/SRAM"
+    }
+  }
+}

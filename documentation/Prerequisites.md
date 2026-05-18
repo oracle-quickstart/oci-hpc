@@ -122,7 +122,7 @@ Allow any-user to use stream-push in compartment id <target_stream_compartment_O
 
 ## Supported operating systems
 
-This stack supports several operating systems and operating system combinations listed below. We can't guarantee any other combination. Although, Ubuntu versions or OL versions usually works fine. Mixing Ubuntu with OL is not supported.
+This stack supports the operating systems and operating system combinations listed below. We can't guarantee any other combination. Mixing Ubuntu with Oracle Linux is not supported. Oracle Linux 8 is deprecated and will be phased out in a future release; new deployments should prefer Oracle Linux 9, Ubuntu 22.04, or Ubuntu 24.04.
 
 |  Management nodes  |   Compute nodes   |
 |--------------------|-------------------|
@@ -179,6 +179,7 @@ Use the Lustre 6.8 kernel images to get the Lustre client.
 [Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-2026.03.13-0)
 
 ### Oracle Linux 8
+Oracle Linux 8 is deprecated and will be phased out in a future release. Prefer Oracle Linux 9 for new deployments.
 #### AMD
 [Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
 #### NVIDIA GPUs
@@ -187,7 +188,7 @@ Use the Lustre 6.8 kernel images to get the Lustre client.
 #### HPC (No Nvidia drivers):
 [Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-2026.03.13-0)
 
-### Oracle Linux 8
+### Oracle Linux 9
 #### AMD
 [Oracle-Linux-9.6-2025.11.20-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-9.6-2025.11.20-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0)
 [Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)

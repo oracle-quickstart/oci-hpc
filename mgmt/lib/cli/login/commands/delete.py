@@ -1,6 +1,6 @@
 
 import click
-from lib.logger import logger
+from lib.cli import completion
 from lib.ociwrap import run_terminate
 import lib.database as db
 
@@ -9,7 +9,7 @@ import lib.database as db
 ###
 
 @click.command()
-@click.option('--hostname', required=True, help='Specify the name of the login node')
+@click.option('--hostname', required=True, help='Specify the name of the login node', shell_complete=completion.complete_node_identifiers)
 def delete(hostname):
     """Delete a login node."""
     field_dict = {"hostname": hostname, "role":"login"}

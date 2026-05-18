@@ -2,7 +2,6 @@ import click
 from lib.ociwrap import list_custom_images
 from lib.cli.images.display import print_image_list_yaml_json,print_image_list
 from lib.database import get_controller_node, get_nodes_with_latest_healthchecks
-from lib.logger import logger
 
 @click.command('list')
 @click.option(

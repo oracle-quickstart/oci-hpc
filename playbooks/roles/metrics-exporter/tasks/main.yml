@@ -1,4 +1,39 @@
 ---
+- name: Ensure metrics-exporter shared cache directory exists
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_shared_path }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  run_once: true
+
+- name: Ensure metrics-exporter go cache directories exist
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_shared_path }}/go/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ metrics_exporter_target_architectures }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Ensure node_exporter cache directories exist
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_shared_path }}/node_exporter/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ metrics_exporter_target_architectures }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Ensure dcgm-exporter cache directories exist
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_shared_path }}/dcgm-exporter/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ metrics_exporter_target_architectures }}"
+  delegate_to: localhost
+  run_once: true
+
 - ansible.builtin.include_tasks: node_exporter_el.yml
   when: ansible_facts['os_family'] == 'RedHat'
 

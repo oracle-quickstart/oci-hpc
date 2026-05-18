@@ -26,8 +26,9 @@ locals {
   //  subnet_id = var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
   subnet_id = var.private_deployment ? var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 1) : var.use_existing_vcn ? var.private_subnet_id : element(concat(oci_core_subnet.private-subnet.*.id, [""]), 0)
 
-  nfs_source_IP                = var.create_fss == "new" ? oci_dns_rrset.fss-dns-round-robin[0].domain : var.nfs_source_IP
-  nfs_list_of_mount_target_IPs = var.create_fss == "new" ? "[\"${join("\",\"", oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]" : var.nfs_source_IP
+  nfs_source_IP                = var.add_nfs && var.create_fss == "new" ? (var.mount_target_count == 0 ? oci_dns_rrset.config_fss.domain : oci_dns_rrset.fss-dns-round-robin[0].domain) : var.nfs_source_IP
+  nfs_list_of_mount_target_IPs = var.add_nfs && var.create_fss == "new" ? (var.mount_target_count == 0 ? "[\"${oci_file_storage_mount_target.config_fss_mount_target.ip_address}\"]" : "[\"${join("\",\"", oci_file_storage_mount_target.FSSMountTarget.*.ip_address)}\"]") : var.nfs_source_IP
+  config_fss_hostname          = oci_dns_rrset.config_fss.domain
 
   // subnet id derived either from created subnet or existing if specified
   // controller_subnet_id = var.use_existing_vcn ? var.public_subnet_id : element(concat(oci_core_subnet.public-subnet.*.id, [""]), 0)
@@ -72,23 +73,34 @@ locals {
   ocir_namespace   = lookup(data.oci_objectstorage_namespace.namespace, "namespace")
   compartment_name = lookup(data.oci_identity_compartment.compartment, "name")
   region_key       = [for d in flatten(data.oci_identity_regions.regions.regions) : lower(d.key) if d.name == var.region][0]
-  auth_token       = var.use_OCI_generated_container ? "" : var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token)
-  registry_id      = var.use_OCI_generated_container ? "" : var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id
-
-  topic_id   = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
-  metrics_stream_ocid  = var.ingest_oci_metrics ? oci_streaming_stream.telegraf_stream[0].id : ""
+  auth_token       = (var.use_OCI_generated_container && !var.is_gov_cloud) ? "" : var.use_existing_auth_token ? var.auth_token : sensitive(oci_identity_auth_token.auth_token[0].token)
+  registry_id      = (var.use_OCI_generated_container && !var.is_gov_cloud) ? "" : var.use_existing_registry ? var.registry_id : oci_artifacts_container_repository.container_repository[0].id
+  ocir_login_user = var.default_domain ? (
+    # Default domain: namespace/username  (no domain prefix needed)
+    "${local.ocir_namespace}/${data.oci_identity_user.default_user[0].name}"
+    ) : (
+    # Non-default domain: namespace/domain-display-name/username
+    "${local.ocir_namespace}/${data.oci_identity_domain.selected[0].display_name}/${data.oci_identity_domains_user.user[0].user_name}"
+  )
+  topic_id            = var.alerting ? oci_ons_notification_topic.grafana_alerts[0].id : ""
+  metrics_stream_ocid = var.ingest_oci_metrics ? oci_streaming_stream.telegraf_stream[0].id : ""
   # Gov Regions
   gov_cloud_regions = toset(["us-langley-1", "us-luke-1"])
-  is_gov_cloud = contains(local.gov_cloud_regions, var.region) || can(regex("-gov-", var.region))
-  ocir_host = local.is_gov_cloud ? "ocir.${var.region}.oci.oraclegovcloud.com" : "${local.region_key}.ocir.io"
-  ocir_image = var.use_OCI_generated_container ? "${local.ocir_host}/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:latest" : "${local.ocir_host}/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:latest"
+  #is_gov_cloud = contains(local.gov_cloud_regions, var.region) || can(regex("-gov-", var.region))
+  ocir_host = var.is_gov_cloud ? "ocir.${var.region}.oci.oraclegovcloud.com" : "${local.region_key}.ocir.io"
+  ocir_image = (var.is_gov_cloud || !var.use_OCI_generated_container) ? "${local.ocir_host}/${local.ocir_namespace}/${data.oci_artifacts_container_repository.container_repo[0].display_name}:${var.container_version}" : "${local.ocir_host}/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:${var.container_version}"
   # Pick the right IP based on flags
-  config_target_name = var.create_fss == "new" ? oci_dns_rrset.fss-dns-round-robin[0].domain : oci_dns_rrset.controller[0].domain
 
-  lustre_IP = var.add_lfs && var.create_lfs == "new"? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
+  lustre_IP          = var.add_lfs && var.create_lfs == "new" ? oci_lustre_file_storage_lustre_file_system.lustre_file_system[0].management_service_address : var.lfs_source_IP
   mysql_service_host = var.slurm_ha ? data.oci_mysql_mysql_db_system.slurm_mysql[0].endpoints[0].ip_address : ""
-  detected_arch  = data.external.architecture.result["arch"]
-  function_shape = var.use_OCI_generated_container ? "GENERIC_X86_ARM" : (
-    local.detected_arch == "aarch64" ? "GENERIC_ARM" : "GENERIC_X86"
+  detected_arch      = data.external.architecture.result["arch"]
+  function_shape = var.is_gov_cloud ? "GENERIC_X86" : (
+    var.use_OCI_generated_container ? "GENERIC_X86_ARM" : (
+      local.detected_arch == "aarch64" ? "GENERIC_ARM" :
+      # otherwise
+      "GENERIC_X86"
+    )
   )
+  bucket_access_key = var.create_bucket ? oci_identity_customer_secret_key.customer_secret_key[0].id : ""
+  bucket_secret_key = var.create_bucket ? oci_identity_customer_secret_key.customer_secret_key[0].key : ""
 }

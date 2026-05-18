@@ -1,4 +1,5 @@
 import click
+from lib.cli import completion
 from lib.ociwrap import run_boot_volume_swap, pick_custom_images
 import lib.database as db
 from lib.logger import logger
@@ -30,14 +31,16 @@ def filter_cmd(ctx, nodes, fields):
 @click.option(
     "--nodes",
     required=False,
-    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)"
+    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)",
+    shell_complete=completion.complete_node_identifiers,
 )
 @click.option(
     '--fields',
     required=False,
-    help='Fields to filter nodes (e.g., role=compute,status=running)'
+    help='Fields to filter nodes (e.g., role=compute,status=running)',
+    shell_complete=completion.complete_node_fields,
 )
-@click.option("--image", required=False, help="Specify the image for BVR")
+@click.option("--image", required=False, help="Specify the image for BVR", shell_complete=completion.complete_images)
 @click.option("--size", required=False, help="Specify the size for BVR in GB", type=int)
 @click.pass_context
 def boot_volume_swap(ctx, nodes, fields, image, size):

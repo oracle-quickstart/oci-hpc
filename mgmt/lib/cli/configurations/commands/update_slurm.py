@@ -3,7 +3,7 @@
 
 import click
 from lib.database import get_all_configs
-from lib.functions import generate_slurm_entries, read_slurm_conf, write_slurm_conf, sync_slurm_config, generate_topology_entries_simple
+from lib.functions import generate_slurm_entries, sync_slurm_config, generate_topology_entries_simple
 from lib.logger import logger
 import sys
 

@@ -1,0 +1,7 @@
+[tool.ruff.lint]
+ignore = [
+    "F841",  # unused variable
+    "E722",  # bare except
+    "E401",  # multiple imports on one line
+    "E402",  # import not at top of file
+]

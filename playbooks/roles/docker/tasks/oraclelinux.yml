@@ -40,21 +40,25 @@
         name: safe_yum
 
     - name: Start Docker
+      become: true
       ansible.builtin.service:
         name: "docker"
         enabled: true
         state: started
 
     - name: Enable service containerd
+      become: true
       ansible.builtin.service:
         name: containerd
         enabled: true
 
     - name: Create docker group
+      become: true
       ansible.builtin.group:
         name: docker
         state: present
     - name: Add opc user to docker group
+      become: true
       ansible.builtin.user:
         name: opc
         groups: docker

@@ -21,18 +21,10 @@
   ansible.builtin.set_fact:
     queues: "{{ json_list.queues }}"
 
-- name: Generate topology.conf
-  become: true
-  ansible.builtin.template:
-    src: topology.conf.j2
-    dest: "{{ slurm_conf_path }}/topology.conf"
-    mode: "0644"
-    force: true
-    owner: slurm
-    group: slurm
-  register: initial_topology
-  run_once: true
-  notify: Reconfigure slurm
+- name: Generate topology.yaml
+  vars:
+    reconfigure_slurm_state: true
+  ansible.builtin.include_tasks: generate-topology.yml
 
 - name: Run handlers
   ansible.builtin.meta: flush_handlers

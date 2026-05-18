@@ -18,7 +18,6 @@ variable "compute_node_ssh_key" {
   type    = string
   default = ""
 }
-
 variable "rdma_enabled" {
   default = true
   type    = bool
@@ -145,10 +144,7 @@ variable "public_subnet" {
   default = "172.16.0.0/24"
   type    = string
 }
-variable "additional_subnet" {
-  default = "172.16.1.0/24"
-  type    = string
-}
+
 variable "rdma_subnet" {
   default = "192.168.0.0/16"
   type    = string
@@ -166,7 +162,7 @@ variable "slurm" {
   type    = bool
 }
 variable "slurm_version" {
-  default = "24.11.7-1"
+  default = "25.11.5-1"
   type    = string
 }
 variable "slurm_ha" {
@@ -330,12 +326,10 @@ variable "shared_home" {
   default = "nfs"
   type    = string
 }
-/*
-variable "configure" {
-  default = true
+variable "create_bucket" {
+  default = false
   type    = bool
 }
-*/
 variable "hyperthreading" {
   default = true
   type    = bool
@@ -349,7 +343,7 @@ variable "create_fss" {
   type    = string
 }
 variable "mount_target_count" {
-  default = "1"
+  default = "0"
   type    = number
 }
 variable "fss_compartment" {
@@ -465,6 +459,7 @@ variable "active_healthchecks" {
   default = true
   type    = bool
 }
+
 variable "BIOS" {
   default = false
   type    = bool
@@ -527,9 +522,14 @@ variable "auth_token" {
   type    = string
 }
 
-variable "home_region" {
-  default = "us-ashburn-1"
-  type    = string
+ variable "home_region" {
+   default = "us-ashburn-1"
+   type    = string
+}
+
+variable is_gov_cloud {
+  default = false
+  type    = bool
 }
 
 variable "use_OCI_generated_container" {
@@ -546,6 +546,13 @@ variable "OCI_generated_container_name" {
   default = "oci-hpc-stack"
   type    = string
 }
+
+
+variable "container_version" {
+  default = "v3.1"
+  type    = string
+}
+
 
 variable "ondemand_partition" {
   default = false
@@ -630,4 +637,20 @@ variable "wildcard_dns_domain" {
 variable "use_lets_encrypt_prod_ep" {
   default = true
   type    = bool
+}
+
+variable "default_domain" {
+  default = true
+  type    = bool  
+  description = "Using default Domain"
+}
+
+variable "domain_ocid" {
+  type        = string
+  description = "Identity domain OCID for the user; overrides default identity domain."
+  default     = null
+}
+variable "prechecks" {
+  default = true
+  type = bool
 }

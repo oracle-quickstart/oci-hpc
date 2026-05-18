@@ -25,9 +25,29 @@ By default, a `privilege` group that has access to the NFS and can have sudo acc
 
 ## Functions and Events Configuration
 
-### Use an existing OCI Registry
+### Run function prechecks
 
-Select this option to use existing image container registry.
+Select this option to make sure all policies are set. If checked, will invoke the function for a dry-run and report any missing rights.
+
+### Using Default identity domain
+
+Uncheck if current user belongs to non default identity domain.
+
+### OCID of identity domain
+
+Non default dentity domain OCID for the user.
+
+### Gov or Defense cloud region
+
+If checked, specifies this deployment is occuring in a government or defense cloud region. Leave uncheck for commercial regions.
+
+### Point to an existing public OCIR in the region
+
+Commercial regions: keep enabled to pull the published OCI-HPC image from public OCIR (no auth token needed), uncheck to rebuild and push your own image (if unsure, keep checked). Gov/air-gapped regions: Make sure this is unchecked for the stack to mirror the public image into your tenancy using a token.
+
+### Use existing auth token
+
+Use an auth token you already created (OCI limits users to two active tokens). Needed when rebuilding your own image or when mirroring into Gov/air-gapped regions; ignored when simply pulling the public image in commercial regions.
 
 ## Controller Node Options
 
@@ -41,9 +61,9 @@ There are possibly up to 4 management nodes:
 * Monitoring: monitoring tasks dedicated node (Prometheus, Grafana)
 * Controller backup: for High Availability purpose (requires the File Storage Service to host a slurm MySQL HeatWave database)
 
-Marketplace images are based on Oracle Linux 8. They are HPC specific versions with NVIDIA or AMD GPU drivers (except HPC_OL8) and RDMA drivers preinstalled.
+Marketplace images are based on Oracle Linux 8. They are HPC specific versions with NVIDIA or AMD GPU drivers (except HPC_OL8) and RDMA drivers preinstalled. Oracle Linux 8 is deprecated and will be phased out in a future release, so new deployments should plan to move to Oracle Linux 9, Ubuntu 22.04, or Ubuntu 24.04.
 
-Other images such as Ubuntu or CentOS can be used. Username must be changed accordingly (default is `opc` for OL8, `ubuntu` for Ubuntu).
+Supported custom images are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release. Username must be changed accordingly (default is `opc` for Oracle Linux, `ubuntu` for Ubuntu).
 
 If a non-listed image must be used, the image ocid must be provided. The image must have been previously imported as a Custom Image.
 
@@ -81,6 +101,7 @@ Depending on the requirements, different "hot" storage options can be configured
 * OCI File Storage service
 * OCI File Storage with Lustre service
 * Local Storage (NVMe)
+* Object Storage
 
 ### Lustre Filesystem
 
@@ -96,19 +117,24 @@ Capacity is a multiple of 31.2 TB. Performance tier must be selected form 125, 2
 
 The OCI File Storage managed service is a highly available network file system (NFS) that enables multiple servers to access data. It is elastic up to 8 exabytes with asynchronous replication, snapshot and clone capabilities.
 
-The cluster can connect to an exising File Storage service or create a new one.
+The stack always creates a dedicated File Storage Service for `/config` in the cluster compartment and Availability Domain. It is published in private DNS as:
+
+```
+fss-config.<cluster_name>.local
+```
+
+All nodes mount `/config` from that record.
+
+The optional File Storage settings below now apply only to additional shared storage. They can be used to place `/home` on FSS and can also be used at the same time to mount a separate generic NFS/FSS export such as `/fss`.
 
 For an `existing` FSS, simply provide the required information (address, mounting path, credentials).
 
 > [!WARNING]
-> For an existing FSS, a record of type A with the mount target IP address as RDATA should be added to the newly created private zone prior to the stack deployment and respect the following syntax:
-```
-fss-<cluster_name>-controller.<cluster_name>.local
-```
-> `Existing NFS server IP` should be set to `fss-<cluster_name>-controller.<cluster_name>.local`.
-> Finally, a reserved export path called `/config` should be created (`File storage > File System > Your File system > Create Export`)
+> Existing FSS/NFS settings are only used for optional extra mounts. They do not replace the stack-managed `/config` filesystem. If you provide a hostname in `Existing NFS server IP`, that hostname must resolve correctly inside the VCN or private DNS environment used by the cluster. If you provide an IP address directly, no extra DNS record is required.
 
-For a `new` FSS, specify the number of mount targets. Mount target performance is 1 Gbps per default but can be upgraded to 20, 40 or 80 Gbps with High Performance Mount Targets (HPMT). HPMT-20, -40 and -80 respectively include 20, 40 and 80 TB of storage capacity.
+For a `new` FSS, you can either create dedicated mount targets for the optional extra FSS or set the number of dedicated FSS mount targets to `0` to reuse the stack-managed `/config` mount target and save resources. Reusing the `/config` mount target is appropriate for small clusters and test environments, but the optional extra FSS then shares mount-target bandwidth with `/config`.
+
+If you choose dedicated mount targets, specify the number of mount targets. Mount target performance is 1 Gbps per default but can be upgraded to 20, 40 or 80 Gbps with High Performance Mount Targets (HPMT). HPMT-20, -40 and -80 respectively include 20, 40 and 80 TB of storage capacity.
 
 Other options include the NFS mounting path, the NFS server path, Compartment and Availability Domain.
 
@@ -121,6 +147,10 @@ The `Redundancy` sets the disks configuration to RAID 1.
 
 > [!WARNING]
 > Local storage can be subject to hardware failure and does not benefit from any built-in replication, cloning or snapshot capabilities. Therefore, this storage solution must not be used for any valuable data. Prefer File Storage or File Storage with Lustre instead.
+
+### Objet Storage
+
+This option creates a bucket and mounts it on all the nodes as a filesystem using the `s3fs` package. A dedicated customer secret key is automatically created for the authentication. Files can be listed and copied from and to this bucket using standard Linux commands (respectively `ls` and `cp` commands and their options), making the use of the bucket moer seamless than using the `oci-cli` toolkit.
 
 ### General
 

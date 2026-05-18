@@ -33,6 +33,11 @@
     name: safe_yum
   when: ansible_facts['os_family'] == 'Debian'
 
+- name: Set up Pyxis
+  ansible.builtin.include_role:
+    name: pyxis
+  when: pyxis | default(false) | bool
+
 - name: Render systemd units for slurmd and slurmdbd
   become: true
   ansible.builtin.template:
@@ -186,19 +191,19 @@
     group: slurm
   notify: Restart slurm server
 
-- name: Slurp topology.conf from controller
+- name: Slurp topology.yaml from controller
   become: true
   ansible.builtin.slurp:
-    src: "{{ slurm_conf_path }}/topology.conf"
+    src: "{{ slurm_conf_path }}/topology.yaml"
   delegate_to: "{{ groups['controller'][0] }}"
-  register: topology_conf_content
+  register: topology_yaml_content
   run_once: true
 
-- name: Generate topology.conf on slurm_backup
+- name: Generate topology.yaml on slurm_backup
   become: true
   ansible.builtin.copy:
-    content: "{{ topology_conf_content.content | b64decode }}"
-    dest: "{{ slurm_conf_path }}/topology.conf"
+    content: "{{ topology_yaml_content.content | b64decode }}"
+    dest: "{{ slurm_conf_path }}/topology.yaml"
     mode: "0644"
     owner: slurm
     group: slurm

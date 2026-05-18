@@ -26,8 +26,8 @@ if [ ! -f ${EXEC_CMD} ]; then
     exit 1
 fi
 
-ORDEREDMACHINEFILE="ordered_hostfile_system_name"
-ORDEREDRANKMACHINEFILE="rankfile_system_name"
+ORDEREDMACHINEFILE="ordered_hostfile"
+ORDEREDRANKMACHINEFILE="ordered_rankfile"
 echo INPUTFILE
 cat $hostfile
 

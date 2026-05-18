@@ -1,10 +1,12 @@
 ---
 - name: Add key
+  become: true
   ansible.builtin.apt_key:
     url: "{{ libnvidia_container_repo_gpg_url }}"
     state: present
 
 - name: Add repo
+  become: true
   ansible.builtin.get_url:
     url: "{{ libnvidia_container_repo_base_url }}/stable/deb/{{ ubuntu_repo_file_name }}"
     dest: "{{ ubuntu_repo_file_path }}"
@@ -31,6 +33,7 @@
     name: safe_yum
 
 - name: Start Docker
+  become: true
   ansible.builtin.service:
     name: "docker"
     state: restarted

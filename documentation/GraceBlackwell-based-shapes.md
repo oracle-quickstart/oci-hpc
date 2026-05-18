@@ -28,7 +28,7 @@ This creates a `computecluster` with the name my_cluster as well as a `computegp
 ```
 mgmt nodes list
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
-┃ hostname                 ┃ healthcheck_recommendat… ┃ status  ┃ compute_status ┃ cluster_name  ┃ memory_cluster_name ┃ ocid                      ┃ serial        ┃ ip_address    ┃ shape               ┃
+┃ hostname                 ┃ healthcheck_recommendat… ┃ status  ┃ compute_status ┃ cluster_name  ┃ memory_cluster_id ┃ ocid                      ┃ serial        ┃ ip_address    ┃ shape               ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
 │ trusting-dory-controller │                          │ running │ configuring    │ cluster-name  │ None                │ ocid1.instance.oc1.ap-sy… │ Not Specified │ 172.16.xxx.xxx│ VM.Standard.E5.Flex │
 │ GPU-123                  │ Healthy                  │ running │ configuring    │ cluster-name  │ cluster-name_wuuja  │ ocid1.instance.oc1.ap-sy… │ 1234ABCXXX    │ 172.16.xxx.xxx│ BM.GPU.GB200.4      │
@@ -43,7 +43,7 @@ To add nodes from additional `computegpumemoryfabrics` to an existing compute cl
 ```
 mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
 ```
-To add more nodes from a `computegpumemoryfabric` that is already included in this cluster, use the corresponding `cluster_xxxxx` name for these nodes as shown as `memory_cluster_name` in `mgmt fabrics list`:
+To add more nodes from a `computegpumemoryfabric` that is already included in this cluster, use the corresponding `cluster_xxxxx` name for these nodes as shown as `memory_cluster_id` in `mgmt fabrics list`:
 ```
 mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
 ```

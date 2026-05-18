@@ -25,7 +25,7 @@ resource "oci_core_instance" "monitoring" {
 
   metadata = {
     ssh_authorized_keys = "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}"
-    user_data           = base64encode(file("cloud-init.sh"))
+    user_data           = base64encode(file("${path.module}/cloud-init.sh"))
   }
   source_details {
     // source_id               = local.monitoring_image
@@ -65,7 +65,7 @@ resource "random_password" "grafana_admin_pwd" {
 }
 
 resource "oci_streaming_stream" "telegraf_stream" {
-  count          = var.cluster_monitoring && var.ingest_oci_metrics ? 1 : 0
+  count = var.cluster_monitoring && var.ingest_oci_metrics ? 1 : 0
 
   name           = "${local.cluster_name}-stream"
   partitions     = 1
@@ -80,17 +80,17 @@ resource "oci_streaming_stream" "telegraf_stream" {
 }
 
 resource "oci_sch_service_connector" "telegraf_service_connector" {
-  count          = var.cluster_monitoring && var.ingest_oci_metrics ? 1 : 0
+  count = var.cluster_monitoring && var.ingest_oci_metrics ? 1 : 0
 
   compartment_id = var.targetCompartment
   display_name   = "${local.cluster_name}-metrics-exporter"
-  
+
   source {
     kind = "monitoring"
 
     monitoring_sources {
       compartment_id = var.targetCompartment
-      
+
       namespace_details {
         kind = "selected"
         dynamic "namespaces" {
@@ -101,7 +101,7 @@ resource "oci_sch_service_connector" "telegraf_service_connector" {
             }
             namespace = namespaces.value
           }
-        }     
+        }
       }
     }
   }
@@ -111,9 +111,10 @@ resource "oci_sch_service_connector" "telegraf_service_connector" {
     stream_id = oci_streaming_stream.telegraf_stream[0].id
   }
 
-  description   = "Service connector hub used to export OCI metrics to Prometheus for Slurm cluster ${local.cluster_name}"
+  description = "Service connector hub used to export OCI metrics to Prometheus for Slurm cluster ${local.cluster_name}"
   freeform_tags = {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
   }
 }
+

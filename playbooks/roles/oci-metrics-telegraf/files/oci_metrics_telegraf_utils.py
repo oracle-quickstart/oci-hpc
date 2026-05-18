@@ -83,10 +83,7 @@ Thread Safety:
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 import logging
-from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from oci.base_client import BaseClient
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

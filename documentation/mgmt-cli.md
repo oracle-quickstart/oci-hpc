@@ -9,17 +9,29 @@ CLI Utility for managing your cluster.
 Usage: mgmt [OPTIONS] COMMAND [ARGS]...
 ```
 
+## Root Options
+
+- `--config FILE` - Path to config file (INI). Can also be set via `MGMT_CONFIG`
+- `--debug / --no-debug` - Enable debug log output
+- `--clush-parallel-executions INTEGER` - Number of parallel `clush` executions
+- `--active-healthchecks / --no-active-healthchecks` - Enable or disable active healthchecks
+- `--active-healthchecks-frequency INTEGER` - Active healthchecks frequency in hours
+- `--multi-nodes-healthchecks / --no-multi-nodes-healthchecks` - Enable or disable multi-node healthchecks
+- `--multi-nodes-healthchecks-frequency INTEGER` - Multi-node healthchecks frequency in hours
+
 ## Main Commands
 
 - `clusters` - Commands to manage clusters
 - `configurations` - Commands to manage configurations
 - `database` - Commands to do in the database
 - `fabrics` - Commands to display fabrics
+- `images` - Commands to manage images
 - `login` - Commands to manage login nodes
 - `network` - Network block commands
 - `nodes` - Commands to manage nodes
 - `recommendations` - Commands to show recommendations about the cluster
 - `services` - Commands to manage services
+- `status` - Display an overview status of the OCI-HPC Stack
 
 ---
 
@@ -244,6 +256,7 @@ Usage: mgmt database [OPTIONS] COMMAND [ARGS]...
 - `create` - Create database/tables
 - `delete` - Delete nodes from the DB
 - `export` - Export database contents to a SQLite DB file
+- `fn-invoke` - Invoke the Oracle function for node launch/termination
 - `scan-vcn` - Scan the specified VCN CIDR to list nodes
 - `update` - Update a field for a list of nodes
 
@@ -292,6 +305,42 @@ Usage: mgmt database export [OPTIONS]
 - `--filename TEXT` - SQLite filename. Must not already exist [default: export.sqlite]
 - `--use-base` - Use embedded Base metadata when creating target db. This can be used as very simple validation; if the source database schema doesn't match, an error may be raised
 
+### database fn-invoke
+
+Invoke the Oracle function for node launch/termination.
+
+```bash
+Usage: mgmt database fn-invoke [OPTIONS]
+```
+
+**Modes:**
+- `--nodes TEXT` - Invoke for explicit nodes. The resolver first checks the mgmt DB, then tagged OCI instances by OCID, private IP, or display name/hostname.
+- `--all` - Invoke the start event for all tagged OCI instances in the controller compartment that match `cluster_name` and `controller_name`.
+- `--sync` - Compare tagged OCI instances and DB nodes. Replays start events for OCI nodes missing from the DB, and terminate events for DB nodes missing from OCI.
+
+Exactly one of `--nodes`, `--all`, or `--sync` is required.
+
+**Options:**
+- `--function-id TEXT` - Oracle Functions function OCID. Defaults to `write_node_function_ocid` in `mgmt.ini`.
+- `--event-type [start|terminate]` - Event type to send when using `--nodes` [default: start]. `terminate` is only valid with `--nodes`.
+- `--workers INTEGER` - Maximum number of parallel function invocations [default: 10]
+
+**Examples:**
+
+```bash
+# Replay a start event for one node, resolving from DB first and then OCI
+mgmt database fn-invoke --nodes 172.16.7.61
+
+# Replay a terminate event for a known DB node
+mgmt database fn-invoke --nodes node1 --event-type terminate
+
+# Replay start events for all tagged OCI nodes
+mgmt database fn-invoke --all
+
+# Reconcile missing start and terminate events between OCI and the DB
+mgmt database fn-invoke --sync --workers 20
+```
+
 ### database scan-vcn
 
 Scan the specified VCN CIDR to list nodes.
@@ -339,6 +388,60 @@ Usage: mgmt fabrics list [OPTIONS]
 
 **Options:**
 - `--full` - Get full information about the node
+
+---
+
+## images
+
+Commands to manage images.
+
+```bash
+Usage: mgmt images [OPTIONS] COMMAND [ARGS]...
+```
+
+### Subcommands
+
+- `add-shape` - Import image
+- `create` - Import image
+- `list` - List images in tabular, JSON, or YAML format
+
+### images add-shape
+
+Import image.
+
+```bash
+Usage: mgmt images add-shape [OPTIONS]
+```
+
+**Options:**
+- `--image TEXT` - Image OCID or name of the image to modify [required]
+- `--compartment TEXT` - Specify compartment OCID if not controller compartment
+- `--shape TEXT` - Shape to add to the image [required]
+
+### images create
+
+Import image.
+
+```bash
+Usage: mgmt images create [OPTIONS]
+```
+
+**Options:**
+- `--url TEXT` - URL of the image to import [required]
+- `--compartment TEXT` - Specify compartment OCID if not controller compartment
+
+### images list
+
+List images.
+
+```bash
+Usage: mgmt images list [OPTIONS]
+```
+
+**Options:**
+- `--format [tabular|json|yaml]` - Output format [default: tabular]
+- `--used` - Only show currently used images [default: False]
+- `--compartment TEXT` - Specify compartment OCID if not controller compartment
 
 ---
 
@@ -442,6 +545,7 @@ Usage: mgmt nodes [OPTIONS] COMMAND [ARGS]...
 ### Subcommands
 
 - `boot-volume-swap` - Boot Volume Swap one or more nodes
+- `console-history` - Fetch console history for one or more nodes
 - `get` - Get information about nodes
 - `healthchecks` - Tag nodes as unhealthy
 - `list` - List nodes with various filters and formats
@@ -593,13 +697,26 @@ Usage: mgmt nodes reconfigure [OPTIONS]
 **Options:**
 - `--nodes TEXT` - Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)
 - `--fields TEXT` - Fields to filter nodes (e.g., role=compute,status=running)
-- `--action [compute|controller|all|custom|command]` - What to reconfigure:
+- `--action [compute|controller|all|custom|command|ansible|install-lfs|slurm-reinit|metadata|localdisk-recover|localdisk-raid0|localdisk-raid10]` - What to reconfigure:
   - `compute` - Rerun the cloud-init
   - `controller` - Reconfigure the node on the controller (Slurm Topology and Prometheus targets)
   - `all` - Reconfigure the node on the controller and the cloud-init
-  - `custom` - Reconfigure the node on the controller and the cloud-init
+  - `custom` - Run the `custom.yml` playbook on the selected nodes
   - `command` - Run a custom command on the nodes
+  - `ansible` - Run a specific playbook on the selected nodes with `--playbook`
+  - `install-lfs` - Build and install the Lustre client, then mount Lustre using inventory-backed `lfs_*` settings
+  - `metadata` - Refresh metadata on selected nodes
+  - `slurm-reinit` - Restart SLURM on selected nodes after clearing local SLURM state
+  - `localdisk-recover` - Recover `/mnt/localdisk` on selected nodes
+  - `localdisk-raid0` - Recreate `/mnt/localdisk` as RAID0
+  - `localdisk-raid10` - Recreate `/mnt/localdisk` as RAID10
 - `--command TEXT` - Specify the command to run on the nodes. To be used with --action=command
+- `--playbook TEXT` - Specify the playbook to run on the nodes. To be used with --action=ansible
+
+**Lustre notes:**
+- `install-lfs` requires `add_lfs=true` and valid `lfs_target_path`, `lfs_source_IP`, `lfs_source_path`, and `lfs_options` values in the cluster inventory before it is run.
+- `install-lfs` is supported on controller, `slurm_backup`, login, and compute nodes. Monitoring nodes are explicitly rejected.
+- The build uses a shared lock under `/config/3rdparty/<arch>/lustre_pkg/builds`. If a builder crashes and leaves a stale lock behind, remove the matching lock directory manually and rerun the command.
 
 ### nodes tag
 
@@ -775,3 +892,17 @@ Usage: mgmt services update-metadata [OPTIONS]
 - `--nodes TEXT` - Any of the hostname, OCID, IP, serial, OCI_name of the node
 - `--http_port INTEGER` - Specify HTTP Port
 
+---
+
+## status
+
+Display an overview status of the OCI-HPC Stack.
+
+```bash
+Usage: mgmt status [OPTIONS]
+```
+
+By default the command runs once and prints the status in color.
+
+**Options:**
+- `--no_color` - Disable color output

@@ -1,27 +1,32 @@
 # get nodes image IDs
 
 data "oci_core_image" "controller_validation" {
-    image_id = local.controller_image
+  image_id = local.controller_image
 }
 
 data "oci_core_image" "compute_validation" {
-    image_id = local.compute_image
+  image_id = local.compute_image
 }
 
 # get image compatible shapes
 
 data "oci_core_image_shapes" "test_controller_image_shapes" {
-    image_id = local.controller_image
+  image_id = local.controller_image
 }
 
 data "oci_core_image_shapes" "test_compute_image_shapes" {
-    image_id = local.compute_image
+  image_id = local.compute_image
 }
 
 
 locals {
-  invalid_ha_config = !var.add_nfs && var.slurm_ha
   invalid_federation_config = var.slurm_federation && var.slurm_ha
+  invalid_shared_fss_mount_target_ad = (
+    var.add_nfs &&
+    var.create_fss == "new" &&
+    var.mount_target_count == 0 &&
+    var.fss_ad != var.ad
+  )
   expected_username_controller = (
     can(regex("(?i)ubuntu", data.oci_core_image.controller_validation.operating_system)) ? "ubuntu" :
     can(regex("(?i)oracle", data.oci_core_image.controller_validation.operating_system)) ? "opc" :
@@ -32,21 +37,9 @@ locals {
     can(regex("(?i)oracle", data.oci_core_image.compute_validation.operating_system)) ? "opc" :
     "unknown"
   )
-  compatible_controller_shapes = [ for element in data.oci_core_image_shapes.test_controller_image_shapes.image_shape_compatibilities : element.shape ]
-  compatible_compute_shapes = [ for element in data.oci_core_image_shapes.test_compute_image_shapes.image_shape_compatibilities : element.shape ]
-}
-
-
-#  Validate that FSS is present to host the slurm database
-
-resource "null_resource" "validate_ha_setup" {
-  count = local.invalid_ha_config ? 1 : 0
-  lifecycle {
-    precondition {
-      condition     = !local.invalid_ha_config
-      error_message = "Error: Slurm HA configuration requires a shared NFS. Add NFS or create FSS (create_fss = true). "
-    }
-  }
+  compatible_controller_shapes = [for element in data.oci_core_image_shapes.test_controller_image_shapes.image_shape_compatibilities : element.shape]
+  compatible_compute_shapes    = [for element in data.oci_core_image_shapes.test_compute_image_shapes.image_shape_compatibilities : element.shape]
+  effective_enroot            = var.enroot || var.pyxis
 }
 
 #  Validate that slurm_ha is not define with slurm federation
@@ -87,6 +80,30 @@ resource "null_resource" "validate_usernames" {
     precondition {
       condition     = var.compute_username == var.controller_username
       error_message = "Using different usernames for controller and compute nodes is not supported."
+    }
+  }
+}
+
+# Validate that Gov/Defense deployments do not point to public OCIR
+resource "null_resource" "validate_gov_cloud_registry_choice" {
+  lifecycle {
+    precondition {
+      condition     = !(var.is_gov_cloud && var.use_OCI_generated_container)
+      error_message = "In Gov/Defense regions (is_gov_cloud = true), disable 'Point to an existing public OCIR' (use_OCI_generated_container must be false)."
+    }
+  }
+}
+
+# Validate that FSS is created/re-used when using FSS for /home
+resource "null_resource" "validate_fss" {
+  lifecycle {
+    precondition {
+      condition     = !(!var.add_nfs && var.shared_home == "fss")
+      error_message = "When using FSS for /home, you must create a new FSS or use an existing one."
+    }
+    precondition {
+      condition     = !local.invalid_shared_fss_mount_target_ad
+      error_message = "When mount_target_count is 0 and the optional FSS reuses the /config mount target, the optional FSS Availability Domain must match the cluster Availability Domain."
     }
   }
 }

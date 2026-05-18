@@ -1,11 +1,11 @@
 import click
 
+from lib.cli import completion
 from lib.database import get_all_nodes, get_nodes_by_any, db_update_node,get_controller_node, get_all_nodes_to_configure, db_move_terminated_node, get_nodes_by_active_hc_expired, get_nodes_by_multi_node_hc_expired, get_nodes_for_initial_multi_node_check, get_nodes_validated
-from lib.functions import get_updates_based_on_url, run_ansible, scan_host_api_logic, get_slurm_state, append_to_healthchecks, run_multi_node_active_hc, run_active_hc, remove_nodes_from_reservation
+from lib.functions import get_updates_based_on_url, run_ansible, scan_host_api_logic, get_slurm_state, append_to_healthchecks, run_multi_node_active_hc, run_active_hc, remove_nodes_from_reservation, rescan_vcns_from_inventory, current_utc_time as get_current_utc_time
 from lib.ociwrap import oci_scan_queue_and_update_db
 from lib.logger import logger
 import socket
-import subprocess
 from datetime import timedelta
 import random
 
@@ -138,7 +138,7 @@ def run():
 
 
 @run.command()
-@click.option('--nodes', required=False, help='any of the hostname, OCID, IP, serial, OCI_name of the node.')
+@click.option('--nodes', required=False, help='any of the hostname, OCID, IP, serial, OCI_name of the node.', shell_complete=completion.complete_node_identifiers)
 @click.option('--http_port', type=int, required=False, default=9876, help='Specify HTTP Port.')
 def update_metadata(nodes, http_port):
     """Update metadata for all hosts in the DB."""
@@ -171,6 +171,13 @@ def scan_host_api():
 def all(cfg, http_port):
     """Run full workflow: scan queue, update metadata, run ansible and update nodes in case of success."""
     scan_queue_logic()
+
+    if cfg.get("manage_hosts", False) and get_current_utc_time().minute % 10 == 1:
+        rescan_vcns_from_inventory(
+            manage_hosts=cfg.get("manage_hosts", False),
+            cfg=cfg,
+            prune_missing=cfg.get("prune_missing", cfg.get("manage_hosts", False)),
+        )     
     update_metadata_logic(http_port)
     ansible_logic()
     available_nodes=scan_host_api_logic()

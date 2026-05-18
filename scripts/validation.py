@@ -120,10 +120,10 @@ def parse_inventory(inventory):
     for line in inv:
         if line.strip().startswith("[") and line.strip().endswith("]"):
             current_section=line.split('[')[1].split(']')[0]
-            if not current_section in inventory_dict.keys():
+            if current_section not in inventory_dict.keys():
                 inventory_dict[current_section]=[]
         else:
-            if not current_section is None:
+            if current_section is not None:
                 inventory_dict[current_section].append(line)
     inv.close()
     return inventory_dict
@@ -445,7 +445,7 @@ def dictEqualCheck(resize_node_cluster_dict, comp_dict, type, txt_file_name, pat
         print("Number of nodes from " +type+ " is same as resize")
     else:
         for key in resize_node_cluster_dict.keys():
-            if not key in comp_dict:
+            if key not in comp_dict:
                 if path is None:
                     path = createDir()
                     changeOwner(path)
@@ -453,7 +453,7 @@ def dictEqualCheck(resize_node_cluster_dict, comp_dict, type, txt_file_name, pat
                 f.write(key + " is not in " +type+ " file" + "\n")
                 f.close()
         for key in comp_dict.keys():
-            if not key in resize_node_cluster_dict:
+            if key not in resize_node_cluster_dict:
                 if path is None:
                     path = createDir()
                     changeOwner(path)

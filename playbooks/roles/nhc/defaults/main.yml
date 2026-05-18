@@ -1,4 +1,6 @@
 ---
+nhc_tarball_path: "{{ thirdparty_root_path }}/nhc/lbnl-nhc-1.4.3.tar.xz"
+
 nhc_supported_gpu_shapes:
   - BM.GPU.B4.8
   - BM.GPU.A100-v2.8

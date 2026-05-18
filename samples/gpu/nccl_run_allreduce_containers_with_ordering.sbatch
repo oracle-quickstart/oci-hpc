@@ -12,8 +12,8 @@ mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 
 MACHINEFILE="hostfile"
-ORDEREDMACHINEFILE="ordered_hostfile_system_name"
-ORDEREDRANKMACHINEFILE="rankfile_system_name"
+ORDEREDMACHINEFILE="ordered_hostfile"
+ORDEREDRANKMACHINEFILE="ordered_rankfile"
 ORDEREDSRUNMACHINEFILE="ordered_hostfile_system_name_srun"
 
 scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
@@ -46,7 +46,7 @@ if [[ "$MPIVARS_PATH" == "" ]]; then
 source $MPIVARS_PATH
 LOCAL_MPI=${MPIVARS_PATH%%/bin*}
 
-#mpirun -d --mca pml ucx -x SLURM_JOB_NODELIST=$host_list --bind-to numa  -x NCCL_DEBUG=WARN  -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_QPS_PER_CONNECTION=4 -x NCCL_IB_GID_INDEX=3 -x NCCL_ALGO=Ring -x NCCL_TOPO_FILE=/home/opc/topo-flattened-b4.xml -x NCCL_IB_HCA="mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_16,mlx5_17,mlx5_18,mlx5_19"   -x UCX_NET_DEVICES=mlx5_0:1 -x HCOLL_ENABLE_MCAST_ALL=0 -x coll_hcoll_enable=0 -x UCX_TLS=ud,self,sm  -np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --rankfile rankfile_system_name  /home/opc/nccl-tests/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9))  -n 100
+#mpirun -d --mca pml ucx -x SLURM_JOB_NODELIST=$host_list --bind-to numa  -x NCCL_DEBUG=WARN  -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_QPS_PER_CONNECTION=4 -x NCCL_IB_GID_INDEX=3 -x NCCL_ALGO=Ring -x NCCL_TOPO_FILE=/home/opc/topo-flattened-b4.xml -x NCCL_IB_HCA="mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_16,mlx5_17,mlx5_18,mlx5_19"   -x UCX_NET_DEVICES=mlx5_0:1 -x HCOLL_ENABLE_MCAST_ALL=0 -x coll_hcoll_enable=0 -x UCX_TLS=ud,self,sm  -np $((SLURM_NNODES*SLURM_NTASKS_PER_NODE)) --rankfile ordered_rankfile  /home/opc/nccl-tests/build/all_reduce_perf -b1G -e10G -i$((1024*1024*1024*9))  -n 100
 # no need to pass:  -x SLURM_JOB_NODELIST=$host_list
 
 shape=`curl -sH "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v2/instance/ | jq .shape`

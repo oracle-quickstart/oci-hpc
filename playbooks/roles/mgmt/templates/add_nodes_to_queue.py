@@ -1,9 +1,5 @@
-import subprocess
-import re
 import sys
-import json
-from datetime import datetime, timedelta
-from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime
 
 import oci
 

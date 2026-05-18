@@ -4,15 +4,14 @@
 #
 # Add --initial as argument if you need to restart slurm from scratch (Removes the current topology file)
 
+set -Eeuo pipefail
+source "$(dirname "${0}")/common.sh"
+setup_bootstrap_traps "slurm_config.sh"
 
-scripts=`realpath $0`
-folder=`dirname $scripts`
-conf_folder=$folder/../conf/
-playbooks_path=/config/playbooks/
+last_arg="${@: -1}"
 
-
-if [[ ${@: -1} == "--INITIAL" || ${@: -1} == "--initial" || ${@: -1} == "-INITIAL" || ${@: -1} == "-initial" ]]
+if [[ "${last_arg}" == "--INITIAL" || "${last_arg}" == "--initial" || "${last_arg}" == "-INITIAL" || "${last_arg}" == "-initial" ]]
 then
-   sudo rm /etc/slurm/topology.conf 
+   sudo rm -f /etc/slurm/topology.conf
    sudo /usr/sbin/slurmctld -c
 fi

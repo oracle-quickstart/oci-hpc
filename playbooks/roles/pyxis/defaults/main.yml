@@ -1,0 +1,15 @@
+---
+pyxis_shared_path: "{{ thirdparty_arch_path }}/pyxis"
+pyxis_shared_package_path: "{{ pyxis_shared_path }}/packages"
+pyxis_build_path: "{{ thirdparty_arch_path }}/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}"
+pyxis_package_config_path: "/usr/share/pyxis/pyxis.conf"
+pyxis_deb_build_dependencies:
+  - build-essential
+  - debhelper
+  - devscripts
+  - git
+pyxis_rpm_build_dependencies:
+  - gcc-c++
+  - git
+  - make
+  - rpm-build

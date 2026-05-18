@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 from prometheus_client import start_http_server, Gauge
 import logging
 import os

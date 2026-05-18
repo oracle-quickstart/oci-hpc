@@ -1,0 +1,5 @@
+---
+mgmt_active_healthchecks: true
+mgmt_active_healthchecks_frequency: 24
+mgmt_multi_nodes_healthchecks: true
+mgmt_multi_nodes_healthchecks_frequency: 24
