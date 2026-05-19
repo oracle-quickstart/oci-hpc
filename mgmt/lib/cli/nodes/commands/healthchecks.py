@@ -1,10 +1,10 @@
 
 import click
+from lib.cli import completion
 from lib.functions import run_command, run_active_hc, run_multi_node_active_hc
 import lib.database as db
 from ClusterShell.NodeSet import NodeSet
 
-from lib.logger import logger
 
 def filter_cmd(ctx, nodes, fields):
     if (not nodes and not fields) or (nodes and fields):
@@ -32,12 +32,14 @@ def filter_cmd(ctx, nodes, fields):
 @click.option(
     "--nodes",
     required=False,
-    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)"
+    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)",
+    shell_complete=completion.complete_node_identifiers,
 )
 @click.option(
     '--fields',
     required=False,
-    help='Fields to filter nodes (e.g., role=compute,status=running)'
+    help='Fields to filter nodes (e.g., role=compute,status=running)',
+    shell_complete=completion.complete_node_fields,
 )
 @click.option(
     "--type",
@@ -50,7 +52,8 @@ def filter_cmd(ctx, nodes, fields):
 @click.option(
     "--exclude-node",
     required=False,
-    help="Node to exclude from multi_node healthcheck"
+    help="Node to exclude from multi_node healthcheck",
+    shell_complete=completion.complete_node_identifiers,
 )
 @click.option(
     "--reservation",
@@ -58,11 +61,11 @@ def filter_cmd(ctx, nodes, fields):
     help="Include a Reservation Name for the healthcheck in case the nodes are in a reservation, "
         + "InitialValidation is the reservation created for all new nodes. "
 )
-@click.pass_obj
-def healthchecks(cfg, nodes, fields, type, exclude_node, reservation):
+@click.pass_context
+def healthchecks(ctx, nodes, fields, type, exclude_node, reservation):
     """Run healthchecks on given nodes."""
     nodes_list = filter_cmd(ctx, nodes, fields)
-
+    cfg = ctx.obj
     if not nodes_list:
         click.echo("Node not found.")
         return

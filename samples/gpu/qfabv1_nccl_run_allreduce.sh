@@ -13,8 +13,8 @@ else
   hostfile="/tmp/ordered_hostfile_system_name"
 fi
 
-ORDEREDMACHINEFILE="ordered_hostfile_system_name"
-ORDEREDRANKMACHINEFILE="rankfile_system_name"
+ORDEREDMACHINEFILE="ordered_hostfile"
+ORDEREDRANKMACHINEFILE="ordered_rankfile"
 echo INPUTFILE
 cat $hostfile
 

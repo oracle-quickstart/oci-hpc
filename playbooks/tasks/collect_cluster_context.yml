@@ -1,0 +1,14 @@
+---
+- name: Collect target architectures for the current play
+  ansible.builtin.set_fact:
+    cluster_target_architectures: >-
+      {{
+        ansible_play_hosts_all
+        | map('extract', hostvars, 'ansible_facts')
+        | map(attribute='architecture')
+        | unique
+        | list
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  run_once: true

@@ -1,10 +1,10 @@
 
 import click
+from lib.cli import completion
 from lib.ociwrap import run_tag
 import lib.database as db
 from ClusterShell.NodeSet import NodeSet
 
-from lib.logger import logger
 
 def filter_cmd(ctx, nodes, fields):
     if (not nodes and not fields) or (nodes and fields):
@@ -33,12 +33,14 @@ def filter_cmd(ctx, nodes, fields):
 @click.option(
     "--nodes",
     required=False,
-    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)"
+    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)",
+    shell_complete=completion.complete_node_identifiers,
 )
 @click.option(
     '--fields',
     required=False,
-    help='Fields to filter nodes (e.g., role=compute,status=running)'
+    help='Fields to filter nodes (e.g., role=compute,status=running)',
+    shell_complete=completion.complete_node_fields,
 )
 def tag(ctx, nodes, fields):
     """Tag nodes as unhealthy."""

@@ -1,4 +1,5 @@
 import click
+from lib.cli import completion
 from lib.database import list_blocks_by_cluster, get_nodes_by_network_block, get_nodes_by_rail, list_rails_by_cluster
 
 @click.group("network")
@@ -16,9 +17,9 @@ def list():
     """List commands for blocks."""
     pass
 
-@list.command()
-@click.option('--cluster', required=True, help='Name of the cluster.')
-def cluster(cluster):
+@list.command("cluster")
+@click.option('--cluster', required=True, help='Name of the cluster.', shell_complete=completion.complete_clusters)
+def block_cluster(cluster):
     """ Get blocks by cluster """
     blocks = list_blocks_by_cluster(cluster)
     if not blocks:
@@ -44,10 +45,10 @@ def list():
     """List commands for rails."""
     pass
 
-@list.command()
-@click.option('--cluster', required=True, help='Name of the cluster.')
+@list.command("cluster")
+@click.option('--cluster', required=True, help='Name of the cluster.', shell_complete=completion.complete_clusters)
 @click.option('--nodes/--no-nodes', is_flag=True, help='Show nodes in the rail.', default=True, type=bool)
-def cluster(cluster, nodes):
+def rail_cluster(cluster, nodes):
     """ Get rails by cluster """
     rails = list_rails_by_cluster(cluster)
     if not blocks:
@@ -64,4 +65,3 @@ def cluster(cluster, nodes):
                 click.echo(f"Rail {rail} Nodes: {[node.hostname for node in node_list]}")
         else:
             click.echo(f"Rail {rail}")
-

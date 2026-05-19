@@ -1,4 +1,5 @@
 import click
+from lib.cli import completion
 import lib.ociwrap as ociwrap
 from lib.database import get_nodes_by_cluster
 import logging
@@ -7,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 @click.command("update-instance-config")
-@click.option("--cluster-name", required=True, help="Cluster name from DB")
-@click.option("--image-id", required=True, help="New image OCID")
+@click.option("--cluster-name", required=True, help="Cluster name from DB", shell_complete=completion.complete_clusters)
+@click.option("--image-id", required=True, help="New image OCID", shell_complete=completion.complete_images)
 @click.option("--ssh-key", help="Override SSH public key")
 @click.option("--cloud-init", help="Path to cloud-init file")
 @click.option("--boot-volume-size", type=int, help="Override boot volume size (GB)")

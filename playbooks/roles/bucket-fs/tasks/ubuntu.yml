@@ -1,0 +1,71 @@
+---
+- name: Install s3fs package
+  ansible.builtin.apt:
+    name: s3fs
+    state: present
+  become: true
+
+- name: Check if config file already exists.
+  ansible.builtin.stat:
+    path: "{{ bucket_fs_path }}/.passwd-s3fs"
+  register: config
+
+- name: Create s3fs folder
+  ansible.builtin.file:
+    path: "{{ bucket_fs_path }}"
+    owner: "{{ controller_username }}"
+    group: "{{ controller_username }}"
+    mode: '0755'
+    state: "directory"
+  when: not config.stat.exists
+
+- name: Create s3fs credentials file
+  ansible.builtin.copy:
+    dest: "{{ bucket_fs_path }}/.passwd-s3fs"
+    content: "{{ bucket_access_key }}:{{ bucket_secret_key }}\n"
+    owner: "{{ controller_username }}"
+    group: "{{ controller_username }}"
+    mode: '0600'
+  when: not config.stat.exists
+  no_log: true
+
+- name: Check if bucket is already mounted
+  ansible.builtin.command: mountpoint -q /mnt/bucket
+  register: bucket_mountpoint
+  changed_when: false
+  failed_when: false
+
+- name: Create bucket mount point
+  ansible.builtin.file:
+    path: /mnt/bucket
+    state: directory
+    owner: "{{ controller_username }}"
+    group: "{{ controller_username }}"
+    mode: "0755"
+  become: true
+  when: bucket_mountpoint.rc != 0
+
+- name: Create a bucket mounting script
+  ansible.builtin.copy:
+    dest: "{{ bucket_fs_path }}/mount_bucket.sh"
+    content: >-
+      s3fs {{ cluster_name }}-bucket /mnt/bucket
+      -o endpoint={{ region }}
+      -o passwd_file={{ bucket_fs_path }}/.passwd-s3fs
+      -o url=https://{{ ocir_namespace }}.compat.objectstorage.{{ region }}.oraclecloud.com/
+      -o nomultipart
+      -o use_path_request_style
+    owner: "{{ controller_username }}"
+    group: "{{ controller_username }}"
+    mode: '0755'
+  no_log: true
+
+- name: Run mounting script
+  ansible.builtin.script: "{{ bucket_fs_path }}/mount_bucket.sh"
+  when: bucket_mountpoint.rc != 0
+
+- name: Create a cron entry to mount the bucket on reboot
+  ansible.builtin.cron:
+    name: "mount bucket on reboot"
+    special_time: reboot
+    job: "{{ bucket_fs_path }}/mount_bucket.sh"

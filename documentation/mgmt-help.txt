@@ -4,21 +4,41 @@
 =======================================
 Usage: manage.py [OPTIONS] COMMAND [ARGS]...
 
-  CLI for managing your application.
+  CLI for managing your cluster.
 
 Options:
-  --help  Show this message and exit.
+  --config FILE                   Path to config file (INI). Can also be set
+                                  via MGMT_CONFIG.
+  --debug / --no-debug            Enable debug log output (overrides config).
+  --clush-parallel-executions INTEGER
+                                  Number of parallel clush executions
+                                  (overrides config).
+  --active-healthchecks / --no-active-healthchecks
+                                  Enable/disable active healthchecks
+                                  (overrides config).
+  --active-healthchecks-frequency INTEGER
+                                  Active healthchecks frequency in hours
+                                  (overrides config).
+  --multi-nodes-healthchecks / --no-multi-nodes-healthchecks
+                                  Enable/disable multi-node healthchecks
+                                  (overrides config).
+  --multi-nodes-healthchecks-frequency INTEGER
+                                  Multi-node healthchecks frequency in hours
+                                  (overrides config).
+  --help                          Show this message and exit.
 
 Commands:
   clusters         Commands to manage clusters.
   configurations   Commands to manage configurations.
   database         Commands to do in the database.
   fabrics          Commands to display fabrics.
+  images           Commands to manage images.
   login            Commands to manage login nodes.
   network          Network block commands.
   nodes            Commands to manage nodes.
   recommendations  Commands to show recommendations about the cluster.
   services         Commands to manage services.
+  status           Display an overview status of the OCI-HPC Stack
 
 =======================================
  HELP FOR : mgmt clusters 
@@ -282,6 +302,7 @@ Commands:
   create    Create database/tables.
   delete    Delete nodes from the DB.
   export    Export database contents to a SQLite DB file.
+  fn-invoke Invoke the Oracle function for node launch/termination.
   scan-vcn  Scan the specified VCN CIDR to list nodes
   update    Update a field for a list of nodes.
 
@@ -338,6 +359,28 @@ Options:
   --help           Show this message and exit.
 
 =======================================
+ HELP FOR : mgmt database fn-invoke 
+=======================================
+Usage: manage.py database fn-invoke [OPTIONS]
+
+  Invoke the Oracle function for node launch/termination.
+
+Options:
+  --all                           Invoke for all matching OCI nodes.
+  --sync                          Replay missing start and terminate events
+                                  by comparing OCI and the mgmt DB.
+  --nodes TEXT                    Comma separated list of nodes (IP
+                                  Addresses, hostnames, OCID's, serials or
+                                  oci names).
+  --function-id TEXT              Oracle Functions function OCID. Defaults to
+                                  write_node_function_ocid in mgmt.ini.
+  --event-type [start|terminate]  Event type to send in the function payload
+                                  when using --nodes.  [default: start]
+  --workers INTEGER               Maximum number of parallel function
+                                  invocations.  [default: 10]
+  --help                          Show this message and exit.
+
+=======================================
  HELP FOR : mgmt database scan-vcn 
 =======================================
 Usage: manage.py database scan-vcn [OPTIONS] CIDR
@@ -384,6 +427,61 @@ Usage: manage.py fabrics list [OPTIONS]
 Options:
   --full  Get full information about the node.
   --help  Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt images 
+=======================================
+Usage: manage.py images [OPTIONS] COMMAND [ARGS]...
+
+  Commands to manage images.
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  add-shape  Import image
+  create     Import image
+  list       List Configuration based on role, partition, or shape.
+
+=======================================
+ HELP FOR : mgmt images add-shape 
+=======================================
+Usage: manage.py images add-shape [OPTIONS]
+
+  Import image
+
+Options:
+  --image TEXT        Image OCID or name of the image to modify  [required]
+  --compartment TEXT  Specify compartment OCID if not controller compartment
+  --shape TEXT        Shape to add to the image  [required]
+  --help              Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt images create 
+=======================================
+Usage: manage.py images create [OPTIONS]
+
+  Import image
+
+Options:
+  --url TEXT          URL of the image to import  [required]
+  --compartment TEXT  Specify compartment OCID if not controller compartment
+  --help              Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt images list 
+=======================================
+Usage: manage.py images list [OPTIONS]
+
+  List Configuration based on role, partition, or shape.
+
+Options:
+  --format [tabular|json|yaml]  Output format  [default: tabular]
+  --used                        Only show currently used images.  [default:
+                                False]
+  --compartment TEXT            Specify compartment OCID if not controller
+                                compartment
+  --help                        Show this message and exit.
 
 =======================================
  HELP FOR : mgmt login 
@@ -762,19 +860,26 @@ Options:
                                   hostnames, OCID's, serials or oci names)
   --fields TEXT                   Fields to filter nodes (e.g.,
                                   role=compute,status=running)
-  --action [compute|controller|all|custom|command]
+  --action [compute|controller|all|custom|command|ansible|install-lfs|slurm-reinit|metadata|localdisk-recover|localdisk-raid0|localdisk-raid10]
                                   What to reconfigure (compute will rerun the
                                   cloud-init, controller will reconfigure the
                                   node on the controller (Slurm Topology and
                                   Prometheus targets),  all will reconfigure
-                                  the node on the controller and the cloud-
-                                  init, customer will reconfigure the node on
-                                  the controller and the cloud-init,  custom
-                                  will reconfigure the node on the controller
-                                  and the cloud-init,  command will run a
-                                  custom command on the nodes)
+                                  the node on the controller and the cloud-init,
+                                  custom will execute the custom Ansible playbook
+                                  on the nodes, ansible will execute a specified
+                                  Ansible playbook on the nodes, install-lfs will
+                                  build and install the Lustre client on the nodes
+                                  using the shared /config/3rdparty artifact path,
+                                  metadata will execute a metadata update on the
+                                  nodes, slurm-reinit will restart SLURM on the
+                                  nodes after clearing local SLURM state, command
+                                  will run a custom command on the nodes, and the
+                                  localdisk actions will recreate /mnt/localdisk)
   --command TEXT                  Specify the command to run on the nodes. To
                                   be used with --action=command
+  --playbook TEXT                 Specify the playbook to run on the nodes. To
+                                  be used with --action=ansible
   --help                          Show this message and exit.
 
 =======================================
@@ -971,3 +1076,16 @@ Options:
                        node.
   --http_port INTEGER  Specify HTTP Port.
   --help               Show this message and exit.
+
+=======================================
+ HELP FOR : mgmt status 
+=======================================
+Usage: manage.py status [OPTIONS]
+
+  Display an overview status of the OCI-HPC Stack
+
+  By default the command runs once and prints the status in color.
+
+Options:
+  --no_color  Disable color output.
+  --help      Show this message and exit.

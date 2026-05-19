@@ -1,4 +1,5 @@
 import click
+from lib.cli import completion
 from lib.logger import logger
 from lib.ociwrap import run_add, run_add_memory_fabric
 from lib.database import get_controller_node, get_nodes_by_cluster, get_clusters, get_nodes_by_memory_cluster, get_config_by_name
@@ -16,9 +17,9 @@ def add():
 
 @add.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add')
-@click.option('--cluster', required=False, help='Name of the cluster')
+@click.option('--cluster', required=False, help='Name of the cluster', shell_complete=completion.complete_clusters)
 @click.option('--names', required=False, help='Comma-separated list of host names')
-@click.option('--memorycluster', required=False, help='Name of the memory cluster (alternative to --cluster)')
+@click.option('--memorycluster', required=False, help='OCID of the memory cluster (alternative to --cluster)', shell_complete=completion.complete_memory_clusters)
 def node(count, cluster, names, memorycluster):
     """Add compute nodes to a cluster.\n
     Example:\n
@@ -63,11 +64,13 @@ def node(count, cluster, names, memorycluster):
 
 @add.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add')
-@click.option('--cluster', required=True, help='Name of the compute cluster')
-@click.option('--fabric', required=True, help='OCID of the memory fabric')
-@click.option('--memorycluster', required=False, help='Name for the memory cluster')
-@click.option('--instancetype', required=True, help='Instance type for the nodes')
-def memory_fabric(count, cluster, fabric, memorycluster, instancetype):
+@click.option('--cluster', required=True, help='Name of the compute cluster', shell_complete=completion.complete_clusters)
+@click.option('--fabric', required=True, help='OCID of the memory fabric', shell_complete=completion.complete_fabrics)
+@click.option('--memorycluster', required=False, help='Name for the memory cluster', shell_complete=completion.complete_memory_clusters)
+@click.option('--computeclusterocid', required=False, help='OCID of the compute cluster when adding memory cluster to existing compute cluster. By default, looking at all Compute clusters with the cluster name.')
+@click.option('--instancetype', required=False, help='Instance type for the nodesm will use one from the existing node if not specified', shell_complete=completion.complete_configurations_compute)
+@click.option('--targetsize', type=int, required=False, default=18, help='Target size for the memory cluster, default to 18 if tenancy is whitelisted, use 0 to deactivate')
+def memory_fabric(count, cluster, fabric, memorycluster, instancetype, computeclusterocid, targetsize):
     """Add nodes to a memory fabric.\n
   Example:\n
   
@@ -96,6 +99,10 @@ def memory_fabric(count, cluster, fabric, memorycluster, instancetype):
         if config is None:
             logger.error(f"Instance type {instancetype} not found, exiting")
             return
-            
     gpu_memory_cluster_name = memorycluster if memorycluster else f"{cluster}_{fabric[-5:]}"
-    run_add_memory_fabric(nodes, int(count), fabric, gpu_memory_cluster_name, instancetype=config)
+    if computeclusterocid:
+        cc_id=computeclusterocid
+    else:
+        cc_id=None
+    controller=get_controller_node()
+    run_add_memory_fabric(nodes, controller, int(count), fabric, gpu_memory_cluster_name, instancetype=config, compute_cluster_id=cc_id, compute_cluster_name=cluster, targetsize=targetsize)

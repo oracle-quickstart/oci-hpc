@@ -14,11 +14,21 @@
   register: nhc_instance_metadata
   changed_when: false
 
+- name: Get the host metadata
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/host/
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: nhc_host_metadata
+  changed_when: false
+
 - name: Set node shape
   ansible.builtin.set_fact:
     nhc_node_shape: "{{ nhc_instance_metadata.json.shape }}"
     nhc_shape_ocpus: "{{ nhc_instance_metadata.json.shapeConfig.ocpus }}"
     nhc_shape_memory_gb: "{{ nhc_instance_metadata.json.shapeConfig.memoryInGBs }}"
+    nhc_rdma_planes: "{{ nhc_host_metadata.json.rdmaFabricData.planes | default(0) | int }}"
 
 - name: Determine if this node shape is eligible for NHC role
   ansible.builtin.set_fact:
@@ -51,15 +61,23 @@
 
     - name: Check if NHC tarball already cached
       ansible.builtin.stat:
-        path: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
+        path: "{{ nhc_tarball_path }}"
       register: nhc_cache
+      delegate_to: localhost
+      run_once: true
+
+    - name: Download NHC tarball to shared storage
+      ansible.builtin.file:
+        path: "{{ nhc_tarball_path | dirname }}"
+        state: directory
+        mode: "0755"
       delegate_to: localhost
       run_once: true
 
     - name: Download NHC tarball to shared storage
       get_url:
         url: https://github.com/mej/nhc/releases/download/1.4.3/lbnl-nhc-1.4.3.tar.xz
-        dest: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
+        dest: "{{ nhc_tarball_path }}"
         mode: '0644'
         validate_certs: false
       delegate_to: localhost
@@ -68,7 +86,7 @@
 
     - name: Extract NHC source from shared storage
       unarchive:
-        src: /config/3rdparty/lbnl-nhc-1.4.3.tar.xz
+        src: "{{ nhc_tarball_path }}"
         dest: /tmp
         remote_src: true
       when: not nhc_installed.stat.exists
@@ -80,7 +98,6 @@
       when: not nhc_installed.stat.exists
 
     - name: Run make test
-      become: true
       command: make test
       args:
         chdir: /tmp/lbnl-nhc-1.4.3
@@ -192,6 +209,7 @@
     # -----------------------------------------
 
     - name: Ensure /etc/nhc exists
+      become: true
       file:
         path: /etc/nhc
         state: directory
@@ -200,6 +218,7 @@
         mode: '0755'
 
     - name: Render NHC config
+      become: true
       template:
         src: oci.nhc.conf.j2
         dest: /etc/nhc/oci.nhc.conf

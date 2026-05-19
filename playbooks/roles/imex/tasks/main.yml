@@ -1,0 +1,47 @@
+---
+- name: Ensure /etc/nvidia-imex exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/nvidia-imex
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Gather OCI host metadata
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/host
+    headers:
+      Authorization: Bearer Oracle
+    return_content: true
+  register: imex_oci_host_metadata
+  changed_when: false
+
+- name: Set rack_id fact
+  ansible.builtin.set_fact:
+    imex_rack_id: "{{ imex_oci_host_metadata.json.rackId | default('') }}"
+
+- name: Set NVIDIA IMEX rack prefix
+  ansible.builtin.set_fact:
+    imex_rack_prefix: "{{ hostname_convention }}-{{ imex_rack_id[56:64] }}"
+  when: imex_rack_id | length >= 64
+
+- name: Write /etc/nvidia-imex/nodes_config.cfg
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/nvidia-imex/nodes_config.cfg
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {% for j in range(0, 18) %}
+      {{ imex_rack_prefix }}-{{ j }}
+      {% endfor %}
+  when: imex_rack_prefix is defined
+
+- name: Start Imex
+  become: true
+  ansible.builtin.service:
+    name: "nvidia-imex"
+    enabled: true
+    state: started

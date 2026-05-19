@@ -25,7 +25,7 @@
       ansible.builtin.include_tasks: backup_server.yml
       when: ('slurm_backup' in group_names)
 
-    - name: Move topology.conf on backup slurm controller
+    - name: Move topology.yaml on backup slurm controller
       ansible.builtin.include_tasks: move-topology.yml
       when: ('slurm_backup' in group_names)
 
@@ -40,7 +40,7 @@
       ansible.builtin.include_tasks: "remove-ctld.yml"
       when: remove_compute_info | length > 0
 
-    - name: Move topology.conf on backup slurm controller
+    - name: Move topology.yaml on backup slurm controller
       ansible.builtin.include_tasks: move-topology.yml
       when: ('slurm_backup' in group_names)
 

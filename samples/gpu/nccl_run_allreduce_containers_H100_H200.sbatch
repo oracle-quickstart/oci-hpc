@@ -69,9 +69,9 @@ mkdir $SLURM_JOB_ID
 cd $SLURM_JOB_ID
 
 MACHINEFILE="hostfile"
-ORDEREDMACHINEFILE="ordered_hostfile_system_name"
+ORDEREDMACHINEFILE="ordered_hostfile"
 ORDEREDMACHINEFILENTIMES="ordered_hostfile_system_name_n_times"
-ORDEREDRANKMACHINEFILE="rankfile_system_name"
+ORDEREDRANKMACHINEFILE="ordered_rankfile"
 NODE_SWITCH_LIST="node_switch_list"
 
 scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE

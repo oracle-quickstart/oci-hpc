@@ -1,10 +1,11 @@
 
 import click
+from lib.cli import completion
 from lib.ociwrap import run_terminate
 import lib.database as db
 from ClusterShell.NodeSet import NodeSet
+from lib.functions import update_hosts_on_cluster
 
-from lib.logger import logger
 
 def filter_cmd(ctx, nodes, fields):
     if (not nodes and not fields) or (nodes and fields):
@@ -33,12 +34,14 @@ def filter_cmd(ctx, nodes, fields):
 @click.option(
     "--nodes",
     required=False,
-    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)"
+    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)",
+    shell_complete=completion.complete_node_identifiers,
 )
 @click.option(
     '--fields',
     required=False,
-    help='Fields to filter nodes (e.g., role=compute,status=running)'
+    help='Fields to filter nodes (e.g., role=compute,status=running)',
+    shell_complete=completion.complete_node_fields,
 )
 def terminate(ctx, nodes, fields):
     """Terminate nodes."""
@@ -49,4 +52,9 @@ def terminate(ctx, nodes, fields):
         return
 
     for node in nodes_list:
+        db.db_update_node(node, status="terminating", controller_status="terminating")
         run_terminate(node)
+
+    cfg = ctx.find_object(dict) or {}
+    if cfg.get("manage_hosts"):
+        update_hosts_on_cluster(manage_hosts=True, clush_parallel_executions=cfg.get("clush_parallel_executions",10))

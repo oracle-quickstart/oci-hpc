@@ -1,6 +1,5 @@
 import click
 from lib.database import get_clusters
-from lib.logger import logger
 import json
 @click.group()
 def list():

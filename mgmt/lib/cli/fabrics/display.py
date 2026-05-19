@@ -22,9 +22,9 @@ def print_fabrics(fabric_list, full=False):
         else:
             table = Table(title="Fabrics")
             attributes1 = ["id","lifecycle_state","fabric_health"]
-            attributes2 = ["memory_cluster"]
+            attributes2 = ["memory_cluster_id"]
             for attr in attributes1+attributes2:
-                if attr == "id" or attr == "memory_cluster":
+                if attr == "id" or attr == "memory_cluster_id":
                     table.add_column(attr, justify="left", no_wrap=True)
                 else:
                     table.add_column(attr, justify="left")
@@ -32,7 +32,7 @@ def print_fabrics(fabric_list, full=False):
                 table.add_column(i, justify="left")
             for fabric in fabric_list:
                 row = [str(getattr(fabric[0], attr)) for attr in attributes1]
-                row.append(str(fabric[2]))
+                row.append(str(fabric[3]))
                 for i in fabric[4].keys():
                     row.append(str(fabric[4][i]))
                 table.add_row(*row)

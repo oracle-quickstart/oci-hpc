@@ -3,15 +3,16 @@ from ClusterShell.Task import task_self
 from concurrent.futures import ProcessPoolExecutor
 from lib.ociwrap import get_host_api_dict
 from lib.database import get_all_nodes, db_update_node, get_controller_node, db_get_latest_healthchecks, db_create_healthcheck, db_update_healthcheck
-
+import configparser
 import subprocess
 import ipaddress
+import pathlib
 from typing import List, Dict, Optional, Tuple, Set
 import re
 import os
 import sys
-import json
 import time
+import json
 version = sys.version_info
 
 if version >= (3, 12):
@@ -22,7 +23,7 @@ else:
 
 from lib.logger import logger
 
-curl_timeout=3
+curl_timeout=1
 unreachable_timeout=timedelta(hours=6)
 
 def current_utc_time():
@@ -51,7 +52,7 @@ def run_configure(nodes, clush_parallel_executions=10):
     task.set_info("fanout", clush_parallel_executions)
     task.shell("sudo bash /var/lib/cloud/instance/scripts/part-001", nodes=NodeSet(','.join([node.ip_address for node in nodes])))
     task.run()
-    logger.info(f"Reconfiguration is done, logs are available at /config/logs/")
+    logger.info("Reconfiguration is done, logs are available at /config/logs/")
 
 def run_reset_gpus(node, clush_parallel_executions=10):
     logger.info("Resetting GPUs on: "+str(node.hostname)+" with IP "+str(node.ip_address))
@@ -60,7 +61,7 @@ def run_reset_gpus(node, clush_parallel_executions=10):
     nodes = NodeSet(str(node.ip_address))
     command = "sudo /opt/oci-hpc/healthchecks/gpu_reset.sh"
     task.run(command, nodes=nodes)
-    logger.info(f"GPU reset script was run. Logs are available at /var/log/healthchecks/latest_gpu_reset.log.")
+    logger.info("GPU reset script was run. Logs are available at /var/log/healthchecks/latest_gpu_reset.log.")
 
 def run_command(nodes,command,print_output=False,clush_parallel_executions=10):
     logger.debug(f"Running command {command} on: {NodeSet(','.join([node.ip_address for node in nodes]))}")
@@ -72,9 +73,133 @@ def run_command(nodes,command,print_output=False,clush_parallel_executions=10):
         for node in nodes:
             logger.info(f"Output from {node.hostname}: ")
             logger.info(f"{task.node_buffer(node.ip_address).decode().strip()}\n")
-            logger.info(f"------------------------------------------------------------------------------------------------")
+            logger.info("------------------------------------------------------------------------------------------------")
     else:
-        logger.info(f"Command is done, logs are available at /config/logs/")
+        logger.info("Command is done, logs are available at /config/logs/")
+
+
+MANAGED_HOSTS_START = "# mgmt-managed-hosts - start"
+MANAGED_HOSTS_END = "# mgmt-managed-hosts - end"
+
+
+def _build_hosts_entries(nodes):
+    """Return list of "ip\thostname" lines for nodes with both fields present."""
+    lines = []
+    seen: Set[Tuple[str, str]] = set()
+    for node in nodes:
+        if not node.ip_address or not node.hostname:
+            continue
+        key = (node.ip_address, node.hostname)
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(f"{node.ip_address}\t{node.hostname}")
+    return lines
+
+
+def update_hosts_on_cluster(nodes: Optional[List]=None, manage_hosts: bool=True, clush_parallel_executions: int=10):
+    """Sync /etc/hosts across given nodes (or all DB nodes) if manage_hosts is enabled.
+
+    Only includes nodes that are still active: status == running and not terminating/terminated
+    on the controller side. This prevents stale hosts entries for removed nodes.
+    """
+    if not manage_hosts:
+        logger.debug("/etc/hosts management disabled; skipping sync")
+        return
+
+    node_list = nodes or get_all_nodes()
+
+    active_nodes = []
+    skipped = 0
+    for n in node_list:
+        if not n.ip_address or not n.hostname:
+            skipped += 1
+            continue
+        if n.status not in ("running", "starting"):
+            skipped += 1
+            continue
+        if n.controller_status in ["terminating", "terminated"]:
+            skipped += 1
+            continue
+        active_nodes.append(n)
+
+    if not active_nodes:
+        logger.warning("No active nodes available to update /etc/hosts")
+        return
+
+    if skipped:
+        logger.info(f"Skipped {skipped} nodes not eligible for /etc/hosts (non-running or missing ip/hostname)")
+
+    hosts_lines = _build_hosts_entries(active_nodes)
+    hosts_block = "\n".join([MANAGED_HOSTS_START] + hosts_lines + [MANAGED_HOSTS_END])
+
+    # Bash script preserves loopback entries, replaces only the managed block, overwrites atomically.
+    update_script = f"""
+set -e
+tmp=$(mktemp)
+# Remove previous managed block if present
+sed '/^{MANAGED_HOSTS_START}$/,/^{MANAGED_HOSTS_END}$/d' /etc/hosts > "$tmp"
+
+# Ensure loopback entries are present
+grep -q '^127\\.0\\.0\\.1' "$tmp" || echo '127.0.0.1\tlocalhost\tlocalhost.localdomain\tlocalhost4\tlocalhost4.localdomain4' >> "$tmp"
+grep -q '^::1' "$tmp" || echo '::1\tlocalhost\tlocalhost.localdomain\tlocalhost6\tlocalhost6.localdomain6' >> "$tmp"
+grep -q '^127\\.0\\.1\\.1' "$tmp" || echo "127.0.1.1\t$(hostname)\t$(hostname)" >> "$tmp"
+
+# Append fresh managed block
+cat <<'EOF' >> "$tmp"
+{hosts_block}
+EOF
+sudo cp "$tmp" /etc/hosts
+sudo chmod 644 /etc/hosts
+rm "$tmp"
+"""
+
+    logger.info("Updating /etc/hosts on: %s", NodeSet(','.join([n.ip_address for n in node_list])))
+    task = task_self()
+    task.set_info("fanout", clush_parallel_executions)
+    task.shell(update_script, nodes=NodeSet(','.join([n.ip_address for n in node_list])))
+    task.run()
+    logger.info("/etc/hosts synchronized on cluster")
+
+
+def rescan_vcns_from_inventory(manage_hosts: bool=False, cfg: Optional[Dict]=None, prune_missing: bool=False):
+    """
+    Re-run VCN scans for private/public subnets found in inventory files.
+    """
+    # Local import to avoid circular dependency at module load
+    from lib.cli.database.commands.scan_vcn import scan_vcn_logic
+
+    inventory_candidates = []
+    controller = get_controller_node()
+    cluster_name = controller.cluster_name if controller else None
+    if cluster_name:
+        inventory_candidates.append(f"/config/playbooks/inventory_{cluster_name}")
+    inventory_candidates.append("/config/playbooks/inventory")
+
+    subnets: Set[str] = set()
+    for inv in inventory_candidates:
+        path = pathlib.Path(inv)
+        if not path.exists():
+            continue
+        try:
+            ansvars = get_ansiblevars(inv, ["private_subnet", "public_subnet"])
+            for key in ["private_subnet", "public_subnet"]:
+                cidr = ansvars.get(key)
+                if cidr:
+                    subnets.add(cidr)
+        except Exception as exc:
+            logger.debug(f"Could not read {inv}: {exc}")
+
+    if not subnets:
+        logger.debug("No subnets found to rescan")
+        return
+
+    logger.info(f"Rescanning VCNs for /etc/hosts: subnets={sorted(subnets)} manage_hosts={manage_hosts}")
+
+    for cidr in subnets:
+        logger.info(f"Auto scanning VCN CIDR {cidr} (manage_hosts={manage_hosts})")
+        scan_vcn_logic(cidr, dns=False, change_hostname=False, manage_hosts=manage_hosts, cfg={"manage_hosts": manage_hosts}, prune_missing=prune_missing)
+
 
 def run_ansible(controller_name):
     command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/oci/bin/ansible-playbook /config/playbooks/manage_nodes.yml"
@@ -101,7 +226,7 @@ def run_ansible(controller_name):
             print(result.stdout)
             return False
         else:
-            logger.info(f"Ansible finished succesfully")
+            logger.info("Ansible finished succesfully")
             return True
     except Exception as e:
         logger.error(f"Error running ansible: {e}")
@@ -133,7 +258,7 @@ def run_ansible_slurm_init(controller_name):
             print(result.stdout)
             return False
         else:
-            logger.info(f"Ansible finished succesfully")
+            logger.info("Ansible finished succesfully")
             return True
     except Exception as e:
         logger.error(f"Error running ansible: {e}")
@@ -304,7 +429,9 @@ def scan_host_api_logic():
 
 def get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT):
     urls=[f"http://{ip_address}:{HTTP_SERVER_PORT}/info" for ip_address in ip_addresses]
-    with ProcessPoolExecutor(max_workers=100) as executor:
+    # Keep fanout reasonable to avoid spawning hundreds of worker processes
+    max_workers = min(32, max(1, len(urls)))
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
         content_results = list(executor.map(fetch_content, urls))
     result_dict = {
         ip: content
@@ -408,10 +535,10 @@ def run_active_hc(node,reservation_id=None):
             logger.debug(f"Running command: {' '.join(cmd)}")
             results2 = subprocess.run(cmd)
             if results2.returncode != 0:
-                logger.warning(f"Slurm launch failed after reconfiguring Slurm")
+                logger.warning("Slurm launch failed after reconfiguring Slurm")
                 logger.warning(f"Error message: {results2.stderr}")
             else:
-                logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
+                logger.debug("Slurm Job launch successful after reconfiguring Slurm")
     else:
         logger.warning(f"No healthcheck partition found for {node.hostname}")
 
@@ -457,10 +584,10 @@ def run_multi_node_active_hc(nodes,exclude_node=None,reservation_id=None):
             logger.debug(f"Running command: {' '.join(cmd)}")
             results2 = subprocess.run(cmd)
             if results2.returncode != 0:
-                logger.warning(f"Slurm launch failed after reconfiguring Slurm")
+                logger.warning("Slurm launch failed after reconfiguring Slurm")
                 logger.warning(f"Error message: {results2.stderr}")
             else:
-                logger.debug(f"Slurm Job launch successful after reconfiguring Slurm")
+                logger.debug("Slurm Job launch successful after reconfiguring Slurm")
     else:
         logger.warning(f"No healthcheck partition found for {hostnames}")
 
@@ -1160,7 +1287,7 @@ def generate_topology_entries_simple(partitions_ondemand: Dict[str, Dict]) -> Tu
                             logger.error(f"Cannot update topology for partition '{partition}'")
                             logger.error(f"Hostname '{hostname_prefix}' has active nodes and existing topology is fragmented")
                             logger.error(f"Existing topology: {existing_managed[partition]['nodes']}")
-                            logger.error(f"This indicates nodes are currently running. Aborting changes.")
+                            logger.error("This indicates nodes are currently running. Aborting changes.")
                             abort_changes = True
                             break
         

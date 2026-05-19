@@ -6,6 +6,6 @@ from lib.logger import logger
 @click.command()
 def create():
     """Create database/tables. Will not recreate tables that already exist."""
-    logger.info(f"Initializing DB")
+    logger.info("Initializing DB")
     db_create()
 

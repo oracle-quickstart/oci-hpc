@@ -1,6 +1,7 @@
 
 import click
-from lib.database import db_create
+import lib
+import pathlib
 from lib.logger import logger
 
 @click.command()

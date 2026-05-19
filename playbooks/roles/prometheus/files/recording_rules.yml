@@ -249,20 +249,20 @@ groups:
 
       # DCGM metrics based checks, aligned to 3 categories
 
-      # 1) Critical XIDs (CONTACT_SUPPORT, CHECK_MECHANICALS)
+      # 1) Critical XIDs (RecommendedAction.CRITICAL)
       - record: node_gpu_xid_severity_critical
         expr: |
-          DCGM_FI_DEV_XID_ERRORS{err_code=~"1|2|3|4|5|6|7|9|10|12|15|16|17|18|19|20|21|22|23|24|26|27|28|29|30|33|34|35|36|42|47|49|50|51|52|53|54|55|56|57|58|59|61|72|73|74|76|77|78|81|87|90|91|111|112|113|114|115|116|117|118|122|123|124|125|138|142"} > 0
+          DCGM_FI_DEV_XID_ERRORS{err_code=~"54|162|163|164|165|166|167|168|169|170|171|172"} > 0
 
-      # 2) GPU reset / reboot XIDs (RESET_GPU, RESTART_BM, RESTART_VM)
+      # 2) GPU reset / reboot XIDs (RecommendedAction.GPU_RESET_REBOOT)
       - record: node_gpu_xid_severity_gpu_reset_reboot
         expr: |
-          DCGM_FI_DEV_XID_ERRORS{err_code=~"46|62|64|79|95|109|110|119|120|136|140|143"} > 0
+          DCGM_FI_DEV_XID_ERRORS{err_code=~"46|48|62|64|79|95|109|110|119|120|136|140|143|151|155|156|158|159"} > 0
 
-      # 3) Warning XIDs (everything else in your catalog)
+      # 3) Warning XIDs (RecommendedAction.WARNING)
       - record: node_gpu_xid_severity_warning
         expr: |
-          DCGM_FI_DEV_XID_ERRORS{err_code=~"8|11|13|14|25|31|32|37|38|39|40|41|43|44|45|48|60|63|66|67|68|69|70|71|72? (fill full list from computed set)"} > 0
+          DCGM_FI_DEV_XID_ERRORS{err_code=~"1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42|43|44|45|47|49|50|51|52|53|55|56|57|58|59|60|61|63|65|66|67|68|69|70|71|72|73|74|75|76|77|78|80|81|82|83|84|85|86|87|88|89|90|91|92|93|94|96|97|98|99|100|101|102|103|104|105|106|107|108|111|112|113|114|115|116|117|118|121|122|123|124|125|126|127|128|129|130|131|132|133|134|135|137|138|139|141|142|144|145|146|147|148|149|150|152|153|154|157|160|161"} > 0
 
       - record: node_gpu_xid_health_status
         expr: |

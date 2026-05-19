@@ -1,0 +1,29 @@
+---
+- name: Ensure shared 3rdparty root path exists
+  become: false
+  ansible.builtin.file:
+    path: "{{ thirdparty_root_path }}"
+    state: directory
+    owner: "{{ controller_username }}"
+    group: "{{ controller_username }}"
+    mode: "0755"
+  delegate_to: localhost
+  run_once: true
+
+- name: Ensure shared 3rdparty architecture paths exist
+  become: false
+  ansible.builtin.file:
+    path: "{{ thirdparty_root_path }}/{{ item }}"
+    state: directory
+    owner: "{{ controller_username }}"
+    group: "{{ controller_username }}"
+    mode: "0755"
+  loop: >-
+    {{
+      hostvars.get('localhost', {}).get(
+        'cluster_target_architectures',
+        [ansible_facts['architecture']]
+      )
+    }}
+  delegate_to: localhost
+  run_once: true

@@ -1,8 +1,9 @@
 
 import click
+from lib.cli import completion
 from lib.logger import logger
 from lib.ociwrap import create_cluster,get_memory_fabrics
-from lib.database import get_config_by_name, get_controller_node
+from lib.database import get_clusters, get_config_by_name, get_controller_node
 
 
 import socket
@@ -12,11 +13,11 @@ import socket
 
 @click.command()
 @click.option('--count', type=int, required=True, help='Number of nodes to add, if you use 0 for a memory cluster, it will do the max available')
-@click.option('--cluster', required=True, help='Specify the name of the cluster')
-@click.option('--instancetype', required=True, help='Specify the instance type of the cluster')
+@click.option('--cluster', required=True, help='Specify the name of the cluster', shell_complete=completion.complete_clusters)
+@click.option('--instancetype', required=True, help='Specify the instance type of the cluster', shell_complete=completion.complete_configurations_compute)
 @click.option('--names', required=False, help='comma separated list of host names')
-@click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes in for GMF based nodes')
-@click.option('--memorycluster', required=False, help='Name used for the memory cluster, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid')
+@click.option('--fabric', required=False, help='OCID of the memory fabric to add the nodes in for GMF based nodes', shell_complete=completion.complete_fabrics)
+@click.option('--memorycluster', required=False, help='Name used for the memory cluster, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid', shell_complete=completion.complete_memory_clusters)
 def create(count,cluster,instancetype,names,fabric,memorycluster):
     """Create a new cluster.\n
     Example:\n
@@ -61,10 +62,17 @@ def create(count,cluster,instancetype,names,fabric,memorycluster):
         gpu_memory_cluster_name = cluster+"_"+fabric[-5:]
     else:
         gpu_memory_cluster_name=memorycluster
+    clusters = get_clusters()
+    if cluster in clusters:
+        if gpu_memory_cluster_name is None and fabric is None:
+            logger.error(f"Cluster {cluster} already exists")
+            exit(1)
+        else:
+            logger.info(f"Cluster {cluster} already exists, I think you meant to run mgmt clusters add memory-fabric --cluster {cluster}")
+            exit(1)
     if gpu_memory_cluster_name is None and fabric is None:
         logger.info(f"Creating cluster {cluster} with {count} nodes")
     else:
         logger.info(f"Creating cluster {cluster} with {count} nodes on memoryfabric {fabric} with gpu_memory_cluster_name {gpu_memory_cluster_name}")
     create_cluster(config,int(count),cluster,controller_hostname, name_list, gpu_memory_fabric=fabric, gpu_memory_cluster_name=gpu_memory_cluster_name)
     
-

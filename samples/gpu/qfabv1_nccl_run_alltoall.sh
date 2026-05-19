@@ -3,7 +3,7 @@ set -e
 
 # run with:
 #
-#     ./nccl_run_alltoall.sh  1  /home/opc/ordered_hostfile_system_name 16 
+#     ./nccl_run_alltoall.sh  1  /home/opc/ordered_hostfile 16
 
 
 
@@ -19,7 +19,7 @@ else
   hostfile="/etc/opt/oci-hpc/hostfile.tcp"
 fi
 
-ORDEREDMACHINEFILE="ordered_hostfile_system_name"
+ORDEREDMACHINEFILE="ordered_hostfile"
 echo INPUTFILE
 cat $hostfile
 

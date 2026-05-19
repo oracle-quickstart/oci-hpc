@@ -7,6 +7,11 @@
   ansible.builtin.include_role:
     name: safe_yum
 
+- name: Set up Pyxis
+  ansible.builtin.include_role:
+    name: pyxis
+  when: pyxis | default(false) | bool
+
 - name: Render systemd units for sackd
   become: true
   ansible.builtin.template:
@@ -45,6 +50,15 @@
     group: munge
     mode: "0700"
 
+- name: Wait for munge key
+  ansible.builtin.wait_for:
+    path: /config/key/munge.key
+    state: present
+    timeout: 300
+    sleep: 30
+  delegate_to: localhost
+  run_once: true
+
 - name: Copy munge key
   become: true
   ansible.builtin.copy:
@@ -54,10 +68,6 @@
     group: munge
     mode: "0400"
   notify: Restart munge
-  register: job_result
-  until: job_result is not failed
-  retries: 10
-  delay: 30
 
 - name: Restart munge
   become: true

@@ -1,7 +1,7 @@
-from typing_extensions import Required
 import click
 from lib.database import db_create_node
 from lib.functions import get_nodes_ocid_by_ip
+from lib.logger import logger
 
 http_port=9876
 @click.command()

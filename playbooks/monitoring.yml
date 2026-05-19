@@ -51,7 +51,7 @@
         name: healthchecks
 
 # New role to clean old tmp dir files
-- hosts: all
+- hosts: localhost
   become: true
   tasks:
     - include_role:
@@ -92,16 +92,15 @@
       when: add_nfs | default(false) | bool
 
 - hosts: localhost
-  become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
+  pre_tasks:
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
     - include_role:
         name: docker
-      when: enroot | default(true) | bool
-    - include_role:
-        name: nvidia-container
       when: enroot | default(true) | bool
     - include_role:
         name: nvidia-enroot
@@ -113,6 +112,11 @@
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: false
+  pre_tasks:
+    - name: Collect cluster archiecture context
+      ansible.builtin.import_tasks: tasks/collect_cluster_context.yml
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
     - include_role:
         name: rack-aware

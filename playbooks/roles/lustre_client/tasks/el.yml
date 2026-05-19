@@ -1,0 +1,122 @@
+---
+- name: Check if Lustre is already installed on host
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -q
+      - lustre-client
+      - lustre-client-dkms
+  # noqa command-instead-of-module
+  register: lustre_client_installed
+  ignore_errors: true
+
+- name: Check if shared Lustre package bundle exists
+  ansible.builtin.stat:
+    path: "{{ lustre_client_tarball_path }}"
+  register: lustre_client_built
+  ignore_errors: true
+
+- name: Fail if Lustre client is not installed and no shared package is available
+  ansible.builtin.fail:
+    msg: >-
+      Lustre client is not installed and no shared package artifact was found at
+      {{ lustre_client_tarball_path }}.
+  when:
+    - lustre_client_installed.rc != 0
+    - not (lustre_client_built.stat.exists | default(false))
+
+- name: Lustre client installation
+  when:
+    - lustre_client_installed.rc != 0
+    - lustre_client_built.stat.exists | default(false)
+  block:
+    - name: Create temporary staging directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: lustre-client-
+      register: lustre_staging_directory
+
+    - name: Extract the lustre-client tarball
+      ansible.builtin.unarchive:
+        src: "{{ lustre_client_tarball_path }}"
+        dest: "{{ lustre_staging_directory.path }}"
+
+    - name: Find lustre-client RPM files
+      ansible.builtin.find:
+        paths: "{{ lustre_staging_directory.path }}"
+        patterns: "*.rpm"
+        file_type: file
+      register: lustre_rpms
+
+    - name: Uninstall Lustre client RPMs
+      become: true
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: absent
+        disable_gpg_check: true
+      loop:
+        - lustre-client
+        - lustre-client-dkms
+
+    - name: Install Lustre client RPMs
+      become: true
+      ansible.builtin.dnf:
+        name: "{{ lustre_rpms.files | map(attribute='path') | list }}"
+        state: present
+        disable_gpg_check: true
+
+    - name: Verify lnetctl is available after Lustre client installation
+      ansible.builtin.command: "command -v lnetctl"
+      # noqa command-instead-of-module
+      register: lustre_client_lnetctl_check
+      changed_when: false
+  always:
+    - name: Remove the staging directory
+      ansible.builtin.file:
+        path: "{{ lustre_staging_directory.path }}"
+        state: absent
+      when: lustre_staging_directory.path is defined
+
+- name: Ensure no extra ip rules are added by Lustre
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/modprobe.d/lnet.conf
+    line: "options ksocklnd skip_mr_route_setup=1"
+    create: true
+    state: present
+    mode: "0644"
+
+- name: Ensure the correct lnet options line is present in /etc/modprobe.d/lnet.conf
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/modprobe.d/lnet.conf
+    line: "options lnet lnet_peer_discovery_disabled=1"
+    state: present
+    create: true
+
+- name: Ensure Lustre configuration line is present in lnet.conf
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/modprobe.d/lnet.conf
+    regexp: "^options lnet networks="
+    line: "options lnet networks={{ (lustre_client_lnet_protocol | split('@'))[1] }}({{ ansible_facts['default_ipv4']['interface'] }})"
+    create: true
+    state: present
+    mode: "0644"
+
+- name: Mount Lustre filesystem
+  become: true
+  ansible.posix.mount:
+    path: "{{ lustre_client.local_path }}"
+    src: "{{ lustre_client.export_host }}{{ lustre_client_lnet_protocol }}:/{{ lustre_client.export_path }}"
+    opts: "{{ lustre_client.options | default('defaults,_netdev', true) }}"
+    fstype: lustre
+    state: mounted
+
+- name: Ensure user and group ownership of the mounted share directory is set correctly
+  become: true
+  ansible.builtin.file:
+    path: "{{ lustre_client.local_path }}"
+    state: directory
+    owner: opc
+    group: "{{ privilege_group_name }}"

@@ -1,8 +1,25 @@
 ---
-- hosts: localhost
+- name: Gather facts
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Gather facts before fact-dependent play vars
+      ansible.builtin.include_role:
+        name: gather-facts
+
+- name: Install node basics like mgmt, ssh
+  hosts: localhost
   become: true
   gather_facts: true
+  vars:
+    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
+    - name: Install mgmt
+      ansible.builtin.include_role:
+        name: mgmt
+    - name: Install ssh
+      ansible.builtin.include_role:
+        name: ssh
     - name: Change hostname
       ansible.builtin.include_role:
         name: hostname
@@ -12,7 +29,8 @@
         name: fix_broken
       when: ansible_facts['os_family'] == 'Debian'
 
-- hosts: localhost
+- name: Run standard roles
+  hosts: localhost
   become: true
   vars:
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
@@ -27,14 +45,14 @@
     - packages
     - firewall
     - oci-hostname
-    - ssh
     - limits
     - boot-volume
     - mpivars
     - queue_read
-    - mgmt
+    - oom-adjust
 
-- hosts: localhost
+- name: Setup local disk, health checks
+  hosts: localhost
   become: true
   gather_facts: true
   vars:
@@ -51,15 +69,16 @@
       ansible.builtin.include_role:
         name: healthchecks
 
-# New role to clean old tmp dir files
-- hosts: all
+- name: Clean old files in tmp
+  hosts: localhost
   become: true
   tasks:
     - name: Install systemd service to clean tmp
       ansible.builtin.include_role:
         name: clean_tmp
 
-- hosts: localhost
+- name: Configure hyperthreading
+  hosts: localhost
   become: true
   gather_facts: true
   tasks:
@@ -68,7 +87,8 @@
         name: hyperthreading
       when: not hyperthreading | default(true) | bool
 
-- hosts: localhost
+- name: Configure NFS
+  hosts: localhost
   become: true
   tasks:
     - name: Enable NFS home directories in SELinux
@@ -106,19 +126,23 @@
         lock: "none"
       when: add_nfs | default(false) | bool
 
-- hosts: localhost
+- name: Set up sssd
+  hosts: localhost
   become: true
   tasks:
     - name: Set up the Systems Security Services Demon
-      include_role:
+      ansible.builtin.include_role:
         name: sssd
       when: ldap | default(true) | bool
 
-- hosts: localhost
-  become: true
+- name: Configure container setup
+  hosts: localhost
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
+  pre_tasks:
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
     - name: Configure Enroot/Pyxis/Container runtimes
       when: enroot | default(true) | bool
@@ -133,7 +157,9 @@
         - name: Configure the NVIDIA container runtime
           ansible.builtin.include_role:
             name: nvidia-container
-          when: "'BM.GPU.MI' not in shape"
+          when:
+            - "'GPU' in shape"
+            - "'BM.GPU.MI' not in shape"
         - name: Set up Enroot
           ansible.builtin.include_role:
             name: nvidia-enroot
@@ -141,29 +167,46 @@
       ansible.builtin.include_role:
         name: nccl-conf
       when: rdma_enabled | bool
+    - name: Add imex role for GPU.GB shapes
+      ansible.builtin.include_role:
+        name: imex
+      when: "'GPU.GB' in shape"
 
-- hosts: localhost
-  become: true
+- name: Configure Lustre
+  hosts: localhost
+  pre_tasks:
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
     - name: Add lustre-client when LFS is added to the cluster
       ansible.builtin.include_role:
-        name: lustre-client
+        name: lustre_client
         apply:
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "/config/3rdparty"
-        local_path: "{{ lfs_target_path }}"
-        export_host: "{{ lfs_source_IP }}"
-        options: "{{ lfs_options }}"
-        export_path: "{{ lfs_source_path }}"
-        lock: "none"
+        lustre_client:
+          local_path: "{{ lfs_target_path }}"
+          export_host: "{{ lfs_source_IP }}"
+          options: "{{ lfs_options }}"
+          export_path: "{{ lfs_source_path }}"
+          lock: "none"
       when: add_lfs | default(false) | bool
     - name: Configure NHC
       ansible.builtin.include_role:
         name: nhc
 
-- hosts: localhost
+- name: Configure object storage mount
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Mount cluster bucket
+      ansible.builtin.include_role:
+        name: bucket-fs
+      when: create_bucket | bool
+
+- name: Run custom Ansible role
+  hosts: localhost
   become: true
   gather_facts: true
   tasks:
@@ -171,12 +214,18 @@
       ansible.builtin.include_role:
         name: custom
 
-- hosts: localhost
+- name: Set up SLURM, spack, metrics exporter
+  hosts: localhost
   vars:
     slurm_mode: "compute"
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: true
+  pre_tasks:
+    - name: Collect cluster archiecture context
+      ansible.builtin.import_tasks: tasks/collect_cluster_context.yml
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
     - name: Install rack aware helper scripts
       ansible.builtin.include_role:
@@ -194,7 +243,8 @@
         name: metrics-exporter
       when: cluster_monitoring | default(false) | bool
 
-- hosts: localhost
+- name: Launch the HTTP metadata server
+  hosts: localhost
   become: true
   vars:
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"

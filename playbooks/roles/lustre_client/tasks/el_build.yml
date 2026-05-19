@@ -1,0 +1,214 @@
+- name: Check if Lustre package bundle was built
+  ansible.builtin.stat:
+    path: "{{ lustre_client_tarball_path }}"
+  register: lustre_client_built
+  ignore_errors: true
+
+- name: Ensure shared Lustre build root path exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ lustre_client_build_root_path }}"
+    state: directory
+    mode: "0755"
+
+- name: Try to acquire the shared Lustre build lock for the current platform
+  become: true
+  ansible.builtin.command: "mkdir {{ lustre_client_build_lock_path }}"
+  register: lustre_client_build_lock
+  changed_when: lustre_client_build_lock.rc == 0
+  failed_when:
+    - lustre_client_build_lock.rc != 0
+    - "'File exists' not in (lustre_client_build_lock.stderr | default(''))"
+  when: not (lustre_client_built.stat.exists | default(false))
+
+- name: Record whether this node builds Lustre for the current platform
+  ansible.builtin.set_fact: # noqa: var-naming[no-role-prefix]
+    lustre_client_build_lock_acquired: "{{ (lustre_client_build_lock.rc | default(1)) == 0 }}"
+
+- name: Lustre client build
+  when:
+    - not (lustre_client_built.stat.exists | default(false))
+    - lustre_client_build_lock_acquired | bool
+  block:
+    - name: Check if the host is running RHCK
+      ansible.builtin.command: "uname -r"
+      register: lustre_client_kernel_release
+      changed_when: false
+
+    - name: Fail if not running RHCK
+      ansible.builtin.fail:
+        msg: "Host must be running RHCK, but uname -r is: {{ lustre_client_kernel_release.stdout }}"
+      when: "'uek' in lustre_client_kernel_release.stdout"
+
+    - name: Ensure lustre-client prerequisites are installed on the host
+      vars: # noqa: var-naming[no-role-prefix]
+        package_name:
+          - git
+          - dkms
+          - libmount-devel
+          - libyaml-devel
+        package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_codeready_builder,ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL"
+      ansible.builtin.include_role:
+        name: safe_yum
+
+    - name: Cleanup any existing mounts (if any)
+      become: true
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: unmounted
+      loop:
+        - "{{ lustre_client_chroot_path }}/dev/pts"
+        - "{{ lustre_client_chroot_path }}/sys"
+        - "{{ lustre_client_chroot_path }}/proc"
+
+    - name: Cleanup existing chroot environment (if any)
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_chroot_path }}"
+        state: absent
+
+    - name: Ensure chroot mount paths exist
+      become: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ lustre_client_chroot_path }}/proc"
+        - "{{ lustre_client_chroot_path }}/sys"
+        - "{{ lustre_client_chroot_path }}/dev/pts"
+
+    - name: Create mounts for chroot
+      become: true
+      ansible.posix.mount:
+        path: "{{ item.path }}"
+        src: "{{ item.src }}"
+        boot: false
+        state: mounted
+        fstype: "{{ item.fstype }}"
+        opts: "{{ item.opts }}"
+      loop:
+        - src: "/dev/pts"
+          path: "{{ lustre_client_chroot_path }}/dev/pts"
+          fstype: devpts
+          opts: bind
+        - src: "/sys"
+          path: "{{ lustre_client_chroot_path }}/sys"
+          fstype: none
+          opts: bind
+        - src: "/proc"
+          path: "{{ lustre_client_chroot_path }}/proc"
+          fstype: none
+          opts: bind
+
+    - name: Prepare and install dependencies in chroot environment for lustre-client on OL8
+      become: true
+      when: ansible_facts['distribution_major_version'] == '8'
+      ansible.builtin.shell: |
+        release=$(awk -F'"' '/^VERSION=/{print $2}' /etc/os-release | cut -d. -f1)
+        yum --releasever=/ --installroot={{ lustre_client_chroot_path }} \
+          --enablerepo ol${release}_codeready_builder,ol${release}_developer_EPEL,ol${release}_developer \
+          install -y \
+          bash git libtool patch pkgconfig libnl3-devel libblkid-devel \
+          libuuid-devel rpm-build kernel-rpm-macros kernel-abi-whitelists \
+          libmount libmount-devel libyaml-devel \
+          kernel-devel-$(uname -r) kernel-headers-$(uname -r) kernel-$(uname -r)
+      args:
+        executable: /bin/bash
+
+    - name: Prepare and install dependencies in chroot environment for lustre-client on OL9
+      become: true
+      when: ansible_facts['distribution_major_version'] == '9'
+      ansible.builtin.shell: |
+        release=$(awk -F'"' '/^VERSION=/{print $2}' /etc/os-release | cut -d. -f1)
+        yum --releasever=/ --installroot={{ lustre_client_chroot_path }} \
+          --enablerepo ol${release}_codeready_builder,ol${release}_developer_EPEL,ol${release}_developer \
+          install -y \
+          bash git libtool patch pkgconfig libnl3-devel libblkid-devel \
+          libuuid-devel rpm-build kernel-rpm-macros keyutils-libs \
+          libmount libmount-devel libyaml-devel keyutils-libs-devel \
+          glibc-locale-source glibc-langpack-en kernel-abi-stablelists \
+          kernel-devel-$(uname -r) kernel-headers-$(uname -r) kernel-$(uname -r)
+      args:
+        executable: /bin/bash
+
+    - name: Clone lustre-client git repo
+      become: true
+      ansible.builtin.git:
+        repo: "{{ lustre_client_repo }}"
+        dest: "{{ lustre_client_chroot_path }}/lustre-client"
+        version: "{{ lustre_client_version }}"
+
+    - name: Build the lustre-client RPMS in the chroot environment
+      become: true
+      ansible.builtin.shell: |
+        chroot "{{ lustre_client_chroot_path }}" bash <<'EOF'
+        set -euo pipefail
+
+        cd lustre-client/
+        sh autogen.sh
+        ./configure --enable-client --disable-server
+
+        make rpms
+        make dkms-rpms
+
+        tar -czf lustre-client-dkms.tar.gz lustre-client-2.*.rpm lustre-client-dkms-2.*.noarch.rpm
+        EOF
+      args:
+        creates: "{{ lustre_client_chroot_path }}/lustre-client/lustre-client-dkms.tar.gz"
+
+    - name: Ensure shared Lustre package path exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_package_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Move Lustre client package into /config/3rdparty path
+      become: true
+      ansible.builtin.copy:
+        src: "{{ lustre_client_chroot_path }}/lustre-client/lustre-client-dkms.tar.gz"
+        dest: "{{ lustre_client_package_path }}/"
+  always:
+    - name: Release the shared Lustre build lock
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_build_lock_path }}"
+        state: absent
+      when: lustre_client_build_lock_acquired | default(false) | bool
+
+    - name: Cleanup any existing mounts (if any)
+      become: true
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: unmounted
+      loop:
+        - "{{ lustre_client_chroot_path }}/dev/pts"
+        - "{{ lustre_client_chroot_path }}/sys"
+        - "{{ lustre_client_chroot_path }}/proc"
+
+    - name: Remove the chroot environment
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_chroot_path }}"
+        state: absent
+
+- name: Wait for shared Lustre package bundle to be available for the current platform
+  ansible.builtin.stat:
+    path: "{{ lustre_client_tarball_path }}"
+  register: lustre_client_built_wait
+  until: lustre_client_built_wait.stat.exists | default(false)
+  retries: 60
+  delay: 10
+  when: not (lustre_client_built.stat.exists | default(false))
+
+- name: Ensure shared Lustre package bundle is available after build coordination
+  ansible.builtin.assert:
+    that:
+      - lustre_client_tarball_path | length > 0
+      - lustre_client_built_wait.stat.exists | default(false)
+    fail_msg: >-
+      The shared Lustre package bundle did not appear at
+      {{ lustre_client_tarball_path }} after waiting for the current platform
+      build to complete.
+  when: not (lustre_client_built.stat.exists | default(false))

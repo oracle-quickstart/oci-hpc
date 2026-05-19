@@ -1,4 +1,5 @@
 ---
+
 - name: Gather metadata
   ansible.builtin.uri:
     url: http://169.254.169.254/opc/v2/instance/
@@ -27,14 +28,78 @@
     change_hostname_tag: true
   when: "'hostname_convention' in instance_metadata['freeformTags']"
 
-- name: Update hostname for HPC cluster
+- name: Set hostname value
   vars:
-    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
-  ansible.builtin.hostname:
-    name: "{{ hostname_convention }}-{{ index }}"
+    index: >-
+      {{ hostvars[inventory_hostname]['ansible_facts']['default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}
+  ansible.builtin.set_fact:
+    hostname_new: "{{ hostname_convention }}-{{ index }}"
   when: change_hostname_tag
+
+- name: Set hostname value
+  ansible.builtin.set_fact:
+    hostname_new: "{{ instance_metadata['displayName'] }}"
+  when: not change_hostname_tag
 
 - name: Update hostname for HPC cluster
   ansible.builtin.hostname:
-    name: "{{ instance_metadata['displayName'] }}"
-  when: not change_hostname_tag
+    name: "{{ hostname_new }}"
+  when: "not 'GPU.GB' in shape"
+
+
+- name: Block For GB series
+  when: "'GPU.GB' in shape"
+  block:
+    - name: Gather OCI host metadata
+      ansible.builtin.uri:
+        url: http://169.254.169.254/opc/v2/host
+        headers:
+          Authorization: Bearer Oracle
+        return_content: true
+      register: hostname_oci_host_metadata
+      changed_when: false
+
+    - name: Set hostname_rack_id fact
+      ansible.builtin.set_fact:
+        hostname_rack_id: "{{ hostname_oci_host_metadata.json.rackId | default('') }}"
+
+    - name: Set NVIDIA IMEX rack prefix
+      ansible.builtin.set_fact:
+        hostname_rack_prefix: "{{ hostname_rack_id[56:64] }}"
+      when: hostname_rack_id | length >= 64
+
+    - name: Gather tray index
+      ansible.builtin.shell: "nvidia-smi -q | awk -F: '/Tray Index/{gsub(/^[[:space:]]+/, \"\", $2); print $2; exit}'" # noqa command-instead-of-module
+      register: hostname_tray_index_output
+      ignore_errors: true
+      changed_when: false
+
+    - name: Set hostname_rack_index to None if not defined
+      ansible.builtin.set_fact:
+        hostname_rack_index: "None"
+
+    - name: Set hostname_rack_index based on hostname_tray_index_output
+      ansible.builtin.set_fact:
+        hostname_rack_index: "{{ hostname_tray_index_output.stdout | default('None') }}"
+      when: hostname_tray_index_output is defined
+
+    - name: Set alternate hostname for DNS update
+      ansible.builtin.set_fact:
+        hostname_alternate_hostname: "{{ hostname_convention }}-{{ hostname_rack_prefix }}-{{ hostname_rack_index }}"
+      when:
+        - hostname_rack_id | length >= 64
+        - hostname_rack_index != 'None'
+
+    - name: Update hostname for HPC cluster
+      ansible.builtin.hostname:
+        name: "{{ hostname_alternate_hostname }}"
+
+    - name: Add DNS entry with alternate hostname
+      become_user: ubuntu
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          mgmt nodes add-dns-entry
+          --alternate_hostname {{ hostname_alternate_hostname }}
+          --nodes {{ hostname_new }}
+      when: hostname_alternate_hostname is defined

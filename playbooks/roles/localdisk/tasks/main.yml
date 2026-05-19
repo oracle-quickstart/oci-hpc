@@ -4,5 +4,16 @@
   when: localdisk_recover | bool
 
 - name: Run standard setup
-  ansible.builtin.include_tasks: common.yml
   when: not (localdisk_recover | bool)
+  block:
+    - name: Run standard setup
+      ansible.builtin.include_tasks: common.yml
+  rescue:
+    - name: Run recovery tasks after standard setup failure
+      ansible.builtin.include_tasks: recover.yml
+
+    - name: Retry standard setup after recovery
+      ansible.builtin.include_tasks: common.yml
+
+- name: Run slurm_tmp
+  ansible.builtin.include_tasks: slurm_tmp.yml

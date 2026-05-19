@@ -1,0 +1,60 @@
+---
+# defaults file for lustre-client
+lustre_client_action: "deployment"
+lustre_client_lnet_protocol: "@tcp"
+lustre_client_package_root_path: "{{ thirdparty_arch_path }}/lustre_pkg"
+lustre_client_distribution_key: "{{ ansible_facts['distribution'] | lower | regex_replace('[^a-z0-9]+', '_') }}"
+lustre_client_distribution_version_key: "{{ ansible_facts['distribution_version'] | lower | regex_replace('[^a-z0-9]+', '_') }}"
+lustre_client_kernel_major: "{{ ansible_facts['kernel'].split('.')[0] }}"
+lustre_client_kernel_minor: "{{ ansible_facts['kernel'].split('.')[1] }}"
+lustre_client_release_family: >-
+  {{
+    '2_15'
+    if (
+      (lustre_client_kernel_major | int) < 6 or
+      (
+        (lustre_client_kernel_major | int) == 6 and
+        (lustre_client_kernel_minor | int) <= 8
+      )
+    )
+    else '2_17'
+    if (
+      (lustre_client_kernel_major | int) == 6 and
+      (lustre_client_kernel_minor | int) == 14
+    )
+    else 'unsupported'
+  }}
+lustre_client_repo_map:
+  "2_15": "https://github.com/robo-cap/lustre-release"
+  "2_17": "https://github.com/lustre/lustre-release"
+  "unsupported": ""
+lustre_client_tag_map:
+  "2_15":
+    "RedHat":
+      "kernel_4": "2.15.8-oci"
+      "kernel_5": "2.15.8-oci"
+    "Debian":
+      "kernel_5": "2.15.8-oci"
+      "kernel_6": "2.15.90-oci"
+  "2_17":
+    "RedHat":
+      "kernel_4": "2.17.0"
+      "kernel_5": "2.17.0"
+    "Debian":
+      "kernel_5": "2.17.0"
+      "kernel_6": "2.17.0"
+  "unsupported": {}
+lustre_client_repo: "{{ lustre_client_repo_map[lustre_client_release_family] }}"
+lustre_client_version: >-
+  {{
+    ''
+    if lustre_client_release_family == 'unsupported'
+    else lustre_client_tag_map[lustre_client_release_family][ansible_facts['os_family']]['kernel_' ~ lustre_client_kernel_major]
+  }}
+lustre_client_version_key: "{{ lustre_client_version | lower | regex_replace('[^a-z0-9]+', '_') }}"
+lustre_client_platform_key: "{{ lustre_client_distribution_key }}_{{ lustre_client_distribution_version_key }}-{{ lustre_client_version_key }}"
+lustre_client_chroot_path: "/var/tmp/lustre_client_build_chroot_{{ lustre_client_platform_key }}"
+lustre_client_build_root_path: "{{ lustre_client_package_root_path }}/builds"
+lustre_client_build_lock_path: "{{ lustre_client_build_root_path }}/{{ lustre_client_platform_key }}"
+lustre_client_package_path: "{{ lustre_client_package_root_path }}/{{ lustre_client_platform_key }}"
+lustre_client_tarball_path: "{{ lustre_client_package_path }}/lustre-client-dkms.tar.gz"

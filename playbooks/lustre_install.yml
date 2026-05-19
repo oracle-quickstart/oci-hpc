@@ -1,0 +1,66 @@
+---
+- name: Build and install Lustre client on existing nodes
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  pre_tasks:
+    - name: Ensure Lustre is enabled in inventory before installation
+      ansible.builtin.assert:
+        that:
+          - add_lfs | default(false) | bool
+        fail_msg: >-
+          Lustre installation requires add_lfs=true in the cluster inventory.
+          Update the inventory Lustre settings first, then rerun
+          'mgmt nodes reconfigure --action install-lfs'.
+
+    - name: Ensure required Lustre inventory variables are defined
+      ansible.builtin.assert:
+        that:
+          - lfs_target_path is defined
+          - lfs_target_path | string | length > 0
+          - lfs_source_IP is defined
+          - lfs_source_IP | string | length > 0
+          - lfs_source_path is defined
+          - lfs_source_path | string | length > 0
+          - lfs_options is defined
+          - lfs_options | string | length > 0
+        fail_msg: >-
+          Lustre installation requires lfs_target_path, lfs_source_IP,
+          lfs_source_path, and lfs_options to be set in the cluster inventory.
+          Update the inventory first, then rerun
+          'mgmt nodes reconfigure --action install-lfs'.
+
+    - name: Ensure install-lfs is not run on monitoring nodes
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['hostname'] not in (groups.get('monitoring', []))
+        fail_msg: >-
+          The install-lfs workflow is not supported on monitoring nodes.
+          Target controller, login, slurm_backup, and compute nodes instead.
+
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
+  tasks:
+    - name: Build Lustre client package for this node's platform
+      ansible.builtin.include_role:
+        name: lustre_client
+      vars:
+        lustre_client_action: build
+        lustre_client: # noqa: var-naming[no-role-prefix]
+          local_path: "{{ lfs_target_path }}"
+          export_host: "{{ lfs_source_IP }}"
+          options: "{{ lfs_options }}"
+          export_path: "{{ lfs_source_path }}"
+          lock: "none"
+
+    - name: Install and mount Lustre on this node
+      ansible.builtin.include_role:
+        name: lustre_client
+      vars:
+        lustre_client_action: deployment
+        lustre_client: # noqa: var-naming[no-role-prefix]
+          local_path: "{{ lfs_target_path }}"
+          export_host: "{{ lfs_source_IP }}"
+          options: "{{ lfs_options }}"
+          export_path: "{{ lfs_source_path }}"
+          lock: "none"

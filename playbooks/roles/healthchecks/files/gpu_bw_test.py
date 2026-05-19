@@ -115,7 +115,7 @@ class BandwidthTest:
 
     def validate_results(self):
         gpu_issues = {"status": "Passed", "issues": []}
-        if self.results == None:
+        if self.results is None:
             gpu_issues["issues"].append("GPU bandwidth test did not run since processes are running on the GPU")
             gpu_issues["status"] = "Failed"
             return gpu_issues

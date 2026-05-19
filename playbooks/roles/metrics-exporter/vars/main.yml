@@ -2,15 +2,30 @@
 # Variables
 gpu_ports: 9400
 prometheus_user: prometheus
+metrics_exporter_target_architectures: "{{ hostvars['localhost'].cluster_target_architectures | default([ansible_facts['architecture']]) }}"
 
 go_version: "1.23.0"
-go_tarball: "go{{ go_version }}.linux-{{ arch_suffix }}.tar.gz"
+go_tarball: "go{{ go_version }}.linux-{{ binary_arch_map[ansible_facts['architecture']] }}.tar.gz"
 go_url: "https://go.dev/dl/{{ go_tarball }}"
+go_cache_path: "{{ metrics_exporter_shared_path }}/go/{{ ansible_facts['architecture'] }}/{{ go_tarball }}"
 go_install_dir: "/usr/local"
 go_path: "/usr/local/go/bin"
 dcgm_repo: "https://github.com/NVIDIA/dcgm-exporter.git"
 dcgm_service_path: "/etc/systemd/system/dcgm-exporter.service"
 dcgm_counter_config_path: "/etc"
+dcgm_release_cache_path: "{{ metrics_exporter_shared_path }}/dcgm-exporter-releases.txt"
+dcgm_tarball_path: "{{ metrics_exporter_shared_path }}/dcgm-exporter/{{ ansible_facts['architecture'] }}/dcgm-exporter.tar.gz"
+dcgm_build_path: >-
+  {{ metrics_exporter_shared_path }}/dcgm-exporter/{{
+  ansible_facts['distribution'] }}_{{
+  ansible_facts['distribution_version'] }}_{{
+  ansible_facts['architecture'] }}
+node_exporter_tarball_path: >-
+  {{ metrics_exporter_shared_path }}/node_exporter/{{
+  ansible_facts['architecture'] }}/node_exporter-{{ node_exporter
+  }}.linux-{{ binary_arch_map[ansible_facts['architecture']] }}.tar.gz
+nccl_release_cache_path: "{{ metrics_exporter_shared_path }}/nccl-releases.txt"
+nccl_tarball_path: "{{ metrics_exporter_shared_path }}/nccl-{{ nccl_version }}.tar.gz"
 dependencies: "{{ rhel_dependencies if ansible_facts['os_family'] == 'RedHat' else ubuntu_dependencies }}"
 ubuntu_dependencies:
   - wget

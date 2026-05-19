@@ -44,7 +44,7 @@ data "oci_core_instance" "cluster_network_instances" {
 
 data "oci_core_instance" "memory_cluster_network_instances" {
   count       = var.node_count > 0 && (var.cluster_network_shape == "BM.GPU.GB200.4" || var.cluster_network_shape == "BM.GPU.GB200-v2.4" || var.cluster_network_shape == "BM.GPU.GB200-v3.4" || var.cluster_network_shape == "BM.GPU.GB300.4") ? 1 : 0
-  instance_id = data.oci_core_compute_gpu_memory_cluster_instances.memory_cluster_network_instances[0].compute_gpu_memory_cluster_instance_collection[count.index]["id"]
+  instance_id = data.oci_core_compute_gpu_memory_cluster_instances.memory_cluster_network_instances[0].compute_gpu_memory_cluster_instance_collection[0].items[count.index].id
 }
 
 data "oci_core_instance" "instance_pool_instances" {
@@ -110,12 +110,23 @@ data "oci_identity_regions" "regions" {
 }
 
 data "oci_artifacts_container_repository" "container_repo" {
-  count         = var.use_OCI_generated_container ? 0 : 1
+  count         = (var.is_gov_cloud || !var.use_OCI_generated_container) ? 1 : 0
   repository_id = local.registry_id
 }
 
-data "oci_identity_user" "user" {
+data "oci_identity_domain" "selected" {
+  count         = var.default_domain ? 0 : 1
+  domain_id     = var.domain_ocid
+}
+data "oci_identity_user" "default_user" {
+  count   = var.default_domain ? 1 : 0
   user_id = var.current_user_ocid
+}
+
+data "oci_identity_domains_user" "user" {
+  count         = var.default_domain ? 0 : 1
+  idcs_endpoint = data.oci_identity_domain.selected[0].url
+  user_id       = var.current_user_ocid
 }
 
 data "oci_objectstorage_namespace" "namespace" {
@@ -134,3 +145,8 @@ data "oci_core_compute_gpu_memory_fabrics" "test_compute_gpu_memory_fabrics" {
 data "external" "architecture" {
   program = ["bash", "-c", "echo \"{\\\"arch\\\": \\\"$(uname -m)\\\"}\""]
 }
+
+data "oci_identity_tenancy" "tenant" {
+  tenancy_id = var.tenancy_ocid
+}
+

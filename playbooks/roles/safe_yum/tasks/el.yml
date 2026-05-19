@@ -9,7 +9,7 @@
         enablerepo: "{{ package_repo | default('None') }}"
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
-        update_cache: "{{ package_cache | default('false') | bool }}"
+        update_cache: "{{ package_cache | default('true') | bool }}"
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
       when: package_repo|default('None') != 'None'
@@ -34,7 +34,7 @@
       ansible.builtin.dnf:
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
-        update_cache: "{{ package_cache | default('false') | bool }}"
+        update_cache: "{{ package_cache | default('true') | bool }}"
         lock_timeout: 180
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
       when: package_repo|default('None') == 'None'
@@ -70,7 +70,7 @@
         enablerepo: "{{ package_repo | default('None') }}"
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
-        update_cache: "{{ package_cache | default('false') | bool }}"
+        update_cache: "{{ package_cache | default('true') | bool }}"
         lock_timeout: 90
         disable_gpg_check: "{{ disable_gpg_check_var | default('false') | bool }}"
       register: packages_output
@@ -86,7 +86,7 @@
       ansible.builtin.dnf:
         name: "{{ package_name }}"
         state: "{{ package_state | default('present') }}"
-        update_cache: "{{ package_cache | default('false') | bool }}"
+        update_cache: "{{ package_cache | default('true') | bool }}"
         lock_timeout: 90
       register: packages_output
       retries: 5

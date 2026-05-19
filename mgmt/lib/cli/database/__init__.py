@@ -1,5 +1,5 @@
 import click
-from lib.cli.database.commands import add, delete, scan_vcn, update, create, export
+from lib.cli.database.commands import add, delete, scan_vcn, update, create, export, fn_invoke
 
 @click.group("database")
 def cmd():
@@ -12,3 +12,4 @@ cmd.add_command(scan_vcn.scan_vcn)
 cmd.add_command(update.update)
 cmd.add_command(create.create)
 cmd.add_command(export.export)
+cmd.add_command(fn_invoke.fn_invoke)

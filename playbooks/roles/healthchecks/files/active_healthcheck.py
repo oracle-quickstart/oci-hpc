@@ -338,11 +338,11 @@ cargo install gpu-fryer --root /opt/gpu-fryer
             for line in output.splitlines():
                 if "All GPUs seem healthy" in line:
                     return True,"GPU Fryer test succeeded"
-            logger.error(f"GPU Fryer failed")
+            logger.error("GPU Fryer failed")
             print('\n'.join(output.splitlines()[-20:]))
             return False,"GPU Fryer failed"
         else:
-            logger.error(f"GPU Fryer failed")
+            logger.error("GPU Fryer failed")
             print('\n'.join(output.splitlines()[-20:]))
             return False,"GPU Fryer failed"
     except subprocess.TimeoutExpired:
@@ -690,7 +690,7 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
             else:
                 return True, "NVME read performance test passed."
         else:
-            logger.error(f"NVME FIO read test failed")
+            logger.error("NVME FIO read test failed")
             stdout = result.stdout.decode('utf-8') if result.stdout else ""
             stderr = result.stderr.decode('utf-8') if result.stderr else ""
             combined = "\n".join([stdout, stderr]).strip()
@@ -843,7 +843,7 @@ if __name__ == '__main__':
 
         # Run SDC checks
         sdc_state, sdc_output, sdc_details = run_gpu_sdc_check()
-        if sdc_state == None:
+        if sdc_state is None:
             logger.warning(f"{hostname} - GPU Silent Data Corruption Test Failed: {sdc_output}")
         else:
             if not sdc_state:

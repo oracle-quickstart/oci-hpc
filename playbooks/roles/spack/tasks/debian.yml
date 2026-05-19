@@ -17,13 +17,13 @@
 
 - name: Check if SPACK directory is present
   ansible.builtin.stat:
-    path: "/config/3rdparty/spack"
+    path: "{{ spack_path }}"
   register: spack_present
 
 - name: Clone SPACK
   ansible.builtin.git:
     repo: "{{ spack_repo }}"
-    dest: "/config/3rdparty/spack"
+    dest: "{{ spack_path }}"
     update: false
   run_once: true
   when: not spack_present.stat.exists

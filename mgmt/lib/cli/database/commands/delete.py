@@ -3,7 +3,6 @@ import lib.database as db
 
 from ClusterShell.NodeSet import NodeSet
 
-import click
 
 def filter_cmd(ctx, nodes, fields):
     if (not nodes and not fields) or (nodes and fields):

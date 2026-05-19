@@ -1,0 +1,247 @@
+---
+
+# Note: this role is directly included inside the slurm role since pyxis must be only setup within
+# the context of a slurm deployment.
+
+- name: Set pyxis package search pattern for current OS
+  ansible.builtin.set_fact:
+    pyxis_package_pattern: "{{ 'nvslurm-plugin-pyxis_*.deb' if ansible_facts['os_family'] == 'Debian' else 'nvslurm-plugin-pyxis-*.rpm' }}"
+
+- name: Check whether enroot is configured
+  ansible.builtin.stat:
+    path: /etc/enroot/enroot.conf
+  register: pyxis_enroot_config
+
+- name: Ensure enroot configuration is present before pyxis
+  ansible.builtin.assert:
+    that:
+      - pyxis_enroot_config.stat.exists
+    fail_msg: >-
+      Pyxis requires Enroot to be configured on this host before the Slurm role runs.
+      Expected /etc/enroot/enroot.conf to exist.
+
+- name: Ensure shared pyxis directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ pyxis_shared_path }}"
+    - "{{ pyxis_shared_package_path }}"
+
+- name: Check whether a shared pyxis package already exists
+  ansible.builtin.find:
+    paths: "{{ pyxis_shared_package_path }}"
+    patterns: "{{ pyxis_package_pattern }}"
+    recurse: false
+    file_type: file
+  register: pyxis_shared_package
+
+- name: Record existing shared pyxis package path
+  ansible.builtin.set_fact:
+    pyxis_install_package_path: "{{ pyxis_shared_package.files | sort(attribute='mtime', reverse=true) | map(attribute='path') | first }}"
+  when: pyxis_shared_package.matched > 0
+
+- name: Try to acquire the pyxis build directory for the current architecture
+  ansible.builtin.command: "mkdir {{ pyxis_build_path }}"
+  register: pyxis_build_lock
+  changed_when: pyxis_build_lock.rc == 0
+  failed_when:
+    - pyxis_build_lock.rc != 0
+    - "'File exists' not in (pyxis_build_lock.stderr | default(''))"
+  when: pyxis_install_package_path is not defined
+
+- name: Record whether this node builds pyxis for the current architecture
+  ansible.builtin.set_fact:
+    pyxis_build_lock_acquired: "{{ (pyxis_build_lock.rc | default(1)) == 0 }}"
+
+- name: Build and stage the shared pyxis package for the current architecture
+  when: pyxis_build_lock_acquired | bool
+  block:
+    - name: Clone pyxis repo
+      ansible.builtin.git:
+        repo: https://github.com/NVIDIA/pyxis.git
+        dest: "{{ pyxis_build_path }}"
+
+    - name: Build pyxis for RedHat targets once per architecture
+      when: ansible_facts['os_family'] == 'RedHat'
+      block:
+        - name: Install required packages
+          vars:
+            package_name: "{{ pyxis_rpm_build_dependencies }}" # noqa: var-naming[no-role-prefix]
+          ansible.builtin.include_role:
+            name: safe_yum
+
+        - name: Create pyxis RPM package
+          ansible.builtin.command: make rpm
+          args:
+            chdir: "{{ pyxis_build_path }}"
+
+        - name: Find pyxis RPM package
+          ansible.builtin.find:
+            paths: "{{ pyxis_build_path }}/rpm/RPMS"
+            patterns: "nvslurm-plugin-pyxis-*.rpm"
+            recurse: true
+            file_type: file
+          register: pyxis_rpm_package
+
+        - name: Ensure pyxis RPM package was created
+          ansible.builtin.assert:
+            that:
+              - pyxis_rpm_package.matched > 0
+            fail_msg: "Pyxis RPM package was not created."
+
+        - name: Select pyxis RPM package
+          ansible.builtin.set_fact:
+            pyxis_built_package_path: "{{ pyxis_rpm_package.files | sort(attribute='mtime', reverse=true) | map(attribute='path') | first }}"
+
+        - name: Copy pyxis RPM package to shared thirdparty directory
+          ansible.builtin.copy:
+            src: "{{ pyxis_built_package_path }}"
+            dest: "{{ pyxis_shared_package_path }}/{{ pyxis_built_package_path | basename }}"
+            remote_src: true
+            mode: "0644"
+
+    - name: Build pyxis for Debian targets once per architecture
+      when: ansible_facts['os_family'] == 'Debian'
+      block:
+        - name: Install required packages
+          vars:
+            package_name: "{{ pyxis_deb_build_dependencies }}" # noqa: var-naming[no-role-prefix]
+          ansible.builtin.include_role:
+            name: safe_yum
+
+        - name: Patch pyxis Debian packaging for custom Slurm DEB layout
+          ansible.builtin.replace:
+            path: "{{ pyxis_build_path }}/debian/control"
+            regexp: ',\s*slurm-smd-dev\s*\|\s*libslurm-dev'
+            replace: ''
+
+        - name: Create pyxis source tarball
+          ansible.builtin.command: make orig
+          args:
+            chdir: "{{ pyxis_build_path }}"
+
+        - name: Create pyxis DEB package
+          ansible.builtin.command: make deb
+          args:
+            chdir: "{{ pyxis_build_path }}"
+
+        - name: Find pyxis DEB package
+          ansible.builtin.find:
+            paths: "{{ pyxis_build_path | dirname }}"
+            patterns: "nvslurm-plugin-pyxis_*.deb"
+            recurse: false
+            file_type: file
+          register: pyxis_deb_package
+
+        - name: Ensure pyxis DEB package was created
+          ansible.builtin.assert:
+            that:
+              - pyxis_deb_package.matched > 0
+            fail_msg: "Pyxis DEB package was not created."
+
+        - name: Select pyxis DEB package
+          ansible.builtin.set_fact:
+            pyxis_built_package_path: "{{ pyxis_deb_package.files | sort(attribute='mtime', reverse=true) | map(attribute='path') | first }}"
+
+        - name: Copy pyxis DEB package to shared thirdparty directory
+          ansible.builtin.copy:
+            src: "{{ pyxis_built_package_path }}"
+            dest: "{{ pyxis_shared_package_path }}/{{ pyxis_built_package_path | basename }}"
+            remote_src: true
+            mode: "0644"
+
+    - name: Remove pyxis build directory after successful package build
+      ansible.builtin.file:
+        path: "{{ pyxis_build_path }}"
+        state: absent
+  rescue:
+    - name: Record archived pyxis build directory path
+      ansible.builtin.set_fact:
+        pyxis_failed_build_path: "{{ pyxis_build_path }}.failed.{{ ansible_date_time.iso8601_basic_short }}"
+
+    - name: Check whether the failed pyxis build directory exists
+      ansible.builtin.stat:
+        path: "{{ pyxis_build_path }}"
+      register: pyxis_build_dir_stat
+
+    - name: Archive failed pyxis build directory for inspection
+      ansible.builtin.command: "mv {{ pyxis_build_path }} {{ pyxis_failed_build_path }}"
+      when: pyxis_build_dir_stat.stat.exists
+
+    - name: Fail after cleaning up the failed pyxis build directory
+      ansible.builtin.fail:
+        msg: >-
+          Building the shared pyxis package in {{ pyxis_build_path }} failed.
+          The failed build directory was archived to
+          {{ pyxis_failed_build_path if pyxis_build_dir_stat.stat.exists else pyxis_build_path }}
+          so a later retry can rebuild it.
+
+- name: Wait for shared pyxis package to be available for current OS
+  ansible.builtin.find:
+    paths: "{{ pyxis_shared_package_path }}"
+    patterns: "{{ pyxis_package_pattern }}"
+    recurse: false
+    file_type: file
+  register: pyxis_shared_package
+  until: pyxis_shared_package.matched > 0
+  retries: 60
+  delay: 10
+
+- name: Record shared pyxis package path for installation
+  ansible.builtin.set_fact:
+    pyxis_install_package_path: "{{ pyxis_shared_package.files | sort(attribute='mtime', reverse=true) | map(attribute='path') | first }}"
+
+- name: Ensure shared pyxis package path is available for installation
+  ansible.builtin.assert:
+    that:
+      - pyxis_install_package_path is defined
+      - pyxis_install_package_path | length > 0
+    fail_msg: "A shared pyxis package matching {{ pyxis_package_pattern }} was not staged in {{ pyxis_shared_package_path }} for installation."
+
+- name: Install pyxis RPM package from shared thirdparty directory
+  when: ansible_facts['os_family'] == 'RedHat'
+  vars:
+    package_name: # noqa: var-naming[no-role-prefix]
+      - "{{ pyxis_install_package_path }}"
+    package_state: present
+    disable_gpg_check_var: true
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Install pyxis DEB package from shared thirdparty directory
+  when: ansible_facts['os_family'] == 'Debian'
+  vars:
+    deb_name: # noqa: var-naming[no-role-prefix]
+      - "{{ pyxis_install_package_path }}"
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Ensure prolog directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ slurm_conf_path }}/prolog.d"
+    state: directory
+    owner: root
+    group: root
+
+- name: Copy files
+  become: true
+  ansible.builtin.template:
+    src: pyxis.sh.j2
+    dest: "{{ slurm_conf_path }}/prolog.d/pyxis.sh"
+    owner: root
+    group: root
+    mode: "0755"
+    force: true
+    backup: true
+
+- name: Link Pyxis plugstack config into drop-in directory
+  become: true
+  ansible.builtin.file:
+    src: "{{ pyxis_package_config_path }}"
+    dest: "{{ slurm_conf_path }}/plugstack.conf.d/pyxis.conf"
+    state: link
+    force: true

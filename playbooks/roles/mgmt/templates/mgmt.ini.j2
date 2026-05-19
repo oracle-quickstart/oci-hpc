@@ -1,7 +1,10 @@
 [mgmt]
 debug = false
 clush_parallel_executions = 10
-active_healthchecks = {{ active_healthchecks }}
-active_healthchecks_frequency = 24
-multi_nodes_healthchecks = {{ active_healthchecks }}
-multi_nodes_healthchecks_frequency = 24
+active_healthchecks = {{ active_healthchecks | default(mgmt_active_healthchecks) | string | lower }}
+active_healthchecks_frequency = {{ active_healthchecks_frequency | default(mgmt_active_healthchecks_frequency) }}
+multi_nodes_healthchecks = {{ multi_nodes_healthchecks | default(mgmt_multi_nodes_healthchecks) | string | lower }}
+multi_nodes_healthchecks_frequency = {{ multi_nodes_healthchecks_frequency | default(mgmt_multi_nodes_healthchecks_frequency) }}
+write_node_function_ocid = {{ write_node_function_ocid }}
+# DO NOT MODIFY manage_hosts UNLESS YOU KNOW WHAT YOUR ARE DOING
+manage_hosts = false 

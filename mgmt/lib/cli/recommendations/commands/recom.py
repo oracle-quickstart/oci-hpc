@@ -1,4 +1,5 @@
 import click
+from lib.cli import completion
 from lib.database import get_all_nodes_failing_to_start, get_all_nodes_with_hc_status, get_all_nodes_unreachable, get_nodes_slurm_unconfigured, join_nodes_lists
 from lib.functions import run_configure, scan_host_api_logic, run_reset_gpus
 from lib.ociwrap import run_reboot, run_terminate, run_tag
@@ -6,8 +7,7 @@ from lib.cli.recommendations.display import print_node_list
 
 
 from lib.logger import logger
-import socket
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from ClusterShell.NodeSet import NodeSet
 
@@ -77,7 +77,7 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
 
 @recom.command()
 @click.pass_obj
-@click.option('--nodes', required=False, help='Comma separated list of nodes (IP Addresses, hostnames, OCID\'s, serials or oci names)')
+@click.option('--nodes', required=False, help='Comma separated list of nodes (IP Addresses, hostnames, OCID\'s, serials or oci names)', shell_complete=completion.complete_node_identifiers)
 @click.option('--healthcheck', is_flag=True, help='', default=False)
 @click.option('--unreachable', is_flag=True, help='Get full information about the nodes.', default=False)
 @click.option('--unconfigured', is_flag=True, help='Get full information about the nodes.', default=False)
@@ -141,4 +141,3 @@ def run(cfg, unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,un
     available_nodes=scan_host_api_logic()
     for shape in available_nodes.keys():
         click.echo(f"There are {available_nodes[shape]} available nodes of shape {shape} in your pool.")
-

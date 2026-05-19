@@ -13,7 +13,8 @@
     name: "{{ package_name }}"
     state: "{{ package_state | default('latest') }}"
     purge: "{{ package_purge | default('false') }}"
-    update_cache: "{{ package_cache | default('false') }}"
+    update_cache: "{{ package_cache | default('true') }}"
+    cache_valid_time: "{{ package_cache_valid_time | default('3600') }}"
   register: result
   until: result is not failed
   retries: 5
@@ -26,7 +27,8 @@
     deb: "{{ item }}"
     state: "{{ package_state | default('latest') }}"
     purge: "{{ package_purge | default('false') }}"
-    update_cache: "{{ package_cache | default('false') }}"
+    update_cache: "{{ package_cache | default('true') }}"
+    cache_valid_time: "{{ package_cache_valid_time | default('3600') }}"
   register: result
   until: result is not failed
   retries: 5

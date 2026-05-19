@@ -8,7 +8,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
   }
-  
+
   instance_details {
     instance_type = "compute"
     launch_details {
@@ -26,7 +26,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       metadata = {
         # TODO: add user key to the authorized_keys 
         ssh_authorized_keys = var.compute_node_ssh_key == "" ? "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}" : "${var.ssh_key}\n${tls_private_key.ssh.public_key_openssh}${var.compute_node_ssh_key}\n"
-        user_data           = base64encode(file("cloud-init.sh"))
+        user_data           = base64encode(file("${path.module}/cloud-init.sh"))
       }
       instance_options {
         are_legacy_imds_endpoints_disabled = true

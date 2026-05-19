@@ -3,7 +3,7 @@
   become: true
   gather_facts: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: fix_broken
       when: ansible_facts['os_family'] == 'Debian'
 
@@ -28,6 +28,7 @@
     - mpivars
     - queue_read
     - mgmt
+    - oom-adjust
 
 - hosts: localhost
   become: true
@@ -35,26 +36,26 @@
   vars:
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: localdisk
       when: localdisk | default(true) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: healthchecks
 
 # New role to clean old tmp dir files
-- hosts: all
+- hosts: localhost
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: clean_tmp
 
 - hosts: localhost
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: home_nfs
       when: shared_home != "none"
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "/home"
@@ -63,7 +64,7 @@
         options: "defaults,noatime,bg,timeo=100,ac,actimeo=120,nocto,rsize=1048576,wsize=1048576,nolock,local_lock={{ lock }},mountproto=tcp,sec=sys,_netdev"
         lock: "all"
       when: shared_home == "nfs"
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "/home"
@@ -72,7 +73,7 @@
         options: ""
         lock: "none"
       when: shared_home == "fss"
-    - include_role:
+    - ansible.builtin.include_role:
         name: nfs-client
       vars:
         local_path: "{{ nfs_target_path }}"
@@ -85,42 +86,51 @@
 - hosts: localhost
   become: true
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: sssd
       when: ldap | default(true) | bool
 
 - hosts: localhost
-  become: true
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
+  pre_tasks:
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: docker
       when: enroot | default(true) | bool
-    - include_role:
-        name: nvidia-container
-      when: enroot | default(true) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: nvidia-enroot
       when: enroot | default(true) | bool
 
 - hosts: localhost
-  become: true
+  pre_tasks:
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
-    - include_role:
-        name: lustre-client
+    - ansible.builtin.include_role:
+        name: lustre_client
         apply:
           environment:
             DEBIAN_FRONTEND: noninteractive
       vars:
-        download_path: "/config/3rdparty"
-        local_path: "{{ lfs_target_path }}"
-        export_host: "{{ lfs_source_IP }}"
-        options: "{{ lfs_options }}"
-        export_path: "{{ lfs_source_path }}"
-        lock: "none"
+        lustre_client:
+          local_path: "{{ lfs_target_path }}"
+          export_host: "{{ lfs_source_IP }}"
+          options: "{{ lfs_options }}"
+          export_path: "{{ lfs_source_path }}"
+          lock: "none"
       when: add_lfs | default(false) | bool
+
+- hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Mount cluster bucket
+      ansible.builtin.include_role:
+        name: bucket-fs
+      when: create_bucket | bool
 
 - hosts: localhost
   become: true
@@ -135,16 +145,21 @@
     enroot_top_path: "{{ nvme_path }}/enroot/"
     ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: false
+  pre_tasks:
+    - name: Collect cluster archiecture context
+      ansible.builtin.import_tasks: tasks/collect_cluster_context.yml
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
-    - include_role:
+    - ansible.builtin.include_role:
         name: rack-aware
-    - include_role:
+    - ansible.builtin.include_role:
         name: spack
       when: spack | default(false) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: metrics-exporter
       when: cluster_monitoring | default(false) | bool
-    - include_role:
+    - ansible.builtin.include_role:
         name: slurm
       when: slurm | default(false) | bool
 

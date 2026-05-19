@@ -26,17 +26,16 @@
       run_once: true
 
     - name: Fetch and cache NCCL releases
-      become: true
       ansible.builtin.shell:
         cmd: |
           set -o pipefail
-          if [ -f /config/3rdparty/nccl-releases.txt ]; then
-            cat /config/3rdparty/nccl-releases.txt
+          if [ -f "{{ nccl_release_cache_path }}" ]; then
+            cat "{{ nccl_release_cache_path }}"
           else
             releases=$(curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"')
-            tmp=$(mktemp /config/3rdparty/.nccl-releases.XXXXXX)
+            tmp=$(mktemp "{{ metrics_exporter_shared_path }}/.nccl-releases.XXXXXX")
             echo "$releases" > "$tmp"
-            mv "$tmp" /config/3rdparty/nccl-releases.txt
+            mv "$tmp" "{{ nccl_release_cache_path }}"
             echo "$releases"
           fi
         executable: /bin/bash
@@ -66,16 +65,15 @@
 
     - name: Check if NCCL tarball already cached
       ansible.builtin.stat:
-        path: "/config/3rdparty/nccl-{{ nccl_version }}.tar.gz"
+        path: "{{ nccl_tarball_path }}"
       register: nccl_tarball_cache
       delegate_to: localhost
       run_once: true
 
     - name: Download NCCL tarball to shared storage
-      become: true
       ansible.builtin.get_url:
         url: "{{ nccl_tarball_url }}"
-        dest: "/config/3rdparty/nccl-{{ nccl_version }}.tar.gz"
+        dest: "{{ nccl_tarball_path }}"
         mode: "0644"
       delegate_to: localhost
       run_once: true
@@ -90,7 +88,7 @@
     - name: Extract NCCL tarball from shared storage
       become: true
       ansible.builtin.unarchive:
-        src: "/config/3rdparty/nccl-{{ nccl_version }}.tar.gz"
+        src: "{{ nccl_tarball_path }}"
         dest: "/tmp"
         remote_src: true
 

@@ -1,0 +1,303 @@
+---
+- name: Check if Lustre package bundle was built
+  ansible.builtin.stat:
+    path: "{{ lustre_client_tarball_path }}"
+  register: lustre_client_built
+  ignore_errors: true
+
+- name: Ensure shared Lustre build root path exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ lustre_client_build_root_path }}"
+    state: directory
+    mode: "0755"
+
+- name: Try to acquire the shared Lustre build lock for the current platform
+  become: true
+  ansible.builtin.command: "mkdir {{ lustre_client_build_lock_path }}"
+  register: lustre_client_build_lock
+  changed_when: lustre_client_build_lock.rc == 0
+  failed_when:
+    - lustre_client_build_lock.rc != 0
+    - "'File exists' not in (lustre_client_build_lock.stderr | default(''))"
+  when: not (lustre_client_built.stat.exists | default(false))
+
+- name: Record whether this node builds Lustre for the current platform
+  ansible.builtin.set_fact:
+    lustre_client_build_lock_acquired: "{{ (lustre_client_build_lock.rc | default(1)) == 0 }}"
+
+- name: Lustre client build
+  when:
+    - not (lustre_client_built.stat.exists | default(false))
+    - lustre_client_build_lock_acquired | bool
+  block:
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Set lustre-client build facts
+      ansible.builtin.set_fact:
+        lustre_client_primary_ubuntu_mirror: >-
+          {{
+            'http://mirrors.kernel.org/ubuntu/'
+            if ansible_facts['architecture'] == 'x86_64'
+            else 'http://mirror.fmt-2.serverforge.org/ubuntu-ports/'
+          }}
+
+    - name: Ensure lustre-client prerequisites are installed on the host
+      vars: # noqa: var-naming[no-role-prefix]
+        package_name:
+          - debootstrap
+          - git
+        package_state: present
+      ansible.builtin.include_role:
+        name: safe_yum
+
+    - name: Cleanup any existing mounts (if any)
+      become: true
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: unmounted
+      loop:
+        - "{{ lustre_client_chroot_path }}/dev/pts"
+        - "{{ lustre_client_chroot_path }}/sys"
+        - "{{ lustre_client_chroot_path }}/proc"
+
+    - name: Cleanup existing chroot environment (if any)
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_chroot_path }}"
+        state: absent
+
+    - name: Safely create chroot environment to build lustre-client
+      block:
+        - name: Try to create chroot environment
+          become: true
+          ansible.builtin.command:
+            argv:
+              - debootstrap
+              - "{{ ansible_facts['lsb']['codename'] }}"
+              - "{{ lustre_client_chroot_path }}"
+              - "{{ lustre_client_primary_ubuntu_mirror }}"
+          args:
+            creates: "{{ lustre_client_chroot_path }}"
+            stdin: ""
+          timeout: 900
+      rescue:
+        - name: Handle timeout - clean up
+          become: true
+          ansible.builtin.file:
+            path: "{{ lustre_client_chroot_path }}"
+            state: absent
+
+        - name: Retry chroot creation
+          become: true
+          ansible.builtin.command:
+            argv:
+              - debootstrap
+              - "{{ ansible_facts['lsb']['codename'] }}"
+              - "{{ lustre_client_chroot_path }}"
+          args:
+            creates: "{{ lustre_client_chroot_path }}"
+            stdin: ""
+          timeout: 1800
+
+    - name: Ensure the temporary directory exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_chroot_path }}/etc/apt/sources.list.d"
+        state: directory
+        mode: "0755"
+
+    - name: Check whether apt keyrings exist on the host
+      become: true
+      ansible.builtin.stat:
+        path: "/etc/apt/trusted.gpg.d"
+      register: lustre_client_apt_keyrings
+
+    - name: Check whether apt sources.list exists on the host
+      become: true
+      ansible.builtin.stat:
+        path: "/etc/apt/sources.list"
+      register: lustre_client_apt_sources_list
+
+    - name: Check whether ubuntu.sources exists on the host
+      become: true
+      ansible.builtin.stat:
+        path: "/etc/apt/sources.list.d/ubuntu.sources"
+      register: lustre_client_apt_ubuntu_sources
+
+    - name: Copy apt keyrings from the host into chroot
+      become: true
+      ansible.builtin.copy:
+        src: "/etc/apt/trusted.gpg.d/"
+        dest: "{{ lustre_client_chroot_path }}/etc/apt/trusted.gpg.d/"
+      when: lustre_client_apt_keyrings.stat.exists | default(false)
+
+    - name: Copy apt sources.list from the host into chroot when present
+      become: true
+      ansible.builtin.copy:
+        src: "/etc/apt/sources.list"
+        dest: "{{ lustre_client_chroot_path }}/etc/apt/sources.list"
+      when: lustre_client_apt_sources_list.stat.exists | default(false)
+
+    - name: Copy apt sources from the host into chroot
+      become: true
+      ansible.builtin.copy:
+        src: "/etc/apt/sources.list.d/ubuntu.sources"
+        dest: "{{ lustre_client_chroot_path }}/etc/apt/sources.list.d/"
+      when: lustre_client_apt_ubuntu_sources.stat.exists | default(false)
+
+    - name: Create mounts for chroot
+      become: true
+      ansible.posix.mount:
+        path: "{{ item.path }}"
+        src: "{{ item.src }}"
+        boot: false
+        state: mounted
+        fstype: "{{ item.fstype }}"
+        opts: "{{ item.opts }}"
+      loop:
+        - src: "/dev/pts"
+          path: "{{ lustre_client_chroot_path }}/dev/pts"
+          fstype: devpts
+          opts: bind
+        - src: "/sys"
+          path: "{{ lustre_client_chroot_path }}/sys"
+          fstype: none
+          opts: bind
+        - src: "/proc"
+          path: "{{ lustre_client_chroot_path }}/proc"
+          fstype: none
+          opts: bind
+
+    - name: Ensure the prerequisites are installed in the chroot environment for Ubuntu 22
+      become: true
+      when: ansible_facts['distribution_major_version'] == '22'
+      ansible.builtin.shell: |
+        chroot "{{ lustre_client_chroot_path }}" bash <<'EOF'
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update || true
+        apt-get install -y --install-recommends \
+          linux-image-{{ ansible_facts['kernel'] }} \
+          linux-headers-{{ ansible_facts['kernel'] }} \
+          libreadline-dev libpython3-dev libkeyutils-dev \
+          bison libmount-dev libtool libnl-genl-3-dev \
+          pkg-config flex libyaml-dev ed zlib1g-dev\
+          debhelper libssl-dev rsync dpatch libsnmp-dev mpi-default-dev \
+          quilt swig module-assistant tar git
+        EOF
+
+    - name: Ensure the prerequisites are installed in the chroot environment for Ubuntu 24
+      become: true
+      when: ansible_facts['distribution_major_version'] == '24'
+      ansible.builtin.shell: |
+        chroot "{{ lustre_client_chroot_path }}" bash <<'EOF'
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update || true
+        apt-get install -y --install-recommends \
+          linux-image-{{ ansible_facts['kernel'] }} \
+          linux-headers-{{ ansible_facts['kernel'] }} \
+          libreadline-dev libpython3-dev libkeyutils-dev \
+          bison libmount-dev libtool libnl-genl-3-dev \
+          pkg-config flex libyaml-dev ed zlib1g-dev\
+          debhelper libssl-dev rsync libsnmp-dev mpi-default-dev \
+          quilt swig module-assistant tar git
+        EOF
+
+    - name: Clone lustre-client git repo
+      become: true
+      ansible.builtin.git:
+        repo: "{{ lustre_client_repo }}"
+        dest: "{{ lustre_client_chroot_path }}/lustre-client"
+        version: "{{ lustre_client_version }}"
+
+    - name: Build the lustre-client dkms-debs in the chroot environment
+      become: true
+      ansible.builtin.shell: |
+        chroot "{{ lustre_client_chroot_path }}" bash <<'EOF'
+        set -euo pipefail
+
+        cd lustre-client/
+        sh autogen.sh
+        ./configure --enable-client --disable-server
+
+        find debian -type f -name 'control*' -exec sed -Ei '
+        {
+          s/((\s*linux-image-generic\s*(\([^)]+\))?\s*[|,])|(\s*linux-image\s*(\([^)]+\))?\s*[|,])|(\s*linux-image-amd64\s*(\([^)]+\))?\s*[|,]|)|(\s*linux-image-arm64\s*(\([^)]+\))?\s*[|,]|))//g;
+          s/((\s*linux-headers-generic\s*(\([^)]+\))?\s*[|,]|)|(\s*linux-headers\s*(\([^)]+\))?\s*[|,]|)|(\s*linux-headers-amd64\s*(\([^)]+\))?\s*[|,]|)|(\s*linux-headers-arm64\s*(\([^)]+\))?\s*[|,]|))//g;
+        }
+        ' {} +
+
+        make dkms-debs
+        tar -czf lustre-client-dkms.tar.gz debs/lustre-client-utils_2.*.deb debs/lustre-client-modules-dkms_2.*.deb
+        EOF
+      args:
+        creates: "{{ lustre_client_chroot_path }}/lustre-client/lustre-client-dkms.tar.gz"
+
+    - name: Ensure shared Lustre package path exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_package_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Move Lustre client package into /config/3rdparty path
+      become: true
+      ansible.builtin.copy:
+        src: "{{ lustre_client_chroot_path }}/lustre-client/lustre-client-dkms.tar.gz"
+        dest: "{{ lustre_client_package_path }}/"
+
+    - name: Remove chroot prerequisites
+      become: true
+      ansible.builtin.apt:
+        state: absent
+        name: debootstrap
+        purge: true
+        lock_timeout: 300
+  always:
+    - name: Release the shared Lustre build lock
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_build_lock_path }}"
+        state: absent
+      when: lustre_client_build_lock_acquired | default(false) | bool
+
+    - name: Cleanup any existing mounts (if any)
+      become: true
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: unmounted
+      loop:
+        - "{{ lustre_client_chroot_path | default('') }}/dev/pts"
+        - "{{ lustre_client_chroot_path | default('') }}/sys"
+        - "{{ lustre_client_chroot_path | default('') }}/proc"
+      when: lustre_client_chroot_path is defined
+
+    - name: Remove the chroot environment
+      become: true
+      ansible.builtin.file:
+        path: "{{ lustre_client_chroot_path }}"
+        state: absent
+      when: lustre_client_chroot_path is defined
+
+- name: Wait for shared Lustre package bundle to be available for the current platform
+  ansible.builtin.stat:
+    path: "{{ lustre_client_tarball_path }}"
+  register: lustre_client_built_wait
+  until: lustre_client_built_wait.stat.exists | default(false)
+  retries: 60
+  delay: 10
+  when: not (lustre_client_built.stat.exists | default(false))
+
+- name: Ensure shared Lustre package bundle is available after build coordination
+  ansible.builtin.assert:
+    that:
+      - lustre_client_tarball_path | length > 0
+      - lustre_client_built_wait.stat.exists | default(false)
+    fail_msg: >-
+      The shared Lustre package bundle did not appear at
+      {{ lustre_client_tarball_path }} after waiting for the current platform
+      build to complete.
+  when: not (lustre_client_built.stat.exists | default(false))

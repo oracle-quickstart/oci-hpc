@@ -21,13 +21,14 @@ else
   export EXEC_CMD="/opt/oci-hpc/nccl-test/build/${EXEC}"
 fi
 
-if [ ! -f ${EXEC_CMD} ]; then
+first_node=`head $hostfile -n 1`
+if ! ssh $first_node "test -f ${EXEC_CMD}"; then
     echo "Test executable ${EXEC_CMD} not found!"
     exit 1
 fi
 
-ORDEREDMACHINEFILE="ordered_hostfile_system_name"
-ORDEREDRANKMACHINEFILE="rankfile_system_name"
+ORDEREDMACHINEFILE="ordered_hostfile"
+ORDEREDRANKMACHINEFILE="ordered_rankfile"
 echo INPUTFILE
 cat $hostfile
 

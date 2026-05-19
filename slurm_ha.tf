@@ -5,7 +5,7 @@ resource "oci_core_instance" "backup" {
   compartment_id      = var.targetCompartment
   shape               = var.controller_shape
   instance_options {
-        are_legacy_imds_endpoints_disabled = true
+    are_legacy_imds_endpoints_disabled = true
 
   }
   dynamic "shape_config" {
@@ -67,7 +67,7 @@ resource "null_resource" "backup" {
     }
   }
   provisioner "file" {
-    source      = "playbooks"
+    source      = "${path.module}/playbooks"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host_backup
@@ -78,7 +78,7 @@ resource "null_resource" "backup" {
   }
 
   provisioner "file" {
-    source      = "bin"
+    source      = "${path.module}/bin"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host_backup
@@ -89,7 +89,7 @@ resource "null_resource" "backup" {
   }
 
   provisioner "file" {
-    source      = "conf"
+    source      = "${path.module}/conf"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host_backup
@@ -99,7 +99,7 @@ resource "null_resource" "backup" {
     }
   }
   provisioner "file" {
-    source      = "logs"
+    source      = "${path.module}/logs"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host_backup
@@ -109,7 +109,7 @@ resource "null_resource" "backup" {
     }
   }
   provisioner "file" {
-    source      = "samples"
+    source      = "${path.module}/samples"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host_backup
@@ -135,22 +135,34 @@ resource "null_resource" "backup" {
 resource "null_resource" "setup_backup" {
   count      = var.slurm_ha ? 1 : 0
   depends_on = [null_resource.cluster, null_resource.backup]
-  
+
   provisioner "remote-exec" {
     inline = concat([
       "#!/bin/bash",
       "sudo mkdir -p /config",
       "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
-      ],
-      var.add_nfs ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
-        "sudo mount /config",
-      ] : [],
-      [
+      "sudo sh -c 'sed -Ei \"/^[[:space:]]*[^#[:space:]]+[[:space:]]+\\/config([[:space:]]+|$)/d\" /etc/fstab'",
+      "echo \"${local.config_fss_hostname}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
+      "echo 'Configured /config mount in /etc/fstab.'",
+      "for i in {1..30}; do sudo mount /config ; mountpoint -q /config && break || { echo 'Waiting for /config to be mounted...'; sleep 10 ; }; done",
       "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
       "cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
-      "timeout --foreground 60m /opt/oci-hpc/bin/backup.sh"]
+      "set -o pipefail",
+      "timeout --foreground 60m /opt/oci-hpc/bin/backup.sh 2>&1 | tee -a /config/logs/initial_configure.log",
+      "exit_code=$${PIPESTATUS[0]}",
+      "if [ $${exit_code} -ne 0 ]; then",
+      "  echo 'backup.sh failed; dumping diagnostics'",
+      "  echo '--- tail /config/logs/initial_configure.log ---'",
+      "  tail -n 100 /config/logs/initial_configure.log || true",
+      "  echo '--- controller artifacts ---'",
+      "  ls -l /config/playbooks/inventory /config/playbooks/inventory_* /config/key/* 2>/dev/null || true",
+      "  echo '--- logs directory ---'",
+      "  ls -l /config/logs || true",
+      "  echo '--- running processes ---'",
+      "  ps -ef | egrep 'backup.sh|ansible-galaxy|configure.sh|timeout --foreground' | egrep -v egrep || true",
+      "fi",
+      "exit $exit_code"]
     )
     connection {
       host        = local.host_backup
@@ -175,6 +187,7 @@ resource "null_resource" "cluster_backup" {
       monitoring_ip            = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
       public_subnet            = data.oci_core_subnet.public_subnet.cidr_block,
       private_subnet           = data.oci_core_subnet.private_subnet.cidr_block,
+      vcn_cidr                 = data.oci_core_vcn.vcn.cidr_block,
       rdma_network             = cidrhost(var.rdma_subnet, 0),
       rdma_netmask             = cidrnetmask(var.rdma_subnet),
       vcn_compartment          = var.vcn_compartment,
@@ -186,13 +199,14 @@ resource "null_resource" "cluster_backup" {
       nfs_source_IP            = local.nfs_source_IP,
       nfs_source_path          = var.nfs_source_path,
       nfs_options              = var.nfs_options,
+      config_fss_hostname      = local.config_fss_hostname,
       localdisk                = var.localdisk,
       log_vol                  = var.log_vol,
       redundancy               = var.redundancy,
       rdma_enabled             = var.rdma_enabled,
       slurm                    = var.slurm,
       slurm_version            = var.slurm_version,
-      slurm_nfs_path           = var.create_fss == "new" ? var.nfs_source_path : "/config"
+      slurm_nfs_path           = "/config",
       spack                    = var.spack,
       ldap                     = var.ldap,
       cluster_name             = local.cluster_name,
@@ -203,7 +217,7 @@ resource "null_resource" "cluster_backup" {
       hyperthreading           = var.hyperthreading,
       controller_username      = var.controller_username,
       compute_username         = var.compute_username,
-      enroot                   = var.enroot,
+      enroot                   = local.effective_enroot,
       pyxis                    = var.pyxis,
       privilege_sudo           = var.privilege_sudo,
       privilege_group_name     = var.privilege_group_name,
@@ -232,10 +246,13 @@ resource "null_resource" "cluster_backup" {
       slurm_federation         = var.slurm_federation,
       ip_slurmdbd              = var.ip_slurmdbd,
       wildcard_dns_domain      = var.wildcard_dns_domain,
-      use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep
+      use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep,
+      create_bucket            = var.create_bucket,
+      bucket_access_key        = local.bucket_access_key,
+      bucket_secret_key        = local.bucket_secret_key,
+      ocir_namespace           = local.ocir_namespace,
+      write_node_function_ocid = oci_functions_function.function.id
     })
-
-
     destination = "/opt/oci-hpc/playbooks/inventory"
     connection {
       host        = local.host_backup

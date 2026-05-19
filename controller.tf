@@ -93,41 +93,39 @@ resource "oci_core_instance" "controller" {
 }
 
 resource "null_resource" "controller" {
-  depends_on = [oci_core_instance.controller, null_resource.fss_home_dependency, null_resource.fss_config_dependency, time_sleep.dns_sleep]
+  depends_on = [oci_core_instance.controller, null_resource.fss_home_dependency, null_resource.fss_config_dependency, time_sleep.dns_sleep, null_resource.invoke_and_assert]
   triggers = {
     controller = oci_core_instance.controller.id
   }
 
-  provisioner "remote-exec" {
-    inline = concat([
-      "#!/bin/bash",
-      "sudo mkdir -p /opt/oci-hpc",
-      "sudo chown -R ${var.controller_username}:${var.controller_username} /opt/",
+	provisioner "remote-exec" {
+	  inline = concat([
+	    "#!/bin/bash",
+	    "sudo mkdir -p /opt/oci-hpc",
+	    "sudo chown -R ${var.controller_username}:${var.controller_username} /opt/",
       "mkdir -p /opt/oci-hpc/bin",
       "sudo mkdir -p /config",
-      "sudo chown -R ${var.controller_username}:${var.controller_username} /config/"
+      "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
+      "sudo sh -c 'sed -Ei \"/^[[:space:]]*[^#[:space:]]+[[:space:]]+\\/config([[:space:]]+|$)/d\" /etc/fstab'",
+      "echo \"${local.config_fss_hostname}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
+      "echo 'Configured /config mount in /etc/fstab.'",
+      "sudo systemctl daemon-reload",
+      "for i in {1..30}; do sudo mount /config ; mountpoint -q /config && break || { echo 'Waiting for /config to be mounted...'; sleep 10 ; }; done",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config",
+      "mkdir -p /config/logs",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
+      "mkdir -p /config/bin",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/bin",
+      "mkdir -p /config/key",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/key"
       ],
-      var.create_fss == "new" ? [
-        "echo \"${local.config_target_name}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
-        "sudo systemctl daemon-reload",
-        "for i in {1..30}; do sudo mount /config ; mountpoint -q /config && break || { echo 'Waiting for /config to be mounted...'; sleep 10 ; }; done"
-      ] : [],
-      [
-        "sudo chown ${var.controller_username}:${var.controller_username} /config",
-        "mkdir -p /config/logs",
-        "sudo chown ${var.controller_username}:${var.controller_username} /config/logs",
-        "mkdir -p /config/bin",
-        "sudo chown ${var.controller_username}:${var.controller_username} /config/bin",
-        "mkdir -p /config/key",
-        "sudo chown ${var.controller_username}:${var.controller_username} /config/key"      
-        ],
-      var.slurm_federation ? [        
+      var.slurm_federation ? [
         "echo ${var.munge_key} | base64 -d > /config/key/munge.key"
       ] : [],
       [
         "mkdir -p /config/3rdparty",
         "sudo chown ${var.controller_username}:${var.controller_username} /config/3rdparty"
-      ])
+    ])
     connection {
       host        = local.host
       type        = "ssh"
@@ -137,7 +135,7 @@ resource "null_resource" "controller" {
     }
   }
   provisioner "file" {
-    source      = "playbooks"
+    source      = "${path.module}/playbooks"
     destination = "/config"
     connection {
       host        = local.host
@@ -150,7 +148,7 @@ resource "null_resource" "controller" {
 
 
   provisioner "file" {
-    source      = "bin"
+    source      = "${path.module}/bin"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host
@@ -162,7 +160,7 @@ resource "null_resource" "controller" {
   }
 
   provisioner "file" {
-    source      = "conf"
+    source      = "${path.module}/conf"
     destination = "/config/"
     connection {
       host        = local.host
@@ -174,7 +172,7 @@ resource "null_resource" "controller" {
   }
 
   provisioner "file" {
-    source      = "cloud-init.sh"
+    source      = "${path.module}/cloud-init.sh"
     destination = "/config/bin/cloud-init.sh"
     connection {
       host        = local.host
@@ -186,7 +184,7 @@ resource "null_resource" "controller" {
   }
 
   provisioner "file" {
-    source      = "samples"
+    source      = "${path.module}/samples"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host
@@ -197,7 +195,7 @@ resource "null_resource" "controller" {
     }
   }
   provisioner "file" {
-    source      = "scripts"
+    source      = "${path.module}/scripts"
     destination = "/opt/oci-hpc/"
     connection {
       host        = local.host
@@ -255,7 +253,7 @@ resource "null_resource" "controller" {
     }
   }
   provisioner "file" {
-    source      = "mgmt"
+    source      = "${path.module}/mgmt"
     destination = "/config/"
     connection {
       host        = local.host
@@ -280,6 +278,7 @@ resource "null_resource" "cluster" {
       monitoring_ip            = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
       public_subnet            = data.oci_core_subnet.public_subnet.cidr_block,
       private_subnet           = data.oci_core_subnet.private_subnet.cidr_block,
+      vcn_cidr                 = data.oci_core_vcn.vcn.cidr_block,
       rdma_network             = cidrhost(var.rdma_subnet, 0),
       rdma_netmask             = cidrnetmask(var.rdma_subnet),
       vcn_compartment          = var.vcn_compartment,
@@ -291,13 +290,14 @@ resource "null_resource" "cluster" {
       nfs_source_IP            = local.nfs_source_IP,
       nfs_source_path          = var.nfs_source_path,
       nfs_options              = var.nfs_options,
+      config_fss_hostname      = local.config_fss_hostname,
       localdisk                = var.localdisk,
       log_vol                  = var.log_vol,
       redundancy               = var.redundancy,
       rdma_enabled             = var.rdma_enabled,
       slurm                    = var.slurm,
       slurm_version            = var.slurm_version,
-      slurm_nfs_path           = var.create_fss == "new" ? var.nfs_source_path : "/config"
+      slurm_nfs_path           = "/config",
       spack                    = var.spack,
       ldap                     = var.ldap,
       cluster_name             = local.cluster_name,
@@ -308,7 +308,7 @@ resource "null_resource" "cluster" {
       hyperthreading           = var.hyperthreading,
       controller_username      = var.controller_username,
       compute_username         = var.compute_username,
-      enroot                   = var.enroot,
+      enroot                   = local.effective_enroot,
       pyxis                    = var.pyxis,
       privilege_sudo           = var.privilege_sudo,
       privilege_group_name     = var.privilege_group_name,
@@ -337,7 +337,12 @@ resource "null_resource" "cluster" {
       slurm_federation         = var.slurm_federation,
       ip_slurmdbd              = var.ip_slurmdbd,
       wildcard_dns_domain      = var.wildcard_dns_domain,
-      use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep
+      use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep,
+      create_bucket            = var.create_bucket,
+      bucket_access_key        = local.bucket_access_key,
+      bucket_secret_key        = local.bucket_secret_key,
+      ocir_namespace           = local.ocir_namespace,
+      write_node_function_ocid = oci_functions_function.function.id
     })
 
     destination = "/config/playbooks/inventory"
@@ -420,6 +425,7 @@ resource "null_resource" "cluster" {
       "#!/bin/bash",
       "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/bin",
+      "cp /opt/oci-hpc/bin/common.sh /config/bin",
       "cp /opt/oci-hpc/bin/compute.sh /config/bin",
       "cp /opt/oci-hpc/bin/login.sh /config/bin",
       "cp /opt/oci-hpc/bin/monitoring.sh /config/bin",
@@ -433,11 +439,13 @@ resource "null_resource" "cluster" {
       "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/compute.sh",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/login.sh",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/monitoring.sh",
+      "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/common.sh",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/custom_ansible.sh",
       "sudo chown ${var.controller_username}:${var.controller_username} /config/bin/uv_wrapper.sh",
       "sudo chmod 775 /config/bin/compute.sh",
       "sudo chmod 775 /config/bin/login.sh",
       "sudo chmod 775 /config/bin/monitoring.sh",
+      "sudo chmod 775 /config/bin/common.sh",
       "sudo chmod 775 /config/bin/custom_ansible.sh",
       "sudo chmod 600 /config/key/cluster.key",
       "sudo chmod 775 /config/bin/cloud-init.sh",
@@ -458,7 +466,21 @@ resource "null_resource" "cluster" {
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
-      "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh",
+      "set -o pipefail",
+      "timeout --foreground 60m /opt/oci-hpc/bin/controller.sh | tee -a /config/logs/initial_configure.log ",
+      "exit_code=$${PIPESTATUS[0]}",
+      "if [ $${exit_code} -ne 0 ]; then",
+      "  echo 'controller.sh failed; dumping diagnostics'",
+      "  echo '--- tail /config/logs/initial_configure.log ---'",
+      "  tail -n 100 /config/logs/initial_configure.log || true",
+      "  echo '--- ansible install markers ---'",
+      "  ls -l /config/playbooks/ansible_install_* 2>/dev/null || true",
+      "  echo '--- controller artifacts ---'",
+      "  ls -l /config/playbooks/inventory /config/playbooks/inventory_* /config/key/* 2>/dev/null || true",
+      "  echo '--- running processes ---'",
+      "  ps -ef | egrep 'controller.sh|setup_ansible.sh|ansible-galaxy|configure.sh|timeout --foreground' | egrep -v egrep || true",
+      "fi",
+      "exit $exit_code"
     ]
     connection {
       host        = local.host
@@ -475,9 +497,23 @@ resource "null_resource" "configure" {
   provisioner "remote-exec" {
     inline = [
       "#!/bin/bash",
+      "set -o pipefail",
       "chmod 755 /opt/oci-hpc/samples/*.sh",
-      "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee /config/logs/initial_configure.log",
+      "timeout --foreground 2h /opt/oci-hpc/bin/configure.sh 2>&1 | tee -a /config/logs/initial_configure.log",
       "exit_code=$${PIPESTATUS[0]}",
+      "if [ $${exit_code} -ne 0 ]; then",
+      "  echo 'configure.sh failed; dumping diagnostics'",
+      "  echo '--- tail /config/logs/initial_configure.log ---'",
+      "  tail -n 100 /config/logs/initial_configure.log || true",
+      "  echo '--- controller artifacts ---'",
+      "  ls -l /config/playbooks/inventory /config/playbooks/inventory_* /config/key/* 2>/dev/null || true",
+      "  echo '--- logs directory ---'",
+      "  ls -l /config/logs || true",
+      "  echo '--- recent node logs ---'",
+      "  for logfile in /config/logs/*.log; do echo === $${logfile} ===; tail -n 40 $${logfile} || true; done",
+      "  echo '--- running processes ---'",
+      "  ps -ef | egrep 'configure.sh|ansible-playbook|setup_run_ansible.sh|timeout --foreground' | egrep -v egrep || true",
+      "fi",
     "exit $exit_code"]
     connection {
       host        = local.host

@@ -2,5 +2,10 @@
 ssl_cert_path: "/etc/ssl/certs"
 ssl_ca_cert: "{{ ssl_cert_path }}/cluster-ca.crt"
 ssl_cert_group: ssl
+thirdparty_root_path: "/config/3rdparty"
+thirdparty_arch_path: "{{ thirdparty_root_path }}/{{ ansible_facts['architecture'] }}"
+binary_arch_map:
+  x86_64: amd64
+  aarch64: arm64
 venv_path: "{% if ansible_facts['distribution'] == 'Ubuntu' %}/config/venv/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}/oci{% elif
   ansible_facts['distribution'] == 'OracleLinux' %}/config/venv/Ol_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}/oci{% endif %}"

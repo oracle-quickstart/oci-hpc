@@ -1,0 +1,42 @@
+- name: "Lustre client: Fail on unsupported Lustre client action"
+  ansible.builtin.fail:
+    msg: "Unsupported lustre_client_action '{{ lustre_client_action }}'. Expected 'deployment' or 'build'."
+  when: lustre_client_action not in ['deployment', 'build']
+
+- name: "Lustre client: Fail on unsupported Lustre client / Linux kernel combination"
+  ansible.builtin.fail:
+    msg: >-
+      Unsupported kernel {{ ansible_facts['kernel'] }} for lustre_client.
+      Supported kernels currently map to Lustre 2.15.x for 6.8 and earlier,
+      and Lustre 2.17.x for 6.14.x.
+  when: lustre_client_release_family == 'unsupported'
+
+- name: Build Lustre client on Oracle Linux
+  ansible.builtin.include_tasks: el_build.yml
+  when:
+    - lustre_client_action == 'build'
+    - ansible_facts['distribution'] == 'OracleLinux'
+    - ansible_facts['distribution_major_version'] in ['8', '9']
+
+- name: Deploy Lustre client on Oracle Linux
+  ansible.builtin.include_tasks: el.yml
+  when:
+    - lustre_client_action == 'deployment'
+    - ansible_facts['distribution'] == 'OracleLinux'
+    - ansible_facts['distribution_major_version'] in ['8', '9']
+
+- name: Build Lustre client on Ubuntu
+  ansible.builtin.include_tasks:
+    file: ubuntu_build.yml
+    apply:
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+  when:
+    - lustre_client_action == 'build'
+    - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Deploy Lustre client on Ubuntu
+  ansible.builtin.include_tasks: ubuntu.yml
+  when:
+    - lustre_client_action == 'deployment'
+    - ansible_facts['distribution'] == 'Ubuntu'

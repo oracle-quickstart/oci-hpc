@@ -5,22 +5,23 @@
     name: "{{ dependencies }}"
     state: present
 
-- name: Check if Go tarball already cached
+- name: Check cached Go tarballs once per architecture
   ansible.builtin.stat:
-    path: "/config/3rdparty/{{ go_tarball }}"
-  register: go_cache
+    path: "{{ metrics_exporter_shared_path }}/go/{{ item }}/go{{ go_version }}.linux-{{ binary_arch_map[item] }}.tar.gz"
+  loop: "{{ metrics_exporter_target_architectures }}"
+  register: go_cache_results
   delegate_to: localhost
   run_once: true
 
-- name: Download Go tarball to shared storage
+- name: Download missing Go tarballs once per architecture
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  become: true
   ansible.builtin.get_url:
-    url: "{{ go_url }}"
-    dest: "/config/3rdparty/{{ go_tarball }}"
+    url: "https://go.dev/dl/go{{ go_version }}.linux-{{ binary_arch_map[item.item] }}.tar.gz"
+    dest: "{{ metrics_exporter_shared_path }}/go/{{ item.item }}/go{{ go_version }}.linux-{{ binary_arch_map[item.item] }}.tar.gz"
   delegate_to: localhost
   run_once: true
-  when: not go_cache.stat.exists | bool
+  loop: "{{ go_cache_results.results }}"
+  when: not item.stat.exists | bool
 
 - name: Remove old Go installation
   become: true
@@ -31,7 +32,7 @@
 - name: Extract Go tarball from shared storage
   become: true
   ansible.builtin.unarchive:
-    src: "/config/3rdparty/{{ go_tarball }}"
+    src: "{{ go_cache_path }}"
     dest: "{{ go_install_dir }}"
     remote_src: true
 
@@ -45,7 +46,7 @@
 
 - name: Check if dcgm-exporter file already exists
   ansible.builtin.stat:
-    path: /config/3rdparty/dcgm-exporter/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}_{{ ansible_facts['architecture'] }}
+    path: "{{ dcgm_build_path }}"
   register: dcgm_exporter
 
 - name: Get current DCGM version
@@ -60,16 +61,15 @@
     dcgm_major_version: "{{ dcgm_version.stdout.split('.')[0] }}"
 
 - name: Fetch and cache DCGM Exporter releases
-  become: true
   ansible.builtin.shell:
     cmd: |
-      if [ -f /config/3rdparty/dcgm-exporter-releases.txt ]; then
-        cat /config/3rdparty/dcgm-exporter-releases.txt
+      if [ -f "{{ dcgm_release_cache_path }}" ]; then
+        cat "{{ dcgm_release_cache_path }}"
       else
         releases=$(curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"')
-        tmp=$(mktemp /config/3rdparty/.dcgm-releases.XXXXXX)
+        tmp=$(mktemp "{{ metrics_exporter_shared_path }}/.dcgm-releases.XXXXXX")
         echo "$releases" > "$tmp"
-        mv "$tmp" /config/3rdparty/dcgm-exporter-releases.txt
+        mv "$tmp" "{{ dcgm_release_cache_path }}"
         echo "$releases"
       fi
   register: dcgm_exporter_releases_result
@@ -93,29 +93,31 @@
 
 - name: Download DCGM Exporter tarball
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  become: true
   ansible.builtin.get_url:
     url: "{{ dcgm_exporter_url }}"
-    dest: "/config/3rdparty/dcgm-exporter.tar.gz"
+    dest: "{{ dcgm_tarball_path }}"
+  when: not dcgm_exporter.stat.exists | bool
+
+- name: Ensure dcgm-exporter build directory exists
+  ansible.builtin.file:
+    path: "{{ dcgm_build_path }}"
+    state: directory
+    mode: "0755"
   when: not dcgm_exporter.stat.exists | bool
 
 - name: Extract DCGM Exporter tarball
-  become: true
   ansible.builtin.unarchive:
-    src: "/config/3rdparty/dcgm-exporter.tar.gz"
-    dest: "/config/3rdparty"
+    src: "{{ dcgm_tarball_path }}"
+    dest: "{{ dcgm_build_path }}"
+    extra_opts:
+      - "--strip-components=1"
     remote_src: true
   when: not dcgm_exporter.stat.exists | bool
 
-- name: Get directory
-  ansible.builtin.shell: "ls -ltd /config/3rdparty/NVIDIA-dcgm-exporter-* | head -n 1 | awk '{print $9}'"
-  register: dcgm_directory
-
 - name: Build DCGM Exporter binary
-  become: true
   ansible.builtin.command: make binary
   args:
-    chdir: "{{ dcgm_directory.stdout }}"
+    chdir: "{{ dcgm_build_path }}"
   environment:
     PATH: "{{ go_path }}:{{ ansible_facts['env']['PATH'] }}"
   when: not dcgm_exporter.stat.exists | bool
@@ -124,7 +126,7 @@
   become: true
   ansible.builtin.command: make install
   args:
-    chdir: "{{ dcgm_directory.stdout }}"
+    chdir: "{{ dcgm_build_path }}"
   environment:
     PATH: "{{ go_path }}:{{ ansible_facts['env']['PATH'] }}"
 

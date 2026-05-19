@@ -31,6 +31,7 @@
     - gpu_bw_test.py
     - rdma_link_flapping.py
     - xid_checker.py
+    - xid_catalog_data.json
     - shared_logging.py
     - multi_node_active_HC.sbatch
     - multi_node_active_healthcheck.py

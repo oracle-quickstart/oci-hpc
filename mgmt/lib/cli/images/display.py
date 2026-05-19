@@ -1,7 +1,6 @@
 from rich.table import Table
 from rich.console import Console
 import yaml, json
-from collections import defaultdict
 import sys
 from ClusterShell.NodeSet import NodeSet
 

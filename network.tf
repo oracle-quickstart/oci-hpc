@@ -83,7 +83,7 @@ resource "oci_core_security_list" "public-security-list" {
       min = "80"
     }
   }
-  
+
   ingress_security_rules {
     protocol    = "6"
     source      = var.ssh_cidr
@@ -113,7 +113,7 @@ resource "oci_core_security_list" "public-security-list" {
         min = "6819"
       }
     }
-  }  
+  }
   dynamic "ingress_security_rules" {
     for_each = var.slurm_federation ? [1] : []
     content {
@@ -125,7 +125,7 @@ resource "oci_core_security_list" "public-security-list" {
         min = "6817"
       }
     }
-  }    
+  }
   ingress_security_rules {
     protocol = "1"
     source   = "0.0.0.0/0"
@@ -258,7 +258,7 @@ resource "oci_core_subnet" "public-subnet" {
   display_name      = "${local.cluster_name}_public_subnet"
   route_table_id    = oci_core_route_table.public_route_table[0].id
   dhcp_options_id   = oci_core_dhcp_options.cluster_dhcp_options[0].id
-  
+
   freeform_tags = {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
@@ -299,8 +299,21 @@ resource "oci_dns_zone" "dns_zone" {
 }
 
 
+resource "oci_dns_rrset" "config_fss" {
+  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
+  domain          = "fss-config.${local.zone_name}"
+  rtype           = "A"
+  items {
+    domain = "fss-config.${local.zone_name}"
+    rtype  = "A"
+    rdata  = oci_file_storage_mount_target.config_fss_mount_target.ip_address
+    ttl    = 1
+  }
+  view_id = data.oci_dns_views.dns_views.views[0].id
+}
+
 resource "oci_dns_rrset" "fss-dns-round-robin" {
-  count           = var.create_fss == "new" ? 1 : 0
+  count           = var.add_nfs && var.create_fss == "new" && var.mount_target_count > 0 ? 1 : 0
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
   domain          = "fss-${local.cluster_name}-controller.${local.zone_name}"
   rtype           = "A"
@@ -317,29 +330,15 @@ resource "oci_dns_rrset" "fss-dns-round-robin" {
   view_id = data.oci_dns_views.dns_views.views[0].id
 }
 
-resource "oci_dns_rrset" "controller" {
-  count           = var.create_fss == "existing" ? 1 : 0
-  zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "fss-${local.cluster_name}-controller.${local.zone_name}"
-  rtype           = "A"
-  items {
-    domain = "fss-${local.cluster_name}-controller.${local.zone_name}"
-    rtype  = "A"
-    rdata  = oci_core_instance.controller.private_ip
-    ttl    = 3600
-  }
-  view_id = data.oci_dns_views.dns_views.views[0].id
-}
-
 resource "null_resource" "dns_ready" {
   triggers = {
+    config_fss_rrset = oci_dns_rrset.config_fss.id
     fss_rrset        = try(oci_dns_rrset.fss-dns-round-robin[0].id, "")
-    controller_rrset = try(oci_dns_rrset.controller[0].id, "")
     monitoring_rrset = try(oci_dns_rrset.rrset-monitoring[0].id, "")
   }
 }
 
 resource "time_sleep" "dns_sleep" {
-  depends_on = [null_resource.dns_ready]
+  depends_on      = [null_resource.dns_ready]
   create_duration = "120s"
 }

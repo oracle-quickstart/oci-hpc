@@ -5,19 +5,16 @@ import time
 
 from datetime import datetime, timezone, timedelta
 from functools import cached_property
-from typing import Optional
 
 import sqlalchemy
 import yaml
 
 from sqlalchemy import (
-    Integer, String, Boolean, Enum, or_, and_, not_, true, 
-    create_engine, select, func, case, cast, DateTime, text
+    Integer, String, Boolean, Enum, or_, and_, create_engine, select, func, case, cast, DateTime, text
 )
 from sqlalchemy.orm import mapped_column, sessionmaker, DeclarativeBase, aliased
 from sqlalchemy.inspection import inspect
 from sqlalchemy.dialects.mysql import INTEGER
-from sqlalchemy.engine.row import Row
 
 from ClusterShell.NodeSet import NodeSet
 
@@ -59,6 +56,7 @@ class NodesMixin:
         'starting', 'terminating', 'terminated', 'running', 'unreachable'
     ), nullable=True)
     availability_domain        = mapped_column(String(128), nullable=True)
+    alternate_hostname         = mapped_column(String(128), nullable=True)
     first_time_reachable       = mapped_column(String(128), nullable=True)
     cluster_name               = mapped_column(String(128), nullable=True)
     compartment_id             = mapped_column(String(128), nullable=True)
@@ -76,9 +74,10 @@ class NodesMixin:
     oci_name                   = mapped_column(String(128), nullable=True)
     ocid                       = mapped_column(String(128), unique=True, nullable=True)
     rack_id                    = mapped_column(String(128), nullable=True)
+    rack_index                 = mapped_column(Integer, nullable=True)
     rail_id                    = mapped_column(String(128), nullable=True)
     network_block_id           = mapped_column(String(128), nullable=True)
-    memory_cluster_name        = mapped_column(String(128), nullable=True)
+    memory_cluster_id        = mapped_column(String(128), nullable=True)
     role                       = mapped_column(String(128), nullable=True)
     shape                      = mapped_column(String(128), nullable=True)
     terminated_time            = mapped_column(String(128), nullable=True)
@@ -785,7 +784,8 @@ def get_nodes_by_any(node_any_list):
             label_map["ocid"].in_(node_any_list),
             label_map["serial"].in_(node_any_list),
             label_map["hostname"].in_(node_any_list),
-            label_map["oci_name"].in_(node_any_list)
+            label_map["oci_name"].in_(node_any_list),
+            label_map["alternate_hostname"].in_(node_any_list)
             )
         ).all()
     return nodes
@@ -818,7 +818,7 @@ def get_nodes_by_memory_cluster(cluster_name):
     """Get all nodes belonging to a specific cluster"""
     query = get_nodes_with_latest_healthchecks()
     label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    query = query.filter(label_map["memory_cluster_name"] == cluster_name)
+    query = query.filter(label_map["memory_cluster_id"] == cluster_name)
     query = query.filter(
         or_(
             ~label_map["role"].in_(["controller", "login", "monitoring"]),
@@ -861,7 +861,7 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     if col is not None:
         idle_query= idle_query.filter(
             or_(
-                col == None,  # NULL treated as expired
+                col is None,  # NULL treated as expired
                 cast(col, DateTime) < time_th
             )
         )
@@ -876,7 +876,7 @@ def get_nodes_by_active_hc_expired(active_hc_timeout):
     if col is not None:
         starting_nodes_query= starting_nodes_query.filter(
             or_(
-                col == None,  # NULL treated as expired
+                col is None,  # NULL treated as expired
                 cast(col, DateTime) < initial_validation_time_th
             )
         )
@@ -1122,7 +1122,7 @@ def db_update_node(node_row, **kwargs):
             if hasattr(node, key):
                 setattr(node, key, value)
             elif "healthcheck" in key:
-                logger.warning(f"Nodes cannot be updated with healthcheck attribute, update the healthchecks table instead.")
+                logger.warning("Nodes cannot be updated with healthcheck attribute, update the healthchecks table instead.")
             else:
                 logger.warning(f"Unknown attribute '{key}' ignored.")
 

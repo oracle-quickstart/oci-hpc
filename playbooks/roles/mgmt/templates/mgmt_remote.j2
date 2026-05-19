@@ -1,2 +1,19 @@
 #!/bin/bash
-ssh {{controller_hostname}} COLUMNS=`tput cols` {{venv_path}}/bin/python3 /config/mgmt/manage.py "$@"
+set -euo pipefail
+
+forwarded_env=()
+# Override COLUMNS if not already set and the terminal can report a width.
+if [[ -n "${TERM:+x}" && -z "${COLUMNS+x}" && "${TERM}" != "dumb" ]] && command -v tput >/dev/null 2>&1; then
+  export COLUMNS="$(tput cols)"
+fi
+for var_name in COLUMNS _MGMT_COMPLETE COMP_WORDS COMP_CWORD COMP_POINT COMP_TYPE _CLICK_COMPLETE_DEBUG; do
+  if [[ -n "${!var_name+x}" ]]; then
+    printf -v env_assignment '%s=%q' "${var_name}" "${!var_name}"
+    forwarded_env+=("${env_assignment}")
+  fi
+done
+
+remote_cmd=(env "${forwarded_env[@]}" bash -lc 'source "/config/bin/setup_environment.sh" && exec "${VENV_PATH}/bin/python3" "/config/mgmt/manage.py" "$@"' bash "$@")
+printf -v remote_cmd_escaped '%q ' "${remote_cmd[@]}"
+
+exec ssh {{controller_hostname}} "${remote_cmd_escaped% }"

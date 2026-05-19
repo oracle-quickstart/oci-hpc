@@ -26,7 +26,7 @@ prometheus_labels:
   hostname: "hostname"
   hpc_island: "hpc_island"
   ip_address: "ip"
-  memory_cluster_name: "memory_cluster_name"
+  memory_cluster_id: "memory_cluster_id"
   network_block_id: "network_block_id"
   oci_name: "oci_name"
   ocid: "ocid"

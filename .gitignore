@@ -74,6 +74,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+uv.lock
 
 # PyCharm and Visual Studio Code
 .idea/

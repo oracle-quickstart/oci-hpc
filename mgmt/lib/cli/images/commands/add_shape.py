@@ -1,10 +1,10 @@
 import click
+from lib.cli import completion
 from lib.ociwrap import add_shape_to_image
-from lib.logger import logger
 from lib.database import get_controller_node
 
 @click.command()
-@click.option('--image', required=True, help='Image OCID or name of the image to modify')
+@click.option('--image', required=True, help='Image OCID or name of the image to modify', shell_complete=completion.complete_images)
 @click.option('--compartment', required=False, help='Specify compartment OCID if not controller compartment')
 @click.option('--shape', required=True, help='Shape to add to the image')
 
