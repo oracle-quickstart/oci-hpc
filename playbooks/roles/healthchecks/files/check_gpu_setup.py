@@ -71,6 +71,24 @@ from shared_logging import logger
 
 SMI_TIMEOUT_SEC = 10
 
+# Marker for a check that could not reach a verdict because its probe command
+# did not return in time. An inconclusive probe is not evidence of hardware
+# damage: `nvidia-smi -q` routinely exceeds SMI_TIMEOUT_SEC while a previous
+# job's GPU clients are still detaching, so treating a timeout as a finding
+# drains healthy nodes and, on the prolog path, fails the next job on them.
+# Issue strings carrying this prefix are reported but never escalated.
+INCONCLUSIVE_PREFIX = "Inconclusive:"
+
+
+def inconclusive(detail):
+    """Tag an issue string as an unusable probe result rather than a finding."""
+    return f"{INCONCLUSIVE_PREFIX} {detail}"
+
+
+def is_inconclusive(issue):
+    """True if `issue` records a failed probe rather than a hardware finding."""
+    return str(issue).startswith(INCONCLUSIVE_PREFIX)
+
 #Section 0: Common Functions for all Health Checks.
 ###################################################
 
@@ -459,8 +477,8 @@ def check_ecc_errors():
                     ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
 
     except subprocess.TimeoutExpired:
-        logger.warning(f"GPU ECC Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
-        ecc_issues.append(f"nvidia-smi -q timed out after {SMI_TIMEOUT_SEC}s")
+        logger.warning(f"GPU ECC Test: Inconclusive - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        ecc_issues.append(inconclusive(f"nvidia-smi -q timed out after {SMI_TIMEOUT_SEC}s"))
 
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
@@ -477,8 +495,8 @@ def check_ecc_errors():
                     ecc_issues.append(f"GPU {gpu['gpu']} - ECC Errors: {gpu['ecc']['total_uncorrectable_count']}")
 
         except subprocess.TimeoutExpired:
-            logger.warning(f"SRAM/DRAM ECC Test: Failed - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
-            ecc_issues.append(f"amd-smi metric --ecc --json timed out after {SMI_TIMEOUT_SEC}s")
+            logger.warning(f"SRAM/DRAM ECC Test: Inconclusive - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
+            ecc_issues.append(inconclusive(f"amd-smi metric --ecc --json timed out after {SMI_TIMEOUT_SEC}s"))
 
         except (subprocess.CalledProcessError, FileNotFoundError):
             logger.warning("Skipping SRAM/DRAM ECC Test: nvidia-smi | amd-smi command not found.")
@@ -524,8 +542,12 @@ def check_row_remap_errors():
         return remap_issues, recommended_action
 
     except subprocess.TimeoutExpired:
-        logger.warning(f"Row Remap Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
-        remap_issues.append(f"nvidia-smi --query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable --format=csv,noheader timed out after {SMI_TIMEOUT_SEC}s")
+        logger.warning(f"Row Remap Test: Inconclusive - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        remap_issues.append(inconclusive(f"nvidia-smi --query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable --format=csv,noheader timed out after {SMI_TIMEOUT_SEC}s"))
+        # `result` is unbound when the probe timed out, so there is nothing to
+        # parse below; returning here also avoids an UnboundLocalError that
+        # would abort the whole health check run.
+        return remap_issues, recommended_action
 
     # Decode the output from bytes to string
     output = result.stdout.decode('utf-8')
@@ -1896,7 +1918,7 @@ if __name__ == '__main__':
         if len(ecc_issues) > 0:
             ecc_error = False
             for issue in ecc_issues:
-                if "Skipped" in issue:
+                if is_inconclusive(issue) or "Skipped" in issue:
                     logger.warning(f"{host_serial} - {issue}")
                 else:
                     if "Aggregate" in issue:
@@ -1913,7 +1935,7 @@ if __name__ == '__main__':
         if len(remap_results) > 0:
             remap_error = False
             for issue in remap_results:
-                if "<512" in issue:
+                if is_inconclusive(issue) or "<512" in issue:
                     logger.warning(f"{host_serial} - {issue}")
                 else:
                     logger.error(f"{host_serial} - {issue}")
