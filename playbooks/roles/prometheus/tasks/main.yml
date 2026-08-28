@@ -1,27 +1,37 @@
 ---
 # tasks file for prometheus
 - name: Map system architecture to suffix
-  set_fact:
+  ansible.builtin.set_fact:
     arch_suffix: "{{ arch_map[ansible_facts['architecture']] }}"
   vars:
     arch_map:
       x86_64: amd64
       aarch64: arm64
 
-- name: Create user for prometheus
+- name: Create group for prometheus
   become: true
-  user:
+  group:
     name: "{{ prometheus_user }}"
     state: present
+    system: true
+  run_once: true
+  delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
+
+- name: Create user for prometheus
+  become: true
+  ansible.builtin.user:
+    name: "{{ prometheus_user }}"
+    state: present
+    group: "{{ prometheus_user }}"
     createhome: false
     shell: /usr/sbin/nologin
-    append: true
+    system: true
   run_once: true
   delegate_to: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
 
 - name: Create installation folder in etc
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ prometheus_dest_dir }}"
     state: directory
     owner: "{{ prometheus_user }}"
@@ -33,7 +43,7 @@
 
 - name: Create data folder
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ prometheus_data_dir }}"
     state: directory
     owner: "{{ prometheus_user }}"
@@ -45,7 +55,7 @@
 
 - name: Ensuring the prometheus targets dir
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ prometheus_targets_dir }}"
     state: directory
     owner: "{{ prometheus_user }}"
@@ -57,7 +67,7 @@
 - name: Download/unarchive Packages for prometheus
   become: true
   environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  unarchive:
+  ansible.builtin.unarchive:
     src: "{{ prometheus_download_url }}"
     dest: /tmp
     owner: "{{ prometheus_user }}"
@@ -73,7 +83,7 @@
 
 - name: Copying the service binary for prometheus
   become: true
-  copy:
+  ansible.builtin.copy:
     src: "{{ prometheus_download_dir }}/"
     dest: /usr/local/bin/
     owner: "{{ prometheus_user }}"
@@ -88,7 +98,7 @@
 
 - name: Copying the console binary
   become: true
-  copy:
+  ansible.builtin.copy:
     src: "{{ prometheus_download_dir }}/"
     dest: "{{ prometheus_dest_dir }}"
     owner: "{{ prometheus_user }}"
@@ -103,7 +113,7 @@
 
 - name: Removing the tar file of prometheus
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ prometheus_download_dir }}"
     state: absent
   run_once: true
@@ -111,7 +121,7 @@
 
 - name: Create prometheus systemd service file
   become: true
-  template:
+  ansible.builtin.template:
     src: templates/prometheus.service.j2
     dest: "{{ service_dest_dir }}/prometheus.service"
   run_once: true
@@ -121,7 +131,7 @@
   become: true
   vars:
     oci_metrics_host: "{% if groups['monitoring'] | length > 0 %}{{ groups['monitoring'][0] }}{% else %}127.0.0.1{% endif %}"
-  template:
+  ansible.builtin.template:
     src: templates/prometheus.yml.j2
     dest: "{{ prometheus_dest_dir }}/prometheus.yml"
     owner: "{{ prometheus_user }}"
@@ -136,7 +146,7 @@
 
 - name: Copying the rules recording file
   become: true
-  template:
+  ansible.builtin.template:
     src: files/recording_rules.yml
     dest: "{{ prometheus_dest_dir }}/recording_rules.yml"
     owner: "{{ prometheus_user }}"
@@ -151,7 +161,7 @@
 
 - name: Restart prometheus
   become: true
-  service:
+  ansible.builtin.service:
     name: prometheus
     state: restarted
     daemon_reload: true
