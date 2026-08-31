@@ -32,12 +32,7 @@ echo INPUTFILE
 cat $hostfile
 
 
-source /etc/os-release
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
-    python3 /home/opc/node_ordering_by_rack.py --input_file $hostfile > /dev/null
-elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
-    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $hostfile > /dev/null
-fi
+/opt/oci-hpc/bin/node_ordering_by_rack.py --input_file $hostfile > /dev/null
 
 hostfile=$ORDEREDMACHINEFILE
 rankfile=$ORDEREDRANKMACHINEFILE
@@ -100,12 +95,16 @@ do
   then
     var_UCX_NET_DEVICES=eth0
     var_NCCL_IB_HCA="=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11"
-  elif [ $shape == \"BM.GPU.B300.8\" ]
+  elif [ $shape == \"BM.GPU.B300.8\" ] || [ $shape == \"BM.GPU.B300.HS.8\" ]
   then
     var_UCX_NET_DEVICES=eth0
     var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21"
+  elif [ $shape == \"BM.GPU.RTXPRO.8\" ]
+  then
+    var_UCX_NET_DEVICES=eth0
+    var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_6,mlx5_7,mlx5_8,mlx5_9"
   else
-    echo "Use the appropriate nccl test run script for non A100/H100/H200/B200 nodes"
+    echo "Use the appropriate nccl test run script for non A100/H100/H200/B200/RTXPRO nodes"
   fi
 
   if [ $shape == \"BM.GPU.B4.8\" ] || [ $shape == \"BM.GPU.A100-v2.8\" ] || [ $shape == \"BM.GPU4.8\" ]
@@ -120,7 +119,7 @@ do
     -x NCCL_ALGO=Ring \
     --np $np --rankfile $rankfile ${EXEC_CMD} -b1G -e10G -i$((1024*1024*1024*9)) -n $iter >>  $logfile
 
-  elif [ $shape == \"BM.GPU.H100.8\" ] || [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ] || [ $shape == \"BM.GPU.B300.8\" ]
+  elif [ $shape == \"BM.GPU.H100.8\" ] || [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ] || [ $shape == \"BM.GPU.B300.8\" ] || [ $shape == \"BM.GPU.B300.HS.8\" ] || [ $shape == \"BM.GPU.RTXPRO.8\" ]
   then
     mpirun --mca pml ucx \
     --bind-to numa \
@@ -138,5 +137,3 @@ do
   tail -n 32 $logfile
 
 done
-
-

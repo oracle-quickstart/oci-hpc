@@ -1,11 +1,21 @@
 ---
+- name: Set shared 3rdparty path owner
+  ansible.builtin.set_fact:
+    thirdparty_path_owner: >-
+      {{
+        cluster_admin_user |
+        default(ansible_user_id | default(ansible_user | default(lookup('env', 'USER'))))
+      }}
+  delegate_to: localhost
+  run_once: true
+
 - name: Ensure shared 3rdparty root path exists
   become: false
   ansible.builtin.file:
     path: "{{ thirdparty_root_path }}"
     state: directory
-    owner: "{{ controller_username }}"
-    group: "{{ controller_username }}"
+    owner: "{{ thirdparty_path_owner }}"
+    group: "{{ thirdparty_path_owner }}"
     mode: "0755"
   delegate_to: localhost
   run_once: true
@@ -15,8 +25,8 @@
   ansible.builtin.file:
     path: "{{ thirdparty_root_path }}/{{ item }}"
     state: directory
-    owner: "{{ controller_username }}"
-    group: "{{ controller_username }}"
+    owner: "{{ thirdparty_path_owner }}"
+    group: "{{ thirdparty_path_owner }}"
     mode: "0755"
   loop: >-
     {{

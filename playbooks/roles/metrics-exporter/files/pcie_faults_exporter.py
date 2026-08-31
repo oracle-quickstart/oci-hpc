@@ -53,6 +53,8 @@ def get_pci_addresses(subsystem):
     context = pyudev.Context()
     devices = {}
     for device in context.list_devices(subsystem=subsystem):
+        if subsystem == "infiniband" and "vf_rail" in device.sys_name:
+            continue        
         device_sys_path = device.sys_path
         pcie_path = device_sys_path.split(f"/{subsystem}")[0]
         pci_address = device_sys_path.split('/')[-3]

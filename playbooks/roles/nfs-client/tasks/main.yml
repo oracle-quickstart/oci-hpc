@@ -1,9 +1,77 @@
 ---
-- ansible.builtin.include_tasks: el.yml
-  when: ansible_facts['os_family'] == 'RedHat'
+- name: Set use_nfs_home_dirs if SELinux is enabled
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+  ansible.posix.seboolean:
+    name: use_nfs_home_dirs
+    state: true
+    persistent: true
+  when:
+    - local_path | trim == '/home'
+    - ansible_facts['os_family'] == 'RedHat'
+    - ansible_facts['selinux'] is defined
+    - ansible_facts['selinux'] is not false
+    - ansible_facts['selinux']['status'] == 'enabled'
 
-- ansible.builtin.include_tasks: ubuntu.yml
-  when: ansible_facts['distribution'] == 'Ubuntu'
+- name: Wait for other nodes to copy /home/<user> to FSS (including authorized ssh keys)
+  ansible.builtin.wait_for:
+    path: "{{ nfs_client_marker }}"
+    state: present
+    timeout: 600
+    sleep: 5
+  when: "nfs_client_marker | default('') | length > 0"
 
-- ansible.builtin.include_tasks: debian.yml
-  when: ansible_facts['distribution'] == 'Debian'
+- name: Create share directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ privilege_group_name }}"
+    mode: "0775"
+
+- name: Wait for NFS server hostname to resolve
+  ansible.builtin.command:
+    argv:
+      - getent
+      - ahosts
+      - "{{ export_host }}"
+  register: nfs_client_export_host_lookup
+  changed_when: false
+  retries: 20
+  delay: 15
+  until: nfs_client_export_host_lookup.rc == 0
+
+- name: Mount NFS
+  vars:
+    nfs_mount_options: >-
+      {{
+        (((options if options != '' else 'defaults,nconnect=16').split(','))
+        + ['nofail', 'x-systemd.automount'])
+        | unique | join(',')
+      }}
+  ansible.posix.mount:
+    path: "{{ local_path }}"
+    src: "{{ export_host }}:{{ export_path | trim() }}"
+    fstype: nfs
+    opts: "{{ nfs_mount_options }}"
+    state: mounted
+  register: nfs_client_mount
+  retries: 5
+  delay: 15
+  until: nfs_client_mount is succeeded
+
+- name: Reload systemd for NFS automount
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: nfs_client_mount is changed
+
+- name: Make sure the permissions of the share directory are right
+  become: true
+  ansible.builtin.file:
+    path: "{{ local_path }}"
+    state: directory
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ privilege_group_name }}"
+    mode: "0775"

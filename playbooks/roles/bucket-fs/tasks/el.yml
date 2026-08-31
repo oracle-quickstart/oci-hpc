@@ -1,9 +1,11 @@
 ---
 - name: Install s3fs-fuse package
-  ansible.builtin.dnf:
-    name: s3fs-fuse
-    state: present
-  become: true
+  vars:
+    package_name: s3fs-fuse # noqa: var-naming[no-role-prefix]
+    package_state: present # noqa: var-naming[no-role-prefix]
+    package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL" # noqa: var-naming[no-role-prefix]
+  ansible.builtin.include_role:
+    name: safe_yum
 
 - name: Check if config file already exists.
   ansible.builtin.stat:
@@ -13,8 +15,8 @@
 - name: Create s3fs folder
   ansible.builtin.file:
     path: "{{ bucket_fs_path }}"
-    owner: "{{ controller_username }}"
-    group: "{{ controller_username }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: '0755'
     state: "directory"
   when: not config.stat.exists
@@ -23,8 +25,8 @@
   ansible.builtin.copy:
     dest: "{{ bucket_fs_path }}/.passwd-s3fs"
     content: "{{ bucket_access_key }}:{{ bucket_secret_key }}\n"
-    owner: "{{ controller_username }}"
-    group: "{{ controller_username }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: '0600'
   when: not config.stat.exists
   no_log: true
@@ -39,8 +41,8 @@
   ansible.builtin.file:
     path: /mnt/bucket
     state: directory
-    owner: "{{ controller_username }}"
-    group: "{{ controller_username }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0755"
   become: true
   when: bucket_mountpoint.rc != 0
@@ -55,8 +57,8 @@
       -o url=https://{{ ocir_namespace }}.compat.objectstorage.{{ region }}.oraclecloud.com/
       -o nomultipart
       -o use_path_request_style
-    owner: "{{ controller_username }}"
-    group: "{{ controller_username }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: '0755'
   no_log: true
 

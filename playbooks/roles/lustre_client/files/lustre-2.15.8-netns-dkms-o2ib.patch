@@ -1,0 +1,83 @@
+From 9b39010d5617566a8ed8d2aba2ebc487592dade1 Mon Sep 17 00:00:00 2001
+From: Andrei Ilas <andrei.ilas@oracle.com>
+Date: Wed, 18 Feb 2026 17:21:30 +0200
+Subject: [PATCH 1/2] Fix int namespace
+
+---
+ lnet/klnds/socklnd/socklnd.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/lnet/klnds/socklnd/socklnd.c b/lnet/klnds/socklnd/socklnd.c
+index 9ea8c318c8..a35ad6f6e9 100644
+--- a/lnet/klnds/socklnd/socklnd.c
++++ b/lnet/klnds/socklnd/socklnd.c
+@@ -1951,6 +1951,7 @@ ksocknal_handle_link_state_change(struct net_device *dev,
+ 	struct ksock_interface *ksi = NULL;
+ 	struct sockaddr_in *sa;
+ 	DECLARE_CONST_IN_IFADDR(ifa);
++	struct net *dev_netns = dev_net(dev);
+ 
+ 	ifindex = dev->ifindex;
+ 
+@@ -1970,6 +1971,13 @@ ksocknal_handle_link_state_change(struct net_device *dev,
+ 
+ 		ni = net->ksnn_ni;
+ 
++		/* Skip devices from a different namespace */
++		if (!net_eq(dev_netns, ni->ni_net_ns)) {
++			CDEBUG(D_NET, "Skipping device %s from namespace %p (expected %p)\n",
++			       dev->name, dev_netns, ni->ni_net_ns);
++			continue;
++		}
++
+ 		in_dev = __in_dev_get_rtnl(dev);
+ 		if (!in_dev) {
+ 			CDEBUG(D_NET, "Interface %s has no IPv4 status.\n",
+-- 
+2.34.1
+
+From 9ecc342b1e04a8926f69a1ed736c71414c3784de Mon Sep 17 00:00:00 2001
+From: Andrei Ilas <andrei.ilas@oracle.com>
+Date: Wed, 11 Mar 2026 15:49:02 +0200
+Subject: [PATCH 2/2] pass --with-o2ib flag to dkms
+
+---
+ lustre-dkms_pre-build.sh   | 4 ++++
+ lustre/scripts/dkms.mkconf | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/lustre-dkms_pre-build.sh b/lustre-dkms_pre-build.sh
+index 9ac7049229..7357211d38 100755
+--- a/lustre-dkms_pre-build.sh
++++ b/lustre-dkms_pre-build.sh
+@@ -65,6 +65,10 @@ DKMS_CONFIG_OPTS=$(
+       then
+ 	echo --disable-libcfs-assert
+       fi
++      if [[ -n ${LUSTRE_DKMS_CONFIGURE_EXTRA:-} ]]
++      then
++       echo ${LUSTRE_DKMS_CONFIGURE_EXTRA}
++      fi
+     }
+   )
+ 
+diff --git a/lustre/scripts/dkms.mkconf b/lustre/scripts/dkms.mkconf
+index b0354d3f46..7d564f44ab 100755
+--- a/lustre/scripts/dkms.mkconf
++++ b/lustre/scripts/dkms.mkconf
+@@ -59,9 +59,13 @@ DEST_MODULE_LOCATION[\${#DEST_MODULE_LOCATION[@]}]="/${kmoddir}/lnet/"
+ BUILT_MODULE_NAME[\${#BUILT_MODULE_NAME[@]}]="ksocklnd"
+ BUILT_MODULE_LOCATION[\${#BUILT_MODULE_LOCATION[@]}]="lnet/klnds/socklnd/"
+ DEST_MODULE_LOCATION[\${#DEST_MODULE_LOCATION[@]}]="/${kmoddir}/lnet/"
++if ! { [[ -r \${PACKAGE_CONFIG} ]] \
++  && source \${PACKAGE_CONFIG} \
++  && [[ " \${LUSTRE_DKMS_CONFIGURE_EXTRA:-} " =~ (^|[[:space:]])--with-o2ib=no($|[[:space:]]) ]]; }; then
+ BUILT_MODULE_NAME[\${#BUILT_MODULE_NAME[@]}]="ko2iblnd"
+ BUILT_MODULE_LOCATION[\${#BUILT_MODULE_LOCATION[@]}]="lnet/klnds/o2iblnd/"
+ DEST_MODULE_LOCATION[\${#DEST_MODULE_LOCATION[@]}]="/${kmoddir}/lnet/"
++fi
+ BUILT_MODULE_NAME[\${#BUILT_MODULE_NAME[@]}]="libcfs"
+ BUILT_MODULE_LOCATION[\${#BUILT_MODULE_LOCATION[@]}]="libcfs/libcfs/"
+ DEST_MODULE_LOCATION[\${#DEST_MODULE_LOCATION[@]}]="/${kmoddir}/lustre/"
+-- 
+2.34.1

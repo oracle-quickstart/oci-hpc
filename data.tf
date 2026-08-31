@@ -21,9 +21,9 @@ data "oci_core_cluster_network_instances" "cluster_network_instances" {
 }
 
 data "oci_mysql_mysql_db_system" "slurm_mysql" {
-    count               = var.slurm_ha ? 1 : 0
-    #Required
-    db_system_id = oci_mysql_mysql_db_system.slurm_mysql[0].id
+  count = local.create_managed_mysql ? 1 : 0
+  #Required
+  db_system_id = oci_mysql_mysql_db_system.slurm_mysql[0].id
 }
 
 data "oci_core_compute_gpu_memory_cluster_instances" "memory_cluster_network_instances" {
@@ -104,6 +104,7 @@ data "oci_dns_zones" "dns_zones" {
   name           = local.zone_name
   zone_type      = "PRIMARY"
   scope          = "PRIVATE"
+  view_id        = data.oci_dns_views.dns_views.views[0].id
 }
 
 data "oci_identity_regions" "regions" {
@@ -115,18 +116,8 @@ data "oci_artifacts_container_repository" "container_repo" {
 }
 
 data "oci_identity_domain" "selected" {
-  count         = var.default_domain ? 0 : 1
-  domain_id     = var.domain_ocid
-}
-data "oci_identity_user" "default_user" {
-  count   = var.default_domain ? 1 : 0
-  user_id = var.current_user_ocid
-}
-
-data "oci_identity_domains_user" "user" {
-  count         = var.default_domain ? 0 : 1
-  idcs_endpoint = data.oci_identity_domain.selected[0].url
-  user_id       = var.current_user_ocid
+  count     = var.use_default_identity_domain ? 0 : 1
+  domain_id = var.identity_domain_ocid
 }
 
 data "oci_objectstorage_namespace" "namespace" {
@@ -150,3 +141,17 @@ data "oci_identity_tenancy" "tenant" {
   tenancy_id = var.tenancy_ocid
 }
 
+data "oci_identity_domain" "ocir_login_custom_domain" {
+  count     = var.login_to_ocir_using_default_domain ? 0 : 1
+  domain_id = var.custom_domain_ocid_to_authenticate_to_ocir
+}
+data "oci_identity_user" "ocir_login_user_default_domain" {
+  count   = var.login_to_ocir_using_default_domain ? 1 : 0
+  user_id = var.current_user_ocid
+}
+
+data "oci_identity_domains_user" "ocir_login_user_custom_domain" {
+  count         = var.login_to_ocir_using_default_domain ? 0 : 1
+  idcs_endpoint = data.oci_identity_domain.ocir_login_custom_domain[0].url
+  user_id       = var.current_user_ocid
+}

@@ -47,7 +47,7 @@ PropagateResourceLimitsExcept=MEMLOCK
 CommunicationParameters=block_null_hash
 # topology.yaml in {{ slurm_conf_path }} is used by Slurm when present.
 TopologyParam=SwitchAsNodeRank
-TreeWidth=64
+TreeWidth=16
 SlurmctldParameters=enable_configless
 SlurmdParameters=numa_node_as_socket
 MaxNodeCount=10000
@@ -73,7 +73,7 @@ SuspendProgram=/etc/slurm/suspend.sh
 ResumeRate=0
 SuspendRate=0
 
-{% for partition in queues %}
+{% for partition in slurm_queues %}
 {% for instance in partition.instance_types %}
 {% if instance.permanent  %}
 Nodeset={{instance.name}} Feature={{instance.name}}
@@ -133,6 +133,8 @@ NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | strin
 NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
 {% elif instance.shape == "VM.DenseIO.E5.Flex" %}
 NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
+{% elif instance.shape == "VM.DenseIO.E6.Ax.Flex" %}
+NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore={{threadspercore}}  State=CLOUD Feature={{instance.name}}
 {% elif instance.shape == "VM.Standard.A1.Flex" %}
 NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | string }}] Boards=1 SocketsPerBoard=1 CoresPerSocket={{instance.instance_pool_ocpus}} ThreadsPerCore=1  State=CLOUD Feature={{instance.name}}
 {% elif instance.shape == "BM.Standard.E3.128" and threadspercore == 1%}
@@ -174,7 +176,7 @@ NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | strin
 {% endfor %}
 
 
-{%- for partition in queues %}
+{%- for partition in slurm_queues %}
 {%- set ns = namespace(nodesList=[], has_ondemand=0) %}
 {%- for instance in partition.instance_types %}
     {%- if instance.permanent %}
@@ -189,14 +191,18 @@ NodeName={{instance.hostname_convention}}-[1-{{instance.max_number_nodes | strin
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES Topology=tree ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
     {%- else %}
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=YES Topology=tree
-PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree PriorityTier=0
+{% for nodeset in ns.nodesList %}
+PartitionName={{ nodeset }}-healthcheck Nodes={{ nodeset }} Default=NO Topology=tree PriorityTier=0
+{% endfor %}
     {%- endif %}
 {%- else %}
     {%- if ns.has_ondemand == 1 %}
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree ResumeTimeout=1200 SuspendTimeout=200 SuspendTime=300
     {%- else %}
 PartitionName={{ partition.name }} Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree
-PartitionName={{ ns.nodesList | join(',') }}-healthcheck Nodes={{ ns.nodesList | join(',') }} Default=NO Topology=tree PriorityTier=0
+{% for nodeset in ns.nodesList %}
+PartitionName={{ nodeset }}-healthcheck Nodes={{ nodeset }} Default=NO Topology=tree PriorityTier=0
+{% endfor %}
     {%- endif %}
 {%- endif %}
 {{ "\n" -}}

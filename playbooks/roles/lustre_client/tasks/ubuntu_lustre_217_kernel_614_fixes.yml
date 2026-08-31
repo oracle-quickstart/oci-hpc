@@ -1,0 +1,42 @@
+---
+- name: Create include/Makefile for Lustre 2.17
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ lustre_client_chroot_path }}/lustre-client/include/Makefile"
+    content: |
+      # Minimal Makefile to support "make install -C include" from debian/rules.
+      .RECIPEPREFIX = >
+      includedir ?= /usr/include
+      INSTALL ?= install
+      UAPI_LUSTRE_EXCLUDE = lustre_access_log.h lustre_barrier_user.h lustre_disk.h lustre_lfsck_user.h lustre_log_user.h
+
+      install:
+      > @for fname in $$(find lustre -type f -name '*.h'); do \
+      >   target=$$(echo $${fname} | sed 's|^lustre/||'); \
+      >   $(INSTALL) -D -m 0644 $${fname} $(DESTDIR)$(includedir)/lustre/$${target}; \
+      > done
+      > @for fname in $$(find uapi/linux/lnet -type f -name '*.h'); do \
+      >   target=$$(echo $${fname} | sed 's|^uapi/||'); \
+      >   $(INSTALL) -D -m 0644 $${fname} $(DESTDIR)$(includedir)/$${target}; \
+      > done
+      > @for fname in $$(find uapi/linux/lustre -type f -name '*.h'); do \
+      >   base=$$(basename $${fname}); \
+      >   skip=false; \
+      >   for s in $(UAPI_LUSTRE_EXCLUDE); do \
+      >     if test "$$base" = "$$s"; then skip=true; break; fi; \
+      >   done; \
+      >   if ! $$skip; then \
+      >     target=$$(echo $${fname} | sed 's|^uapi/||'); \
+      >     $(INSTALL) -D -m 0644 $${fname} $(DESTDIR)$(includedir)/$${target}; \
+      >   fi; \
+      > done
+
+      .PHONY: install
+    mode: "0644"
+
+- name: Disable GSS in Lustre 2.17 DKMS config
+  become: true
+  ansible.builtin.replace:
+    path: "{{ lustre_client_chroot_path }}/lustre-client/debian/dkms.conf.in"
+    regexp: '--enable-gss"'
+    replace: '--disable-gss"'

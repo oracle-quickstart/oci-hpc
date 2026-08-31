@@ -12,8 +12,8 @@
   ansible.builtin.copy:
     src: off-iptables.sh
     dest: "/tmp/off-iptables.sh"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0755"
 
 - name: Execute off-iptables.sh

@@ -18,7 +18,7 @@ openapi_generator_cli_pkg: "@openapitools/openapi-generator-cli"
 openapi_generator_jar_version: "7.10.0"
 openapi_download_path: "/opt/oci-hpc/slurm_sdk"
 
-slurm_rest_api_spec_url: "http://{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}:6820/openapi/v3"
+slurm_rest_api_spec_url: "http://{{ controller_hostname }}:6820/openapi/v3"
 slurm_rest_api_spec_filename: "slurm_api.json"
 
 sdk_output_dir: "/opt/oci-hpc/slurm_sdk"

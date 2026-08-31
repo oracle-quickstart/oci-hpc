@@ -1,0 +1,224 @@
+---
+- name: Validate supported architecture
+  ansible.builtin.set_fact:
+    dr_hpc_arch: "{{ binary_arch_map[ansible_facts['architecture']] }}"
+  failed_when: ansible_facts['architecture'] not in binary_arch_map
+
+- name: Select package family for the current distribution
+  ansible.builtin.set_fact:
+    dr_hpc_package_family: "{{ dr_hpc_package_family_map.get(dr_hpc_distribution_key, 'unsupported') }}"
+  vars:
+    dr_hpc_distribution_key: "{{ ansible_facts['distribution'] ~ ':' ~ ansible_facts['os_family'] }}"
+    dr_hpc_package_family_map:
+      "Ubuntu:Debian": deb_ubuntu
+      "OracleLinux:RedHat": rpm
+
+- name: Fail on unsupported operating systems
+  ansible.builtin.fail:
+    msg: >-
+      dr_hpc role supports Ubuntu and Oracle Linux. Found
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+  when: dr_hpc_package_family == 'unsupported'
+
+- name: Validate pinned version configuration
+  ansible.builtin.fail:
+    msg: "Set dr_hpc_version when dr_hpc_use_latest_metadata is false."
+  when:
+    - not dr_hpc_use_latest_metadata | bool
+    - dr_hpc_version | length == 0
+
+- name: Ensure download directory exists
+  ansible.builtin.file:
+    path: "{{ dr_hpc_download_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check whether shared dr_hpc metadata exists
+  ansible.builtin.stat:
+    path: "{{ dr_hpc_release_metadata_path }}"
+  register: dr_hpc_cached_metadata_file
+
+- name: Decide whether the shared dr_hpc cache must be refreshed
+  ansible.builtin.set_fact:
+    dr_hpc_cache_refresh_required: >-
+      {{
+        (not dr_hpc_use_latest_metadata | bool)
+        or (dr_hpc_force_latest_refresh | bool)
+        or not (dr_hpc_cached_metadata_file.stat.exists | default(false))
+      }}
+
+- name: Try to acquire shared dr_hpc cache lock
+  ansible.builtin.command: "mkdir {{ dr_hpc_cache_lock_path }}"
+  register: dr_hpc_cache_lock
+  changed_when: dr_hpc_cache_lock.rc == 0
+  failed_when:
+    - dr_hpc_cache_lock.rc != 0
+    - "'File exists' not in (dr_hpc_cache_lock.stderr | default(''))"
+  when: dr_hpc_cache_refresh_required | bool
+
+- name: Refresh shared dr_hpc cache
+  when:
+    - dr_hpc_cache_refresh_required | bool
+    - dr_hpc_cache_lock.rc | default(1) == 0
+  vars:
+    dr_hpc_metadata_source: >-
+      {{
+        dr_hpc_latest_metadata_name
+        if dr_hpc_use_latest_metadata | bool
+        else dr_hpc_version ~ '/manifest.json'
+      }}
+  block:
+    - name: Download requested dr_hpc metadata
+      ansible.builtin.uri:
+        url: "{{ dr_hpc_bucket_url }}/{{ dr_hpc_metadata_source }}"
+        return_content: true
+      register: dr_hpc_remote_metadata
+
+    - name: Resolve requested dr_hpc metadata
+      ansible.builtin.set_fact:
+        dr_hpc_metadata: "{{ dr_hpc_remote_metadata.content | from_json }}"
+
+    - name: Resolve requested dr_hpc artifact
+      ansible.builtin.set_fact:
+        dr_hpc_artifact_name: "{{ dr_hpc_metadata.artifacts[dr_hpc_package_family][dr_hpc_arch] }}"
+        dr_hpc_package_path: "{{ dr_hpc_download_dir }}/{{ dr_hpc_metadata.artifacts[dr_hpc_package_family][dr_hpc_arch] }}"
+
+    - name: Download shared dr_hpc package
+      ansible.builtin.get_url:
+        url: "{{ dr_hpc_bucket_url }}/{{ dr_hpc_metadata.version }}/{{ dr_hpc_artifact_name }}"
+        dest: "{{ dr_hpc_package_path }}"
+        mode: "0644"
+
+    - name: Persist shared dr_hpc metadata
+      ansible.builtin.copy:
+        dest: "{{ dr_hpc_release_metadata_path }}"
+        mode: "0644"
+        content: "{{ dr_hpc_metadata | to_nice_json }}"
+  always:
+    - name: Release shared dr_hpc cache lock
+      ansible.builtin.file:
+        path: "{{ dr_hpc_cache_lock_path }}"
+        state: absent
+      when:
+        - dr_hpc_cache_refresh_required | bool
+        - dr_hpc_cache_lock.rc | default(1) == 0
+
+- name: Wait for shared dr_hpc cache refresh to complete
+  ansible.builtin.stat:
+    path: "{{ dr_hpc_cache_lock_path }}"
+  register: dr_hpc_cache_lock_wait
+  until: not (dr_hpc_cache_lock_wait.stat.exists | default(false))
+  retries: 60
+  delay: 10
+  when:
+    - dr_hpc_cache_refresh_required | bool
+    - dr_hpc_cache_lock.rc | default(1) != 0
+
+- name: Read shared dr_hpc metadata
+  ansible.builtin.slurp:
+    src: "{{ dr_hpc_release_metadata_path }}"
+  register: dr_hpc_metadata_raw
+
+- name: Parse shared dr_hpc metadata
+  ansible.builtin.set_fact:
+    dr_hpc_metadata: "{{ dr_hpc_metadata_raw.content | b64decode | from_json }}"
+
+- name: Ensure pinned dr_hpc cache matches the requested version
+  ansible.builtin.assert:
+    that:
+      - dr_hpc_metadata.version == dr_hpc_version
+    fail_msg: >-
+      Shared dr_hpc cache resolved version {{ dr_hpc_metadata.version }}, but the
+      requested pinned version is {{ dr_hpc_version }}.
+  when: not dr_hpc_use_latest_metadata | bool
+
+- name: Resolve shared dr_hpc package details
+  ansible.builtin.set_fact:
+    dr_hpc_artifact_name: "{{ dr_hpc_metadata.artifacts[dr_hpc_package_family][dr_hpc_arch] }}"
+    dr_hpc_target_version: "{{ dr_hpc_metadata.version }}"
+    dr_hpc_target_release: "{{ dr_hpc_metadata.release }}"
+    dr_hpc_package_path: "{{ dr_hpc_download_dir }}/{{ dr_hpc_metadata.artifacts[dr_hpc_package_family][dr_hpc_arch] }}"
+    dr_hpc_target_package_version: >-
+      {{
+        dr_hpc_metadata.version ~ '-'
+        ~ dr_hpc_metadata.release
+        ~ ('ubuntu' if dr_hpc_package_family == 'deb_ubuntu' else '')
+      }}
+
+- name: Query installed dr_hpc version on Ubuntu
+  ansible.builtin.command:
+    argv:
+      - dpkg-query
+      - -W
+      - -f=${Version}
+      - "{{ dr_hpc_package_name }}"
+  register: dr_hpc_installed_version_deb_cmd
+  changed_when: false
+  failed_when: false
+  when: dr_hpc_package_family == 'deb_ubuntu'
+
+- name: Query installed dr_hpc version on Oracle Linux
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -q
+      - --qf
+      - "%{VERSION}-%{RELEASE}"
+      - "{{ dr_hpc_package_name }}"
+  register: dr_hpc_installed_version_rpm_cmd
+  changed_when: false
+  failed_when: false
+  when: dr_hpc_package_family == 'rpm'
+
+- name: Normalize installed dr_hpc version
+  ansible.builtin.set_fact:
+    dr_hpc_installed_package_version: >-
+      {{
+        dr_hpc_installed_version_deb_cmd.stdout | default('') | trim
+        if (
+          dr_hpc_installed_version_deb_cmd is defined
+          and dr_hpc_installed_version_deb_cmd.rc is defined
+          and dr_hpc_installed_version_deb_cmd.rc == 0
+        )
+        else (
+          dr_hpc_installed_version_rpm_cmd.stdout | default('') | trim
+          if (
+            dr_hpc_installed_version_rpm_cmd is defined
+            and dr_hpc_installed_version_rpm_cmd.rc is defined
+            and dr_hpc_installed_version_rpm_cmd.rc == 0
+          )
+          else ''
+        )
+      }}
+
+- name: Decide whether dr_hpc installation is required
+  ansible.builtin.set_fact:
+    dr_hpc_install_required: >-
+      {{
+        dr_hpc_installed_package_version == ''
+        or dr_hpc_installed_package_version is version(dr_hpc_target_package_version, '<')
+      }}
+
+- name: Install dr_hpc when required
+  ansible.builtin.include_tasks: "{{ dr_hpc_install_task_map[dr_hpc_package_family] }}"
+  vars:
+    dr_hpc_install_task_map:
+      deb_ubuntu: ubuntu.yml
+      rpm: ol.yml
+  when: dr_hpc_install_required | bool
+
+- name: Show dr_hpc skip reason when no installation is needed
+  ansible.builtin.debug:
+    msg: >-
+      Skipping dr_hpc installation because installed version
+      {{ dr_hpc_installed_package_version }} is already at or above target
+      version {{ dr_hpc_target_package_version }}.
+  when: not dr_hpc_install_required | bool
+
+- name: Show resolved dr_hpc package state
+  ansible.builtin.debug:
+    msg:
+      - "dr_hpc target version: {{ dr_hpc_target_version }}-{{ dr_hpc_target_release }}"
+      - "dr_hpc artifact: {{ dr_hpc_artifact_name }}"
+      - "dr_hpc installed version: {{ dr_hpc_installed_package_version | default('') }}"
+      - "dr_hpc metadata file: {{ dr_hpc_release_metadata_path }}"

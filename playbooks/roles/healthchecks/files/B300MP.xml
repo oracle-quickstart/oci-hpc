@@ -1,0 +1,150 @@
+<system version="1">
+  <cpu host_hash="0x513c5d5aedfe149a" numaid="0" affinity="00000000,00000000,ffffffff,ffffffff,00000000,00000000,ffffffff,ffffffff" arch="x86_64" vendor="GenuineIntel" familyid="6" modelid="207">
+    <pci busid="0000:08:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:0d:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:0f:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:11:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail0" dev="0" latency="0" speed="800000" port="1" guid="0x585a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:12:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:14:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="0" sm="103" rank="0" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:26:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:2b:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:2d:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:2f:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail1" dev="1" latency="0" speed="800000" port="1" guid="0x785a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:30:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:32:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="1" sm="103" rank="1" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:3d:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:42:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:44:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:46:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail2" dev="2" latency="0" speed="800000" port="1" guid="0x685a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:47:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:49:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="2" sm="103" rank="2" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:54:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:59:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:5b:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:5d:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail3" dev="3" latency="0" speed="800000" port="1" guid="0x485a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:5e:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:60:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="3" sm="103" rank="3" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+  </cpu>
+  <cpu host_hash="0x513c5d5aedfe149a" numaid="1" affinity="ffffffff,ffffffff,00000000,00000000,ffffffff,ffffffff,00000000,00000000" arch="x86_64" vendor="GenuineIntel" familyid="6" modelid="207">
+    <pci busid="0000:82:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:87:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:89:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:8b:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail4" dev="4" latency="0" speed="800000" port="1" guid="0xa85a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:8c:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:8e:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="4" sm="103" rank="4" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:a1:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:a6:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:a8:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:aa:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail5" dev="5" latency="0" speed="800000" port="1" guid="0x885a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:ab:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:ad:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="5" sm="103" rank="5" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:b9:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:be:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:c0:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:c2:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail6" dev="6" latency="0" speed="800000" port="1" guid="0xb85a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:c3:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:c5:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="6" sm="103" rank="6" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:d1:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x0072" link_speed="32.0 GT/s PCIe" link_width="16">
+      <pci busid="0000:d6:00.0" class="0x060400" vendor="0x1000" device="0xc030" subsystem_vendor="0x1000" subsystem_device="0x1003" link_speed="5.0 GT/s PCIe" link_width="16">
+        <pci busid="0000:d8:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="32.0 GT/s PCIe" link_width="16">
+          <pci busid="0000:da:00.0" class="0x020000" vendor="0x15b3" device="0x1023" subsystem_vendor="0x15b3" subsystem_device="0x0101" link_speed="64.0 GT/s PCIe" link_width="16">
+            <nic>
+              <net name="rdma_vf_rail7" dev="7" latency="0" speed="800000" port="1" guid="0x985a21000347bb4c" maxconn="131072" gdr="1"/>
+            </nic>
+          </pci>
+          <pci busid="0000:db:00.0" class="0x060400" vendor="0x15b3" device="0x197c" subsystem_vendor="0x0000" subsystem_device="0x0000" link_speed="64.0 GT/s PCIe" link_width="16">
+            <pci busid="0000:dd:00.0" class="0x030200" vendor="0x10de" device="0x3182" subsystem_vendor="0x10de" subsystem_device="0x20e6" link_speed="64.0 GT/s PCIe" link_width="16">
+              <gpu dev="7" sm="103" rank="7" gdr="1">
+                <nvlink target="fffffff:ff:ff.0" count="18" tclass="0x068000"/>
+              </gpu>
+            </pci>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+  </cpu>
+</system>

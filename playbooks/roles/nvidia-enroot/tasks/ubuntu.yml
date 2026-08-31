@@ -137,7 +137,7 @@
         path: "{{ enroot_top_path_checked }}"
         state: directory
         mode: "0777"
-        owner: "{{ ansible_user }}"
+        owner: "{{ cluster_admin_user }}"
         group: "{{ privilege_group_name }}"
         recurse: false
 
@@ -147,7 +147,7 @@
         path: "{{ enroot_top_path_checked }}/{{ item }}"
         state: directory
         mode: "0777"
-        owner: "{{ ansible_user }}"
+        owner: "{{ cluster_admin_user }}"
         group: "{{ privilege_group_name }}"
         recurse: false
       with_items:

@@ -4,15 +4,23 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-User={{ ansible_user }}
-Group={{ ansible_user }}
+User={{ cluster_admin_user }}
+Group={{ cluster_admin_user }}
 Type=simple
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:$PATH
 Environment=SCONTROL_PATH=/usr/local/bin/scontrol
-{% if 'BM.GPU.MI' in shape %}
+Environment=METRICS_PORT={{ nvml_metrics_port | default(9800) }}
+Environment=SCRAPE_INTERVAL={{ nvml_scrape_interval | default(15) }}
+Environment=SLURM_NVML_DB_INTERVAL={{ nvml_db_interval | default(60) }}
+Environment="SLURM_DB_HOST={{ slurm_monitoring_db_host }}"
+Environment="SLURM_DB_PORT={{ slurm_monitoring_db_port | default(3306) }}"
+Environment="SLURM_DB_USER={{ slurm_monitoring_db_user | default('slurm_exporter') }}"
+Environment="SLURM_DB_PASSWORD={{ slurm_monitoring_db_password | replace('%', '%%') }}"
+Environment="SLURM_DB_NAME={{ slurm_monitoring_db_name | default('slurm_jobs') }}"
+{% if not (metrics_exporter_nvidia_gpu_node | default(false) | bool) %}
 Environment=CPU_ONLY_MODE=True
 {% endif %}
-ExecStart={{venv_path}}/bin/python3 /usr/local/bin/nvml_metrics_exporter.py
+ExecStart={{ venv_path }}/bin/python3 {{ metrics_exporter_install_dir }}/nvml_metrics_exporter.py
 Restart=on-failure
 RestartSec=10
 

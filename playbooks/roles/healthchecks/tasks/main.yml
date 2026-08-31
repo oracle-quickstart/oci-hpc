@@ -4,16 +4,16 @@
   ansible.builtin.file:
     name: "/opt/oci-hpc/healthchecks"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
 
 - name: Create systemd unit dirs
   become: true
   ansible.builtin.file:
     name: "/var/log/healthchecks"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0755"
 
 - name: Copy files
@@ -22,8 +22,8 @@
     src: "{{ item }}"
     dest: "/opt/oci-hpc/healthchecks/{{ item }}"
     force: false
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
   with_items:
     - check_gpu_setup.py
     - active_healthcheck.py
@@ -35,6 +35,8 @@
     - shared_logging.py
     - multi_node_active_HC.sbatch
     - multi_node_active_healthcheck.py
+    - GB300MP.xml
+    - B300MP.xml
     - gpu_sdc_checker.py
     - gpu_reset.sh
 
@@ -43,14 +45,80 @@
     path: /opt/oci-hpc/healthchecks/gpu_reset.sh
     mode: '0755'
 
+- name: Ensure GPU fryer Docker image cache directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ healthchecks_gpu_fryer_cache_dir }}"
+    state: directory
+    mode: "0755"
+  when:
+    - active_healthchecks | default(true) | bool
+    - "'GPU' in (shape | default(''))"
+    - "'BM.GPU.MI' not in (shape | default(''))"
+
+- name: Check if GPU fryer Docker image tar exists
+  ansible.builtin.stat:
+    path: "{{ healthchecks_gpu_fryer_cache_tar }}"
+  register: healthchecks_gpu_fryer_cache_tar_stat
+  when:
+    - active_healthchecks | default(true) | bool
+    - "'GPU' in (shape | default(''))"
+    - "'BM.GPU.MI' not in (shape | default(''))"
+
+- name: Check if Docker is available for GPU fryer image cache
+  become: true
+  ansible.builtin.command:
+    argv:
+      - docker
+      - info
+  register: healthchecks_gpu_fryer_docker_info
+  changed_when: false
+  failed_when: false
+  when:
+    - active_healthchecks | default(true) | bool
+    - "'GPU' in (shape | default(''))"
+    - "'BM.GPU.MI' not in (shape | default(''))"
+    - not (healthchecks_gpu_fryer_cache_tar_stat.stat.exists | default(false))
+
+- name: Start GPU fryer Docker image cache build in background
+  become: true
+  ansible.builtin.shell: |
+    set -euo pipefail
+    mkdir -p "{{ healthchecks_gpu_fryer_cache_dir }}"
+    flock "{{ healthchecks_gpu_fryer_cache_tar }}.lock" bash -c '
+      if [ ! -f "$1" ]; then
+        docker pull "$2"
+        docker save -o "$1.tmp" "$2"
+        mv "$1.tmp" "$1"
+      fi
+    ' _ "{{ healthchecks_gpu_fryer_cache_tar }}" "{{ healthchecks_gpu_fryer_image }}"
+  args:
+    executable: /bin/bash
+    creates: "{{ healthchecks_gpu_fryer_cache_tar }}"
+  register: healthchecks_gpu_fryer_cache_save
+  async: "{{ healthchecks_gpu_fryer_cache_async_timeout | default(7200) }}"
+  poll: 0
+  when:
+    - active_healthchecks | default(true) | bool
+    - "'GPU' in (shape | default(''))"
+    - "'BM.GPU.MI' not in (shape | default(''))"
+    - not (healthchecks_gpu_fryer_cache_tar_stat.stat.exists | default(false))
+    - healthchecks_gpu_fryer_docker_info.rc | default(1) == 0
+
+
 - name: Make sure healthcheck dependencies are installed.
   vars:
-    package_name:
-      - python3-psutil
-      - python3-distro
-      - nvme-cli
+    package_name: # noqa: var-naming[no-role-prefix]
       - fio
-    package_state: latest
+      - nvme-cli
+      - python3-distro
+      - python3-psutil
+    package_state: latest # noqa: var-naming[no-role-prefix]
+    package_repo: >- # noqa: var-naming[no-role-prefix]
+      {{
+        'ol' + ansible_facts['distribution_major_version'] + '_developer_EPEL'
+        if ansible_facts['distribution'] == 'OracleLinux' else 'None'
+      }}
   ansible.builtin.include_role:
     name: safe_yum
   ignore_errors: true

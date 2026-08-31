@@ -5,9 +5,8 @@ This command allows nodes to be displayed in a variety of formats/styles.
 """
 
 import click
-
-from lib.cli import completion
 import lib.database as db
+from lib.cli import completion
 from lib.cli.nodes import display
 from lib.logger import logger
 
@@ -118,6 +117,19 @@ def callback_sort(ctx, param, value):
     type=int,
     help="List terminated nodes instead in the last X minutes."
 )
+@click.option(
+    "--topology",
+    is_flag=False,
+    flag_value="compact",
+    type=click.Choice(["full", "compact", "status"], case_sensitive=False),
+    default=None,
+    help="Display nodes as a hierarchical RDMA topology tree "
+         "(hpc_island > network_block > rail > rack/memcluster, ordered by "
+         "rack_index). 'compact' (default) shows collapsed host ranges; "
+         "'status' adds node availability; 'full' adds availability and "
+         "expands each group to individual nodes. "
+         "VM-shaped nodes appear under a top-level 'vm-nodes' branch."
+)
 def list_cmd(columns, format, **options):
     """List nodes with various filters and formats
     Example:
@@ -133,6 +145,9 @@ def list_cmd(columns, format, **options):
 
   # Lists nodes sorted by cluster_name, memory_cluster_name, and hostname\n
   mgmt nodes list --sort cluster_name,memory_cluster_name,hostname
+
+  # Visualize nodes as a hierarchical RDMA topology tree\n
+  mgmt nodes list --topology
   """
 
     field_dict = {}
@@ -163,12 +178,21 @@ def list_cmd(columns, format, **options):
     else:
         base_query = db.get_nodes_with_latest_healthchecks()
 
-    query = db.get_query_by_fields(base_query,field_dict)
-    nodes = query.all()
+    query = db.get_query_by_fields(base_query, field_dict)
+    try:
+        nodes = query.all()
+    finally:
+        query.session.close()
     if not nodes:
         click.echo("No nodes found.", err=True)
-    else:
-        nodes = display.sort_nodes(nodes, options["sort"] or DEFAULT_SORT_FIELDS)
+        if options.get("topology"):
+            return
+
+    if options.get("topology"):
+        display.display_nodes_as_topology(nodes, mode=options["topology"])
+        return
+
+    nodes = display.sort_nodes(nodes, options["sort"] or DEFAULT_SORT_FIELDS)
 
     display.display_nodes(
         nodes, format, columns,

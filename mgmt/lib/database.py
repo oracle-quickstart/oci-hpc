@@ -4,13 +4,13 @@ import sys
 import time
 
 from datetime import datetime, timezone, timedelta
-from functools import cached_property
+from functools import cached_property, lru_cache
 
 import sqlalchemy
 import yaml
 
 from sqlalchemy import (
-    Integer, String, Boolean, Enum, or_, and_, create_engine, select, func, case, cast, DateTime, text
+    Integer, String, Text, Boolean, Enum, or_, and_, create_engine, select, func, case, cast, DateTime, text, Index, literal
 )
 from sqlalchemy.orm import mapped_column, sessionmaker, DeclarativeBase, aliased
 from sqlalchemy.inspection import inspect
@@ -24,6 +24,24 @@ from ClusterShell.NodeSet import NodeSet
 # This is expected with "Base" subclasses
 # pylint: disable=too-few-public-methods
 
+SUPPORTED_GPU_SHAPES = [
+    "BM.GPU4.8",
+    "BM.GPU.B4.8",
+    "BM.GPU.A100-v2.8",
+    "BM.GPU.H100.8",
+    "BM.GPU.H200.8",
+    "BM.GPU.B200.8",
+    "BM.GPU.B300.8",
+    "BM.GPU.B300.HS.8",
+    "BM.GPU.RTXPRO.8",
+    "BM.GPU.GB200-v2.4",
+    "BM.GPU.GB200-v3.4",
+    "BM.GPU.GB200.4",
+    "BM.GPU.GB300.4",
+    "BM.GPU.MI355X-v0.8",
+    "BM.GPU.MI355X-v1.8",
+    "BM.GPU.MI355X.8",
+]
 
 MYSQL_CONNECTION_DETAILS = {
     "db_host": "localhost",
@@ -33,6 +51,77 @@ MYSQL_CONNECTION_DETAILS = {
 }
 
 UnsignedInt = Integer().with_variant(INTEGER(unsigned=True), 'mysql')
+
+
+def _slurm_state_has_any(slurm_state_col, *states):
+    padded_state = literal("+") + slurm_state_col + literal("+")
+    return or_(*(padded_state.like(f"%+{state}+%") for state in states))
+
+
+def _slurm_state_has_none(slurm_state_col, *states):
+    return ~_slurm_state_has_any(slurm_state_col, *states)
+
+
+def _slurm_state_is_available(label_map):
+    return _slurm_state_has_none(
+        label_map["slurm_state"],
+        "allocated",
+        "down",
+        "drain",
+        "fail",
+        "future",
+        "maint",
+        "maintenance",
+        "not_responding",
+        "power_down",
+        "powering_down",
+    )
+
+
+def _slurm_state_is_unreserved_idle(label_map):
+    slurm_reservation_col = label_map["slurm_reservation"]
+    return and_(
+        _slurm_state_has_any(label_map["slurm_state"], "idle"),
+        _slurm_state_is_available(label_map),
+        or_(slurm_reservation_col.is_(None), slurm_reservation_col == ""),
+    )
+
+
+def _slurm_state_is_initial_validation(label_map):
+    return and_(
+        _slurm_state_has_any(label_map["slurm_state"], "resv", "reserved"),
+        _slurm_state_is_available(label_map),
+        label_map["slurm_reservation"] == "InitialValidation",
+    )
+
+
+def _default_connection_string():
+    connection_string = os.environ.get("DB_CONNECTION_STRING")
+    if connection_string:
+        return connection_string
+
+    return "mysql+pymysql://{db_user}:{db_pw}@{db_host}/{db_name}".format_map(
+        MYSQL_CONNECTION_DETAILS
+    )
+
+
+@lru_cache(maxsize=None)
+def _get_engine(connection_string):
+    kwargs = {"pool_pre_ping": True}
+
+    if connection_string.startswith("mysql"):
+        kwargs.update({
+            "pool_size": int(os.environ.get("DB_POOL_SIZE", "5")),
+            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "0")),
+            "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "3600")),
+        })
+
+    return create_engine(connection_string, **kwargs)
+
+
+@lru_cache(maxsize=None)
+def _get_session_factory(connection_string):
+    return sessionmaker(bind=_get_engine(connection_string))
 
 
 class Base(DeclarativeBase):
@@ -87,9 +176,22 @@ class NodesMixin:
     slurm_reservation          = mapped_column(String(128), nullable=True)
     slurm_up_time              = mapped_column(Integer, nullable=True)
     oci_host_id                = mapped_column(String(128), nullable=True)
+    oci_impacted_component_details = mapped_column(Text, nullable=True)
+    maintenance_event_display_name = mapped_column(String(128), nullable=True)
+    maintenance_event_error_code = mapped_column(String(128), nullable=True)
+    maintenance_event_id       = mapped_column(String(128), nullable=True)
+    maintenance_event_lifecycle_state = mapped_column(String(128), nullable=True)
+    maintenance_event_time_started = mapped_column(String(128), nullable=True)
+    maintenance_event_time_finished = mapped_column(String(128), nullable=True)
+    maintenance_event_time_window_start = mapped_column(String(128), nullable=True)
 
 class Nodes(NodesMixin, Base):
     __tablename__ = 'nodes'
+    __table_args__ = (
+        Index("ix_nodes_serial", "serial"),
+        Index("ix_nodes_oci_name", "oci_name"),
+        Index("ix_nodes_alt_host", "alternate_hostname"),
+    )
 
     ip_address = mapped_column(String(128), unique=True, nullable=True)
     hostname   = mapped_column(String(128), unique=True, nullable=True)
@@ -136,6 +238,9 @@ class Configurations(Base):
 
 class HealthChecks(Base):
     __tablename__ = 'healthchecks'
+    __table_args__ = (
+        Index("ix_hc_ocid_type_time", "ocid", "healthcheck_type", "healthcheck_last_time"),
+    )
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     ocid = mapped_column(String(128), nullable=False)
@@ -144,10 +249,10 @@ class HealthChecks(Base):
     healthcheck_time_change = mapped_column(String(128), nullable=True)
     healthcheck_last_time = mapped_column(String(128), nullable=True)
     healthcheck_recommendation = mapped_column(String(128), nullable=True)
-    healthcheck_status = mapped_column(String(128), nullable=True)
+    healthcheck_status = mapped_column(String(512), nullable=True)
     healthcheck_associated_node = mapped_column(String(128), nullable=True)
 
-    
+
 logger = logging.getLogger(__name__)
 
 
@@ -160,19 +265,13 @@ class DBConn:
     def __init__(self, connection_string=None):
         self.session = None
 
-        connection_string = os.environ.get("DB_CONNECTION_STRING", connection_string)
-
-        if not connection_string:
-            connection_string = "mysql+pymysql://{db_user}:{db_pw}@{db_host}/{db_name}".format_map(
-                MYSQL_CONNECTION_DETAILS
-            )
-
-        self.connection_string = connection_string
+        self.connection_string = os.environ.get("DB_CONNECTION_STRING", connection_string)
+        if not self.connection_string:
+            self.connection_string = _default_connection_string()
 
     @cached_property
     def engine(self):
-        # Create the SQLAlchemy engine
-        return create_engine(self.connection_string)
+        return _get_engine(self.connection_string)
 
     def __enter__(self):
         if self.session is None:
@@ -232,20 +331,10 @@ def current_utc_time():
 
 
 def query_db():
-    connection_string = os.environ.get("DB_CONNECTION_STRING")
-    if not connection_string:
-        connection_string = "mysql+pymysql://{db_user}:{db_pw}@{db_host}/{db_name}".format_map(
-            MYSQL_CONNECTION_DETAILS
-        )
+    connection_string = _default_connection_string()
 
     try:
-        # Create the SQLAlchemy engine
-        engine = create_engine(connection_string)
-
-        # Create a session factory
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
+        session = _get_session_factory(connection_string)()
         return session
     except Exception as exc:
         logger.error(f"Error connecting to the database: {exc}")
@@ -270,8 +359,8 @@ def query_db():
 
 def node_to_dict(node, keys=None):
     """
-    Convert a Node (ORM or Row) to a dict. 
-    If it's a Row, we use its _mapping. 
+    Convert a Node (ORM or Row) to a dict.
+    If it's a Row, we use its _mapping.
     If it's an ORM, we fall back to getattr().
     """
     result = {}
@@ -324,92 +413,105 @@ def field_to_rich_renderable(val):
 
 
 def node_to_list(node, columns=None):
-        
+
     result = []
     values={}
     for col in columns:
-        result.append(field_to_rich_renderable(getattr(node, col, None)))                    
+        result.append(field_to_rich_renderable(getattr(node, col, None)))
     return result
 
 def list_columns():
-    query=get_nodes_with_latest_healthchecks()
-    return [col['name'] for col in query.column_descriptions if col['name'] != "id"]
+    query = get_nodes_with_latest_healthchecks()
+    try:
+        return [col['name'] for col in query.column_descriptions if col['name'] != "id"]
+    finally:
+        query.session.close()
+
+def get_nodes_by_fields(field_dict):
+    query = get_nodes_with_latest_healthchecks()
+    try:
+        return get_query_by_fields(query, field_dict).all()
+    finally:
+        query.session.close()
 
 def get_nodes_with_latest_healthchecks():
     """
     Return a SQLAlchemy query for Node ORM objects with aggregated healthcheck columns:
     active, passive, multi-node status, logs, recommendations, last_time, etc.
+
+    The returned query is bound to an open session owned by the caller, which is
+    responsible for closing it (e.g. `query.session.close()` in a `finally` block).
     """
-    with DBConn() as session:
-        hc = aliased(HealthChecks)
+    session = query_db()
+    hc = aliased(HealthChecks)
 
-        # Subquery: latest healthcheck per (ocid, type)
-        subq = (
-            session.query(
-                hc.ocid.label("node_ocid"),
-                hc.healthcheck_type,
-                hc.healthcheck_status,
-                hc.healthcheck_logs,
-                hc.healthcheck_recommendation,
-                hc.healthcheck_associated_node,
-                hc.healthcheck_last_time,
-                func.row_number().over(
-                    partition_by=[hc.ocid, hc.healthcheck_type],
-                    order_by=hc.healthcheck_last_time.desc()
-                ).label("rn")
+    # Subquery: latest healthcheck per (ocid, type)
+    subq = (
+        session.query(
+            hc.ocid.label("node_ocid"),
+            hc.healthcheck_type,
+            hc.healthcheck_status,
+            hc.healthcheck_logs,
+            hc.healthcheck_recommendation,
+            hc.healthcheck_associated_node,
+            hc.healthcheck_last_time,
+            func.row_number().over(
+                partition_by=[hc.ocid, hc.healthcheck_type],
+                order_by=hc.healthcheck_last_time.desc()
+            ).label("rn")
+        )
+        .subquery()
+    )
+
+    # Aggregated columns
+    agg_columns = []
+    for hc_type in ["active", "passive", "multi-node"]:
+        for c in get_extra_columns_per_hc():
+            agg_columns.append(
+                func.max(
+                    case(
+                        (subq.c.healthcheck_type == hc_type, getattr(subq.c, c))
+                    )
+                ).label(f"{hc_type.replace('-', '_')}_{c}")
             )
-            .subquery()
-        )
 
-        # Aggregated columns
-        agg_columns = []
-        for hc_type in ["active", "passive", "multi-node"]:
-            for c in get_extra_columns_per_hc():
-                agg_columns.append(
-                    func.max(
-                        case(
-                            (subq.c.healthcheck_type == hc_type, getattr(subq.c, c))
-                        )
-                    ).label(f"{hc_type.replace('-', '_')}_{c}")
-                )
+    # Build query and outer join to nodes
+    query = (
+        session.query(Nodes, *agg_columns)
+        .outerjoin(subq, and_(Nodes.ocid == subq.c.node_ocid, subq.c.rn == 1))
+        .group_by(Nodes.ocid)
+    )
 
-        # Build query and outer join to nodes
-        query = (
-            session.query(Nodes, *agg_columns)
-            .outerjoin(subq, and_(Nodes.ocid == subq.c.node_ocid, subq.c.rn == 1))
-            .group_by(Nodes.ocid)
-        )
+    # Wrap in subquery for global recommendation
+    base_subq = query.subquery()
 
-        # Wrap in subquery for global recommendation
-        base_subq = query.subquery()
-
-        query_with_global_rec = session.query(
-            base_subq,
-            case(
-                (
-                    base_subq.c.passive_healthcheck_recommendation != "Healthy",
-                    base_subq.c.passive_healthcheck_recommendation,
+    query_with_global_rec = session.query(
+        base_subq,
+        case(
+            (
+                base_subq.c.passive_healthcheck_recommendation != "Healthy",
+                base_subq.c.passive_healthcheck_recommendation,
+            ),
+            (
+                and_(
+                    base_subq.c.active_healthcheck_recommendation.isnot(None),
+                    base_subq.c.active_healthcheck_recommendation != "",
+                    base_subq.c.active_healthcheck_recommendation != "Healthy",
                 ),
-                (
-                    and_(
-                        base_subq.c.active_healthcheck_recommendation.isnot(None),
-                        base_subq.c.active_healthcheck_recommendation != "",
-                        base_subq.c.active_healthcheck_recommendation != "Healthy",
-                    ),
-                    base_subq.c.active_healthcheck_recommendation,
+                base_subq.c.active_healthcheck_recommendation,
+            ),
+            (
+                and_(
+                    base_subq.c.multi_node_healthcheck_recommendation.isnot(None),
+                    base_subq.c.multi_node_healthcheck_recommendation != "",
+                    base_subq.c.multi_node_healthcheck_recommendation != "Healthy",
                 ),
-                (
-                    and_(
-                        base_subq.c.multi_node_healthcheck_recommendation.isnot(None),
-                        base_subq.c.multi_node_healthcheck_recommendation != "",
-                        base_subq.c.multi_node_healthcheck_recommendation != "Healthy",
-                    ),
-                    base_subq.c.multi_node_healthcheck_recommendation,
-                ),
-                else_=base_subq.c.passive_healthcheck_recommendation,
-            ).label("healthcheck_recommendation"),
-        )
-        return query_with_global_rec
+                base_subq.c.multi_node_healthcheck_recommendation,
+            ),
+            else_=base_subq.c.passive_healthcheck_recommendation,
+        ).label("healthcheck_recommendation"),
+    )
+    return query_with_global_rec
 
 def get_terminated_nodes_with_latest_healthchecks(delay=None):
     """
@@ -418,81 +520,82 @@ def get_terminated_nodes_with_latest_healthchecks(delay=None):
     This function intentionally mirrors get_nodes_with_latest_healthchecks(),
     but operates on the terminated node set. The logic is kept separate to
     avoid changing the behavior of the existing active-node query.
+
+    The returned query is bound to an open session owned by the caller, which is
+    responsible for closing it (e.g. `query.session.close()` in a `finally` block).
     """
-    with DBConn() as session:
-        hc = aliased(HealthChecks)
+    session = query_db()
+    hc = aliased(HealthChecks)
 
-        subq = (
-            session.query(
-                hc.ocid.label("node_ocid"),
-                hc.healthcheck_type,
-                hc.healthcheck_status,
-                hc.healthcheck_logs,
-                hc.healthcheck_recommendation,
-                hc.healthcheck_associated_node,
-                hc.healthcheck_last_time,
-                func.row_number().over(
-                    partition_by=[hc.ocid, hc.healthcheck_type],
-                    order_by=hc.healthcheck_last_time.desc()
-                ).label("rn")
+    subq = (
+        session.query(
+            hc.ocid.label("node_ocid"),
+            hc.healthcheck_type,
+            hc.healthcheck_status,
+            hc.healthcheck_logs,
+            hc.healthcheck_recommendation,
+            hc.healthcheck_associated_node,
+            hc.healthcheck_last_time,
+            func.row_number().over(
+                partition_by=[hc.ocid, hc.healthcheck_type],
+                order_by=hc.healthcheck_last_time.desc()
+            ).label("rn")
+        )
+        .subquery()
+    )
+
+    agg_columns = []
+    for hc_type in ["active", "passive", "multi-node"]:
+        for c in get_extra_columns_per_hc():
+            agg_columns.append(
+                func.max(
+                    case(
+                        (subq.c.healthcheck_type == hc_type, getattr(subq.c, c))
+                    )
+                ).label(f"{hc_type.replace('-', '_')}_{c}")
             )
-            .subquery()
+
+    query = (
+        session.query(TerminatedNodes, *agg_columns)
+        .outerjoin(subq, and_(
+            TerminatedNodes.ocid == subq.c.node_ocid,
+            subq.c.rn == 1
+        ))
+        .group_by(TerminatedNodes.ocid)
+    )
+    if delay is not None:
+        cutoff_time = datetime.now() - timedelta(minutes=int(delay))
+        query = query.filter(
+            cast(TerminatedNodes.terminated_time, DateTime) >= cutoff_time
         )
+    base_subq = query.subquery()
 
-        agg_columns = []
-        for hc_type in ["active", "passive", "multi-node"]:
-            for c in get_extra_columns_per_hc():
-                agg_columns.append(
-                    func.max(
-                        case(
-                            (subq.c.healthcheck_type == hc_type, getattr(subq.c, c))
-                        )
-                    ).label(f"{hc_type.replace('-', '_')}_{c}")
-                )
-
-        query = (
-            session.query(TerminatedNodes, *agg_columns)
-            .outerjoin(subq, and_(
-                TerminatedNodes.ocid == subq.c.node_ocid,
-                subq.c.rn == 1
-            ))
-            .group_by(TerminatedNodes.ocid)
-        )
-        if delay is not None:
-            cutoff_time = datetime.now() - timedelta(minutes=int(delay))
-            query = query.filter(
-                cast(TerminatedNodes.terminated_time, DateTime) >= cutoff_time
-            )
-        base_subq = query.subquery()
-
-
-
-        return session.query(
-            base_subq,
-            case(
-                (
-                    base_subq.c.passive_healthcheck_recommendation != "Healthy",
-                    base_subq.c.passive_healthcheck_recommendation,
+    return session.query(
+        base_subq,
+        case(
+            (
+                base_subq.c.passive_healthcheck_recommendation != "Healthy",
+                base_subq.c.passive_healthcheck_recommendation,
+            ),
+            (
+                and_(
+                    base_subq.c.active_healthcheck_recommendation.isnot(None),
+                    base_subq.c.active_healthcheck_recommendation != "",
+                    base_subq.c.active_healthcheck_recommendation != "Healthy",
                 ),
-                (
-                    and_(
-                        base_subq.c.active_healthcheck_recommendation.isnot(None),
-                        base_subq.c.active_healthcheck_recommendation != "",
-                        base_subq.c.active_healthcheck_recommendation != "Healthy",
-                    ),
-                    base_subq.c.active_healthcheck_recommendation,
+                base_subq.c.active_healthcheck_recommendation,
+            ),
+            (
+                and_(
+                    base_subq.c.multi_node_healthcheck_recommendation.isnot(None),
+                    base_subq.c.multi_node_healthcheck_recommendation != "",
+                    base_subq.c.multi_node_healthcheck_recommendation != "Healthy",
                 ),
-                (
-                    and_(
-                        base_subq.c.multi_node_healthcheck_recommendation.isnot(None),
-                        base_subq.c.multi_node_healthcheck_recommendation != "",
-                        base_subq.c.multi_node_healthcheck_recommendation != "Healthy",
-                    ),
-                    base_subq.c.multi_node_healthcheck_recommendation,
-                ),
-                else_=base_subq.c.passive_healthcheck_recommendation,
-            ).label("healthcheck_recommendation"),
-        )
+                base_subq.c.multi_node_healthcheck_recommendation,
+            ),
+            else_=base_subq.c.passive_healthcheck_recommendation,
+        ).label("healthcheck_recommendation"),
+    )
 
 def filter_nodes(session, query=None, filter="all"):
     """
@@ -593,7 +696,10 @@ def get_all_login_nodes():
 def get_controller_node():
     """Get the controller from the database"""
     with DBConn() as session:
-        return filter_nodes(session, filter="controller").first()
+        controllers = filter_nodes(session, filter="controller").all()
+        for controller in controllers:
+            if controller.hostname == controller.controller_name:
+                return controller
 
 
 def get_all_terminated_nodes():
@@ -623,102 +729,184 @@ def get_all_nodes_to_configure():
 def get_all_nodes_failing_to_start(unreachable_timeout, node_any_list):
     """Get all nodes/servers from the database in waiting_for_info status"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes_failing_to_start = []
-    current_time = current_utc_time()
-    time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes_failing_to_start = []
+        current_time = current_utc_time()
+        time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
 
-    if node_any_list:
-        nodes_waiting_for_info = query.filter(
-            and_(
-                label_map["controller_status"].in_(["waiting_for_info"]),
-                or_(
-                    label_map["ip_address"].in_(node_any_list),
-                    label_map["ocid"].in_(node_any_list),
-                    label_map["serial"].in_(node_any_list),
-                    label_map["hostname"].in_(node_any_list),
-                    label_map["oci_name"].in_(node_any_list)
+        if node_any_list:
+            nodes_waiting_for_info = query.filter(
+                and_(
+                    label_map["controller_status"].in_(["waiting_for_info"]),
+                    or_(
+                        label_map["ip_address"].in_(node_any_list),
+                        label_map["ocid"].in_(node_any_list),
+                        label_map["serial"].in_(node_any_list),
+                        label_map["hostname"].in_(node_any_list),
+                        label_map["oci_name"].in_(node_any_list)
+                    )
                 )
-            )
-        ).all()
-    else:
-        nodes_waiting_for_info = query.filter(label_map["controller_status"].in_(["waiting_for_info"])).all()
-    for node in nodes_waiting_for_info:
-        started_time = datetime.strptime(
-            node.started_time, "%Y-%m-%d %H:%M:%S"
-        ).replace(tzinfo=timezone.utc)
+            ).all()
+        else:
+            nodes_waiting_for_info = query.filter(label_map["controller_status"].in_(["waiting_for_info"])).all()
+        for node in nodes_waiting_for_info:
+            started_time = datetime.strptime(
+                node.started_time, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=timezone.utc)
 
-        if started_time < time_th:
-            nodes_failing_to_start.append(node)
-    return nodes_failing_to_start
+            if started_time < time_th:
+                nodes_failing_to_start.append(node)
+        return nodes_failing_to_start
+    finally:
+        query.session.close()
 
 
 def get_nodes_slurm_unconfigured():
     query = get_nodes_with_latest_healthchecks()
-    field_dict = {"role":"compute","slurm_state":"unconfigured"}
-    nodes_slurm_unconfigured = get_query_by_fields(query,field_dict).all()
-    return nodes_slurm_unconfigured
+    try:
+        field_dict = {"role":"compute","slurm_state":"unconfigured"}
+        nodes_slurm_unconfigured = get_query_by_fields(query,field_dict).all()
+        return nodes_slurm_unconfigured
+    finally:
+        query.session.close()
 
 
 def get_all_nodes_unreachable(unreachable_timeout, node_any_list):
     """Get all nodes/servers from the database in waiting_for_info status"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    unreachable_nodes = []
-    current_time = current_utc_time()
-    time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
-    if node_any_list:
-        configured_nodes = query.filter(
-            and_(
-                label_map["controller_status"].in_(["configured"]),
-                or_(
-                    label_map["ip_address"].in_(node_any_list),
-                    label_map["ocid"].in_(node_any_list),
-                    label_map["serial"].in_(node_any_list),
-                    label_map["hostname"].in_(node_any_list),
-                    label_map["oci_name"].in_(node_any_list)
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        unreachable_nodes = []
+        current_time = current_utc_time()
+        time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
+        if node_any_list:
+            configured_nodes = query.filter(
+                and_(
+                    label_map["controller_status"].in_(["configured"]),
+                    or_(
+                        label_map["ip_address"].in_(node_any_list),
+                        label_map["ocid"].in_(node_any_list),
+                        label_map["serial"].in_(node_any_list),
+                        label_map["hostname"].in_(node_any_list),
+                        label_map["oci_name"].in_(node_any_list)
+                    )
                 )
-            )
-        ).all()
-    else:
-        configured_nodes = query.filter(
-            and_(
-                label_map["controller_status"].in_(["configured"]),
-                label_map["compute_status"].in_(["configured", "configuring"]) 
-            )
-        
-        ).all()
-    for node in configured_nodes:
-        last_time_reachable = datetime.strptime(
-            node.last_time_reachable, "%Y-%m-%d %H:%M:%S"
-        ).replace(tzinfo=timezone.utc)
+            ).all()
+        else:
+            configured_nodes = query.filter(
+                and_(
+                    label_map["controller_status"].in_(["configured"]),
+                    label_map["compute_status"].in_(["configured", "configuring"])
+                )
 
-        if last_time_reachable < time_th:
-            unreachable_nodes.append(node)
-    return unreachable_nodes
+            ).all()
+        for node in configured_nodes:
+            last_time_reachable = datetime.strptime(
+                node.last_time_reachable, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=timezone.utc)
+
+            if last_time_reachable < time_th:
+                unreachable_nodes.append(node)
+        return unreachable_nodes
+    finally:
+        query.session.close()
+
+
+def get_used_image_hosts():
+    """Return image IDs mapped to hostnames for nodes with a recorded image."""
+    session = query_db()
+    try:
+        rows = session.query(Nodes.image_id, Nodes.hostname).filter(Nodes.image_id.isnot(None)).all()
+        nodes_per_image = {}
+        for image_id, hostname in rows:
+            nodes_per_image.setdefault(image_id, []).append(hostname)
+        return nodes_per_image
+    finally:
+        session.close()
 
 
 def get_all_nodes_with_hc_status(hc_status, node_any_list):
-    """Get all nodes/servers from the database in waiting_for_info status"""
+    """Get all nodes/servers in a given passive healthcheck recommendation status."""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
 
-    if node_any_list:
-        nodes = query.filter(
-            and_(
-                label_map["passive_healthcheck_recommendation"] == hc_status,
-                or_(
-                    label_map["ip_address"].in_(node_any_list),
-                    label_map["ocid"].in_(node_any_list),
-                    label_map["serial"].in_(node_any_list),
-                    label_map["hostname"].in_(node_any_list),
-                    label_map["oci_name"].in_(node_any_list)
+        if node_any_list:
+            nodes = query.filter(
+                and_(
+                    label_map["passive_healthcheck_recommendation"] == hc_status,
+                    or_(
+                        label_map["ip_address"].in_(node_any_list),
+                        label_map["ocid"].in_(node_any_list),
+                        label_map["serial"].in_(node_any_list),
+                        label_map["hostname"].in_(node_any_list),
+                        label_map["oci_name"].in_(node_any_list)
+                    )
                 )
-            )
-        ).all()
-    else:
-        nodes = query.filter(label_map["passive_healthcheck_recommendation"] == hc_status).all()
-    return nodes
+            ).all()
+        else:
+            nodes = query.filter(label_map["passive_healthcheck_recommendation"] == hc_status).all()
+        return nodes
+    finally:
+        query.session.close()
+
+
+def get_recommendation_node_groups(unreachable_timeout, unconfigured_timeout):
+    """Return recommendation node groups using one healthcheck-joined query."""
+    query = get_nodes_with_latest_healthchecks()
+    try:
+        nodes = query.all()
+    finally:
+        query.session.close()
+
+    current_time = current_utc_time()
+    unreachable_time_th = (current_time - unreachable_timeout).replace(tzinfo=timezone.utc)
+    unconfigured_time_th = (current_time - unconfigured_timeout).replace(tzinfo=timezone.utc)
+
+    unreachable_nodes = []
+    nodes_failing_to_start = []
+    unconfigured_slurm_nodes = []
+    nodes_to_reboot = []
+    nodes_to_reset_gpus = []
+    nodes_to_terminate = []
+    nodes_to_enable_instance_rdma_plugins = []
+
+    for node in nodes:
+        if (
+            node.controller_status == "configured"
+            and node.compute_status in ["configured", "configuring"]
+            and datetime.strptime(node.last_time_reachable, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc) < unreachable_time_th
+        ):
+            unreachable_nodes.append(node)
+
+        if (
+            node.controller_status == "waiting_for_info"
+            and datetime.strptime(node.started_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc) < unconfigured_time_th
+        ):
+            nodes_failing_to_start.append(node)
+
+        if node.role == "compute" and node.slurm_state == "unconfigured":
+            unconfigured_slurm_nodes.append(node)
+
+        if node.passive_healthcheck_recommendation == "Reboot":
+            nodes_to_reboot.append(node)
+        elif node.passive_healthcheck_recommendation == "Reset_GPU":
+            nodes_to_reset_gpus.append(node)
+        elif node.passive_healthcheck_recommendation == "Terminate":
+            nodes_to_terminate.append(node)
+        elif node.passive_healthcheck_recommendation == "Enable_Instance_RDMA_Plugins":
+            nodes_to_enable_instance_rdma_plugins.append(node)
+
+    return {
+        "unreachable": unreachable_nodes,
+        "failing_to_start": nodes_failing_to_start,
+        "slurm_unconfigured": unconfigured_slurm_nodes,
+        "reboot": nodes_to_reboot,
+        "reset_gpus": nodes_to_reset_gpus,
+        "terminate": nodes_to_terminate,
+        "enable_instance_rdma_plugins": nodes_to_enable_instance_rdma_plugins,
+    }
 
 
 def get_nodes_by_id(node_id_list):
@@ -727,11 +915,13 @@ def get_nodes_by_id(node_id_list):
     if isinstance(node_id_list, str):
         node_id_list = NodeSet(node_id_list)
 
-    
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["ocid"].in_(node_id_list)).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["ocid"].in_(node_id_list)).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_ip(node_ip_list):
@@ -741,9 +931,12 @@ def get_nodes_by_ip(node_ip_list):
         node_ip_list = NodeSet(node_ip_list)
 
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["ip_address"].in_(node_ip_list)).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["ip_address"].in_(node_ip_list)).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 
@@ -754,9 +947,12 @@ def get_nodes_by_serial(node_serial_list):
         node_serial_list = NodeSet(node_serial_list)
 
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["serial"].in_(node_serial_list)).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["serial"].in_(node_serial_list)).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_name(node_name_list):
@@ -766,9 +962,12 @@ def get_nodes_by_name(node_name_list):
         node_name_list = NodeSet(node_name_list)
 
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["hostname"].in_(node_name_list)).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["hostname"].in_(node_name_list)).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_any(node_any_list):
@@ -778,111 +977,122 @@ def get_nodes_by_any(node_any_list):
         node_any_list = NodeSet(node_any_list)
 
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(or_(
-            label_map["ip_address"].in_(node_any_list),
-            label_map["ocid"].in_(node_any_list),
-            label_map["serial"].in_(node_any_list),
-            label_map["hostname"].in_(node_any_list),
-            label_map["oci_name"].in_(node_any_list),
-            label_map["alternate_hostname"].in_(node_any_list)
-            )
-        ).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(or_(
+                label_map["ip_address"].in_(node_any_list),
+                label_map["ocid"].in_(node_any_list),
+                label_map["serial"].in_(node_any_list),
+                label_map["hostname"].in_(node_any_list),
+                label_map["oci_name"].in_(node_any_list),
+                label_map["alternate_hostname"].in_(node_any_list)
+                )
+            ).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_running_nodes():
     """Get all nodes with 'running' status"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["status"] == 'running').all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["status"] == 'running').all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_cluster(cluster_name):
     """Get all nodes belonging to a specific cluster"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    query = query.filter(label_map["cluster_name"] == cluster_name)
-    query = query.filter(
-        or_(
-            ~label_map["role"].in_(["controller", "login", "monitoring"]),
-            label_map["role"].is_(None)
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        query = query.filter(label_map["cluster_name"] == cluster_name)
+        query = query.filter(
+            or_(
+                ~label_map["role"].in_(["controller", "login", "monitoring"]),
+                label_map["role"].is_(None)
+            )
         )
-    )
-    nodes = query.all()
-    return nodes
+        nodes = query.all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_memory_cluster(cluster_name):
     """Get all nodes belonging to a specific cluster"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    query = query.filter(label_map["memory_cluster_id"] == cluster_name)
-    query = query.filter(
-        or_(
-            ~label_map["role"].in_(["controller", "login", "monitoring"]),
-            label_map["role"].is_(None)
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        query = query.filter(label_map["memory_cluster_id"] == cluster_name)
+        query = query.filter(
+            or_(
+                ~label_map["role"].in_(["controller", "login", "monitoring"]),
+                label_map["role"].is_(None)
+            )
         )
-    )
-    nodes = query.all()
-    return nodes
+        nodes = query.all()
+        return nodes
+    finally:
+        query.session.close()
 
 def get_nodes_by_active_hc_expired(active_hc_timeout):
     """Get all nodes whose active healthcheck is expired."""
 
     current_time = current_utc_time()
     time_th = current_time - active_hc_timeout
-    
+
     initial_validation_timeout=timedelta(hours=1)
     initial_validation_time_th = (current_time - initial_validation_timeout)
 
     query = get_nodes_with_latest_healthchecks()
+    try:
+        # Build a label map for extra columns
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
 
-    # Build a label map for extra columns
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-
-    # Debug counts
-    query = query.filter(label_map["role"] == "compute")
-    logger.debug(f"Count after role filter: {query.count()}")
-    query = query.filter(label_map["shape"].in_([
-        "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
-        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4", "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.MI355X-v0.8"
-    ]))
-    logger.debug(f"Count after shape filter: {query.count()}")
-    idle_query = query.filter(label_map["slurm_state"] == "idle")
-    logger.debug(f"Count after slurm state filter: {idle_query.count()}")
-    idle_query = idle_query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after passive healthcheck filter: {idle_query.count()}")
-    idle_query= idle_query.filter(label_map.get("slurm_up_time") > 300)
-    logger.debug(f"Count after slurm uptime check ( > 5minutes): {idle_query.count()}")
-    # Add having for expired active healthcheck
-    col = label_map.get("active_healthcheck_last_time")
-    if col is not None:
-        idle_query= idle_query.filter(
-            or_(
-                col is None,  # NULL treated as expired
-                cast(col, DateTime) < time_th
+        # Debug counts
+        query = query.filter(label_map["role"] == "compute")
+        logger.debug(f"Count after role filter: {query.count()}")
+        query = query.filter(label_map["shape"].in_(SUPPORTED_GPU_SHAPES))
+        logger.debug(f"Count after shape filter: {query.count()}")
+        idle_query = query.filter(_slurm_state_is_unreserved_idle(label_map))
+        logger.debug(f"Count after slurm state filter: {idle_query.count()}")
+        idle_query = idle_query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+        logger.debug(f"Count after passive healthcheck filter: {idle_query.count()}")
+        idle_query= idle_query.filter(label_map.get("slurm_up_time") > 300)
+        logger.debug(f"Count after slurm uptime check ( > 5minutes): {idle_query.count()}")
+        # Add having for expired active healthcheck
+        col = label_map.get("active_healthcheck_last_time")
+        if col is not None:
+            idle_query= idle_query.filter(
+                or_(
+                    col.is_(None),  # NULL treated as expired
+                    cast(col, DateTime) < time_th
+                )
             )
-        )
-    logger.debug(f"Count after expired active healthcheck filter: {idle_query.count()}")
-    idle_result = idle_query.all()
+        logger.debug(f"Count after expired active healthcheck filter: {idle_query.count()}")
+        idle_result = idle_query.all()
 
-    starting_nodes_query = query.filter(label_map["slurm_state"] == "resv")
-    logger.debug(f"Count after slurm status check: {starting_nodes_query.count()}")
-    starting_nodes_query = starting_nodes_query.filter(label_map["slurm_reservation"]=="InitialValidation")
-    logger.debug(f"Count after slurm reservation name check : {starting_nodes_query.count()}")
-    col = label_map.get("active_healthcheck_last_time")
-    if col is not None:
-        starting_nodes_query= starting_nodes_query.filter(
-            or_(
-                col is None,  # NULL treated as expired
-                cast(col, DateTime) < initial_validation_time_th
+        starting_nodes_query = query.filter(_slurm_state_is_initial_validation(label_map))
+        logger.debug(f"Count after slurm status check: {starting_nodes_query.count()}")
+        starting_nodes_query = starting_nodes_query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+        logger.debug(f"Count after passive healthcheck filter: {starting_nodes_query.count()}")
+        col = label_map.get("active_healthcheck_last_time")
+        if col is not None:
+            starting_nodes_query= starting_nodes_query.filter(
+                or_(
+                    col.is_(None),  # NULL treated as expired
+                    cast(col, DateTime) < initial_validation_time_th
+                )
             )
-        )
-    logger.debug(f"Count after slurm initial validation timeout check: {starting_nodes_query.count()}")
-    starting_nodes_results = starting_nodes_query.all()
-    return idle_result,starting_nodes_results
+        logger.debug(f"Count after slurm initial validation timeout check: {starting_nodes_query.count()}")
+        starting_nodes_results = starting_nodes_query.all()
+        return idle_result,starting_nodes_results
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
@@ -893,58 +1103,55 @@ def get_nodes_by_multi_node_hc_expired(multi_node_hc_timeout):
     time_th_active_hc = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
 
     query = get_nodes_with_latest_healthchecks()
+    try:
+        # Map subquery columns
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        # Filters
+        query = query.filter(label_map["role"] == "compute")
+        logger.debug(f"Count after role filter: {query.count()}")
 
-    # Map subquery columns
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    # Filters
-    query = query.filter(label_map["role"] == "compute")
-    logger.debug(f"Count after role filter: {query.count()}")
+        query = query.filter(label_map["shape"].in_(SUPPORTED_GPU_SHAPES))
+        logger.debug(f"Count after shape filter: {query.count()}")
 
-    query = query.filter(label_map["shape"].in_([
-        "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
-        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4",
-        "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", 
-        "BM.GPU.GB300.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.MI355X-v0.8"
-    ]))
-    logger.debug(f"Count after shape filter: {query.count()}")
+        query = query.filter(_slurm_state_is_unreserved_idle(label_map))
+        logger.debug(f"Count after slurm state filter: {query.count()}")
+        query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+        logger.debug(f"Count after passive healthcheck Healthy filter: {query.count()}")
+        query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
+        logger.debug(f"Count after active healthcheck Healthy for 10 minutes filter: {query.count()}")
 
-    query = query.filter(label_map["slurm_state"] == "idle")
-    logger.debug(f"Count after slurm state filter: {query.count()}")
-    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after passive healthcheck Healthy filter: {query.count()}")
-    query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after active healthcheck Healthy for 10 minutes filter: {query.count()}")
-
-    query_healthy = query.filter(
-        or_(
-            label_map["multi_node_healthcheck_recommendation"] == "Healthy",
-            label_map["multi_node_healthcheck_recommendation"] == "",
-            label_map["multi_node_healthcheck_recommendation"].is_(None),
-        )
-    )
-    logger.debug(f"Count after multi node healthcheck Healthy filter: {query_healthy.count()}")
-    col = label_map.get("active_healthcheck_last_time")
-    if col is not None:
-        query_healthy = query_healthy.filter(
+        query_healthy = query.filter(
             or_(
-                col.is_(None),
-                cast(col, DateTime) < time_th_active_hc
+                label_map["multi_node_healthcheck_recommendation"] == "Healthy",
+                label_map["multi_node_healthcheck_recommendation"] == "",
+                label_map["multi_node_healthcheck_recommendation"].is_(None),
             )
         )
-    col = label_map.get("multi_node_healthcheck_last_time")
-    if col is not None:
-        query_healthy = query_healthy.filter(
-            or_(
-                col.is_(None),
-                cast(col, DateTime) < time_th_multi_node
+        logger.debug(f"Count after multi node healthcheck Healthy filter: {query_healthy.count()}")
+        col = label_map.get("active_healthcheck_last_time")
+        if col is not None:
+            query_healthy = query_healthy.filter(
+                or_(
+                    col.is_(None),
+                    cast(col, DateTime) < time_th_active_hc
+                )
             )
+        col = label_map.get("multi_node_healthcheck_last_time")
+        if col is not None:
+            query_healthy = query_healthy.filter(
+                or_(
+                    col.is_(None),
+                    cast(col, DateTime) < time_th_multi_node
+                )
+            )
+        logger.debug(f"Count after multi node healthcheck Healthy for 24 hours filter: {query_healthy.count()}")
+        query_potentially_bad = query.filter(
+            label_map["multi_node_healthcheck_status"] == "Potentially Bad"
         )
-    logger.debug(f"Count after multi node healthcheck Healthy for 24 hours filter: {query_healthy.count()}")
-    query_potentially_bad = query.filter(
-        label_map["multi_node_healthcheck_status"] == "Potentially Bad"
-    )
-    logger.debug(f"Count after multi node healthcheck Potentially Bad filter: {query_potentially_bad.count()}")
-    return query_healthy.all(), query_potentially_bad.all()
+        logger.debug(f"Count after multi node healthcheck Potentially Bad filter: {query_potentially_bad.count()}")
+        return query_healthy.all(), query_potentially_bad.all()
+    finally:
+        query.session.close()
 
 
 def get_nodes_for_initial_multi_node_check(multi_node_hc_timeout):
@@ -955,72 +1162,73 @@ def get_nodes_for_initial_multi_node_check(multi_node_hc_timeout):
     time_th_active_hc = (current_time - active_hc_timeout).replace(tzinfo=timezone.utc)
 
     query = get_nodes_with_latest_healthchecks()
+    try:
+        # Map subquery columns
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        # Filters
+        query = query.filter(label_map["role"] == "compute")
+        logger.debug(f"Count after role filter: {query.count()}")
 
-    # Map subquery columns
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    # Filters
-    query = query.filter(label_map["role"] == "compute")
-    logger.debug(f"Count after role filter: {query.count()}")
+        query = query.filter(label_map["shape"].in_(SUPPORTED_GPU_SHAPES))
+        logger.debug(f"Count after shape filter: {query.count()}")
 
-    query = query.filter(label_map["shape"].in_([
-        "BM.GPU.H100.8", "BM.GPU.A100-v2.8", "BM.GPU4.8",
-        "BM.GPU.B4.8", "BM.GPU.H200.8", "BM.GPU.GB200.4",
-        "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", 
-        "BM.GPU.GB300.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.MI355X-v0.8"
-    ]))
-    logger.debug(f"Count after shape filter: {query.count()}")
+        query = query.filter(_slurm_state_is_initial_validation(label_map))
+        logger.debug(f"Count after slurm state filter: {query.count()}")
+        number_of_nodes=query.count()
+        query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
+        logger.debug(f"Count after passive healthcheck Healthy filter: {query.count()}")
+        query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
+        logger.debug(f"Count after active healthcheck Healthy for 10 minutes filter: {query.count()}")
 
-    query = query.filter(label_map["slurm_state"] == "resv")
-    logger.debug(f"Count after slurm state filter: {query.count()}")
-    query = query.filter(label_map["slurm_reservation"]=="InitialValidation")
-    logger.debug(f"Count after slurm reservation check: {query.count()}")
-    number_of_nodes=query.count()
-    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after passive healthcheck Healthy filter: {query.count()}")
-    query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after active healthcheck Healthy for 10 minutes filter: {query.count()}")
-
-    query_healthy = query.filter(
-        or_(
-            label_map["multi_node_healthcheck_recommendation"] == "Healthy",
-            label_map["multi_node_healthcheck_recommendation"] == "",
-            label_map["multi_node_healthcheck_recommendation"].is_(None),
-        )
-    )
-    col = label_map.get("multi_node_healthcheck_last_time")
-    if col is not None:
-        query_healthy = query_healthy.filter(
+        query_healthy = query.filter(
             or_(
-                col.is_(None),
-                cast(col, DateTime) < time_th_multi_node
+                label_map["multi_node_healthcheck_recommendation"] == "Healthy",
+                label_map["multi_node_healthcheck_recommendation"] == "",
+                label_map["multi_node_healthcheck_recommendation"].is_(None),
             )
         )
-    logger.debug(f"Count after multi node healthcheck Healthy filter: {query_healthy.count()}")
-    query_potentially_bad = query.filter(
-        label_map["multi_node_healthcheck_status"] == "Potentially Bad"
-    )
-    logger.debug(f"Count after multi node healthcheck Potentially Bad filter: {query_potentially_bad.count()}")
-    return query_healthy.all(), query_potentially_bad.all()
+        col = label_map.get("multi_node_healthcheck_last_time")
+        if col is not None:
+            query_healthy = query_healthy.filter(
+                or_(
+                    col.is_(None),
+                    cast(col, DateTime) < time_th_multi_node
+                )
+            )
+        logger.debug(f"Count after multi node healthcheck Healthy filter: {query_healthy.count()}")
+        query_potentially_bad = query.filter(
+            label_map["multi_node_healthcheck_status"] == "Potentially Bad"
+        )
+        logger.debug(f"Count after multi node healthcheck Potentially Bad filter: {query_potentially_bad.count()}")
+        return query_healthy.all(), query_potentially_bad.all()
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_status(status):
     """Get all nodes with a specific status"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["status"] == status).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["status"] == status).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_shape(shape):
     """Get all nodes with a specific shape"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["shape"] == shape).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["shape"] == shape).all()
+        return nodes
+    finally:
+        query.session.close()
 
 def get_nodes_by_filters(filters_dict):
     """Get all nodes matching the provided filters.
-    
+
     Args:
         filters_dict (dict): Dictionary where keys are column names and values are the filter values.
                             Example: {'status': 'active', 'shape': 'VM.Standard2.1'}
@@ -1029,37 +1237,49 @@ def get_nodes_by_filters(filters_dict):
     """
     if not filters_dict:
         return []
-        
+
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    for column, value in filters_dict.items():
-        if column in label_map:
-            query = query.filter(label_map[column] == value)
-    return query.all()
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        for column, value in filters_dict.items():
+            if column in label_map:
+                query = query.filter(label_map[column] == value)
+        return query.all()
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_hpc_island(hpc_island):
     """Get all nodes with a specific hpc_island"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["hpc_island"] == hpc_island).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["hpc_island"] == hpc_island).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_network_block(network_block):
     """Get all nodes with a specific network block"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["network_block_id"] == network_block).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["network_block_id"] == network_block).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 def get_nodes_by_rail(rail_id):
     """Get all nodes with a specific rail ID"""
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    nodes = query.filter(label_map["rail_id"] == rail_id).all()
-    return nodes
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
+        nodes = query.filter(label_map["rail_id"] == rail_id).all()
+        return nodes
+    finally:
+        query.session.close()
 
 
 
@@ -1148,16 +1368,17 @@ def db_update_healthcheck(healthcheck, hc_dict):
         db_update_healthcheck(healthcheck, {"healthcheck_last_time": datetime.now()})
     """
     session = query_db()
-    healthcheck = session.merge(healthcheck)
     try:
+        healthcheck = session.merge(healthcheck)
         for key, value in hc_dict.items():
             if hasattr(healthcheck, key):
                 setattr(healthcheck, key, value)
             else:
                 logger.warning(f"Unknown attribute '{key}' ignored.")
         session.commit()
-        return True 
+        return True
     except Exception as exc:
+        session.rollback()
         logger.error(f"Error updating node {healthcheck.ocid}: {exc}")
         return False
     finally:
@@ -1208,33 +1429,45 @@ def db_create_node(node_ocid, **kwargs):
 
 def db_move_terminated_node(node_row):
     session = query_db()
+    ocid = None
 
     try:
         ocid = node_row.ocid if hasattr(node_row, "ocid") else node_row
         node = session.query(Nodes).filter_by(ocid=ocid).one_or_none()
-        # Get shared column names, excluding 'id'
+        terminated_node = session.query(TerminatedNodes).filter_by(ocid=ocid).one_or_none()
+        if not node:
+            if terminated_node:
+                logger.debug(f"Node with OCID {ocid} is already in TerminatedNodes.")
+                return True
+            logger.error(f"No node found with ocid={ocid}")
+            return False
+
+        # Get shared column names, excluding id
         source_columns = {c.key for c in inspect(Nodes).mapper.column_attrs}
         target_columns = {c.key for c in inspect(TerminatedNodes).mapper.column_attrs}
-        shared_columns = source_columns & target_columns - {'id'}
+        shared_columns = source_columns & target_columns - {"id"}
 
         # Build the new TerminatedNodes object
         node_data = {col: getattr(node, col) for col in shared_columns}
-        terminated_node = TerminatedNodes(**node_data)
 
-        # Add to terminated table and delete from original
-        session.add(terminated_node)
+        # Add or update the terminated table, then delete from original.
+        if terminated_node:
+            for col, value in node_data.items():
+                setattr(terminated_node, col, value)
+        else:
+            terminated_node = TerminatedNodes(**node_data)
+            session.add(terminated_node)
         session.delete(node)
         session.commit()
-        logger.debug(f"Node with OCID {node.ocid} added to TerminatedNodes.")
-        logger.debug(f"Node with OCID {node.ocid} removed from Nodes.")
+        logger.debug(f"Node with OCID {ocid} moved to TerminatedNodes.")
 
-        test_nodes = session.query(Nodes).filter(Nodes.ocid == node.ocid).all()
+        test_nodes = session.query(Nodes).filter(Nodes.ocid == ocid).all()
         for test_node in test_nodes:
             logger.debug(f"Node with OCID {test_node.ocid} is still in the DB.")
         return True
     except Exception as exc:
         session.rollback()
-        logger.error(f"Error while moving node with OCID {node.ocid}: {exc}")
+        logger.error(f"Error while moving node with OCID {ocid}: {exc}")
         return False
     finally:
         session.close()
@@ -1351,10 +1584,10 @@ def db_import_configuration(filename):
             for instance in instance_types:
                 change_hostname = instance.get("change_hostname", True)
                 hostname_convention = instance.get("hostname_convention")
-                
+
                 # Apply lowercase if change_hostname is False
                 if not change_hostname and hostname_convention:
-                    hostname_convention = hostname_convention.lower()                
+                    hostname_convention = hostname_convention.lower()
                 # Map YAML keys to SQLAlchemy model fields
                 config = Configurations(
                     role="compute",
@@ -1520,15 +1753,18 @@ def get_config_by_shape_and_partition(shape, partition, role):
         session.close()
 
 def db_delete_node(node_row):
-    session = query_db()
     ocid = node_row.ocid if hasattr(node_row, "ocid") else node_row
-    node = session.query(Nodes).filter_by(ocid=ocid).one_or_none()
+    session = query_db()
     try:
+        node = session.query(Nodes).filter_by(ocid=ocid).one_or_none()
         session.delete(node)
         session.commit()
+    except Exception:
+        session.rollback()
+        raise
     finally:
         session.close()
-    
+
 def db_get_healthchecks(node_ocid):
     session = query_db()
     try:
@@ -1536,7 +1772,7 @@ def db_get_healthchecks(node_ocid):
         return healthchecks
     finally:
         session.close()
-    
+
 def db_get_latest_healthchecks(node_ocid):
     session = query_db()
     try:
@@ -1559,7 +1795,7 @@ def db_get_latest_healthchecks(node_ocid):
                                   )
                               )
                               .all())
-        
+
         return latest_healthchecks
     finally:
         session.close()
@@ -1602,37 +1838,54 @@ def db_create_healthcheck(node_ocid, hc_dict):
         session.close()
 
 def get_nodes_validated():
+    """Return InitialValidation nodes that are safe to release.
+
+    Initial nodes are held in a Slurm reservation until health checks prove
+    they are usable. Multi-node validation is required while the reservation
+    still contains more than one node. When only one node remains, the
+    multi-node check cannot validate a pair, so recent passive and active
+    health checks are enough to release it.
+    """
 
     current_time = current_utc_time()
-    time_th_active_hc = (current_time - timedelta(hours=1)).replace(tzinfo=timezone.utc)
+    healthcheck_time_th = (current_time - timedelta(hours=1)).replace(tzinfo=timezone.utc)
     query = get_nodes_with_latest_healthchecks()
-    label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
-    query = query.filter(label_map["role"] == "compute")
-    logger.debug(f"Count after role compute filter: {query.count()}")
-    query = query.filter(label_map["slurm_state"] == "resv")
-    nodes_in_validation_count = query.count()
-    logger.debug(f"Count after slurm_state resv filter: {nodes_in_validation_count}")
-    query = query.filter(label_map["slurm_reservation"] == "InitialValidation")
-    logger.debug(f"Count after slurm_reservation InitialValidation filter: {query.count()}")
-    query = query.filter(label_map["passive_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after passive_healthcheck_recommendation Healthy filter: {query.count()}")
-    query = query.filter(label_map["active_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after active_healthcheck_recommendation Healthy filter: {query.count()}")
+    try:
+        label_map = {c["name"]: c["expr"] for c in query.column_descriptions if "expr" in c}
 
+        validation_query = query.filter(
+            label_map["role"] == "compute",
+            _slurm_state_is_initial_validation(label_map),
+        )
+        nodes_in_validation_count = validation_query.count()
+        logger.debug(f"Count in InitialValidation reservation: {nodes_in_validation_count}")
 
-    query_validated = query.filter(label_map["multi_node_healthcheck_recommendation"] == "Healthy")
-    logger.debug(f"Count after multi_node_healthcheck_recommendation Healthy filter: {query_validated.count()}")
-    col = label_map.get("multi_node_healthcheck_last_time")
-    if col is not None:
-        query_validated = query_validated.filter( cast(col, DateTime) >= time_th_active_hc )
-    logger.debug(f"multi_node_healthcheck_last_time: {query_validated.count()}")
+        validated_query = validation_query.filter(
+            label_map["passive_healthcheck_recommendation"] == "Healthy",
+            label_map["active_healthcheck_recommendation"] == "Healthy",
+        )
 
-    query_not_validated = query.except_(query_validated)
-    if query_not_validated == 1 :
-        query_not_validated = query_not_validated.filter(col.is_(None))
-        col = label_map.get("active_healthcheck_recommendation")
-        if col is not None:
-            query_not_validated = query_not_validated.filter( cast(col, DateTime) >= (current_time - timedelta(minutes=10)).replace(tzinfo=timezone.utc) )
-            logger.debug(f"Count after active_healthcheck_last_time filter: {query_not_validated.count()}")
+        active_last_time = label_map.get("active_healthcheck_last_time")
+        if active_last_time is not None:
+            validated_query = validated_query.filter(
+                cast(active_last_time, DateTime) >= healthcheck_time_th
+            )
+        logger.debug(f"Count after passive and active validation: {validated_query.count()}")
 
-    return query_not_validated.union(query_validated)
+        if nodes_in_validation_count > 1:
+            validated_query = validated_query.filter(
+                label_map["multi_node_healthcheck_recommendation"] == "Healthy"
+            )
+
+            multi_node_last_time = label_map.get("multi_node_healthcheck_last_time")
+            if multi_node_last_time is not None:
+                validated_query = validated_query.filter(
+                    cast(multi_node_last_time, DateTime) >= healthcheck_time_th
+                )
+            logger.debug(f"Count after multi-node validation: {validated_query.count()}")
+        else:
+            logger.debug("Skipping multi-node validation requirement for single-node reservation")
+
+        return validated_query.all()
+    finally:
+        query.session.close()

@@ -7,7 +7,7 @@
     baseurl: https://repos.influxdata.com/stable/$basearch/main
     enabled: 1
     gpgcheck: 1
-    gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+    gpgkey: https://repos.influxdata.com/influxdata-archive_compat-exp2029.key
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Remove old InfluxData GPG key if exists
@@ -29,17 +29,25 @@
 
 - name: Manage InfluxData APT repositories - for Telegraf
   become: true
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/influxdata.gpg] https://repos.influxdata.com/debian stable main"
-    filename: influxdata
+  ansible.builtin.deb822_repository:
+    name: influxdata
+    types:
+      - deb
+    uris:
+      - https://repos.influxdata.com/debian
+    suites:
+      - stable
+    components:
+      - main
+    signed_by: /etc/apt/keyrings/influxdata.gpg
     state: present
-    update_cache: false
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Update apt cache for InfluxData repository only
   become: true
   ansible.builtin.apt:
     update_cache: true
+    lock_timeout: 120
     cache_valid_time: 0
   environment:
     APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE: "1"

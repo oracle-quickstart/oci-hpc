@@ -19,6 +19,8 @@ DEFAULTS = {
     "active_healthchecks_frequency": 24,
     "multi_nodes_healthchecks": True,
     "multi_nodes_healthchecks_frequency": 24,
+    "maintenance_event_slurm_management": True,
+    "maintenance_event_healthcheck_drained_only": False,
     "manage_hosts": False,
 }
 
@@ -50,6 +52,8 @@ def load_config(path: str | None) -> dict:
         "active_healthchecks_frequency": cfg.getint(section, "active_healthchecks_frequency"),
         "multi_nodes_healthchecks": cfg.getboolean(section, "multi_nodes_healthchecks"),
         "multi_nodes_healthchecks_frequency": cfg.getint(section, "multi_nodes_healthchecks_frequency"),
+        "maintenance_event_slurm_management": cfg.getboolean(section, "maintenance_event_slurm_management"),
+        "maintenance_event_healthcheck_drained_only": cfg.getboolean(section, "maintenance_event_healthcheck_drained_only"),
         "manage_hosts": cfg.getboolean(section, "manage_hosts"),
         "write_node_function_ocid": cfg.get(section, "write_node_function_ocid", fallback=None),
 
@@ -142,9 +146,14 @@ def cli(ctx, config_path, debug,
     ctx.obj = cfg
 
     # Logging based on final config
-    log_level = logging.DEBUG if cfg["debug"] else logging.INFO
-    logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s")
-    logging.getLogger("oci").setLevel(logging.WARNING)
+    log_level = logging.INFO
+    log_format = "%(asctime)s - %(levelname)s - %(message)s"
+    if cfg["debug"]:
+        log_level = logging.DEBUG
+        log_format = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+    logging.basicConfig(level=log_level, format=log_format)
+    for library in ("oci", "urllib3"):
+        logging.getLogger(library).setLevel(logging.WARNING)
 
 
 for subcommand in subcommands:

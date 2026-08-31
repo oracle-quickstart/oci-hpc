@@ -1,0 +1,15 @@
+---
+- name: Install Lustre LDLM tuning on existing nodes
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check if Lustre LDLM tuning helper is already installed
+      ansible.builtin.stat:
+        path: /usr/local/sbin/apply-lustre-ldlm-tuning
+      register: lustre_client_ldlm_tuning_helper
+
+    - name: Configure Lustre LDLM tuning units
+      ansible.builtin.include_role:
+        name: lustre_client
+        tasks_from: setup_ldlm_tuning
+      when: not (lustre_client_ldlm_tuning_helper.stat.exists | default(false))

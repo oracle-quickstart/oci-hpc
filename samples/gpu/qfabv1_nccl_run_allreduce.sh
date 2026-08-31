@@ -18,12 +18,7 @@ ORDEREDRANKMACHINEFILE="ordered_rankfile"
 echo INPUTFILE
 cat $hostfile
 
-# will generate rack-aware ordered host file
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
-    python3 /home/opc/node_ordering_by_rack.py --input_file $hostfile > /dev/null
-elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
-    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $hostfile > /dev/null
-fi
+/opt/oci-hpc/bin/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
 
 hostfile=$ORDEREDMACHINEFILE
 rankfile=$ORDEREDRANKMACHINEFILE

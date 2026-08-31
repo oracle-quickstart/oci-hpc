@@ -37,12 +37,12 @@ g.dashboard.new('Command Center')
     ),
     statPanel(
       'Total GPUs',
-      'sum(max by (Hostname) (DCGM_FI_DEV_COUNT{cluster_name=~"$cluster_name"}) or max by (hostname) (amd_gpu_nodes_total{cluster_name=~"$cluster_name"}) )',
+      'sum(gpu_expected_count{cluster_name=~"$cluster_name"}) or sum(amd_gpu_nodes_total{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:16, y:0}
     ),    
     statPanel(
       'Healthy GPUs',
-      'sum(available_gpu_count{cluster_name=~"$cluster_name"}) or sum(amd_gpu_nodes_total{cluster_name=~"$cluster_name"})',
+      'sum(gpu_available_count{cluster_name=~"$cluster_name"}) or sum(amd_gpu_nodes_total{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:20, y:0}
     ),
     /*
@@ -109,6 +109,11 @@ g.dashboard.new('Command Center')
             {
               title: 'GPU Health',
               url: '/d/${__field.labels.vendor}-gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
+              targetBlank: true,
+            },
+            {
+              title: 'GPU Failure Risk Score (beta)',
+              url: '/d/gpu-failure-risk-score-beta/gpu-failure-risk-score-beta?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             }
         ]),

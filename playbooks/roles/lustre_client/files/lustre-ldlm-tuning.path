@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch Lustre LDLM namespaces for client tuning
+ConditionPathExists=/usr/sbin/lctl
+
+[Path]
+PathExistsGlob=/proc/fs/lustre/ldlm/namespaces/*
+PathChanged=/proc/fs/lustre/ldlm/namespaces
+Unit=lustre-ldlm-tuning.service
+
+[Install]
+WantedBy=multi-user.target

@@ -9,14 +9,22 @@ import json
 import ipaddress
 
 from functools import cached_property
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import oci
 
 from ClusterShell.NodeSet import NodeSet
 
-from lib.database import db_create_node, get_nodes_by_id, db_update_node,get_nodes_by_cluster
+from lib.database import (
+    db_create_node,
+    get_controller_node,
+    get_nodes_by_id,
+    db_update_node,
+    get_nodes_by_cluster,
+    get_nodes_by_memory_cluster,
+    get_all_configs,
+)
 from lib.logger import logger
 
 
@@ -39,7 +47,7 @@ class OCIClients:
 
     @cached_property
     def compute_client(self):
-        return oci.core.ComputeClient(config={}, signer=self.signer)
+        return oci.core.ComputeClient(config={}, signer=self.signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     @cached_property
     def compute_client_composite_operations(self):
@@ -47,7 +55,7 @@ class OCIClients:
 
     @cached_property
     def compute_management_client(self):
-        return oci.core.ComputeManagementClient(config={}, signer=self.signer)
+        return oci.core.ComputeManagementClient(config={}, signer=self.signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     @cached_property
     def compute_management_client_composite_operations(self):
@@ -55,15 +63,15 @@ class OCIClients:
 
     @cached_property
     def virtual_network_client(self):
-        return oci.core.VirtualNetworkClient(config={}, signer=self.signer)
+        return oci.core.VirtualNetworkClient(config={}, signer=self.signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     @cached_property
     def dns_client(self):
-        return oci.dns.DnsClient(config={}, signer=self.signer)
+        return oci.dns.DnsClient(config={}, signer=self.signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     @cached_property
     def identity_client(self):
-        return oci.identity.IdentityClient(config={}, signer=self.signer)
+        return oci.identity.IdentityClient(config={}, signer=self.signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     @cached_property
     def identity_client_composite_operations(self):
@@ -71,11 +79,11 @@ class OCIClients:
 
     @cached_property
     def queue_admin_client(self):
-        return oci.queue.QueueAdminClient(config={}, signer=self.signer)
+        return oci.queue.QueueAdminClient(config={}, signer=self.signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     @cached_property
     def functions_management_client(self):
-        return oci.functions.FunctionsManagementClient(config={}, signer=self.signer)
+        return oci.functions.FunctionsManagementClient(config={}, signer=self.signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
 
 CLIENTS = OCIClients()
@@ -86,6 +94,7 @@ def invoke_node_event_function(function_id, node, event_type):
         config={},
         signer=CLIENTS.signer,
         service_endpoint=function.invoke_endpoint,
+        retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY,
     )
     payload = {
         "data": {
@@ -149,6 +158,88 @@ def list_tagged_cluster_nodes(compartment_id, cluster_name, controller_name, inc
 
     return nodes
 
+def list_controller_tagged_nodes(include_private_ip=False):
+    controller = get_controller_node()
+    if not controller:
+        raise ValueError("Controller node was not found in the mgmt DB.")
+
+    return list_tagged_cluster_nodes(
+        controller.compartment_id,
+        controller.cluster_name,
+        controller.controller_name,
+        include_private_ip=include_private_ip,
+    )
+
+
+def list_instance_maintenance_events(compartment_id):
+    """List every instance maintenance event in a compartment."""
+    try:
+        return oci.pagination.list_call_get_all_results(
+            CLIENTS.compute_client.list_instance_maintenance_events,
+            compartment_id=compartment_id,
+        ).data
+    except Exception as exc:
+        logger.error(
+            "Failed to list OCI instance maintenance events in compartment %s: %s",
+            compartment_id,
+            exc,
+        )
+        return []
+
+
+def get_instance_maintenance_event(event_id):
+    """Get a single instance maintenance event with detailed fault metadata."""
+    try:
+        return CLIENTS.compute_client.get_instance_maintenance_event(event_id).data
+    except Exception as exc:
+        logger.warning(
+            "Failed to get details for OCI maintenance event %s: %s",
+            event_id,
+            exc,
+        )
+        return None
+
+
+def reschedule_instance_maintenance_event(event_id, delay_minutes=5):
+    """Move a maintenance event's start window to now plus the given delay."""
+    time_window_start = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
+    details = oci.core.models.UpdateInstanceMaintenanceEventDetails(
+        time_window_start=time_window_start,
+    )
+    try:
+        response = CLIENTS.compute_client.update_instance_maintenance_event(
+            instance_maintenance_event_id=event_id,
+            update_instance_maintenance_event_details=details,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to update OCI maintenance event %s: %s",
+            event_id,
+            exc,
+        )
+        return None, None
+    return response.data, time_window_start
+
+
+def _get_controller_config_fss_hostname():
+    controller = get_controller_node()
+    if not controller or not controller.ocid:
+        logger.warning("Controller node was not found in the mgmt DB.")
+        return None
+
+    controller_instance = CLIENTS.compute_client.get_instance(controller.ocid).data
+    config_fss_hostname = (controller_instance.freeform_tags or {}).get("config_fss_hostname")
+    if not config_fss_hostname:
+        logger.warning("config_fss_hostname tag was not found on the controller.")
+    return config_fss_hostname
+
+def _add_config_fss_hostname_tag(tags):
+    tags = dict(tags or {})
+    config_fss_hostname = _get_controller_config_fss_hostname()
+    if config_fss_hostname:
+        tags["config_fss_hostname"] = config_fss_hostname
+    return tags
+
 def get_console_history(node):
     # Capture console history for the instance
     try:
@@ -162,20 +253,27 @@ def get_console_history(node):
         return None
 
 def list_custom_images(compartment_ocid):
+    custom_images = []
+    if not compartment_ocid:
+        logger.error("Cannot retrieve custom images without a compartment OCID")
+        return custom_images
     try:
         response = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_images,compartment_id=compartment_ocid)
-        custom_images=[]
         if response.data:
             for image in response.data:
                 custom_images.append(image)
         else:
             logger.info(f"No custom images found in compartment {compartment_ocid}.")
     except oci.exceptions.ServiceError as e:
-         logger.error(f"Error retrieving custom images: {compartment_ocid}")
+         logger.error(f"Error retrieving custom images from compartment {compartment_ocid}: {e}")
     return custom_images
 
 def pick_custom_images(compartment_ocid):
+    if not compartment_ocid:
+        raise ValueError("Cannot select a custom image because no compartment OCID was found")
     custom_images = list_custom_images(compartment_ocid)
+    if not custom_images:
+        raise ValueError(f"No custom images found in compartment {compartment_ocid}")
     for i, img in enumerate(custom_images):
         print(f"{i+1}. {img.display_name} ({img.id})")
     # Ask user to choose a custom image
@@ -247,16 +345,57 @@ def run_boot_volume_swap(node,image_ocid,size):
             logger.error(f"Error: {e}")
     time.sleep(1)
 
+def log_terminate_timeout(node, timeout_error):
+    try:
+        state = CLIENTS.compute_client.get_instance(node.ocid).data.lifecycle_state
+    except oci.exceptions.ServiceError as e:
+        if e.status == 404:
+            logger.info(f"Node {node.hostname} is already terminated: {e.code}")
+        else:
+            logger.error(f"Timed out waiting for {node.hostname} to terminate and failed to read current OCI state: {e}")
+        return
+
+    if state == "TERMINATED":
+        logger.info(f"Node {node.hostname} is terminated; OCI waiter timed out before observing completion")
+    else:
+        logger.error(f"Timed out waiting for {node.hostname} to terminate: {timeout_error}; current OCI state is {state}")
+
 def run_terminate(node):
     cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
     try:
         if cluster_type == "SA" or cluster_type == "CC":
             logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
-            CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING","TERMINATED"])
+            if hasattr(CLIENTS.compute_client_composite_operations, "terminate_instance_and_wait_for_work_request"):
+                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_work_request(node.ocid,work_request_states=["STATUS_SUCCEEDED"],waiter_kwargs={'max_wait_seconds': 600})
+            else:
+                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING", "TERMINATED"],waiter_kwargs={'max_wait_seconds': 600})
         elif cluster_type == "IPA" or cluster_type == "CN":
             logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=node.ocid,is_auto_terminate=True,is_decrement_size=True)
-            CLIENTS.compute_management_client_composite_operations.detach_instance_pool_instance_and_wait_for_work_request(instance_pool_ocid,instance_details)
+            CLIENTS.compute_management_client_composite_operations.detach_instance_pool_instance_and_wait_for_work_request(instance_pool_ocid,instance_details,waiter_kwargs={'max_wait_seconds': 600})
+    except (
+        oci.exceptions.CompositeOperationError,
+        oci.exceptions.MaximumWaitTimeExceeded,
+        oci.exceptions.ServiceError,
+    ) as e:
+        error = getattr(e, "cause", None) or e
+        if isinstance(error, oci.exceptions.MaximumWaitTimeExceeded):
+            log_terminate_timeout(node, error)
+        elif isinstance(error, oci.exceptions.ServiceError) and error.status == 404:
+            logger.info(f"Node {node.hostname} is already terminated: {error.code}")
+        else:
+            logger.error(f"Error terminating {node.hostname}: {error}")
+
+def run_terminate_no_wait(node):
+    cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(node)
+    try:
+        if cluster_type == "SA" or cluster_type == "CC":
+            logger.info(f"Submitting termination request for node {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
+            CLIENTS.compute_client.terminate_instance(node.ocid)
+        elif cluster_type == "IPA" or cluster_type == "CN":
+            logger.info(f"Submitting detach request for node {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
+            instance_details = oci.core.models.DetachInstancePoolInstanceDetails(instance_id=node.ocid,is_auto_terminate=True,is_decrement_size=True)
+            CLIENTS.compute_management_client.detach_instance_pool_instance(instance_pool_ocid,instance_details)
     except oci.exceptions.ServiceError as e:
         logger.error(f"Error: {e}")
 
@@ -281,7 +420,7 @@ def run_stop(node,soft):
             CLIENTS.compute_client.instance_action(instance_id=node.ocid,action="STOP")
     except oci.exceptions.ServiceError as e:
         logger.error(f"Error: {e}")
-        
+
 def run_tag(node):
     instance = CLIENTS.compute_client.get_instance(instance_id=node.ocid).data
     tags = instance.defined_tags
@@ -294,8 +433,37 @@ def run_tag(node):
         logger.error("The tag does not exists or the controller doesn't have acces to the tag")
         logger.error("Make sure the Tag namespace ComputeInstanceHostActions exists with the defined tag: CustomerReportedHostStatus")
 
-def run_add(nodes, count, names, cluster, compartment_ocid):
-    if not nodes:
+def run_enable_instance_rdma_plugins(node):
+    instance_rdma_plugins = ("Compute HPC RDMA Authentication", "Compute HPC RDMA Auto-Configuration")
+    logger.info("Enabling RDMA plugins on instance: " + node.hostname + " with OCID:"+node.ocid)
+    try:
+        instance = CLIENTS.compute_client.get_instance(instance_id=node.ocid).data
+        plugins_by_name = {}
+        agent_config = instance.agent_config
+        if agent_config and agent_config.plugins_config:
+            for plugin in agent_config.plugins_config:
+                plugins_by_name[plugin.name] = plugin.desired_state
+        for name in instance_rdma_plugins:
+            plugins_by_name[name] = "ENABLED"
+        plugins_config = [
+            oci.core.models.InstanceAgentPluginConfigDetails(desired_state=state, name=name)
+            for name, state in plugins_by_name.items()
+        ]
+        new_agent_config = oci.core.models.UpdateInstanceAgentConfigDetails(plugins_config=plugins_config)
+        update_instance_details = oci.core.models.UpdateInstanceDetails(agent_config=new_agent_config)
+        CLIENTS.compute_client.update_instance(node.ocid, update_instance_details)
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"Error enabling RDMA plugins on {node.hostname}: {e}")
+
+def run_add(nodes, count, names, cluster, compartment_ocid, memory_cluster_ocid=None):
+    if memory_cluster_ocid:
+        memory_cluster_data = CLIENTS.compute_client.get_compute_gpu_memory_cluster(
+            memory_cluster_ocid
+        ).data
+        cluster_type = "MC"
+        cluster_ocid = memory_cluster_data.id
+        cluster_name = memory_cluster_data.display_name
+    elif not nodes:
         if cluster is None:
             logger.error("The resize script cannot work for a cluster if there are no nodes in the cluster")
             sys.exit(1)
@@ -309,7 +477,7 @@ def run_add(nodes, count, names, cluster, compartment_ocid):
                     sys.exit(1)
                 elif len(instance_pools) > 1:
                     logger.error("Multiple clusters found with name: {}".format(cluster))
-                    sys.exit(1)  
+                    sys.exit(1)
                 else:
                     cluster_type="IPA"
                     cluster_ocid=instance_pools[0].id
@@ -389,31 +557,83 @@ def run_add(nodes, count, names, cluster, compartment_ocid):
             sys.exit(1)
 
 
-def run_add_memory_fabric( nodes, controller, count, fabric_id , gpu_memory_cluster_name, instancetype=None, compute_cluster_id=None, compute_cluster_name=None, targetsize=0):
-    if not nodes:
-        logger.error("The resize script cannot work for a cluster if the size is there is no node in the cluster and no instance type has been specified")
-        sys.exit(1)
+def _region_from_ocid(ocid):
+    parts = ocid.split(".")
+    if len(parts) > 3 and parts[3]:
+        return parts[3]
+    return "<region>"
+
+
+def _compute_gpu_memory_cluster_request_body(
+    availability_domain,
+    compartment_id,
+    cc_id,
+    instance_config_ocid,
+    count,
+    fabric_id,
+    gpu_memory_cluster_name,
+    targetsize=0,
+):
+    request_body = {
+        "availabilityDomain": availability_domain,
+        "compartmentId": compartment_id,
+        "computeClusterId": cc_id,
+        "instanceConfigurationId": instance_config_ocid,
+        "size": int(count),
+        "gpuMemoryFabricId": fabric_id,
+        "displayName": gpu_memory_cluster_name,
+    }
+    if int(targetsize) != 0:
+        request_body["gpuMemoryClusterScaleConfig"] = {
+            "isDownsizeEnabled": True,
+            "isUpsizeEnabled": True,
+            "targetSize": int(targetsize),
+        }
+    return request_body
+
+
+def _print_compute_gpu_memory_cluster_raw_request(request_body, fabric_id):
+    region = _region_from_ocid(fabric_id)
+    print("Resolved create_compute_gpu_memory_cluster request body:")
+    print(json.dumps(request_body, indent=2))
+    print()
+    print("Equivalent OCI raw-request command:")
+    print("cat > /tmp/create-gpu-memory-cluster.json <<'JSON'")
+    print(json.dumps(request_body, indent=2))
+    print("JSON")
+    print()
+    print("oci raw-request \\")
+    print("  --http-method POST \\")
+    print(f'  --target-uri "https://iaas.{region}.oraclecloud.com/20160918/computeGpuMemoryClusters" \\')
+    print("  --request-body file:///tmp/create-gpu-memory-cluster.json")
+
+
+def run_add_memory_fabric(nodes, controller, count, fabric_id , gpu_memory_cluster_name, instancetype=None, compute_cluster_id=None, compute_cluster_name=None, targetsize=0, dump_command=False):
     if fabric_id is None:
         logger.error("For BM.GPU.GB200.4, BM.GPU.GB200-v2.4, BM.GPU.GB200-v3.4, or BM.GPU.GB300.4, the memory fabric needs to be specified, Exiting")
         sys.exit(1)
     if len(nodes) == 0 and (instancetype is None or compute_cluster_name is None):
         logger.error("No nodes found in the cluster and no instance type or compute cluster ID has been specified")
         sys.exit(1)
+
     first_node=None
     if len(nodes):
         for node in nodes:
-            if node.cluster_name and node.controller_name:
+            if node.cluster_name and node.controller_name and getattr(node, 'memory_cluster_id', None):
                 first_node=node
                 break
-    if first_node is None:
-        compartment_id=first_node.compartment_id
 
-        instance_config_data=generate_instance_config(instancetype, controller.hostname, compute_cluster_name, memory_cluster_name = gpu_memory_cluster_name)
+    if first_node is None:
+        compartment_id=controller.compartment_id
+        if instancetype is None:
+            logger.error("No nodes found in the cluster and no instance type has been specified")
+            sys.exit(1)
+        instance_config_data=generate_instance_config(instancetype, controller.hostname, compute_cluster_name, memory_cluster_name=gpu_memory_cluster_name)
         instance_config_ocid=instance_config_data.id
-        
+
         if compute_cluster_id is None:
-            cc_list = CLIENTS.compute_client.list_compute_clusters(compartment_id,display_name=compute_cluster_name).data.items
-            running_cc_list=[cc for cc in cc_list if cc.lifecycle_state == "RUNNING"]
+            cc_list = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_clusters, compartment_id=compartment_id, display_name=compute_cluster_name).data
+            running_cc_list=[cc for cc in cc_list if cc.lifecycle_state == "ACTIVE" and cc.display_name == compute_cluster_name] #The filter on list_compute_clusters is broken
             if len(running_cc_list) > 1:
                 logger.error("We found multiple running compute clusters with that cluster name, specify Compute Cluster OCID")
                 sys.exit(1)
@@ -427,34 +647,68 @@ def run_add_memory_fabric( nodes, controller, count, fabric_id , gpu_memory_clus
             cc_id = compute_cluster_id
             availability_domain=CLIENTS.compute_client.get_compute_cluster(cc_id).data.availability_domain
     else:
-        availability_domain=first_node.availability_domain
-        compartment_id=controller.compartment_id
-        memory_clusters=CLIENTS.compute_client.list_compute_gpu_memory_clusters(compartment_id,display_name=first_node.memory_cluster_id).data.items
-        if len(memory_clusters) == 0:
-            memory_clusters=[CLIENTS.compute_client.get_compute_gpu_memory_cluster(first_node.memory_cluster_id).data]
+        availability_domain = first_node.availability_domain
+        compartment_id = controller.compartment_id
+        all_memory_clusters = _response_items(oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_gpu_memory_clusters, compartment_id=compartment_id, display_name=first_node.memory_cluster_id).data)
+        memory_clusters = [entry for entry in all_memory_clusters if entry.lifecycle_state == "ACTIVE"]
+        if len(memory_clusters) == 0 :
+            try:
+                memory_clusters = [CLIENTS.compute_client.get_compute_gpu_memory_cluster(first_node.memory_cluster_id).data]
+            except oci.exceptions.ServiceError as e:
+                memory_clusters = []
         if len(memory_clusters) == 0:
             logger.error("No memory clusters found with that name or OCID")
             sys.exit(1)
         else:
             for memory_cluster in memory_clusters:
-                mc_id=memory_cluster.id
-                memory_cluster_data=CLIENTS.compute_client.get_compute_gpu_memory_cluster(mc_id).data
-                cc_id=memory_cluster_data.compute_cluster_id
-                if compute_cluster_id is not None: 
+                mc_id = memory_cluster.id
+                memory_cluster_data = CLIENTS.compute_client.get_compute_gpu_memory_cluster(mc_id).data
+                cc_id = memory_cluster_data.compute_cluster_id
+                if compute_cluster_id is not None:
                     if cc_id != compute_cluster_id:
                         logger.error("The compute cluster ID you specified does not match the compute cluster ID of the nodes in the current cluster")
                         sys.exit(1)
                 instance_config_ocid=memory_cluster_data.instance_configuration_id
+                break
+    request_body = _compute_gpu_memory_cluster_request_body(
+        availability_domain,
+        compartment_id,
+        cc_id,
+        instance_config_ocid,
+        count,
+        fabric_id,
+        gpu_memory_cluster_name,
+        targetsize=targetsize,
+    )
+    if dump_command:
+        _print_compute_gpu_memory_cluster_raw_request(request_body, fabric_id)
+        return
+
     if targetsize != 0:
-        clusterScaleConfig=oci.core.models.CreateComputeGpuMemoryClusterScaleConfig(is_downsize_enabled=True,is_upsize_enabled=True,target_size=18)
-        compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=availability_domain, compartment_id=compartment_id, compute_cluster_id=cc_id, instance_configuration_id=instance_config_ocid, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name, gpu_memory_cluster_scale_config=clusterScaleConfig)
+        clusterScaleConfig=oci.core.models.CreateComputeGpuMemoryClusterScaleConfig(is_downsize_enabled=True, is_upsize_enabled=True, target_size=int(targetsize))
+        compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(
+            availability_domain=availability_domain,
+            compartment_id=compartment_id,
+            compute_cluster_id=cc_id,
+            instance_configuration_id=instance_config_ocid,
+            size=int(count),
+            gpu_memory_fabric_id=fabric_id,
+            display_name=gpu_memory_cluster_name,
+            gpu_memory_cluster_scale_config=clusterScaleConfig)
         try:
             CLIENTS.compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
         except:
-            logger.warning("Failed to create compute GPU memory cluster, you specified a non-0 target size. Are you whitelisted for it? ")
+            logger.error("Failed to create compute GPU memory cluster, you specified a non-0 target size. Are you whitelisted for it? ")
             sys.exit(1)
     else:
-        compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=first_node.availability_domain, compartment_id=first_node.compartment_id, compute_cluster_id=cc_id, instance_configuration_id=instance_config_ocid, size=int(count), gpu_memory_fabric_id=fabric_id, display_name=gpu_memory_cluster_name)
+        compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(
+            availability_domain=availability_domain,
+            compartment_id=compartment_id,
+            compute_cluster_id=cc_id,
+            instance_configuration_id=instance_config_ocid,
+            size=int(count),
+            gpu_memory_fabric_id=fabric_id,
+            display_name=gpu_memory_cluster_name)
         CLIENTS.compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
 
 def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment_ocid,cluster_name,hostname=None):
@@ -476,7 +730,7 @@ def getLaunchInstanceDetailsFromInstance(first_instance,cluster_ocid,compartment
     except:
         launchInstanceShapeConfigDetails = oci.core.models.LaunchInstanceShapeConfigDetails(baseline_ocpu_utilization=shape_config.baseline_ocpu_utilization,memory_in_gbs=shape_config.memory_in_gbs,ocpus=shape_config.ocpus)
 
-    freeform_tags=first_instance.freeform_tags
+    freeform_tags=_add_config_fss_hostname_tag(first_instance.freeform_tags)
     if hostname is None:
         new_display_name = "inst-"+''.join(random.choices(string.ascii_lowercase, k=5))+"-"+cluster_name
     else:
@@ -529,7 +783,7 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
                 continue
             elif len(instance.freeform_tags) == 0:
                 continue
-            elif "controller" in instance.freeform_tags.keys() or "login" in instance.freeform_tags.keys() or "monitoring" in instance.freeform_tags.keys():
+            elif "controller" in instance.freeform_tags.keys() or "login" in instance.freeform_tags.keys() or "monitoring" in instance.freeform_tags.keys() or "slurm_backup" in instance.freeform_tags.keys():
                 continue
             elif "cluster_name" in instance.freeform_tags.keys():
                 if instance.freeform_tags["cluster_name"]==cluster_name:
@@ -545,14 +799,49 @@ def get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name):
         instance_summaries = CLIENTS.compute_client.list_compute_gpu_memory_cluster_instances(cluster_ocid).data.items
         return(len(instance_summaries))
 
+def _get_node_compartment_id(node):
+    compartment_id = getattr(node, "compartment_id", None)
+    if compartment_id:
+        return compartment_id
+
+    instance_ocid = getattr(node, "ocid", None)
+    if instance_ocid:
+        try:
+            compartment_id = CLIENTS.compute_client.get_instance(instance_ocid).data.compartment_id
+            if compartment_id:
+                logger.info(
+                    "Resolved compartment %s from OCI instance %s",
+                    compartment_id,
+                    getattr(node, "hostname", None) or instance_ocid,
+                )
+                return compartment_id
+        except oci.exceptions.ServiceError as e:
+            logger.error(f"Error retrieving compartment for instance {instance_ocid}: {e}")
+
+    controller = get_controller_node()
+    if controller and getattr(controller, "compartment_id", None):
+        logger.warning(
+            "Node %s does not have a compartment_id; using controller compartment %s",
+            getattr(node, "hostname", None) or instance_ocid,
+            controller.compartment_id,
+        )
+        return controller.compartment_id
+
+    logger.error(
+        "Cannot determine compartment for node %s",
+        getattr(node, "hostname", None) or instance_ocid,
+    )
+    sys.exit(1)
+
 def get_instance_type(node):
+    compartment_id = _get_node_compartment_id(node)
     try:
-        instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_cluster_networks,node.compartment_id,display_name=node.cluster_name).data
+        instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_cluster_networks,compartment_id,display_name=node.cluster_name,lifecycle_state="RUNNING").data
         if len(instance_pools):
             logger.debug(f"Found Cluster Network with name {node.cluster_name}")
             for instance_pool in instance_pools:
                 ipa_ocid=instance_pool.instance_pools[0].id
-                instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,node.compartment_id,ipa_ocid).data
+                instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,compartment_id,ipa_ocid).data
                 for instance_summary in instance_summaries:
                     if instance_summary.id == node.ocid:
                         cluster_type="CN"
@@ -562,11 +851,11 @@ def get_instance_type(node):
     except oci.exceptions.ServiceError as e:
         logger.warning("CLuster Network are not enabled in this region")
         instance_pools = []
-    instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pools,node.compartment_id,display_name=node.cluster_name).data
+    instance_pools = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pools,compartment_id,display_name=node.cluster_name).data
     if len(instance_pools):
         logger.debug(f"Found Instance Pool with name {node.cluster_name}")
         for instance_pool in instance_pools:
-            instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,node.compartment_id,instance_pool.id).data
+            instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,compartment_id,instance_pool.id).data
             for instance_summary in instance_summaries:
                 logger.debug(f"instance_summary.id = {instance_summary.id}")
                 if instance_summary.id == node.ocid:
@@ -576,35 +865,36 @@ def get_instance_type(node):
                     ipa_ocid=instance_pool.id
                     return cluster_type,cluster_ocid,ipa_ocid
     try:
-        instance_pools = CLIENTS.compute_client.list_compute_clusters(node.compartment_id,display_name=node.cluster_name).data.items
+        compute_clusters_list = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_clusters, compartment_id, display_name=node.cluster_name).data
+        compute_clusters = [entry for entry in compute_clusters_list if entry.lifecycle_state == "ACTIVE" and entry.display_name == node.cluster_name]
     except:
         logger.warning("Compute clusters are not enabled in this region")
-        instance_pools = []
-    if len(instance_pools):
+        compute_clusters = []
+    if len(compute_clusters):
         logger.debug(f"Found Compute Cluster with name {node.cluster_name}")
-        for instance_pool in instance_pools:
-            instance_summaries = CLIENTS.compute_client.list_instances(node.compartment_id,compute_cluster_id=instance_pool.id).data
-            for instance_summary in instance_summaries:
+        for cc in compute_clusters:
+            cc_instances = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_instances, compartment_id, compute_cluster_id=cc.id).data
+            for instance_summary in cc_instances:
                 if instance_summary.id == node.ocid:
                     cluster_type="CC"
-                    cluster_ocid=instance_pool.id
-                    ipa_ocid=instance_pool.id
-                    return cluster_type,cluster_ocid,ipa_ocid
-    instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_instances,compartment_id=node.compartment_id).data
+                    cluster_ocid=cc.id
+                    ipa_ocid=cc.id
+                    return cluster_type, cluster_ocid, ipa_ocid
+    instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_instances, compartment_id=compartment_id).data
     for instance_summary in instance_summaries:
         if instance_summary.id == node.ocid:
             cluster_type="SA"
             cluster_ocid=None
             ipa_ocid=None
-            return cluster_type,cluster_ocid,ipa_ocid
+            return cluster_type, cluster_ocid, ipa_ocid
     logger.warning("Node was not found, maybe it is missing tags?")
-    return "SA",None,None
+    return "SA", None, None
 
 def oci_scan_queue_and_update_db(controller_name):
 
     queue_ocid=get_queue_ocid()
     endpoint = CLIENTS.queue_admin_client.get_queue(queue_ocid).data.messages_endpoint
-    queue_client = oci.queue.QueueClient(config={}, signer=CLIENTS.signer, service_endpoint=endpoint)
+    queue_client = oci.queue.QueueClient(config={}, signer=CLIENTS.signer, service_endpoint=endpoint, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
     current_time = datetime.now(UTC) if version >= (3, 12) else datetime.utcnow()
     current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
     nodes_to_add=[]
@@ -676,13 +966,13 @@ def get_queue_ocid():
 
     return queue_ocid
 
-def get_host_api_dict(compartment,tenancy):
+def get_host_api_dict(compartment, tenancy):
     try:
-        compartment_host_api=oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_hosts,compartment_id=compartment).data
+        compartment_host_api=oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_hosts, compartment_id=compartment).data
     except:
         compartment_host_api=[]
     try:
-        tenancy_host_api=oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_hosts,compartment_id=tenancy).data
+        tenancy_host_api=oci.pagination.list_call_get_all_results(CLIENTS.compute_client.list_compute_hosts, compartment_id=tenancy).data
     except:
         tenancy_host_api=[]
     return compartment_host_api + tenancy_host_api
@@ -837,6 +1127,7 @@ def getLaunchInstanceDetailsFromInstanceType(config, controller_hostname, cn_oci
             new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname}
         if config.role == "login":
             new_tags["login"]="true"
+        new_tags = _add_config_fss_hostname_tag(new_tags)
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.LaunchInstanceDetails(
             availability_domain=availability_domain,
@@ -1039,6 +1330,7 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
 
         new_metadata={"ssh_authorized_keys":public_key,"user_data": cloud_init}
         new_tags={"cluster_name" : cluster_name, "controller_name" : controller_hostname, "hostname_convention" : hostname_convention}
+        new_tags = _add_config_fss_hostname_tag(new_tags)
         if shape.endswith("Flex"):
             new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
             availability_domain=availability_domain,
@@ -1097,6 +1389,335 @@ def generate_instance_config(config, controller_hostname, cluster_name, memory_c
         logger.error(f"Unexpected error: {e}")
         return None
 
+def _dedupe_by_id(items):
+    deduped = []
+    seen = set()
+    for item in items:
+        item_id = getattr(item, "id", None)
+        if not item_id or item_id in seen:
+            continue
+        deduped.append(item)
+        seen.add(item_id)
+    return deduped
+
+def _response_items(data):
+    if data is None:
+        return []
+    items = getattr(data, "items", None)
+    if items is not None and not callable(items):
+        return items
+    return data
+
+def _resolve_compute_gpu_memory_clusters(memory_cluster_id=None, nodes=None):
+    nodes = nodes or []
+    memory_cluster_ids = []
+
+    if memory_cluster_id:
+        memory_cluster_ids.append(memory_cluster_id)
+    else:
+        memory_cluster_ids.extend(
+            sorted({
+                node.memory_cluster_id
+                for node in nodes
+                if getattr(node, "memory_cluster_id", None)
+                and node.memory_cluster_id != "None"
+            })
+        )
+
+    if not memory_cluster_ids:
+        return []
+
+    compartments = {
+        node.compartment_id
+        for node in nodes
+        if getattr(node, "compartment_id", None)
+    }
+    controller = get_controller_node()
+    if controller and getattr(controller, "compartment_id", None):
+        compartments.add(controller.compartment_id)
+
+    memory_clusters = []
+    for cluster_id_or_name in memory_cluster_ids:
+        try:
+            memory_clusters.append(
+                CLIENTS.compute_client.get_compute_gpu_memory_cluster(cluster_id_or_name).data
+            )
+            continue
+        except oci.exceptions.ServiceError as exc:
+            if exc.status != 404:
+                raise
+
+        matches = []
+        for compartment_id in compartments:
+            response = oci.pagination.list_call_get_all_results(
+                CLIENTS.compute_client.list_compute_gpu_memory_clusters,
+                compartment_id=compartment_id,
+                display_name=cluster_id_or_name,
+            )
+            matches.extend([
+                cluster for cluster in _response_items(response.data)
+                if cluster.id == cluster_id_or_name or cluster.display_name == cluster_id_or_name
+            ])
+
+        if not matches:
+            logger.warning("No compute GPU memory cluster found for %s", cluster_id_or_name)
+            continue
+
+        memory_clusters.extend(matches)
+
+    return _dedupe_by_id(memory_clusters)
+
+def _memory_cluster_lookup_compartments(nodes=None):
+    nodes = nodes or []
+    compartments = {
+        node.compartment_id
+        for node in nodes
+        if getattr(node, "compartment_id", None)
+    }
+    controller = get_controller_node()
+    if controller and getattr(controller, "compartment_id", None):
+        compartments.add(controller.compartment_id)
+    for config in get_all_configs("all"):
+        if getattr(config, "target_compartment_id", None):
+            compartments.add(config.target_compartment_id)
+    return compartments
+
+def _list_compute_gpu_memory_clusters(compartments, display_name=None):
+    memory_clusters = []
+    for compartment_id in compartments:
+        kwargs = {"compartment_id": compartment_id}
+        if display_name:
+            kwargs["display_name"] = display_name
+        response = oci.pagination.list_call_get_all_results(
+            CLIENTS.compute_client.list_compute_gpu_memory_clusters,
+            **kwargs,
+        )
+        memory_clusters.extend(_response_items(response.data))
+    return _dedupe_by_id(memory_clusters)
+
+def _list_compute_gpu_memory_fabrics_for_delete():
+    controller = get_controller_node()
+    if controller is None or not getattr(controller, "tenancy_id", None):
+        logger.error("Cannot resolve GPU memory fabrics without a controller node in the database")
+        sys.exit(1)
+
+    return oci.pagination.list_call_get_all_results(
+        CLIENTS.compute_client.list_compute_gpu_memory_fabrics,
+        compartment_id=controller.tenancy_id,
+    ).data
+
+def _resolve_compute_gpu_memory_clusters_by_fabric_scope(
+    compartments,
+    compute_local_block_id=None,
+    compute_network_block_id=None,
+    compute_hpc_island_id=None,
+):
+    fabrics = [
+        fabric for fabric in _list_compute_gpu_memory_fabrics_for_delete()
+        if _memory_fabric_matches_scope(
+            fabric,
+            compute_local_block_id=compute_local_block_id,
+            compute_network_block_id=compute_network_block_id,
+            compute_hpc_island_id=compute_hpc_island_id,
+        )
+    ]
+    if not fabrics:
+        logger.error("No GPU memory fabrics found for the requested scope")
+        sys.exit(1)
+
+    fabric_ids = {fabric.id for fabric in fabrics}
+    matches = [
+        cluster for cluster in _list_compute_gpu_memory_clusters(compartments)
+        if getattr(cluster, "gpu_memory_fabric_id", None) in fabric_ids
+    ]
+    if not matches:
+        logger.error("No compute GPU memory clusters found for the requested fabric scope")
+        sys.exit(1)
+
+    logger.info(
+        "Resolved fabric scope to memory cluster(s): %s",
+        ", ".join(cluster.display_name or cluster.id for cluster in matches),
+    )
+    return matches
+
+def resolve_compute_gpu_memory_cluster_delete_targets(
+    targets,
+    nodes=None,
+    compute_local_block_id=None,
+    compute_network_block_id=None,
+    compute_hpc_island_id=None,
+):
+    targets = targets or []
+    nodes = nodes or []
+    compartments = _memory_cluster_lookup_compartments(nodes)
+    memory_clusters = []
+
+    if compute_local_block_id or compute_network_block_id or compute_hpc_island_id:
+        memory_clusters.extend(
+            _resolve_compute_gpu_memory_clusters_by_fabric_scope(
+                compartments,
+                compute_local_block_id=compute_local_block_id,
+                compute_network_block_id=compute_network_block_id,
+                compute_hpc_island_id=compute_hpc_island_id,
+            )
+        )
+
+    for target in targets:
+        if target.startswith("ocid1.computegpumemoryfabric."):
+            matches = [
+                cluster for cluster in _list_compute_gpu_memory_clusters(compartments)
+                if getattr(cluster, "gpu_memory_fabric_id", None) == target
+            ]
+            if not matches:
+                logger.error(f"No compute GPU memory clusters found for GPU memory fabric {target}")
+                sys.exit(1)
+            logger.info(
+                "Resolved GPU memory fabric %s to memory cluster(s): %s",
+                target,
+                ", ".join(cluster.display_name or cluster.id for cluster in matches),
+            )
+            memory_clusters.extend(matches)
+            continue
+
+        matches = _resolve_compute_gpu_memory_clusters(memory_cluster_id=target, nodes=nodes)
+        if not matches:
+            logger.error(f"No compute GPU memory cluster found for {target}")
+            sys.exit(1)
+        memory_clusters.extend(matches)
+
+    return _dedupe_by_id(memory_clusters)
+
+def _create_updated_instance_config(
+    compute_mgmt,
+    src_config,
+    image_id=None,
+    ssh_key=None,
+    cloud_init_path=None,
+    boot_volume_size=None,
+    new_display_name=None,
+):
+    launch = src_config.instance_details.launch_details
+
+    new_metadata = dict(launch.metadata) if launch.metadata else {}
+
+    if ssh_key:
+        new_metadata["ssh_authorized_keys"] = ssh_key
+
+    if cloud_init_path:
+        new_metadata["user_data"] = oci.util.file_content_as_launch_instance_user_data(
+            cloud_init_path
+        )
+
+    new_agent_config = None
+    if launch.agent_config:
+        new_agent_config = oci.core.models.InstanceConfigurationLaunchInstanceAgentConfigDetails(
+            are_all_plugins_disabled=launch.agent_config.are_all_plugins_disabled,
+            is_management_disabled=launch.agent_config.is_management_disabled,
+            is_monitoring_disabled=launch.agent_config.is_monitoring_disabled,
+            plugins_config=[
+                oci.core.models.InstanceAgentPluginConfigDetails(
+                    desired_state=plugin.desired_state,
+                    name=plugin.name,
+                )
+                for plugin in (launch.agent_config.plugins_config or [])
+            ],
+        )
+
+    new_create_vnic = None
+    if launch.create_vnic_details:
+        new_create_vnic = oci.core.models.InstanceConfigurationCreateVnicDetails(
+            assign_public_ip=launch.create_vnic_details.assign_public_ip,
+            assign_private_dns_record=launch.create_vnic_details.assign_private_dns_record,
+            subnet_id=launch.create_vnic_details.subnet_id,
+            nsg_ids=launch.create_vnic_details.nsg_ids,
+            assign_ipv6_ip=launch.create_vnic_details.assign_ipv6_ip,
+        )
+
+    src_details = launch.source_details
+
+    final_image_id = image_id if image_id else src_details.image_id
+    final_bv_size = (
+        boot_volume_size
+        if boot_volume_size
+        else getattr(src_details, "boot_volume_size_in_gbs", None)
+    )
+
+    new_source_details = oci.core.models.InstanceConfigurationInstanceSourceViaImageDetails(
+        source_type="image",
+        image_id=final_image_id,
+        boot_volume_size_in_gbs=final_bv_size,
+        boot_volume_vpus_per_gb=getattr(
+            src_details, "boot_volume_vpus_per_gb", None
+        ),
+    )
+
+    new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
+        availability_domain=launch.availability_domain,
+        compartment_id=launch.compartment_id,
+        display_name=launch.display_name,
+        shape=launch.shape,
+        shape_config=launch.shape_config,
+        platform_config=launch.platform_config,
+        metadata=new_metadata,
+        extended_metadata=launch.extended_metadata,
+        ipxe_script=launch.ipxe_script,
+        freeform_tags=launch.freeform_tags,
+        defined_tags=launch.defined_tags,
+        agent_config=new_agent_config,
+        create_vnic_details=new_create_vnic,
+        source_details=new_source_details,
+        security_attributes=launch.security_attributes,
+        launch_options=launch.launch_options,
+        fault_domain=launch.fault_domain,
+        dedicated_vm_host_id=launch.dedicated_vm_host_id,
+        launch_mode=launch.launch_mode,
+        instance_options=launch.instance_options,
+        availability_config=launch.availability_config,
+        preemptible_instance_config=launch.preemptible_instance_config,
+        licensing_configs=launch.licensing_configs,
+        is_pv_encryption_in_transit_enabled=launch.is_pv_encryption_in_transit_enabled,
+    )
+
+    new_instance_details = oci.core.models.ComputeInstanceDetails(
+        instance_type=src_config.instance_details.instance_type,
+        launch_details=new_launch_details,
+        block_volumes=src_config.instance_details.block_volumes,
+        secondary_vnics=src_config.instance_details.secondary_vnics,
+    )
+
+    final_display_name = (
+        new_display_name
+        if new_display_name
+        else f"{src_config.display_name}-updated"
+    )
+
+    new_config_details = oci.core.models.CreateInstanceConfigurationDetails(
+        compartment_id=src_config.compartment_id,
+        display_name=final_display_name,
+        instance_details=new_instance_details,
+        defined_tags=src_config.defined_tags,
+        freeform_tags=src_config.freeform_tags,
+    )
+
+    return compute_mgmt.create_instance_configuration(new_config_details).data
+
+def _instance_config_display_name_for_update(
+    new_display_name,
+    current_config_id,
+    src_config,
+    multiple_source_configs=False,
+):
+    if not new_display_name:
+        return None
+    if not multiple_source_configs:
+        return new_display_name
+
+    source_name = getattr(src_config, "display_name", None) or current_config_id[-8:]
+    source_suffix = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(source_name)).strip("-")
+    if not source_suffix:
+        source_suffix = current_config_id[-8:]
+    return f"{new_display_name}-{source_suffix}"
+
 def update_instance_config(
     cluster_name,
     image_id=None,
@@ -1104,34 +1725,138 @@ def update_instance_config(
     cloud_init_path=None,
     boot_volume_size=None,
     new_display_name=None,
+    memory_cluster_id=None,
+    existing_instance_config_id=None,
 ):
     """
-    Update the instance configuration used by a cluster (IPA or CN).
+    Update the instance configuration used by a cluster.
 
-    - Creates a new instance configuration based on the current one
+    - Creates a new instance configuration based on the current one, unless
+      an existing instance configuration OCID is provided
     - Overrides image / ssh key / cloud-init / boot volume size if provided
-    - Updates all instance pools (supports multi-pool CN)
-    - Waits for pool update to complete
+    - Updates an IPA/CN instance pool, a single GMC, or all GMCs in a CC
     """
 
     compute_mgmt = CLIENTS.compute_management_client
     compute_mgmt_composite = CLIENTS.compute_management_client_composite_operations
 
     # -------------------------------------------------------
-    # STEP 1: Resolve cluster from DB
+    # STEP 1: Resolve cluster / GMC targets from DB
     # -------------------------------------------------------
-    nodes = get_nodes_by_cluster(cluster_name)
+    nodes = get_nodes_by_cluster(cluster_name) if cluster_name else []
+
+    resolved_memory_cluster_id = memory_cluster_id
+    if not nodes and cluster_name and not memory_cluster_id:
+        memory_cluster_nodes = get_nodes_by_memory_cluster(cluster_name)
+        if memory_cluster_nodes:
+            nodes = memory_cluster_nodes
+            resolved_memory_cluster_id = cluster_name
+
+    memory_clusters = _resolve_compute_gpu_memory_clusters(
+        memory_cluster_id=resolved_memory_cluster_id,
+        nodes=nodes,
+    )
+
+    if memory_clusters:
+        logger.info(
+            "Updating %s compute GPU memory cluster(s): %s",
+            len(memory_clusters),
+            ", ".join(cluster.display_name or cluster.id for cluster in memory_clusters),
+        )
+        if existing_instance_config_id:
+            compute_mgmt.get_instance_configuration(existing_instance_config_id)
+            logger.info(
+                "Using existing instance config for GMC update: %s",
+                existing_instance_config_id,
+            )
+
+        updated_configs = {}
+        created_config_by_source = {}
+        source_config_ids = {
+            cluster.instance_configuration_id
+            for cluster in memory_clusters
+            if getattr(cluster, "instance_configuration_id", None)
+        }
+        multiple_source_configs = len(source_config_ids) > 1
+        for memory_cluster in memory_clusters:
+            current_config_id = memory_cluster.instance_configuration_id
+            logger.info(
+                "Current instance config for GMC %s: %s",
+                memory_cluster.display_name or memory_cluster.id,
+                current_config_id,
+            )
+            if existing_instance_config_id:
+                target_config_id = existing_instance_config_id
+            elif current_config_id in created_config_by_source:
+                target_config_id = created_config_by_source[current_config_id]
+                logger.info(
+                    "Reusing instance config %s for GMC %s; source config %s was already updated",
+                    target_config_id,
+                    memory_cluster.display_name or memory_cluster.id,
+                    current_config_id,
+                )
+            else:
+                src_config = compute_mgmt.get_instance_configuration(current_config_id).data
+                effective_display_name = _instance_config_display_name_for_update(
+                    new_display_name,
+                    current_config_id,
+                    src_config,
+                    multiple_source_configs=multiple_source_configs,
+                )
+                new_config = _create_updated_instance_config(
+                    compute_mgmt,
+                    src_config,
+                    image_id=image_id,
+                    ssh_key=ssh_key,
+                    cloud_init_path=cloud_init_path,
+                    boot_volume_size=boot_volume_size,
+                    new_display_name=effective_display_name,
+                )
+                target_config_id = new_config.id
+                created_config_by_source[current_config_id] = target_config_id
+                logger.info(
+                    "Created instance config %s from source config %s",
+                    target_config_id,
+                    current_config_id,
+                )
+
+            if current_config_id == target_config_id:
+                updated_configs[memory_cluster.id] = target_config_id
+                logger.info(
+                    "Skipping GMC %s; instance config is already %s",
+                    memory_cluster.display_name or memory_cluster.id,
+                    target_config_id,
+                )
+                continue
+
+            update_details = oci.core.models.UpdateComputeGpuMemoryClusterDetails(
+                instance_configuration_id=target_config_id
+            )
+            CLIENTS.compute_client.update_compute_gpu_memory_cluster(
+                memory_cluster.id,
+                update_details,
+            )
+            updated_configs[memory_cluster.id] = target_config_id
+            logger.info(
+                "Updated GMC %s to instance config %s",
+                memory_cluster.display_name or memory_cluster.id,
+                target_config_id,
+            )
+
+        logger.info("Compute GPU memory cluster instance configuration update complete")
+        if len(updated_configs) == 1:
+            return next(iter(updated_configs.values()))
+        return updated_configs
 
     if not nodes:
-        logger.error(f"No nodes found for cluster {cluster_name}")
+        logger.error(f"No nodes found for cluster or GMC {cluster_name or memory_cluster_id}")
         sys.exit(1)
 
     first_node = nodes[0]
-
     cluster_type, cluster_ocid, ipa_ocid = get_instance_type(first_node)
 
     if cluster_type not in ["IPA", "CN"]:
-        logger.error("Instance configuration update is supported only for IPA and CN clusters")
+        logger.error("Instance configuration update is supported only for IPA, CN, or GMC-backed clusters")
         sys.exit(1)
 
     # -------------------------------------------------------
@@ -1166,148 +1891,45 @@ def update_instance_config(
 
     logger.info(f"Current instance config: {current_config_id}")
 
-    src_config = compute_mgmt.get_instance_configuration(
-        current_config_id
-    ).data
+    if existing_instance_config_id:
+        compute_mgmt.get_instance_configuration(existing_instance_config_id)
+        new_config_id = existing_instance_config_id
+        logger.info(f"Using existing instance config: {new_config_id}")
+    else:
+        src_config = compute_mgmt.get_instance_configuration(
+            current_config_id
+        ).data
 
-    launch = src_config.instance_details.launch_details
-
-    # -------------------------------------------------------
-    # STEP 4: Build NEW metadata
-    # -------------------------------------------------------
-    new_metadata = dict(launch.metadata) if launch.metadata else {}
-
-    if ssh_key:
-        new_metadata["ssh_authorized_keys"] = ssh_key
-
-    if cloud_init_path:
-        new_metadata["user_data"] = oci.util.file_content_as_launch_instance_user_data(
-            cloud_init_path
+        new_config = _create_updated_instance_config(
+            compute_mgmt,
+            src_config,
+            image_id=image_id,
+            ssh_key=ssh_key,
+            cloud_init_path=cloud_init_path,
+            boot_volume_size=boot_volume_size,
+            new_display_name=new_display_name,
         )
 
-    # -------------------------------------------------------
-    # STEP 5: Build Agent Config (if exists)
-    # -------------------------------------------------------
-    new_agent_config = None
-    if launch.agent_config:
-        new_agent_config = oci.core.models.InstanceConfigurationLaunchInstanceAgentConfigDetails(
-            are_all_plugins_disabled=launch.agent_config.are_all_plugins_disabled,
-            is_management_disabled=launch.agent_config.is_management_disabled,
-            is_monitoring_disabled=launch.agent_config.is_monitoring_disabled,
-            plugins_config=[
-                oci.core.models.InstanceAgentPluginConfigDetails(
-                    desired_state=plugin.desired_state,
-                    name=plugin.name,
-                )
-                for plugin in (launch.agent_config.plugins_config or [])
-            ],
-        )
-
-    # -------------------------------------------------------
-    # STEP 6: Build VNIC config (if exists)
-    # -------------------------------------------------------
-    new_create_vnic = None
-    if launch.create_vnic_details:
-        new_create_vnic = oci.core.models.InstanceConfigurationCreateVnicDetails(
-            assign_public_ip=launch.create_vnic_details.assign_public_ip,
-            assign_private_dns_record=launch.create_vnic_details.assign_private_dns_record,
-            subnet_id=launch.create_vnic_details.subnet_id,
-            nsg_ids=launch.create_vnic_details.nsg_ids,
-            assign_ipv6_ip=launch.create_vnic_details.assign_ipv6_ip,
-        )
-
-    # -------------------------------------------------------
-    # STEP 7: Build NEW source details safely
-    # -------------------------------------------------------
-    src_details = launch.source_details
-
-    final_image_id = image_id if image_id else src_details.image_id
-    final_bv_size = (
-        boot_volume_size
-        if boot_volume_size
-        else getattr(src_details, "boot_volume_size_in_gbs", None)
-    )
-
-    new_source_details = oci.core.models.InstanceConfigurationInstanceSourceViaImageDetails(
-        source_type="image",
-        image_id=final_image_id,
-        boot_volume_size_in_gbs=final_bv_size,
-        boot_volume_vpus_per_gb=getattr(
-            src_details, "boot_volume_vpus_per_gb", None
-        ),
-    )
-
-    # -------------------------------------------------------
-    # STEP 8: Build NEW launch details (full rebuild)
-    # -------------------------------------------------------
-    new_launch_details = oci.core.models.InstanceConfigurationLaunchInstanceDetails(
-        availability_domain=launch.availability_domain,
-        compartment_id=launch.compartment_id,
-        display_name=launch.display_name,
-        shape=launch.shape,
-        shape_config=launch.shape_config,
-        platform_config=launch.platform_config,
-        metadata=new_metadata,
-        extended_metadata=launch.extended_metadata,
-        ipxe_script=launch.ipxe_script,
-        freeform_tags=launch.freeform_tags,
-        defined_tags=launch.defined_tags,
-        agent_config=new_agent_config,
-        create_vnic_details=new_create_vnic,
-        source_details=new_source_details,
-        security_attributes=launch.security_attributes,
-        launch_options=launch.launch_options,
-        fault_domain=launch.fault_domain,
-        dedicated_vm_host_id=launch.dedicated_vm_host_id,
-        launch_mode=launch.launch_mode,
-        instance_options=launch.instance_options,
-        availability_config=launch.availability_config,
-        preemptible_instance_config=launch.preemptible_instance_config,
-        licensing_configs=launch.licensing_configs,
-        is_pv_encryption_in_transit_enabled=launch.is_pv_encryption_in_transit_enabled,
-    )
-
-    # -------------------------------------------------------
-    # STEP 9: Build NEW instance details
-    # -------------------------------------------------------
-    new_instance_details = oci.core.models.ComputeInstanceDetails(
-        instance_type=src_config.instance_details.instance_type,
-        launch_details=new_launch_details,
-        block_volumes=src_config.instance_details.block_volumes,
-        secondary_vnics=src_config.instance_details.secondary_vnics,
-    )
-
-    # -------------------------------------------------------
-    # STEP 10: Create new instance config
-    # -------------------------------------------------------
-    final_display_name = (
-        new_display_name
-        if new_display_name
-        else f"{src_config.display_name}-updated"
-    )
-
-    new_config_details = oci.core.models.CreateInstanceConfigurationDetails(
-        compartment_id=src_config.compartment_id,
-        display_name=final_display_name,
-        instance_details=new_instance_details,
-        defined_tags=src_config.defined_tags,
-        freeform_tags=src_config.freeform_tags,
-    )
-
-    new_config = compute_mgmt.create_instance_configuration(
-        new_config_details
-    ).data
-
-    logger.info(f"New instance config created: {new_config.id}")
+        new_config_id = new_config.id
+        logger.info(f"New instance config created: {new_config_id}")
 
     # -------------------------------------------------------
     # STEP 11: Update ALL instance pools safely (with waiter)
     # -------------------------------------------------------
 
+    if current_config_id == new_config_id:
+        logger.info(
+            "Skipping instance pool %s; instance config is already %s",
+            instance_pool_id,
+            new_config_id,
+        )
+        logger.info("Cluster instance configuration update complete")
+        return new_config_id
+
     logger.info(f"Updating instance pool {instance_pool_id}")
 
     update_details = oci.core.models.UpdateInstancePoolDetails(
-        instance_configuration_id=new_config.id
+        instance_configuration_id=new_config_id
     )
 
     compute_mgmt_composite.update_instance_pool_and_wait_for_state(
@@ -1320,7 +1942,7 @@ def update_instance_config(
     logger.info(f"Instance pool {instance_pool_id} updated successfully")
     logger.info("Cluster instance configuration update complete")
 
-    return new_config.id
+    return new_config_id
 
 def generate_inventory(config,cluster_name):
 
@@ -1330,6 +1952,7 @@ def generate_inventory(config,cluster_name):
                 "shape":config.shape,
                 "rdma_enabled":config.rdma_enabled,
                 "queue":config.partition,
+                "permanent":str(config.permanent).lower(),
                 "instance_type": config.name,
                 "hostname_convention": config.hostname_convention,
                 "hyperthreading": config.hyperthreading,
@@ -1362,22 +1985,59 @@ def remove_inventory(cluster_name):
     else:
         logger.warning(f"Inventory {inventory_name} was not present.")
 
-def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None):
-    generate_inventory(config,cluster_name)
+def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None, targetsize=0, gpu_memory_fabrics=None):
+    generate_inventory(config, cluster_name)
+    if gpu_memory_fabrics is None and gpu_memory_fabric is not None:
+        gpu_memory_fabrics = [{
+            "ocid": gpu_memory_fabric,
+            "count": count,
+            "name": gpu_memory_cluster_name,
+            "targetsize": targetsize,
+        }]
+
     if not config.stand_alone or "GPU.GB" in config.shape:
         instance_config_data=generate_instance_config(config, controller_hostname, cluster_name, memory_cluster_name = gpu_memory_cluster_name)
         instance_config_ocid=instance_config_data.id
 
         if config.rdma_enabled:
             if "GPU.GB" in config.shape:
-                if gpu_memory_fabric is None:
+                if not gpu_memory_fabrics:
                     logger.error("For BM.GPU.GB200.4 or BM.GPU.GB200-v2.4 or BM.GPU.GB200-v3.4 or BM.GPU.GB300.4, the memory fabric needs to be specified, Exiting")
                     sys.exit(1)
                 cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.availability_domain,display_name=cluster_name)
                 cn = CLIENTS.compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
                 cn_id=cn.id
-                compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(availability_domain=config.availability_domain,compartment_id=config.target_compartment_id, compute_cluster_id=cn_id,instance_configuration_id=instance_config_ocid,size=count,gpu_memory_fabric_id=gpu_memory_fabric,display_name=gpu_memory_cluster_name)
-                CLIENTS.compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
+                for fabric_target in gpu_memory_fabrics:
+                    fabric_id = fabric_target.get("ocid")
+                    fabric_count = int(fabric_target.get("count", count))
+                    memory_cluster_name = fabric_target.get("name") or f"{cluster_name}_{fabric_id[-5:]}"
+                    fabric_targetsize = int(fabric_target.get("targetsize", targetsize) or 0)
+                    if fabric_targetsize != 0:
+                        clusterScaleConfig=oci.core.models.CreateComputeGpuMemoryClusterScaleConfig(is_downsize_enabled=True, is_upsize_enabled=True, target_size=fabric_targetsize)
+                        compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(
+                            availability_domain=config.availability_domain,
+                            compartment_id=config.target_compartment_id,
+                            compute_cluster_id=cn_id,
+                            instance_configuration_id=instance_config_ocid,
+                            size=fabric_count,
+                            gpu_memory_fabric_id=fabric_id,
+                            display_name=memory_cluster_name,
+                            gpu_memory_cluster_scale_config=clusterScaleConfig)
+                        try:
+                            CLIENTS.compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
+                        except:
+                            logger.error("Failed to create compute GPU memory cluster, you specified a non-0 target size. Are you whitelisted for it? ")
+                            sys.exit(1)
+                    else:
+                        compute_gpu_memory_cluster_details=oci.core.models.CreateComputeGpuMemoryClusterDetails(
+                            availability_domain=config.availability_domain,
+                            compartment_id=config.target_compartment_id,
+                            compute_cluster_id=cn_id,
+                            instance_configuration_id=instance_config_ocid,
+                            size=fabric_count,
+                            gpu_memory_fabric_id=fabric_id,
+                            display_name=memory_cluster_name)
+                        CLIENTS.compute_client.create_compute_gpu_memory_cluster(compute_gpu_memory_cluster_details)
             else:
                 ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=config.private_subnet_id)
                 ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=config.availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
@@ -1415,7 +2075,10 @@ def delete_cluster(cluster_name,nodes_list):
         CLIENTS.compute_management_client.terminate_instance_pool(cluster_ocid)
     elif cluster_type == "CC" or cluster_type == "SA":
         for instance in nodes_list:
-            CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(instance.ocid,wait_for_states=["TERMINATING","TERMINATED"])
+            if hasattr(CLIENTS.compute_client_composite_operations, "terminate_instance_and_wait_for_work_request"):
+                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_work_request(instance.ocid,work_request_states=["STATUS_SUCCEEDED"],waiter_kwargs={'max_wait_seconds': 600})
+            else:
+                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(instance.ocid,wait_for_states=["TERMINATING", "TERMINATED"],waiter_kwargs={'max_wait_seconds':  600})
         instance_running=True
         while instance_running:
             instance_running=False
@@ -1429,63 +2092,249 @@ def delete_cluster(cluster_name,nodes_list):
         logger.error("A BM.GPU.GB200.4, BM.GPU.GB200-v2.4, BM.GPU.GB200-v2.4, or BM.GPU.GB300.4 instance should not be calling this function")
     remove_inventory(cluster_name)
 
-def get_memory_fabrics(tenancy_id,compartment_id):
-    fabric_list=[]
-    memory_clusters=CLIENTS.compute_client.list_compute_gpu_memory_clusters(compartment_id=compartment_id).data.items
-    memory_fabric_usage={}
+def get_memory_fabrics(tenancy_id, compartment_id):
+    """
+    Helper: Build a list of lists [gmf_data, current_usage_in_compartment, gmcs, host_type_count]
+    from all ACTIVE compute GPU memory clusters in the given compartment.
+    """
+    fabric_list = []
+    memory_clusters = oci.pagination.list_call_get_all_results(
+                CLIENTS.compute_client.list_compute_gpu_memory_clusters,
+                compartment_id = compartment_id
+            ).data
+    memory_fabric_usage = {}
 
     for memory_cluster in memory_clusters:
-        memory_clusters_info=CLIENTS.compute_client.get_compute_gpu_memory_cluster(memory_cluster.id).data
-        if memory_clusters_info.lifecycle_state != "ACTIVE":
+        if memory_cluster.lifecycle_state != "ACTIVE":
             continue
-        if memory_clusters_info.gpu_memory_fabric_id in memory_fabric_usage.keys():
-            memory_fabric_usage[memory_clusters_info.gpu_memory_fabric_id][0]+=memory_clusters_info.size
+        gmf_id = memory_cluster.gpu_memory_fabric_id
+        if  gmf_id in memory_fabric_usage.keys():
+            memory_fabric_usage[gmf_id][0] += memory_cluster.size
+            memory_fabric_usage[gmf_id][1][memory_cluster.id] = memory_cluster.display_name
         else:
-            memory_fabric_usage[memory_clusters_info.gpu_memory_fabric_id]=[memory_clusters_info.size,memory_clusters_info.display_name,memory_cluster.id]
+            memory_fabric_usage[gmf_id] = [
+                        memory_cluster.size,
+                        {memory_cluster.id: memory_cluster.display_name}
+                ]
+    host_api_list = get_host_api_dict(compartment_id, tenancy_id)
 
-    host_api_list=get_host_api_dict(compartment_id,tenancy_id)
-    lifecycle_states=[]
-    for host_api in host_api_list:
-        if host_api.lifecycle_state not in lifecycle_states:
-            lifecycle_states.append(host_api.lifecycle_state)
-    for fabric in CLIENTS.compute_client.list_compute_gpu_memory_fabrics(compartment_id=tenancy_id).data.items:
+    lifecycle_states = set([entry.lifecycle_state for entry in host_api_list])
+
+    for fabric in oci.pagination.list_call_get_all_results(
+            CLIENTS.compute_client.list_compute_gpu_memory_fabrics,
+            compartment_id=tenancy_id).data:
         if fabric.id in memory_fabric_usage.keys():
-            size=memory_fabric_usage[fabric.id][0]
-            cluster_name=memory_fabric_usage[fabric.id][1]
-            cluster_id=memory_fabric_usage[fabric.id][2]
+            size = memory_fabric_usage[fabric.id][0]
+            memory_clusters = memory_fabric_usage[fabric.id][1]
         else:
-            size=0
-            cluster_name=None
-            cluster_id=None
-        host_type_count={key: 0 for key in lifecycle_states}
+            size = 0
+            memory_clusters = {}
+        host_type_count = {key: 0 for key in lifecycle_states}
+        available_shape_count = {}
         try:
-            for host_api in host_api_list:
-                if host_api.gpu_memory_fabric_id == fabric.id:
-                    host_type_count[host_api.lifecycle_state]+=1
+            for host in host_api_list:
+                if host.gpu_memory_fabric_id == fabric.id:
+                    host_type_count[host.lifecycle_state] += 1
+                    if host.lifecycle_state == "AVAILABLE":
+                        available_shape_count[host.shape] = available_shape_count.get(host.shape, 0) + 1
         except:
             logger.warning("Host API is not available")
-        fabric_list.append([CLIENTS.compute_client.get_compute_gpu_memory_fabric(fabric.id).data,size,cluster_name,cluster_id,host_type_count])
-
+        fabric_list.append([fabric, size, memory_clusters, host_type_count, available_shape_count])
 
     return fabric_list
 
-def delete_memory_cluster(memory_cluster_id,nodelist):
-    memory_cluster=CLIENTS.compute_client.get_compute_gpu_memory_cluster(memory_cluster_id).data
-    if memory_cluster is None:
-        logger.error(f"The memory cluster with id {memory_cluster_id} cannot be found")
+
+# Fabric item is a list containing:
+# [fabric, size, memory_clusters, host_type_count, available_shape_count]
+def _memory_fabric_available_count(fabric_item):
+    fabric_api_available_count = getattr(fabric_item[0], "available_host_count", 0)
+    try:
+        host_api_available_count = int(fabric_item[3].get("AVAILABLE", 0) or 0)
+    except (TypeError, ValueError, AttributeError):
+        host_api_available_count = 0
+
+    if host_api_available_count > 0:
+        return host_api_available_count
+
+    try:
+        return int(fabric_api_available_count or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _memory_fabric_matches_scope(
+    fabric,
+    compute_local_block_id=None,
+    compute_network_block_id=None,
+    compute_hpc_island_id=None,
+):
+    expected_values = {
+        "compute_local_block_id": compute_local_block_id,
+        "compute_network_block_id": compute_network_block_id,
+        "compute_hpc_island_id": compute_hpc_island_id,
+    }
+    for attr, expected_value in expected_values.items():
+        if expected_value and getattr(fabric, attr, None) != expected_value:
+            return False
+    return True
+
+def _get_memory_fabric_targets_by_id(tenancy_id, fabric_ids):
+    fabrics = oci.pagination.list_call_get_all_results(
+        CLIENTS.compute_client.list_compute_gpu_memory_fabrics,
+        compartment_id=tenancy_id,
+    ).data
+    fabric_by_id = {fabric.id: fabric for fabric in fabrics}
+    targets = []
+
+    for fabric_id in fabric_ids or []:
+        fabric = fabric_by_id.get(fabric_id)
+        if fabric is None:
+            logger.error(f"GPU memory fabric {fabric_id} was not found")
+            sys.exit(1)
+        targets.append({
+            "ocid": fabric.id,
+            "available": getattr(fabric, "available_host_count", 0) or 0,
+            "memory_clusters": {},
+            "fabric": fabric,
+            "compute_hpc_island_id": getattr(fabric, "compute_hpc_island_id", None),
+        })
+
+    return targets
+
+def get_available_memory_fabric_targets(
+    tenancy_id,
+    compartment_id,
+    fabric_ids=None,
+    all_available=False,
+    compute_local_block_id=None,
+    compute_network_block_id=None,
+    compute_hpc_island_id=None,
+):
+    """
+    Return launch targets using the same data source as `mgmt fabrics list`.
+    For all_available, only unused fabrics with AVAILABLE hosts are returned.
+    """
+    if fabric_ids and not all_available:
+        return _get_memory_fabric_targets_by_id(tenancy_id, fabric_ids)
+
+    fabric_list = get_memory_fabrics(tenancy_id, compartment_id)
+    fabric_by_id = {fabric_item[0].id: fabric_item for fabric_item in fabric_list}
+
+    if all_available:
+        selected = [
+            fabric_item for fabric_item in fabric_list
+            if str(getattr(fabric_item[0], "lifecycle_state", "")).upper() == "AVAILABLE"
+            and not fabric_item[2]
+            and _memory_fabric_available_count(fabric_item) > 0
+            and _memory_fabric_matches_scope(
+                fabric_item[0],
+                compute_local_block_id=compute_local_block_id,
+                compute_network_block_id=compute_network_block_id,
+                compute_hpc_island_id=compute_hpc_island_id,
+            )
+        ]
+        selected.sort(key=_memory_fabric_available_count, reverse=True)
+    else:
+        selected = []
+        for fabric_id in fabric_ids or []:
+            fabric_item = fabric_by_id.get(fabric_id)
+            if fabric_item is None:
+                logger.error(f"GPU memory fabric {fabric_id} was not found")
+                sys.exit(1)
+            selected.append(fabric_item)
+
+    return [
+        {
+            "ocid": fabric_item[0].id,
+            "available": _memory_fabric_available_count(fabric_item),
+            "memory_clusters": fabric_item[2],
+            "fabric": fabric_item[0],
+            "compute_hpc_island_id": getattr(fabric_item[0], "compute_hpc_island_id", None),
+            "available_by_shape": (
+                dict(fabric_item[4])
+                if len(fabric_item) > 4 and isinstance(fabric_item[4], dict)
+                else {}
+            ),
+        }
+        for fabric_item in selected
+    ]
+
+def set_memory_fabric_recycle_level(fabric_id, recycle_level):
+    if recycle_level is None:
         return
+    if recycle_level not in ("SKIP_RECYCLE", "FULL_RECYCLE"):
+        logger.error(f"Invalid GPU memory fabric recycle level: {recycle_level}")
+        sys.exit(1)
+
+    fabric_response = CLIENTS.compute_client.get_compute_gpu_memory_fabric(fabric_id)
+    fabric = fabric_response.data
+    preferences = getattr(fabric, "memory_fabric_preferences", None)
+    if isinstance(preferences, dict):
+        customer_desired_firmware_bundle_id = (
+            preferences.get("customerDesiredFirmwareBundleId")
+            or preferences.get("customer_desired_firmware_bundle_id")
+        )
+    else:
+        customer_desired_firmware_bundle_id = getattr(preferences, "customer_desired_firmware_bundle_id", None)
+
+    memory_fabric_preferences = {"fabricRecycleLevel": recycle_level}
+    if customer_desired_firmware_bundle_id:
+        memory_fabric_preferences["customerDesiredFirmwareBundleId"] = customer_desired_firmware_bundle_id
+        logger.info(
+            f"Preserving customer desired firmware bundle {customer_desired_firmware_bundle_id} "
+            f"for GPU memory fabric {fabric_id}"
+        )
+
+    logger.info(f"Setting GPU memory fabric {fabric_id} recycle level to {recycle_level}")
+    CLIENTS.compute_client.update_compute_gpu_memory_fabric(
+        fabric_id,
+        {"memoryFabricPreferences": memory_fabric_preferences},
+    )
+
+def delete_memory_cluster(memory_cluster_id,nodelist,recycle_level=None):
+    try:
+        memory_cluster=CLIENTS.compute_client.get_compute_gpu_memory_cluster(memory_cluster_id).data
+    except oci.exceptions.ServiceError as e:
+        if e.status == 404:
+            logger.warning(f"Skipping memory cluster {memory_cluster_id}: it cannot be found or is not authorized")
+            return None
+        else:
+            logger.error(f"Error reading memory cluster {memory_cluster_id}: {e}")
+        sys.exit(1)
+    if memory_cluster is None:
+        logger.warning(f"Skipping memory cluster {memory_cluster_id}: it cannot be found")
+        return None
     mc_id=memory_cluster.id
     cluster_data=CLIENTS.compute_client.get_compute_gpu_memory_cluster(mc_id).data
     cluster_ocid=cluster_data.compute_cluster_id
+    if recycle_level:
+        set_memory_fabric_recycle_level(cluster_data.gpu_memory_fabric_id, recycle_level)
     instance_summaries = CLIENTS.compute_client.list_compute_gpu_memory_cluster_instances(mc_id).data.items
-    if len(nodelist) == 0 and len(instance_summaries) == 0:
-        CLIENTS.compute_client.delete_compute_gpu_memory_cluster(mc_id)
-        return cluster_ocid
-    elif len(instance_summaries):
-        for instance_summary in instance_summaries:
-            if instance_summary.id == nodelist[0].ocid:
-                CLIENTS.compute_client.delete_compute_gpu_memory_cluster(mc_id)
-                return cluster_ocid
+    node_ocids = {
+        node.ocid
+        for node in nodelist
+        if getattr(node, "ocid", None)
+    }
+    instance_ocids = {
+        instance_summary.id
+        for instance_summary in instance_summaries
+        if getattr(instance_summary, "id", None)
+    }
+    if instance_ocids and not node_ocids:
+        logger.warning(
+            "Deleting compute GPU memory cluster %s with %s OCI instance(s) and no matching mgmt DB nodes",
+            cluster_data.display_name or mc_id,
+            len(instance_ocids),
+        )
+    elif instance_ocids and node_ocids and not (instance_ocids & node_ocids):
+        logger.warning(
+            "Deleting compute GPU memory cluster %s even though mgmt DB nodes do not match OCI instances",
+            cluster_data.display_name or mc_id,
+        )
+    logger.info(f"Deleting compute GPU memory cluster {cluster_data.display_name or mc_id} ({mc_id})")
+    CLIENTS.compute_client.delete_compute_gpu_memory_cluster(mc_id)
+    return cluster_ocid
+
 
 def delete_compute_cluster(cluster_ocid):
     cluster_name=CLIENTS.compute_client.get_compute_cluster(cluster_ocid).data.display_name
@@ -1505,8 +2354,8 @@ def get_instance_network_info(instance_ocid, compartment_ocid):
 
     signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
 
-    core_client = oci.core.ComputeClient(config={}, signer=signer)
-    virtual_network_client = oci.core.VirtualNetworkClient(config={}, signer=signer)
+    core_client = oci.core.ComputeClient(config={}, signer=signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+    virtual_network_client = oci.core.VirtualNetworkClient(config={}, signer=signer, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     vnic_attachments = oci.pagination.list_call_get_all_results(
         core_client.list_vnic_attachments,
@@ -1532,7 +2381,7 @@ def get_instance_network_info(instance_ocid, compartment_ocid):
 def update_dns(instance_ocid, zone_name, compartment_ocid, instance_launch, hostname, vcn_compartment, instance_ip=None, hostname_convention=None):
     """
     Update DNS for instance launching and instance terminating
-    inputs: 
+    inputs:
         instance_ocid: Instance OCID from event paylod, type=string
         zone_name: <cluster_name>.local coming from Terraform, type=string
         compartment_ocid: Compartment OCID from event payload (same as var.targetCompartment in terraform), type=string
@@ -1540,7 +2389,7 @@ def update_dns(instance_ocid, zone_name, compartment_ocid, instance_launch, host
         hostname: current instance name from OCI web console, type=string
         vcn_compartment: Compartment OCID for vcn (same as var.vcn_compartment in terraform), type=string
         instance_ip: private IP of the instance, type=string, optional
-    output: 
+    output:
         hostname: new display name in web console hostname_convention+"-"+str(index), type=string if updated or corresponds to hostname if not
         private_ip: private IP if instance is launch type=string, None otherwise
     """
@@ -1567,7 +2416,7 @@ def update_dns(instance_ocid, zone_name, compartment_ocid, instance_launch, host
         CLIENTS.dns_client.update_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A",update_rr_set_details=oci.dns.models.UpdateRRSetDetails(items=[oci.dns.models.RecordDetails(domain=hostname+"."+zone_name,rdata=private_ip,rtype="A",ttl=3600,)]))
         logger.info(f"DNS updated for instance launch with IP {private_ip} and {hostname}")
     else:
-        CLIENTS.dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A") 
+        CLIENTS.dns_client.delete_rr_set(zone_name_or_id=zone_id,domain=hostname+"."+zone_name,rtype="A")
         logger.info(f"DNS updated for instance terminated with hostname: {hostname}")
 
 
@@ -1585,11 +2434,11 @@ def update_display_name(instance_ocid, new_hostname):
     max_retries = 30
     retries = 0
     # adding a while loop because retry_strategy doesn't work as expected. Check the state and make sure it's RUNNING before changing hostname
-    while CLIENTS.compute_client.get_instance(instance_ocid).data.display_name != new_hostname and retries <= max_retries:    
+    while CLIENTS.compute_client.get_instance(instance_ocid).data.display_name != new_hostname and retries <= max_retries:
         if CLIENTS.compute_client.get_instance(instance_ocid).data.lifecycle_state != "RUNNING":
             time.sleep(2*(1+retries))
             retries +=1
-        else:    
+        else:
             # define a retry strategy
             retry_strategy_via_constructor = oci.retry.RetryStrategyBuilder(
                 # Make up to 20 service calls
@@ -1625,5 +2474,5 @@ def update_display_name(instance_ocid, new_hostname):
                 instance_id=instance_ocid,
                 update_instance_details=oci.core.models.UpdateInstanceDetails(display_name=new_hostname),
                 retry_strategy=retry_strategy_via_constructor)
-            logger.info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")    
-    return 
+            logger.info(f"Display name updated: {new_hostname} for instance launch with OCID: {instance_ocid}")
+    return

@@ -58,7 +58,7 @@
     - name: Run compute directives
       ansible.builtin.include_tasks: "login.yml"
 
-- when: slurm_mode == 're-init'
+- when: slurm_mode == 'reconcile-ctld'
   block:
-    - name: Run common instructions
-      ansible.builtin.include_tasks: re-init.yml
+    - name: Run reconcile directives on the controller
+      ansible.builtin.include_tasks: reconcile-ctld.yml

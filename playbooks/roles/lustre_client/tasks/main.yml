@@ -40,3 +40,15 @@
   when:
     - lustre_client_action == 'deployment'
     - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Check if Lustre LDLM tuning helper is already installed
+  ansible.builtin.stat:
+    path: /usr/local/sbin/apply-lustre-ldlm-tuning
+  register: lustre_client_ldlm_tuning_helper
+  when: lustre_client_action == 'deployment'
+
+- name: Configure Lustre LDLM tuning
+  ansible.builtin.include_tasks: setup_ldlm_tuning.yml
+  when:
+    - lustre_client_action == 'deployment'
+    - not (lustre_client_ldlm_tuning_helper.stat.exists | default(false))

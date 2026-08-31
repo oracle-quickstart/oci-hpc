@@ -21,10 +21,32 @@ If you did NOT add any compute hosts via GPUMemoryFabrics during the initial sta
 2. Use the OCID from above for `--fabric`, as well as the number of `AVAILABLE` hosts for `--count`:
 
 ```
-mgmt clusters create --count 16 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... 
+mgmt clusters create --count 16 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1..... --targetsize 18
 ```
 
-This creates a `computecluster` with the name my_cluster as well as a `computegpumemorycluster` with a name `cluster_xxxxx`.  When a `computegpumemorycluster` is created OCI automatically spins up the number of instances given in `--count`.  This is reflected in the `mgmt fabrics list` command output after a few minutes. The nodes and their respective informations can be seen with:
+To create the initial Compute Cluster and consume every unused GPU Memory Fabric that has `AVAILABLE` hosts:
+```
+mgmt clusters create --cluster my_cluster --instancetype default --all --targetsize 18
+```
+
+To consume every unused GPU Memory Fabric that has at least 12 `AVAILABLE` hosts:
+```
+mgmt clusters create --cluster my_cluster --instancetype default --all --minimum-gmc-size 12 --targetsize 18
+```
+
+To create the initial Compute Cluster and consume every unused GPU Memory Fabric in a specific Compute Local Block, Compute Network Block, or Compute HPC Island:
+```
+mgmt clusters create --cluster my_cluster --instancetype default --compute-local-block-id ocid1.computelocalblock.oc1..... --targetsize 18
+mgmt clusters create --cluster my_cluster --instancetype default --compute-network-block-id ocid1.computenetworkblock.oc1..... --targetsize 18
+mgmt clusters create --cluster my_cluster --instancetype default --compute-hpc-island-id ocid1.hpcisland.oc1..... --targetsize 18
+```
+
+To create the initial Compute Cluster with a selected list of GPU Memory Fabrics:
+```
+mgmt clusters create --count 18 --cluster my_cluster --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.....,ocid1.computegpumemoryfabric.oc1..... --targetsize 18
+```
+
+This creates a `computecluster` with the name my_cluster as well as a `computegpumemorycluster` with a name `cluster_xxxxx`.  When a `computegpumemorycluster` is created OCI automatically spins up the number of instances given in `--count`.  Use `--targetsize` when you want OCI's memory cluster scale config to target a larger size than the initial node count. This is reflected in the `mgmt fabrics list` command output after a few minutes. The nodes and their respective informations can be seen with:
 ```
 mgmt nodes list
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
@@ -43,6 +65,24 @@ To add nodes from additional `computegpumemoryfabrics` to an existing compute cl
 ```
 mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1.... 
 ```
+To add all unused GPU Memory Fabrics that have `AVAILABLE` hosts:
+```
+mgmt clusters add memory-fabric --all --cluster gb200 --instancetype default
+```
+To add all unused GPU Memory Fabrics that have at least 12 `AVAILABLE` hosts:
+```
+mgmt clusters add memory-fabric --all --cluster gb200 --instancetype default --minimum-gmc-size 12
+```
+To add all unused GPU Memory Fabrics in a specific Compute Local Block, Compute Network Block, or Compute HPC Island:
+```
+mgmt clusters add memory-fabric --cluster gb200 --instancetype default --compute-local-block-id ocid1.computelocalblock.oc1.....
+mgmt clusters add memory-fabric --cluster gb200 --instancetype default --compute-network-block-id ocid1.computenetworkblock.oc1.....
+mgmt clusters add memory-fabric --cluster gb200 --instancetype default --compute-hpc-island-id ocid1.hpcisland.oc1.....
+```
+To add a selected list of GPU Memory Fabrics:
+```
+mgmt clusters add memory-fabric --count 18 --cluster gb200 --instancetype default --fabric ocid1.computegpumemoryfabric.oc1....,ocid1.computegpumemoryfabric.oc1....
+```
 To add more nodes from a `computegpumemoryfabric` that is already included in this cluster, use the corresponding `cluster_xxxxx` name for these nodes as shown as `memory_cluster_id` in `mgmt fabrics list`:
 ```
 mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
@@ -50,3 +90,6 @@ mgmt clusters add node --count 2 --memorycluster cluster_xxxxx
 To delete a `computegpumemorycluster` and terminate all of the instances:
 ```
 mgmt clusters delete --memory_cluster cluster_xxxxx
+mgmt clusters delete --memory_cluster cluster_xxxxx --force-skip-recycle
+mgmt clusters delete --memory_cluster cluster_xxxxx --force-full-recycle
+```

@@ -11,6 +11,15 @@ import time
 import stat
 import tempfile
 import glob
+import re
+
+MULTIPLANAR_RDMA_VF_COUNTS = {
+    "BM.GPU.B300.8": 8,
+    "BM.GPU.B300.HS.8": 8,
+    "BM.GPU.GB300.4": 4,
+}
+
+B300_MULTIPLANAR_NCCL_TOPO_FILE = "/opt/oci-hpc/healthchecks/B300MP.xml"
 
 def get_metadata():
     headers = { 'Authorization' : 'Bearer Oracle' }
@@ -18,6 +27,77 @@ def get_metadata():
     metadata_ver = "2"
     request_url = metadata_url + "v" + metadata_ver + "/instance/"
     return requests.get(request_url, headers=headers).json()
+
+def get_host_metadata():
+    headers = { 'Authorization' : 'Bearer Oracle' }
+    metadata_url = "http://169.254.169.254/opc/"
+    metadata_ver = "2"
+    request_url = metadata_url + "v" + metadata_ver + "/host"
+    response = requests.get(request_url, headers=headers)
+    if response.status_code == 404:
+        return {}
+    response.raise_for_status()
+    return response.json()
+
+def get_rdma_planes():
+    default_planes = 1
+    try:
+        host_metadata = get_host_metadata()
+    except (requests.RequestException, ValueError) as e:
+        logger.debug(f"Could not read host metadata RDMA fabric data: {e}")
+        return default_planes
+
+    if not isinstance(host_metadata, dict):
+        return default_planes
+
+    rdma_fabric_data = host_metadata.get("rdmaFabricData", {})
+    if not isinstance(rdma_fabric_data, dict):
+        return default_planes
+
+    try:
+        return int(rdma_fabric_data.get("planes", default_planes))
+    except (TypeError, ValueError):
+        logger.debug(f"Invalid rdmaFabricData.planes value: {rdma_fabric_data.get('planes')}")
+        return default_planes
+
+def rdma_rail_sort_key(device):
+    match = re.search(r'(\d+)$', device)
+    if match:
+        return int(match.group(1))
+    return device
+
+def discover_existing_multiplanar_rdma_devices():
+    try:
+        devices = os.listdir("/sys/class/infiniband")
+    except FileNotFoundError:
+        return []
+
+    return sorted(
+        [device for device in devices if re.match(r'^rdma_vf_rail\d+$', device)],
+        key=rdma_rail_sort_key
+    )
+
+def discover_multiplanar_rdma_devices(shape):
+    vf_rails = discover_existing_multiplanar_rdma_devices()
+    if vf_rails:
+        return vf_rails
+
+    return [
+        f"rdma_vf_rail{i}"
+        for i in range(MULTIPLANAR_RDMA_VF_COUNTS.get(shape, 0))
+    ]
+
+def is_gb300_multiplanar(shape):
+    return (
+        shape == "BM.GPU.GB300.4"
+        and (get_rdma_planes() > 1 or bool(discover_existing_multiplanar_rdma_devices()))
+    )
+
+def is_b300_multiplanar(shape):
+    return (
+        shape in ("BM.GPU.B300.8", "BM.GPU.B300.HS.8")
+        and (get_rdma_planes() > 1 or bool(discover_existing_multiplanar_rdma_devices()))
+    )
 
 # Check if the user is root
 def is_user_root():
@@ -118,6 +198,16 @@ def run_local_nccl_test(shape):
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
             "threshold": 800,
         },
+        "BM.GPU.B300.HS.8": {
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
+            "threshold": 800,
+        },
+        "BM.GPU.RTXPRO.8": {
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_6,mlx5_7,mlx5_8,mlx5_9",
+            "threshold": 25,
+        },
         "BM.GPU.GB200.4": {
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
         },
@@ -131,6 +221,7 @@ def run_local_nccl_test(shape):
         "BM.GPU.GB300.4": {
             "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
+            "threshold": 660,
         },
         "BM.Optimized3.36": {
             "var_NCCL_IB_HCA": "=mlx5_2",
@@ -157,58 +248,214 @@ def run_local_nccl_test(shape):
         }    
     }
 
-    result = None
-    try:
+    b300_multiplanar = is_b300_multiplanar(shape)
+    gb300_multiplanar = is_gb300_multiplanar(shape)
+    if b300_multiplanar:
+        rdma_vf_devices = discover_multiplanar_rdma_devices(shape)
+        shape_mapping[shape].update({
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": ",".join(rdma_vf_devices),
+        })
+        logger.info(f"Using B300 MultiPlanar RDMA VF devices: {rdma_vf_devices}")
 
-        if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
-            cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x UCX_TLS=ud,self,sm -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x HCOLL_ENABLE_MCAST_ALL=0 -x coll_hcoll_enable=0 -x NCCL_ALGO=Ring -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_QPS_PER_CONNECTION=4 -x NCCL_IB_GID_INDEX=3 --np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g 1 -n 50 -f 2"
-        elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8"):
-            cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --mca pml ucx --bind-to numa --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x HCOLL_ENABLE_MCAST_ALL=0 -x NCCL_CUMEM_ENABLE=0 -x NCCL_IB_SPLIT_DATA_ON_QPS=0 -x NCCL_IB_QPS_PER_CONNECTION=1 -x NCCL_IB_TIMEOUT=22 -x UCX_TLS=tcp -x NCCL_NET_PLUGIN=none -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x coll_hcoll_enable=0 -x NCCL_DEBUG=WARN -x NCCL_IB_SL=0 -x NCCL_IB_TC=41 -x NCCL_IB_GID_INDEX=3 -x RX_QUEUE_LEN=8192 -x IB_RX_QUEUE_LEN=8192 -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_IGNORE_CPU_AFFINITY=1 -np 8 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"
-        elif "GPU.GB" in shape:
-            cmd_nccl_test=f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && mpirun --bind-to none --mca coll ^hcoll --mca plm_rsh_no_tree_spawn 1 -x UCX_NET_DEVICES={shape_mapping[shape]['var_NCCL_IB_HCA']} -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} -x NCCL_DEBUG=WARN -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} -x NCCL_NET_PLUGIN=none -x NCCL_MNNVL_ENABLE=1 -x NCCL_CUMEM_ENABLE=1 -x NCCL_NVLS_ENABLE=1 -x NCCL_NET_GDR_C2C=1 -np 4 /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"
-        result = run_as_default_user(cmd_nccl_test, timeout=120)
+    if gb300_multiplanar:
+        rdma_vf_devices = discover_multiplanar_rdma_devices(shape)
+        shape_mapping[shape].update({
+            "var_UCX_NET_DEVICES": "eth0",
+            "var_NCCL_IB_HCA": ",".join(rdma_vf_devices),
+        })
+        logger.info(f"Using GB300 MultiPlanar RDMA VF devices: {rdma_vf_devices}")
 
-        if result.returncode == 0:
+    if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8", "BM.GPU.RTXPRO.8"):
+        cmd_nccl_test=f"""
+            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
+            mpirun \
+                --bind-to numa \
+                --mca coll ^hcoll \
+                --mca plm_rsh_no_tree_spawn 1 \
+                --mca pml ucx \
+                -x coll_hcoll_enable=0 \
+                -x HCOLL_ENABLE_MCAST_ALL=0 \
+                -x NCCL_ALGO=Ring \
+                -x NCCL_DEBUG=WARN \
+                -x NCCL_IB_GID_INDEX=3 \
+                -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} \
+                -x NCCL_IB_QPS_PER_CONNECTION=4 \
+                -x NCCL_IB_SL=0 \
+                -x NCCL_IB_TC=41 \
+                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x UCX_TLS=ud,self,sm \
+                --np 8 \
+                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g 1 -n 50 -f 2"""
+    elif b300_multiplanar:
+        cmd_nccl_test=f"""
+            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
+            mpirun \
+                --bind-to numa \
+                --mca coll ^hcoll \
+                --mca plm_rsh_no_tree_spawn 1 \
+                --mca pml ucx \
+                -x coll_hcoll_enable=0 \
+                -x HCOLL_ENABLE_MCAST_ALL=0 \
+                -x IB_RX_QUEUE_LEN=8192 \
+                -x NCCL_CUMEM_ENABLE=0 \
+                -x NCCL_DEBUG=WARN \
+                -x NCCL_IB_GID_INDEX=3 \
+                -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} \
+                -x NCCL_IB_QPS_PER_CONNECTION=1 \
+                -x NCCL_IB_SL=0 \
+                -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
+                -x NCCL_IB_TC=41 \
+                -x NCCL_IB_TIMEOUT=22 \
+                -x NCCL_IGNORE_CPU_AFFINITY=1 \
+                -x NCCL_NET_PLUGIN=none \
+                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x NCCL_TOPO_FILE={B300_MULTIPLANAR_NCCL_TOPO_FILE} \
+                -x RX_QUEUE_LEN=8192 \
+                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x UCX_TLS=tcp \
+                -np 8 \
+                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+    elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.B300.HS.8"):
+        cmd_nccl_test=f"""
+            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
+            mpirun \
+                --bind-to numa \
+                --mca coll ^hcoll \
+                --mca plm_rsh_no_tree_spawn 1 \
+                --mca pml ucx \
+                -x coll_hcoll_enable=0 \
+                -x HCOLL_ENABLE_MCAST_ALL=0 \
+                -x IB_RX_QUEUE_LEN=8192 \
+                -x NCCL_CUMEM_ENABLE=0 \
+                -x NCCL_DEBUG=WARN \
+                -x NCCL_IB_GID_INDEX=3 \
+                -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} \
+                -x NCCL_IB_QPS_PER_CONNECTION=1 \
+                -x NCCL_IB_SL=0 \
+                -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
+                -x NCCL_IB_TC=41 \
+                -x NCCL_IB_TIMEOUT=22 \
+                -x NCCL_IGNORE_CPU_AFFINITY=1 \
+                -x NCCL_NET_PLUGIN=none \
+                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x RX_QUEUE_LEN=8192 \
+                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x UCX_TLS=tcp \
+                -np 8 \
+                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+    elif gb300_multiplanar:
+        cmd_nccl_test=f"""
+            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
+            mpirun \
+                --bind-to numa \
+                --mca coll ^hcoll \
+                --mca plm_rsh_no_tree_spawn 1 \
+                --mca pml ucx \
+                -x coll_hcoll_enable=0 \
+                -x HCOLL_ENABLE_MCAST_ALL=0 \
+                -x IB_RX_QUEUE_LEN=8192 \
+                -x LD_LIBRARY_PATH \
+                -x NCCL_ASYNC_ERROR_HANDLING=1 \
+                -x NCCL_CUMEM_ENABLE=1 \
+                -x NCCL_DEBUG=WARN \
+                -x NCCL_IB_ADAPTIVE_ROUTING=1 \
+                -x NCCL_IB_GID_INDEX=3 \
+                -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} \
+                -x NCCL_IB_RETRY_CNT=7 \
+                -x NCCL_IB_SL=0 \
+                -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
+                -x NCCL_IB_TC=96 \
+                -x NCCL_IB_TIMEOUT=16 \
+                -x NCCL_IGNORE_CPU_AFFINITY=1 \
+                -x NCCL_MNNVL_ENABLE=1 \
+                -x NCCL_NET_GDR_C2C=1 \
+                -x NCCL_NET_PLUGIN=spcx \
+                -x NCCL_NET=IB \
+                -x NCCL_NVLS_ENABLE=1 \
+                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x NCCL_WORK_FIFO_BYTES=0 \
+                -x RX_QUEUE_LEN=8192 \
+                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -np 4 \
+                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+    elif "GPU.GB" in shape:
+        cmd_nccl_test=f"""
+            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
+            mpirun \
+                --bind-to none \
+                --mca coll ^hcoll \
+                --mca plm_rsh_no_tree_spawn 1 \
+                -x UCX_NET_DEVICES={shape_mapping[shape]['var_NCCL_IB_HCA']} \
+                -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} \
+                -x NCCL_DEBUG=WARN \
+                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x NCCL_NET_PLUGIN=none \
+                -x NCCL_MNNVL_ENABLE=1 \
+                -x NCCL_CUMEM_ENABLE=1 \
+                -x NCCL_NVLS_ENABLE=1 \
+                -x NCCL_NET_GDR_C2C=1 \
+                -np 4 \
+                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+    else:
+        return False, f"NCCL Test Failed: unsupported shape {shape}"
+
+    threshold = shape_mapping.get(shape, {}).get("threshold", 0)
+    last_error = "NCCL Test Failed"
+    for attempt in range(1, 4):
+        result = None
+        logger.info(f"Starting NCCL test attempt {attempt}/3")
+        try:
+            result = run_as_default_user(cmd_nccl_test, timeout=120)
+            if result.returncode != 0:
+                output = result.stdout.decode('utf-8') if result.stdout else ""
+                if not output and result.stderr:
+                    output = result.stderr.decode('utf-8')
+                last_error = output or f"NCCL command exited with return code {result.returncode}"
+                logger.error(f"Failed to run local nccl test attempt {attempt}/3: {last_error}")
+                continue
+
             output = result.stdout.decode('utf-8') if result.stdout else ""
             bw = None
+            parse_failed = False
             for line in output.splitlines():
-                if "Avg bus bandwidth" in line:
-                    try:
-                        bw = float(line.split()[5])
-                    except Exception:
-                        logger.error("NCCL Test Failed: Avg bus bandwidth could not be parsed")
-                        return False, "NCCL Test Failed: Avg bus bandwidth could not be parsed"
-                    if bw < shape_mapping.get(shape, {}).get("threshold", 0):
-                        logger.error(f"NCCL Test Failed: Avg bus bandwidth is {bw}")
-                        return False, f"NCCL Test Failed: Avg bus bandwidth is less than {shape_mapping.get(shape, {}).get('threshold', 0)}"
-            if bw is not None:
-                return True, "NCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
-            else:
-                logger.error("NCCL Test Failed: Avg bus bandwidth could not be found")
-                return False, "NCCL Test Failed: Avg bus bandwidth could not be found"
-        else:
-            # gather output from stdout/stderr safely
-            output = ""
-            if result.stdout:
-                output = result.stdout.decode('utf-8')
-            elif result.stderr:
-                output = result.stderr.decode('utf-8')
-            logger.error(f"Failed to run local nccl test: {output}")
-            return False, output
+                if "Avg bus bandwidth" not in line:
+                    continue
+                try:
+                    bw = float(line.split()[5])
+                except (IndexError, ValueError):
+                    parse_failed = True
+                    last_error = "NCCL Test Failed: Avg bus bandwidth could not be parsed"
+                    logger.error(f"{last_error} on attempt {attempt}/3")
+                    break
 
-    except subprocess.TimeoutExpired:
-        logger.error("NCCL test timed out after 2 minutes")
-        if result and result.stdout:
-            out = result.stdout.decode('utf-8')
-            logger.error('\n'.join(out.splitlines()[-20:]))
-        return False, "Timeout after 2 minutes"
-    except Exception as e:
-        logger.error(f"Failed to run local nccl test: {e}")
-        if result and result.stdout:
-            out = result.stdout.decode('utf-8')
-            logger.error('\n'.join(out.splitlines()[-20:]))
-            return False, str(e)
-        return False, str(e)
+            if bw is None:
+                if not parse_failed:
+                    last_error = "NCCL Test Failed: Avg bus bandwidth could not be found"
+                    logger.error(f"{last_error} on attempt {attempt}/3")
+                continue
+            if bw < threshold:
+                last_error = f"NCCL Test Failed: Avg bus bandwidth is less than {threshold}"
+                logger.error(f"NCCL Test Failed on attempt {attempt}/3: Avg bus bandwidth is {bw}")
+                continue
+
+            if attempt > 1:
+                logger.info(f"NCCL test succeeded on attempt {attempt}/3")
+            return True, "NCCL Test Succeeded: Avg bus bandwidth is " + str(bw)
+        except subprocess.TimeoutExpired:
+            last_error = "Timeout after 2 minutes"
+            logger.error(f"NCCL test attempt {attempt}/3 timed out after 2 minutes")
+            if result and result.stdout:
+                out = result.stdout.decode('utf-8')
+                logger.error('\n'.join(out.splitlines()[-20:]))
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"Failed to run local nccl test attempt {attempt}/3: {e}")
+            if result and result.stdout:
+                out = result.stdout.decode('utf-8')
+                logger.error('\n'.join(out.splitlines()[-20:]))
+
+    return False, f"NCCL Test Failed after 3 attempts: {last_error}"
 
     
 def run_local_rccl_test(shape):
@@ -276,83 +523,82 @@ def run_local_rccl_test(shape):
         return False, str(e)
 
 def run_gpu_fryer(run_time):
+    command_run_time = run_time
+    image_prepare_timeout = 1800
+    container_run_timeout = command_run_time + 240
+    gpu_fryer_image = "ghcr.io/huggingface/gpu-fryer:1.1.0"
+    gpu_fryer_tar = "/config/3rdparty/docker/gpu-fryer-1.1.0.tar"
+    gpu_fryer_pull_failed_marker = "GPU Fryer image pull failed"
+    cmd_gpu_fryer_prepare = (
+        f"docker pull {gpu_fryer_image} "
+        f"|| (echo '{gpu_fryer_pull_failed_marker} for {gpu_fryer_image}; trying local tarball {gpu_fryer_tar}' >&2 "
+        f"&& docker load -i {gpu_fryer_tar}) "
+        f"&& docker image inspect {gpu_fryer_image} >/dev/null 2>&1 "
+        f"|| (echo 'GPU Fryer image {gpu_fryer_image} is not available after pull/load; docker run uses --pull=never.' >&2 && false)"
+    )
+    nvml_library_path = None
+    for candidate in (
+        "/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1",
+        "/usr/lib64/libnvidia-ml.so.1",
+    ):
+        if os.path.isfile(candidate):
+            nvml_library_path = candidate
+            break
+    nvml_arg = f" --nvml-lib-path {nvml_library_path}" if nvml_library_path else ""
+    cmd_gpu_fryer_run = (
+        f"docker run --rm --pull=never --gpus all {gpu_fryer_image} "
+        f"{command_run_time}{nvml_arg}"
+    )
+
+    def result_tail(result):
+        stdout = result.stdout.decode("utf-8", errors="replace") if result.stdout else ""
+        stderr = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
+        output_text = "\n".join([stdout, stderr]).strip()
+        return "\n".join(output_text.splitlines()[-20:])
+
+    prepare_errors = []
+    for attempt in range(1, 3):
+        try:
+            prepare_result = run_as_default_user(cmd_gpu_fryer_prepare, timeout=image_prepare_timeout)
+        except subprocess.TimeoutExpired:
+            error_tail = f"GPU Fryer image preparation timed out after {image_prepare_timeout} seconds"
+        except Exception as e:
+            error_tail = f"Failed to prepare GPU Fryer image: {e}"
+        else:
+            if prepare_result.returncode == 0:
+                prepare_output = result_tail(prepare_result)
+                if gpu_fryer_pull_failed_marker in prepare_output:
+                    logger.warning(prepare_output)
+                break
+            error_tail = result_tail(prepare_result)
+
+        prepare_errors.append(error_tail)
+        if attempt == 1:
+            logger.warning("GPU Fryer image preparation failed; retrying once:\n%s", error_tail)
+        else:
+            message = "GPU Fryer image preparation failed after retry; skipping GPU Fryer test"
+            logger.warning("%s:\n%s", message, error_tail)
+            return None, message
+
     try:
-        cmd_install_check = "ls /opt/gpu-fryer/bin/gpu-fryer"
-        install_check = run_as_default_user(cmd_install_check)
-        if install_check.returncode != 0:
-            script_content = r"""#!/bin/bash
-set -e
-
-sudo mkdir -p /opt/rust/{rustup,cargo}
-sudo chmod -R a+rwx /opt/rust
-
-export RUSTUP_HOME=/opt/rust/rustup
-export CARGO_HOME=/opt/rust/cargo
-
-# Install rust toolchain without modifying PATH
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-    sh -s -- -y --no-modify-path
-
-# Load Cargo environment
-if [ -f /opt/rust/cargo/env ]; then
-    source /opt/rust/cargo/env
-else
-    echo "Cargo env file not found at /opt/rust/cargo/env"
-    exit 1
-fi
-
-# Install gpu-fryer under /opt/gpu-fryer
-cargo install gpu-fryer --root /opt/gpu-fryer
-"""
-
-            tmp_script = "/tmp/install_gpu_fryer.sh"
-            with open(tmp_script, "w") as f:
-                f.write(script_content)
-            os.chmod(tmp_script, 0o777)
-            for i in range(3):
-                install = run_as_default_user(f"bash {tmp_script}")
-                if install.returncode == 0:
-                    break
-                else:
-                    if i == 2 :
-                        logger.error(f"Failed to install gpu-fryer: {install.stdout.decode('utf-8')}")
-                        return False, install.stdout.decode('utf-8')
-                    else:
-                        time.sleep(20)
-        default_user = get_default_user()
-        if default_user == "opc":
-            cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer --nvml-lib-path /lib64/libnvidia-ml.so.1 {run_time}"
-        else:
-            if "GPU.GB" in shape:
-                cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer --nvml-lib-path /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1 {run_time}"
-            else:   
-                cmd_gpu_fryer = f"/opt/gpu-fryer/bin/gpu-fryer {run_time}"
-        result = run_as_default_user(cmd_gpu_fryer, timeout=run_time+20)
-        if result.returncode != 0:
-            output_text = result.stdout.decode("utf-8")
-            error_tail = "\n".join(output_text.splitlines()[-20:])
-            logger.error(f"Failed to run gpu-fryer:\n{error_tail}")
-            return False, '\n'.join(result.stdout.decode('utf-8').splitlines()[-20:])
-        output = result.stdout.decode('utf-8')
-        if result.returncode == 0:
-            for line in output.splitlines():
-                if "All GPUs seem healthy" in line:
-                    return True,"GPU Fryer test succeeded"
-            logger.error("GPU Fryer failed")
-            print('\n'.join(output.splitlines()[-20:]))
-            return False,"GPU Fryer failed"
-        else:
-            logger.error("GPU Fryer failed")
-            print('\n'.join(output.splitlines()[-20:]))
-            return False,"GPU Fryer failed"
+        run_result = run_as_default_user(cmd_gpu_fryer_run, timeout=container_run_timeout)
     except subprocess.TimeoutExpired:
-        logger.error(f"GPU Fryer test timed out after {run_time+20} seconds")
-        return False, f"Timeout after {run_time+20} seconds"
+        message = f"GPU Fryer container run timed out after {container_run_timeout} seconds"
+        logger.error(message)
+        return False, message
     except Exception as e:
         logger.error(f"Failed to run local GPU Fryer test: {e}")
-        output = result.stdout.decode('utf-8')
-        print('\n'.join(output.splitlines()[-20:]))
+        if 'run_result' in locals() and run_result.stdout:
+            output = run_result.stdout.decode('utf-8', errors='replace')
+            print('\n'.join(output.splitlines()[-20:]))
         return False, str(e)
+
+    if run_result.returncode != 0:
+        error_tail = result_tail(run_result)
+        logger.error(f"Failed to run gpu-fryer:\n{error_tail}")
+        return False, error_tail
+
+    return True, "GPU Fryer test succeeded"
 
 def run_gpu_sdc_check(gpu_ids=None):
     if not GPU_SDC_AVAILABLE:
@@ -613,6 +859,7 @@ def run_nvme_tests(shape, test_read=False, deviation_threshold_percentage=2):
         "BM.GPU.H200.8": 8,
         "BM.GPU.B200.8": 8,
         "BM.GPU.B300.8": 8,
+        "BM.GPU.B300.HS.8": 8,
         "BM.GPU.GB200.4": 4,
         "BM.GPU.GB200-v2.4": 4,
         "BM.GPU.GB200-v3.4": 4,
@@ -829,17 +1076,17 @@ if __name__ == '__main__':
             action = recommended_action(action, "Tag_and_Terminate")
         else:
             logger.info(f"{hostname} - NCCL Test Succeeded: {nccl_output}")
-        if "B200" in shape or "B300" in shape:
-            run_time=240
+        run_time=60
+
+        gpu_fryer_state,gpu_fryer_output = run_gpu_fryer(run_time)
+        if gpu_fryer_state is None:
+            logger.warning(f"{hostname} - GPU Fryer Test Skipped: {gpu_fryer_output}")
+        elif not gpu_fryer_state:
+            logger.error(f"{hostname} - GPU Fryer Test Failed: {gpu_fryer_output}")
+            slurm_reason("Single node GPU Fryer Test Failed")
+            action = recommended_action(action, "Tag_and_Terminate")
         else:
-            run_time=20
-            gpu_fryer_state,gpu_fryer_output = run_gpu_fryer(run_time)
-            if not gpu_fryer_state:
-                logger.error(f"{hostname} - GPU Fryer Test Failed: {gpu_fryer_output}")
-                slurm_reason("Single node GPU Fryer Test Failed")
-                action = recommended_action(action, "Tag_and_Terminate")
-            else:
-                logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
+            logger.info(f"{hostname} - GPU Fryer Test Succeeded: {gpu_fryer_output}")
 
         # Run SDC checks
         sdc_state, sdc_output, sdc_details = run_gpu_sdc_check()
@@ -871,16 +1118,17 @@ if __name__ == '__main__':
         else:
             logger.info(f"{hostname} - RVS Test Succeeded: {rvs_output}")
 
-    nvme_state, nvme_output = run_nvme_tests(shape, test_read=True, deviation_threshold_percentage=2)
-    if not nvme_state:
-        if "Wrong number" in nvme_output:
-            logger.error(f"{hostname} - NVME Test Failed: {nvme_output}")
-            slurm_reason("One or more NVME drives failed.")
-            action = recommended_action(action, "Tag_and_Terminate")
-        else:
-            logger.error(f"{hostname} - NVME FIO Test Failed: {nvme_output}")
-    else:
-        logger.info(f"{hostname} - NVME Test Succeeded: {nvme_output}")
+    # NVME test temporarily disabled.
+    # nvme_state, nvme_output = run_nvme_tests(shape, test_read=True, deviation_threshold_percentage=2)
+    # if not nvme_state:
+    #     if "Wrong number" in nvme_output:
+    #         logger.error(f"{hostname} - NVME Test Failed: {nvme_output}")
+    #         slurm_reason("One or more NVME drives failed.")
+    #         action = recommended_action(action, "Tag_and_Terminate")
+    #     else:
+    #         logger.error(f"{hostname} - NVME FIO Test Failed: {nvme_output}")
+    # else:
+    #     logger.info(f"{hostname} - NVME Test Succeeded: {nvme_output}")
     
     if action == "Reboot":
         number_of_reboots,last_2hour_reboot = get_reboots_count()

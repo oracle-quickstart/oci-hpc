@@ -48,6 +48,15 @@
         file_type: file
       register: lustre_rpms
 
+    - name: Set DKMS build parameters
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/lustre
+        line: 'LUSTRE_DKMS_CONFIGURE_EXTRA="--with-o2ib=no"'
+        create: true
+        state: present
+        mode: "0644"
+
     - name: Uninstall Lustre client RPMs
       become: true
       ansible.builtin.dnf:
@@ -69,6 +78,17 @@
       ansible.builtin.command: "command -v lnetctl"
       # noqa command-instead-of-module
       register: lustre_client_lnetctl_check
+      changed_when: false
+
+    - name: Validate Lustre client kernel module can be loaded
+      become: true
+      ansible.builtin.shell: |
+        set -euo pipefail
+
+        modprobe lnet
+        modprobe lustre
+      args:
+        executable: /bin/bash
       changed_when: false
   always:
     - name: Remove the staging directory
@@ -104,14 +124,26 @@
     state: present
     mode: "0644"
 
-- name: Mount Lustre filesystem
+- name: Configure Lustre filesystem in fstab
   become: true
+  vars:
+    lustre_client_mount_options: >-
+      {{
+        lustre_client.options | default('defaults,_netdev', true)
+      }}
   ansible.posix.mount:
     path: "{{ lustre_client.local_path }}"
     src: "{{ lustre_client.export_host }}{{ lustre_client_lnet_protocol }}:/{{ lustre_client.export_path }}"
-    opts: "{{ lustre_client.options | default('defaults,_netdev', true) }}"
+    opts: "{{ lustre_client_mount_options }}"
     fstype: lustre
     state: mounted
+  register: lustre_client_mount
+
+- name: Reload systemd for Lustre fstab update
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: lustre_client_mount is changed
 
 - name: Ensure user and group ownership of the mounted share directory is set correctly
   become: true

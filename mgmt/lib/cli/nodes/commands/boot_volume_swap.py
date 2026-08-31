@@ -20,7 +20,7 @@ def filter_cmd(ctx, nodes, fields):
                 raise click.BadParameter(f"Field must be in key=value format: {field}")
             key, value = field.split('=', 1)
             field_dict[key] = value.lower() == 'true' if value.lower() in ['true', 'false'] else value
-        nodes_list = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict).all()
+        nodes_list = db.get_nodes_by_fields(field_dict)
     else:
         # Use the provided node identifiers
         nodes_list = db.get_nodes_by_any(NodeSet(nodes)) if nodes else []
@@ -60,24 +60,30 @@ def boot_volume_swap(ctx, nodes, fields, image, size):
     """
 
     nodes_list = filter_cmd(ctx, nodes, fields)
-        # In case no image is specified, propose a list of image and ask for the value
-    if image is None:
-        if nodes_list:
-            compartment_id = nodes_list[0].compartment_id
-        else:
-            controller = db.get_controller_node()
-            compartment_id = controller.compartment_id
-
-        image_ocid = pick_custom_images(compartment_id)
-    else:
-        image_ocid = image
-
     if not nodes_list:
         logger.warning("No matching nodes found.")
         ctx.exit(1)
 
+    # In case no image is specified, propose a list of image and ask for the value
+    if image is None:
+        compartment_id = None
+        for node in nodes_list:
+            if node.compartment_id is not None:
+                compartment_id = node.compartment_id
+                break
+        if compartment_id is None:
+            controller = db.get_controller_node()
+            compartment_id = controller.compartment_id if controller else None
+        try:
+            image_ocid = pick_custom_images(compartment_id)
+        except ValueError as e:
+            raise click.ClickException(str(e))
+    else:
+        image_ocid = image
+
     for node in nodes_list:
         try:
+            logger.info(f"Running boot volume swap for {node.hostname or node.ocid}...")
             run_boot_volume_swap(node, image_ocid, size)
             db.db_update_node(node, compute_status="starting")
         except Exception as e:

@@ -20,7 +20,7 @@
   file:
     path: "{{ local_path }}"
     state: directory
-    owner: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
     group: "{{ privilege_group_name }}"
 
 - name: Create exports.d

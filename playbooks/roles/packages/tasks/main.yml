@@ -1,32 +1,44 @@
 ---
-- name: Install required packages on Oracle Linux 8
-  ansible.builtin.include_tasks: ol-8.yml
-  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '8'
+- name: Install required packages on Oracle Linux
+  vars:
+    packages_os_package_list: "{{ packages_list['all'] + packages_list['ol'] }}"
+    packages_os_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL"
+  when:
+    - ansible_facts['distribution'] == 'OracleLinux'
+  block:
+    - name: Make sure commonly used packages are installed
+      vars:
+        package_name: "{{ packages_os_package_list }}" # noqa: var-naming[no-role-prefix]
+        package_state: latest # noqa: var-naming[no-role-prefix]
+        package_repo: "{{ packages_os_repo }}" # noqa: var-naming[no-role-prefix]
+      ansible.builtin.include_role:
+        name: safe_yum
+      ignore_errors: true
 
-- name: Install required packages on Oracle Linux 9
-  ansible.builtin.include_tasks: ol-9.yml
-  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux' and ansible_facts['distribution_major_version'] == '9'
+- name: Install required packages on Ubuntu
+  vars:
+    packages_os_package_list: "{{ packages_list['all'] + packages_list['ubuntu'] }}"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+  block:
+    - name: Ensure keyrings directory exists for extra repositories
+      become: true
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
 
-- name: Ensure keyrings directory exists for extra repositories
-  become: true
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-  when: ansible_facts['os_family'] == 'Debian'
+    - name: Ensure services are automatically restarted
+      become: true
+      ansible.builtin.replace:
+        path: /etc/needrestart/needrestart.conf
+        regexp: "#$nrconf{restart} = 'i';"
+        replace: "$nrconf{restart} = 'a';"
 
-- name: Install required packages on Ubuntu < 22.04
-  ansible.builtin.include_tasks: ubuntu.yml
-  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int < 22
-
-- name: Install required packages on Ubuntu 22.04
-  ansible.builtin.include_tasks: ubuntu-2204.yml
-  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int == 22
-
-- name: Install required packages on Ubuntu 24.04
-  ansible.builtin.include_tasks: ubuntu-2404.yml
-  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int > 22
-
-- name: Install required packages on Debian distributions
-  ansible.builtin.include_tasks: debian.yml
-  when: ansible_facts['distribution'] == 'Debian'
+    - name: Make sure python OpenSSL and parallel ssh is installed
+      vars:
+        package_name: "{{ packages_os_package_list }}" # noqa: var-naming[no-role-prefix]
+        package_state: latest # noqa: var-naming[no-role-prefix]
+      ansible.builtin.include_role:
+        name: safe_yum
+      ignore_errors: true

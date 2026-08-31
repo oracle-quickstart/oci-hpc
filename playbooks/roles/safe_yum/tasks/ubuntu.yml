@@ -14,6 +14,7 @@
     state: "{{ package_state | default('latest') }}"
     purge: "{{ package_purge | default('false') }}"
     update_cache: "{{ package_cache | default('true') }}"
+    lock_timeout: 120
     cache_valid_time: "{{ package_cache_valid_time | default('3600') }}"
   register: result
   until: result is not failed
@@ -28,6 +29,7 @@
     state: "{{ package_state | default('latest') }}"
     purge: "{{ package_purge | default('false') }}"
     update_cache: "{{ package_cache | default('true') }}"
+    lock_timeout: 120
     cache_valid_time: "{{ package_cache_valid_time | default('3600') }}"
   register: result
   until: result is not failed

@@ -1,0 +1,7 @@
+#GRES.conf
+AutoDetect=nvml
+{% for item in slurm_active_compute_info | dict2items %}
+{% if item.value.shape in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"] %}
+{{ lookup('template', 'gres.conf.j2') }}
+{% endif %}
+{% endfor %}

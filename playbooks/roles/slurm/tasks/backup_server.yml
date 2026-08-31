@@ -93,7 +93,7 @@
 - name: Set permissions
   become: true
   ansible.builtin.command:
-    cmd: chown {{ ansible_user }}:{{ ansible_user }} /tmp/munge.key
+    cmd: chown {{ cluster_admin_user }}:{{ cluster_admin_user }} /tmp/munge.key
   delegate_to: 127.0.0.1
   run_once: true
 
@@ -117,6 +117,15 @@
     name: munge
     state: restarted
     enabled: true
+
+- name: Wait for controller cgroup configuration
+  become: true
+  ansible.builtin.wait_for:
+    path: "{{ slurm_conf_path }}/cgroup.conf"
+    state: present
+    timeout: 600
+  delegate_to: "{{ groups['controller'][0] }}"
+  run_once: true
 
 - name: Slurp cgroup.conf from controller
   become: true

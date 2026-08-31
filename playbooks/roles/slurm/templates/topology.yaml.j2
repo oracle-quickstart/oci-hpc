@@ -1,0 +1,12 @@
+---
+- topology: tree
+  cluster_default: true
+  tree:
+    switches:
+{% for cluster_token in slurm_topology_cluster_switches %}
+      - switch: "{{ cluster_token }}"
+{% endfor %}
+{% for leaf in slurm_topology_on_demand_leaves %}
+      - switch: "{{ leaf.switch }}"
+        nodes: "{{ leaf.nodes }}"
+{% endfor %}

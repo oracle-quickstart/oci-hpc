@@ -41,7 +41,7 @@
           replace('n1', '') }}{% endif %}"
         src: "LABEL=locscratch{{ item | replace('nvme', '') | replace('n1', '') }}"
         fstype: xfs
-        opts: defaults,noatime
+        opts: defaults,noatime,nofail
         state: mounted
       with_items:
         - "{{ nvmes }}"
@@ -52,7 +52,7 @@
         path: "{% if item | replace('nvme', '') | replace('n1', '') == '0' %}{{ nvme_path_edited }}{% else %}{{ nvme_path_edited }}{{ item | replace('nvme', '') |
           replace('n1', '') }}{% endif %}"
         state: directory
-        owner: "{{ ansible_user }}"
+        owner: "{{ cluster_admin_user }}"
         mode: "0775"
         group: "{{ privilege_group_name }}"
         recurse: false
@@ -123,7 +123,7 @@
       ansible.builtin.file:
         path: "{{ nvme_path_edited }}"
         state: directory
-        owner: "{{ ansible_user }}"
+        owner: "{{ cluster_admin_user }}"
         mode: "0775"
         group: "{{ privilege_group_name }}"
         recurse: false

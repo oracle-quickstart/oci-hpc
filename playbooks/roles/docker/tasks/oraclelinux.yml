@@ -5,6 +5,7 @@
         package_name:
           - yum-utils
         package_state: latest
+        package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL" # noqa: var-naming[no-role-prefix]
       ansible.builtin.include_role:
         name: safe_yum
 
@@ -36,6 +37,7 @@
           - containerd.io
         package_state: latest
         package_cache: true
+        package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL" # noqa: var-naming[no-role-prefix]
       ansible.builtin.include_role:
         name: safe_yum
 

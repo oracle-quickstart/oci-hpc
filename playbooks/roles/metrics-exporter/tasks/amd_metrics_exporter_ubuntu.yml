@@ -32,10 +32,20 @@
 
 - name: Add AMD device metrics exporter repository
   become: true
-  ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/device-metrics-exporter/apt/{{ amd_exporter_version }} {{ ubuntu_codename }} main"
+  ansible.builtin.deb822_repository:
+    name: amd-device-metrics-exporter
+    types:
+      - deb
+    uris:
+      - "https://repo.radeon.com/device-metrics-exporter/apt/{{ amd_exporter_version }}"
+    suites:
+      - "{{ ubuntu_codename }}"
+    components:
+      - main
+    architectures:
+      - amd64
+    signed_by: /etc/apt/keyrings/rocm.gpg
     state: present
-    filename: amd-device-metrics-exporter
 
 - name: Update apt cache after adding repository
   become: true

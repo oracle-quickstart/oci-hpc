@@ -1,7 +1,7 @@
 import click
 from lib.ociwrap import list_custom_images
 from lib.cli.images.display import print_image_list_yaml_json,print_image_list
-from lib.database import get_controller_node, get_nodes_with_latest_healthchecks
+from lib.database import get_controller_node, get_used_image_hosts
 
 @click.command('list')
 @click.option(
@@ -20,19 +20,11 @@ def list_images(format, used, compartment):
     custom_images=list_custom_images(compartment)
     used_custom_images=[]
     if used:
-        nodes_per_image={}
-        query = get_nodes_with_latest_healthchecks()
-        nodes = query.all()
-        used_image_ids=[node.image_id for node in nodes]
-        unique_used_image_ids = list(set(used_image_ids))
+        nodes_per_image = get_used_image_hosts()
+        unique_used_image_ids = set(nodes_per_image)
         for image in custom_images:
             if image.id in unique_used_image_ids:
                 used_custom_images.append(image)
-        for node in nodes:
-            if node.image_id in nodes_per_image:
-                nodes_per_image[node.image_id].append(node.hostname)
-            else:
-                nodes_per_image[node.image_id]=[node.hostname]
     else:
         used_custom_images=custom_images
         nodes_per_image=None

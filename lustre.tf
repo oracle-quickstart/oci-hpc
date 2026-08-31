@@ -20,13 +20,18 @@ resource "oci_lustre_file_storage_lustre_file_system" "lustre_file_system" {
   #Optional
   # cluster_placement_group_id = oci_cluster_placement_groups_cluster_placement_group.test_cluster_placement_group.id
   # defined_tags = {"Operations.CostCenter"= "42"}
-  display_name            = "${local.cluster_name}-lfs"            	# File system name
+  display_name = "${local.cluster_name}-lfs" # File system name
   #file_system_description = var.lfs_file_system_description # File system description Optional
-  freeform_tags = {
-    "lfs_cluster_name" = local.cluster_name
-    "cluster_name"     = local.cluster_name
-    "parent_cluster"   = local.cluster_name
-  }
+  freeform_tags = merge(
+    {
+      "lfs_cluster_name" = local.cluster_name
+      "cluster_name"     = local.cluster_name
+      "parent_cluster"   = local.cluster_name
+    },
+    trimspace(var.lfs_freeform_tag_key) == "" ? tomap({}) : tomap({
+      (trimspace(var.lfs_freeform_tag_key)) = var.lfs_freeform_tag_value
+    })
+  )
   # kms_key_id = oci_kms_key.test_key.id
   # nsg_ids = var.lustre_file_system_nsg_ids
 }

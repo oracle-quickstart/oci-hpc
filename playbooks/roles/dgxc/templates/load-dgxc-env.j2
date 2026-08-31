@@ -1,0 +1,38 @@
+# Source this file to enable DGXC Benchmarking commands in the current shell.
+DGXC_REPO="${DGXC_REPO:-{{ dgxc_repo_path }}}"
+DGXC_VENV="${DGXC_VENV:-{{ dgxc_venv_path }}}"
+export DGXC_REPO
+export DGXC_VENV
+export LLMB_INSTALL="${LLMB_INSTALL:-{{ dgxc_install_path }}}"
+
+_dgxc_mksquashfs_processors() {
+  if [ -n "${DGXC_MKSQUASHFS_PROCESSORS:-}" ]; then
+    printf '%s\n' "${DGXC_MKSQUASHFS_PROCESSORS}"
+  elif command -v nproc >/dev/null 2>&1; then
+    nproc --all
+  else
+    getconf _NPROCESSORS_ONLN 2>/dev/null || printf '1\n'
+  fi
+}
+
+case " ${ENROOT_SQUASH_OPTIONS:-} " in
+  *" -processors "*) ;;
+  "  ") export ENROOT_SQUASH_OPTIONS="{{ dgxc_enroot_squash_options }} -processors $(_dgxc_mksquashfs_processors)" ;;
+  *) export ENROOT_SQUASH_OPTIONS="${ENROOT_SQUASH_OPTIONS} -processors $(_dgxc_mksquashfs_processors)" ;;
+esac
+
+case ":${PATH:-}:" in
+  *:"{{ dgxc_install_path }}/bin":*) ;;
+  *) PATH="{{ dgxc_install_path }}/bin:${PATH:-}" ;;
+esac
+case ":${PATH:-}:" in
+  *:"${DGXC_VENV}/bin":*) ;;
+  *) PATH="${DGXC_VENV}/bin:${PATH:-}" ;;
+esac
+case ":${PATH:-}:" in
+  *:"{{ dgxc_node_bin_path }}":*) ;;
+  *) PATH="{{ dgxc_node_bin_path }}:${PATH:-}" ;;
+esac
+export PATH
+
+unset -f _dgxc_mksquashfs_processors

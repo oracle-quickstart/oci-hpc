@@ -1,0 +1,11 @@
+[Unit]
+Description=Apply Lustre LDLM client tuning
+After=network-online.target remote-fs.target
+Wants=network-online.target remote-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/apply-lustre-ldlm-tuning
+
+[Install]
+WantedBy=multi-user.target

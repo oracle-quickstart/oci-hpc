@@ -29,7 +29,7 @@
       ansible.builtin.shell:
         cmd: |
           set -o pipefail
-          if [ -f "{{ nccl_release_cache_path }}" ]; then
+          if [ -s "{{ nccl_release_cache_path }}" ] && grep -q '^v' "{{ nccl_release_cache_path }}"; then
             cat "{{ nccl_release_cache_path }}"
           else
             releases=$(curl -s https://api.github.com/repos/nvidia/nccl/tags | jq -r '.[] | "\(.name) \(.tarball_url)"')
@@ -188,8 +188,8 @@
           ansible.builtin.template:
             src: nccl-profiler-exporter.service.j2
             dest: "{{ exporter_service_file }}"
-            owner: "{{ ansible_user }}"
-            group: "{{ ansible_user }}"
+            owner: "{{ cluster_admin_user }}"
+            group: "{{ cluster_admin_user }}"
             mode: "0744"
 
         - name: Ensure nccl-profiler-exporter service is enabled and running

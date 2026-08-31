@@ -1,15 +1,18 @@
 ---
 pyxis_shared_path: "{{ thirdparty_arch_path }}/pyxis"
-pyxis_shared_package_path: "{{ pyxis_shared_path }}/packages"
-pyxis_build_path: "{{ thirdparty_arch_path }}/pyxis/{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}"
+pyxis_os_version_key: "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}"
+# The shared package path must be segmented per OS version. A deb built on one
+# Ubuntu release embeds that release's libc symbol versions (e.g. libc6 >= 2.38
+# on Noble) and will not install on an older release (Jammy ships 2.35). Keeping
+# this scoped to the OS version - like pyxis_build_path below - prevents a
+# package built on one release from being installed on an incompatible one.
+pyxis_shared_package_path: "{{ pyxis_shared_path }}/packages/{{ pyxis_os_version_key }}"
+pyxis_build_path: "{{ thirdparty_arch_path }}/pyxis/{{ pyxis_os_version_key }}"
 pyxis_package_config_path: "/usr/share/pyxis/pyxis.conf"
 pyxis_deb_build_dependencies:
   - build-essential
   - debhelper
   - devscripts
-  - git
 pyxis_rpm_build_dependencies:
   - gcc-c++
-  - git
-  - make
   - rpm-build

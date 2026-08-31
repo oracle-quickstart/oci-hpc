@@ -10,6 +10,8 @@ def print_image_list(images, title,nodes_per_image=None):
     table.add_column("ocid", justify="left")
     if nodes_per_image:
         table.add_column("nodes", justify="left")
+    else:
+        table.add_column("state", justify="left")
          
     for image in images:
         if nodes_per_image:
@@ -27,7 +29,7 @@ def print_image_list(images, title,nodes_per_image=None):
     console.print(table)
 
 def print_image_list_yaml_json(images,output_file=None,type="yaml",nodes_per_image=None):
-    images_print = list
+    images_print = []
 
     for image in images:
         image_type = {

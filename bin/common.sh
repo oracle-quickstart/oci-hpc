@@ -11,6 +11,35 @@ bootstrap_script_name=""
 readonly BOOTSTRAP_ANSIBLE_INSTALL_LOCK_TIMEOUT_SECONDS
 readonly BOOTSTRAP_PYTHON_INSTALL_LOCK_TIMEOUT_SECONDS
 
+configure_hpc_apt_acquire() {
+  local apt_conf_dir="/etc/apt/apt.conf.d"
+  local apt_conf_file="${apt_conf_dir}/99-hpc-acquire"
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [[ "${EUID}" -eq 0 ]]; then
+    install -d -m 0755 "${apt_conf_dir}"
+    cat >"${apt_conf_file}" <<'EOF'
+Acquire::ForceIPv4 "true";
+Acquire::Retries "2";
+Acquire::http::Timeout "30";
+Acquire::https::Timeout "30";
+DPkg::Lock::Timeout "120";
+EOF
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo install -d -m 0755 "${apt_conf_dir}"
+    sudo tee "${apt_conf_file}" >/dev/null <<'EOF'
+Acquire::ForceIPv4 "true";
+Acquire::Retries "2";
+Acquire::http::Timeout "30";
+Acquire::https::Timeout "30";
+DPkg::Lock::Timeout "120";
+EOF
+  fi
+}
+
 # Emit uniform error/exit records so bootstrap failures are easy to correlate.
 _bootstrap_log_error() {
   local rc="$1"

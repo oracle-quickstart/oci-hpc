@@ -58,9 +58,13 @@ variable "controller_shape" {
   type    = string
 }
 
-variable "custom_controller_image" {
+variable "controller_image_ocid" {
   type    = string
-  default = "image.ocid"
+  default = null
+}
+variable "controller_image_uri" {
+  type    = string
+  default = null
 }
 variable "controller_boot_volume_size" {
   type = number
@@ -100,20 +104,20 @@ variable "boot_volume_size" {
   default = 50
   type    = number
 }
-variable "use_marketplace_image" {
-  default = true
-  type    = bool
-}
-variable "image" {
-  default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
+variable "compute_image_ocid" {
+  default = null
   type    = string
 }
-variable "image_ocid" {
-  default = "ocid1.image.oc1..aaaaaaaa5yxem7wzie34hi5km4qm2t754tsfxrjuefyjivebrxjad4jcj5oa"
+variable "compute_image_unlisted_ocid" {
+  default = null
   type    = string
 }
-variable "unsupported_controller_image" {
-  default = ""
+variable "compute_image_uri" {
+  type    = string
+  default = null
+}
+variable "controller_image_unlisted_ocid" {
+  default = null
   type    = string
 }
 variable "vcn_compartment" {
@@ -123,6 +127,10 @@ variable "vcn_compartment" {
 variable "vcn_id" {
   default = ""
   type    = string
+}
+variable "create_private_zone" {
+  type    = bool
+  default = false
 }
 variable "use_existing_vcn" {
   type    = bool
@@ -162,7 +170,7 @@ variable "slurm" {
   type    = bool
 }
 variable "slurm_version" {
-  default = "25.11.5-1"
+  default = "26.05.0-1.oci"
   type    = string
 }
 variable "slurm_ha" {
@@ -172,12 +180,12 @@ variable "slurm_ha" {
 variable "slurm_federation" {
   default = false
   type    = bool
-}  
+}
 
 variable "ip_slurmdbd" {
   default = ""
   type    = string
-}  
+}
 
 variable "munge_key" {
   default = ""
@@ -231,11 +239,19 @@ variable "controller_ocpus_denseIO_flex" {
   default = 8
   type    = number
 }
+variable "controller_ocpus_denseIO_e5_e6_flex" {
+  default = 8
+  type    = number
+}
 variable "instance_pool_ocpus" {
   default = 2
   type    = number
 }
 variable "instance_pool_ocpus_denseIO_flex" {
+  default = 8
+  type    = number
+}
+variable "instance_pool_ocpus_denseIO_e5_e6_flex" {
   default = 8
   type    = number
 }
@@ -255,11 +271,19 @@ variable "login_ocpus_denseIO_flex" {
   default = 8
   type    = number
 }
+variable "login_ocpus_denseIO_e5_e6_flex" {
+  default = 8
+  type    = number
+}
 variable "monitoring_ocpus" {
   default = 2
   type    = number
 }
 variable "monitoring_ocpus_denseIO_flex" {
+  default = 8
+  type    = number
+}
+variable "monitoring_ocpus_denseIO_e5_e6_flex" {
   default = 8
   type    = number
 }
@@ -297,7 +321,7 @@ variable "privilege_group_name" {
 }
 
 
-variable "marketplace_listing" {
+variable "compute_image_marketplace_listing" {
   default = "HPC_OL8"
   type    = string
 }
@@ -311,7 +335,7 @@ variable "marketplace_version_id" {
   }
 }
 
-# To find the Appcatalog OCID, run 
+# To find the Appcatalog OCID, run
 # oci compute pic listing list --display-name "Oracle Linux 7 - HPC Cluster Networking Image"
 
 variable "marketplace_listing_id_HPC" {
@@ -341,6 +365,10 @@ variable "add_nfs" {
 variable "create_fss" {
   default = "existing"
   type    = string
+}
+variable "enable_fss_deletion_protection" {
+  default = true
+  type    = bool
 }
 variable "mount_target_count" {
   default = "0"
@@ -374,11 +402,24 @@ variable "nfs_options" {
   default = ""
   type    = string
 }
-variable "enroot" {
+variable "cluster_monitoring" {
   default = false
   type    = bool
 }
-variable "cluster_monitoring" {
+variable "slurm_job_monitoring" {
+  default = false
+  type    = bool
+}
+variable "slurm_monitoring_mysql_backend" {
+  default = "managed"
+  type    = string
+
+  validation {
+    condition     = contains(["local", "managed"], var.slurm_monitoring_mysql_backend)
+    error_message = "slurm_monitoring_mysql_backend must be either local or managed."
+  }
+}
+variable "grafana_ldap_auth_enabled" {
   default = false
   type    = bool
 }
@@ -387,6 +428,10 @@ variable "alerting" {
   type    = bool
 }
 variable "pyxis" {
+  default = false
+  type    = bool
+}
+variable "dgxc_benchmarking" {
   default = false
   type    = bool
 }
@@ -399,31 +444,39 @@ variable "sacct_limits" {
   type    = bool
 }
 
-variable "unsupported" {
-  type    = bool
-  default = false
-}
-
 variable "queue" {
   default = "compute"
   type    = string
 }
-variable "unsupported_controller" {
-  type    = bool
-  default = false
+
+variable "controller_image_source" {
+  type    = string
+  default = "Marketplace"
+
+  validation {
+    condition     = contains(["Marketplace", "Unlisted", "Custom", "URI"], var.controller_image_source)
+    error_message = "Valid values for controller image source: Marketplace, Unlisted, Custom, URI."
+  }
 }
-variable "use_marketplace_image_controller" {
-  type    = bool
-  default = true
-}
+
 variable "controller_username" {
   type    = string
-  default = "opc"
+  default = ""
+}
+
+variable "compute_image_source" {
+  type    = string
+  default = "Marketplace"
+
+  validation {
+    condition     = contains(["Marketplace", "Unlisted", "Custom", "URI", "Same as management nodes"], var.compute_image_source)
+    error_message = "Valid values for compute image source: Marketplace, Unlisted, Custom, URI, Same as management nodes."
+  }
 }
 
 variable "compute_username" {
   type    = string
-  default = "opc"
+  default = ""
 }
 
 variable "private_deployment" {
@@ -440,10 +493,10 @@ variable "log_vol" {
   type    = bool
 }
 variable "redundancy" {
-  default = true
+  default = false
   type    = bool
 }
-variable "marketplace_listing_controller" {
+variable "controller_image_marketplace_listing" {
   default = "HPC_OL8"
   type    = string
 }
@@ -522,12 +575,12 @@ variable "auth_token" {
   type    = string
 }
 
- variable "home_region" {
-   default = "us-ashburn-1"
-   type    = string
+variable "home_region" {
+  default = "us-ashburn-1"
+  type    = string
 }
 
-variable is_gov_cloud {
+variable "is_gov_cloud" {
   default = false
   type    = bool
 }
@@ -549,7 +602,7 @@ variable "OCI_generated_container_name" {
 
 
 variable "container_version" {
-  default = "v3.1"
+  default = "release-3.1.1"
   type    = string
 }
 
@@ -571,43 +624,51 @@ variable "preemptible" {
 
 variable "add_lfs" {
   default = false
-  type = bool
+  type    = bool
 }
 variable "create_lfs" {
   default = false
-  type =  string
+  type    = string
 }
 variable "lfs_compartment" {
   default = ""
-  type =  string
+  type    = string
 }
 variable "lfs_ad" {
   default = ""
-  type =  string
+  type    = string
 }
 variable "lfs_capacity_in_gbs" {
   default = 31200
-  type =  number
+  type    = number
 }
 variable "lfs_perf_tier" {
   default = "MBPS_PER_TB_125"
-  type = string
+  type    = string
+}
+variable "lfs_freeform_tag_key" {
+  default = ""
+  type    = string
+}
+variable "lfs_freeform_tag_value" {
+  default = ""
+  type    = string
 }
 variable "lfs_target_path" {
   default = "/mnt/lfs"
-  type = string
+  type    = string
 }
 variable "lfs_source_IP" {
   default = "0.0.0.0"
-  type = string
+  type    = string
 }
 variable "lfs_source_path" {
   default = "lustrefs"
-  type = string
+  type    = string
 }
 variable "lfs_options" {
   default = "defaults,_netdev"
-  type = string
+  type    = string
 }
 variable "ingest_oci_metrics" {
   default = false
@@ -616,17 +677,30 @@ variable "ingest_oci_metrics" {
 
 variable "mysql_admin_password" {
   default = ""
-  type = string
+  type    = string
+
+  validation {
+    condition = var.mysql_admin_password == "" || (
+      length(var.mysql_admin_password) >= 8 &&
+      length(var.mysql_admin_password) <= 32 &&
+      can(regex("[!@#%^*_+\\-:?.,\\[\\]{}]", var.mysql_admin_password)) &&
+      can(regex("[0-9]", var.mysql_admin_password)) &&
+      can(regex("[a-z]", var.mysql_admin_password)) &&
+      can(regex("[A-Z]", var.mysql_admin_password)) &&
+      !can(regex("[$()]", var.mysql_admin_password))
+    )
+    error_message = "mysql_admin_password must be 8–32 characters and contain uppercase, lowercase, numeric, and permitted special characters; $, (, and ) are not allowed."
+  }
 }
 
 variable "mysql_shape" {
   default = "MySQL.4"
-  type = string
+  type    = string
 }
 
 variable "mysql_admin_username" {
   default = ""
-  type = string
+  type    = string
 }
 
 variable "wildcard_dns_domain" {
@@ -639,18 +713,55 @@ variable "use_lets_encrypt_prod_ep" {
   type    = bool
 }
 
-variable "default_domain" {
-  default = true
-  type    = bool  
-  description = "Using default Domain"
+variable "create_policies" {
+  default     = false
+  type        = bool
+  description = "Create IAM policies for the Slurm controller and function resource principals."
 }
 
-variable "domain_ocid" {
+variable "use_existing_dynamic_group" {
+  default     = false
+  type        = bool
+  description = "Use an existing dynamic group for created policies instead of creating a new one."
+}
+
+variable "dynamic_group_id" {
+  default     = ""
+  type        = string
+  description = "Existing dynamic group OCID."
+}
+
+variable "identity_domain_compartment_id" {
+  default     = null
+  type        = string
+  description = "Compartment OCID containing the selected identity domain."
+}
+
+variable "use_default_identity_domain" {
+  default     = true
+  type        = bool
+  description = "Use the default identity domain."
+}
+
+variable "identity_domain_ocid" {
   type        = string
   description = "Identity domain OCID for the user; overrides default identity domain."
   default     = null
 }
+
 variable "prechecks" {
   default = true
-  type = bool
+  type    = bool
+}
+
+variable "login_to_ocir_using_default_domain" {
+  type        = bool
+  default     = true
+  description = "Using default domain to generate login user for OCIR."
+}
+
+variable "custom_domain_ocid_to_authenticate_to_ocir" {
+  type        = string
+  default     = null
+  description = "Using custom domain to generate login user for OCIR."
 }

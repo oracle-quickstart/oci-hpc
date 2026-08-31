@@ -1,0 +1,13 @@
+---
+- name: Install nvtop package
+  vars:
+    package_name: # noqa: var-naming[no-role-prefix]
+      - nvtop
+    package_state: present # noqa: var-naming[no-role-prefix]
+    package_repo: >- # noqa: var-naming[no-role-prefix]
+      {{
+        'ol' + ansible_facts['distribution_major_version'] + '_developer_EPEL'
+        if ansible_facts['distribution'] == 'OracleLinux' else 'None'
+      }}
+  ansible.builtin.include_role:
+    name: safe_yum

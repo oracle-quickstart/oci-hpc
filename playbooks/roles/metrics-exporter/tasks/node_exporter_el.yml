@@ -12,7 +12,6 @@
     state: present
     createhome: false
     shell: /usr/sbin/nologin
-    append: true
     group: prometheus
 
 - name: Create /var/lib/prometheus/node_exporter directory

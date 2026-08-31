@@ -1,0 +1,29 @@
+---
+slurm_monitoring_controller_install_dir: /usr/local/bin
+slurm_monitoring_controller_data_dir: /var/lib/slurm-exporter
+slurm_monitoring_controller_jwt_token_path: "{{ slurm_jwt_token_path | default(slurm_nfs_path ~ '/spool_' ~ cluster_name ~ '/slurm/jwt_hs256.token') }}"
+slurm_monitoring_controller_user: "{{ slurm_user | default('slurm') }}"
+slurm_monitoring_controller_group: "{{ slurm_group | default('slurm') }}"
+slurm_monitoring_controller_venv_path: "{{ venv_path | default(ansible_python_interpreter | dirname | dirname) }}"
+
+slurm_monitoring_controller_db_host: "{{ slurm_monitoring_db_host | default('') }}"
+slurm_monitoring_controller_db_port: "{{ slurm_monitoring_db_port | default(3306) }}"
+slurm_monitoring_controller_db_name: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}"
+slurm_monitoring_controller_db_user: "{{ slurm_monitoring_db_user | default('slurm_exporter') }}"
+slurm_monitoring_controller_db_password: "{{ slurm_monitoring_db_password | default('') }}"
+
+slurm_monitoring_controller_rest_exporter_enabled: "{{ slurm_job_monitoring | default(false) | bool }}"
+slurm_monitoring_controller_rest_exporter_port: 9901
+slurm_monitoring_controller_rest_exporter_interval: 60
+slurm_monitoring_controller_rest_exporter_url: "http://localhost:6820"
+slurm_monitoring_controller_rest_exporter_log_level: INFO
+
+slurm_monitoring_controller_job_exporter_enabled: "{{ slurm_job_monitoring | default(false) | bool }}"
+slurm_monitoring_controller_job_exporter_port: 9902
+slurm_monitoring_controller_job_exporter_interval: 300
+slurm_monitoring_controller_job_exporter_lookback: 24
+slurm_monitoring_controller_job_exporter_log_level: INFO
+
+slurm_monitoring_controller_enable_db_compact: "{{ slurm_monitoring_controller_job_exporter_enabled | bool }}"
+slurm_monitoring_controller_db_retention_days: 90
+slurm_monitoring_controller_db_retention_util_days: 30

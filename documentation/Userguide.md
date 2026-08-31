@@ -5,7 +5,7 @@
 > [!IMPORTANT]
 > If you are using GB200 or GB300 hosts, see special notes in [GraceBlackwell-based-shapes.md](GraceBlackwell-based-shapes.md).
 
-The `mgmt` tool is deployed on the controller node as part of the HPC Cluster Stack deployment. The full mgmt command help is available [here](documentation/mgmt-help.txt). 
+The `mgmt` tool is deployed on the controller node as part of the HPC Cluster Stack deployment. Its full command reference is available [here](mgmt-cli.md).
 
 ### Adding nodes
 
@@ -72,18 +72,51 @@ mgmt nodes reconfigure --action install-lfs --fields role=compute
 mgmt nodes reconfigure --action install-lfs --fields role=login
 ```
 
+* Checking the cluster inventory before a one-time DGXC benchmarking install:
+```
+source /config/bin/setup_environment.sh
+cluster_name=$(curl -fsL -H "Authorization: Bearer Oracle" \
+  http://169.254.169.254/opc/v2/instance/freeformTags/cluster_name)
+inventory="/config/playbooks/inventory_${cluster_name}"
+
+$VENV_PATH/bin/ansible-inventory -i "$inventory" --graph
+```
+
+* Installing DGXC benchmarking shared components once on one GPU inventory host:
+```
+/config/bin/custom_ansible.sh dgxc_benchmarking \
+  -e dgxc_target_hosts=<gpu-inventory-hostname> \
+  -e dgxc_run_llmb_install=true
+```
+
+* Adding DGXC shell integration to existing compute nodes:
+```
+mgmt nodes reconfigure --action ansible --playbook dgxc_benchmarking_nodes --fields role=compute
+```
+
 Lustre notes:
 - `install-lfs` uses the inventory-backed `lfs_target_path`, `lfs_source_IP`, `lfs_source_path`, and `lfs_options` values. Update inventory first, then run the command.
 - Monitoring nodes are not supported targets for `install-lfs`.
 - Lustre package builds coordinate through a shared lock under `/config/3rdparty/<arch>/lustre_pkg/builds`. If a builder crashes and leaves a stale lock behind, remove the matching lock directory manually and rerun the command.
 
+DGXC notes:
+- `dgxc_benchmarking=true` and `pyxis=true` enable DGXC shell integration during normal controller, login, monitoring, and compute node configuration.
+- `playbooks/dgxc_benchmarking.yml` must target exactly one host because it writes to shared DGXC paths under `/config/3rdparty`.
+- The DGXC shared install should target a GPU node, not the controller. If the target GPU node is not present in the Ansible inventory, SSH to the GPU node and run the same playbook locally without `dgxc_target_hosts`.
+- `playbooks/dgxc_benchmarking.yml` replays the generated DGXC config when `dgxc_run_llmb_install=true`.
+- `playbooks/dgxc_benchmarking_nodes.yml` installs `/opt/dgxc-benchmarking/bin` wrappers and the `load-dgxc-env` loader only.
+- DGXC shell integration does not add DGXC commands to the default system `PATH` and does not install `git`, `git-lfs`, or other packages on every node.
+- Source `/opt/dgxc-benchmarking/bin/load-dgxc-env` to add DGXC commands to an interactive shell.
+- The same shell integration is also part of the standard controller, login, monitoring, and compute node playbooks so future nodes receive it during normal configuration when `dgxc_benchmarking=true`.
+- Live `llmb-install` playback output is written to `/config/3rdparty/dgxc-benchmarking/logs/llmb-install-<node>.latest.log`.
+
 [Local Disk Recovery](LocaldiskRecovery.md)
 
-## Submiting jobs
+## Submitting jobs
 
 Slurm job examples (NCCL allreduce) can be found for several GPU shapes: 
 * [A100, H100, H200 and B200](/samples/gpu/nccl_run_allreduce.sbatch)
-* [GB200 and GB300](/samples/gpu/nccl_run_allreduce_GB200.sbatch)
+* [GB200 and GB300](/samples/gpu/nccl_run_allreduce_GB.sbatch)
 * [MI300X](/samples/gpu/rccl_run_allreduce.sbatch)
 
 ## Logs

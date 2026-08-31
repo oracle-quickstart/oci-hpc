@@ -1,0 +1,17 @@
+install_path: {{ dgxc_install_path | to_json }}
+venv_type: venv
+gpu_type: {{ dgxc_detected_gpu_type | to_json }}
+node_architecture: {{ dgxc_detected_node_architecture | to_json }}
+selected_workloads:
+{% for dgxc_workload in dgxc_selected_workloads %}
+  - {{ dgxc_workload | to_json }}
+{% endfor %}
+workload_selection_mode: custom
+install_method: local
+environment_vars: {}
+slurm:
+  account: {{ cluster_admin_user | to_json }}
+  gpu_partition: {{ dgxc_slurm_gpu_partition | to_json }}
+  cpu_partition: {{ dgxc_slurm_cpu_partition | to_json }}
+  gpu_partition_gres: {{ dgxc_detected_gpu_count }}
+  cpu_partition_gres: {{ dgxc_detected_gpu_count }}

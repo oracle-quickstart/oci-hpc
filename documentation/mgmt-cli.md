@@ -18,6 +18,7 @@ Usage: mgmt [OPTIONS] COMMAND [ARGS]...
 - `--active-healthchecks-frequency INTEGER` - Active healthchecks frequency in hours
 - `--multi-nodes-healthchecks / --no-multi-nodes-healthchecks` - Enable or disable multi-node healthchecks
 - `--multi-nodes-healthchecks-frequency INTEGER` - Multi-node healthchecks frequency in hours
+- `--manage-hosts / --no-manage-hosts` - Update `/etc/hosts` across nodes from database data
 
 ## Main Commands
 
@@ -49,6 +50,7 @@ Usage: mgmt clusters [OPTIONS] COMMAND [ARGS]...
 - `create` - Create a new cluster
 - `delete` - Delete a cluster with name
 - `list` - List all clusters in tabular or JSON format
+- `update-instance-config` - Update an instance configuration for a cluster or GPU memory cluster
 
 ### clusters create
 
@@ -59,12 +61,18 @@ Usage: mgmt clusters create [OPTIONS]
 ```
 
 **Options:**
-- `--count INTEGER` - Number of nodes to add [required]
+- `--count INTEGER` - Number of nodes to add; omit or use 0 with `--all` or multiple fabrics to use each fabric AVAILABLE count
 - `--cluster TEXT` - Specify the name of the cluster [required]
 - `--instancetype TEXT` - Specify the instance type of the cluster [required]
 - `--names TEXT` - Comma separated list of host names
-- `--fabric TEXT` - OCID of the memory fabric to add the nodes in for BM.GPU.GB200.4 nodes
+- `--fabric TEXT` - OCID of the memory fabric, or comma-separated OCIDs of memory fabrics for GMF based nodes
+- `--all` - Use all unused GPU memory fabrics that have AVAILABLE hosts
+- `--compute-local-block-id TEXT` - Use all unused GPU memory fabrics in this compute local block
+- `--compute-network-block-id TEXT` - Use all unused GPU memory fabrics in this compute network block
+- `--compute-hpc-island-id TEXT` - Use all unused GPU memory fabrics in this compute HPC island
 - `--memorycluster TEXT` - Name used for the memory cluster fabric, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid
+- `--targetsize INTEGER` - Target size for the memory cluster scale config, use 0 to deactivate
+- `--minimum-gmc-size INTEGER` - Only use GPU memory fabrics with at least this many `AVAILABLE` hosts
 
 **Examples:**
 
@@ -73,7 +81,19 @@ Usage: mgmt clusters create [OPTIONS]
 mgmt clusters create --count 3 --cluster mycluster --instancetype BM.Standard.E3.128
 
 # Create a GPU cluster with memory fabric
-mgmt clusters create --count 2 --cluster mycluster --instancetype BM.GPU.GB200.4 --fabric ocid1.fabric.oc1..xxxx --names node01,node02
+mgmt clusters create --count 2 --cluster mycluster --instancetype BM.GPU.GB200.4 --fabric ocid1.fabric.oc1..xxxx --targetsize 18 --names node01,node02
+
+# Create a GPU cluster across every unused available GPU memory fabric
+mgmt clusters create --cluster mycluster --instancetype BM.GPU.GB300.4 --all --targetsize 18
+
+# Create a GPU cluster across unused GPU memory fabrics with at least 12 available hosts
+mgmt clusters create --cluster mycluster --instancetype BM.GPU.GB300.4 --all --minimum-gmc-size 12 --targetsize 18
+
+# Create a GPU cluster across selected GPU memory fabrics
+mgmt clusters create --count 18 --cluster mycluster --instancetype BM.GPU.GB300.4 --fabric ocid1.fabric.oc1..aaaa,ocid1.fabric.oc1..bbbb --targetsize 18
+
+# Create a GPU cluster across every unused available GPU memory fabric in a compute local block
+mgmt clusters create --cluster mycluster --instancetype BM.GPU.GB300.4 --compute-local-block-id ocid1.computelocalblock.oc1..aaaa --targetsize 18
 ```
 
 ### clusters add node
@@ -88,12 +108,14 @@ Usage: mgmt clusters add node [OPTIONS]
 - `--count INTEGER` - Number of nodes to add [required]
 - `--cluster TEXT` - Name of the cluster
 - `--names TEXT` - Comma-separated list of host names
-- `--memorycluster TEXT` - Name of the memory cluster (alternative to --cluster)
+- `--memorycluster TEXT` - OCID of the GPU memory cluster (alternative to --cluster)
 
 **Example:**
 
 ```bash
 mgmt clusters add node --count 2 --cluster mycluster
+# or resize a GPU memory cluster directly
+mgmt clusters add node --count 2 --memorycluster ocid1.computegpumemorycluster.oc1..example
 ```
 
 ### clusters add memory-fabric
@@ -105,16 +127,27 @@ Usage: mgmt clusters add memory-fabric [OPTIONS]
 ```
 
 **Options:**
-- `--count INTEGER` - Number of nodes to add [required]
+- `--count INTEGER` - Number of nodes to add per memory fabric; omit or use 0 with `--all` or multiple fabrics to use each fabric AVAILABLE count
 - `--cluster TEXT` - Name of the compute cluster [required]
-- `--fabric TEXT` - OCID of the memory fabric [required]
+- `--fabric TEXT` - OCID of the memory fabric, or comma-separated OCIDs of memory fabrics
+- `--all` - Add all unused GPU memory fabrics that have AVAILABLE hosts
+- `--compute-local-block-id TEXT` - Add all unused GPU memory fabrics in this compute local block
+- `--compute-network-block-id TEXT` - Add all unused GPU memory fabrics in this compute network block
+- `--compute-hpc-island-id TEXT` - Add all unused GPU memory fabrics in this compute HPC island
 - `--memorycluster TEXT` - Name for the memory cluster
-- `--instancetype TEXT` - Instance type for the nodes [required]
+- `--computeclusterocid TEXT` - OCID of the compute cluster when adding memory cluster to existing compute cluster
+- `--instancetype TEXT` - Instance type for the nodes; uses one from the existing node if not specified
+- `--targetsize INTEGER` - Target size for the memory cluster, default to 18 if tenancy is whitelisted, use 0 to deactivate
+- `--minimum-gmc-size INTEGER` - Only use GPU memory fabrics with at least this many `AVAILABLE` hosts
 
 **Example:**
 
 ```bash
 mgmt clusters add memory-fabric --count 1 --cluster mycluster --fabric ocid1.fabric.oc1..xxxx --instancetype BM.GPU.GB200.4
+mgmt clusters add memory-fabric --all --cluster mycluster --instancetype BM.GPU.GB300.4
+mgmt clusters add memory-fabric --all --cluster mycluster --instancetype BM.GPU.GB300.4 --minimum-gmc-size 12
+mgmt clusters add memory-fabric --count 18 --cluster mycluster --fabric ocid1.fabric.oc1..aaaa,ocid1.fabric.oc1..bbbb --instancetype BM.GPU.GB300.4
+mgmt clusters add memory-fabric --cluster mycluster --compute-network-block-id ocid1.computenetworkblock.oc1..aaaa --instancetype BM.GPU.GB300.4
 ```
 
 ### clusters delete
@@ -128,6 +161,8 @@ Usage: mgmt clusters delete [OPTIONS]
 **Options:**
 - `--cluster TEXT` - Specify the name of the cluster
 - `--memory_cluster TEXT` - Specify the name of the Memory cluster (Compute cluster does not need to be specified)
+- `--force-skip-recycle` - Set GPU memory fabric recycle level to SKIP_RECYCLE before deleting memory cluster(s)
+- `--force-full-recycle` - Set GPU memory fabric recycle level to FULL_RECYCLE before deleting memory cluster(s)
 
 ### clusters list
 
@@ -149,6 +184,27 @@ mgmt clusters list
 # List all clusters in JSON format
 mgmt clusters list --format json
 ```
+
+### clusters update-instance-config
+
+Update an instance configuration for a compute cluster or GPU memory cluster.
+
+```bash
+Usage: mgmt clusters update-instance-config [OPTIONS]
+```
+
+**Options:**
+
+- `--cluster-name TEXT` - Cluster name from the management database
+- `--memory-cluster TEXT` - GPU memory cluster OCID or name to update
+- `--image-id TEXT` - New image OCID
+- `--ssh-key TEXT` - Override SSH public key
+- `--cloud-init TEXT` - Path to cloud-init file
+- `--boot-volume-size INTEGER` - Override boot volume size in GB
+- `--display-name TEXT` - New instance configuration display name
+- `--instance-config-id TEXT` / `--instance-configuration-id TEXT` - Existing instance configuration OCID to attach instead of creating one
+- `--bvr` - Replace boot volumes on existing nodes
+- `--bvr-size INTEGER` - New boot volume size in GB; requires `--bvr`
 
 ---
 
@@ -388,6 +444,8 @@ Usage: mgmt fabrics list [OPTIONS]
 
 **Options:**
 - `--full` - Get full information about the node
+- `--rack-state [AVAILABLE|UNAVAILABLE|OCCUPIED]` - Only show fabrics with racks in this state
+- `--filter [AVAILABLE|UNAVAILABLE|OCCUPIED]` - Alias for `--rack-state`
 
 ---
 
@@ -545,7 +603,9 @@ Usage: mgmt nodes [OPTIONS] COMMAND [ARGS]...
 ### Subcommands
 
 - `boot-volume-swap` - Boot Volume Swap one or more nodes
+- `add-dns-entry` - Add or update a DNS A record for a single node or IP address
 - `console-history` - Fetch console history for one or more nodes
+- `delete-dns-entry` - Delete a DNS A record by hostname
 - `get` - Get information about nodes
 - `healthchecks` - Tag nodes as unhealthy
 - `list` - List nodes with various filters and formats
@@ -586,6 +646,50 @@ mgmt nodes boot-volume-swap --nodes=node1 --image=ocid1.image.oc1..exampleunique
 # Boot Volume Swap BV size
 mgmt nodes boot-volume-swap --nodes=node1 --size=100
 ```
+
+### nodes add-dns-entry
+
+Add or update a private DNS A record for exactly one node or IP address.
+
+```bash
+Usage: mgmt nodes add-dns-entry [OPTIONS]
+```
+
+**Options:**
+
+- `--nodes TEXT` - One node identifier: IP address, hostname, OCID, serial, or OCI name
+- `--ip TEXT` - IP address to use without a management database entry
+- `--alternate_hostname TEXT` - Hostname to use for the DNS A record; required with `--ip`
+
+Use exactly one of `--nodes` or `--ip`.
+
+### nodes console-history
+
+Get console history for nodes selected by identifiers or fields.
+
+```bash
+Usage: mgmt nodes console-history [OPTIONS]
+```
+
+**Options:**
+
+- `--nodes TEXT` - Comma-separated node identifiers
+- `--fields TEXT` - Fields to filter nodes, for example `role=compute,status=running`
+
+Use exactly one of `--nodes` or `--fields`.
+
+### nodes delete-dns-entry
+
+Delete a private DNS A record by hostname.
+
+```bash
+Usage: mgmt nodes delete-dns-entry [OPTIONS]
+```
+
+**Options:**
+
+- `--hostname TEXT` - Hostname to remove [required]
+- `--cluster TEXT` - Cluster name used to select inventory DNS variables
 
 ### nodes get
 
@@ -697,7 +801,7 @@ Usage: mgmt nodes reconfigure [OPTIONS]
 **Options:**
 - `--nodes TEXT` - Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)
 - `--fields TEXT` - Fields to filter nodes (e.g., role=compute,status=running)
-- `--action [compute|controller|all|custom|command|ansible|install-lfs|slurm-reinit|metadata|localdisk-recover|localdisk-raid0|localdisk-raid10]` - What to reconfigure:
+- `--action [compute|controller|all|custom|command|ansible|install-lfs|dr-hpc|slurm-reinit|metadata|localdisk-recover|localdisk-raid0|localdisk-raid10|enable-instance-rdma-plugins]` - What to reconfigure:
   - `compute` - Rerun the cloud-init
   - `controller` - Reconfigure the node on the controller (Slurm Topology and Prometheus targets)
   - `all` - Reconfigure the node on the controller and the cloud-init
@@ -705,18 +809,30 @@ Usage: mgmt nodes reconfigure [OPTIONS]
   - `command` - Run a custom command on the nodes
   - `ansible` - Run a specific playbook on the selected nodes with `--playbook`
   - `install-lfs` - Build and install the Lustre client, then mount Lustre using inventory-backed `lfs_*` settings
+  - `dr-hpc` - Install or update DR HPC on compute nodes; use `--version` to pin a version
   - `metadata` - Refresh metadata on selected nodes
   - `slurm-reinit` - Restart SLURM on selected nodes after clearing local SLURM state
   - `localdisk-recover` - Recover `/mnt/localdisk` on selected nodes
   - `localdisk-raid0` - Recreate `/mnt/localdisk` as RAID0
   - `localdisk-raid10` - Recreate `/mnt/localdisk` as RAID10
+  - `enable-instance-rdma-plugins` - Enable the OCI Compute RDMA instance plugins (Compute HPC RDMA Authentication and Compute HPC RDMA Auto-Configuration) on selected nodes
 - `--command TEXT` - Specify the command to run on the nodes. To be used with --action=command
 - `--playbook TEXT` - Specify the playbook to run on the nodes. To be used with --action=ansible
+- `--version TEXT` - DR HPC version to pin; use with `--action=dr-hpc`
 
 **Lustre notes:**
 - `install-lfs` requires `add_lfs=true` and valid `lfs_target_path`, `lfs_source_IP`, `lfs_source_path`, and `lfs_options` values in the cluster inventory before it is run.
 - `install-lfs` is supported on controller, `slurm_backup`, login, and compute nodes. Monitoring nodes are explicitly rejected.
 - The build uses a shared lock under `/config/3rdparty/<arch>/lustre_pkg/builds`. If a builder crashes and leaves a stale lock behind, remove the matching lock directory manually and rerun the command.
+
+**DGXC notes:**
+- DGXC playbooks require `dgxc_benchmarking=true` and `pyxis=true` in inventory.
+- Use `playbooks/dgxc_benchmarking.yml` for the one-time shared DGXC install. It must target exactly one host because it writes to shared paths under `/config/3rdparty`.
+- Use `playbooks/dgxc_benchmarking_nodes.yml` with `--action ansible` to install only `/opt/dgxc-benchmarking/bin` wrappers and the `load-dgxc-env` loader on selected nodes.
+- DGXC shell integration does not add DGXC commands to the default system `PATH` and does not install `git`, `git-lfs`, or other packages on every node.
+- Source `/opt/dgxc-benchmarking/bin/load-dgxc-env` to add DGXC commands to an interactive shell.
+- The same shell integration is included in the standard controller, login, monitoring, and compute playbooks so future nodes receive it during normal configuration when `dgxc_benchmarking=true`.
+- Live `llmb-install` playback output is written to `/config/3rdparty/dgxc-benchmarking/logs/llmb-install-<node>.latest.log`.
 
 ### nodes tag
 
@@ -840,6 +956,25 @@ Usage: mgmt services all [OPTIONS]
 **Options:**
 - `--http_port INTEGER` - Specify HTTP Port
 
+Node auto-add is configured in `/config/mgmt/auto_add_nodes.json`. Each HPC island maps to one cluster. Standard GPU shapes may use the compact shape list. GB shapes require per-shape settings with `minimum_available_nodes`; a new GMC is created only for an unused GPU memory fabric whose lifecycle state is `AVAILABLE`, whose available hosts all match the configured shape, and whose available host count meets the threshold. `target_size` is optional and defaults to the number of hosts launched from that fabric.
+
+```json
+{
+  "enabled": true,
+  "hpc_islands": {
+    "ocid1.hpcisland...": {
+      "cluster": "example-cluster",
+      "shapes": {
+        "BM.GPU.GB300.4": {
+          "minimum_available_nodes": 18,
+          "target_size": 18
+        }
+      }
+    }
+  }
+}
+```
+
 ### services ansible
 
 Run Ansible to configure nodes.
@@ -850,7 +985,7 @@ Usage: mgmt services ansible [OPTIONS]
 
 ### services init
 
-Reconfigure the Slurm Config files on the controller. topology.conf.
+Reconcile the Slurm config files on the controller.
 
 ```bash
 Usage: mgmt services init [OPTIONS]

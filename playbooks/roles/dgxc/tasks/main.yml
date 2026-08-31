@@ -1,0 +1,8 @@
+---
+- name: Install DGXC shared components
+  ansible.builtin.import_tasks: shared-components.yml
+  when: dgxc_install_shared_components | bool
+
+- name: Install DGXC node wrappers and environment loader
+  ansible.builtin.import_tasks: shell-integration.yml
+  when: dgxc_install_node_integration | bool

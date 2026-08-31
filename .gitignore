@@ -31,6 +31,9 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Terraform's dependency lock file
+.terraform.lock.hcl
+
 # 2. Ansible
 
 *.retry

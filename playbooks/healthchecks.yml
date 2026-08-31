@@ -1,0 +1,9 @@
+---
+- name: Install healthchecks
+  hosts: localhost
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install health check scripts
+      ansible.builtin.include_role:
+        name: healthchecks

@@ -3,23 +3,23 @@
   ansible.builtin.file:
     path: "/opt/oci-hpc/bin"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
 
 - name: Ensure monitoring directory exists
   ansible.builtin.file:
     path: "/config/logs"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
 
 - name: Copying the DB Scraper config
   become: true
   ansible.builtin.template:
     src: queue_read.py.j2
     dest: "/opt/oci-hpc/bin/queue_read.py"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0775"
 
 - name: Create systemd service unit file

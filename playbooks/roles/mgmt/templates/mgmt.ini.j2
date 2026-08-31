@@ -5,6 +5,10 @@ active_healthchecks = {{ active_healthchecks | default(mgmt_active_healthchecks)
 active_healthchecks_frequency = {{ active_healthchecks_frequency | default(mgmt_active_healthchecks_frequency) }}
 multi_nodes_healthchecks = {{ multi_nodes_healthchecks | default(mgmt_multi_nodes_healthchecks) | string | lower }}
 multi_nodes_healthchecks_frequency = {{ multi_nodes_healthchecks_frequency | default(mgmt_multi_nodes_healthchecks_frequency) }}
+# Drain Slurm nodes and reschedule OCI maintenance events when needed.
+maintenance_event_slurm_management = {{ maintenance_event_slurm_management | default(mgmt_maintenance_event_slurm_management) | string | lower }}
+# Only manage maintenance events for nodes already drained by healthchecks.
+maintenance_event_healthcheck_drained_only = {{ maintenance_event_healthcheck_drained_only | default(mgmt_maintenance_event_healthcheck_drained_only) | string | lower }}
 write_node_function_ocid = {{ write_node_function_ocid }}
 # DO NOT MODIFY manage_hosts UNLESS YOU KNOW WHAT YOUR ARE DOING
-manage_hosts = false 
+manage_hosts = false

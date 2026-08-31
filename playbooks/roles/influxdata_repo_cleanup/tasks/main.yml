@@ -1,0 +1,23 @@
+---
+- name: Find legacy InfluxData APT source files
+  become: true
+  ansible.builtin.find:
+    paths:
+      - /etc/apt
+      - /etc/apt/sources.list.d
+    patterns:
+      - sources.list
+      - "*.list"
+    file_type: file
+    recurse: false
+  register: influxdata_repo_cleanup_apt_source_files
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Remove legacy InfluxData repo (without signed-by)
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: "^deb\\s+https://repos\\.influxdata\\.com/debian\\s+stable\\s+main\\s*$"
+    state: absent
+  loop: "{{ influxdata_repo_cleanup_apt_source_files.files | default([]) }}"
+  when: ansible_facts['distribution'] == 'Ubuntu'

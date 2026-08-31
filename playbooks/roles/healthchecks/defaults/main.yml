@@ -1,0 +1,4 @@
+---
+healthchecks_gpu_fryer_image: "ghcr.io/huggingface/gpu-fryer:1.1.0"
+healthchecks_gpu_fryer_cache_dir: "/config/3rdparty/docker"
+healthchecks_gpu_fryer_cache_tar: "{{ healthchecks_gpu_fryer_cache_dir }}/gpu-fryer-1.1.0.tar"

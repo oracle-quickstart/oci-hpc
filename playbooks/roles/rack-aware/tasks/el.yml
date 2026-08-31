@@ -6,35 +6,26 @@
     state: directory
     recurse: true
     mode: "0755"
-    owner: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
     group: "{{ privilege_group_name }}"
 
 - name: Copy node_ordering_by_rack.py
   block:
     - name: Copy node_ordering_by_rack.py
       become: true
-      ansible.builtin.copy:
-        src: node_ordering_by_rack.py
-        dest: /opt/oci-hpc/bin/
-        owner: "{{ ansible_user }}"
+      ansible.builtin.template:
+        src: node_ordering_by_rack.py.j2
+        dest: /opt/oci-hpc/bin/node_ordering_by_rack.py
+        owner: "{{ cluster_admin_user }}"
         group: "{{ privilege_group_name }}"
         mode: "0755"
   rescue:
     - name: Copy node_ordering_by_rack.py
       become: true
-      ansible.builtin.copy:
-        src: node_ordering_by_rack.py
-        dest: /opt/oci-hpc/bin/
-        owner: "{{ ansible_user }}"
+      ansible.builtin.template:
+        src: node_ordering_by_rack.py.j2
+        dest: /opt/oci-hpc/bin/node_ordering_by_rack.py
+        owner: "{{ cluster_admin_user }}"
         group: "{{ privilege_group_name }}"
         mode: "0755"
       ignore_errors: true
-
-- name: Copy node_ordering_by_rack.py to home directory
-  become: true
-  ansible.builtin.copy:
-    src: node_ordering_by_rack.py
-    dest: /home/{{ ansible_user }}
-    owner: "{{ ansible_user }}"
-    group: "{{ privilege_group_name }}"
-    mode: "0755"

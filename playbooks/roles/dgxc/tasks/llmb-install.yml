@@ -1,0 +1,94 @@
+---
+- name: Check DGXC llmb-install playback configuration
+  ansible.builtin.stat:
+    path: "{{ dgxc_effective_llmb_install_config }}"
+  register: dgxc_llmb_install_config_stat
+
+- name: Ensure DGXC llmb-install playback configuration exists
+  ansible.builtin.assert:
+    that:
+      - dgxc_llmb_install_config_stat.stat.exists
+      - dgxc_llmb_install_config_stat.stat.isreg
+    fail_msg: "DGXC llmb-install config file does not exist: {{ dgxc_effective_llmb_install_config }}"
+
+- name: Detect DGXC mksquashfs processor count
+  ansible.builtin.command:
+    argv:
+      - nproc
+      - --all
+  register: dgxc_nproc_all
+  changed_when: false
+  failed_when: false
+
+- name: Set DGXC mksquashfs processor count
+  ansible.builtin.set_fact:
+    dgxc_effective_mksquashfs_processors: >-
+      {{
+        (dgxc_mksquashfs_processors | string | trim)
+        if (dgxc_mksquashfs_processors | string | trim | length > 0)
+        else (dgxc_nproc_all.stdout | default('1') | string | trim)
+      }}
+
+- name: Set DGXC llmb-install log paths
+  ansible.builtin.set_fact:
+    dgxc_effective_llmb_install_log_path: "{{ dgxc_llmb_install_log_path }}"
+    dgxc_effective_llmb_install_latest_log_path: "{{ dgxc_llmb_install_latest_log_path }}"
+
+- name: Ensure DGXC log directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ dgxc_log_path }}"
+    state: directory
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0700"
+
+- name: Create DGXC llmb-install log file
+  become: true
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ dgxc_effective_llmb_install_log_path }}"
+    force: false
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0600"
+
+- name: Link latest DGXC llmb-install log
+  become: true
+  ansible.builtin.file:
+    src: "{{ dgxc_effective_llmb_install_log_path }}"
+    dest: "{{ dgxc_effective_llmb_install_latest_log_path }}"
+    state: link
+    force: true
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+
+- name: Run DGXC llmb-install playback configuration
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    llmb_install_bin={{ (dgxc_venv_path ~ '/bin/llmb-install') | quote }}
+    image_path={{ dgxc_image_path | quote }}
+    config_path={{ dgxc_effective_llmb_install_config | quote }}
+    log_path={{ dgxc_effective_llmb_install_log_path | quote }}
+
+    {
+      printf '[%s] Starting DGXC llmb-install playback\n' "$(date -Is)"
+      printf '[%s] Config: %s\n' "$(date -Is)" "${config_path}"
+      printf '[%s] Images: %s\n' "$(date -Is)" "${image_path}"
+      "${llmb_install_bin}" -i "${image_path}" --play "${config_path}"
+      rc=$?
+      printf '[%s] DGXC llmb-install playback exited with rc=%s\n' "$(date -Is)" "${rc}"
+      exit "${rc}"
+    } 2>&1 | tee -a "${log_path}"
+  args:
+    chdir: "{{ dgxc_repo_path }}"
+    executable: /bin/bash
+  environment:
+    LLMB_INSTALL: "{{ dgxc_install_path }}"
+    PATH: "{{ dgxc_venv_path }}/bin:{{ dgxc_install_path }}/bin:{{ ansible_facts.env.PATH | default('/usr/local/bin:/usr/bin:/bin') }}"
+    DGXC_MKSQUASHFS_PROCESSORS: "{{ dgxc_effective_mksquashfs_processors | default('1') }}"
+    ENROOT_SQUASH_OPTIONS: "{{ dgxc_enroot_squash_options }} -processors {{ dgxc_effective_mksquashfs_processors | default('1') }}"
+  async: "{{ dgxc_llmb_install_async_timeout }}"
+  poll: "{{ dgxc_llmb_install_async_poll }}"
+  changed_when: true

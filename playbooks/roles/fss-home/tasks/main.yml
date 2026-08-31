@@ -1,5 +1,24 @@
 ---
-- include_tasks: el.yml
-  when: ansible_facts['os_family'] == 'RedHat'
-- include_tasks: ubuntu.yml
-  when: ansible_facts['os_family'] == 'Debian'
+- name: Check whether FSS home initialization is complete
+  ansible.builtin.stat:
+    path: "{{ fss_home_marker_path }}"
+  register: fss_home_marker
+
+- name: Skip FSS home initialization when it is already complete
+  ansible.builtin.debug:
+    msg: "FSS home initialization is already complete; skipping synchronization."
+  when: fss_home_marker.stat.exists
+
+- name: Initialize FSS home
+  when: not fss_home_marker.stat.exists
+  block:
+    - ansible.builtin.include_tasks: el.yml
+      when: ansible_facts['os_family'] == 'RedHat'
+    - ansible.builtin.include_tasks: ubuntu.yml
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Mark FSS home initialization complete
+      ansible.builtin.file:
+        path: "{{ fss_home_marker_path }}"
+        state: touch
+        mode: "0644"

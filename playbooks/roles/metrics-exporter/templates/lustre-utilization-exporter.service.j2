@@ -1,0 +1,17 @@
+[Unit]
+Description=Lustre MDT, OST, and filesystem utilization exporter
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor={{ metrics_exporter_lustre_mount_path }}
+ConditionPathExists={{ metrics_exporter_lustre_command }}
+
+[Service]
+Type=simple
+User={{ prometheus_user }}
+Group={{ prometheus_user }}
+ExecStart={{ venv_path }}/bin/python3 {{ metrics_exporter_install_dir }}/lustre_utilization_exporter.py --addr 0.0.0.0 --port {{ metrics_exporter_lustre_port }} --mount {{ metrics_exporter_lustre_mount_path }} --interval-seconds {{ metrics_exporter_lustre_interval_seconds }} --timeout-seconds {{ metrics_exporter_lustre_timeout_seconds }} --lfs-command {{ metrics_exporter_lustre_command }} --log-level {{ metrics_exporter_lustre_log_level }}
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

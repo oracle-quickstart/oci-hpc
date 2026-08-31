@@ -93,6 +93,33 @@
     src: innodb.cnf
     dest: /etc/my.cnf.d/innodb.cnf
 
+- name: Configure MySQL TCP bind for local monitoring DB
+  become: true
+  ansible.builtin.template:
+    src: monitoring_bind.cnf.j2
+    dest: /etc/my.cnf.d/99-oci-hpc-monitoring.cnf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mysqld
+  when:
+    - cluster_monitoring | default(false) | bool
+    - slurm_job_monitoring | default(false) | bool
+    - (slurm_monitoring_mysql_backend | default('managed')) == 'local'
+
+- name: Remove MySQL TCP bind override when local monitoring DB is disabled
+  become: true
+  ansible.builtin.file:
+    path: /etc/my.cnf.d/99-oci-hpc-monitoring.cnf
+    state: absent
+  notify: Restart mysqld
+  when: >-
+    not (
+      cluster_monitoring | default(false) | bool
+      and slurm_job_monitoring | default(false) | bool
+      and (slurm_monitoring_mysql_backend | default('managed')) == 'local'
+    )
+
 - name: Enable MySQL service
   become: true
   service:

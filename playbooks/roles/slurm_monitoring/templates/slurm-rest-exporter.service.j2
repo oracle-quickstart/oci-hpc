@@ -1,0 +1,19 @@
+[Unit]
+Description=Slurm REST API Prometheus Exporter
+After=network-online.target slurmrestd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ slurm_monitoring_controller_user }}
+Group={{ slurm_monitoring_controller_group }}
+Environment="SLURM_JWT={{ slurm_monitoring_controller_jwt_token }}"
+ExecStart={{ slurm_monitoring_controller_venv_path }}/bin/python3 {{ slurm_monitoring_controller_install_dir }}/slurm_rest_exporter.py --url {{ slurm_monitoring_controller_rest_exporter_url }} --port {{ slurm_monitoring_controller_rest_exporter_port }} --interval {{ slurm_monitoring_controller_rest_exporter_interval }} --log-level {{ slurm_monitoring_controller_rest_exporter_log_level }}
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=slurm-rest-exporter
+
+[Install]
+WantedBy=multi-user.target

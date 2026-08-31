@@ -1,0 +1,6 @@
+---
+- name: Install dr_hpc package on Ubuntu
+  become: true
+  ansible.builtin.apt:
+    deb: "{{ dr_hpc_package_path }}"
+    state: present

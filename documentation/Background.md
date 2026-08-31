@@ -58,4 +58,4 @@ The controller node:
 * runs Ansible roles locally when the nodes are marked as `Ready` in order to finalise the cluster setup:
   * Runs the `Fix_ldap` role
   * Adds/removes the node to `prometheus.yml`
-  * Adds/removes the node in the slurm configuration, i.e. `topology.conf` and `gres.conf`
+  * Adds/removes the node in the Slurm configuration, e.g. `topology.yaml` and `gres.conf`

@@ -3,8 +3,8 @@ Description=NCCL Profiler Trace Exporter
 After=network.target
 
 [Service]
-User={{ ansible_user }}
-Group={{ ansible_user }}
+User={{ cluster_admin_user }}
+Group={{ cluster_admin_user }}
 Type=simple
 {% if (groups['monitoring']| length ) > 0 %}
 ExecStart={{venv_path}}/bin/python3 {{ nccl_exporter_script }} --tempo-endpoint  {{ controller_hostname }}:4317

@@ -1,0 +1,191 @@
+---
+- name: Ensure Slurm monitoring database settings are present
+  ansible.builtin.assert:
+    that:
+      - slurm_monitoring_controller_db_host | string | length > 0
+      - slurm_monitoring_controller_db_password | string | length > 0
+    fail_msg: >-
+      Controller Slurm monitoring requires slurm_monitoring_db_host and generated
+      slurm_monitoring_db_password inventory variables.
+  when: >-
+    slurm_monitoring_controller_job_exporter_enabled | bool
+    or slurm_monitoring_controller_enable_db_compact | bool
+
+- name: Ensure Slurm monitoring data directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ slurm_monitoring_controller_data_dir }}"
+    state: directory
+    owner: "{{ slurm_monitoring_controller_user }}"
+    group: "{{ slurm_monitoring_controller_group }}"
+    mode: "0755"
+
+- name: Install MySQL connector for controller Slurm monitoring without Ansible pip module
+  become: true
+  ansible.builtin.command:
+    cmd: "{{ slurm_monitoring_controller_venv_path }}/bin/python3 -m pip install mysql-connector-python"
+  register: slurm_monitoring_controller_mysql_connector_install
+  changed_when: "'Successfully installed' in slurm_monitoring_controller_mysql_connector_install.stdout"
+  when: >-
+    slurm_monitoring_controller_job_exporter_enabled | bool
+    or slurm_monitoring_controller_enable_db_compact | bool
+
+- name: Check Slurm JWT token file
+  become: true
+  ansible.builtin.stat:
+    path: "{{ slurm_monitoring_controller_jwt_token_path }}"
+  register: slurm_monitoring_controller_jwt_token_stat
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Ensure Slurm JWT token is available
+  ansible.builtin.assert:
+    that:
+      - slurm_monitoring_controller_jwt_token_stat.stat.exists
+    fail_msg: >-
+      Slurm monitoring controller exporters require the JWT token file created
+      by the slurm_rest_api role at {{ slurm_monitoring_controller_jwt_token_path }}.
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Read Slurm JWT token file
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ slurm_monitoring_controller_jwt_token_path }}"
+  register: slurm_monitoring_controller_jwt_token_file
+  no_log: true
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Set Slurm JWT token fact
+  ansible.builtin.set_fact:
+    slurm_monitoring_controller_jwt_token: >-
+      {{ slurm_monitoring_controller_jwt_token_file.content | b64decode | trim | regex_replace('^SLURM_JWT=', '') }}
+  no_log: true
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Deploy Slurm REST exporter script
+  become: true
+  ansible.builtin.copy:
+    src: slurm_rest_exporter.py
+    dest: "{{ slurm_monitoring_controller_install_dir }}/slurm_rest_exporter.py"
+    owner: "{{ slurm_monitoring_controller_user }}"
+    group: "{{ slurm_monitoring_controller_group }}"
+    mode: "0755"
+    backup: true
+  notify: Restart slurm-rest-exporter
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Deploy Slurm job exporter script
+  become: true
+  ansible.builtin.copy:
+    src: slurm_job_exporter.py
+    dest: "{{ slurm_monitoring_controller_install_dir }}/slurm_job_exporter.py"
+    owner: "{{ slurm_monitoring_controller_user }}"
+    group: "{{ slurm_monitoring_controller_group }}"
+    mode: "0755"
+    backup: true
+  notify: Restart slurm-job-exporter
+  when: slurm_monitoring_controller_job_exporter_enabled | bool
+
+- name: Deploy Slurm controller database adapter
+  become: true
+  ansible.builtin.copy:
+    src: db_adapter_controller.py
+    dest: "{{ slurm_monitoring_controller_install_dir }}/db_adapter_controller.py"
+    owner: "{{ slurm_monitoring_controller_user }}"
+    group: "{{ slurm_monitoring_controller_group }}"
+    mode: "0644"
+    backup: true
+  notify:
+    - Restart slurm-job-exporter
+  when: >-
+    slurm_monitoring_controller_job_exporter_enabled | bool
+    or slurm_monitoring_controller_enable_db_compact | bool
+
+- name: Deploy Slurm database compaction script
+  become: true
+  ansible.builtin.copy:
+    src: db_compact.py
+    dest: "{{ slurm_monitoring_controller_install_dir }}/db_compact.py"
+    owner: "{{ slurm_monitoring_controller_user }}"
+    group: "{{ slurm_monitoring_controller_group }}"
+    mode: "0755"
+    backup: true
+  when: slurm_monitoring_controller_enable_db_compact | bool
+
+- name: Deploy Slurm REST exporter systemd service
+  become: true
+  ansible.builtin.template:
+    src: slurm-rest-exporter.service.j2
+    dest: /etc/systemd/system/slurm-rest-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify:
+    - Reload systemd
+    - Restart slurm-rest-exporter
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Deploy Slurm job exporter systemd service
+  become: true
+  ansible.builtin.template:
+    src: slurm-job-exporter.service.j2
+    dest: /etc/systemd/system/slurm-job-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify:
+    - Reload systemd
+    - Restart slurm-job-exporter
+  when: slurm_monitoring_controller_job_exporter_enabled | bool
+
+- name: Deploy Slurm database compaction systemd service
+  become: true
+  ansible.builtin.template:
+    src: slurm-db-compact.service.j2
+    dest: /etc/systemd/system/slurm-db-compact.service
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Reload systemd
+  when: slurm_monitoring_controller_enable_db_compact | bool
+
+- name: Deploy Slurm database compaction systemd timer
+  become: true
+  ansible.builtin.template:
+    src: slurm-db-compact.timer.j2
+    dest: /etc/systemd/system/slurm-db-compact.timer
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Reload systemd
+  when: slurm_monitoring_controller_enable_db_compact | bool
+
+- name: Apply Slurm monitoring systemd unit changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Slurm REST exporter
+  become: true
+  ansible.builtin.systemd:
+    name: slurm-rest-exporter
+    enabled: true
+    state: started
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Enable and start Slurm job exporter
+  become: true
+  ansible.builtin.systemd:
+    name: slurm-job-exporter
+    enabled: true
+    state: started
+  when: slurm_monitoring_controller_job_exporter_enabled | bool
+
+- name: Enable and start Slurm database compaction timer
+  become: true
+  ansible.builtin.systemd:
+    name: slurm-db-compact.timer
+    enabled: true
+    state: started
+  when: slurm_monitoring_controller_enable_db_compact | bool

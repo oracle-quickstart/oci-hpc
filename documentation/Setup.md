@@ -35,11 +35,11 @@ Uncheck if current user belongs to non default identity domain.
 
 ### OCID of identity domain
 
-Non default dentity domain OCID for the user.
+Non-default identity domain OCID for the user.
 
 ### Gov or Defense cloud region
 
-If checked, specifies this deployment is occuring in a government or defense cloud region. Leave uncheck for commercial regions.
+If checked, specifies this deployment is occurring in a government or defense cloud region. Leave unchecked for commercial regions.
 
 ### Point to an existing public OCIR in the region
 
@@ -85,7 +85,7 @@ This feature takes advantage of [Slurm Power Saving](https://slurm.schedmd.com/p
 To submit a job, specify the correct partition (i.e ```--partition ondemand```). When submitting the job, ```ResumeProgram``` specified in ```slurm.conf``` is triggered to bring the correct number of nodes in Oracle Cloud and register them in Slurm to run the job. Once the job has run and ```SuspendTime```is reached, ```SuspendProgram``` is triggered to unregister the node and terminate it in Oracle Cloud Infrastructure.
 
 > [!WARNING]
-> Currently, when defining an on-demand partition, the key ```stand_alone:``` should be ```true```. This is because we are not using [NodeSet](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeSet) but rather [OPT_NodeName](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeName) and the name of the node needs to be known beforehand. This is currenlty not possible with Cluster Networks and Instance Pools.
+> Currently, when defining an on-demand partition, the key ```stand_alone:``` should be ```true```. This is because we are not using [NodeSet](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeSet) but rather [OPT_NodeName](https://slurm.schedmd.com/slurm.conf.html#OPT_NodeName) and the name of the node needs to be known beforehand. This is currently not possible with Cluster Networks and Instance Pools.
 
 ## Login Node Options
 
@@ -105,13 +105,13 @@ Depending on the requirements, different "hot" storage options can be configured
 
 ### Lustre Filesystem
 
-The OCI File Storage with Lustre is a fully managed service that delivers the performance ans scale benefits of Lustre, including:
+The OCI File Storage with Lustre is a fully managed service that delivers the performance and scale benefits of Lustre, including:
 * Milliseconds of meta-data latency
 * Capacity to petabytes
 * High throughput of terabytes per second
 while eliminating the complexity of management.
 
-Capacity is a multiple of 31.2 TB. Performance tier must be selected form 125, 250, 500 or 1000 MBps per provisioned TB.
+Capacity is a multiple of 31.2 TB. Select a performance tier of 125, 250, 500, or 1000 MBps per provisioned TB.
 
 ### File Storage Service
 
@@ -120,10 +120,12 @@ The OCI File Storage managed service is a highly available network file system (
 The stack always creates a dedicated File Storage Service for `/config` in the cluster compartment and Availability Domain. It is published in private DNS as:
 
 ```
-fss-config.<cluster_name>.local
+fss-config-<cluster_name>.<zone_name>
 ```
 
 All nodes mount `/config` from that record.
+
+Stack-created File Storage Service resources are protected from accidental deletion by default using OCI File Storage `DELETE` resource locks. This applies to the internal `/config` FSS and any optional stack-created FSS for `/home` or an extra mount such as `/fss`. If deletion protection is enabled, stack destroy will fail until the FSS delete locks are removed. Disable deletion protection only when you intentionally want stack-created FSS resources to be deletable with the stack.
 
 The optional File Storage settings below now apply only to additional shared storage. They can be used to place `/home` on FSS and can also be used at the same time to mount a separate generic NFS/FSS export such as `/fss`.
 
@@ -148,9 +150,9 @@ The `Redundancy` sets the disks configuration to RAID 1.
 > [!WARNING]
 > Local storage can be subject to hardware failure and does not benefit from any built-in replication, cloning or snapshot capabilities. Therefore, this storage solution must not be used for any valuable data. Prefer File Storage or File Storage with Lustre instead.
 
-### Objet Storage
+### Object Storage
 
-This option creates a bucket and mounts it on all the nodes as a filesystem using the `s3fs` package. A dedicated customer secret key is automatically created for the authentication. Files can be listed and copied from and to this bucket using standard Linux commands (respectively `ls` and `cp` commands and their options), making the use of the bucket moer seamless than using the `oci-cli` toolkit.
+This option creates a bucket and mounts it on all the nodes as a filesystem using the `s3fs` package. A dedicated customer secret key is automatically created for authentication. Files can be listed and copied from and to this bucket using standard Linux commands (respectively `ls` and `cp` commands and their options), making the bucket more seamless to use than the `oci-cli` toolkit.
 
 ### General
 
@@ -163,16 +165,16 @@ User can either create a new FSS (be aware that it will be destroyed with the st
 
 ### Using an existing VCN
 
-This implementation uses Private DNS view. When using an existing VCN, make sure you have a Private Zone with `<cluster-name>.local`. You also must create the correct DCHP Options set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to `<cluster-name>.local`. Finally, the DHCP Options of the different subnets must be set to the newly created DCHP Options and not "Default DHCP Options..."
+This implementation uses Private DNS view. When using an existing VCN, provide a Private Zone Name. You can either select `Create Private DNS Zone` to let the stack create that zone in the VCN private DNS view, or leave it disabled when the zone already exists. You also must create the correct DHCP Options set to `Internet and VCN Resolver`, `Custom Search Domain` with the search domain corresponding to the private zone name. Finally, the DHCP Options of the different subnets must be set to that DHCP Options set and not "Default DHCP Options..."
 
 > [!WARNING]
-> If the DHCP Options and the Private Zone are not set properly, the deployment will fail. Make sure they exist or do not use an existing VCN and deploy a new one with this stack.
+> If the DHCP Options and the Private Zone are not set properly, the deployment will fail. Make sure they exist, select `Create Private DNS Zone` for the zone, or do not use an existing VCN and deploy a new one with this stack.
 
 ### Private deployment
 
 If `true`, this will create a private endpoint in order for Oracle Resource Manager to create the management nodes (controller, backup controller, login and monitoring) and the future nodes in private subnet(s). 
 * If "Use Existing Network" is `false`, Terraform will create two private subnets, one for the management nodes and one for the compute nodes.  
-* If "Use Existing Network" is `true`, the user must indicate a private subnet for the management nodes. For the compute nodes, they can reside either in the same private subent as the management nodes or in another one. 
+* If "Use Existing Network" is `true`, the user must indicate a private subnet for the management nodes. For the compute nodes, they can reside either in the same private subnet as the management nodes or in another one.
 
 > [!IMPORTANT]
 > The management nodes will reside in a private subnet. Therefore, the creation of a [bastion service](https://docs.public.content.oci.oraclecloud.com/en-us/iaas/Content/Bastion/Concepts/bastionoverview.htm), a VPN or a FastConnect connection is required. If a public subnet exists in the VCN, adapting the security lists and creating a jump host also works. Finally, a peering connection can also be established between the private subnet and another VCN that is reachable by the user.
@@ -200,7 +202,7 @@ Both the controller and its backup can query the database if one of them is down
 > Make sure you open the correct ports between VCN's. Remember that this automation will not open port on an existing VCN
 > `slurmdbd` runs on port 6819 and `slurmctld` runs on port 6817 by default
 
-If checked, the deployment will take an existing Munge key and use it to register to slurmdbd already running on an another cluster. `slurmdbd` will not run on this deployment. Theuser can then create a Slurm federation using `sacctmgr`
+If checked, the deployment will take an existing Munge key and use it to register with `slurmdbd` already running on another cluster. `slurmdbd` will not run on this deployment. The user can then create a Slurm federation using `sacctmgr`.
 ```
 sacctmgr -i list cluster
 sacctmgr -i add cluster <CLUSTER_1>

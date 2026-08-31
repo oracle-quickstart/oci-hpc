@@ -5,7 +5,14 @@ After=munge.service network-online.target remote-fs.target sssd.service
 
 [Service]
 Restart=always
+# Failed starts can leave slurmd outside systemd's tracked MAINPID.
+ExecStartPre=-/usr/bin/pkill -KILL -x slurmd
+ExecStopPost=-/usr/bin/pkill -KILL -x slurmd
 ExecStart=
+# Shortcut to set GPU resources:
+# Gres=gpu:<short name>:<count>
+# The short name will have to match (case-insensitive) at least a part of the
+# official NVIDIA device name, with spaces replaced by underscores.
 {% if shape == "BM.GPU2.2"%}
 {% set gres = "Gres=gpu:P100:2" %}
 {% elif shape == "VM.GPU2.1" %}
@@ -38,6 +45,8 @@ ExecStart=
 {% set gres = "Gres=gpu:B200:4" %}
 {% elif shape == "BM.GPU.B300.8" %}
 {% set gres = "Gres=gpu:B300:8" %}
+{% elif shape == "BM.GPU.B300.HS.8" %}
+{% set gres = "Gres=gpu:B300:8" %}
 {% elif shape == "BM.GPU.GB300.4" %}
 {% set gres = "Gres=gpu:B300:4" %}
 {% elif shape == "BM.GPU.T1.2" %}
@@ -50,17 +59,31 @@ ExecStart=
 {% set gres = "Gres=gpu:A10:1" %}
 {% elif shape == "BM.GPU.MI300X.8" %}
 {% set gres = "Gres=gpu:MI300X:8" %}
-{% elif shape == "BM.GPU.MI355X.8" or shape == "BM.GPU.MI355X-v0.8" or shape == "BM.GPU.MI355X-v1.8" %}
+{% elif shape in ["BM.GPU.MI355X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X-v1.8"] %}
 {% set gres = "Gres=gpu:MI355X:8" %}
 {% elif shape == "BM.GPU.L40S-NC.4" %}
 {% set gres = "Gres=gpu:L40S:4" %}
-{% elif shape == "VM.GPU.A100.40G.1" or shape == "VM.GPU.A100.B40G.1" or shape == "VM.GPU.A100.80G.1"%}
+{% elif shape == "BM.GPU.RTXPRO.8" %}
+{% set gres = "Gres=gpu:RTX_PRO:8" %}
+{% elif shape in ["VM.GPU.A100.40G.1", "VM.GPU.A100.B40G.1", "VM.GPU.A100.80G.1"] %}
 {% set gres = "Gres=gpu:A100:1" %}
-{% elif shape == "VM.GPU.A100.40G.2" or shape == "VM.GPU.A100.B40G.2" or shape == "VM.GPU.A100.80G.2"%}
+{% elif shape in ["VM.GPU.A100.40G.2", "VM.GPU.A100.B40G.2", "VM.GPU.A100.80G.2"] %}
 {% set gres = "Gres=gpu:A100:2" %}
-{% elif shape == "VM.GPU.A100.40G.4" or shape == "VM.GPU.A100.B40G.4" or shape == "VM.GPU.A100.80G.4"%}
+{% elif shape in ["VM.GPU.A100.40G.4", "VM.GPU.A100.B40G.4", "VM.GPU.A100.80G.4"] %}
 {% set gres = "Gres=gpu:A100:4" %}
 {% else %}
 {% set gres = "" %}
 {% endif %}
-ExecStart={{slurm_exec}}/sbin/slurmd --systemd -Z --conf "{{gres}} Feature={{instance_type}},CN__{{cluster_name}}" --conf-server {{ controller_hostname }}{% if (groups['slurm_backup']| length ) > 0 %},{{ slurm_backup_hostname }}{% endif %} $SLURMD_OPTIONS
+{% set slurmd_conf = [] %}
+{% if gres | trim %}
+{% set _ = slurmd_conf.append(gres) %}
+{% endif %}
+{% set _ = slurmd_conf.append('Feature=' ~ instance_type ~ ',CN__' ~ cluster_name) %}
+{% if slurm_node_topology is defined and slurm_node_topology | trim %}
+{% set _ = slurmd_conf.append('Topology=' ~ slurm_node_topology) %}
+{% endif %}
+{% if not (permanent | bool) %}
+ExecStart={{slurm_exec}}/sbin/slurmd --systemd --conf "{{ slurmd_conf | join(' ') }}" --conf-server {{ controller_hostname }}{% if (groups['slurm_backup']| length ) > 0 %},{{ slurm_backup_hostname }}{% endif %} $SLURMD_OPTIONS
+{% else %}
+ExecStart={{slurm_exec}}/sbin/slurmd --systemd -Z --conf "{{ slurmd_conf | join(' ') }}" --conf-server {{ controller_hostname }}{% if (groups['slurm_backup']| length ) > 0 %},{{ slurm_backup_hostname }}{% endif %} $SLURMD_OPTIONS
+{% endif %}

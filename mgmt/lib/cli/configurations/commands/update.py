@@ -1,7 +1,22 @@
 import click
 from lib.cli import completion
-from lib.database import db_update_configuration
+from lib.database import db_update_configuration, get_controller_node
+from lib.functions import run_ansible_slurm_reconcile
 from lib.logger import logger
+
+
+def reconcile_slurm_configuration():
+    controller = get_controller_node()
+    if controller is None or not controller.hostname:
+        logger.info("Skipping Slurm reconcile because the controller is not registered in the mgmt database yet")
+        return
+    controller_hostname = controller.hostname
+
+    logger.info("Triggering Slurm reconcile on controller %s", controller_hostname)
+    if not run_ansible_slurm_reconcile(controller_hostname):
+        raise click.ClickException(
+            "Configuration was updated in the database, but Slurm reconcile failed."
+        )
 
 @click.command()
 @click.option('--name', required=True, help='Name of the configuration to update', shell_complete=completion.complete_configurations_all)
@@ -31,4 +46,5 @@ def update(name, fields):
         field_dict[key] = new_value
 
     db_update_configuration(name, **field_dict)
-    logger.warning(f"Configuration {name} has been updated. Consider updating Slurm with 'mgmt configurations update-slurm' to sync slurmctld and the database")
+    reconcile_slurm_configuration()
+    logger.info("Configuration %s has been updated and Slurm reconcile was triggered", name)

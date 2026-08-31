@@ -1,0 +1,23 @@
+[Unit]
+Description=Slurm Job Accounting Prometheus Exporter
+After=network-online.target slurmdbd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ slurm_monitoring_controller_user }}
+Group={{ slurm_monitoring_controller_group }}
+Environment="SLURM_DB_HOST={{ slurm_monitoring_controller_db_host }}"
+Environment="SLURM_DB_PORT={{ slurm_monitoring_controller_db_port }}"
+Environment="SLURM_DB_USER={{ slurm_monitoring_controller_db_user }}"
+Environment="SLURM_DB_PASSWORD={{ slurm_monitoring_controller_db_password | replace('%', '%%') }}"
+Environment="SLURM_DB_NAME={{ slurm_monitoring_controller_db_name }}"
+ExecStart={{ slurm_monitoring_controller_venv_path }}/bin/python3 {{ slurm_monitoring_controller_install_dir }}/slurm_job_exporter.py --port {{ slurm_monitoring_controller_job_exporter_port }} --interval {{ slurm_monitoring_controller_job_exporter_interval }} --lookback {{ slurm_monitoring_controller_job_exporter_lookback }} --log-level {{ slurm_monitoring_controller_job_exporter_log_level }}
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=slurm-job-exporter
+
+[Install]
+WantedBy=multi-user.target

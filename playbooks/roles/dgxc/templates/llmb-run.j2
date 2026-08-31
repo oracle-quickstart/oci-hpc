@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DGXC_REPO="${DGXC_REPO:-{{ dgxc_repo_path }}}"
+DGXC_VENV="${DGXC_VENV:-{{ dgxc_venv_path }}}"
+export LLMB_INSTALL="${LLMB_INSTALL:-{{ dgxc_install_path }}}"
+export PATH="${DGXC_VENV}/bin:${LLMB_INSTALL}/bin:${PATH:-}"
+
+expected_architecture="{{ 'aarch64' if ('GPU.GB300' in shape or 'GPU.GB200' in shape) else 'x86_64' }}"
+if [[ "$(uname -m)" != "${expected_architecture}" ]]; then
+  echo "llmb-run must be run from a GPU node (${expected_architecture}); this node uses $(uname -m)." >&2
+  exit 1
+fi
+
+cd "${DGXC_REPO}"
+exec "${DGXC_VENV}/bin/llmb-run" "$@"

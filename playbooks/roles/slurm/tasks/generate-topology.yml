@@ -13,43 +13,128 @@
       {% endif %}
   run_once: true
 
-- name: Set Slurm topology inventory command
-  ansible.builtin.set_fact:
-    slurm_topology_inventory_command: >-
-      {{ slurm_topology_inventory_python }} /config/mgmt/manage.py nodes list
-      --columns hostname,shape,rack_id,rail_id,network_block_id,cluster_name
-      --fields role=compute
-      --format json
-  run_once: true
-
-- name: Install topology generator on controller
-  become: true
-  ansible.builtin.copy:
-    src: "generate_slurm_topology.py"
-    dest: "{{ slurm_conf_path }}/generate_slurm_topology.py"
-    mode: "0755"
-    owner: slurm
-    group: slurm
-  run_once: true
-
-- name: Generate topology.yaml
-  become: true
+- name: Read compute node topology records from mgmt
   ansible.builtin.command:
     argv:
-      - "{{ ansible_facts.python.executable | default('/usr/bin/python3') }}"
-      - "{{ slurm_conf_path }}/generate_slurm_topology.py"
-      - "--output-dir"
-      - "{{ slurm_conf_path }}"
-      - "--output-file"
-      - "topology.yaml"
-      - "--field-order"
-      - "hostname,rack_id,rail_id,network_block_id,cluster_name"
-      - "--shape-field"
-      - "shape"
-      - "--command"
-      - "{{ slurm_topology_inventory_command }}"
-  register: slurm_topology_result
-  changed_when: true
+      - "{{ slurm_topology_inventory_python | trim }}"
+      - /config/mgmt/manage.py
+      - nodes
+      - list
+      - --columns
+      - hostname,shape,rack_id,rail_id,network_block_id,cluster_name,instance_type
+      - --fields
+      - role=compute
+      - --format
+      - json
+      - --one-line
+  register: slurm_topology_inventory_result
+  changed_when: false
+  # A controller-only deployment validly returns []; wait only for mgmt to
+  # return a JSON array instead of a transient empty response.
+  retries: 10
+  delay: 10
+  until:
+    - slurm_topology_inventory_result.rc == 0
+    - slurm_topology_inventory_result.stdout | trim is match('^\\[')
+  run_once: true
+
+- name: Convert Slurm topology inventory to facts
+  ansible.builtin.set_fact:
+    slurm_topology_records: "{{ slurm_topology_inventory_result.stdout | from_json }}"
+  run_once: true
+
+- name: Read compute configurations from mgmt
+  ansible.builtin.command:
+    argv:
+      - "{{ slurm_topology_inventory_python | trim }}"
+      - /config/mgmt/manage.py
+      - configurations
+      - list
+      - --role
+      - compute
+      - --format
+      - json
+  register: slurm_topology_configurations_result
+  changed_when: false
+  # Configurations are a JSON object, including the valid {"queues": []}
+  # response while a cluster has no compute nodes.
+  retries: 10
+  delay: 10
+  until:
+    - slurm_topology_configurations_result.rc == 0
+    - slurm_topology_configurations_result.stdout | trim is match('^\\{')
+  run_once: true
+
+- name: Convert compute configurations to facts
+  ansible.builtin.set_fact:
+    slurm_topology_configurations: "{{ (slurm_topology_configurations_result.stdout | from_json).queues | default([]) }}"
+  run_once: true
+
+- name: Initialize Slurm topology render facts
+  ansible.builtin.set_fact:
+    slurm_topology_cluster_switches: []
+    slurm_topology_on_demand_leaves: []
+  run_once: true
+
+- name: Collect on-demand compute configurations
+  ansible.builtin.set_fact:
+    slurm_topology_on_demand_instances: "{{ slurm_topology_configurations | map(attribute='instance_types') | flatten | rejectattr('permanent') | list }}"
+  run_once: true
+
+- name: Collect on-demand configuration names
+  ansible.builtin.set_fact:
+    slurm_topology_on_demand_config_names: >-
+      {{
+        slurm_topology_on_demand_instances
+        | map(attribute='name')
+        | map('regex_replace', '[^A-Za-z0-9_-]', '-')
+        | unique
+        | list
+      }}
+  run_once: true
+
+- name: Build on-demand topology leaves
+  ansible.builtin.set_fact:
+    slurm_topology_on_demand_leaves: >-
+      {{
+        slurm_topology_on_demand_leaves
+        + [{
+          'switch': ('od-' ~ (item.name | regex_replace('[^A-Za-z0-9_-]', '-')))[:64],
+          'nodes': item.hostname_convention ~ '-[1-' ~ (item.max_number_nodes | string) ~ ']'
+        }]
+      }}
+  loop: "{{ slurm_topology_on_demand_instances }}"
+  run_once: true
+
+- name: Build permanent topology root switches
+  ansible.builtin.set_fact:
+    slurm_topology_cluster_switches: "{{ slurm_topology_cluster_switches + [node_cluster_token] }}"
+  vars:
+    node_cluster_token: "{{ node.cluster_name | default(cluster_name, true) | regex_replace('[^A-Za-z0-9_-]', '-') }}"
+    node_instance_type: "{{ node.instance_type | default('', true) | regex_replace('[^A-Za-z0-9_-]', '-') }}"
+  loop: "{{ slurm_topology_records | default([]) }}"
+  loop_control:
+    loop_var: node
+  when:
+    - node_instance_type not in slurm_topology_on_demand_config_names
+    - node_cluster_token not in slurm_topology_cluster_switches
+  run_once: true
+
+- name: Add fallback topology root switch
+  ansible.builtin.set_fact:
+    slurm_topology_cluster_switches: ["{{ cluster_name | regex_replace('[^A-Za-z0-9_-]', '-') }}"]
+  when: slurm_topology_cluster_switches | length == 0
+  run_once: true
+
+- name: Render topology.yaml
+  become: true
+  ansible.builtin.template:
+    src: topology.yaml.j2
+    dest: "{{ slurm_conf_path }}/topology.yaml"
+    mode: "0644"
+    owner: slurm
+    group: slurm
+    backup: true
   run_once: true
 
 - name: Notify reconfigure if needed

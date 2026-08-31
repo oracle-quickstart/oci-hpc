@@ -8,10 +8,13 @@ def load_nodes():
     base_query = db.get_nodes_with_latest_healthchecks()
     field_dict = {}
     query = db.get_query_by_fields(base_query,field_dict)
-    nodes = query.all()
-    keys = None
-    nodes = [db.node_to_dict(node, keys) for node in nodes]
-    return nodes
+    try:
+        nodes = query.all()
+        keys = None
+        nodes = [db.node_to_dict(node, keys) for node in nodes]
+        return nodes
+    finally:
+        query.session.close()
 
 ###
 # click options and command details
@@ -39,4 +42,3 @@ def cmd(no_color):
     status = render_status(nodes, no_color)
     click.echo(status)
     return
-

@@ -1,12 +1,3 @@
-# get nodes image IDs
-
-data "oci_core_image" "controller_validation" {
-  image_id = local.controller_image
-}
-
-data "oci_core_image" "compute_validation" {
-  image_id = local.compute_image
-}
 
 # get image compatible shapes
 
@@ -21,25 +12,38 @@ data "oci_core_image_shapes" "test_compute_image_shapes" {
 
 locals {
   invalid_federation_config = var.slurm_federation && var.slurm_ha
+  invalid_dgxc_config       = var.dgxc_benchmarking && (!var.slurm || !var.pyxis)
   invalid_shared_fss_mount_target_ad = (
     var.add_nfs &&
     var.create_fss == "new" &&
     var.mount_target_count == 0 &&
     var.fss_ad != var.ad
   )
-  expected_username_controller = (
-    can(regex("(?i)ubuntu", data.oci_core_image.controller_validation.operating_system)) ? "ubuntu" :
-    can(regex("(?i)oracle", data.oci_core_image.controller_validation.operating_system)) ? "opc" :
-    "unknown"
-  )
-  expected_username_compute = (
-    can(regex("(?i)ubuntu", data.oci_core_image.compute_validation.operating_system)) ? "ubuntu" :
-    can(regex("(?i)oracle", data.oci_core_image.compute_validation.operating_system)) ? "opc" :
-    "unknown"
-  )
   compatible_controller_shapes = [for element in data.oci_core_image_shapes.test_controller_image_shapes.image_shape_compatibilities : element.shape]
   compatible_compute_shapes    = [for element in data.oci_core_image_shapes.test_compute_image_shapes.image_shape_compatibilities : element.shape]
-  effective_enroot            = var.enroot || var.pyxis
+
+  controller_image_unlisted_ocid_set = try(trimspace(var.controller_image_unlisted_ocid), "") != ""
+  controller_image_ocid_set          = try(trimspace(var.controller_image_ocid), "") != ""
+  controller_image_uri_set           = try(trimspace(var.controller_image_uri), "") != ""
+  compute_image_unlisted_ocid_set    = try(trimspace(var.compute_image_unlisted_ocid), "") != ""
+  compute_image_ocid_set             = try(trimspace(var.compute_image_ocid), "") != ""
+  compute_image_uri_set              = try(trimspace(var.compute_image_uri), "") != ""
+
+  valid_controller_image_source_inputs = (
+    var.controller_image_source == "Marketplace" ? !local.controller_image_unlisted_ocid_set && !local.controller_image_ocid_set && !local.controller_image_uri_set :
+    var.controller_image_source == "Unlisted" ? local.controller_image_unlisted_ocid_set && !local.controller_image_ocid_set && !local.controller_image_uri_set :
+    var.controller_image_source == "Custom" ? local.controller_image_ocid_set && !local.controller_image_unlisted_ocid_set && !local.controller_image_uri_set :
+    var.controller_image_source == "URI" ? local.controller_image_uri_set && !local.controller_image_unlisted_ocid_set && !local.controller_image_ocid_set :
+    false
+  )
+  valid_compute_image_source_inputs = (
+    var.compute_image_source == "Same as management nodes" ? !local.compute_image_unlisted_ocid_set && !local.compute_image_ocid_set && !local.compute_image_uri_set :
+    var.compute_image_source == "Marketplace" ? !local.compute_image_unlisted_ocid_set && !local.compute_image_ocid_set && !local.compute_image_uri_set :
+    var.compute_image_source == "Unlisted" ? local.compute_image_unlisted_ocid_set && !local.compute_image_ocid_set && !local.compute_image_uri_set :
+    var.compute_image_source == "Custom" ? local.compute_image_ocid_set && !local.compute_image_unlisted_ocid_set && !local.compute_image_uri_set :
+    var.compute_image_source == "URI" ? local.compute_image_uri_set && !local.compute_image_unlisted_ocid_set && !local.compute_image_ocid_set :
+    false
+  )
 }
 
 #  Validate that slurm_ha is not define with slurm federation
@@ -54,13 +58,23 @@ resource "null_resource" "validate_federation_setup" {
   }
 }
 
+resource "null_resource" "validate_dgxc_benchmarking" {
+  count = local.invalid_dgxc_config ? 1 : 0
+  lifecycle {
+    precondition {
+      condition     = !local.invalid_dgxc_config
+      error_message = "DGXC benchmarking requires slurm=true and pyxis=true. Enroot is configured by the standard Enroot/Pyxis playbooks."
+    }
+  }
+}
+
 
 # validate that the management and compute nodes usernames are set correctly
 
 resource "null_resource" "validate_controller_username" {
   lifecycle {
     precondition {
-      condition     = var.controller_username == local.expected_username_controller || local.expected_username_compute == "unknown"
+      condition     = local.effective_controller_username == local.detected_username_controller || local.detected_username_compute == "unknown"
       error_message = "Invalid username for the selected OS on controller. Use 'ubuntu' for Ubuntu images and 'opc' for Oracle Linux images."
     }
   }
@@ -69,8 +83,26 @@ resource "null_resource" "validate_controller_username" {
 resource "null_resource" "validate_compute_username" {
   lifecycle {
     precondition {
-      condition     = var.compute_username == local.expected_username_compute || local.expected_username_compute == "unknown"
+      condition     = local.effective_compute_username == local.detected_username_compute || local.detected_username_compute == "unknown"
       error_message = "Invalid username for the selected OS on compute nodes. Use 'ubuntu' for Ubuntu images and 'opc' for Oracle Linux images."
+    }
+  }
+}
+
+resource "null_resource" "validate_controller_image_source_inputs" {
+  lifecycle {
+    precondition {
+      condition     = local.valid_controller_image_source_inputs
+      error_message = "Set only the management image field that matches controller_image_source. Marketplace requires controller_image_unlisted_ocid, controller_image_ocid, and controller_image_uri to be unset; Unlisted requires only controller_image_unlisted_ocid; Custom requires only controller_image_ocid; URI requires only controller_image_uri."
+    }
+  }
+}
+
+resource "null_resource" "validate_compute_image_source_inputs" {
+  lifecycle {
+    precondition {
+      condition     = local.valid_compute_image_source_inputs
+      error_message = "Set only the compute image field that matches compute_image_source. Marketplace requires compute_image_unlisted_ocid, compute_image_ocid, and compute_image_uri to be unset; Unlisted requires only compute_image_unlisted_ocid; Custom requires only compute_image_ocid; URI requires only compute_image_uri."
     }
   }
 }
@@ -78,7 +110,7 @@ resource "null_resource" "validate_compute_username" {
 resource "null_resource" "validate_usernames" {
   lifecycle {
     precondition {
-      condition     = var.compute_username == var.controller_username
+      condition     = var.compute_image_source == "Same as management nodes" || var.compute_username == var.controller_username
       error_message = "Using different usernames for controller and compute nodes is not supported."
     }
   }
@@ -104,6 +136,10 @@ resource "null_resource" "validate_fss" {
     precondition {
       condition     = !local.invalid_shared_fss_mount_target_ad
       error_message = "When mount_target_count is 0 and the optional FSS reuses the /config mount target, the optional FSS Availability Domain must match the cluster Availability Domain."
+    }
+    precondition {
+      condition     = !var.add_nfs || var.create_fss == "new" || trimspace(var.nfs_source_IP) != ""
+      error_message = "When add_nfs is true and create_fss is not 'new', nfs_source_IP must be set."
     }
   }
 }

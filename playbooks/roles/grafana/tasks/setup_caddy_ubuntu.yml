@@ -1,0 +1,96 @@
+---
+- name: Install Caddy APT repository prerequisites
+  vars:
+    package_name:
+      - ca-certificates
+      - gnupg
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Ensure keyrings directory exists for Caddy
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download Caddy APT GPG key
+  become: true
+  ansible.builtin.get_url:
+    url: https://dl.cloudsmith.io/public/caddy/stable/gpg.key
+    dest: /tmp/caddy.gpg.key
+    mode: "0644"
+
+- name: Convert Caddy key to dearmored keyring
+  become: true
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /etc/apt/keyrings/caddy.gpg /tmp/caddy.gpg.key
+    creates: /etc/apt/keyrings/caddy.gpg
+
+- name: Set Caddy keyring permissions
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/caddy.gpg
+    mode: "0644"
+
+- name: Add Caddy apt repository
+  become: true
+  ansible.builtin.deb822_repository:
+    name: caddy
+    types:
+      - deb
+    uris:
+      - https://dl.cloudsmith.io/public/caddy/stable/deb/debian
+    suites:
+      - any-version
+    components:
+      - main
+    signed_by: /etc/apt/keyrings/caddy.gpg
+    state: present
+  register: caddy_apt_repository
+  until: caddy_apt_repository is not failed
+  retries: 5
+  delay: 5
+
+- name: Update apt cache for Caddy repository
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+  register: caddy_apt_cache
+  until: caddy_apt_cache is not failed
+  retries: 5
+  delay: 5
+
+- name: Install caddy
+  vars:
+    package_name:
+      - caddy
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Render the Caddyfile
+  become: true
+  ansible.builtin.template:
+    src: "Caddyfile.j2"
+    dest: /etc/caddy/Caddyfile
+    force: true
+    mode: "0644"
+
+- name: Create the log directory for caddy
+  become: true
+  ansible.builtin.file:
+    path: /var/log/caddy
+    state: directory
+    owner: caddy
+    group: caddy
+    mode: "0755"
+
+- name: Start Caddy
+  become: true
+  ansible.builtin.service:
+    name: caddy
+    enabled: true
+    state: restarted

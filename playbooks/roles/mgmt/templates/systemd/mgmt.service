@@ -2,10 +2,12 @@
 Description=Python Node Updater
 
 [Service]
-User={{ ansible_user }}
-Group={{ ansible_user }}
+User={{ cluster_admin_user }}
+Group={{ cluster_admin_user }}
 #Environment="MGMT_DEBUG=1"
+Environment="DB_POOL_SIZE=10"
+Environment="DB_MAX_OVERFLOW=5"
 ExecStart={{venv_path}}/bin/python3 /config/mgmt/manage.py services all
 StandardOutput=append:/config/logs/mgmt.log
 StandardError=append:/config/logs/mgmt.log
-TimeoutStartSec=300
+TimeoutStartSec=600

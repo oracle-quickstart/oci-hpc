@@ -110,43 +110,43 @@ g.dashboard.new('Multi-Node Metrics')
     // GPU Metrics Time Series
     timeseriesPanel(
       'GPU Temperature by Node',
-      'avg by (Hostname) (DCGM_FI_DEV_GPU_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"})',
-      '{{ Hostname }}',
+      'avg by (hostname) (DCGM_FI_DEV_GPU_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      '{{ hostname }}',
       'celsius',
       {w:8, h:8, x:0, y:48}
     ),
     timeseriesPanel(
       'GPU Power Usage by Node',
-      'avg by (Hostname) (DCGM_FI_DEV_POWER_USAGE{Hostname=~"$hostname", oci_name=~"$oci_name"})',
-      '{{ Hostname }}',
+      'avg by (hostname) (DCGM_FI_DEV_POWER_USAGE{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      '{{ hostname }}',
       'watts',
       {w:8, h:8, x:8, y:48}
     ),
     timeseriesPanel(
       'GPU Utilization by Node',
-      'avg by (Hostname) (DCGM_FI_DEV_GPU_UTIL{Hostname=~"$hostname", oci_name=~"$oci_name"})',
-      '{{ Hostname }}',
+      'avg by (hostname) (DCGM_FI_DEV_GPU_UTIL{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      '{{ hostname }}',
       'percent',
       {w:8, h:8, x:16, y:48}
     ),
     timeseriesPanel(
       'GPU Memory Temperature by Node',
-      'avg by (Hostname) (DCGM_FI_DEV_MEMORY_TEMP{Hostname=~"$hostname", oci_name=~"$oci_name"})',
-      '{{ Hostname }}',
+      'avg by (hostname) (DCGM_FI_DEV_MEMORY_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      '{{ hostname }}',
       'celsius',
       {w:8, h:8, x:0, y:56}
     ),
     timeseriesPanel(
       'GPU SM Clock by Node',
-      'avg by (Hostname) (DCGM_FI_DEV_SM_CLOCK{Hostname=~"$hostname", oci_name=~"$oci_name"})',
-      '{{ Hostname }}',
+      'avg by (hostname) (DCGM_FI_DEV_SM_CLOCK{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      '{{ hostname }}',
       'hertz',
       {w:8, h:8, x:8, y:56}
     ),
     timeseriesPanel(
       'GPU Memory Copy Utilization by Node',
-      'avg by (Hostname) (DCGM_FI_DEV_MEM_COPY_UTIL{Hostname=~"$hostname", oci_name=~"$oci_name"})',
-      '{{ Hostname }}',
+      'avg by (hostname) (DCGM_FI_DEV_MEM_COPY_UTIL{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      '{{ hostname }}',
       'percent',
       {w:8, h:8, x:16, y:56}
     ),

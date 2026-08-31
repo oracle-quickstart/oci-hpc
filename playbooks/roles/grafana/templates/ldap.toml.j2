@@ -1,0 +1,33 @@
+[[servers]]
+host = "{{ grafana_ldap.host }}"
+port = {{ grafana_ldap.port }}
+use_ssl = {{ "true" if grafana_ldap.use_ssl else "false" }}
+start_tls = {{ "true" if grafana_ldap.start_tls else "false" }}
+ssl_skip_verify = {{ "true" if grafana_ldap.ssl_skip_verify else "false" }}
+timeout = {{ grafana_ldap.timeout }}
+bind_dn = "{{ grafana_ldap.bind_dn }}"
+search_filter = "{{ grafana_ldap.search_filter }}"
+search_base_dns = [{% for search_base in grafana_ldap.search_base_dns %}"{{ search_base }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+root_ca_cert = "{{ grafana_ldap.root_ca_cert }}"
+
+[servers.attributes]
+name = "{{ grafana_ldap.attributes.name }}"
+surname = "{{ grafana_ldap.attributes.surname }}"
+username = "{{ grafana_ldap.attributes.username }}"
+member_of = "{{ grafana_ldap.attributes.member_of }}"
+{% if grafana_ldap.attributes.email | default('', true) | length > 0 %}
+email = "{{ grafana_ldap.attributes.email }}"
+{% endif %}
+
+{% for mapping in grafana_ldap.group_mappings %}
+[[servers.group_mappings]]
+group_dn = "{{ mapping.group_dn }}"
+org_role = "{{ mapping.org_role }}"
+{% if mapping.org_id is defined %}
+org_id = {{ mapping.org_id }}
+{% endif %}
+{% if mapping.grafana_admin is defined %}
+grafana_admin = {{ "true" if mapping.grafana_admin else "false" }}
+{% endif %}
+
+{% endfor %}

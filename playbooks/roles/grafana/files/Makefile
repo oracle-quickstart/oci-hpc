@@ -3,6 +3,8 @@ JSONNET := jsonnet
 JB := jb
 GRAFANA_URL := http://localhost:3000
 VENDOR := vendor
+GRAFONNET_LIB_REPO_URL ?= github.com/grafana/grafonnet-lib/grafonnet@master
+GRAFONNET_GEN_REPO_URL ?= github.com/grafana/grafonnet/gen/grafonnet-latest@main
 
 SOURCES := $(wildcard *.jsonnet)
 DASHBOARDS := $(SOURCES:.jsonnet=.json)
@@ -17,8 +19,8 @@ all: $(DASHBOARDS)
 $(VENDOR):
 	@echo "Installing jsonnet dependencies..."
 	@$(JB) init 2>/dev/null || true
-	@$(JB) install github.com/grafana/grafonnet-lib/grafonnet@master
-	@$(JB) install github.com/grafana/grafonnet/gen/grafonnet-latest@main
+	@$(JB) install $(GRAFONNET_GEN_REPO_URL)
+	@$(JB) install $(GRAFONNET_LIB_REPO_URL)
 
 # Pattern rule: build .json from .jsonnet
 %.json: %.jsonnet | $(VENDOR)

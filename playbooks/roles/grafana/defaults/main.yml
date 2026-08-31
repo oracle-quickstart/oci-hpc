@@ -9,6 +9,34 @@ grafana_api_url: "http://localhost:3000"
 grafana_security:
   admin_user: admin
   default_admin_password: admin
+grafana_ldap_auth_enabled: false
+grafana_ldap_config_file: "/etc/grafana/ldap.toml"
+grafana_ldap:
+  host: "controller.cluster"
+  port: 636
+  use_ssl: true
+  start_tls: false
+  ssl_skip_verify: false
+  timeout: 10
+  root_ca_cert: "/etc/ssl/certs/cluster-ca.crt"
+  bind_dn: "cn=%s,ou=People,dc=local"
+  search_filter: "(uid=%s)"
+  search_base_dns:
+    - "ou=People,dc=local"
+  attributes:
+    name: "displayName"
+    surname: "sn"
+    username: "uid"
+    member_of: "memberOf"
+    email: ""
+  group_mappings:
+    - group_dn: "cn=grafana-admins,ou=Group,dc=local"
+      org_role: "Admin"
+      grafana_admin: true
+    - group_dn: "cn=grafana-editors,ou=Group,dc=local"
+      org_role: "Editor"
+    - group_dn: "*"
+      org_role: "Viewer"
 grafana_service_account:
   name: "oci-hpc-monitoring"
   role: "Admin"

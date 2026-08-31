@@ -149,7 +149,7 @@
             | rejectattr('fstype', 'in',
                 ['proc','sysfs','devpts','cgroup','tmpfs','autofs','swap','squashfs'])
             | rejectattr('mount', 'in',
-                ['/', '/boot/efi', '/run'])
+                ['/', '/boot', '/boot/efi', '/run'])
             | rejectattr('mount', 'search', '^/snap')
             | rejectattr('device', 'search', '^/dev/loop')
             | rejectattr('mount', 'search', '^/mnt/localdisk/slurm-tmp/')

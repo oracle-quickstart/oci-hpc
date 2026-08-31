@@ -9,6 +9,7 @@ resource "oci_core_cluster_network" "cluster_network" {
   }
   freeform_tags = {
     "cluster_name"        = local.cluster_name
+    "config_fss_hostname" = local.config_fss_hostname
     "controller_name"     = oci_core_instance.controller.display_name
     "hostname_convention" = var.hostname_convention
   }
@@ -31,8 +32,9 @@ resource "oci_core_compute_gpu_memory_cluster" "compute_gpu_memory_cluster" {
   instance_configuration_id = oci_core_instance_configuration.cluster-network-instance_configuration[0].id
 
   freeform_tags = {
-    "cluster_name"    = local.cluster_name
-    "controller_name" = "${local.cluster_name}-controller"
+    "cluster_name"        = local.cluster_name
+    "config_fss_hostname" = local.config_fss_hostname
+    "controller_name"     = "${local.cluster_name}-controller"
   }
 
   display_name         = "${local.cluster_name}-fabric1"

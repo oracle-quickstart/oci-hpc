@@ -20,9 +20,21 @@ allow service compute_management to read app-catalog-listing in tenancy
 allow group user to manage all-resources in compartment compartmentName
 ```
 
+### Runtime policies
+
+The stack runtime uses [Resource Principals](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionsaccessingociresources.htm) for the Function and [Instance Principals](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm) for cluster nodes.
+
+#### Stack-managed IAM (recommended)
+
+Enable **Create Policies** in the Resource Manager **Identity** options to have the stack create the runtime dynamic group and its policies. The stack creates the policies needed for Functions, Queue, cluster resize operations, and boot-volume replacement. It also creates conditional policies for enabled features such as monitoring, Lustre, and GPU memory shapes.
+
+By default, **Create Policies** is disabled so existing manual IAM configurations continue to work unchanged. The deployment policies above are still required to create and update the stack.
+
+For manual runtime IAM, use the following sections only when **Create Policies** is disabled or when your organization manages IAM outside the stack. Keep the dynamic group and policies aligned with the cluster's enabled features and compartments.
+
 ### Policies for Functions
 
-The Function uses [Resource Principals](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionsaccessingociresources.htm) to manage different resources in the Compartment. For the Function to work, the user must create a [Dynamic Group](https://docs.oracle.com/en-us/iaas/Content/Identity/dynamicgroups/To_create_a_dynamic_group.htm) and grant it resource management authorization in this Compartment.
+For the Function to manage resources in the compartment, create a [Dynamic Group](https://docs.oracle.com/en-us/iaas/Content/Identity/dynamicgroups/To_create_a_dynamic_group.htm) and grant it the required authorization.
 
 Example:
 
@@ -76,7 +88,7 @@ Allow dynamic-group instance_principal to use tag-namespace in tenancy
 Allow dynamic-group instance_principal to manage compute-management-family in compartment compartmentName
 Allow dynamic-group instance_principal to manage instance-family in compartment compartmentName
 Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
-Allow dynamic-group instance_principal to use volumes in compartment compartmentName
+Allow dynamic-group instance_principal to manage volume-family in compartment compartmentName
 Allow dynamic-group instance_principal to manage dns in compartment compartmentName
 ```
 or:
@@ -97,6 +109,13 @@ Allow any-user to use compute-network-blocks in tenancy
 Allow any-user to use compute-local-blocks in tenancy
 Allow any-user to use compute-bare-metal-hosts in tenancy
 Allow any-user to use compute-gpu-memory-fabrics in tenancy
+```
+
+### Policies for OCI Lustre Filesystem
+
+When creating an OCI Lustre filesystem, the Lustre service needs network authorization:
+```
+Allow service lustrefs to use virtual-network-family in tenancy
 ```
 
 ### Policies for monitoring:
@@ -138,62 +157,63 @@ To run on HPC/GPU nodes, you will need to use a custom image that has the approp
 
 To make your life easier, here are a few images build using this website. In the custom image page, import those images by selecting import from URL, select OCI type, choose the correct OS and update the name. Keeping the name of the image the same as the name of the file in the URL lets you keep track of which image is in your tenancy. 
 
-### Ubuntu 22.04: 
-#### HPC (No Nvidia drivers):
+### Ubuntu 22.04
 
-[Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-2026.03.13-0)
-#### AMD (MI300X, MI355X CX-7):
-[Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0)
-[Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
+#### HPC (No NVIDIA drivers)
 
-#### AMD (MI355X with Pollara NICs):
+[Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0.oci)
+
+#### AMD (MI300X, MI355X CX-7)
+
+[Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
+
+#### AMD (MI355X with Pollara NICs)
+
 [Canonical-Ubuntu-22.04-Kernel-5.15-OFED-5.9-AMD-ROCM-702_POLLARA-OPENMPI-4.1.6](https://objectstorage.us-saltlake-2.oraclecloud.com/p/02QYYf_pFsZlBzMQi5-kp3jTYTJiX4RnkOfgpqTxlvwpO7pCie2bfYrRCr5KD_ll/n/hpctraininglab/b/Sudhir-test-bucket/o/Canonical-Ubuntu-22.04-Kernel-5.15-OFED-5.9-AMD-ROCM-702_POLLARA-OPENMPI-4.1.6)
 
-#### Nvidia_x86 (A100, H100, H200, B200, B300):
-[Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
-[Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-22.04-2026.02.28-0-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0)
-#### Nvidia_arm (GB200, GB300):
-[Canonical-Ubuntu-22.04-aarch64-2026.02.28-0-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-22.04-aarch64-2026.02.28-0-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
+#### NVIDIA x86 (A100, H100, H200, B200, B300)
+
+[Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
+
+#### NVIDIA Arm (GB200, GB300)
+
+[Canonical-Ubuntu-22.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
 
 
-### Ubuntu 24.04: 
-Use the Lustre 6.8 kernel images to get the Lustre client.
+### Ubuntu 24.04
+
 #### AMD (MI300X, MI355X CX-7):
 
-[Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0)
-[Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
-[Canonical-Ubuntu-24.04-2026.02.28-0-6.14-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.14-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
-#### AMD (MI355X with Pollara NICs):
+[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
+[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
+#### AMD (MI355X with Pollara NICs)
+
 [Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ap-kulai-1.oraclecloud.com/p/r7NmOiphWU9Pm9G7yBSkGIYRT5EXCjSNL2BYqso7R-s2zYBoTPmdwn3uyJ-pCvGb/n/hpctraininglab/b/Sudhir-Bucket/o/Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0)
+
 #### Nvidia_x86 (A100, H100, H200, B200, B300,...):
 
-[Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
-[Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0)
-
-[Canonical-Ubuntu-24.04-2026.02.28-0-6.14-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.14-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0)
+[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
+[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
 #### Nvidia_arm (GB200, GB300):
-[Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-6.17-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-6.17-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
-[Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-6.8-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
+[Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
+[Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
 
 #### HPC (No Nvidia drivers):
-[Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Canonical-Ubuntu-24.04-2026.02.28-0-6.8-DOCA-OFED-3.2.1-2026.03.13-0)
+[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0.oci)
 
 ### Oracle Linux 8
 Oracle Linux 8 is deprecated and will be phased out in a future release. Prefer Oracle Linux 9 for new deployments.
 #### AMD
-[Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
+[Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
 #### NVIDIA GPUs
-[Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
-[Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0)
+[Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
 #### HPC (No Nvidia drivers):
-[Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-8.10-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-2026.03.13-0)
+[Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0.oci)
 
 ### Oracle Linux 9
 #### AMD
-[Oracle-Linux-9.6-2025.11.20-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-9.6-2025.11.20-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-643-2026.03.13-0)
-[Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-AMD-ROCM-72-2026.03.13-0)
+[Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
 #### NVIDIA GPUs
-[Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-580-OPEN-CUDA-13.0-2026.03.13-0)
-[Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-GPU-590-OPEN-CUDA-13.1-2026.03.13-0)
+[Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
 #### HPC (No Nvidia drivers):
-[Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-2026.03.13-0](https://objectstorage.ca-montreal-1.oraclecloud.com/p/AIo4CP0P_DlUelDlsWgGPWmY6FcBQzJWmmFyGKdY0epkh87a9Q3ndvFYycjIxTQ9/n/idxzjcdglx2s/b/images/o/Oracle-Linux-9.7-2026.02.28-0-RHCK-DOCA-OFED-3.2.1-2026.03.13-0)
+[Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0.oci)

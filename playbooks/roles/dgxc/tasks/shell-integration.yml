@@ -1,0 +1,45 @@
+---
+- name: Ensure DGXC node-local bin directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ dgxc_node_bin_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install DGXC environment loader
+  become: true
+  ansible.builtin.template:
+    src: load-dgxc-env.j2
+    dest: "{{ dgxc_env_loader_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install DGXC installer wrapper
+  become: true
+  ansible.builtin.template:
+    src: dgxc-install.j2
+    dest: "{{ dgxc_install_wrapper_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install DGXC llmb-install wrapper
+  become: true
+  ansible.builtin.template:
+    src: llmb-install.j2
+    dest: "{{ dgxc_llmb_install_wrapper_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install DGXC llmb-run wrapper
+  become: true
+  ansible.builtin.template:
+    src: llmb-run.j2
+    dest: "{{ dgxc_llmb_run_wrapper_path }}"
+    owner: root
+    group: root
+    mode: "0755"
