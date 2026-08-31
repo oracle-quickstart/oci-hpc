@@ -22,7 +22,6 @@
 
 import subprocess
 import os
-import shutil
 import time
 import concurrent.futures
 import uuid
@@ -44,6 +43,7 @@ GPU_SHAPES = {
     "H200": {"shapes": ["BM.GPU.H200.8"],  "threshold": 440.0, "vendor": "nvidia", "script": "/opt/oci-hpc/samples/gpu/nccl_run_allreduce.sh"},
     "B200": {"shapes": ["BM.GPU.B200.8"],  "threshold": 440.0, "vendor": "nvidia", "script": "/opt/oci-hpc/samples/gpu/nccl_run_allreduce.sh"},
     "B300": {"shapes": ["BM.GPU.B300.8"],  "threshold": 750.0, "vendor": "nvidia", "script": "/opt/oci-hpc/samples/gpu/nccl_run_allreduce.sh"},
+    "B300HS": {"shapes": ["BM.GPU.B300.HS.8"],  "threshold": 750.0, "vendor": "nvidia", "script": "/opt/oci-hpc/samples/gpu/nccl_run_allreduce.sh"},
     # ── AMD (new) ───────────────────────────────────────────────────────────
     "MI300X": {"shapes": ["BM.GPU.MI300X.8"],  "threshold": 350.0, "vendor": "amd", "sbatch": "/opt/oci-hpc/samples/gpu/rccl_run_allreduce.sbatch"},
     "MI355X": {"shapes": ["BM.GPU.MI355X.8"],  "threshold": 400.0, "vendor": "amd", "sbatch": "/opt/oci-hpc/samples/gpu/rccl_run_allreduce.sbatch"},
@@ -112,18 +112,6 @@ def ensure_scripts_executable():
                     subprocess.run(['chmod', '+x', path], check=True)
                 except subprocess.CalledProcessError as e:
                     log_and_print(f"Error setting executable permission for {path}: {e}")
-
-def copy_node_ordering_script():
-    source_path      = "/opt/oci-hpc/bin/node_ordering_by_rack.py"
-    destination_path = "/home/ubuntu/node_ordering_by_rack.py"
-    try:
-        shutil.copy(source_path, destination_path)
-    except FileNotFoundError:
-        log_and_print(f"Error: {source_path} not found.")
-    except PermissionError:
-        log_and_print(f"Error: Permission denied when copying {source_path}.")
-    except Exception as e:
-        log_and_print(f"Error copying file: {e}")
 
 def get_hosts_from_sinfo():
     try:
@@ -577,7 +565,6 @@ def print_comprehensive_summary(all_input_nodes, reachable_hosts, final_good_nod
 def find_bad_nodes_serial(hosts):
     init_log_files()
     ensure_scripts_executable()
-    copy_node_ordering_script()
 
     all_input_nodes   = set()
     unreachable_nodes = set()
@@ -785,7 +772,6 @@ def find_bad_nodes_serial(hosts):
 def find_bad_nodes_parallel(hosts):
     init_log_files()
     ensure_scripts_executable()
-    copy_node_ordering_script()
 
     all_input_nodes   = set()
     unreachable_nodes = set()

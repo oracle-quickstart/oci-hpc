@@ -1,8 +1,8 @@
 import click
 from lib.cli import completion
-from lib.database import get_all_nodes_failing_to_start, get_all_nodes_with_hc_status, get_all_nodes_unreachable, get_nodes_slurm_unconfigured, join_nodes_lists
+from lib.database import get_all_nodes_failing_to_start, get_all_nodes_with_hc_status, get_all_nodes_unreachable, get_nodes_slurm_unconfigured, get_recommendation_node_groups, join_nodes_lists
 from lib.functions import run_configure, scan_host_api_logic, run_reset_gpus
-from lib.ociwrap import run_reboot, run_terminate, run_tag
+from lib.ociwrap import run_reboot, run_terminate, run_tag, run_enable_instance_rdma_plugins
 from lib.cli.recommendations.display import print_node_list
 
 
@@ -20,7 +20,7 @@ def recom():
     """Get information about nodes."""
     pass
 
-@recom.command()     
+@recom.command()
 @click.option('--healthcheck', is_flag=True, help='Only show the Healthcheck Recommendations.', default=False)
 @click.option('--unreachable', is_flag=True, help='Only show the unreachable nodes.', default=False)
 @click.option('--unconfigured', is_flag=True, help='Only show the nodes failing to start.', default=False)
@@ -33,18 +33,31 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
     nodes_to_reboot=[]
     nodes_to_terminate=[]
     nodes_to_reset_GPUs=[]
-    
-    if unreachable or not (unreachable or unconfigured or healthcheck):
+    nodes_to_enable_instance_rdma_plugins=[]
+
+    if not (unreachable or unconfigured or healthcheck):
+        groups = get_recommendation_node_groups(
+            timedelta(minutes=unreachable_timeout),
+            timedelta(minutes=unconfigured_timeout)
+        )
+        unreachable_nodes = groups["unreachable"]
+        unconfigured_nodes = join_nodes_lists(groups["failing_to_start"], groups["slurm_unconfigured"])
+        nodes_to_reboot = groups["reboot"]
+        nodes_to_reset_GPUs = groups["reset_gpus"]
+        nodes_to_terminate = groups["terminate"]
+        nodes_to_enable_instance_rdma_plugins = groups["enable_instance_rdma_plugins"]
+    elif unreachable:
         unreachable_nodes=get_all_nodes_unreachable(timedelta(minutes=unreachable_timeout),[])
-    if unconfigured or not (unreachable or unconfigured or healthcheck):
+    if unconfigured:
         nodes_failing_to_start=get_all_nodes_failing_to_start(timedelta(minutes=unconfigured_timeout),[])
         unconfigured_slurm_nodes=get_nodes_slurm_unconfigured()
         unconfigured_nodes=join_nodes_lists(nodes_failing_to_start,unconfigured_slurm_nodes)
-    if healthcheck or not (unreachable or unconfigured or healthcheck):
+    if healthcheck:
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",[])
         nodes_to_reset_GPUs = get_all_nodes_with_hc_status("Reset_GPU",[])
         nodes_to_terminate = get_all_nodes_with_hc_status("Terminate",[])
-    # Print tables 
+        nodes_to_enable_instance_rdma_plugins = get_all_nodes_with_hc_status("Enable_Instance_RDMA_Plugins",[])
+    # Print tables
     if unreachable_nodes+nodes_to_reboot:
         print_node_list(unreachable_nodes+nodes_to_reboot, "Nodes to Reboot")
         click.echo(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot])))
@@ -58,6 +71,11 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
         click.echo(NodeSet(','.join([node.hostname for node in nodes_to_terminate])))
     else:
         logger.info("There are no Unhealthy nodes requiring Termination\n")
+    if nodes_to_enable_instance_rdma_plugins:
+        print_node_list(nodes_to_enable_instance_rdma_plugins, "Nodes to Enable Instance RDMA Plugins")
+        click.echo(NodeSet(','.join([node.hostname for node in nodes_to_enable_instance_rdma_plugins])))
+    else:
+        logger.info("There are no nodes requiring Instance RDMA plugin enablement\n")
     if unconfigured_nodes:
         print_node_list(unconfigured_nodes, "Nodes to Reconfigure")
         click.echo(NodeSet(','.join([node.hostname for node in unconfigured_nodes])))
@@ -65,7 +83,7 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
         logger.info("There are no nodes in need of reconfiguration\n")
 
     # Print Information about what to run
-    if unreachable_nodes or nodes_to_reboot or nodes_to_terminate or unconfigured_nodes:
+    if unreachable_nodes or nodes_to_reboot or nodes_to_terminate or unconfigured_nodes or nodes_to_enable_instance_rdma_plugins:
         click.echo("Running \"mgmt recommendations run\" will run the recommandations listed\n")
 
     available_nodes=scan_host_api_logic()
@@ -73,7 +91,7 @@ def list(unreachable, unconfigured, healthcheck, unreachable_timeout, unconfigur
         logger.info("There are no available nodes in the dedicated pool\n")
     for shape in available_nodes.keys():
         click.echo(f"There are {available_nodes[shape]} available nodes of shape {shape} in your pool. running the recommandations will not add the nodes\n")
-    
+
 
 @recom.command()
 @click.pass_obj
@@ -90,6 +108,7 @@ def run(cfg, unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,un
     nodes_to_reboot=[]
     nodes_to_terminate=[]
     nodes_to_reset_GPUs=[]
+    nodes_to_enable_instance_rdma_plugins=[]
     if not nodes:
         nodes=[]
     if unreachable or not (unreachable or unconfigured or healthcheck):
@@ -102,8 +121,9 @@ def run(cfg, unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,un
         nodes_to_reboot = get_all_nodes_with_hc_status("Reboot",nodes)
         nodes_to_reset_GPUs = get_all_nodes_with_hc_status("Reset_GPU",nodes)
         nodes_to_terminate = get_all_nodes_with_hc_status("Terminate",nodes)
-    
-    # Reboot unreachable nodes as well as nodes flagged for reboot by Healthcheck. 
+        nodes_to_enable_instance_rdma_plugins = get_all_nodes_with_hc_status("Enable_Instance_RDMA_Plugins",nodes)
+
+    # Reboot unreachable nodes as well as nodes flagged for reboot by Healthcheck.
     if unreachable_nodes+nodes_to_reboot:
         click.echo("Rebooting: "+str(NodeSet(','.join([node.hostname for node in unreachable_nodes+nodes_to_reboot]))))
         for node in unreachable_nodes+nodes_to_reboot:
@@ -133,11 +153,21 @@ def run(cfg, unreachable, unconfigured, healthcheck,nodes,unreachable_timeout,un
             else:
                 click.echo(f"Node is not drained, cannot reset GPUs on {node.hostname}")
 
+    # Enable Instance RDMA plugins on nodes.
+    if nodes_to_enable_instance_rdma_plugins:
+        print_node_list(nodes_to_enable_instance_rdma_plugins, "Nodes to Enable Instance RDMA Plugins")
+        click.echo("Enabling Instance RDMA plugins on : "+str(NodeSet(','.join([node.hostname for node in nodes_to_enable_instance_rdma_plugins]))))
+        for node in nodes_to_enable_instance_rdma_plugins:
+            if node.slurm_state=="drain" or node.slurm_state=="down":
+                run_enable_instance_rdma_plugins(node)
+            else:
+                click.echo(f"Node is not drained, cannot enable Instance RDMA plugins on {node.hostname}")
+
     # Relaunch configuration step.
     if unconfigured_nodes:
         click.echo("Reconfiguring: "+str(NodeSet(','.join([node.hostname for node in unconfigured_nodes]))))
         run_configure(unconfigured_nodes,clush_parallel_executions=cfg["clush_parallel_executions"])
-        
+
     available_nodes=scan_host_api_logic()
     for shape in available_nodes.keys():
         click.echo(f"There are {available_nodes[shape]} available nodes of shape {shape} in your pool.")

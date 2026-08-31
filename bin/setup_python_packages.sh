@@ -126,54 +126,50 @@ build_requirements_content() {
   content=$(cat <<EOF_REQUIREMENTS
 pip
 oci-cli
-oci
-cryptography
+
+# ansible.utils prerequisite
 netaddr
-setuptools_rust
-requests
-urllib3
-pyopenssl
-psutil
+
+# healthchecks
 distro
-prometheus_client
-watchdog
-opentelemetry-sdk
-opentelemetry-exporter-otlp
+requests
+
+# healthchecks - check_gpu_setup.py
+# metrics-exporter - nvml_metrics_exporter.py
+psutil
+
+# metrics-exporter - nvml_metrics_exporter.py
 nvidia-ml-py
-pyudev
-clustershell
-sqlalchemy
-rich
-click
-ansible_runner
-pymysql
-cachetools
-line-protocol-parser
-influx-line-protocol
-orjson
 
-# --- Python build toolchain packages for Slurm SDK ---
-packaging>=24.1
-setuptools>=68
-wheel>=0.41
-build>=1.2.1
-
-# --- Slurm SDK runtime dependencies ---
-typing_extensions>=4.12.2
-annotated_types>=0.6.0
-typing-inspect>=0.4.0
-pydantic>=2
-
-# Silent Data Corruption checks
+# healthchecks - gpu_sdc_checker.py
 numpy
-setuptools
-wheel
-
-# CuPy wheel
 ${cupy_pkg}
 
-# Other packages
-ujson
+# metrics-exporter - pcie_faults_exporter.py
+pyudev
+
+# metrics-exporter - nccl_profiler_exporter.py
+opentelemetry-sdk
+opentelemetry-exporter-otlp
+orjson
+watchdog
+
+# slurm monitoring
+mysql-connector-python
+
+# oci-metrics
+# metrics-exporter
+prometheus_client
+
+# oci-metrics-telegraf - oci_metrics_telegraf_filter.py
+cachetools
+influx-line-protocol
+line-protocol-parser
+
+# Management CLI and its runtime dependencies
+mgmt @ file:///config/mgmt
+
+# ons_webhook.py.j2
 fastapi
 uvicorn
 EOF_REQUIREMENTS

@@ -1,0 +1,37 @@
+---
+- name: Ensure metrics exporter install directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Lustre utilization exporter
+  become: true
+  ansible.builtin.copy:
+    src: lustre_utilization_exporter.py
+    dest: "{{ metrics_exporter_install_dir }}/lustre_utilization_exporter.py"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart Lustre utilization exporter
+
+- name: Install Lustre utilization exporter service
+  become: true
+  ansible.builtin.template:
+    src: lustre-utilization-exporter.service.j2
+    dest: /etc/systemd/system/lustre-utilization-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Lustre utilization exporter
+
+- name: Enable and start Lustre utilization exporter
+  become: true
+  ansible.builtin.systemd:
+    name: lustre-utilization-exporter
+    enabled: true
+    state: started
+    daemon_reload: true

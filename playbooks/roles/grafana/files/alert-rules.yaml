@@ -98,7 +98,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: node_systemd_unit_state{hostname=~".*controller*|.*backup*", state="failed", name=~"mariadb.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
+              expr: node_systemd_unit_state{hostname=~".*controller*|.*backup*", state="failed", name=~"mariadb.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-rest-exporter.service|slurm-job-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
               hide: false
               instant: true
               intervalMs: 60000
@@ -580,7 +580,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: gpu_count
+              expr: gpu_available_count != bool gpu_expected_count
               hide: false
               instant: true
               intervalMs: 60000
@@ -594,8 +594,8 @@ groups:
               conditions:
                 - evaluator:
                     params:
-                      - 1
-                    type: lt
+                      - 0
+                    type: gt
                   operator:
                     type: and
                   query:
@@ -616,7 +616,7 @@ groups:
               type: threshold
         dashboardUid: ""
         panelId: 0
-        noDataState: KeepLast
+        noDataState: Alerting
         execErrState: KeepLast
         for: 15m
         annotations:
@@ -2274,6 +2274,269 @@ groups:
         for: 15m
         annotations:
           summary: Tag and Terminate.
+        isPaused: false
+        notification_settings:
+          receiver: ons-webhook
+          repeat_interval: 24h
+  - orgId: 1
+    name: Lustre Capacity Warnings
+    folder: Warning
+    interval: 5m
+    rules:
+      - uid: lustre-target-used-80pct
+        title: Lustre MDT or OST usage above 80 percent
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model:
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: >-
+                (max by (uuid, target_type, target_index, mounted_on)
+                (lustre_target_used_percent) > 80)
+                and
+                (max by (uuid, target_type, target_index, mounted_on)
+                (lustre_target_used_percent) < 90)
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: "{{ target_type }} {{ target_index }} {{ uuid }}"
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 80
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: KeepLast
+        execErrState: KeepLast
+        for: 15m
+        annotations:
+          summary: "Lustre {{ $labels.target_type }} target {{ $labels.target_index }} ({{ $labels.uuid }}) is above 80 percent used."
+        labels:
+          severity: warning
+        isPaused: false
+        notification_settings:
+          receiver: ons-webhook
+          repeat_interval: 24h
+      - uid: lustre-fs-used-80pct
+        title: Lustre filesystem usage above 80 percent
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model:
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: (max by (mounted_on) (lustre_filesystem_used_percent) > 80) and (max by (mounted_on) (lustre_filesystem_used_percent) < 90)
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: "{{ mounted_on }}"
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 80
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: KeepLast
+        execErrState: KeepLast
+        for: 15m
+        annotations:
+          summary: "Lustre filesystem {{ $labels.mounted_on }} is above 80 percent used."
+        labels:
+          severity: warning
+        isPaused: false
+        notification_settings:
+          receiver: ons-webhook
+          repeat_interval: 24h
+  - orgId: 1
+    name: Lustre Capacity Critical Alerts
+    folder: Critical
+    interval: 5m
+    rules:
+      - uid: lustre-target-used-90pct
+        title: Lustre MDT or OST usage at or above 90 percent
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model:
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: max by (uuid, target_type, target_index, mounted_on) (lustre_target_used_percent) >= 90
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: "{{ target_type }} {{ target_index }} {{ uuid }}"
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: KeepLast
+        execErrState: KeepLast
+        for: 15m
+        annotations:
+          summary: "Lustre {{ $labels.target_type }} target {{ $labels.target_index }} ({{ $labels.uuid }}) is at or above 90 percent used."
+        labels:
+          severity: critical
+        isPaused: false
+        notification_settings:
+          receiver: ons-webhook
+          repeat_interval: 24h
+      - uid: lustre-fs-used-90pct
+        title: Lustre filesystem usage at or above 90 percent
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model:
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: max by (mounted_on) (lustre_filesystem_used_percent) >= 90
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: "{{ mounted_on }}"
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: KeepLast
+        execErrState: KeepLast
+        for: 15m
+        annotations:
+          summary: "Lustre filesystem {{ $labels.mounted_on }} is at or above 90 percent used."
+        labels:
+          severity: critical
         isPaused: false
         notification_settings:
           receiver: ons-webhook

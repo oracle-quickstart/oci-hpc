@@ -5,8 +5,9 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
   display_name   = local.cluster_name
 
   freeform_tags = {
-    "cluster_name"    = local.cluster_name
-    "controller_name" = "${local.cluster_name}-controller"
+    "cluster_name"        = local.cluster_name
+    "config_fss_hostname" = local.config_fss_hostname
+    "controller_name"     = "${local.cluster_name}-controller"
   }
 
   instance_details {
@@ -20,6 +21,7 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
       }
       freeform_tags = {
         "cluster_name"        = local.cluster_name
+        "config_fss_hostname" = local.config_fss_hostname
         "controller_name"     = oci_core_instance.controller.display_name
         "hostname_convention" = var.hostname_convention
       }
@@ -94,4 +96,3 @@ resource "oci_core_instance_configuration" "cluster-network-instance_configurati
     create_before_destroy = true
   }
 }
-

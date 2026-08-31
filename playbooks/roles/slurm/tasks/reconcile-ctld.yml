@@ -1,0 +1,168 @@
+---
+- name: Reconcile controller-side Slurm artifacts
+  when: "'controller' in group_names"
+  block:
+    - name: Get All configurations in the DB
+      ansible.builtin.command: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
+      register: slurm_get_configurations_results
+
+    - name: Convert Slurm configurations to facts
+      ansible.builtin.set_fact:
+        slurm_json_list: "{{ slurm_get_configurations_results.stdout | from_json }}"
+        slurm_queues: "{{ (slurm_get_configurations_results.stdout | from_json).queues }}"
+
+    - name: Read compute node inventory from mgmt
+      ansible.builtin.command:
+        argv:
+          - "{{ venv_path }}/bin/python3"
+          - /config/mgmt/manage.py
+          - nodes
+          - list
+          - --columns
+          - ALL
+          - --format
+          - json
+          - --one-line
+      register: slurm_reconcile_nodes_result
+      changed_when: false
+
+    - name: Build active compute node facts for controller reconcile
+      ansible.builtin.set_fact:
+        slurm_active_compute_info: >-
+          {{
+            dict(
+              (
+                slurm_reconcile_nodes_result.stdout | from_json
+                | selectattr("role", "equalto", "compute")
+                | rejectattr("controller_status", "equalto", "terminating")
+                | rejectattr("status", "equalto", "terminated")
+                | map(attribute="hostname")
+              )
+              |
+              zip(
+                slurm_reconcile_nodes_result.stdout | from_json
+                | selectattr("role", "equalto", "compute")
+                | rejectattr("controller_status", "equalto", "terminating")
+                | rejectattr("status", "equalto", "terminated")
+                | map("combine", {})
+              )
+            )
+          }}
+
+    - name: Generate slurm.conf
+      become: true
+      ansible.builtin.template:
+        src: "{{ slurm_conf_file }}"
+        dest: "{{ slurm_conf_path }}/slurm.conf"
+        mode: "0644"
+        backup: true
+        owner: slurm
+        group: slurm
+      notify: Restart slurm server
+
+    - name: Generate topology.yaml
+      vars:
+        reconfigure_slurm_state: true
+      ansible.builtin.include_tasks: generate-topology.yml
+
+    - name: Generate job_container.conf
+      become: true
+      ansible.builtin.template:
+        src: "{{ slurm_job_container_conf_file }}"
+        dest: "{{ slurm_conf_path }}/job_container.conf"
+        mode: "0644"
+        backup: true
+        owner: slurm
+        group: slurm
+      notify: Restart slurm server
+
+    - name: Generate gres.conf from current compute inventory
+      become: true
+      ansible.builtin.template:
+        src: gres_reconcile.conf.j2
+        dest: "{{ slurm_conf_path }}/gres.conf"
+        mode: "0644"
+        backup: true
+        owner: slurm
+        group: slurm
+
+    - name: Run handlers after controller reconcile
+      ansible.builtin.meta: flush_handlers
+
+- name: Sync reconciled Slurm artifacts to backup controller
+  when: "'slurm_backup' in group_names"
+  block:
+    - name: Slurp slurm.conf from controller
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ slurm_conf_path }}/slurm.conf"
+      delegate_to: "{{ groups['controller'][0] }}"
+      register: slurm_reconcile_slurm_conf_content
+
+    - name: Copy slurm.conf to backup controller
+      become: true
+      ansible.builtin.copy:
+        content: "{{ slurm_reconcile_slurm_conf_content.content | b64decode }}"
+        dest: "{{ slurm_conf_path }}/slurm.conf"
+        mode: "0644"
+        owner: slurm
+        group: slurm
+        backup: true
+      notify: Restart slurm server
+
+    - name: Slurp topology.yaml from controller
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ slurm_conf_path }}/topology.yaml"
+      delegate_to: "{{ groups['controller'][0] }}"
+      register: slurm_reconcile_topology_yaml_content
+
+    - name: Copy topology.yaml to backup controller
+      become: true
+      ansible.builtin.copy:
+        content: "{{ slurm_reconcile_topology_yaml_content.content | b64decode }}"
+        dest: "{{ slurm_conf_path }}/topology.yaml"
+        mode: "0644"
+        owner: slurm
+        group: slurm
+        backup: true
+      notify: Restart slurm server
+
+    - name: Slurp job_container.conf from controller
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ slurm_conf_path }}/job_container.conf"
+      delegate_to: "{{ groups['controller'][0] }}"
+      register: slurm_reconcile_job_container_conf_content
+
+    - name: Copy job_container.conf to backup controller
+      become: true
+      ansible.builtin.copy:
+        content: "{{ slurm_reconcile_job_container_conf_content.content | b64decode }}"
+        dest: "{{ slurm_conf_path }}/job_container.conf"
+        mode: "0644"
+        owner: slurm
+        group: slurm
+        backup: true
+      notify: Restart slurm server
+
+    - name: Slurp gres.conf from controller
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ slurm_conf_path }}/gres.conf"
+      delegate_to: "{{ groups['controller'][0] }}"
+      register: slurm_reconcile_gres_conf_content
+
+    - name: Copy gres.conf to backup controller
+      become: true
+      ansible.builtin.copy:
+        content: "{{ slurm_reconcile_gres_conf_content.content | b64decode }}"
+        dest: "{{ slurm_conf_path }}/gres.conf"
+        mode: "0644"
+        owner: slurm
+        group: slurm
+        backup: true
+      notify: Restart slurm server
+
+    - name: Run handlers after backup reconcile
+      ansible.builtin.meta: flush_handlers

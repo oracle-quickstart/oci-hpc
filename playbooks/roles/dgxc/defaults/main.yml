@@ -1,0 +1,49 @@
+---
+dgxc_repo: "https://github.com/NVIDIA/dgxc-benchmarking.git"
+dgxc_tag: "v26.06.00"
+
+dgxc_root_path: "{{ thirdparty_root_path }}/dgxc-benchmarking"
+dgxc_repo_path: "{{ dgxc_root_path }}/repo"
+dgxc_install_path: "{{ dgxc_root_path }}/install"
+dgxc_image_path: "{{ dgxc_root_path }}/images"
+dgxc_venv_root_path: "{{ venv_path | dirname }}"
+dgxc_venv_path: "{{ dgxc_venv_root_path }}/dgxc"
+
+dgxc_install_shared_components: true
+dgxc_install_node_integration: true
+
+dgxc_python_version: "3.12"
+dgxc_packages:
+  - git-lfs
+
+dgxc_git_lfs_pull: true
+
+dgxc_shared_env_loader_path: "{{ dgxc_root_path }}/load-dgxc-env"
+dgxc_node_root_path: "/opt/dgxc-benchmarking"
+dgxc_node_bin_path: "{{ dgxc_node_root_path }}/bin"
+dgxc_env_loader_path: "{{ dgxc_node_bin_path }}/load-dgxc-env"
+dgxc_install_wrapper_path: "{{ dgxc_node_bin_path }}/dgxc-install"
+dgxc_llmb_install_wrapper_path: "{{ dgxc_node_bin_path }}/llmb-install"
+dgxc_llmb_run_wrapper_path: "{{ dgxc_node_bin_path }}/llmb-run"
+
+dgxc_gpu_type: ""
+
+dgxc_generated_llmb_install_config: "{{ dgxc_root_path }}/llmb-install.generated.yaml"
+dgxc_selected_workloads:
+  - pretrain_nemotron-h
+dgxc_slurm_gpu_partition: "{{ queue | default('compute') }}"
+dgxc_slurm_cpu_partition: "{{ queue | default('compute') }}"
+dgxc_enroot_squash_options: "-b 262144"
+dgxc_mksquashfs_processors: ""
+dgxc_install_llmb_run_symlink: true
+dgxc_log_path: "{{ dgxc_root_path }}/logs"
+dgxc_log_host: "{{ ansible_facts['hostname'] | default(inventory_hostname) }}"
+dgxc_llmb_install_log_path: "{{ dgxc_log_path }}/llmb-install-{{ dgxc_log_host }}-{{ ansible_date_time.iso8601_basic_short }}.log"
+dgxc_llmb_install_latest_log_path: "{{ dgxc_log_path }}/llmb-install-{{ dgxc_log_host }}.latest.log"
+
+# Optional non-interactive workload installation. The config is rendered from
+# templates/dgxc_play_config.yaml.j2 and replayed with `llmb-install --play`.
+dgxc_run_llmb_install: false
+dgxc_llmb_install_config: ""
+dgxc_llmb_install_async_timeout: 28800
+dgxc_llmb_install_async_poll: 30

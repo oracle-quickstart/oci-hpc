@@ -1,0 +1,61 @@
+---
+- name: Install Caddy prerequisites
+  vars:
+    package_name:
+      - yum-plugin-copr
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+
+
+- name: Gather OS release info
+  ansible.builtin.setup:
+    filter: ansible_facts['distribution']*
+    gather_subset: min
+
+
+- name: Determine Oracle Linux major version
+  ansible.builtin.set_fact:
+    ol_major_version: "{{ ansible_facts['distribution_major_version'] }}"
+
+
+- name: Add copr repository
+  become: true
+  community.general.copr:
+    name: "@caddy/caddy"
+    includepkgs:
+      - caddy
+    chroot: "epel-{{ ol_major_version }}-{{ ansible_facts['architecture'] }}"
+
+
+- name: Install caddy
+  vars:
+    package_name:
+      - caddy
+    package_state: present
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Render the Caddyfile
+  become: true
+  ansible.builtin.template:
+    src: "Caddyfile.j2"
+    dest: /etc/caddy/Caddyfile
+    force: true
+    mode: "0644"
+
+- name: Create the log directory for caddy
+  become: true
+  ansible.builtin.file:
+    path: /var/log/caddy
+    state: directory
+    owner: caddy
+    group: caddy
+    mode: "0755"
+
+- name: Start Caddy
+  become: true
+  ansible.builtin.service:
+    name: caddy
+    enabled: true
+    state: restarted

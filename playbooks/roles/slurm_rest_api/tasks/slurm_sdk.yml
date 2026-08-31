@@ -137,22 +137,11 @@
   delegate_to: 127.0.0.1
   run_once: true
 
-# ----------------- Build & install SDK wheel using venv -----------------
-- name: Build slurm sdk python wheel using venv
-  command:
-    cmd: "{{ python_executable }} setup.py bdist_wheel"
-    chdir: "{{ sdk_output_dir }}"
-  become: true
-  register: build_sdk_wheel
-  changed_when: "'Building' in build_sdk_wheel.stdout or 'Wrote' in build_sdk_wheel.stdout"
-  delegate_to: 127.0.0.1
-  run_once: true
-
-- name: Install slurm sdk wheel into venv with uv
+- name: Build and install slurm sdk wheel into venv with uv
   ansible.builtin.shell: |
     {{ uv_cmd }} pip install \
       -p {{ python_executable }} \
-      --force-reinstall --upgrade {{ sdk_output_dir }}/dist/*.whl
+      --force-reinstall --upgrade {{ sdk_output_dir }}
   args:
     chdir: "{{ sdk_output_dir }}"
   environment:

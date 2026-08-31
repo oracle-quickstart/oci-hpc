@@ -1,0 +1,7 @@
+---
+- name: Install dr_hpc package on Oracle Linux
+  become: true
+  ansible.builtin.dnf:
+    name: "{{ dr_hpc_package_path }}"
+    state: present
+    disable_gpg_check: true

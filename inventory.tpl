@@ -1,9 +1,9 @@
 [controller]
-${controller_name} ansible_host=${controller_ip} ansible_user=${controller_username} role=controller ansible_python_interpreter=/config/venv/##VENV_OS_ARCH##/oci/bin/python3
+${controller_name} ansible_host=${controller_ip} ansible_user=${cluster_admin_user} role=controller ansible_python_interpreter=/config/venv/##VENV_OS_ARCH##/oci/bin/python3
 [slurm_backup]
-%{ if backup_name !="" }${backup_name} ansible_host=${backup_ip} ansible_user=${compute_username} role=controller%{ endif }
+%{ if backup_name !="" }${backup_name} ansible_host=${backup_ip} ansible_user=${cluster_admin_user} role=controller ansible_python_interpreter=/config/venv/##VENV_OS_ARCH##/oci/bin/python3%{ endif }
 [monitoring]
-%{ if monitoring_name !="" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${compute_username} role=monitoring ansible_interpreter_python_fallback=/config/venv/##VENV_OS_ARCH##/oci/bin/python3,/usr/bin/python3,python3 %{ endif }
+%{ if monitoring_name !="" }${monitoring_name} ansible_host=${monitoring_ip} ansible_user=${cluster_admin_user} role=monitoring ansible_interpreter_python_fallback=/config/venv/##VENV_OS_ARCH##/oci/bin/python3,/usr/bin/python3,python3 %{ endif }
 
 [compute_to_add]
 [compute_configured]
@@ -40,17 +40,18 @@ redundancy=${redundancy}
 log_vol=${log_vol}
 instance_pool_ocpus=${instance_pool_ocpus}
 queue=${queue}
+permanent=${permanent}
 cluster_monitoring=${cluster_monitoring}
+grafana_ldap_auth_enabled=${grafana_ldap_auth_enabled}
 hyperthreading=${hyperthreading}
 ldap=${ldap}
 instance_type=default
-enroot=${enroot}
 pyxis=${pyxis}
+dgxc_benchmarking=${dgxc_benchmarking}
 pam=${pam}
+cluster_admin_user=${cluster_admin_user}
 privilege_sudo=${privilege_sudo}
 privilege_group_name=${privilege_group_name}
-compute_username=${compute_username}
-controller_username=${controller_username}
 region=${region}
 tenancy_ocid=${tenancy_ocid}
 sacct_limits=${sacct_limits}
@@ -70,7 +71,6 @@ queue_ocid=${queue_ocid}
 ons_topic_ocid=${ons_topic_ocid}
 ondemand_partition=${ondemand_partition}
 ondemand_partition_count=${ondemand_partition_count}
-grafana_initial_creds=${grafana_initial_creds}
 add_lfs=${add_lfs}
 lfs_target_path=${lfs_target_path}
 lfs_source_IP=${lfs_source_IP}
@@ -78,8 +78,14 @@ lfs_source_path=${lfs_source_path}
 lfs_options=${lfs_options}
 metrics_stream_ocid=${metrics_stream_ocid}
 mysql_admin_username=${mysql_admin_username}
-mysql_admin_password=${mysql_admin_password}
 mysql_service_host=${mysql_service_host}
+slurm_job_monitoring=${slurm_job_monitoring}
+slurm_monitoring_mysql_backend=${slurm_monitoring_mysql_backend}
+slurm_monitoring_db_host=${slurm_monitoring_db_host}
+slurm_monitoring_db_port=3306
+slurm_monitoring_db_name=slurm_jobs
+slurm_monitoring_db_user=slurm_exporter
+slurm_monitoring_grafana_db_user=slurm_grafana
 slurm_federation=${slurm_federation}
 ip_slurmdbd=${ip_slurmdbd}
 wildcard_dns_domain=${wildcard_dns_domain}

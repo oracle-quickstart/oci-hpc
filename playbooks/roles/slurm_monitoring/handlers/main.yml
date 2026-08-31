@@ -1,0 +1,19 @@
+---
+- name: Reload systemd
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart slurm-rest-exporter
+  become: true
+  ansible.builtin.systemd:
+    name: slurm-rest-exporter
+    state: restarted
+  when: slurm_monitoring_controller_rest_exporter_enabled | bool
+
+- name: Restart slurm-job-exporter
+  become: true
+  ansible.builtin.systemd:
+    name: slurm-job-exporter
+    state: restarted
+  when: slurm_monitoring_controller_job_exporter_enabled | bool

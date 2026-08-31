@@ -2,7 +2,6 @@
 #SBATCH --job-name=multi_node_active_HealthCheck
 #SBATCH --nodes=2
 #SBATCH --exclusive
-#SBATCH --gpus-per-node=8
 #SBATCH --ntasks-per-node=8
 #SBATCH --output=/var/log/healthchecks/multi_node_active_HealthCheck/%x-%j.out  # %x = job name, %j = job ID
 #SBATCH --error=/var/log/healthchecks/multi_node_active_HealthCheck/%x-%j.out
@@ -17,12 +16,20 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
    [ "$shape" = "BM.GPU4.8" ] || \
    [ "$shape" = "BM.GPU.B4.8" ] || \
    [ "$shape" = "BM.GPU.H200.8" ] || \
+   [ "$shape" = "BM.GPU.GB200.4" ] || \
+   [ "$shape" = "BM.GPU.GB200-v2.4" ] || \
+   [ "$shape" = "BM.GPU.GB200-v3.4" ] || \
+   [ "$shape" = "BM.GPU.GB300.4" ] || \
    [ "$shape" = "BM.GPU.B200.8" ] || \
    [ "$shape" = "BM.GPU.B300.8" ] || \
+   [ "$shape" = "BM.GPU.B300.HS.8" ] || \
+   [ "$shape" = "BM.GPU.RTXPRO.8" ] || \
    [ "$shape" = "BM.GPU.MI300X.8" ] || \
    [ "$shape" = "BM.GPU.MI355X.8" ] || \
    [ "$shape" = "BM.GPU.MI355X-v0.8" ] || \
    [ "$shape" = "BM.GPU.MI355X-v1.8" ]; then
+
+  uv_healthcheck=(/config/bin/uv_wrapper.sh run-venv)
 
   FILE="/var/log/healthchecks/latest_multi_node_active_healthcheck.log"
 
@@ -36,9 +43,15 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
 
   sudo rm /var/log/healthchecks/hostfile_$SLURM_JOB_ID
 
+  if [[ "$shape" == BM.GPU.GB*.4 ]]; then
+    gpus_per_node=4
+  else
+    gpus_per_node=${SLURM_GPUS_PER_NODE:-8}
+  fi
+
   rank=0
   for node in $(scontrol show hostnames "$SLURM_JOB_NODELIST"); do
-      for slot in $(seq 0 $((${SLURM_GPUS_PER_NODE}-1))); do
+      for slot in $(seq 0 $((gpus_per_node-1))); do
           echo "rank ${rank}=${node} slot=${slot}"
           ((rank++))
       done
@@ -48,9 +61,9 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
   # Run healthcheck if file is older than 60s or missing
   if [ "$TIME_DIFF" -gt 60 ]; then
     # run all the multi-node active healthchecks
-    srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 10s python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --mode 1
+    srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 10s "${uv_healthcheck[@]}" /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --mode 1
     sleep 5
-    python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile /var/log/healthchecks/hostfile_$SLURM_JOB_ID --mode 2
+    "${uv_healthcheck[@]}" /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --hostfile /var/log/healthchecks/hostfile_$SLURM_JOB_ID --mode 2
     sleep 2
     # Get the hostnames of the assigned nodes
     nodes=($(scontrol show hostname $SLURM_JOB_NODELIST))
@@ -64,6 +77,8 @@ if [ "$shape" = "BM.GPU.H100.8" ] || \
       scp $file_to_copy ${node2}:$dest_path
     fi
     # write to the http server file
-    srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 30s sudo python3 /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --mode 3 --node1 $node1 --node2 $node2 --slurm
+    srun --ntasks=2 --ntasks-per-node=1 timeout --preserve-status --foreground 30s sudo "${uv_healthcheck[@]}" /opt/oci-hpc/healthchecks/multi_node_active_healthcheck.py --mode 3 --node1 $node1 --node2 $node2 --slurm
   fi
+else
+  echo "Skipping multi-node active healthcheck: unsupported instance shape '${shape:-unknown}'"
 fi

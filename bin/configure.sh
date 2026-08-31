@@ -33,10 +33,11 @@ echo "VENV OS Architecture: $VENV_OS_ARCH"
 if [[ -f /config/playbooks/inventory ]]; then
   echo "Processing inventory file..."
   sed -i "s|##VENV_OS_ARCH##|$VENV_OS_ARCH|g" /config/playbooks/inventory
+  sudo mkdir -p /etc/ansible
   sudo cp /config/playbooks/inventory /etc/ansible/hosts
 fi
 
-username=$(grep '^compute_username=' "$inventory" 2>/dev/null | tail -n 1 | awk -F "=" '{print $2}' || true)
+username=$(grep '^cluster_admin_user=' "$inventory" 2>/dev/null | tail -n 1 | awk -F "=" '{print $2}' || true)
 clustername=$(grep '^cluster_name=' "$inventory" 2>/dev/null | tail -n 1 | awk -F "=" '{print $2}' || true)
 if [[ -z "${username}" ]]; then
   username="$USER"

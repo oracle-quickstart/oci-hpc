@@ -8,6 +8,7 @@ resource "oci_core_compute_cluster" "compute_cluster" {
   display_name = local.cluster_name
   freeform_tags = {
     "cluster_name"        = local.cluster_name
+    "config_fss_hostname" = local.config_fss_hostname
     "controller_name"     = oci_core_instance.controller.display_name
     "hostname_convention" = var.hostname_convention
   }

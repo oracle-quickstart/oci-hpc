@@ -1,8 +1,21 @@
+- name: Check if Lustre is already installed on host
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -q
+      - lustre-client
+      - lustre-client-dkms
+  # noqa command-instead-of-module
+  register: lustre_client_installed
+  ignore_errors: true
+  changed_when: false
+
 - name: Check if Lustre package bundle was built
   ansible.builtin.stat:
     path: "{{ lustre_client_tarball_path }}"
   register: lustre_client_built
   ignore_errors: true
+  when: lustre_client_installed.rc != 0
 
 - name: Ensure shared Lustre build root path exists
   become: true
@@ -10,6 +23,7 @@
     path: "{{ lustre_client_build_root_path }}"
     state: directory
     mode: "0755"
+  when: lustre_client_installed.rc != 0
 
 - name: Try to acquire the shared Lustre build lock for the current platform
   become: true
@@ -19,16 +33,20 @@
   failed_when:
     - lustre_client_build_lock.rc != 0
     - "'File exists' not in (lustre_client_build_lock.stderr | default(''))"
-  when: not (lustre_client_built.stat.exists | default(false))
+  when:
+    - lustre_client_installed.rc != 0
+    - not (lustre_client_built.stat.exists | default(false))
 
 - name: Record whether this node builds Lustre for the current platform
   ansible.builtin.set_fact: # noqa: var-naming[no-role-prefix]
     lustre_client_build_lock_acquired: "{{ (lustre_client_build_lock.rc | default(1)) == 0 }}"
+  when: lustre_client_installed.rc != 0
 
 - name: Lustre client build
   when:
+    - lustre_client_installed.rc != 0
     - not (lustre_client_built.stat.exists | default(false))
-    - lustre_client_build_lock_acquired | bool
+    - lustre_client_build_lock_acquired | default(false) | bool
   block:
     - name: Check if the host is running RHCK
       ansible.builtin.command: "uname -r"
@@ -43,7 +61,6 @@
     - name: Ensure lustre-client prerequisites are installed on the host
       vars: # noqa: var-naming[no-role-prefix]
         package_name:
-          - git
           - dkms
           - libmount-devel
           - libyaml-devel
@@ -139,6 +156,22 @@
         dest: "{{ lustre_client_chroot_path }}/lustre-client"
         version: "{{ lustre_client_version }}"
 
+    - name: Copy lustre-client patches into the chroot environment
+      become: true
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ lustre_client_chroot_path }}/{{ item }}"
+        mode: "0644"
+      loop: "{{ lustre_client_patch_files }}"
+
+    - name: Apply lustre-client patches
+      become: true
+      ansible.builtin.command:
+        cmd: "git apply {{ lustre_client_chroot_path }}/{{ item }}"
+        chdir: "{{ lustre_client_chroot_path }}/lustre-client"
+      # noqa command-instead-of-module
+      loop: "{{ lustre_client_patch_files }}"
+
     - name: Build the lustre-client RPMS in the chroot environment
       become: true
       ansible.builtin.shell: |
@@ -147,7 +180,7 @@
 
         cd lustre-client/
         sh autogen.sh
-        ./configure --enable-client --disable-server
+        ./configure --enable-client --disable-server --with-o2ib=no
 
         make rpms
         make dkms-rpms
@@ -200,7 +233,9 @@
   until: lustre_client_built_wait.stat.exists | default(false)
   retries: 60
   delay: 10
-  when: not (lustre_client_built.stat.exists | default(false))
+  when:
+    - lustre_client_installed.rc != 0
+    - not (lustre_client_built.stat.exists | default(false))
 
 - name: Ensure shared Lustre package bundle is available after build coordination
   ansible.builtin.assert:
@@ -211,4 +246,6 @@
       The shared Lustre package bundle did not appear at
       {{ lustre_client_tarball_path }} after waiting for the current platform
       build to complete.
-  when: not (lustre_client_built.stat.exists | default(false))
+  when:
+    - lustre_client_installed.rc != 0
+    - not (lustre_client_built.stat.exists | default(false))

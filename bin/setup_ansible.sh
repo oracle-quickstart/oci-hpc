@@ -89,7 +89,7 @@ configure_ansible_cfg() {
   sudo sed -i "s/^\(#\|;\)retries.*/retries=5/" /etc/ansible/ansible.cfg
   sudo sed -i "s/^\(#\|;\)connect_timeout.*/connect_timeout=300/" /etc/ansible/ansible.cfg
   sudo sed -i "s/^\(#\|;\)command_timeout.*/command_timeout=120/" /etc/ansible/ansible.cfg
-  sudo sed -i "/^\[defaults\]/,/^\[/ s/^[#;]remote_tmp.*/remote_tmp=\/tmp\/.ansible-tmp/" /etc/ansible/ansible.cfg
+  sudo sed -i "/^\[defaults\]/,/^\[/ s@^[#;]\?\(\(local\|remote\)_tmp\)\s*=.*@\1=/tmp/.ansible-tmp-\2@" /etc/ansible/ansible.cfg
   sudo sed -i "/^\[defaults\]/,/^\[/ s|^[#;]collections_path=.*|collections_path=${ansible_collections_path}|" /etc/ansible/ansible.cfg
 
   # Ensure the remote temp directory exists and is usable for any user (including become: true tasks)

@@ -11,5 +11,12 @@ commonName          = Common Name (e.g. server FQDN)
 [ req_ext ]               
 subjectAltName = @alt_names                         
 
-[alt_names]               
-DNS.1 = {% if 'slurm_backup' in group_names %}backup.cluster{% else %}controller.cluster{% endif %}
+[alt_names]
+{% if 'slurm_backup' in group_names %}
+DNS.1 = backup.cluster
+DNS.2 = {{ slurm_backup_hostname }}
+{% else %}
+DNS.1 = controller.cluster
+DNS.2 = {{ controller_hostname }}
+{% endif %}
+DNS.3 = {{ ansible_facts['fqdn'] }}

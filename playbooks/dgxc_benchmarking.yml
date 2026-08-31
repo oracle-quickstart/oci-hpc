@@ -1,0 +1,47 @@
+---
+- name: Validate DGXC benchmarking install target
+  hosts: localhost
+  gather_facts: false
+  vars:
+    dgxc_requested_targets: "{{ dgxc_target_hosts | default('localhost') }}"
+    dgxc_matched_targets: "{{ query('ansible.builtin.inventory_hostnames', dgxc_requested_targets) }}"
+  tasks:
+    - name: Ensure DGXC benchmarking shared install matches one inventory host
+      ansible.builtin.assert:
+        that:
+          - dgxc_matched_targets | length == 1
+        fail_msg: >-
+          DGXC benchmarking shared installation must match exactly one inventory host.
+          Pattern '{{ dgxc_requested_targets }}' matched {{ dgxc_matched_targets | length }}
+          hosts: {{ dgxc_matched_targets | join(', ') | default('none', true) }}.
+      when: dgxc_target_hosts is defined
+
+- name: Install DGXC benchmarking tooling
+  hosts: "{{ dgxc_target_hosts | default('localhost') }}"
+  gather_facts: true
+  pre_tasks:
+    - name: Ensure DGXC benchmarking shared install targets one host
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+        fail_msg: >-
+          DGXC benchmarking shared installation must run on exactly one host
+          because it writes to shared DGXC paths. Target a single node for
+          playbooks/dgxc_benchmarking.yml. Use
+          playbooks/dgxc_benchmarking_nodes.yml for node shell integration.
+      run_once: true
+
+    - name: Ensure DGXC benchmarking prerequisites are enabled
+      ansible.builtin.assert:
+        that:
+          - dgxc_benchmarking | default(false) | bool
+          - pyxis | default(false) | bool
+        fail_msg: "DGXC benchmarking requires dgxc_benchmarking=true and pyxis=true."
+      run_once: true
+
+    - name: Prepare shared 3rdparty paths
+      ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
+  tasks:
+    - name: Install DGXC benchmarking role
+      ansible.builtin.include_role:
+        name: dgxc

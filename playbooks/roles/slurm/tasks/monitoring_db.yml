@@ -1,0 +1,156 @@
+---
+- name: Ensure Slurm monitoring database credentials are available
+  ansible.builtin.assert:
+    that:
+      - (slurm_monitoring_mysql_backend | default('managed')) in ['local', 'managed']
+      - slurm_monitoring_db_password | default('') | string | length > 0
+      - slurm_monitoring_grafana_db_password | default('') | string | length > 0
+      - slurm_monitoring_db_host | default('') | string | length > 0
+    fail_msg: >-
+      Slurm monitoring database settings are missing from inventory. Re-render
+      inventory with Terraform so monitoring DB backend, host, and generated
+      credentials are available.
+
+- name: Create Slurm monitoring database on managed mysql service
+  mysql_db:
+    login_user: "{{ mysql_admin_username }}"
+    login_password: "{{ mysql_admin_password }}"
+    login_host: "{{ mysql_service_host }}"
+    name: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}"
+    state: present
+  when: (slurm_monitoring_mysql_backend | default('managed')) == 'managed'
+
+- name: Create Slurm monitoring database on local mysql service
+  become: true
+  mysql_db:
+    config_file: /root/.my.cnf
+    name: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}"
+    state: present
+  when: (slurm_monitoring_mysql_backend | default('managed')) == 'local'
+
+- name: Ensure Slurm monitoring schema exists
+  vars:
+    slurm_monitoring_schema_queries:
+      - |
+        CREATE TABLE IF NOT EXISTS jobs (
+            job_id BIGINT PRIMARY KEY,
+            name VARCHAR(255),
+            `user` VARCHAR(64),
+            account VARCHAR(64),
+            account_l1 VARCHAR(64),
+            account_l2 VARCHAR(64),
+            account_l3 VARCHAR(64),
+            `partition` VARCHAR(64),
+            state VARCHAR(32),
+            num_nodes INT,
+            num_cpus INT,
+            num_gpus INT,
+            node_list TEXT,
+            submit_time DATETIME,
+            start_time DATETIME,
+            end_time DATETIME,
+            elapsed_seconds INT,
+            cluster VARCHAR(64),
+            qos VARCHAR(64),
+            priority INT,
+            exit_code VARCHAR(16),
+            avg_gpu_util FLOAT,
+            max_gpu_util FLOAT,
+            avg_gpu_mem_util FLOAT,
+            avg_cpu_util FLOAT,
+            avg_mem_util_bytes BIGINT,
+            updated_at DATETIME,
+            INDEX idx_jobs_account (account_l1),
+            INDEX idx_jobs_account_l2 (account_l1, account_l2),
+            INDEX idx_jobs_state (state),
+            INDEX idx_jobs_user (`user`),
+            INDEX idx_jobs_submit (submit_time),
+            INDEX idx_jobs_partition (`partition`),
+            INDEX idx_jobs_cluster (cluster)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      - |
+        CREATE TABLE IF NOT EXISTS job_utilization (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            job_id BIGINT,
+            timestamp DATETIME,
+            hostname VARCHAR(64),
+            gpu_index INT,
+            gpu_vendor TINYINT UNSIGNED DEFAULT 1 COMMENT '1=NVIDIA, 2=AMD, 3=Intel, 0=CPU-only',
+            gpu_util FLOAT,
+            gpu_mem_util FLOAT,
+            cpu_util FLOAT,
+            mem_util_bytes BIGINT,
+            mem_util_percent FLOAT,
+            UNIQUE KEY uk_job_util (job_id, timestamp, hostname, gpu_index),
+            INDEX idx_job_util_time (timestamp),
+            INDEX idx_job_util_job (job_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  block:
+    - name: Create Slurm monitoring schema on managed mysql service
+      mysql_query:
+        login_user: "{{ mysql_admin_username }}"
+        login_password: "{{ mysql_admin_password }}"
+        login_host: "{{ mysql_service_host }}"
+        login_db: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}"
+        query: "{{ slurm_monitoring_schema_queries }}"
+      when: (slurm_monitoring_mysql_backend | default('managed')) == 'managed'
+
+    - name: Create Slurm monitoring schema on local mysql service
+      become: true
+      mysql_query:
+        config_file: /root/.my.cnf
+        login_db: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}"
+        query: "{{ slurm_monitoring_schema_queries }}"
+      when: (slurm_monitoring_mysql_backend | default('managed')) == 'local'
+
+- name: Create Slurm exporter monitoring DB user on managed mysql service
+  mysql_user:
+    login_user: "{{ mysql_admin_username }}"
+    login_password: "{{ mysql_admin_password }}"
+    login_host: "{{ mysql_service_host }}"
+    host: "%"
+    name: "{{ slurm_monitoring_db_user | default('slurm_exporter') }}"
+    priv: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}.*:SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,INDEX"
+    plugin: caching_sha2_password
+    plugin_auth_string: "{{ slurm_monitoring_db_password }}"
+    state: present
+  no_log: true
+  when: (slurm_monitoring_mysql_backend | default('managed')) == 'managed'
+
+- name: Create Slurm exporter monitoring DB user on local mysql service
+  become: true
+  mysql_user:
+    config_file: /root/.my.cnf
+    host: "%"
+    name: "{{ slurm_monitoring_db_user | default('slurm_exporter') }}"
+    password: "{{ slurm_monitoring_db_password }}"
+    priv: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}.*:SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,INDEX"
+    state: present
+  no_log: true
+  when: (slurm_monitoring_mysql_backend | default('managed')) == 'local'
+
+- name: Create Slurm Grafana monitoring DB user on managed mysql service
+  mysql_user:
+    login_user: "{{ mysql_admin_username }}"
+    login_password: "{{ mysql_admin_password }}"
+    login_host: "{{ mysql_service_host }}"
+    host: "%"
+    name: "{{ slurm_monitoring_grafana_db_user | default('slurm_grafana') }}"
+    priv: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}.*:SELECT"
+    plugin: caching_sha2_password
+    plugin_auth_string: "{{ slurm_monitoring_grafana_db_password }}"
+    state: present
+  no_log: true
+  when: (slurm_monitoring_mysql_backend | default('managed')) == 'managed'
+
+- name: Create Slurm Grafana monitoring DB user on local mysql service
+  become: true
+  mysql_user:
+    config_file: /root/.my.cnf
+    host: "%"
+    name: "{{ slurm_monitoring_grafana_db_user | default('slurm_grafana') }}"
+    password: "{{ slurm_monitoring_grafana_db_password }}"
+    priv: "{{ slurm_monitoring_db_name | default('slurm_jobs') }}.*:SELECT"
+    state: present
+  no_log: true
+  when: (slurm_monitoring_mysql_backend | default('managed')) == 'local'

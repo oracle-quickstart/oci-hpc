@@ -3,8 +3,8 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0755"
     recurse: true
   with_items:
@@ -16,8 +16,8 @@
   ansible.builtin.template:
     src: templates/http_server.py.j2
     dest: "{{ http_server_directory }}/bin/http_server.py"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0775"
 
 - name: Create systemd service unit file
@@ -200,7 +200,7 @@
 
 - name: Set alternate_hostname
   vars:
-    index: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
+    index: "{{ hostvars[inventory_hostname]['ansible_facts']['default_ipv4']['address'] | ansible.utils.ipsubnet(hostvars[inventory_hostname]['private_subnet']) }}"
   ansible.builtin.set_fact:
     alternate_hostname: "{{ hostname_convention }}-{{ index }}"
   when: "'GPU.GB' in instance_metadata['shape'] and change_hostname_tag"
@@ -219,8 +219,8 @@
   ansible.builtin.template:
     src: templates/initial_info.j2
     dest: "{{ http_server_directory }}/files/info"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0775"
 
 - name: Reload systemd daemon

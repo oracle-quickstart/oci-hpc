@@ -5,12 +5,22 @@ from lib.cli.fabrics.display import print_fabrics
 
 @click.command()
 @click.option('--full', is_flag=True, help='Get full information about the node.', default=False)
-def list(full):
+@click.option(
+    '--rack-state',
+    '--filter',
+    'rack_state',
+    type=click.Choice(['AVAILABLE', 'UNAVAILABLE', 'OCCUPIED'], case_sensitive=False),
+    help='Only show fabrics with racks in this state.',
+)
+def list(full, rack_state):
     """List all fabrics for nodes."""
 
-    tenancy = get_controller_node().tenancy_id
-    fabric_list=get_memory_fabrics(tenancy,get_controller_node().compartment_id)
-    print_fabrics(fabric_list,full)
-
-
-
+    controller = get_controller_node()
+    fabric_list=get_memory_fabrics(controller.tenancy_id, controller.compartment_id)
+    if rack_state:
+        rack_state = rack_state.upper()
+        fabric_list = [
+            fabric for fabric in fabric_list
+            if int(fabric[3].get(rack_state, 0) or 0) > 0
+        ]
+    print_fabrics(fabric_list, full)

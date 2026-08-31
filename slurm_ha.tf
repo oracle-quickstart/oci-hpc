@@ -12,7 +12,7 @@ resource "oci_core_instance" "backup" {
     for_each = local.is_controller_flex_shape
     content {
       ocpus         = shape_config.value
-      memory_in_gbs = var.controller_custom_memory ? var.controller_memory : 16 * shape_config.value
+      memory_in_gbs = var.controller_custom_memory ? var.controller_memory : (var.controller_shape == "VM.DenseIO.E5.Flex" || var.controller_shape == "VM.DenseIO.E6.Ax.Flex" ? 12 : 16) * shape_config.value
     }
   }
   agent_config {
@@ -21,9 +21,10 @@ resource "oci_core_instance" "backup" {
   display_name = "${local.cluster_name}-backup"
 
   freeform_tags = {
-    "cluster_name"    = local.cluster_name
-    "controller_name" = oci_core_instance.controller.display_name
-    "controller"      = "true"
+    "cluster_name"        = local.cluster_name
+    "config_fss_hostname" = local.config_fss_hostname
+    "controller_name"     = oci_core_instance.controller.display_name
+    "slurm_backup"        = "true"
   }
 
   metadata = {
@@ -54,15 +55,15 @@ resource "null_resource" "backup" {
     inline = concat([
       "#!/bin/bash",
       "sudo mkdir -p /opt/oci-hpc",
-      "sudo chown -R ${var.controller_username}:${var.controller_username} /opt/",
+      "sudo chown -R ${local.cluster_admin_user}:${local.cluster_admin_user} /opt/",
       "mkdir -p /opt/oci-hpc/bin",
-      "mkdir -p /opt/oci-hpc/playbooks"
+      "mkdir -p /opt/oci-hpc/playbooks/group_vars/all"
       ]
     )
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -72,7 +73,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -83,7 +84,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -94,7 +95,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -104,7 +105,7 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -114,18 +115,18 @@ resource "null_resource" "backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
 
   provisioner "file" {
     content     = tls_private_key.ssh.private_key_pem
-    destination = "/home/${var.controller_username}/.ssh/cluster.key"
+    destination = "/home/${local.cluster_admin_user}/.ssh/cluster.key"
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -140,13 +141,13 @@ resource "null_resource" "setup_backup" {
     inline = concat([
       "#!/bin/bash",
       "sudo mkdir -p /config",
-      "sudo chown -R ${var.controller_username}:${var.controller_username} /config/",
+      "sudo chown -R ${local.cluster_admin_user}:${local.cluster_admin_user} /config/",
       "sudo sh -c 'sed -Ei \"/^[[:space:]]*[^#[:space:]]+[[:space:]]+\\/config([[:space:]]+|$)/d\" /etc/fstab'",
       "echo \"${local.config_fss_hostname}:/config /config nfs defaults,nconnect=16 0 0\" | sudo tee -a /etc/fstab",
       "echo 'Configured /config mount in /etc/fstab.'",
       "for i in {1..30}; do sudo mount /config ; mountpoint -q /config && break || { echo 'Waiting for /config to be mounted...'; sleep 10 ; }; done",
-      "chmod 600 /home/${var.controller_username}/.ssh/cluster.key",
-      "cp /home/${var.controller_username}/.ssh/cluster.key /home/${var.controller_username}/.ssh/ed25519",
+      "chmod 600 /home/${local.cluster_admin_user}/.ssh/cluster.key",
+      "cp /home/${local.cluster_admin_user}/.ssh/cluster.key /home/${local.cluster_admin_user}/.ssh/ed25519",
       "chmod a+x /opt/oci-hpc/bin/*.sh",
       "set -o pipefail",
       "timeout --foreground 60m /opt/oci-hpc/bin/backup.sh 2>&1 | tee -a /config/logs/initial_configure.log",
@@ -167,7 +168,7 @@ resource "null_resource" "setup_backup" {
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }
@@ -179,85 +180,99 @@ resource "null_resource" "cluster_backup" {
 
   provisioner "file" {
     content = templatefile("${path.module}/inventory.tpl", {
-      controller_name          = oci_core_instance.controller.display_name,
-      controller_ip            = oci_core_instance.controller.private_ip,
-      backup_name              = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
-      backup_ip                = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
-      monitoring_name          = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
-      monitoring_ip            = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
-      public_subnet            = data.oci_core_subnet.public_subnet.cidr_block,
-      private_subnet           = data.oci_core_subnet.private_subnet.cidr_block,
-      vcn_cidr                 = data.oci_core_vcn.vcn.cidr_block,
-      rdma_network             = cidrhost(var.rdma_subnet, 0),
-      rdma_netmask             = cidrnetmask(var.rdma_subnet),
-      vcn_compartment          = var.vcn_compartment,
-      zone_name                = local.zone_name,
-      create_fss               = var.create_fss,
-      shared_home              = var.shared_home,
-      add_nfs                  = var.add_nfs,
-      nfs_target_path          = var.nfs_target_path,
-      nfs_source_IP            = local.nfs_source_IP,
-      nfs_source_path          = var.nfs_source_path,
-      nfs_options              = var.nfs_options,
-      config_fss_hostname      = local.config_fss_hostname,
-      localdisk                = var.localdisk,
-      log_vol                  = var.log_vol,
-      redundancy               = var.redundancy,
-      rdma_enabled             = var.rdma_enabled,
-      slurm                    = var.slurm,
-      slurm_version            = var.slurm_version,
-      slurm_nfs_path           = "/config",
-      spack                    = var.spack,
-      ldap                     = var.ldap,
-      cluster_name             = local.cluster_name,
-      shape                    = local.shape,
-      instance_pool_ocpus      = local.instance_pool_ocpus,
-      queue                    = var.queue,
-      cluster_monitoring       = var.cluster_monitoring,
-      hyperthreading           = var.hyperthreading,
-      controller_username      = var.controller_username,
-      compute_username         = var.compute_username,
-      enroot                   = local.effective_enroot,
-      pyxis                    = var.pyxis,
-      privilege_sudo           = var.privilege_sudo,
-      privilege_group_name     = var.privilege_group_name,
-      pam                      = var.pam,
-      sacct_limits             = var.sacct_limits,
-      region                   = var.region,
-      tenancy_ocid             = var.tenancy_ocid,
-      healthchecks             = var.healthchecks,
-      active_healthchecks      = var.active_healthchecks,
-      change_hostname          = var.change_hostname,
-      hostname_convention      = var.hostname_convention,
-      queue_ocid               = local.queue_ocid,
-      ons_topic_ocid           = local.topic_id,
-      ondemand_partition       = var.ondemand_partition,
-      ondemand_partition_count = var.ondemand_partition_count,
-      grafana_initial_creds    = base64encode(random_password.grafana_admin_pwd.result),
-      add_lfs                  = var.add_lfs,
-      lfs_target_path          = var.lfs_target_path,
-      lfs_source_IP            = local.lustre_IP,
-      lfs_source_path          = var.lfs_source_path,
-      lfs_options              = var.lfs_options,
-      metrics_stream_ocid      = local.metrics_stream_ocid,
-      mysql_admin_password     = var.mysql_admin_password,
-      mysql_admin_username     = var.mysql_admin_username,
-      mysql_service_host       = local.mysql_service_host,
-      slurm_federation         = var.slurm_federation,
-      ip_slurmdbd              = var.ip_slurmdbd,
-      wildcard_dns_domain      = var.wildcard_dns_domain,
-      use_lets_encrypt_prod_ep = var.use_lets_encrypt_prod_ep,
-      create_bucket            = var.create_bucket,
-      bucket_access_key        = local.bucket_access_key,
-      bucket_secret_key        = local.bucket_secret_key,
-      ocir_namespace           = local.ocir_namespace,
-      write_node_function_ocid = oci_functions_function.function.id
+      controller_name                = oci_core_instance.controller.display_name,
+      controller_ip                  = oci_core_instance.controller.private_ip,
+      backup_name                    = var.slurm_ha ? oci_core_instance.backup[0].display_name : "",
+      backup_ip                      = var.slurm_ha ? oci_core_instance.backup[0].private_ip : "",
+      monitoring_name                = var.monitoring_node ? oci_core_instance.monitoring[0].display_name : "",
+      monitoring_ip                  = var.monitoring_node ? oci_core_instance.monitoring[0].private_ip : "",
+      public_subnet                  = data.oci_core_subnet.public_subnet.cidr_block,
+      private_subnet                 = data.oci_core_subnet.private_subnet.cidr_block,
+      vcn_cidr                       = data.oci_core_vcn.vcn.cidr_block,
+      rdma_network                   = cidrhost(var.rdma_subnet, 0),
+      rdma_netmask                   = cidrnetmask(var.rdma_subnet),
+      vcn_compartment                = var.vcn_compartment,
+      zone_name                      = local.zone_name,
+      create_fss                     = var.create_fss,
+      shared_home                    = var.shared_home,
+      add_nfs                        = var.add_nfs,
+      nfs_target_path                = var.nfs_target_path,
+      nfs_source_IP                  = local.nfs_source_IP,
+      nfs_source_path                = var.nfs_source_path,
+      nfs_options                    = var.nfs_options,
+      config_fss_hostname            = local.config_fss_hostname,
+      localdisk                      = var.localdisk,
+      log_vol                        = var.localdisk && var.log_vol,
+      redundancy                     = var.localdisk && var.log_vol && var.redundancy,
+      rdma_enabled                   = var.rdma_enabled,
+      slurm                          = var.slurm,
+      slurm_version                  = var.slurm_version,
+      slurm_nfs_path                 = "/config",
+      spack                          = var.spack,
+      ldap                           = var.ldap,
+      cluster_name                   = local.cluster_name,
+      cluster_admin_user             = local.cluster_admin_user,
+      shape                          = local.compute_shape,
+      instance_pool_ocpus            = local.instance_pool_ocpus,
+      queue                          = var.queue,
+      permanent                      = true,
+      cluster_monitoring             = var.cluster_monitoring,
+      grafana_ldap_auth_enabled      = var.grafana_ldap_auth_enabled && var.ldap && var.cluster_monitoring,
+      hyperthreading                 = var.hyperthreading,
+      pyxis                          = var.pyxis,
+      dgxc_benchmarking              = var.dgxc_benchmarking,
+      privilege_sudo                 = var.privilege_sudo,
+      privilege_group_name           = var.privilege_group_name,
+      pam                            = var.pam,
+      sacct_limits                   = var.sacct_limits,
+      region                         = var.region,
+      tenancy_ocid                   = var.tenancy_ocid,
+      healthchecks                   = var.healthchecks,
+      active_healthchecks            = var.active_healthchecks,
+      change_hostname                = var.change_hostname,
+      hostname_convention            = var.hostname_convention,
+      queue_ocid                     = local.queue_ocid,
+      ons_topic_ocid                 = local.topic_id,
+      ondemand_partition             = var.ondemand_partition,
+      ondemand_partition_count       = var.ondemand_partition_count,
+      add_lfs                        = var.add_lfs,
+      lfs_target_path                = var.lfs_target_path,
+      lfs_source_IP                  = local.lustre_IP,
+      lfs_source_path                = var.lfs_source_path,
+      lfs_options                    = var.lfs_options,
+      metrics_stream_ocid            = local.metrics_stream_ocid,
+      mysql_admin_username           = local.mysql_admin_username,
+      mysql_service_host             = local.mysql_service_host,
+      slurm_job_monitoring           = local.slurm_job_monitoring_enabled,
+      slurm_monitoring_mysql_backend = local.slurm_monitoring_mysql_backend,
+      slurm_monitoring_db_host       = local.slurm_monitoring_db_host,
+      slurm_federation               = var.slurm_federation,
+      ip_slurmdbd                    = var.ip_slurmdbd,
+      wildcard_dns_domain            = var.wildcard_dns_domain,
+      use_lets_encrypt_prod_ep       = var.use_lets_encrypt_prod_ep,
+      create_bucket                  = var.create_bucket,
+      bucket_access_key              = local.bucket_access_key,
+      bucket_secret_key              = local.bucket_secret_key,
+      ocir_namespace                 = local.ocir_namespace,
+      write_node_function_ocid       = oci_functions_function.function.id
     })
     destination = "/opt/oci-hpc/playbooks/inventory"
     connection {
       host        = local.host_backup
       type        = "ssh"
-      user        = var.controller_username
+      user        = local.cluster_admin_user
+      private_key = tls_private_key.ssh.private_key_pem
+    }
+  }
+
+  provisioner "file" {
+    content = local.monitoring_group_vars
+
+    destination = "/opt/oci-hpc/playbooks/group_vars/all/monitoring.yml"
+    connection {
+      host        = local.host_backup
+      type        = "ssh"
+      user        = local.cluster_admin_user
       private_key = tls_private_key.ssh.private_key_pem
     }
   }

@@ -59,7 +59,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: shape_nccl.stdout == '"BM.GPU.B300.8"'
+  when: shape_nccl.stdout in ['"BM.GPU.B300.8"', '"BM.GPU.B300.HS.8"']
 
 - name: Copy nccl.conf for BM.GPU.B4.8 and A100-v2.8
   become: true

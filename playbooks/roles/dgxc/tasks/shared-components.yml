@@ -1,0 +1,178 @@
+---
+- name: Install DGXC install-node packages
+  vars:
+    package_name: "{{ dgxc_packages }}" # noqa: var-naming[no-role-prefix]
+    package_state: present # noqa: var-naming[no-role-prefix]
+  ansible.builtin.include_role:
+    name: safe_yum
+
+- name: Check DGXC Enroot command
+  ansible.builtin.command:
+    argv:
+      - bash
+      - -lc
+      - command -v enroot
+  register: dgxc_enroot_command
+  changed_when: false
+  failed_when: false
+
+- name: Check DGXC Enroot configuration
+  ansible.builtin.stat:
+    path: /etc/enroot/enroot.conf
+  register: dgxc_enroot_config
+
+- name: Ensure DGXC Enroot prerequisites are present
+  ansible.builtin.assert:
+    that:
+      - dgxc_enroot_command.rc == 0
+      - dgxc_enroot_config.stat.exists
+    fail_msg: >-
+      DGXC benchmarking requires Enroot to be installed and configured on the
+      selected install node. Run the standard Enroot/Pyxis playbooks first.
+
+- name: Ensure DGXC shared directories exist
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0755"
+  loop:
+    - "{{ dgxc_root_path }}"
+    - "{{ dgxc_install_path }}"
+    - "{{ dgxc_image_path }}"
+    - "{{ dgxc_venv_root_path }}"
+
+- name: Clone DGXC benchmarking repository
+  ansible.builtin.git:
+    repo: "{{ dgxc_repo }}"
+    dest: "{{ dgxc_repo_path }}"
+    version: "{{ dgxc_tag }}"
+    update: true
+
+- name: Configure Git LFS for DGXC repository
+  ansible.builtin.command:
+    argv:
+      - git
+      - lfs
+      - install
+      - --local
+  args:
+    chdir: "{{ dgxc_repo_path }}"
+  changed_when: false
+  when: dgxc_git_lfs_pull | bool
+
+- name: Pull DGXC Git LFS objects
+  ansible.builtin.command:
+    argv:
+      - git
+      - lfs
+      - pull
+  args:
+    chdir: "{{ dgxc_repo_path }}"
+  changed_when: false
+  when: dgxc_git_lfs_pull | bool
+
+- name: Ensure DGXC Python version is available through uv
+  ansible.builtin.command:
+    argv:
+      - "{{ uv_wrapper_path }}"
+      - python
+      - install
+      - "{{ dgxc_python_version }}"
+  changed_when: false
+
+- name: Create DGXC installer Python venv
+  ansible.builtin.command:
+    argv:
+      - "{{ uv_wrapper_path }}"
+      - venv
+      - --python
+      - "{{ dgxc_python_version }}"
+      - "{{ dgxc_venv_path }}"
+  args:
+    creates: "{{ dgxc_venv_path }}/bin/python"
+
+# DGXC CLIs can invoke `uv` from inside their venv. Keep that lookup pointed at
+# the cluster-managed uv install instead of installing a separate uv binary.
+- name: Install DGXC uv shim into venv
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ dgxc_venv_path }}/bin/uv"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      dgxc_venv_bin="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+      source /config/bin/setup_environment.sh
+      uv_bin="${UV_INSTALL_DIR}/uv"
+
+      if [[ ! -x "${uv_bin}" ]]; then
+        source "${UV_INSTALL_DIR}/env"
+        PATH=":${PATH:-}:"
+        PATH="${PATH//:${dgxc_venv_bin}:/:}"
+        PATH="${PATH#:}"
+        PATH="${PATH%:}"
+        export PATH
+        uv_bin="$(command -v uv)"
+      fi
+
+      exec "${uv_bin}" "$@"
+
+- name: Install DGXC CLIs into venv
+  ansible.builtin.command:
+    argv:
+      - "{{ uv_wrapper_path }}"
+      - pip
+      - install
+      - --python
+      - "{{ dgxc_venv_path }}/bin/python"
+      - --upgrade
+      - "{{ dgxc_repo_path }}/cli/llmb-install"
+      - "{{ dgxc_repo_path }}/cli/llmb-run"
+  register: dgxc_cli_install
+  changed_when: >-
+    'Installed' in (dgxc_cli_install.stdout ~ dgxc_cli_install.stderr) or
+    'Updated' in (dgxc_cli_install.stdout ~ dgxc_cli_install.stderr) or
+    'Uninstalled' in (dgxc_cli_install.stdout ~ dgxc_cli_install.stderr)
+
+- name: Configure DGXC llmb-install playback
+  ansible.builtin.import_tasks: shape-config.yml
+
+- name: Ensure DGXC effective install path exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ dgxc_effective_install_path }}"
+    state: directory
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0755"
+  when: dgxc_install_llmb_run_symlink | bool
+
+- name: Link llmb-run into DGXC install path
+  become: true
+  ansible.builtin.file:
+    src: "{{ dgxc_venv_path }}/bin/llmb-run"
+    dest: "{{ dgxc_effective_install_path }}/llmb-run"
+    state: link
+    force: true
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+  when: dgxc_install_llmb_run_symlink | bool
+
+- name: Install DGXC shared environment loader
+  become: true
+  ansible.builtin.template:
+    src: load-dgxc-env.j2
+    dest: "{{ dgxc_shared_env_loader_path }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0644"
+
+- name: Run DGXC llmb-install playback
+  ansible.builtin.import_tasks: llmb-install.yml
+  when: dgxc_run_llmb_install | bool

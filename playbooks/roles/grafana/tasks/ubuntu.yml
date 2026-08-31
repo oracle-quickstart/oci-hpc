@@ -21,14 +21,28 @@
   args:
     creates: /etc/apt/keyrings/grafana.gpg
 
-- name: Add Grafana APT repository
+- name: Add Grafana repository
   become: true
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
-    filename: grafana
+  ansible.builtin.deb822_repository:
+    name: grafana
+    types:
+      - deb
+    uris:
+      - https://apt.grafana.com
+    suites:
+      - stable
+    components:
+      - main
+    architectures:
+      - "{{ arch_map[ansible_facts['architecture']] }}"
+    signed_by: /etc/apt/keyrings/grafana.gpg
     state: present
-  register: apt_repo
-  until: apt_repo is not failed
+  vars:
+    arch_map:
+      x86_64: amd64
+      aarch64: arm64
+  register: mirror_results
+  until: mirror_results is not failed
   retries: 10
   delay: 20
 

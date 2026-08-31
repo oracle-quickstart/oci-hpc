@@ -2,8 +2,8 @@
 resource "oci_identity_auth_token" "auth_token" {
   count = var.use_existing_auth_token ? 0 : (
     var.is_gov_cloud
-    ? 1                                  # Gov/air-gapped: need token to mirror
-    : (!var.use_OCI_generated_container ? 1 : 0)  # Commercial rebuilds need token; public pull does not
+    ? 1                                          # Gov/air-gapped: need token to mirror
+    : (!var.use_OCI_generated_container ? 1 : 0) # Commercial rebuilds need token; public pull does not
   )
   provider    = oci.home
   description = "${local.cluster_name}-token"
@@ -56,7 +56,7 @@ resource "null_resource" "Login2OCIR" {
   depends_on = [oci_functions_application.fn_application, oci_artifacts_container_repository.container_repository, oci_identity_auth_token.auth_token, time_sleep.wait_for_registry_to_be_ready]
 
   provisioner "local-exec" {
-    command = "echo '${local.auth_token}' | podman login -u '${local.ocir_login_user}' ${local.ocir_host} --password-stdin"
+    command     = "echo '${local.auth_token}' | podman login -u '${local.ocir_login_user}' ${local.ocir_host} --password-stdin"
     working_dir = "${path.module}/function/"
   }
 }
@@ -76,17 +76,17 @@ resource "null_resource" "copy_push2OCIR" {
       repository_name="${data.oci_artifacts_container_repository.container_repo[0].display_name}"
       version="${var.container_version}"
       img_target_latest="$${target_repo}/$${namespace}/$${repository_name}:$${version}"
-      img_target_arm64="$${target_repo}/$${namespace}/$${repository_name}:arm64_$${version}"
-      img_target_amd64="$${target_repo}/$${namespace}/$${repository_name}:amd64_$${version}"
+      img_target_arm64="$${target_repo}/$${namespace}/$${repository_name}:$${version}-arm64"
+      img_target_amd64="$${target_repo}/$${namespace}/$${repository_name}:$${version}-amd64"
 
       # Pull public images from IAD using configured namespace/name
       podman system prune --all --force && podman rmi --all
-      podman pull iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:arm64_$${version}
-      podman pull iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:amd64_$${version}
+      podman pull iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:$${version}-arm64
+      podman pull iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:$${version}-amd64
 
       # Tag and push per-arch images to local registry
-      podman tag iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:arm64_$${version} "$${img_target_arm64}"
-      podman tag iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:amd64_$${version} "$${img_target_amd64}"
+      podman tag iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:$${version}-arm64 "$${img_target_arm64}"
+      podman tag iad.ocir.io/${var.OCI_generated_container_namespace}/${var.OCI_generated_container_name}:$${version}-amd64 "$${img_target_amd64}"
       podman push "$${img_target_arm64}"
       podman push "$${img_target_amd64}"
 
@@ -136,7 +136,7 @@ resource "oci_functions_function" "function" {
   provisioned_concurrency_config {
     strategy = "CONSTANT"
     count    = 40
-  }   
+  }
 
 
   freeform_tags = {

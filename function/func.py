@@ -7,6 +7,8 @@ import ipaddress
 import time
 from fdk import response
 
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+
 queue_ocid = os.environ["QUEUE_OCID"]
 controller_name = os.environ["CONTROLLER_NAME"]
 cluster_name = os.environ["CLUSTER_NAME"]

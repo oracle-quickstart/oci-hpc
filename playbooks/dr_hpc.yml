@@ -1,0 +1,6 @@
+---
+- name: Install or update dr_hpc on a target node
+  hosts: localhost
+  gather_facts: true
+  roles:
+    - dr_hpc

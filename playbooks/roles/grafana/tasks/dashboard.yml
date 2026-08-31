@@ -1,12 +1,4 @@
 ---
-- name: Install git
-  vars:
-    package_name:
-      - git
-    package_state: present
-  include_role:
-    name: safe_yum
-
 - name: Map system architecture to suffix
   set_fact:
     arch_suffix: "{{ arch_map[ansible_facts['architecture']] }}"
@@ -77,6 +69,7 @@
     - amd-gpu-metrics-single-variables.libsonnet
     - amd-gpu-metrics-single.jsonnet
     - nvidia-gpu-health.jsonnet
+    - gpu-failure-risk-score-beta.jsonnet
     - nvidia-gpu-metrics-single-variables.libsonnet
     - nvidia-gpu-metrics-single.jsonnet
     - nvidia-gpu-throttling.jsonnet
@@ -111,8 +104,13 @@
     - oci-vcn.jsonnet
     - oci-variables.libsonnet
     - oci-dashboard.jsonnet
-    - slurm-dashboard.jsonnet
     - slurm-variables.libsonnet
+    - slurm-cluster-dashboard.jsonnet
+    - slurm-job-dashboard.jsonnet
+    - slurm-job-detail-dashboard.jsonnet
+    - slurm-reporting-dashboard.jsonnet
+    - table-panel-mysql.libsonnet
+    - table-panel-mysql-links.libsonnet
     - stat-health-panel.libsonnet
     - stat-panel-single.libsonnet
     - stat-panel.libsonnet
@@ -127,54 +125,62 @@
   until: copy_result is not failed
   register: copy_result
 
-- name: Build dashboard with Jsonnet
-  ansible.builtin.shell: |
-    /usr/local/bin/jb init
-    /usr/local/bin/jb install {{ grafonnet_gen_repo_url }}
-    /usr/local/bin/jb install {{ grafonnet_lib_repo_url }}
-    /usr/local/bin/jsonnet -J vendor cluster-level.jsonnet -o cluster-level.json
-    /usr/local/bin/jsonnet -J vendor command-center.jsonnet -o command-center.json
-    /usr/local/bin/jsonnet -J vendor amd-gpu-metrics-single.jsonnet -o amd-gpu-metrics-single.json
-    /usr/local/bin/jsonnet -J vendor amd-gpu-health.jsonnet -o amd-gpu-health.json
-    /usr/local/bin/jsonnet -J vendor nvidia-gpu-metrics-single.jsonnet -o nvidia-gpu-metrics-single.json
-    /usr/local/bin/jsonnet -J vendor nvidia-gpu-health.jsonnet -o nvidia-gpu-health.json
-    /usr/local/bin/jsonnet -J vendor nvidia-gpu-throttling.jsonnet -o nvidia-gpu-throttling.json
-    /usr/local/bin/jsonnet -J vendor amd-gpu-throttling.jsonnet -o amd-gpu-throttling.json
-    /usr/local/bin/jsonnet -J vendor gpu-throttling-overview.jsonnet -o gpu-throttling-overview.json
-    /usr/local/bin/jsonnet -J vendor host-metrics-single.jsonnet -o host-metrics-single.json
-    /usr/local/bin/jsonnet -J vendor health-by-node-agg-counts.jsonnet -o health-by-node-agg-counts.json
-    /usr/local/bin/jsonnet -J vendor health-by-node-matrix.jsonnet -o health-by-node-matrix.json
-    /usr/local/bin/jsonnet -J vendor multi-node.jsonnet -o multi-node.json
-    /usr/local/bin/jsonnet -J vendor nccl-traces.jsonnet -o nccl-traces.json
-    /usr/local/bin/jsonnet -J vendor node-by-health-matrix.jsonnet -o node-by-health-matrix.json
-    /usr/local/bin/jsonnet -J vendor oci-block.jsonnet -o oci-block.json
-    /usr/local/bin/jsonnet -J vendor oci-drg.jsonnet -o oci-drg.json
-    /usr/local/bin/jsonnet -J vendor oci-fastconnect.jsonnet -o oci-fastconnect.json
-    /usr/local/bin/jsonnet -J vendor oci-fss.jsonnet -o oci-fss.json
-    /usr/local/bin/jsonnet -J vendor oci-igw.jsonnet -o oci-igw.json
-    /usr/local/bin/jsonnet -J vendor oci-lustre.jsonnet -o oci-lustre.json
-    /usr/local/bin/jsonnet -J vendor oci-natgw.jsonnet -o oci-natgw.json
-    /usr/local/bin/jsonnet -J vendor oci-sgw.jsonnet -o oci-sgw.json
-    /usr/local/bin/jsonnet -J vendor oci-vcn.jsonnet -o oci-vcn.json
-    /usr/local/bin/jsonnet -J vendor oci-dashboard.jsonnet -o oci-dashboard.json
-    /usr/local/bin/jsonnet -J vendor slurm-dashboard.jsonnet -o slurm-dashboard.json
-    /usr/local/bin/jsonnet -J vendor storage-metrics.jsonnet -o storage-metrics.json
+- name: Build dashboards with Makefile
+  ansible.builtin.command:
+    cmd: >-
+      make all
+      JSONNET=/usr/local/bin/jsonnet
+      JB=/usr/local/bin/jb
+      GRAFONNET_GEN_REPO_URL={{ grafonnet_gen_repo_url }}
+      GRAFONNET_LIB_REPO_URL={{ grafonnet_lib_repo_url }}
   args:
     chdir: "{{ dashboard_build_dir }}"
+  changed_when: true
 
 - name: Ensure /opt/oci-hpc/monitoring exists
   become: true
-  file:
+  ansible.builtin.file:
     path: "/opt/oci-hpc/monitoring"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0755"
+
+- name: Remove legacy generated Grafana dashboard files
+  become: true
+  ansible.builtin.file:
+    path: "/opt/oci-hpc/monitoring/{{ item }}"
+    state: absent
+  loop:
+    - slurm-dashboard.json
+    - cluster-dashboard.json
+
+- name: Remove legacy Grafana dashboards
+  ansible.builtin.uri:
+    url: "http://localhost:3000/api/dashboards/uid/{{ item }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ grafana_api_token }}"
+    status_code:
+      - 200
+      - 404
+  loop:
+    - slurm-dashboard
+    - cluster-dashboard
+  no_log: true
 
 - name: Save generated dashboard
-  copy:
+  vars:
+    grafana_slurm_monitoring_dashboard_files:
+      - slurm-cluster-dashboard.json
+      - slurm-job-dashboard.json
+      - slurm-job-detail-dashboard.json
+      - slurm-reporting-dashboard.json
+  ansible.builtin.copy:
     src: "{{ dashboard_build_dir }}/{{ item }}"
     dest: "/opt/oci-hpc/monitoring/{{ item }}"
     remote_src: true
+    mode: "0644"
   loop:
     - cluster-level.json
     - command-center.json
@@ -182,6 +188,7 @@
     - amd-gpu-metrics-single.json
     - amd-gpu-throttling.json
     - nvidia-gpu-health.json
+    - gpu-failure-risk-score-beta.json
     - nvidia-gpu-metrics-single.json
     - nvidia-gpu-throttling.json
     - gpu-throttling-overview.json
@@ -201,12 +208,22 @@
     - oci-sgw.json
     - oci-vcn.json
     - oci-dashboard.json
-    - slurm-dashboard.json
+    - slurm-cluster-dashboard.json
+    - slurm-job-dashboard.json
+    - slurm-job-detail-dashboard.json
+    - slurm-reporting-dashboard.json
     - storage-metrics.json
+  when: item not in grafana_slurm_monitoring_dashboard_files or slurm_job_monitoring | default(false) | bool
 
 # Preserve the order in order to show the dashboards in non-alphabetic
 # functional order.
 - name: Import Grafana dashboards
+  vars:
+    grafana_slurm_monitoring_dashboard_files:
+      - slurm-cluster-dashboard.json
+      - slurm-job-dashboard.json
+      - slurm-job-detail-dashboard.json
+      - slurm-reporting-dashboard.json
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
     grafana_api_key: "{{ grafana_api_token }}"
@@ -227,6 +244,7 @@
     - amd-gpu-metrics-single.json
     - amd-gpu-throttling.json
     - nvidia-gpu-health.json
+    - gpu-failure-risk-score-beta.json
     - nvidia-gpu-metrics-single.json
     - nvidia-gpu-throttling.json
     - gpu-throttling-overview.json
@@ -239,5 +257,9 @@
     - oci-fss.json
     - oci-lustre.json
     - oci-fastconnect.json
-    - slurm-dashboard.json
+    - slurm-cluster-dashboard.json
+    - slurm-job-dashboard.json
+    - slurm-job-detail-dashboard.json
+    - slurm-reporting-dashboard.json
     - nccl-traces.json
+  when: item not in grafana_slurm_monitoring_dashboard_files or slurm_job_monitoring | default(false) | bool

@@ -33,13 +33,7 @@ scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
 echo MACHINEFILE
 cat $MACHINEFILE
 
-source /etc/os-release
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
-    python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
-elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
-    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
-fi
-
+/opt/oci-hpc/bin/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
 
 echo ORDEREDRANKMACHINEFILE
 cat $ORDEREDRANKMACHINEFILE
@@ -81,12 +75,16 @@ elif [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ]
 then
   var_UCX_NET_DEVICES=eth0
   var_NCCL_IB_HCA="=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11"
-elif [ $shape == \"BM.GPU.B300.8\" ]
+elif [ $shape == \"BM.GPU.B300.8\" ] || [ $shape == \"BM.GPU.B300.HS.8\" ]
 then
   var_UCX_NET_DEVICES=eth0
   var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21"
+elif [ $shape == \"BM.GPU.RTXPRO.8\" ]
+then
+  var_UCX_NET_DEVICES=eth0
+  var_NCCL_IB_HCA="=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_6,mlx5_7,mlx5_8,mlx5_9"
 else
-  echo "Use the appropriate nccl test run script for non A100/H100/H200/B200 nodes"
+  echo "Use the appropriate nccl test run script for non A100/H100/H200/B200/RTXPRO nodes"
 fi
 
 echo "Running ${EXEC_CMD} test on ${SLURM_NNODES} nodes"
@@ -106,9 +104,9 @@ export NCCL_DEBUG=WARN \
   NCCL_IB_GID_INDEX=3 \
   NCCL_ALGO=Ring \
   NCCL_IB_HCA="${var_NCCL_IB_HCA}"
-  srun --mpi=pmix_v3 --gpus-per-node=$SLURM_GPUS_PER_NODE --ntasks-per-node=$SLURM_NTASKS_PER_NODE ${EXEC_CMD} -b1G -e10G -i$((1024*1024*1024*9)) -n 100
+  srun --mpi=pmix_v5 --gpus-per-node=$SLURM_GPUS_PER_NODE --ntasks-per-node=$SLURM_NTASKS_PER_NODE ${EXEC_CMD} -b1G -e10G -i$((1024*1024*1024*9)) -n 100
 
-elif [ $shape == \"BM.GPU.H100.8\" ] || [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" || [ $shape == \"BM.GPU.B300.8\"]
+elif [ $shape == \"BM.GPU.H100.8\" ] || [ $shape == \"BM.GPU.H200.8\" ] || [ $shape == \"BM.GPU.B200.8\" ] || [ $shape == \"BM.GPU.B300.8\" ] || [ $shape == \"BM.GPU.B300.HS.8\" ] || [ $shape == \"BM.GPU.RTXPRO.8\" ]
 then
 export NCCL_DEBUG=WARN \
   OMPI_MCA_coll=^hcoll \
@@ -129,5 +127,5 @@ export NCCL_DEBUG=WARN \
   NCCL_SOCKET_IFNAME=${var_UCX_NET_DEVICES} \
   NCCL_IGNORE_CPU_AFFINITY=1 \
   NCCL_IB_HCA="${var_NCCL_IB_HCA}"
-  srun --mpi=pmix_v3 --gpus-per-node=$SLURM_GPUS_PER_NODE --ntasks-per-node=$SLURM_NTASKS_PER_NODE ${EXEC_CMD} -b1G -e10G -i$((1024*1024*1024*9)) -n 100
+  srun --mpi=pmix_v5 --gpus-per-node=$SLURM_GPUS_PER_NODE --ntasks-per-node=$SLURM_NTASKS_PER_NODE ${EXEC_CMD} -b1G -e10G -i$((1024*1024*1024*9)) -n 100
 fi

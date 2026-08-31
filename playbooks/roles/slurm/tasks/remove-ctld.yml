@@ -5,16 +5,142 @@
     path: "{{ slurm_conf_path }}/gres.conf"
     marker: "### {mark} {{ item.value.hostname }}"
     state: absent
-  delegate_to: 127.0.0.1
   when: item.value.shape in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"]
   with_items: "{{ remove_compute_info | dict2items }}"
+
+- name: Build GB DNS hostnames to remove
+  ansible.builtin.set_fact:
+    slurm_remove_gb_dns_hostnames: >-
+      {{
+        (
+          (slurm_remove_gb_dns_hostnames | default([]))
+          + [
+            item.value.hostname | default('', true),
+            item.value.alternate_hostname | default('', true)
+          ]
+        )
+        | reject('equalto', '')
+        | reject('equalto', 'None')
+        | unique
+        | list
+      }}
+  loop: "{{ remove_compute_info | dict2items }}"
+  when:
+    - "'GPU.GB' in (item.value.shape | default('', true))"
+
+- name: Remove GB hostname DNS entries
+  ansible.builtin.command:
+    argv:
+      - "{{ venv_path }}/bin/python3"
+      - /config/mgmt/manage.py
+      - nodes
+      - delete-dns-entry
+      - --hostname
+      - "{{ item }}"
+      - --cluster
+      - "{{ cluster_name }}"
+  register: slurm_remove_gb_dns
+  changed_when: slurm_remove_gb_dns.rc == 0
+  failed_when: false
+  loop: "{{ slurm_remove_gb_dns_hostnames | default([]) }}"
+
+- name: Report GB hostname DNS cleanup failures
+  ansible.builtin.debug:
+    msg: >-
+      Failed to remove GB DNS entry {{ item.item }}:
+      {{ item.stderr | default(item.stdout, true) | default('no output', true) }}
+  loop: "{{ slurm_remove_gb_dns.results | default([]) }}"
+  when:
+    - item.rc | default(0) != 0
+
+- name: Read Slurm reservations
+  become: true
+  ansible.builtin.command:
+    argv:
+      - scontrol
+      - show
+      - reservation
+      - --json
+  register: slurm_reservations_result
+  changed_when: false
+
+- name: Set Slurm reservations
+  ansible.builtin.set_fact:
+    slurm_reservations: "{{ (slurm_reservations_result.stdout | from_json).reservations | default([]) }}"
+
+- name: Initialize Slurm reservation details
+  ansible.builtin.set_fact:
+    slurm_reservation_details: []
+
+- name: Normalize Slurm reservation details
+  ansible.builtin.set_fact:
+    slurm_reservation_details: >-
+      {{
+        slurm_reservation_details
+        + [{'name': item.name, 'nodes': item.nodes | default(item.node_list, true)}]
+      }}
+  loop: "{{ slurm_reservations }}"
+
+- name: Expand Slurm reservation node lists
+  become: true
+  ansible.builtin.command:
+    argv:
+      - scontrol
+      - show
+      - hostnames
+      - "{{ item.nodes }}"
+  register: slurm_reservation_hostnames
+  changed_when: false
+  loop: "{{ slurm_reservation_details }}"
+  when: item.nodes not in ['', '(null)', 'ALL']
+
+- name: Remove deleted nodes from Slurm reservations
+  ansible.builtin.include_tasks: remove-reservation-node.yml
+  loop: "{{ remove_compute_info | dict2items | map(attribute='value.hostname') | list }}"
+  loop_control:
+    loop_var: slurm_removed_node
+
+- name: Set hostnames being removed from Slurm
+  ansible.builtin.set_fact:
+    slurm_remove_hostnames: "{{ remove_compute_info | dict2items | map(attribute='value.hostname') | list }}"
 
 - name: Remove deleted nodes from Slurm
   become: true
   ansible.builtin.command: "scontrol delete nodename={{ item }}"
-  ignore_errors: true
-  with_items: "{{ remove_compute_info | dict2items | map(attribute='value.hostname') | list }}"
-  when: ('controller' in group_names)
+  failed_when: false
+  loop: "{{ slurm_remove_hostnames }}"
+
+# Re-read the live node table instead of trusting scontrol's return code: a
+# node that was never registered (or already removed) makes "delete" return
+# non-zero even though the desired end state is reached, while a node that
+# genuinely cannot be deleted (running job, slurmctld unreachable) is exposed
+# here. If slurmctld is down this task fails outright, which is what we want.
+- name: Read remaining Slurm node names
+  become: true
+  ansible.builtin.command: scontrol show nodes -o
+  register: slurm_remaining_nodes_raw
+  changed_when: false
+
+- name: Collect nodes that could not be removed from Slurm
+  ansible.builtin.set_fact:
+    slurm_nodes_not_removed: >-
+      {{
+        slurm_remove_hostnames
+        | intersect(slurm_remaining_nodes_raw.stdout | regex_findall('NodeName=([A-Za-z0-9_-]+)'))
+      }}
+
+# Failing here makes run_ansible() report the run as failed, so ansible_logic()
+# will not advance these nodes to "terminated" in the DB and topology.yaml is
+# not regenerated. This keeps the mgmt DB consistent with Slurm's view and
+# prevents the stale node_state records that break slurmctld topology builds.
+- name: Fail when nodes could not be removed from Slurm
+  ansible.builtin.fail:
+    msg: >-
+      Could not remove the following nodes from Slurm (still registered); the DB
+      will not be advanced and topology.yaml will not be regenerated. Ensure
+      slurmctld is running and the nodes have no running jobs, then re-run:
+      {{ slurm_nodes_not_removed | join(', ') }}
+  when: slurm_nodes_not_removed | length > 0
 
 - name: Regenerate topology.yaml after removing compute nodes
   vars:

@@ -1,8 +1,9 @@
 import click
 
 from lib.cli import completion
+from lib.auto_add import auto_add_available_nodes
 from lib.database import get_all_nodes, get_nodes_by_any, db_update_node,get_controller_node, get_all_nodes_to_configure, db_move_terminated_node, get_nodes_by_active_hc_expired, get_nodes_by_multi_node_hc_expired, get_nodes_for_initial_multi_node_check, get_nodes_validated
-from lib.functions import get_updates_based_on_url, run_ansible, scan_host_api_logic, get_slurm_state, append_to_healthchecks, run_multi_node_active_hc, run_active_hc, remove_nodes_from_reservation, rescan_vcns_from_inventory, current_utc_time as get_current_utc_time
+from lib.functions import get_updates_based_on_url, run_ansible, scan_host_api_logic, get_slurm_state, append_to_healthchecks, run_multi_node_active_hc, run_active_hc, remove_nodes_from_reservation, rescan_vcns_from_inventory, process_instance_maintenance_events, current_utc_time as get_current_utc_time
 from lib.ociwrap import oci_scan_queue_and_update_db
 from lib.logger import logger
 import socket
@@ -13,17 +14,32 @@ import random
 # Shared logic as helpers
 # ------------------------
 
-def update_metadata_logic(http_port=9876, nodes=None):
+def update_metadata_logic(
+    http_port=9876,
+    nodes=None,
+    process_maintenance_events=False,
+    maintenance_event_slurm_management=True,
+    maintenance_event_healthcheck_drained_only=False,
+):
     if nodes:
         node_list = get_nodes_by_any(nodes)
     else:
         node_list = get_all_nodes()
     update_dict = get_updates_based_on_url(node_list, http_port,"info")
     hc_update_dict = get_updates_based_on_url(node_list, http_port, "healthchecks")
-    logger.debug(f"{update_dict}")
-    logger.debug(f"{hc_update_dict}")
-    #TODO ADD Slurm drain state change
+    logger.debug(
+        "Metadata payloads received: info=%s healthchecks=%s",
+        len(update_dict),
+        len(hc_update_dict),
+    )
     slurm_dict=get_slurm_state()
+    if process_maintenance_events:
+        process_instance_maintenance_events(
+            node_list,
+            slurm_dict,
+            manage_slurm=maintenance_event_slurm_management,
+            healthcheck_drained_only=maintenance_event_healthcheck_drained_only,
+        )
     for node in node_list:
         if node.hostname in slurm_dict.keys():
             update_dict[node.ocid]["slurm_state"]=slurm_dict[node.hostname]["state"]
@@ -34,7 +50,11 @@ def update_metadata_logic(http_port=9876, nodes=None):
             if node.role == "compute":
                 update_dict[node.ocid]["slurm_state"]="unconfigured"
         db_update_node(node, **update_dict[node.ocid])
-        logger.debug(f"Node {node.ocid} is not {hc_update_dict.keys()}")
+        logger.debug(
+            "Healthcheck payload for %s: present=%s",
+            node.ocid,
+            node.ocid in hc_update_dict and bool(hc_update_dict[node.ocid]),
+        )
         if node.ocid in hc_update_dict.keys() and hc_update_dict[node.ocid] != {}:
             logger.debug(f"Updating healthchecks for {node.hostname}")
             append_to_healthchecks(node.ocid, **hc_update_dict[node.ocid])
@@ -98,7 +118,7 @@ def multi_node_hc_logic(multi_nodes_healthchecks_frequency):
         logger.debug("No nodes with expired active HC and idle in Slurm")
 
     nodes_healthy_resv, nodes_potentially_bad_resv =get_nodes_for_initial_multi_node_check(multi_node_hc_timeout)
-    for node,index in enumerate(nodes_potentially_bad_resv):
+    for index,node in enumerate(nodes_potentially_bad_resv):
         if nodes_healthy_resv:
             healthy_index=index % len(nodes_healthy_resv)
             run_multi_node_active_hc([node,nodes_healthy_resv[healthy_index]],reservation_id=node.slurm_reservation)
@@ -119,9 +139,9 @@ def multi_node_hc_logic(multi_nodes_healthchecks_frequency):
     
 def validated_nodes_logic():
     validated_nodes =get_nodes_validated()
-    logger.debug(f"Count after validated nodes: {validated_nodes.count()}")
-    if validated_nodes.count():
-        remove_nodes_from_reservation(validated_nodes.all())
+    logger.debug(f"Count after validated nodes: {len(validated_nodes)}")
+    if validated_nodes:
+        remove_nodes_from_reservation(validated_nodes)
     else:
         logger.debug("No validated nodes found")
 
@@ -178,11 +198,17 @@ def all(cfg, http_port):
             cfg=cfg,
             prune_missing=cfg.get("prune_missing", cfg.get("manage_hosts", False)),
         )     
-    update_metadata_logic(http_port)
+    update_metadata_logic(
+        http_port,
+        process_maintenance_events=True,
+        maintenance_event_slurm_management=cfg["maintenance_event_slurm_management"],
+        maintenance_event_healthcheck_drained_only=cfg["maintenance_event_healthcheck_drained_only"],
+    )
     ansible_logic()
-    available_nodes=scan_host_api_logic()
+    available_nodes, available_by_hpc_island = scan_host_api_logic(include_hpc_islands=True)
     for shape in available_nodes.keys():
         click.echo(f"There are {available_nodes[shape]} available nodes of shape {shape} in your pool.")
+    auto_add_available_nodes(available_by_hpc_island)
     if cfg["active_healthchecks"]:
         logger.debug("Running active healthcheck")
         active_hc_logic(cfg["active_healthchecks_frequency"])

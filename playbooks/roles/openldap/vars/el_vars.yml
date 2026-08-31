@@ -4,17 +4,14 @@
 openldap_packages:
   - openldap-servers
   - openldap-clients
-  - rsync
 
 openldap_packages_ol8:
   - openldap-2.4.46-18.el8.{{ ansible_facts['architecture'] }}
   - openldap-clients-2.4.46-18.el8.{{ ansible_facts['architecture'] }}
-  - rsync
 
 openldap_packages_ol9:
   - openldap-servers
   - openldap-clients
-  - rsync
 
 openldap_default_user: ldap
 openldap_default_group: ldap

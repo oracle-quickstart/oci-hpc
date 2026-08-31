@@ -285,9 +285,9 @@ resource "oci_core_subnet" "private-subnet" {
 }
 
 resource "oci_dns_zone" "dns_zone" {
-  count          = var.use_existing_vcn ? 0 : 1
+  count          = (!var.use_existing_vcn || var.create_private_zone) ? 1 : 0
   compartment_id = var.vcn_compartment
-  name           = "${local.cluster_name}.local" #oci_core_dhcp_options.cluster_dhcp_options[0].options.search_domain_names[0]
+  name           = local.zone_name #oci_core_dhcp_options.cluster_dhcp_options[0].options.search_domain_names[0]
   zone_type      = "PRIMARY"
   scope          = "PRIVATE"
   view_id        = data.oci_dns_views.dns_views.views[0].id
@@ -301,10 +301,10 @@ resource "oci_dns_zone" "dns_zone" {
 
 resource "oci_dns_rrset" "config_fss" {
   zone_name_or_id = data.oci_dns_zones.dns_zones.zones[0].id
-  domain          = "fss-config.${local.zone_name}"
+  domain          = local.config_fss_hostname
   rtype           = "A"
   items {
-    domain = "fss-config.${local.zone_name}"
+    domain = local.config_fss_hostname
     rtype  = "A"
     rdata  = oci_file_storage_mount_target.config_fss_mount_target.ip_address
     ttl    = 1

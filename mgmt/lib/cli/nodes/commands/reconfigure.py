@@ -1,4 +1,5 @@
 from collections import defaultdict
+import shlex
 import click
 from lib.cli import completion
 from lib.functions import (
@@ -7,6 +8,7 @@ from lib.functions import (
     remove_nodes_from_reservation,
     run_command,
 )
+from lib.ociwrap import run_enable_instance_rdma_plugins
 import lib.database as db
 from ClusterShell.NodeSet import NodeSet
 
@@ -32,9 +34,7 @@ def filter_cmd(ctx, nodes, fields):
             field_dict[key] = (
                 value.lower() == "true" if value.lower() in ["true", "false"] else value
             )
-        nodes_list = db.get_query_by_fields(
-            db.get_nodes_with_latest_healthchecks(), field_dict
-        ).all()
+        nodes_list = db.get_nodes_by_fields(field_dict)
     else:
         # Use the provided node identifiers
         nodes_list = db.get_nodes_by_any(NodeSet(nodes)) if nodes else []
@@ -67,11 +67,13 @@ def filter_cmd(ctx, nodes, fields):
             "command",
             "ansible",
             "install-lfs",
+            "dr-hpc",
             "slurm-reinit",
             "metadata",
             "localdisk-recover",
             "localdisk-raid0",
-            "localdisk-raid10"
+            "localdisk-raid10",
+            "enable-instance-rdma-plugins"
         ]
     ),
     default="all",
@@ -96,11 +98,17 @@ def filter_cmd(ctx, nodes, fields):
         install-lfs will build and install the Lustre client on the nodes using
         the shared /config/3rdparty artifact path.
 
+        dr-hpc will install or update the DR HPC package on compute nodes. Use
+        --version to pin a specific version; otherwise latest.json is used.
+
         metadata will execute a metadata update on the nodes.  May require a SLURM
         topology reconfiguration on the controller to fully take effect.
 
         slurm-reinit will remove the nodes from SLURM on the controller and restart
         SLURM on the nodes.
+
+        enable-instance-rdma-plugins will enable the OCI Compute RDMA instance plugins on the
+        nodes (Compute HPC RDMA Authentication and Compute HPC RDMA Auto-Configuration).
 
         All the following actions will destroy data on /mnt/localdisk:
         localdisk-recover will recover a failed /mnt/localdisk by recreating the RAID0 array and reformatting it. 
@@ -119,10 +127,15 @@ def filter_cmd(ctx, nodes, fields):
     required=False,
     help="Specify the playbook to run on the nodes. To be used with --action=ansible",
 )
+@click.option(
+    "--version",
+    required=False,
+    help="Specify a dr_hpc version to pin. To be used with --action=dr-hpc.",
+)
 
 @click.pass_obj
 @click.pass_context
-def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
+def reconfigure(ctx, cfg, nodes, fields, action, command, playbook, version):
     """Rerun the cloud-init script on the nodes."""
     if action == "command":
         if not command:
@@ -137,6 +150,10 @@ def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
         if not playbook:
             click.echo("No ansible specified.")
             return
+    if action != "dr-hpc" and version:
+        click.echo(
+            "The version will be ignored since the action is not set to dr-hpc."
+        )
     nodes_list = filter_cmd(ctx, nodes, fields)
     if not nodes_list:
         click.echo("No nodes found.")
@@ -166,6 +183,28 @@ def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
         logger.info("Running Lustre install workflow on nodes: %s", nodeset)
         command_to_run = "/config/bin/custom_ansible.sh lustre_install"
         run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
+    if action == "dr-hpc":
+        non_compute_nodes = [node.hostname for node in nodes_list if node.role != "compute"]
+        if non_compute_nodes:
+            logger.error(
+                "dr-hpc reconfigure action is only supported on compute nodes. Invalid targets: %s",
+                ",".join(non_compute_nodes),
+            )
+            return
+        command_to_run = "/config/bin/custom_ansible.sh dr_hpc"
+        if version:
+            command_to_run += (
+                " -e dr_hpc_use_latest_metadata=false"
+                f" -e dr_hpc_version={shlex.quote(version)}"
+            )
+        else:
+            command_to_run += " -e dr_hpc_force_latest_refresh=true"
+        logger.info(
+            "Running dr_hpc %s on nodes: %s",
+            f"version {version}" if version else "latest update",
+            nodeset,
+        )
+        run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
     if action == "command":
         logger.info("Running custom command '%s' on nodes: %s", command, nodeset)
         run_command(nodes_list, command, clush_parallel_executions=cfg["clush_parallel_executions"])
@@ -184,13 +223,25 @@ def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
         logger.info("Re-initializing SLURM on nodes: %s", nodeset)
         slurm_state = get_slurm_state()
         reservation_modifications = defaultdict(list)
+        slurm_nodes = []
+        missing_slurm_nodes = []
         for node in nodes_list:
-            reservation = slurm_state[node.hostname].get("reservation_id")
+            node_slurm_state = slurm_state.get(node.hostname)
+            if node_slurm_state is None:
+                missing_slurm_nodes.append(node.hostname)
+                continue
+            slurm_nodes.append(node)
+            reservation = node_slurm_state.get("reservation_id")
             if reservation:
                 reservation_modifications[reservation].append(node)
+        if missing_slurm_nodes:
+            logger.info(
+                "Nodes not currently registered in SLURM will skip deletion and be restarted: %s",
+                NodeSet(",".join(missing_slurm_nodes)),
+            )
         for reservation, nodes in reservation_modifications.items():
             remove_nodes_from_reservation(nodes, reservation)
-        delete_nodes_from_slurm(nodes_list)
+        delete_nodes_from_slurm(slurm_nodes)
         command_to_run = " && ".join(
             [
                 "sudo systemctl stop slurmd",
@@ -201,7 +252,11 @@ def reconfigure(ctx, cfg, nodes, fields, action, command, playbook):
         run_command(nodes_list, command_to_run, clush_parallel_executions=cfg["clush_parallel_executions"])
         logger.debug("Reconfiguring Slurm")
         sleep(10)
-        reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])        
+        reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
+    if action == "enable-instance-rdma-plugins":
+        logger.info("Enabling RDMA instance plugins on nodes: %s", nodeset)
+        for node in nodes_list:
+            run_enable_instance_rdma_plugins(node)
     if action in ["localdisk-recover", "localdisk-raid0", "localdisk-raid10"]:
         nodeset_str = str(NodeSet(','.join([node.hostname for node in nodes_list])))
         if action == "localdisk-recover":

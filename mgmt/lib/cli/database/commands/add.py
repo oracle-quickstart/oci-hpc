@@ -13,7 +13,7 @@ def add(ip, hostname, ocid):
     """Add specific node to the DB."""
     if ocid is None:
         ocid_dict=get_nodes_ocid_by_ip([ip],http_port)
-        if ocid_dict[ip] is None:
+        if ocid_dict.get(ip) is None:
             logger.error(f"Node with {ip} is not ready yet. The webserver containing the node info is not available")
             return
         ocid=ocid_dict[ip]["ocid"]

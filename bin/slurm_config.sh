@@ -12,6 +12,6 @@ last_arg="${@: -1}"
 
 if [[ "${last_arg}" == "--INITIAL" || "${last_arg}" == "--initial" || "${last_arg}" == "-INITIAL" || "${last_arg}" == "-initial" ]]
 then
-   sudo rm -f /etc/slurm/topology.conf
+   sudo rm -f /etc/slurm/topology.yaml
    sudo /usr/sbin/slurmctld -c
 fi

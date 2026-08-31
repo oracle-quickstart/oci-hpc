@@ -136,19 +136,22 @@ def _node_query_label_map():
 
 def _distinct_node_field_values(field_name: str, limit: int = 100) -> list[str]:
     query, label_map = _node_query_label_map()
-    column = label_map.get(field_name)
-    fallback_values = NODE_FIELD_FALLBACK_VALUES.get(field_name, [])
-    if column is None:
-        return fallback_values
-    rows = (
-        query.with_entities(column)
-        .filter(column.is_not(None))
-        .distinct()
-        .limit(limit)
-        .all()
-    )
-    values = [row[0] for row in rows]
-    return _normalize_values([*values, *fallback_values])
+    try:
+        column = label_map.get(field_name)
+        fallback_values = NODE_FIELD_FALLBACK_VALUES.get(field_name, [])
+        if column is None:
+            return fallback_values
+        rows = (
+            query.with_entities(column)
+            .filter(column.is_not(None))
+            .distinct()
+            .limit(limit)
+            .all()
+        )
+        values = [row[0] for row in rows]
+        return _normalize_values([*values, *fallback_values])
+    finally:
+        query.session.close()
 
 
 def _node_identifier_values() -> list[str]:
@@ -197,23 +200,54 @@ def complete_clusters(ctx, param, incomplete):
     )
 
 
-def complete_memory_clusters(ctx, param, incomplete):
-    def _values():
-        query, label_map = _node_query_label_map()
-        column = label_map.get("memory_cluster_name")
+def _memory_cluster_values():
+    query, label_map = _node_query_label_map()
+    try:
+        column = label_map.get("memory_cluster_id")
         if column is None:
             return []
         return [
             row[0]
             for row in query.with_entities(column)
             .filter(column.is_not(None))
+            .filter(column != "None")
             .distinct()
             .all()
         ]
+    finally:
+        query.session.close()
 
+def complete_memory_clusters(ctx, param, incomplete):
     return _safe_completion(
         _prefix_matches,
-        _cached_values("memory_clusters", _values),
+        _cached_values("memory_clusters", _memory_cluster_values),
+        incomplete,
+    )
+
+def complete_memory_clusters_csv(ctx, param, incomplete):
+    return _safe_completion(
+        _csv_matches,
+        _cached_values("memory_clusters", _memory_cluster_values),
+        incomplete,
+    )
+
+def _fabric_values():
+    controller = db.get_controller_node()
+    if controller is None:
+        return []
+    fabrics = get_memory_fabrics(controller.tenancy_id, controller.compartment_id)
+    return [fabric[0].id for fabric in fabrics]
+
+def complete_memory_cluster_delete_targets(ctx, param, incomplete):
+    def _values():
+        return [
+            *_memory_cluster_values(),
+            *_fabric_values(),
+        ]
+
+    return _safe_completion(
+        _csv_matches,
+        _cached_values("memory_cluster_delete_targets", _values),
         incomplete,
     )
 
@@ -334,15 +368,8 @@ def complete_images(ctx, param, incomplete):
 
 
 def complete_fabrics(ctx, param, incomplete):
-    def _values():
-        controller = db.get_controller_node()
-        if controller is None:
-            return []
-        fabrics = get_memory_fabrics(controller.tenancy_id, controller.compartment_id)
-        return [fabric[0].id for fabric in fabrics]
-
     return _safe_completion(
         _prefix_matches,
-        _cached_values("fabrics", _values),
+        _cached_values("fabrics", _fabric_values),
         incomplete,
     )

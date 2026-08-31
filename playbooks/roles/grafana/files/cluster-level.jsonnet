@@ -35,7 +35,7 @@ g.dashboard.new('Cluster Level Metrics')
     ),    
     statPanel(
       'Healthy GPUs',
-      'sum by (cluster_name) (available_gpu_count{cluster_name=~"$cluster_name"})',
+      'sum by (cluster_name) (gpu_available_count{cluster_name=~"$cluster_name"})',
       {w:4, h:4, x:8, y:0}
     ),
   */

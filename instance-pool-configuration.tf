@@ -5,8 +5,9 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
   display_name   = local.cluster_name
 
   freeform_tags = {
-    "cluster_name"    = local.cluster_name
-    "controller_name" = "${local.cluster_name}-controller"
+    "cluster_name"        = local.cluster_name
+    "config_fss_hostname" = local.config_fss_hostname
+    "controller_name"     = "${local.cluster_name}-controller"
   }
 
   instance_details {
@@ -20,6 +21,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
       }
       freeform_tags = {
         "cluster_name"        = local.cluster_name
+        "config_fss_hostname" = local.config_fss_hostname
         "controller_name"     = oci_core_instance.controller.display_name
         "hostname_convention" = var.hostname_convention
       }
@@ -59,7 +61,7 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
         for_each = local.is_instance_pool_flex_shape
         content {
           ocpus         = shape_config.value
-          memory_in_gbs = var.instance_pool_custom_memory ? var.instance_pool_memory : 16 * shape_config.value
+          memory_in_gbs = var.instance_pool_custom_memory ? var.instance_pool_memory : (var.instance_pool_shape == "VM.DenseIO.E5.Flex" || var.instance_pool_shape == "VM.DenseIO.E6.Ax.Flex" ? 12 : 16) * shape_config.value
         }
       }
 
@@ -90,4 +92,3 @@ resource "oci_core_instance_configuration" "instance_pool_configuration" {
     create_before_destroy = true
   }
 }
-

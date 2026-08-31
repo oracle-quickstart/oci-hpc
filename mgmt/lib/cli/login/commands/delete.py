@@ -13,7 +13,7 @@ import lib.database as db
 def delete(hostname):
     """Delete a login node."""
     field_dict = {"hostname": hostname, "role":"login"}
-    nodes_list = db.get_query_by_fields(db.get_nodes_with_latest_healthchecks(),field_dict).all()
+    nodes_list = db.get_nodes_by_fields(field_dict)
     if nodes_list is None:
         click.echo(f"Login node {hostname} not found.")
         return

@@ -36,7 +36,18 @@ CREATE TABLE IF NOT EXISTS clusterDB.nodes (
     slurm_partition VARCHAR(128),
     slurm_reservation VARCHAR(128),
     slurm_up_time INT,
-    oci_host_id VARCHAR(128)
+    oci_host_id VARCHAR(128),
+    oci_impacted_component_details TEXT,
+    maintenance_event_display_name VARCHAR(128),
+    maintenance_event_error_code VARCHAR(128),
+    maintenance_event_id VARCHAR(128),
+    maintenance_event_lifecycle_state VARCHAR(128),
+    maintenance_event_time_started VARCHAR(128),
+    maintenance_event_time_finished VARCHAR(128),
+    maintenance_event_time_window_start VARCHAR(128),
+    INDEX ix_nodes_serial (serial),
+    INDEX ix_nodes_oci_name (oci_name),
+    INDEX ix_nodes_alt_host (alternate_hostname)
 );
 
 CREATE TABLE IF NOT EXISTS clusterDB.terminated_nodes (
@@ -77,7 +88,15 @@ CREATE TABLE IF NOT EXISTS clusterDB.terminated_nodes (
     slurm_partition VARCHAR(128),
     slurm_reservation VARCHAR(128),
     slurm_up_time INT,
-    oci_host_id VARCHAR(128)
+    oci_host_id VARCHAR(128),
+    oci_impacted_component_details TEXT,
+    maintenance_event_display_name VARCHAR(128),
+    maintenance_event_error_code VARCHAR(128),
+    maintenance_event_id VARCHAR(128),
+    maintenance_event_lifecycle_state VARCHAR(128),
+    maintenance_event_time_started VARCHAR(128),
+    maintenance_event_time_finished VARCHAR(128),
+    maintenance_event_time_window_start VARCHAR(128)
 );
 
 
@@ -120,5 +139,6 @@ CREATE TABLE IF NOT EXISTS clusterDB.healthchecks (
     healthcheck_last_time VARCHAR(128),
     healthcheck_recommendation VARCHAR(128),
     healthcheck_status VARCHAR(512),
-    healthcheck_associated_node VARCHAR(128)
+    healthcheck_associated_node VARCHAR(128),
+    INDEX ix_hc_ocid_type_time (ocid, healthcheck_type, healthcheck_last_time)
 );

@@ -12,6 +12,7 @@
 This is a Health Check script which covered below in order:
 ===========================================================================================
 1. OCA (Oracle Cloud Agent) Status check
+1.5. RDMA OCA Plugins Check
 2. OCA Version Check
 3. RTTCC (Round Trip Time Congestion Control) Status Check
 4. ECC (Error-Correcting Code) Errors Check**:
@@ -22,6 +23,7 @@ This is a Health Check script which covered below in order:
 9. Bus Status Check
 10. RDMA Link Status Check
 11. RDMA Link Flapping Check
+11.5. NVIDIA IMEX Service Readiness Check
 12. GPU Xid Errors Check
 13. WPA Authentication Check
 14. Fabric Manager Status Check
@@ -32,6 +34,7 @@ This is a Health Check script which covered below in order:
 19. Run dcgmi health check
 20. Run rocminfo check (AMD GPUs)
 21. Run LBNL NHC
+
 
 ===========================================================================================
 Usage:
@@ -45,6 +48,7 @@ Usage:
 """
 
 import subprocess
+import csv
 import re
 import argparse
 from gpu_bw_test import BandwidthTest
@@ -58,6 +62,7 @@ import time
 import sys
 import socket
 import psutil
+import ipaddress
 from pathlib import Path
 
 version = sys.version_info
@@ -71,6 +76,105 @@ from shared_logging import logger
 
 SMI_TIMEOUT_SEC = 10
 
+RDMA_SHAPE_DEVICES = {
+    "BM.GPU.H100.8": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
+    "BM.GPU.H200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
+    "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
+    "BM.GPU.B300.8": ["mlx5_0", "mlx5_1", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_16", "mlx5_17", "mlx5_18", "mlx5_19", "mlx5_20", "mlx5_21"],
+    "BM.GPU.B300.HS.8": ["mlx5_0", "mlx5_1", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_16", "mlx5_17", "mlx5_18", "mlx5_19", "mlx5_20", "mlx5_21"],
+    "BM.GPU.GB200.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
+    "BM.GPU.GB200-v2.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
+    "BM.GPU.GB200-v3.4": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8"],
+    "BM.GPU.GB300.4": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8"],
+    "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
+    "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
+    "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
+    "BM.GPU.MI300X.8": ["mlx5_0", "mlx5_2", "mlx5_3","mlx5_4", "mlx5_5", "mlx5_7", "mlx5_8", "mlx5_9"],
+    "BM.GPU.MI355X-v1.8": ["mlx5_0", "mlx5_1", "mlx5_2","mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7"]
+}
+
+MLXLINK_MULTI_PLANE_SHAPE_DEVICES = {
+    "BM.GPU.GB300.4": ["/dev/fwctl/fwctl0", "/dev/fwctl/fwctl1", "/dev/fwctl/fwctl2", "/dev/fwctl/fwctl3", "/dev/fwctl/fwctl4", "/dev/fwctl/fwctl5", "/dev/fwctl/fwctl6", "/dev/fwctl/fwctl7", "/dev/fwctl/fwctl9", "/dev/fwctl/fwctl10", "/dev/fwctl/fwctl11", "/dev/fwctl/fwctl12", "/dev/fwctl/fwctl13", "/dev/fwctl/fwctl14", "/dev/fwctl/fwctl15", "/dev/fwctl/fwctl16"],
+    "BM.GPU.B300.8": [
+        "/dev/fwctl/fwctl0", "/dev/fwctl/fwctl1", "/dev/fwctl/fwctl2", "/dev/fwctl/fwctl3",
+        "/dev/fwctl/fwctl9", "/dev/fwctl/fwctl10", "/dev/fwctl/fwctl11", "/dev/fwctl/fwctl12",
+        "/dev/fwctl/fwctl13", "/dev/fwctl/fwctl14", "/dev/fwctl/fwctl15", "/dev/fwctl/fwctl16",
+        "/dev/fwctl/fwctl17", "/dev/fwctl/fwctl18", "/dev/fwctl/fwctl19", "/dev/fwctl/fwctl20",
+        "/dev/fwctl/fwctl21", "/dev/fwctl/fwctl22", "/dev/fwctl/fwctl23", "/dev/fwctl/fwctl24",
+        "/dev/fwctl/fwctl26", "/dev/fwctl/fwctl27", "/dev/fwctl/fwctl28", "/dev/fwctl/fwctl29",
+        "/dev/fwctl/fwctl30", "/dev/fwctl/fwctl31", "/dev/fwctl/fwctl32", "/dev/fwctl/fwctl33",
+        "/dev/fwctl/fwctl34", "/dev/fwctl/fwctl35", "/dev/fwctl/fwctl36", "/dev/fwctl/fwctl37",
+    ],
+    "BM.GPU.B300.HS.8": [
+        "/dev/fwctl/fwctl0", "/dev/fwctl/fwctl1", "/dev/fwctl/fwctl2", "/dev/fwctl/fwctl3",
+        "/dev/fwctl/fwctl9", "/dev/fwctl/fwctl10", "/dev/fwctl/fwctl11", "/dev/fwctl/fwctl12",
+        "/dev/fwctl/fwctl13", "/dev/fwctl/fwctl14", "/dev/fwctl/fwctl15", "/dev/fwctl/fwctl16",
+        "/dev/fwctl/fwctl17", "/dev/fwctl/fwctl18", "/dev/fwctl/fwctl19", "/dev/fwctl/fwctl20",
+        "/dev/fwctl/fwctl21", "/dev/fwctl/fwctl22", "/dev/fwctl/fwctl23", "/dev/fwctl/fwctl24",
+        "/dev/fwctl/fwctl26", "/dev/fwctl/fwctl27", "/dev/fwctl/fwctl28", "/dev/fwctl/fwctl29",
+        "/dev/fwctl/fwctl30", "/dev/fwctl/fwctl31", "/dev/fwctl/fwctl32", "/dev/fwctl/fwctl33",
+        "/dev/fwctl/fwctl34", "/dev/fwctl/fwctl35", "/dev/fwctl/fwctl36", "/dev/fwctl/fwctl37",
+    ],
+}
+
+SHAPES_WITHOUT_IP_ADDRESS_CHECK = {"BM.GPU.GB200.4"}
+SHAPES_WITHOUT_OCA_STATE_CHECK = {
+    "BM.GPU.GB200.4",
+    "BM.GPU.L40S-NC.4",
+    "BM.GPU.A10.4",
+}
+
+MULTIPLANAR_RDMA_VF_COUNTS = {
+    "BM.GPU.GB300.4": 4,
+    "BM.GPU.B300.8": 8,
+    "BM.GPU.B300.HS.8": 8,
+}
+
+MULTIPLANAR_RDMA_VF_ADDRESS_MINIMUM_ONLY = {
+    "BM.GPU.GB300.4": False,
+    "BM.GPU.B300.8": True,
+    "BM.GPU.B300.HS.8": True,
+}
+
+
+RDMA_VF_LOG_COUNTERS = (
+    "req_cqe_error",
+    "req_cqe_flush_error",
+    "req_remote_access_errors",
+    "resp_cqe_error",
+    "resp_cqe_flush_error",
+)
+
+MULTIPLANAR_OVS_RDMA_CONFIG = {
+    "BM.GPU.B300.8": {
+        "ovs_mtu": 9216,
+        "bridge_kernel_mtu": 9216,
+        "dpdk_kernel_mtu": [9216, 9266],
+        "dpdk_mtu_request": 9216,
+        "dpdk_max_rx_pktlen": 9234,
+        "rails": 8,
+        "planes": 4,
+    },
+    "BM.GPU.B300.HS.8": {
+        "ovs_mtu": 9216,
+        "bridge_kernel_mtu": 9216,
+        "dpdk_kernel_mtu": [9216, 9266],
+        "dpdk_mtu_request": 9216,
+        "dpdk_max_rx_pktlen": 9234,
+        "rails": 8,
+        "planes": 4,
+    },
+    "BM.GPU.GB300.4": {
+        "ovs_mtu": 9216,
+        "bridge_kernel_mtu": 9216,
+        "dpdk_kernel_mtu": [9216, 9266],
+        "dpdk_mtu_request": 9216,
+        "dpdk_max_rx_pktlen": 9234,
+        "rails": 4,
+        "planes": 4,
+    },
+}
+
 #Section 0: Common Functions for all Health Checks.
 ###################################################
 
@@ -82,6 +186,642 @@ def get_metadata():
     request_url = metadata_url + "v" + metadata_ver + "/instance/"
     return requests.get(request_url, headers=headers).json()
 
+def get_instance_plugins():
+    headers = { 'Authorization' : 'Bearer Oracle' }
+    metadata_url = "http://169.254.169.254/opc/"
+    metadata_ver = "2"
+    request_url = metadata_url + "v" + metadata_ver + "/instance/agentConfig/pluginsConfig"
+    response = requests.get(request_url, headers=headers)
+    if response.status_code == 404:
+        return []
+    response.raise_for_status()
+    return response.json()
+
+def get_host_metadata():
+    headers = { 'Authorization' : 'Bearer Oracle' }
+    metadata_url = "http://169.254.169.254/opc/"
+    metadata_ver = "2"
+    request_url = metadata_url + "v" + metadata_ver + "/host"
+    response = requests.get(request_url, headers=headers)
+    if response.status_code == 404:
+        return {}
+    response.raise_for_status()
+    return response.json()
+
+def get_rdma_planes():
+    default_planes = 1
+    try:
+        host_metadata = get_host_metadata()
+    except (requests.RequestException, ValueError) as e:
+        logger.debug(f"Could not read host metadata RDMA fabric data: {e}")
+        return default_planes
+
+    if not isinstance(host_metadata, dict):
+        return default_planes
+
+    rdma_fabric_data = host_metadata.get("rdmaFabricData", {})
+    if not isinstance(rdma_fabric_data, dict):
+        return default_planes
+
+    try:
+        return int(rdma_fabric_data.get("planes", default_planes))
+    except (TypeError, ValueError):
+        logger.debug(f"Invalid rdmaFabricData.planes value: {rdma_fabric_data.get('planes')}")
+        return default_planes
+
+def is_multiplanar(shape):
+    return get_rdma_planes() > 1
+
+def get_multiplanar_rdma_vf_count(shape):
+    try:
+        return MULTIPLANAR_RDMA_VF_COUNTS[shape]
+    except KeyError:
+        raise ValueError(f"Unsupported MultiPlanar RDMA VF shape: {shape}")
+
+def allows_multiple_multiplanar_rdma_vf_addresses(shape):
+    try:
+        return MULTIPLANAR_RDMA_VF_ADDRESS_MINIMUM_ONLY[shape]
+    except KeyError:
+        raise ValueError(f"Unsupported MultiPlanar RDMA VF address policy shape: {shape}")
+
+def rdma_rail_sort_key(device):
+    match = re.search(r'(\d+)$', device)
+    if match:
+        return int(match.group(1))
+    return device
+
+def rdma_plane_rail_sort_key(interface):
+    match = re.match(r'^rdma_p(\d+)_rail(\d+)$', interface)
+    if match:
+        plane, rail = match.groups()
+        return (int(rail), int(plane))
+    return (sys.maxsize, interface)
+
+def rdma_plane_rail_parts(interface):
+    match = re.match(r'^rdma_p(\d+)_rail(\d+)$', interface)
+    if match:
+        plane, rail = match.groups()
+        return int(plane), int(rail)
+    return None
+
+def discover_multiplanar_rdma_devices(shape):
+    infiniband_dir = "/sys/class/infiniband"
+    try:
+        devices = os.listdir(infiniband_dir)
+    except FileNotFoundError:
+        devices = []
+
+    vf_rails = [device for device in devices if re.match(r'^rdma_vf_rail\d+$', device)]
+    if vf_rails:
+        return sorted(vf_rails, key=rdma_rail_sort_key)
+
+    return [f"rdma_vf_rail{i}" for i in range(get_multiplanar_rdma_vf_count(shape))]
+
+def discover_multiplanar_wpa_interfaces(shape):
+    try:
+        interfaces = os.listdir("/sys/class/net")
+    except FileNotFoundError:
+        interfaces = []
+
+    wpa_interfaces = [
+        interface for interface in interfaces
+        if re.match(r'^rdma_p\d+_rail\d+$', interface)
+    ]
+    if wpa_interfaces:
+        return sorted(wpa_interfaces, key=rdma_plane_rail_sort_key)
+
+    planes = get_rdma_planes()
+    rails = get_multiplanar_rdma_vf_count(shape)
+    return [
+        f"rdma_p{plane}_rail{rail}"
+        for rail in range(rails)
+        for plane in range(planes)
+    ]
+
+
+def pci_function_base(path):
+    real_path = os.path.realpath(path)
+    return re.sub(r'\.\d+$', '', real_path)
+
+def discover_multiplanar_mlxlink_fwctl_devices():
+    fwctl_dir = "/sys/class/fwctl"
+    infiniband_dir = "/sys/class/infiniband"
+    try:
+        infiniband_devices = os.listdir(infiniband_dir)
+        fwctl_devices = os.listdir(fwctl_dir)
+    except FileNotFoundError:
+        return []
+
+    rail_bases = set()
+    for device in infiniband_devices:
+        if re.match(r'^rdma_rail\d+$', device):
+            rail_bases.add(pci_function_base(os.path.join(infiniband_dir, device, "device")))
+
+    devices = []
+    for device in fwctl_devices:
+        device_path = os.path.join(fwctl_dir, device, "device")
+        real_path = os.path.realpath(device_path)
+        function_match = re.search(r'\.(\d+)$', real_path)
+        if not function_match or int(function_match.group(1)) >= 4:
+            continue
+        if pci_function_base(device_path) in rail_bases:
+            devices.append(os.path.join("/dev/fwctl", device))
+
+    return sorted(devices, key=rdma_rail_sort_key)
+
+
+def _run_ip_json(command):
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        command_text = " ".join(command)
+        raise RuntimeError(stderr or "Command failed: " + command_text)
+
+    output = result.stdout.strip()
+    if not output:
+        return []
+
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError as e:
+        command_text = " ".join(command)
+        raise RuntimeError("Could not parse JSON from " + command_text + ": " + str(e))
+
+
+def _get_global_ipv6_addresses(interface):
+    data = _run_ip_json(["ip", "-j", "-6", "addr", "show", "dev", interface])
+    addresses = []
+    for entry in data:
+        for addr in entry.get("addr_info", []):
+            if addr.get("family") == "inet6" and addr.get("scope") == "global":
+                local = addr.get("local")
+                if local:
+                    addresses.append(local)
+    return addresses
+
+
+def _get_link_local_ipv6_addresses(interface):
+    data = _run_ip_json(["ip", "-j", "-6", "addr", "show", "dev", interface])
+    addresses = []
+    for entry in data:
+        for addr in entry.get("addr_info", []):
+            if addr.get("family") == "inet6" and addr.get("scope") == "link":
+                local = addr.get("local")
+                if local:
+                    addresses.append(local)
+    return addresses
+
+
+def ipv6_address_value(address):
+    return int(ipaddress.IPv6Address(address.split("%", 1)[0]))
+
+
+def _get_ipv6_default_routes_for_interface(interface):
+    data = _run_ip_json(["ip", "-j", "-6", "route", "show", "default", "dev", interface, "table", "all"])
+    return [route for route in data if route.get("dst") == "default"]
+
+
+def check_multiplanar_rdma_rail_ipv6_sequence(metadata):
+    shape = metadata.get("shape", "")
+    if not is_multiplanar(shape):
+        logger.info("RDMA rail IPv6 Sequence Check: Skipped for non-MultiPlanar shape")
+        return []
+
+    issues = []
+    interfaces = discover_multiplanar_wpa_interfaces(shape)
+    expected_planes = get_rdma_planes()
+    expected_rails = get_multiplanar_rdma_vf_count(shape)
+    expected_interface_count = expected_planes * expected_rails
+
+    if len(interfaces) != expected_interface_count:
+        issues.append(
+            "Expected " + str(expected_interface_count) +
+            " rdma_p<plane>_rail<rail> interfaces, found " +
+            str(len(interfaces)) + ": " + str(interfaces)
+        )
+
+    addresses_by_rail = {}
+    for interface in interfaces:
+        parts = rdma_plane_rail_parts(interface)
+        if not parts:
+            continue
+
+        plane, rail = parts
+        try:
+            addresses = _get_link_local_ipv6_addresses(interface)
+        except RuntimeError as e:
+            issues.append(interface + ": failed to inspect link-local IPv6 addresses: " + str(e))
+            continue
+
+        if len(addresses) != 1:
+            issues.append(
+                interface + ": expected exactly one link-local IPv6 address, found " +
+                str(len(addresses)) + ": " + str(addresses)
+            )
+            continue
+
+        try:
+            address_value = ipv6_address_value(addresses[0])
+        except ValueError as e:
+            issues.append(interface + ": invalid link-local IPv6 address " + addresses[0] + ": " + str(e))
+            continue
+
+        addresses_by_rail.setdefault(rail, {})[plane] = {
+            "interface": interface,
+            "address": addresses[0],
+            "value": address_value,
+        }
+
+    for rail in range(expected_rails):
+        plane_addresses = addresses_by_rail.get(rail, {})
+        missing_planes = [
+            plane for plane in range(expected_planes)
+            if plane not in plane_addresses
+        ]
+        if missing_planes:
+            issues.append(
+                "rail" + str(rail) + ": missing link-local IPv6 addresses for plane(s) " +
+                str(missing_planes)
+            )
+
+        sorted_planes = sorted(plane_addresses)
+        for i in range(1, len(sorted_planes)):
+            previous_plane = sorted_planes[i - 1]
+            current_plane = sorted_planes[i]
+            previous = plane_addresses[previous_plane]
+            current = plane_addresses[current_plane]
+            expected_delta = current_plane - previous_plane
+            actual_delta = current["value"] - previous["value"]
+            if actual_delta != expected_delta:
+                issues.append(
+                    "rail" + str(rail) + ": link-local IPv6 addresses are not sequential between " +
+                    previous["interface"] + " (" + previous["address"] + ") and " +
+                    current["interface"] + " (" + current["address"] + "); expected +" +
+                    str(expected_delta) + ", found " + str(actual_delta)
+                )
+
+    if issues:
+        logger.warning("RDMA rail IPv6 Sequence Check: Failed")
+    else:
+        logger.info("RDMA rail IPv6 Sequence Check: Passed")
+
+    return issues
+
+
+def check_multiplanar_rdma_vf_routes(metadata):
+    shape = metadata.get("shape", "")
+    if not is_multiplanar(shape):
+        logger.info("RDMA VF Route Check: Skipped for non-MultiPlanar shape")
+        return []
+
+    issues = []
+    interfaces = discover_multiplanar_rdma_devices(shape)
+    expected_rails = get_multiplanar_rdma_vf_count(shape)
+
+    if len(interfaces) != expected_rails:
+        issues.append(
+            "Expected " + str(expected_rails) + " rdma_vf_rail interfaces, found " +
+            str(len(interfaces)) + ": " + str(interfaces)
+        )
+
+    for interface in interfaces:
+        try:
+            addresses = _get_global_ipv6_addresses(interface)
+        except RuntimeError as e:
+            issues.append(interface + ": failed to inspect IPv6 addresses: " + str(e))
+            addresses = []
+
+        if allows_multiple_multiplanar_rdma_vf_addresses(shape):
+            if len(addresses) < 1:
+                issues.append(
+                    interface + ": expected at least one global IPv6 address, found none"
+                )
+        elif len(addresses) != 1:
+            issues.append(
+                interface + ": expected exactly one global IPv6 address, found " +
+                str(len(addresses)) + ": " + str(addresses)
+            )
+
+        try:
+            routes = _get_ipv6_default_routes_for_interface(interface)
+        except RuntimeError as e:
+            issues.append(interface + ": failed to inspect IPv6 default routes: " + str(e))
+            routes = []
+
+        if len(routes) != 1:
+            route_summary = []
+            for route in routes:
+                route_summary.append(
+                    "table=" + str(route.get("table", "main")) +
+                    " gateway=" + str(route.get("gateway", "none")) +
+                    " proto=" + str(route.get("protocol", "none"))
+                )
+            issues.append(
+                interface + ": expected exactly one IPv6 default route bound to " +
+                interface + " in table all, found " + str(len(routes)) + ": " + str(route_summary)
+            )
+
+    if issues:
+        logger.warning("RDMA VF Route Check: Failed")
+    else:
+        logger.info("RDMA VF Route Check: Passed")
+
+    return issues
+
+def check_multiplanar_rdma_vf_counters(metadata):
+    shape = metadata.get("shape", "")
+    if not is_multiplanar(shape):
+        logger.info("RDMA VF Counter Check: Skipped for non-MultiPlanar shape")
+        return []
+
+    issues = []
+    counter_values = []
+    for device in discover_multiplanar_rdma_devices(shape):
+        device_name = os.path.basename(device)
+        for counter in RDMA_VF_LOG_COUNTERS:
+            counter_path = os.path.join(
+                "/sys/class/infiniband",
+                device_name,
+                "ports",
+                "1",
+                "hw_counters",
+                counter,
+            )
+            if not os.path.isfile(counter_path):
+                continue
+            try:
+                with open(counter_path, "r") as counter_file:
+                    value = int(counter_file.read().strip())
+            except (OSError, ValueError) as e:
+                logger.warning(device_name + " " + counter + ": failed to read counter: " + str(e))
+                continue
+
+            counter_values.append(device_name + " " + counter + "=" + str(value))
+
+    if issues:
+        logger.warning("RDMA VF Counter Check: Failed")
+    else:
+        if counter_values:
+            logger.debug("RDMA VF Counter Check values: " + "; ".join(counter_values))
+        logger.info("RDMA VF Counter Check: Passed")
+
+    return issues
+
+
+def _parse_optional_int(value):
+    value = str(value).strip()
+    if value in ("", "[]", "None"):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _expected_values(value):
+    if isinstance(value, (list, tuple, set)):
+        return tuple(value)
+    return (value,)
+
+
+def _format_expected_values(values):
+    return " or ".join(str(value) for value in values)
+
+
+def _get_netdev_mtu(interface):
+    mtu_path = os.path.join("/sys/class/net", interface, "mtu")
+    if not os.path.isfile(mtu_path):
+        return None
+    try:
+        with open(mtu_path, "r") as mtu_file:
+            return int(mtu_file.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _get_ovs_interface_state():
+    command = [
+        "ovs-vsctl",
+        "--format=csv",
+        "--data=bare",
+        "--no-headings",
+        "--columns=name,type,mtu,mtu_request,status",
+        "list",
+        "Interface",
+    ]
+    if not is_user_root():
+        command = ["sudo", "-n"] + command
+    try:
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
+        raise RuntimeError("ovs-vsctl not found")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("ovs-vsctl timed out")
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        raise RuntimeError(stderr or "ovs-vsctl Interface query failed")
+
+    state = {}
+    for row in csv.reader(result.stdout.splitlines()):
+        if len(row) < 5:
+            continue
+        name, interface_type, mtu, mtu_request, status = row[:5]
+        max_rx_pktlen = None
+        match = re.search(r'(?:^| )max_rx_pktlen=(\d+)(?: |$)', status)
+        if match:
+            max_rx_pktlen = int(match.group(1))
+        state[name] = {
+            "type": interface_type,
+            "mtu": _parse_optional_int(mtu),
+            "mtu_request": _parse_optional_int(mtu_request),
+            "max_rx_pktlen": max_rx_pktlen,
+        }
+    return state
+
+
+def _format_interface_list(interfaces, limit=12):
+    if len(interfaces) <= limit:
+        return ", ".join(interfaces)
+    return ", ".join(interfaces[:limit]) + ", ... (" + str(len(interfaces)) + " total)"
+
+
+def check_multiplanar_rdma_ovs_mtu(metadata):
+    shape = metadata.get("shape", "")
+    config = MULTIPLANAR_OVS_RDMA_CONFIG.get(shape)
+    if config is None or not is_multiplanar(shape):
+        logger.info("RDMA OVS MTU Check: Skipped for non-B300/GB300 MultiPlanar shape")
+        return []
+
+    issues = []
+    expected_ovs_mtu = config["ovs_mtu"]
+    expected_bridge_kernel_mtu = config.get("bridge_kernel_mtu", expected_ovs_mtu)
+    expected_dpdk_kernel_mtu_values = _expected_values(
+        config.get("dpdk_kernel_mtu", expected_ovs_mtu)
+    )
+    expected_dpdk_mtu_request = config.get("dpdk_mtu_request", expected_ovs_mtu)
+    expected_dpdk_max_rx_pktlen = config.get("dpdk_max_rx_pktlen", expected_ovs_mtu + 18)
+    expected_rails = config["rails"]
+    expected_planes = max(get_rdma_planes(), config["planes"])
+
+    bridge_interfaces = [
+        "br-rail" + str(rail)
+        for rail in range(expected_rails)
+    ]
+    dpdk_interfaces = [
+        "rdma" + str(rail)
+        for rail in range(expected_rails)
+    ]
+    dpdk_interfaces.extend(
+        "rdma_p" + str(plane) + "_rail" + str(rail)
+        for rail in range(expected_rails)
+        for plane in range(expected_planes)
+    )
+
+    try:
+        ovs_state = _get_ovs_interface_state()
+    except RuntimeError as e:
+        issues.append("failed to inspect OVS Interface table: " + str(e))
+        logger.warning("RDMA OVS MTU Check: Failed")
+        return issues
+
+    missing_ovs_interfaces = []
+    bad_bridge_interfaces = []
+    bad_dpdk_interfaces = []
+
+    for interface in bridge_interfaces:
+        state = ovs_state.get(interface)
+        kernel_mtu = _get_netdev_mtu(interface)
+        if state is None:
+            missing_ovs_interfaces.append(interface)
+            continue
+
+        interface_issues = []
+        if state["type"] != "internal":
+            interface_issues.append("type=" + str(state["type"]) + " expected internal")
+        if state["mtu"] != expected_ovs_mtu:
+            interface_issues.append("ovs_mtu=" + str(state["mtu"]) + " expected " + str(expected_ovs_mtu))
+        if kernel_mtu != expected_bridge_kernel_mtu:
+            interface_issues.append("kernel_mtu=" + str(kernel_mtu) + " expected " + str(expected_bridge_kernel_mtu))
+
+        if interface_issues:
+            bad_bridge_interfaces.append(interface + "(" + ", ".join(interface_issues) + ")")
+
+    for interface in dpdk_interfaces:
+        state = ovs_state.get(interface)
+        kernel_mtu = _get_netdev_mtu(interface)
+        if state is None:
+            missing_ovs_interfaces.append(interface)
+            continue
+
+        interface_issues = []
+        if state["type"] != "dpdk":
+            interface_issues.append("type=" + str(state["type"]) + " expected dpdk")
+        if state["mtu"] != expected_ovs_mtu:
+            interface_issues.append("ovs_mtu=" + str(state["mtu"]) + " expected " + str(expected_ovs_mtu))
+        if state["mtu_request"] != expected_dpdk_mtu_request:
+            interface_issues.append("mtu_request=" + str(state["mtu_request"]) + " expected " + str(expected_dpdk_mtu_request))
+        if state["max_rx_pktlen"] != expected_dpdk_max_rx_pktlen:
+            interface_issues.append("max_rx_pktlen=" + str(state["max_rx_pktlen"]) + " expected " + str(expected_dpdk_max_rx_pktlen))
+        if kernel_mtu not in expected_dpdk_kernel_mtu_values:
+            interface_issues.append(
+                "kernel_mtu=" + str(kernel_mtu) + " expected " +
+                _format_expected_values(expected_dpdk_kernel_mtu_values)
+            )
+
+        if interface_issues:
+            bad_dpdk_interfaces.append(interface + "(" + ", ".join(interface_issues) + ")")
+
+    if missing_ovs_interfaces:
+        issues.append("missing expected OVS RDMA interfaces: " + _format_interface_list(missing_ovs_interfaces))
+    if bad_bridge_interfaces:
+        issues.append(
+            "br-rail MTU/runtime mismatch on " + str(len(bad_bridge_interfaces)) + "/" +
+            str(len(bridge_interfaces)) + " interfaces: " + _format_interface_list(bad_bridge_interfaces, limit=8)
+        )
+    if bad_dpdk_interfaces:
+        issues.append(
+            "OVS DPDK RDMA MTU/runtime mismatch on " + str(len(bad_dpdk_interfaces)) + "/" +
+            str(len(dpdk_interfaces)) + " interfaces: " + _format_interface_list(bad_dpdk_interfaces, limit=12)
+        )
+
+    if issues:
+        logger.warning("RDMA OVS MTU Check: Failed")
+    else:
+        logger.info("RDMA OVS MTU Check: Passed")
+
+    return issues
+
+def check_imex_ready(metadata):
+    shape = metadata.get("shape", "")
+    if shape != "BM.GPU.GB300.4" or not is_multiplanar(shape):
+        logger.info("IMEX Check: Skipped for non-GB300 MultiPlanar shape")
+        return []
+
+    issues = []
+
+    try:
+        service = subprocess.run(
+            ["systemctl", "is-active", "--quiet", "nvidia-imex.service"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=5,
+        )
+    except subprocess.TimeoutExpired:
+        issues.append("systemctl is-active nvidia-imex.service timed out")
+    except FileNotFoundError:
+        issues.append("systemctl command not found")
+    else:
+        if service.returncode != 0:
+            stderr = service.stderr.strip()
+            issue = "nvidia-imex.service is not active"
+            if stderr:
+                issue += ", stderr: " + stderr
+            issues.append(issue)
+
+    try:
+        status = subprocess.run(
+            ["nvidia-imex-ctl", "-q"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=5,
+        )
+    except subprocess.TimeoutExpired:
+        issues.append("nvidia-imex-ctl -q timed out")
+    except FileNotFoundError:
+        issues.append("nvidia-imex-ctl command not found")
+    else:
+        stdout = status.stdout.strip()
+        stderr = status.stderr.strip()
+        if status.returncode != 0 or stdout != "READY":
+            issue = "nvidia-imex-ctl -q returned code " + str(status.returncode)
+            if stdout:
+                issue += ", stdout: " + stdout
+            if stderr:
+                issue += ", stderr: " + stderr
+            issues.append(issue)
+
+    if issues:
+        logger.warning("IMEX Check: Failed")
+    else:
+        logger.info("IMEX Check: Passed")
+
+    return issues
+
+
 # Check if the user is root
 def is_user_root():
     if os.geteuid() != 0:
@@ -89,28 +829,56 @@ def is_user_root():
         return False
     return True
 
-# Define Mellanox devices based on GPU shape
-def get_devices():
+# Define Mellanox RDMA devices based on GPU shape.
+def get_rdma_devices():
     metadata = get_metadata()
     shape = metadata['shape']
 
-    shape_devices = {
-        "BM.GPU.H100.8": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
-        "BM.GPU.H200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
-        "BM.GPU.B200.8": ["mlx5_0", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_9", "mlx5_10", "mlx5_11"],
-        "BM.GPU.B300.8": ["mlx5_0", "mlx5_1", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_16", "mlx5_17", "mlx5_18", "mlx5_19", "mlx5_20", "mlx5_21"],
-        "BM.GPU.GB200.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
-        "BM.GPU.GB200-v2.4": ["mlx5_0", "mlx5_1", "mlx5_3", "mlx5_4"],
-        "BM.GPU.GB200-v3.4": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8"],
-        "BM.GPU.GB300.4": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8"],
-        "BM.GPU.B4.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
-        "BM.GPU.A100-v2.8": ["mlx5_1", "mlx5_2", "mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
-        "BM.GPU4.8": ["mlx5_0", "mlx5_1", "mlx5_2", "mlx5_3", "mlx5_6", "mlx5_7", "mlx5_8", "mlx5_9", "mlx5_10", "mlx5_11", "mlx5_12", "mlx5_13", "mlx5_14", "mlx5_15", "mlx5_16", "mlx5_17"],
-        "BM.GPU.MI300X.8": ["mlx5_0", "mlx5_2", "mlx5_3","mlx5_4", "mlx5_5", "mlx5_7", "mlx5_8", "mlx5_9"],
-        "BM.GPU.MI355X-v1.8": ["mlx5_0", "mlx5_1", "mlx5_2","mlx5_3", "mlx5_4", "mlx5_5", "mlx5_6", "mlx5_7"]
-    }
+    if is_multiplanar(shape):
+        output_devices = discover_multiplanar_rdma_devices(shape)
+    else:
+        output_devices = RDMA_SHAPE_DEVICES.get(shape, [])
 
-    return shape_devices.get(shape, [])
+    logger.debug(f"Using RDMA devices {output_devices}")
+    return output_devices
+
+# Define device names to pass to mlxlink. MultiPlanar GB300/B300 use fwctl names.
+def get_mlxlink_devices():
+    metadata = get_metadata()
+    shape = metadata['shape']
+
+    output_devices = RDMA_SHAPE_DEVICES.get(shape, [])
+    if shape == "BM.GPU.B300.8" and is_multiplanar(shape):
+        output_devices = discover_multiplanar_mlxlink_fwctl_devices()
+        if not output_devices:
+            output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
+    elif shape in MLXLINK_MULTI_PLANE_SHAPE_DEVICES and is_multiplanar(shape):
+        output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
+    if shape == "BM.GPU.B300.HS.8" and is_multiplanar(shape):
+        output_devices = discover_multiplanar_mlxlink_fwctl_devices()
+        if not output_devices:
+            output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
+    elif shape in MLXLINK_MULTI_PLANE_SHAPE_DEVICES and is_multiplanar(shape):
+        output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
+
+    logger.debug(f"Using mlxlink devices {output_devices}")
+    return output_devices
+
+# Keep the old helper as the default mlxlink/register-device view.
+def get_devices():
+    return get_mlxlink_devices()
+
+def should_check_ip_addresses(shape):
+    return shape not in SHAPES_WITHOUT_IP_ADDRESS_CHECK
+
+def has_rdma_interfaces():
+    try:
+        return len(os.listdir("/sys/class/infiniband")) > 0
+    except OSError:
+        return False
+
+def is_link_local_ipv6_address(address):
+    return address.split("%", 1)[0].lower().startswith("fe80:")
 
 # Retrieve a unique host identifier and indicate if it's a VM or BM.
 def get_host_serial():
@@ -141,6 +909,17 @@ def get_host_serial():
 slurm_drain_reason = []
 slurm_error_count = 0
 
+RDMA_SLURM_REASON_PRIORITY = (
+    "RDMA Link down",
+    "WPA Auth Error",
+    "RDMA Route Missing",
+    "RDMA Missing IP",
+    "RDMA OVS MTU Error",
+    "RDMA Rail IPv6 Sequence Error",
+    "RDMA Link flap",
+    "RDMA Auth flap",
+)
+
 # Function to provide slurm reason for a node to be drained or down
 def slurm_reason(message):
     global slurm_drain_reason
@@ -148,9 +927,30 @@ def slurm_reason(message):
     slurm_drain_reason.append(message)
     slurm_error_count+=1
 
+def format_healthcheck_status(reasons):
+    unique_reasons = list(dict.fromkeys(reason for reason in reasons if reason))
+    rdma_reason = next(
+        (reason for reason in RDMA_SLURM_REASON_PRIORITY if reason in unique_reasons),
+        None,
+    )
+    if rdma_reason:
+        filtered_reasons = []
+        added_rdma_reason = False
+        for reason in unique_reasons:
+            if reason in RDMA_SLURM_REASON_PRIORITY:
+                if not added_rdma_reason:
+                    filtered_reasons.append(rdma_reason)
+                    added_rdma_reason = True
+                continue
+            filtered_reasons.append(reason)
+        unique_reasons = filtered_reasons
+    if unique_reasons:
+        return ", ".join(unique_reasons)
+    return "Healthy"
+
 # Function to provide recommendation for any health issue found
 def recommended_action(current, action):
-    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Reset_GPU","Check_nhc_log"):
+    if action not in (None,"FabricManagerRestart","Reboot","Terminate","Wait_For_OCA","Reset_GPU","Check_nhc_log","Enable_Instance_RDMA_Plugins"):
         logger.error("No action was found")
         return 0
     if action in ("Reboot", "FabricManagerRestart", "Wait_For_OCA", "Reset_GPU", "Check_nhc_log"):
@@ -160,16 +960,17 @@ def recommended_action(current, action):
         return current
     if action == "Terminate":
         return action
-    if action in ("Wait_For_OCA"):
+    if action in ("Wait_For_OCA",):
         if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU","Check_nhc_log"):
             return current
         else:
             return action
-    if action in ("Check_nhc_log"):
+    if action in ("Check_nhc_log", "Enable_Instance_RDMA_Plugins"):
         if current in ("FabricManagerRestart","Reboot","Terminate","Reset_GPU"):
             return current
         else:
             return action
+    return action
 
 # Check the reboot counts
 def get_reboots_count():
@@ -312,24 +1113,77 @@ def gpu_reset_reboot(xc):
 ########################################
 
 # 1.1 Check the OCA Status
-def check_oca_status(log_state=False):
+def read_oca_state(path, log_state=False):
+    filename = os.path.basename(path)
     try:
-        with open("/var/run/oci-hpc/oci-hpc-rdma-configure.json", 'r') as file:
+        with open(path, 'r') as file:
             data = json.load(file)
 
         state = data.get("state", "UNKNOWN")
         if log_state:
-            logger.info(f"OCA state is: {state}")
+            logger.info(f"{filename} state is: {state}")
         return state
 
     except FileNotFoundError:
         if log_state:
-            logger.error("oci-hpc-rdma-configure.json not found.")
+            logger.error(f"{filename} not found.")
         return "Not Started"
     except json.JSONDecodeError:
         if log_state:
-            logger.error("Failed to parse oci-hpc-rdma-configure.json.")
+            logger.error(f"Failed to parse {filename}.")
         return "Not Started"
+
+def check_oca_status(log_state=False):
+    rdma_configure_files = [
+        "/var/run/oci-hpc/oci-hpc-rdma-configure.json",
+        "/var/run/oci-hpc/oci-hpc-mlx-configure.json",
+    ]
+    rdma_configure_file = next(
+        (path for path in rdma_configure_files if os.path.exists(path)),
+        rdma_configure_files[0],
+    )
+    state_files = [
+        rdma_configure_file,
+        "/var/run/oci-hpc/oci-rdma-authentication.json",
+    ]
+    states = {
+        os.path.basename(path): read_oca_state(path, log_state=log_state)
+        for path in state_files
+    }
+    if all(state == "COMPLETED" for state in states.values()):
+        return "COMPLETED"
+    return ", ".join(f"{name}: {state}" for name, state in states.items() if state != "COMPLETED")
+
+# 1.2 Check if the required Instance RDMA OCA plugins are enabled
+def check_instance_rdma_plugins():
+    instance_required_plugins = {
+        "Compute HPC RDMA Authentication",
+        "Compute HPC RDMA Auto-Configuration",
+    }
+    try:
+        instance_plugins = get_instance_plugins()
+    except (requests.RequestException, ValueError) as e:
+        logger.error(f"RDMA Plugins Check: Failed to read OCA plugins config: {e}")
+        return [f"Failed to read OCA plugins config: {e}"]
+
+    instance_enabled_plugins = {
+        instance_plugin.get("name")
+        for instance_plugin in instance_plugins
+        if isinstance(instance_plugin, dict) and instance_plugin.get("desiredState") == "ENABLED"
+    }
+
+    instance_plugin_issues = []
+    for name in instance_required_plugins:
+        if name not in instance_enabled_plugins:
+            instance_plugin_issues.append(f"OCA plugin '{name}' is not ENABLED")
+
+    if instance_plugin_issues:
+        logger.warning("Instance RDMA Plugins Check: Failed")
+    else:
+        logger.info("Instance RDMA Plugins Check: Passed")
+
+    return instance_plugin_issues
+
 # 2.1 Check if the Oracle Cloud Agent is installed and up-to-date
 def get_oca_version():
     # Run the shell command
@@ -459,7 +1313,7 @@ def check_ecc_errors():
                     ecc_issues.append(f"{gpu_matches[i]} - Aggregate DRAM Uncorrectable: {agg_dram_line[i]}")
 
     except subprocess.TimeoutExpired:
-        logger.warning(f"GPU ECC Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        logger.warning(f"GPU ECC Test: Inconclusive - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
         ecc_issues.append(f"nvidia-smi -q timed out after {SMI_TIMEOUT_SEC}s")
 
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -477,7 +1331,7 @@ def check_ecc_errors():
                     ecc_issues.append(f"GPU {gpu['gpu']} - ECC Errors: {gpu['ecc']['total_uncorrectable_count']}")
 
         except subprocess.TimeoutExpired:
-            logger.warning(f"SRAM/DRAM ECC Test: Failed - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
+            logger.warning(f"SRAM/DRAM ECC Test: Inconclusive - amd-smi timed out after {SMI_TIMEOUT_SEC}s")
             ecc_issues.append(f"amd-smi metric --ecc --json timed out after {SMI_TIMEOUT_SEC}s")
 
         except (subprocess.CalledProcessError, FileNotFoundError):
@@ -524,8 +1378,9 @@ def check_row_remap_errors():
         return remap_issues, recommended_action
 
     except subprocess.TimeoutExpired:
-        logger.warning(f"Row Remap Test: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
+        logger.warning(f"Row Remap Test: Inconclusive - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
         remap_issues.append(f"nvidia-smi --query-remapped-rows=remapped_rows.pending,remapped_rows.failure,remapped_rows.uncorrectable --format=csv,noheader timed out after {SMI_TIMEOUT_SEC}s")
+        return remap_issues, recommended_action
 
     # Decode the output from bytes to string
     output = result.stdout.decode('utf-8')
@@ -713,10 +1568,6 @@ def check_gpu_count():
                 else:
                     expected_gpus = 8
                 lspci_expected_results = lspci_expected_results_gpu
-            elif "GPU.GB" in shape:
-                find_number = "2941"
-                expected_gpus = 4
-                lspci_expected_results = lspci_expected_results_gb200
             elif shape in ["BM.GPU.GB200-v3.4"]:
                 find_number = "2941"
                 expected_gpus = 4
@@ -729,7 +1580,10 @@ def check_gpu_count():
                 find_number = "3182"
                 expected_gpus = 8
                 lspci_expected_results = lspci_expected_results_b300
-
+            elif "GPU.GB" in shape:
+                find_number = "2941"
+                expected_gpus = 4
+                lspci_expected_results = lspci_expected_results_gb200
             for line in lines:
                 if line.find("NVIDIA") != -1 and line.find(find_number) != -1:
                     tmp_results.append(line)
@@ -841,11 +1695,32 @@ def check_bus():
         return(bus_issues)
 
 # 10.1 Check RDMA link status for Mellanox devices.
+def get_mlxlink_field(output, field_name):
+    match = re.search(rf'^\s*{re.escape(field_name)}\s*:\s*(.*?)\s*$', output, re.MULTILINE)
+    if not match:
+        return ""
+    color_pattern = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return re.sub(color_pattern, '', match.group(1)).strip()
+
+
+def parse_mlxlink_float_values(value):
+    values = []
+    for item in value.split(","):
+        item = item.strip()
+        if not item or item.upper() in ("N/A", "NA"):
+            continue
+        try:
+            values.append(float(item))
+        except ValueError:
+            continue
+    return max(values) if values else None
+
+
 def check_rdma_link_status():
     status = True
 
     link_issues = []
-    devices = get_devices()
+    devices = get_mlxlink_devices()
 
     for device in devices:
         # Run the mlxlink command
@@ -874,7 +1749,10 @@ def check_rdma_link_status():
         vendor_serial_num = re.search(r'Vendor Serial Number.*', output).group().split(":")[1].strip()
         nic_fw_version = re.search(r'Firmware Version.*', output).group().split(":")[1].strip()
         cable_fw_version = re.search(r'FW Version.*', output).group().split(":")[1].strip()
-        physical_BER = re.search(r'Raw Physical BER.*', output).group().split(":")[1].strip()
+        physical_BER = get_mlxlink_field(output, "Raw Physical BER")
+        if not physical_BER:
+            physical_BER = get_mlxlink_field(output, "Raw Physical BER Per Lane")
+        physical_BER_value = parse_mlxlink_float_values(physical_BER)
         # Remove hidden characters from the output
         link_state = re.sub(color_pattern, '', link_state)
         nic_fw_version = re.sub(color_pattern, '', nic_fw_version)
@@ -889,10 +1767,14 @@ def check_rdma_link_status():
             status = False
         if "No issue was observed" not in recommendation:
             logger.debug(f"{device}: {recommendation}")
-            if "Bad signal integrity" in recommendation and float(physical_BER) < 1e-07:
+            if "Bad signal integrity" in recommendation and physical_BER_value is None:
+                logger.debug(f"Recommandation is {recommendation} but Raw Physical BER could not be parsed: {physical_BER}")
+                link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {recommendation}")
+                status = False
+            elif "Bad signal integrity" in recommendation and physical_BER_value < 1e-07:
                 logger.debug(f"Recommandation is {recommendation} but the Physical error are low enough that it can be ignored")
                 status=True
-            elif "Bad signal integrity" in recommendation and float(physical_BER) > 1e-07:
+            elif "Bad signal integrity" in recommendation and physical_BER_value >= 1e-07:
                 logger.debug(f"Recommandation is {recommendation} and the Physical error count is too high to be ignored: {physical_BER}")
                 link_issues.append(f"{device} - {vendor_serial_num} - {cable_fw_version} - {nic_fw_version}: {recommendation}")
                 status = False
@@ -922,21 +1804,30 @@ def check_wpa_auth(metadata):
         pass
         return []
 
-    if shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8","BM.GPU.B4.8"]:
+    interface_names = []
+    if is_multiplanar(shape):
+        interface_names = discover_multiplanar_wpa_interfaces(shape)
+        required_authenticated = len(interface_names)
+    elif shape in ["BM.GPU.H100.8", "BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8","BM.GPU.B4.8"]:
         interface_range = range(16)
         required_authenticated = 16
-    elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8"]:
+        interface_names = ["rdma" + str(i) for i in interface_range]
+    elif shape in ["BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.B300.HS.8", "BM.GPU.MI300X.8", "BM.GPU.MI355X-v1.8", "BM.GPU.RTXPRO.8"]:
         interface_range = range(8)
         required_authenticated = 8
-    elif "GPU.GB" in shape:
-        interface_range = range(4)
-        required_authenticated = 0
+        interface_names = ["rdma" + str(i) for i in interface_range]
     elif shape in ["BM.GPU.GB200-v3.4"]:
         interface_range = range(8)
         required_authenticated = 8
+        interface_names = ["rdma" + str(i) for i in interface_range]
     elif shape in ["BM.GPU.GB300.4"]:
         interface_range = range(8)
         required_authenticated = 8
+        interface_names = ["rdma" + str(i) for i in interface_range]
+    elif "GPU.GB" in shape:
+        interface_range = range(4)
+        required_authenticated = 0
+        interface_names = ["rdma" + str(i) for i in interface_range]
     else:
         logger.error("Unsupported machine shape.")
         return ["Unsupported machine shape."]
@@ -944,7 +1835,6 @@ def check_wpa_auth(metadata):
     authenticated_count = 0
     wpa_auth_issues = []
     current_state = "None"  # Define initial state, can be updated based on actual logic
-    interface_names = ["rdma" + str(i) for i in interface_range]
     auth_status = {key: 0 for key in interface_names}
     warning = {key: [] for key in interface_names}
     action = None
@@ -1118,41 +2008,61 @@ def check_bad_pages():
     else:
         logger.info("GPU Pending Bad Pages Check: Passed")
 
-# 17.1 Check if all interfaces have an IP address
+# 17.1 Check if required RDMA interfaces have valid IP addresses
 def check_ip_addresses():
-    devices = get_devices()
+    devices = get_rdma_devices()
     devices_per_interface={}
     infiniband_dir="/sys/class/infiniband"
+    current_shape = metadata.get('shape', '') if 'metadata' in globals() else get_metadata().get('shape', '')
+    multiplanar = is_multiplanar(current_shape)
     for device in devices:
-        device_path = os.path.join(infiniband_dir, device, "device", "net")
+        device_name = os.path.basename(device)
+        device_path = os.path.join(infiniband_dir, device_name, "device", "net")
         if os.path.exists(device_path):
-            for interface in os.listdir(device_path):
-                devices_per_interface[interface]=device
+            interfaces = os.listdir(device_path)
+            for interface in interfaces:
+                devices_per_interface[interface]=device_name
                 break
 
     missing_ips=[]
+    multiple_ips=[]
+    for device in devices:
+        device_name = os.path.basename(device)
+        if device_name not in devices_per_interface.values():
+            missing_ips.append(f"{device_name} (no network interface found)")
+
     interface_map = {}
+    checked_interfaces = set()
     for interface, addrs in psutil.net_if_addrs().items():
         if interface not in devices_per_interface.keys():
             continue
-        ip_address = None
-        # Get IPv4 or IPV6 address
+        checked_interfaces.add(interface)
+        ip_addresses = []
+        # Get IPv4, or IPv6 on B300, addresses
         for addr in addrs:
             if addr.family == socket.AF_INET:
-                ip_address = addr.address
-                break  # Only take the first IPv4 address
-            if addr.family == socket.AF_INET6 and shape == "BM.GPU.B300.8":
-                ip_address = addr.address
-                break  # Only take the first IPv4 address
-        if devices_per_interface[interface] in devices and ip_address is None:
+                ip_addresses.append(addr.address)
+            elif (
+                addr.family == socket.AF_INET6
+                and (current_shape in ("BM.GPU.B300.8", "BM.GPU.B300.HS.8") or multiplanar)
+                and not is_link_local_ipv6_address(addr.address)
+            ):
+                ip_addresses.append(addr.address)
+        if len(ip_addresses) == 0:
             missing_ips.append(interface)
+        elif len(ip_addresses) > 1:
+            multiple_ips.append(f"{interface} ({','.join(ip_addresses)})")
         # Store details
         interface_map[interface] = {
             "device_name": devices_per_interface[interface],
             "interface": interface,
-            "ip_address": ip_address
+            "ip_address": ip_addresses[0] if ip_addresses else None,
+            "ip_addresses": ip_addresses
         }
-    return missing_ips,interface_map
+    for interface in devices_per_interface:
+        if interface not in checked_interfaces:
+            missing_ips.append(interface)
+    return missing_ips,multiple_ips,interface_map
 
 # 18.1 Check NVLinks speeds
 def get_nvlink_speed():
@@ -1164,6 +2074,7 @@ def get_nvlink_speed():
         "BM.GPU.H200.8":     {"count": 18, "speed": 25,      "gpu": 8},
         "BM.GPU.B200.8":     {"count": 18, "speed": 50,      "gpu": 8},
         "BM.GPU.B300.8":     {"count": 18, "speed": 50,      "gpu": 8},
+        "BM.GPU.B300.HS.8":  {"count": 18, "speed": 50,      "gpu": 8},
         "BM.GPU.GB200.4":    {"count": 18, "speed": 50,      "gpu": 4},
         "BM.GPU.GB200-v2.4": {"count": 18, "speed": 50,      "gpu": 4},
         "BM.GPU.GB200-v3.4": {"count": 18, "speed": 50,      "gpu": 4},
@@ -1458,34 +2369,44 @@ def run_rocminfo_check():
 
 # 21.1 Run LBNL NHC
 def run_nhc_check():
-    nhc_log_file = '/var/log/nhc.log'
+    nhc_config_file = "/etc/nhc/oci.nhc.conf"
+    nhc_binary = "/usr/sbin/nhc"
+    nhc_log_file = "/var/log/nhc.log"
     nhc_timeout_sec = 60
     warning_messages = []
     error_messages = []
 
+    if not Path(nhc_config_file).is_file():
+        message = f"Cannot run LBNL node health checks. Missing NHC config: {nhc_config_file}"
+        return True, [message], []
+
+    if not Path(nhc_binary).is_file():
+        message = f"Cannot run LBNL node health checks. Missing NHC binary: {nhc_binary}"
+        return True, [message], []
+
     try:
         subprocess.run(["nvme", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=5)
     except subprocess.TimeoutExpired:
-        logger.warning("Cannot run LBNL node health checks. LBNL node health checks timed out after 5s while checking nvme-cli availabilit.")
-        return True, [], []
+        message = "Cannot run LBNL node health checks. LBNL node health checks timed out after 5s while checking nvme-cli availability."
+        return True, [message], []
     except (subprocess.CalledProcessError, FileNotFoundError):
-        logger.warning("Cannot run LBNL node health checks. nvme-cli not installed.")
-        return True, [], []
+        message = "Cannot run LBNL node health checks. nvme-cli not installed."
+        return True, [message], []
 
     if os.path.isfile(nhc_log_file):
         try:
             os.remove(nhc_log_file)
         except PermissionError:
-            logger.warning("Cannot run LBNL node health checks. Try running as root or with elevated privileges.")
-            return True, [], []
+            message = "Cannot run LBNL node health checks. Try running as root or with elevated privileges."
+            return True, [message], []
         except Exception as e:
-            logger.warning(f"Cannot run LBNL node health checks. Error deleting {nhc_log_file}: {e}")
-            return True, [], []
+            message = f"Cannot run LBNL node health checks. Error deleting {nhc_log_file}: {e}"
+            return True, [message], []
 
     cmd = [
         'sudo',
-        '/usr/sbin/nhc',
-        '-c', '/etc/nhc/oci.nhc.conf',
+        nhc_binary,
+        '-c', nhc_config_file,
         '-a',
         '-v'
     ]
@@ -1499,11 +2420,11 @@ def run_nhc_check():
             timeout=nhc_timeout_sec
         )
     except subprocess.TimeoutExpired:
-        logger.warning(f"LBNL node health checks timed out after {nhc_timeout_sec}s")
-        return True, [], []
+        message = f"LBNL node health checks timed out after {nhc_timeout_sec}s"
+        return True, [message], []
     except Exception as e:
-        logger.warning(f"Could not run LBNL node health checks: {e}")
-        return True, [], []
+        message = f"Could not run LBNL node health checks: {e}"
+        return True, [message], []
 
     # Allow logging to flush
     time.sleep(5)
@@ -1528,20 +2449,14 @@ def run_nhc_check():
     # Capture log after running
     nhc_log_output, nhc_log_exists = read_log_lines()
     if not nhc_log_exists:
-        logger.warning("Could not run LBNL node health checks. /var/log/nhc.log is not generated.")
-        return True, [], []
+        message = f"Could not run LBNL node health checks. {nhc_log_file} is not generated."
+        return True, [message], []
 
     issues = get_issues(nhc_log_output)
 
     if issues:
         warning_messages = [message for level, message in issues if level == "WARNING"]
         error_messages = [message for level, message in issues if level == "ERROR"]
-
-        if warning_messages:
-            logger.warning("LBNL node health check warnings:\n" + "\n".join(warning_messages))
-        if error_messages:
-            logger.error("LBNL node health check errors:\n" + "\n".join(error_messages))
-
         return len(error_messages) == 0, warning_messages, error_messages
     else:
         logger.info("LBNL node health checks: Passed")
@@ -1558,6 +2473,7 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run', action='store_true', default=False, help='Skip updating the local files: http-server-file and the log file.')
 
     parser.add_argument('--oca-stat', action='store_true', help='Check the state of oca')
+    parser.add_argument('--instance-rdma-plugins', action='store_true', help='Check if required Instance RDMA plugins are enabled')
     parser.add_argument('--oca-ver', action='store_true', help='Run OCA version check')
     parser.add_argument('--rttcc-stat', action='store_true', help='Run RTTCC status check')
     parser.add_argument('--ecc-err', action='store_true', help='Run ECC errors check')
@@ -1569,13 +2485,17 @@ if __name__ == '__main__':
     parser.add_argument('--bus-stat', action='store_true', help='Run bus status check')
     parser.add_argument('--rdmalink-stat', action='store_true', help='Run RDMA link status check')
     parser.add_argument('--rdmalink-flap', action='store_true', help='Run RDMA link flapping check')
+    parser.add_argument("--rdma-vf-routes", action="store_true", help="Check MultiPlanar rdma_vf_rail IPv6 addresses/default routes and rdma_p rail IPv6 sequence")
+    parser.add_argument("--rdma-vf-counters", action="store_true", help="Check MultiPlanar rdma_vf_rail hardware counters")
+    parser.add_argument("--rdma-ovs-mtu", action="store_true", help="Check B300/GB300 MultiPlanar OVS/DPDK RDMA MTU runtime state")
+    parser.add_argument("--imex", action="store_true", help="Check NVIDIA IMEX service readiness on GB300 MultiPlanar hosts")
     parser.add_argument('--lf-interval', type=int, default=6, help='Link flapping interval with no flapping or link down events (default: 6 hours)')
     parser.add_argument('--xid-err', action='store_true', help='Run GPU Xid errors check')
     parser.add_argument('--wpa-auth', action='store_true', help='Run WPA authentication check')
     parser.add_argument('--fabric-mgr', action='store_true', help='Run Fabric Manager check')
     parser.add_argument('--cpu-profile', action='store_true', help='Run CPU profile check')
     parser.add_argument('--bad-page', action='store_true', help='Run bad pages check')
-    parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have an IP address')
+    parser.add_argument('--ip-address', action='store_true', help='Check if all interfaces have exactly one IP address')
     parser.add_argument('--nvlink-speed', action='store_true', help='Check NVLinks speeds')
     parser.add_argument('--dcgmi-health', action='store_true', help='Run dcgmi health check')
     parser.add_argument('--rocminfo-check', action='store_true', help='Run rocminfo check')
@@ -1605,12 +2525,23 @@ if __name__ == '__main__':
     # Run everything if no arguments are provided
     run_all = not any(getattr(args, arg) for arg in vars(args) if isinstance(getattr(args, arg), bool) and arg not in ('log_level', 'dry_run')) or args.slurm
 
-    # Initialize oca_state with default value for GB shapes (OCA check is skipped for these)
-    if "GPU.GB" in shape:
-        oca_state = "COMPLETED"
+    gpu_reset_action = ""
+    gpu_reset_status = True
+
+    oca_state = "COMPLETED" if shape in SHAPES_WITHOUT_OCA_STATE_CHECK else None
+    oca_dependent_check_requested = (
+        run_all
+        or args.rttcc_stat
+        or args.rdmalink_stat
+        or args.rdma_vf_routes
+        or args.rdma_ovs_mtu
+        or args.rdmalink_flap
+        or args.wpa_auth
+        or args.ip_address
+    )
 
     # 1.3 Check OCA Status
-    if (run_all or args.oca_stat) and (not ("GPU.GB" in shape or shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"])):
+    if (run_all or args.oca_stat) and (shape not in SHAPES_WITHOUT_OCA_STATE_CHECK):
         try:
             oca_state = check_oca_status(log_state=True)
         except Exception as e:
@@ -1620,6 +2551,15 @@ if __name__ == '__main__':
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
+
+    # 1.5 Check if the RDMA Instance plugins are enabled
+    instance_rdma_plugin_issues = []
+    if (run_all or args.instance_rdma_plugins) and has_rdma_interfaces():
+        try:
+            instance_rdma_plugin_issues = check_instance_rdma_plugins()
+        except Exception as e:
+            logger.warning(f"Failed to check Instance RDMA plugins with error: {e}")
+            instance_rdma_plugin_issues = []
 
     # 2.3 Check for OCA Version
     if run_all or args.oca_ver:
@@ -1632,8 +2572,7 @@ if __name__ == '__main__':
     # 3.3 Check for RTTCC Issues (only if OCA status is COMPLETED)
     rttcc_issues = []
     if run_all or args.rttcc_stat:
-        # Only check OCA status for non-GB shapes (GB shapes skip OCA and use default COMPLETED)
-        if "GPU.GB" not in shape:
+        if oca_state is None and oca_dependent_check_requested:
             try:
                 oca_state = check_oca_status(log_state=False)  # Retrieve OCA state only when needed
             except Exception as e:
@@ -1701,6 +2640,13 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check the bus with error: {e}")
             bus_results = None
 
+    if oca_state is None and oca_dependent_check_requested:
+        try:
+            oca_state = check_oca_status(log_state=False)
+        except Exception as e:
+            logger.warning(f"Failed to check OCA state with error: {e}")
+            oca_state = "NOT STARTED"
+
     # 10.3 Check RDMA link status (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_stat:
         if oca_state == "COMPLETED":
@@ -1711,6 +2657,58 @@ if __name__ == '__main__':
                 rdma_link_issues = []
         else:
             rdma_link_issues = []
+
+    # 10.5 Check MultiPlanar RDMA VF rail address and route state (only if OCA status is COMPLETED)
+    if run_all or args.rdma_vf_routes:
+        if oca_state == "COMPLETED" and is_multiplanar(shape):
+            try:
+                rdma_vf_route_issues = check_multiplanar_rdma_vf_routes(metadata)
+            except Exception as e:
+                logger.warning("Failed to check RDMA VF route state with error: " + str(e))
+                rdma_vf_route_issues = []
+
+            try:
+                rdma_rail_ipv6_sequence_issues = check_multiplanar_rdma_rail_ipv6_sequence(metadata)
+            except Exception as e:
+                logger.warning("Failed to check RDMA rail IPv6 sequence with error: " + str(e))
+                rdma_rail_ipv6_sequence_issues = []
+        else:
+            rdma_vf_route_issues = []
+            rdma_rail_ipv6_sequence_issues = []
+
+    # 10.6 Check MultiPlanar RDMA VF rail hardware counters
+    if run_all or args.rdma_vf_counters:
+        if is_multiplanar(shape):
+            try:
+                rdma_vf_counter_issues = check_multiplanar_rdma_vf_counters(metadata)
+            except Exception as e:
+                logger.warning("Failed to check RDMA VF counters with error: " + str(e))
+                rdma_vf_counter_issues = []
+        else:
+            rdma_vf_counter_issues = []
+
+    # 10.7 Check B300/GB300 MultiPlanar OVS/DPDK RDMA MTU runtime state
+    if run_all or args.rdma_ovs_mtu:
+        if oca_state == "COMPLETED" and is_multiplanar(shape):
+            try:
+                rdma_ovs_mtu_issues = check_multiplanar_rdma_ovs_mtu(metadata)
+            except Exception as e:
+                logger.warning("Failed to check RDMA OVS MTU state with error: " + str(e))
+                rdma_ovs_mtu_issues = []
+        else:
+            rdma_ovs_mtu_issues = []
+
+    # 10.8 Check NVIDIA IMEX readiness for GB300 MultiPlanar MNNVL
+    imex_issues = []
+    if run_all or args.imex:
+        if "GPU.GB" in shape:
+            try:
+                imex_issues = check_imex_ready(metadata)
+            except Exception as e:
+                logger.warning("Failed to check NVIDIA IMEX readiness with error: " + str(e))
+                imex_issues = []
+        else:
+            imex_issues = []
 
     # 11.3 Check RDMA link flapping (only if OCA status is COMPLETED)
     if run_all or args.rdmalink_flap:
@@ -1727,6 +2725,8 @@ if __name__ == '__main__':
 
     # 12.3 Check GPU Xid errors
     if run_all or args.xid_err:
+        gpu_reset_action = ""
+        gpu_reset_status = True
         try:
             xc = XidChecker()
             xid_results = xc.check_gpu_xid()
@@ -1736,9 +2736,9 @@ if __name__ == '__main__':
             warning_xids  = xid_categories.get("warning", {})
             if critical_xids:
                 logger.debug("Xid critical error")
-            elif reset_xids:
+            if reset_xids:
                 gpu_reset_action, gpu_reset_status = gpu_reset_reboot(xc)
-            elif warning_xids:
+            if warning_xids:
                 logger.debug("Xid warning")
         except Exception as e:
             logger.warning(f"Failed to check GPU Xid errors with error: {e}")
@@ -1748,6 +2748,7 @@ if __name__ == '__main__':
                     "gpu_reset_reboot": {},
                     "warning": {},
                 },
+                "dmesg_errors": [],
                 "results": {},
             }
 
@@ -1795,21 +2796,23 @@ if __name__ == '__main__':
             logger.warning(f"Failed to check pending bad pages: {e}")
             bad_page_issues = []
 
-    # 17.3 Check if all interfaces have an IP address
-    if (run_all or args.ip_address) and ( "GPU.GB" not in shape):
+    # 17.3 Check if required RDMA interfaces have valid IP addresses
+    if (run_all or args.ip_address) and should_check_ip_addresses(shape):
         if oca_state == "COMPLETED":
             try:
-                missing_ips,ip_list = check_ip_addresses()
-                if len(missing_ips) == 0:
-                    logger.info("All interfaces have an IP defined: Passed")
+                missing_ips,multiple_ips,ip_list = check_ip_addresses()
+                if len(missing_ips) == 0 and len(multiple_ips) == 0:
+                    logger.info("Required RDMA interfaces have valid IP addresses: Passed")
             except Exception as e:
                 logger.warning(f"Failed to get all IPS: {e}")
                 missing_ips = []
+                multiple_ips = []
         else:
             missing_ips = []
+            multiple_ips = []
 
     # 18.3 Check if NVLink speed is correct
-    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S-NC.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4"]):
+    if (run_all or args.nvlink_speed) and (shape not in ["BM.GPU.L40S-NC.4", "BM.GPU.MI300X.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X-v1.8", "BM.GPU.A10.4", "BM.GPU.RTXPRO.8"]):
         nvlink_speed = get_nvlink_speed()
     else:
         nvlink_speed = True
@@ -1872,11 +2875,19 @@ if __name__ == '__main__':
     logger.info(f"--------- Summary of Host setup check for {host_serial} ---------")
 
     # 1.4 Summarize OCA status check
-    if (run_all or args.oca_stat) and ( not ("GPU.GB" in shape or shape in ["BM.GPU.L40S-NC.4", "BM.GPU.A10.4"])):
+    if (run_all or args.oca_stat) and (shape not in SHAPES_WITHOUT_OCA_STATE_CHECK):
         if oca_state != "COMPLETED":
             logger.error(f"OCA is not ready: {oca_state}")
             slurm_reason("OCA Not completed")
             action = recommended_action(action, "Wait_For_OCA")
+
+    # 1.6 Summarize Instance RDMA plugins check
+    if (run_all or args.instance_rdma_plugins) and has_rdma_interfaces():
+        if len(instance_rdma_plugin_issues) > 0:
+            for issue in instance_rdma_plugin_issues:
+                logger.error(f"{host_serial} - Instance RDMA plugin issue: {issue}")
+            slurm_reason("Instance RDMA Plugin Status Error")
+            action = recommended_action(action, "Enable_Instance_RDMA_Plugins")
 
     # 2.4 Summarize OCA version check
     if run_all or args.oca_ver:
@@ -1896,14 +2907,13 @@ if __name__ == '__main__':
         if len(ecc_issues) > 0:
             ecc_error = False
             for issue in ecc_issues:
-                if "Skipped" in issue:
+                if "Skipped" in issue or "timed out after" in issue:
                     logger.warning(f"{host_serial} - {issue}")
+                elif "Aggregate" in issue:
+                    logger.warning(f"{host_serial} - ECC issues: {issue}")
                 else:
-                    if "Aggregate" in issue:
-                        logger.warning(f"{host_serial} - ECC issues: {issue}")
-                    else:
-                        logger.error(f"{host_serial} - ECC issues: {issue}")
-                        ecc_error = True
+                    logger.error(f"{host_serial} - ECC issues: {issue}")
+                    ecc_error = True
             if ecc_error:
                 slurm_reason("ECC Error")
                 action = recommended_action(action, "Reboot")
@@ -1913,7 +2923,7 @@ if __name__ == '__main__':
         if len(remap_results) > 0:
             remap_error = False
             for issue in remap_results:
-                if "<512" in issue:
+                if "<512" in issue or "timed out after" in issue:
                     logger.warning(f"{host_serial} - {issue}")
                 else:
                     logger.error(f"{host_serial} - {issue}")
@@ -1956,28 +2966,70 @@ if __name__ == '__main__':
         if len(rdma_link_issues) > 0:
             for issue in rdma_link_issues:
                 logger.error(f"{host_serial} - RDMA link issues: {issue}")
-                slurm_reason("RDMA Link Error")
+                slurm_reason("RDMA Link down")
                 if "signal not detected" in issue:
                     logger.info("No signal detected doesn't always come from a bad cable and require a termination for investigation")
                 action = recommended_action(action, "Terminate")
+
+    # 10.5 Summarize MultiPlanar RDMA VF rail address and route state
+    if run_all or args.rdma_vf_routes:
+        if len(rdma_vf_route_issues) > 0:
+            for issue in rdma_vf_route_issues:
+                logger.error(host_serial + " - RDMA VF route issues: " + issue)
+            slurm_reason("RDMA Route Missing")
+            action = recommended_action(action, "Reboot")
+
+    # 10.6 Summarize MultiPlanar RDMA rail IPv6 sequence
+    if run_all or args.rdma_vf_routes:
+        if len(rdma_rail_ipv6_sequence_issues) > 0:
+            for issue in rdma_rail_ipv6_sequence_issues:
+                logger.error(host_serial + " - RDMA rail IPv6 sequence issues: " + issue)
+            slurm_reason("RDMA Rail IPv6 Sequence Error")
+            action = recommended_action(action, "Wait_For_OCA")
+
+    # 10.7 Summarize MultiPlanar RDMA VF rail hardware counters
+    if run_all or args.rdma_vf_counters:
+        if len(rdma_vf_counter_issues) > 0:
+            for issue in rdma_vf_counter_issues:
+                logger.error(host_serial + " - RDMA VF counter issues: " + issue)
+            slurm_reason("RDMA VF Counter Error")
+            action = recommended_action(action, "Terminate")
+
+    # 10.8 Summarize B300/GB300 MultiPlanar OVS/DPDK RDMA MTU runtime state
+    if run_all or args.rdma_ovs_mtu:
+        if len(rdma_ovs_mtu_issues) > 0:
+            for issue in rdma_ovs_mtu_issues:
+                logger.error(host_serial + " - RDMA OVS MTU issues: " + issue)
+            slurm_reason("RDMA OVS MTU Error")
+            action = recommended_action(action, "Reboot")
+
+    # 10.9 Summarize NVIDIA IMEX readiness check
+    if run_all or args.imex:
+        if len(imex_issues) > 0:
+            for issue in imex_issues:
+                logger.error(host_serial + " - IMEX issues: " + issue)
+            slurm_reason("IMEX Error")
+            action = recommended_action(action, "Reboot")
 
     # 11.4 Summarize RDMA link flapping check
     if run_all or args.rdmalink_flap:
         if len(lft_issues["failures"]) > 0 or len(lft_issues["link_down"]) > 0:
            if len(lft_issues["failures"]) == 1:
               issue = lft_issues["failures"][0]
-              logger.warning(f"{host_serial} - RDMA link flapping issues: {issue}")
+              logger.warning(f"{host_serial} - RDMA authentication flap issues: {issue}")
+              slurm_reason("RDMA Auth flap")
            elif len(lft_issues["failures"]) > 1:
               for issue in lft_issues["failures"]:
-                  logger.error(f"{host_serial} - RDMA link flapping issues: {issue}")
-                  slurm_reason("RDMA Link Flapping Error")
+                  logger.error(f"{host_serial} - RDMA authentication flap issues: {issue}")
+                  slurm_reason("RDMA Auth flap")
            if len(lft_issues["link_down"]) == 1:
               issue = lft_issues["link_down"][0]
-              logger.warning(f"{host_serial} - RDMA link down issues: {issue}")
+              logger.warning(f"{host_serial} - RDMA link carrier flap issues: {issue}")
+              slurm_reason("RDMA Link flap")
            elif len(lft_issues["link_down"]) > 1:
               for issue in lft_issues["link_down"]:
-                  logger.error(f"{host_serial} - RDMA link down issues: {issue}")
-                  slurm_reason("RDMA Link Down Error")
+                  logger.error(f"{host_serial} - RDMA link carrier flap issues: {issue}")
+                  slurm_reason("RDMA Link flap")
 
     # 12.4 Summarize GPU Xid errors check
     if run_all or args.xid_err:
@@ -1985,8 +3037,14 @@ if __name__ == '__main__':
         critical_xids = xid_categories.get("critical", {})
         reset_xids = xid_categories.get("gpu_reset_reboot", {})
         warning_xids  = xid_categories.get("warning", {})
+        dmesg_errors = xid_results.get("dmesg_errors", [])
 
         # Log & set action for Xids
+        if dmesg_errors:
+            action = recommended_action(action, "Terminate")
+            for issue in dmesg_errors:
+                logger.error(f"{host_serial} - {issue}")
+                slurm_reason("Multicast Error")
         if critical_xids:
             action = recommended_action(action, "Terminate")
             for xid, info in critical_xids.items():
@@ -2060,11 +3118,15 @@ if __name__ == '__main__':
             slurm_reason("GPU Bad page error")
             action = recommended_action(action, "Reboot")
 
-    # 17.4 Summarize all interfaces have an IP address check
-    if (run_all or args.ip_address) and ( "GPU.GB" not in shape):
+    # 17.4 Summarize required RDMA interfaces have valid IP addresses check
+    if (run_all or args.ip_address) and should_check_ip_addresses(shape):
         if len(missing_ips) > 0:
             logger.error(f"Missing IPs for these interfaces: {','.join(missing_ips)}")
-            slurm_reason("Missing IPs")
+            slurm_reason("RDMA Missing IP")
+            action = recommended_action(action, "Reboot")
+        if len(multiple_ips) > 0:
+            logger.error(f"Multiple IPs for these interfaces: {','.join(multiple_ips)}")
+            slurm_reason("Multiple IPs")
             action = recommended_action(action, "Reboot")
 
     # 18.4 Summarize NVLink speed check
@@ -2117,7 +3179,7 @@ if __name__ == '__main__':
         logger.error("Recommended Action is to wait for OCA to finish configuring. If it has been more than 10 minutes, try rebooting the node")
 
     if slurm_error_count > 0 and any((args.slurm, args.dry_run)):
-        logger.error("Healthcheck:: " + ", ".join(slurm_drain_reason))
+        logger.error("Healthcheck:: " + format_healthcheck_status(slurm_drain_reason))
         logger.error("Healthcheck:: Recommended Action:" + str(action))
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
@@ -2147,10 +3209,7 @@ if __name__ == '__main__':
         except FileNotFoundError:
             logger.warning("Log file not found, initializing empty logs.")
             data["passive_healthcheck_logs"] = ""
-        if slurm_drain_reason:
-            data["passive_healthcheck_status"] = ", ".join(slurm_drain_reason)
-        else:
-            data["passive_healthcheck_status"] = "Healthy"
+        data["passive_healthcheck_status"] = format_healthcheck_status(slurm_drain_reason)
         # Write updated data back to the file
         with open(http_server_file, 'w') as file:
             try:

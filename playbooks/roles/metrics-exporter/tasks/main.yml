@@ -40,6 +40,14 @@
 - ansible.builtin.include_tasks: node_exporter_ubuntu.yml
   when: ansible_facts['distribution'] == 'Ubuntu'
 
+- name: Install Lustre utilization exporter on controller
+  ansible.builtin.include_tasks: lustre_utilization_exporter.yml
+  when:
+    - cluster_monitoring | default(false) | bool
+    - add_lfs | default(false) | bool
+    - groups['controller'] | default([]) | length > 0
+    - inventory_hostname == (groups['controller'] | first)
+
 - ansible.builtin.include_tasks: dcgm_exporter.yml
   when: compute_node|bool and 'GPU' in shape and not 'BM.GPU.MI' in shape
 
@@ -52,8 +60,18 @@
 - ansible.builtin.include_tasks: custom_metrics.yml
   when: compute_node|bool and rdma_enabled|bool
 
-- include_tasks: nvml_exporter.yml
-  when: compute_node|bool and 'GPU' in shape
+- name: Install Slurm job monitoring exporter
+  ansible.builtin.include_tasks: nvml_exporter.yml
+  when:
+    - compute_node | bool
+    - slurm | default(false) | bool
+    - slurm_job_monitoring | default(false) | bool
+
+- name: Remove Slurm job monitoring exporter when disabled
+  ansible.builtin.include_tasks: nvml_exporter_absent.yml
+  when:
+    - compute_node | bool
+    - not ((slurm | default(false) | bool) and (slurm_job_monitoring | default(false) | bool))
 
 - include_tasks: pcie_faults.yml
   when: compute_node|bool and 'GPU' in shape

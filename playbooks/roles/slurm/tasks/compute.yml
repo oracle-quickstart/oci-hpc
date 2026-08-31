@@ -51,20 +51,64 @@
     rdma_metadata: "{{ rdma_metadata | combine({'rdmaTopologyData': {'customerNetworkBlock': 'None'}}, recursive=True) }}"
   when: "not 'customerNetworkBlock' in rdma_metadata['rdmaTopologyData']"
 
-- name: Set topology var
+- name: Build common Slurm topology tokens
   ansible.builtin.set_fact:
-    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerLocalBlock'][-40:] }}"
-  when: "'GPU.H' in shape"
+    slurm_topology_cluster: "{{ cluster_name | regex_replace('[^A-Za-z0-9_-]', '-') }}"
+    slurm_topology_network_block: "{{ (rdma_metadata['rdmaTopologyData']['customerNetworkBlock'] | default('none', true))[-8:] }}"
+    slurm_topology_rail: "{{ (rdma_metadata['rdmaTopologyData']['customerLocalBlock'] | default('none', true))[-8:] }}"
+    slurm_topology_rack: "{{ (rdma_metadata['rackId'] | default('none', true))[-8:] }}"
 
-- name: Set topology var
+- name: Set Slurm topology for on-demand nodes
   ansible.builtin.set_fact:
-    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rdmaTopologyData']['customerGpuMemoryFabric'][-40:] }}"
-  when: "'GPU.GB' in shape"
+    slurm_tree_unit: >-
+      tree:{{ ('od-' ~ (instance_type | regex_replace('[^A-Za-z0-9_-]', '-')))[:64] }}
+  when: not (permanent | bool)
 
-- name: Set topology var
+- name: Set Slurm topology for GB GPU nodes
   ansible.builtin.set_fact:
-    topology: "topo-tree:{{ cluster_name }}:{{ rdma_metadata['rackId'][-40:] }}"
-  when: "not 'GPU.GB' in shape and not 'GPU.H' in shape"
+    slurm_tree_unit: >-
+      tree:{{ slurm_topology_cluster }}:
+      nb-{{ slurm_topology_cluster }}-{{ slurm_topology_network_block }}:
+      rail-{{ slurm_topology_cluster }}-{{ slurm_topology_network_block }}-{{ slurm_topology_rail }}:
+      rack-{{ slurm_topology_cluster }}-{{ slurm_topology_network_block }}-{{ slurm_topology_rail }}-{{ slurm_topology_rack }}
+  when:
+    - permanent | bool
+    - "'GPU.GB' in shape"
+
+- name: Set Slurm topology for GPU4, A100-v2, HPC and Optimized nodes
+  ansible.builtin.set_fact:
+    slurm_tree_unit: >-
+      tree:{{ slurm_topology_cluster }}:
+      nb-{{ slurm_topology_cluster }}-{{ slurm_topology_network_block }}:
+      rack-{{ slurm_topology_cluster }}-{{ slurm_topology_network_block }}-{{ slurm_topology_rack }}
+  when: >-
+    permanent | bool and (
+    shape in ['BM.GPU4.8', 'BM.GPU.B4.8', 'BM.GPU.A100-v2.8']
+    or 'HPC' in shape
+    or 'Optimized' in shape)
+
+- name: Set Slurm topology for other GPU nodes
+  ansible.builtin.set_fact:
+    slurm_tree_unit: >-
+      tree:{{ slurm_topology_cluster }}:
+      nb-{{ slurm_topology_cluster }}-{{ slurm_topology_network_block }}:
+      rail-{{ slurm_topology_cluster }}-{{ slurm_topology_network_block }}-{{ slurm_topology_rail }}
+  when: >-
+    permanent | bool and
+    'GPU' in shape
+    and 'GPU.GB' not in shape
+    and shape not in ['BM.GPU4.8', 'BM.GPU.B4.8', 'BM.GPU.A100-v2.8']
+
+- name: Set Slurm topology for rack-based nodes
+  ansible.builtin.set_fact:
+    slurm_tree_unit: >-
+      tree:{{ slurm_topology_cluster }}:
+      rack-{{ slurm_topology_cluster }}-{{ slurm_topology_rack }}
+  when: permanent | bool and ('GPU' not in shape and 'HPC' not in shape and 'Optimized' not in shape)
+
+- name: Set Slurm node topology
+  ansible.builtin.set_fact:
+    slurm_node_topology: "{{ slurm_tree_unit | replace(' ', '') }}"
 
 - name: Render systemd units for slurmd
   become: true
@@ -94,6 +138,11 @@
   with_items:
     - munge
     - slurmd
+
+- name: Reload systemd daemon
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
 
 - name: Create munge dir
   become: true

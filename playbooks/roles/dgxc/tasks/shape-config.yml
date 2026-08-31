@@ -1,0 +1,57 @@
+---
+- name: Set DGXC llmb-install shape-derived config values
+  ansible.builtin.set_fact:
+    dgxc_detected_gpu_count: "{{ 4 if ('GPU.GB300' in shape or 'GPU.GB200' in shape) else 8 }}"
+    dgxc_detected_node_architecture: "{{ 'aarch64' if ('GPU.GB300' in shape or 'GPU.GB200' in shape) else 'x86_64' }}"
+    dgxc_detected_gpu_type: >-
+      {{
+        'gb300' if 'GPU.GB300' in shape else
+        'gb200' if 'GPU.GB200' in shape else
+        'b300' if 'GPU.B300' in shape else
+        'b200' if 'GPU.B200' in shape else
+        'h200' if 'GPU.H200' in shape else
+        'h100' if 'GPU.H100' in shape else
+        'a100' if ('GPU.A100' in shape or 'GPU4' in shape or 'GPU.B4' in shape) else
+        (dgxc_gpu_type | default('') | string | trim)
+      }}
+
+- name: Set DGXC config rendering mode
+  ansible.builtin.set_fact:
+    dgxc_should_render_llmb_install_config: "{{ (dgxc_run_llmb_install | bool) and (dgxc_llmb_install_config | length == 0) }}"
+    dgxc_effective_install_path: "{{ dgxc_install_path }}"
+
+- name: Validate DGXC shape-derived config values
+  ansible.builtin.assert:
+    that:
+      - shape | default('') | length > 0
+      - dgxc_detected_gpu_type | default('') | length > 0
+    fail_msg: >-
+      Could not derive DGXC GPU type from shape '{{ shape | default('') }}'.
+      Ensure the inventory is correctly setting the instance shape or use dgxc_gpu_type to manually overwrite.
+  when: dgxc_should_render_llmb_install_config | bool
+
+- name: Render DGXC llmb-install playback config
+  become: true
+  ansible.builtin.template:
+    src: dgxc_play_config.yaml.j2
+    dest: "{{ dgxc_generated_llmb_install_config }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0600"
+  when: dgxc_should_render_llmb_install_config | bool
+
+- name: Set DGXC effective llmb-install config path
+  ansible.builtin.set_fact:
+    dgxc_effective_llmb_install_config: >-
+      {{
+        dgxc_generated_llmb_install_config
+        if (dgxc_should_render_llmb_install_config | bool)
+        else dgxc_llmb_install_config
+      }}
+
+- name: Show rendered DGXC llmb-install config path
+  ansible.builtin.debug:
+    msg:
+      - "DGXC generated config: {{ dgxc_generated_llmb_install_config }}"
+      - "DGXC install path: {{ dgxc_effective_install_path }}"
+  when: dgxc_should_render_llmb_install_config | bool

@@ -1,5 +1,5 @@
 import click
-from lib.cli.nodes.commands import boot_volume_swap, list_cmd, tag_and_terminate, terminate, reboot, tag, reconfigure, get, healthchecks, console_history, add_dns_entry
+from lib.cli.nodes.commands import add_dns_entry, boot_volume_swap, console_history, get, healthchecks, list_cmd, reboot, reconfigure, tag, tag_and_terminate, terminate
 
 @click.group("nodes")
 def cmd():
@@ -17,3 +17,4 @@ cmd.add_command(get.get)
 cmd.add_command(healthchecks.healthchecks)
 cmd.add_command(console_history.console_history)
 cmd.add_command(add_dns_entry.add_dns_entry)
+cmd.add_command(add_dns_entry.delete_dns_entry)

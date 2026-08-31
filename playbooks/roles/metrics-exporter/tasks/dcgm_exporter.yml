@@ -51,14 +51,39 @@
 
 - name: Get current DCGM version
   become: true
-  ansible.builtin.shell:
-    cmd: dcgmi -v | head -n 1 | cut -d':' -f2 | tr -d ' \n'
-  register: dcgm_version
+  ansible.builtin.command:
+    cmd: dcgmi -v
+  register: dcgm_version_command
   changed_when: false
+  failed_when: false
 
-- name: Extract DCGM major version
+- name: Extract DCGM version and legacy DEV_COUNT support
   ansible.builtin.set_fact:
-    dcgm_major_version: "{{ dcgm_version.stdout.split('.')[0] }}"
+    dcgm_version: >-
+      {{
+        (
+          dcgm_version_command.stdout_lines
+          | select('search', 'Version')
+          | first
+          | default('', true)
+        ).split(':')
+        | last
+        | trim
+      }}
+
+- name: Set DCGM compatibility facts
+  ansible.builtin.set_fact:
+    dcgm_major_version: "{{ dcgm_version.split('.')[0] | default('0', true) }}"
+    dcgm_dev_count_supported: "{{ (dcgm_version | length > 0) and (dcgm_version is version('4.6.0', '<')) }}"
+
+- name: Require a parseable DCGM version
+  ansible.builtin.assert:
+    that:
+      - dcgm_version | length > 0
+    fail_msg: >-
+      Unable to parse the installed DCGM version from `dcgmi -v`; refusing to
+      select a dcgm-exporter release.
+  when: not dcgm_exporter.stat.exists | bool
 
 - name: Fetch and cache DCGM Exporter releases
   ansible.builtin.shell:
@@ -82,13 +107,9 @@
       stdout_lines: "{{ dcgm_exporter_releases_result.stdout_lines | default([]) | select | list }}"
   when: not dcgm_exporter.stat.exists | bool
 
-#- name: Extract major.minor version from DCGM version
-#  set_fact:
-#    dcgm_major_minor: "{{ dcgm_version.stdout | regex_replace('^(\\d+\\.\\d+)\\.\\d+$', '\\1') }}"
-
 - name: Select appropriate DCGM Exporter version
   ansible.builtin.set_fact:
-    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version.stdout) | first | split(' ') | last }}"
+    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version) | first | split(' ') | last }}"
   when: not dcgm_exporter.stat.exists | bool
 
 - name: Download DCGM Exporter tarball
@@ -135,17 +156,14 @@
   ansible.builtin.template:
     src: dcgm-exporter.service.j2
     dest: "{{ dcgm_service_path }}"
+  notify: Restart dcgm exporter
 
 - name: Template DCGM-Exporter counter configuration
   become: true
   ansible.builtin.template:
     src: dcgm-counters.csv.j2
     dest: "/etc/dcgm-counters.csv"
-
-- name: Reload systemd daemon
-  become: true
-  ansible.builtin.systemd:
-    daemon_reload: true
+  notify: Restart dcgm exporter
 
 - name: Enable and start DCGM-Exporter service
   become: true

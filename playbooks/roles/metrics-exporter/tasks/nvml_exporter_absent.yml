@@ -1,0 +1,35 @@
+---
+- name: Gather service facts for Slurm job monitoring exporter removal
+  ansible.builtin.service_facts:
+
+- name: Stop and disable Slurm job monitoring exporter
+  become: true
+  ansible.builtin.systemd:
+    name: nvml-exporter
+    state: stopped
+    enabled: false
+  when: "'nvml-exporter.service' in ansible_facts.services"
+
+- name: Remove Slurm job monitoring exporter service
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/nvml-exporter.service
+    state: absent
+
+- name: Remove Slurm job monitoring exporter script
+  become: true
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_install_dir }}/nvml_metrics_exporter.py"
+    state: absent
+
+- name: Remove Slurm job monitoring database adapter
+  become: true
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_install_dir }}/db_adapter_compute.py"
+    state: absent
+
+- name: Reload systemd after Slurm job monitoring exporter removal
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  changed_when: false

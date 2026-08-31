@@ -1,0 +1,21 @@
+[Unit]
+Description=Slurm Database Compaction
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{ slurm_monitoring_controller_user }}
+Group={{ slurm_monitoring_controller_group }}
+Environment="SLURM_DB_HOST={{ slurm_monitoring_controller_db_host }}"
+Environment="SLURM_DB_PORT={{ slurm_monitoring_controller_db_port }}"
+Environment="SLURM_DB_USER={{ slurm_monitoring_controller_db_user }}"
+Environment="SLURM_DB_PASSWORD={{ slurm_monitoring_controller_db_password | replace('%', '%%') }}"
+Environment="SLURM_DB_NAME={{ slurm_monitoring_controller_db_name }}"
+ExecStart={{ slurm_monitoring_controller_venv_path }}/bin/python3 {{ slurm_monitoring_controller_install_dir }}/db_compact.py --retention-days {{ slurm_monitoring_controller_db_retention_days }} --retention-util-days {{ slurm_monitoring_controller_db_retention_util_days }} --optimize --analyze --verbose
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=slurm-db-compact
+
+[Install]
+WantedBy=multi-user.target

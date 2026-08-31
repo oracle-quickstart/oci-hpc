@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+for i in {1..10}; do
+    if /usr/sbin/lctl get_param -n 'ldlm.namespaces.*.lru_size' >/dev/null 2>&1; then
+        /usr/sbin/lctl set_param 'ldlm.namespaces.*.lru_max_age=600000' # ms
+        # The following LDLM parameter is not set because lustre-client already runs with a
+        # sensible default (100 * ncpus) in versions <=2.15.
+        # /usr/sbin/lctl set_param 'ldlm.namespaces.*.lru_size=<100 * number_of_CPUs>
+        exit 0
+    fi
+    sleep 1
+done
+
+echo "No Lustre LDLM namespaces found (filesystem not mounted?); skipping LDLM tuning"
+exit 0

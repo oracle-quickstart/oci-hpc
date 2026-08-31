@@ -1,15 +1,15 @@
 ---
 - name: Get All configurations in the DB
   ansible.builtin.command: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py configurations list --format json --role compute"
-  register: get_configurations_results
+  register: slurm_get_configurations_results
 
 - name: Convert the Python script output to a list of dictionaries
   ansible.builtin.set_fact:
-    json_list: "{{ get_configurations_results.stdout | from_json }}"
+    slurm_json_list: "{{ slurm_get_configurations_results.stdout | from_json }}"
 
 - name: Convert the Python script output to a list of dictionaries
   ansible.builtin.set_fact:
-    queues: "{{ json_list.queues }}"
+    slurm_queues: "{{ slurm_json_list.queues }}"
 
 - name: Generate password for DB user and save it to /etc/trinity/passwords
   ansible.builtin.set_fact:
@@ -58,6 +58,15 @@
   ansible.builtin.include_role:
     name: pyxis
   when: pyxis | default(false) | bool
+
+- name: Add sinfor alias on controller
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    regexp: "^alias sinfor="
+    line: "alias sinfor='sinfo -R -o \"%80E %12U %19H %6t %N\"'"
+    state: present
+    create: true
+    mode: "0644"
 
 - name: Render systemd units for slurm and slurmdbd
   become: true
@@ -135,8 +144,11 @@
 
     - name: Set permissions
       become: true
-      ansible.builtin.command:
-        cmd: "chown {{ ansible_user }}:{{ ansible_user }} /config/key/munge.key"
+      ansible.builtin.file:
+        name: "/config/key/munge.key"
+        state: file
+        owner: "{{ cluster_admin_user }}"
+        group: "{{ cluster_admin_user }}"
 
 - name: Generate JWT key if it does not exist
   openssl_privatekey:
@@ -192,6 +204,15 @@
     salt: 1234567890abcdefghij
     state: present
   when: groups['slurm_backup'] | length > 0
+
+- name: Configure Slurm monitoring database and users
+  ansible.builtin.import_tasks: monitoring_db.yml
+  when:
+    - cluster_monitoring | default(false) | bool
+    - slurm | default(false) | bool
+    - slurm_job_monitoring | default(false) | bool
+    - slurm_monitoring_db_host | default('') | string | length > 0
+    - (slurm_monitoring_mysql_backend | default('managed')) == 'managed' or inventory_hostname == (groups['controller'] | first)
 
 - name: Copy cgroup file
   become: true

@@ -1,0 +1,15 @@
+---
+packages_list:
+  all:
+    - clustershell
+    - bash-completion
+    - make
+    - pssh
+    - pdsh
+  ol:
+    - python3-oci-cli
+  ubuntu:
+    - python3-openssl
+    - python3-cryptography
+    - parted
+    - python3-netaddr

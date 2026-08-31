@@ -1,5 +1,5 @@
 import click
-from lib.cli.configurations.commands import list, get, create, delete, update, update_slurm
+from lib.cli.configurations.commands import list, get, create, delete, update
 
 @click.group("configurations")
 def cmd():
@@ -11,4 +11,3 @@ cmd.add_command(get.get)
 cmd.add_command(create.create)
 cmd.add_command(delete.delete)
 cmd.add_command(update.update)
-cmd.add_command(update_slurm.update_slurm)

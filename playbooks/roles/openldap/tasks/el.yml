@@ -14,6 +14,7 @@
   vars:
     package_name: policycoreutils-python-utils
     package_state: present
+    package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL" # noqa: var-naming[no-role-prefix]
   include_role:
     name: safe_yum
 
@@ -32,6 +33,7 @@
         openldap_packages_ol8 if ansible_facts['distribution_major_version'] == '8' else
         openldap_packages_ol9
       }}
+    package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL" # noqa: var-naming[no-role-prefix]
   include_role:
     name: safe_yum
 
@@ -61,7 +63,7 @@
 - block:
     - name: Write openldap root password to backup
       copy:
-        content: "{{ openldap_root_pwd }}"
+        content: "{{ openldap_root_pwd }}\n"
         dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
       delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
   when:
@@ -84,11 +86,50 @@
     - ansible_facts['selinux'] != false
     - ansible_facts['selinux']['status'] == 'enabled'
 
+- name: Select OpenLDAP listener URLs
+  # In a Slurm HA deployment, slapd requires one listener URL to match the
+  # local host's olcServerID. Keep the generic listeners for non-HA EL
+  # clusters, where no replication server IDs are configured.
+  ansible.builtin.set_fact:
+    openldap_slapd_urls: >-
+      {{
+        openldap_endpoints
+        if (groups['slurm_backup'] | default([]) | length == 0)
+        else (
+          'ldap:/// ldaps://' ~
+          (
+            controller_hostname
+            if inventory_hostname in groups['controller']
+            else slurm_backup_hostname
+          ) ~
+          ':636 ldapi:///'
+        )
+      }}
+
 - name: Adjust OpenLDAP server TLS configuration
   lineinfile:
     path: "{{ openldap_server_defaults_file }}"
     regexp: "^SLAPD_URLS="
-    line: 'SLAPD_URLS="{{ openldap_endpoints }}"'
+    line: 'SLAPD_URLS="{{ openldap_slapd_urls }}"'
+
+- name: Create OpenLDAP systemd override directory (OL9)
+  ansible.builtin.file:
+    path: /etc/systemd/system/slapd.service.d
+    state: directory
+    mode: "0755"
+  when: ansible_facts['distribution_major_version'] == "9"
+
+- name: Override OpenLDAP listener URLs in systemd (OL9)
+  ansible.builtin.template:
+    src: slapd.service.override.conf.j2
+    dest: /etc/systemd/system/slapd.service.d/override.conf
+    mode: "0644"
+  when: ansible_facts['distribution_major_version'] == "9"
+
+- name: Reload systemd after OpenLDAP listener override (OL9)
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: ansible_facts['distribution_major_version'] == "9"
 
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:

@@ -21,8 +21,13 @@
     group: opc
   register: opc_directory
 
-- name: Copy opc/ dir
-  command: "cp -rpT /home/opc {{ tmp_home }}{% if create_fss != 'new' %}/home{% endif %}/opc"
+- name: Synchronize opc home directory
+  ansible.builtin.command:
+    argv:
+      - rsync
+      - -a
+      - /home/opc/
+      - "{{ tmp_home }}{% if create_fss != 'new' %}/home{% endif %}/opc/"
   when: opc_directory.changed
 
 - name: Unmount {{ tmp_home }} mount

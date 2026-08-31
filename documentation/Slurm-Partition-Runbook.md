@@ -83,31 +83,18 @@ Verify these fields carefully in the output:
 - `rdma_enabled = <your RDMA_ENABLED>`
 - `image_id = <your GPU_IMAGE_OCID>`
 
-## Step 4: Preview the Slurm Changes
+## Step 4: Reconcile Slurm Configuration
 
-Run a dry-run first so the team can review the generated Slurm updates safely.
-
-```bash
-# Preview the managed slurm.conf changes without applying them
-sudo mgmt configurations update-slurm --dry-run
-```
-
-## Step 5: Apply the Slurm Changes
-
-If the dry-run looks correct, apply the configuration to Slurm.
+`mgmt configurations create` and `mgmt configurations update` now trigger a
+controller-side Slurm reconcile automatically. If you need to replay that
+manually, use:
 
 ```bash
-# Apply the new managed Slurm configuration
-sudo mgmt configurations update-slurm
+# Manually reconcile Slurm configuration from the controller source of truth
+sudo mgmt services init
 ```
 
-Notes:
-
-- This updates the managed `Nodeset`, `NodeName`, and `PartitionName` entries.
-- It also runs `scontrol reconfigure`.
-- The tool creates backup files for the managed Slurm config files.
-
-## Step 6: Verify the New Partition Exists
+## Step 5: Verify the New Partition Exists
 
 ```bash
 # Verify the main partition exists
@@ -125,7 +112,7 @@ Expected result:
 - `${PARTITION_NAME}` should exist as a normal partition
 - `${PARTITION_NAME}-healthcheck` should exist as the healthcheck partition
 
-## Step 7: Create the New GPU Cluster
+## Step 6: Create the New GPU Cluster
 
 Create the initial set of GPU nodes using the new mgmt configuration name.
 
@@ -137,7 +124,7 @@ mgmt clusters create \
   --instancetype "${CONFIG_NAME}"
 ```
 
-## Step 8: Watch the Nodes Register
+## Step 7: Watch the Nodes Register
 
 ```bash
 # Watch the newly created nodes as they register and get configured
@@ -149,7 +136,7 @@ mgmt nodes list \
 sinfo
 ```
 
-## Step 9: Add More Nodes Later
+## Step 8: Add More Nodes Later
 
 Once the new cluster exists, you can scale it out with `mgmt clusters add node`.
 
@@ -176,10 +163,6 @@ mgmt configurations update \
   --fields "partition=${PARTITION_NAME},default_partition=false,shape=${GPU_SHAPE},rdma_enabled=${RDMA_ENABLED},image_id=${GPU_IMAGE_OCID}"
 
 mgmt configurations get --name "${CONFIG_NAME}"
-
-sudo mgmt configurations update-slurm --dry-run
-
-sudo mgmt configurations update-slurm
 
 scontrol show partition "${PARTITION_NAME}"
 
@@ -214,11 +197,11 @@ Important notes:
 
 - `mgmt clusters add node` works by `cluster` name, not by Slurm partition name.
 - `mgmt nodes terminate` works best with either:
-- `--nodes` for exact hostnames, or
-- `--fields "role=compute,cluster_name=gpu-cluster"` for cluster-wide actions
+  - `--nodes` for exact hostnames, or
+  - `--fields "role=compute,cluster_name=gpu-cluster"` for cluster-wide actions
 - Avoid using `--fields "slurm_partition=gpu-compute"` for deletes. In this codebase, `slurm_partition` is stored as a combined value and may include the healthcheck partition as well.
 
-## 1. Verify Current State
+### Check Current State
 
 ```bash
 # List clusters known to mgmt
@@ -233,7 +216,7 @@ mgmt nodes list \
 sinfo -p gpu-compute
 ```
 
-## 2. Add Nodes to the GPU Cluster
+### Add Nodes to the GPU Cluster
 
 ```bash
 # Add 1 node to the existing GPU cluster
@@ -245,7 +228,7 @@ mgmt clusters add node --cluster gpu-cluster --count 1
 mgmt clusters add node --cluster gpu-cluster --count 2
 ```
 
-## 3. Remove Specific Nodes from the GPU Cluster
+### Remove Specific Nodes from the GPU Cluster
 
 Use this when you want to remove only selected nodes.
 
@@ -268,7 +251,7 @@ mgmt nodes list \
   --columns hostname,status,shape,cluster_name,slurm_partition
 ```
 
-## 4. Remove All Compute Nodes from the GPU Cluster
+### Remove All Compute Nodes from the GPU Cluster
 
 Use this when you want to scale the cluster down to zero nodes but keep the cluster definition.
 
@@ -284,7 +267,7 @@ This is safer than filtering on `slurm_partition`, because the code matches fiel
 - `gpu-compute`
 - `gpu-compute-healthcheck`
 
-## 5. Delete the Entire GPU Cluster
+### Delete the Entire GPU Cluster
 
 Use this only if you want to remove the full cluster object, not just some nodes. This is an alternative to Section 4, not a follow-on step after scaling the cluster down to zero.
 
@@ -298,7 +281,7 @@ This is different from `mgmt nodes terminate`:
 - `mgmt nodes terminate` removes selected instances
 - `mgmt clusters delete --cluster ...` removes the whole cluster construct
 
-## 6. Reconcile and Refresh State
+### Reconcile and Refresh State
 
 After add or delete operations, run the controller workflow to refresh metadata and configuration state immediately.
 
@@ -309,7 +292,7 @@ mgmt services all
 
 This performs the combined workflow that scans the queue, refreshes metadata, runs Ansible as needed, and updates node state.
 
-## 7. Verify After the Change
+### Verify After the Change
 
 ```bash
 # Check node records in mgmt
@@ -331,7 +314,7 @@ mgmt nodes list \
   --columns ALL
 ```
 
-## 8. Most Common Commands
+### Common Commands
 
 ```bash
 # Add 2 nodes
@@ -351,139 +334,4 @@ mgmt services all
 
 # Verify Slurm
 sinfo -p gpu-compute
-```
-
-```
----
-
-## 3. Remove Specific Nodes from the GPU Cluster
-
-Use this when you want to remove only selected nodes.
-
-```bash
-
-# Remove two specific nodes by hostname
-mgmt nodes terminate --nodes gpu-7001,gpu-7002
-
-```
-
-```bash
-
-# Remove a set of nodes using ClusterShell / NodeSet notation
-mgmt nodes terminate --nodes gpu-[7001,7002]
-
-```
-
-You can also identify nodes first, then remove them:
-
-```bash
-
-# Inspect current nodes before terminating any
-mgmt nodes list \
---cluster gpu-cluster \
---columns hostname,status,shape,cluster_name,slurm_partition
-
-```
----
-
-## 4. Remove All Compute Nodes from the GPU Cluster
-
-Use this when you want to scale the cluster down to zero nodes but keep the cluster definition.
-
-Important: this section and Section 5 are alternative actions, not sequential steps. If you want to remove the full cluster object, use `mgmt clusters delete --cluster gpu-cluster` directly instead of first terminating all cluster nodes individually.
-
-```bash
-
-# Terminate all compute nodes that belong to gpu-cluster
-mgmt nodes terminate --fields "role=compute,cluster_name=gpu-cluster"
-
-```
-
-This is safer than filtering on `slurm_partition`, because the code matches field values exactly and the stored Slurm partition string may include both:
-
-- `gpu-compute`
-- `gpu-compute-healthcheck`
----
-
-## 5. Delete the Entire GPU Cluster
-
-Use this only if you want to remove the full cluster object, not just some nodes. This is an alternative to Section 4, not a follow-on step after scaling the cluster down to zero.
-
-```bash
-
-# Delete the entire GPU cluster and its nodes
-mgmt clusters delete --cluster gpu-cluster
-
-```
-
-This is different from `mgmt nodes terminate`: 
-
-- `mgmt nodes terminate` removes selected instances
-- `mgmt clusters delete --cluster ...` removes the whole cluster construct
----
-
-## 6. Reconcile and Refresh State
-
-After add or delete operations, run the controller workflow to refresh metadata and configuration state immediately.
-
-```bash
-
-# Run the full management workflow
-mgmt services all
-
-```
-
-This performs the combined workflow that scans the queue, refreshes metadata, runs Ansible as needed, and updates node state.
-
----
-
-## 7. Verify After the Change
-
-```bash
-
-# Check node records in mgmt
-mgmt nodes list \
---cluster gpu-cluster \
---columns hostname,status,compute_status,controller_status,slurm_partition,shape
-
-# Check Slurm partition state
-sinfo -p gpu-compute
-
-```
-
-Optional detailed check:
-
-```bash
-
-# Show all node fields in JSON if deeper troubleshooting is needed
-mgmt nodes list \
---cluster gpu-cluster \
---format json \
---columns ALL
-
-```
----
-
-## 8. Most Common Commands
-
-```bash
-
-# Add 2 nodes
-mgmt clusters add node --cluster gpu-cluster --count 2
-
-# Remove two specific nodes
-mgmt nodes terminate --nodes gpu-7001,gpu-7002
-
-# Remove all compute nodes in the cluster
-mgmt nodes terminate --fields "role=compute,cluster_name=gpu-cluster"
-
-# Delete the entire cluster
-mgmt clusters delete --cluster gpu-cluster
-
-# Refresh mgmt/controller state
-mgmt services all
-
-# Verify Slurm
-sinfo -p gpu-compute
-
 ```

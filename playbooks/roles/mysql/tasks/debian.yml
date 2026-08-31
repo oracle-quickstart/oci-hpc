@@ -12,9 +12,9 @@
   file:
     path: /etc/opt/oci-hpc/passwords/mysql
     state: directory
-    owner: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
     mode: "0770"
-    group: "{{ ansible_user }}"
+    group: "{{ cluster_admin_user }}"
     recurse: true
 
 - name: Generate password for DB root and save it to /etc/opt/oci-hpc/passwords
@@ -27,10 +27,20 @@
 
 - name: Add repository to install python-mysqldb
   become: true
-  apt_repository:
-    repo: deb http://archive.ubuntu.com/ubuntu bionic main
+  ansible.builtin.deb822_repository:
+    name: ubuntu-bionic-main
+    types:
+      - deb
+    uris:
+      - http://archive.ubuntu.com/ubuntu
+    suites:
+      - bionic
+    components:
+      - main
     state: present
-  when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] < "22"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+    - ansible_facts['distribution_major_version'] | int < 22
 
 - name: Install MariaDB packages
   vars:
@@ -68,6 +78,42 @@
   copy:
     src: innodb.cnf
     dest: /etc/my.cnf.d/innodb.cnf
+
+- name: Create MariaDB configuration directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/mysql/mariadb.conf.d/
+    mode: "0755"
+    owner: root
+    group: root
+    state: directory
+
+- name: Configure MariaDB TCP bind for local monitoring DB
+  become: true
+  ansible.builtin.template:
+    src: monitoring_bind.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/99-oci-hpc-monitoring.cnf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mariadb
+  when:
+    - cluster_monitoring | default(false) | bool
+    - slurm_job_monitoring | default(false) | bool
+    - (slurm_monitoring_mysql_backend | default('managed')) == 'local'
+
+- name: Remove MariaDB TCP bind override when local monitoring DB is disabled
+  become: true
+  ansible.builtin.file:
+    path: /etc/mysql/mariadb.conf.d/99-oci-hpc-monitoring.cnf
+    state: absent
+  notify: Restart mariadb
+  when: >-
+    not (
+      cluster_monitoring | default(false) | bool
+      and slurm_job_monitoring | default(false) | bool
+      and (slurm_monitoring_mysql_backend | default('managed')) == 'local'
+    )
 
 - name: Enable MariaDB service
   become: true

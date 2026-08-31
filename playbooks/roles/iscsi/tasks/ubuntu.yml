@@ -29,5 +29,12 @@
     path: "{{ local_path }}"
     src: '{{ target["devicenodes"][0] }}'
     fstype: ext4
-    opts: defaults,noatime,_netdev
+    opts: defaults,noatime,_netdev,nofail,x-systemd.automount
     state: mounted
+  register: iscsi_mount
+
+- name: Reload systemd for iSCSI automount
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: iscsi_mount is changed

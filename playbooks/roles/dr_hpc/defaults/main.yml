@@ -1,0 +1,10 @@
+---
+dr_hpc_bucket_url: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/GZZBIGhc3IyliM7hVYyclYsva62TdMLQmr63HKt9uSQWq1a0Rb4UBtyD_CIy9SLO/n/hpc/b/drhpcv2/o"
+dr_hpc_package_name: "oci-dr-hpc-v2"
+dr_hpc_download_dir: "/config/3rdparty/oci-dr-hpc-v2"
+dr_hpc_use_latest_metadata: true
+dr_hpc_force_latest_refresh: false
+dr_hpc_version: ""
+dr_hpc_latest_metadata_name: "latest.json"
+dr_hpc_release_metadata_path: "{{ dr_hpc_download_dir }}/oci-dr-hpc-v2-release.json"
+dr_hpc_cache_lock_path: "{{ dr_hpc_download_dir }}/.cache-lock"

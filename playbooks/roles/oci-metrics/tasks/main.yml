@@ -33,8 +33,8 @@
 #     dest: /etc/systemd/system/oci-fss-exporter.service
 #     force: yes
 #     backup: yes
-#     owner: "{{ ansible_user }}"
-#     group: "{{ ansible_user }}"
+#     owner: "{{ cluster_admin_user }}"
+#     group: "{{ cluster_admin_user }}"
 #     mode: 0744
 
 # - name: Render OCI Lustre Exporter systemd service file
@@ -44,8 +44,8 @@
 #     dest: /etc/systemd/system/oci-lustre-exporter.service
 #     force: yes
 #     backup: yes
-#     owner: "{{ ansible_user }}"
-#     group: "{{ ansible_user }}"
+#     owner: "{{ cluster_admin_user }}"
+#     group: "{{ cluster_admin_user }}"
 #     mode: 0744
 
 - name: Render OCI RDMA Faults Exporter systemd service file
@@ -55,8 +55,8 @@
     dest: /etc/systemd/system/oci-rdma-faults-exporter.service
     force: true
     backup: true
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0744"
   until: job_result is not failed
   retries: 30

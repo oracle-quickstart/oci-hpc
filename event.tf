@@ -1,6 +1,6 @@
 
 
-resource "oci_events_rule" "generated_oci_events_rule" {
+resource "oci_events_rule" "node_starting" {
   depends_on = [oci_functions_function.function]
   actions {
     actions {
@@ -14,7 +14,7 @@ resource "oci_events_rule" "generated_oci_events_rule" {
   description    = "write_node_starting_event"
   display_name   = "${local.cluster_name}_write_node_starting_event"
   is_enabled     = "true"
-  
+
   freeform_tags = {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
@@ -23,7 +23,7 @@ resource "oci_events_rule" "generated_oci_events_rule" {
 
 
 
-resource "oci_events_rule" "generated_oci_events_rule_2" {
+resource "oci_events_rule" "node_terminating" {
   depends_on = [oci_functions_function.function]
   actions {
     actions {
@@ -37,7 +37,7 @@ resource "oci_events_rule" "generated_oci_events_rule_2" {
   description    = "write_node_terminating_event"
   display_name   = "${local.cluster_name}_write_node_terminating_event"
   is_enabled     = "true"
-  
+
   freeform_tags = {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"

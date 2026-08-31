@@ -58,48 +58,243 @@
         return_content: true
       register: hostname_oci_host_metadata
       changed_when: false
+      failed_when: false
+      ignore_errors: true
+      retries: 21
+      delay: 30
+      until: >-
+        hostname_oci_host_metadata.json is defined and
+        (
+          hostname_oci_host_metadata.json.get('rdmaTopologyData', {}).get('customerLocalBlock', '')
+          | default('', true)
+          | string
+          | lower
+        ) not in ['', 'none', 'null', '(null)']
 
-    - name: Set hostname_rack_id fact
+    - name: Set hostname local block fact
       ansible.builtin.set_fact:
-        hostname_rack_id: "{{ hostname_oci_host_metadata.json.rackId | default('') }}"
+        hostname_local_block_id: >-
+          {{
+            (hostname_oci_host_metadata.json | default({})).get('rdmaTopologyData', {}).get('customerLocalBlock', '')
+            | default('', true)
+          }}
 
-    - name: Set NVIDIA IMEX rack prefix
+    - name: Set hostname rack ID fact
+      ansible.builtin.set_fact:
+        hostname_rack_id: >-
+          {{
+            (hostname_oci_host_metadata.json | default({})).get('rackId', '')
+            | default('', true)
+          }}
+
+    - name: Set NVIDIA IMEX rack fallback prefix
       ansible.builtin.set_fact:
         hostname_rack_prefix: "{{ hostname_rack_id[56:64] }}"
       when: hostname_rack_id | length >= 64
 
-    - name: Gather tray index
-      ansible.builtin.shell: "nvidia-smi -q | awk -F: '/Tray Index/{gsub(/^[[:space:]]+/, \"\", $2); print $2; exit}'" # noqa command-instead-of-module
-      register: hostname_tray_index_output
+    - name: Set hostname GPU memory cluster fact
+      ansible.builtin.set_fact:
+        hostname_gmc_id: >-
+          {{
+            instance_metadata['freeformTags'].get(
+              'oci:compute:gpumemorycluster',
+              instance_metadata['freeformTags'].get('memory_cluster_name', '')
+            )
+            | default('', true)
+          }}
+
+    - name: Set NVIDIA IMEX topology suffixes
+      ansible.builtin.set_fact:
+        hostname_local_block_suffix: "{{ hostname_local_block_id[-5:] }}"
+        hostname_gmc_suffix: "{{ hostname_gmc_id[-5:] }}"
+      when:
+        - hostname_local_block_id | string | lower not in ['', 'none', 'null', '(null)']
+        - hostname_gmc_id | string | lower not in ['', 'none', 'null', '(null)']
+
+    - name: Gather NVIDIA SMI details
+      ansible.builtin.command:
+        argv:
+          - nvidia-smi
+          - -q
+      register: hostname_nvidia_smi_output
       ignore_errors: true
       changed_when: false
 
-    - name: Set hostname_rack_index to None if not defined
+    - name: Parse tray index from NVIDIA SMI output
       ansible.builtin.set_fact:
-        hostname_rack_index: "None"
+        hostname_tray_index_matches: "{{ hostname_nvidia_smi_output.stdout | default('') | regex_findall('(?m)^\\s*Tray Index\\s*:\\s*(\\S+)\\s*$') }}"
 
-    - name: Set hostname_rack_index based on hostname_tray_index_output
+    - name: Set hostname_rack_index based on tray index
       ansible.builtin.set_fact:
-        hostname_rack_index: "{{ hostname_tray_index_output.stdout | default('None') }}"
-      when: hostname_tray_index_output is defined
+        hostname_rack_index: "{{ hostname_tray_index_matches | first | default('None') }}"
 
     - name: Set alternate hostname for DNS update
       ansible.builtin.set_fact:
+        hostname_alternate_hostname: >-
+          {{ hostname_convention }}-{{ hostname_local_block_suffix }}-{{ hostname_gmc_suffix }}-{{ hostname_rack_index }}
+      when:
+        - hostname_local_block_suffix is defined
+        - hostname_gmc_suffix is defined
+        - hostname_rack_index != 'None'
+
+    - name: Set alternate hostname for DNS update using rack fallback
+      ansible.builtin.set_fact:
         hostname_alternate_hostname: "{{ hostname_convention }}-{{ hostname_rack_prefix }}-{{ hostname_rack_index }}"
       when:
-        - hostname_rack_id | length >= 64
+        - hostname_alternate_hostname is not defined
+        - hostname_rack_prefix is defined
         - hostname_rack_index != 'None'
 
     - name: Update hostname for HPC cluster
       ansible.builtin.hostname:
         name: "{{ hostname_alternate_hostname }}"
+      when: hostname_alternate_hostname is defined
+
+    - name: Set alternate hostname DNS name
+      ansible.builtin.set_fact:
+        hostname_alternate_dns_name: >-
+          {{
+            hostname_alternate_hostname ~
+            (
+              '.' ~ (zone_name | default('') | regex_replace('\\.$', ''))
+              if (zone_name | default('') | length > 0)
+              else ''
+            )
+          }}
+      when: hostname_alternate_hostname is defined
+
+    - name: Flush local DNS cache before alternate hostname lookup
+      become: true
+      ansible.builtin.command:
+        argv:
+          - resolvectl
+          - flush-caches
+      register: hostname_alternate_dns_initial_cache_flush
+      changed_when: false
+      failed_when: false
+      when: hostname_alternate_hostname is defined
+
+    - name: Restart systemd-resolved before alternate hostname lookup
+      become: true
+      ansible.builtin.systemd_service:
+        name: systemd-resolved
+        state: restarted
+      when: hostname_alternate_hostname is defined
+
+    - name: Wait for systemd-resolved after alternate hostname lookup restart
+      ansible.builtin.wait_for:
+        timeout: 2
+      when: hostname_alternate_hostname is defined
+
+    - name: Lookup alternate hostname DNS entry
+      ansible.builtin.command:
+        argv:
+          - getent
+          - ahostsv4
+          - "{{ hostname_alternate_dns_name }}"
+      register: hostname_alternate_dns_lookup
+      changed_when: false
+      failed_when: false
+      when: hostname_alternate_hostname is defined
+
+    - name: Set alternate hostname DNS IPs
+      ansible.builtin.set_fact:
+        hostname_alternate_dns_ips: "{{ hostname_alternate_dns_lookup.stdout | default('') | regex_findall('(?m)^(\\S+)') | unique | list }}"
+      when: hostname_alternate_hostname is defined
+
+    - name: Set expected alternate hostname DNS IP
+      ansible.builtin.set_fact:
+        hostname_alternate_expected_dns_ip: "{{ hostvars[inventory_hostname]['ansible_facts']['default_ipv4']['address'] }}"
+      when: hostname_alternate_hostname is defined
 
     - name: Add DNS entry with alternate hostname
       become_user: ubuntu
       become: true
       ansible.builtin.command:
-        cmd: >-
-          mgmt nodes add-dns-entry
-          --alternate_hostname {{ hostname_alternate_hostname }}
-          --nodes {{ hostname_new }}
-      when: hostname_alternate_hostname is defined
+        argv:
+          - /usr/local/bin/mgmt
+          - nodes
+          - add-dns-entry
+          - --alternate_hostname
+          - "{{ hostname_alternate_hostname }}"
+          - --ip
+          - "{{ hostname_alternate_expected_dns_ip }}"
+      register: hostname_alternate_dns_update
+      changed_when: true
+      retries: 3
+      delay: 10
+      until: hostname_alternate_dns_update.rc == 0
+      when:
+        - hostname_alternate_hostname is defined
+        - hostname_alternate_expected_dns_ip not in (hostname_alternate_dns_ips | default([]))
+
+    - name: Parse alternate hostname DNS update target IP
+      ansible.builtin.set_fact:
+        hostname_alternate_dns_update_ips: "{{ hostname_alternate_dns_update.stdout | default('') | regex_findall('->\\s+(\\S+)') }}"
+      when:
+        - hostname_alternate_dns_update is defined
+        - hostname_alternate_dns_update is changed
+
+    - name: Set expected alternate hostname DNS IP from update
+      ansible.builtin.set_fact:
+        hostname_alternate_expected_dns_ip: "{{ hostname_alternate_dns_update_ips | first }}"
+      when:
+        - hostname_alternate_dns_update_ips is defined
+        - hostname_alternate_dns_update_ips | length > 0
+
+    - name: Wait for alternate hostname DNS propagation
+      ansible.builtin.wait_for:
+        timeout: 10
+      when:
+        - hostname_alternate_dns_update is defined
+        - hostname_alternate_dns_update is changed
+
+    - name: Flush local DNS cache before alternate hostname verification
+      become: true
+      ansible.builtin.command:
+        argv:
+          - resolvectl
+          - flush-caches
+      register: hostname_alternate_dns_cache_flush
+      changed_when: false
+      failed_when: false
+      when:
+        - hostname_alternate_dns_update is defined
+        - hostname_alternate_dns_update is changed
+
+    - name: Restart systemd-resolved before alternate hostname verification
+      become: true
+      ansible.builtin.systemd_service:
+        name: systemd-resolved
+        state: restarted
+      register: hostname_alternate_dns_resolved_restart
+      changed_when: false
+      failed_when: false
+      when:
+        - hostname_alternate_dns_update is defined
+        - hostname_alternate_dns_update is changed
+
+    - name: Wait for systemd-resolved after alternate hostname verification restart
+      ansible.builtin.wait_for:
+        timeout: 2
+      when:
+        - hostname_alternate_dns_update is defined
+        - hostname_alternate_dns_update is changed
+
+    - name: Verify alternate hostname DNS entry
+      become: true
+      ansible.builtin.command:
+        argv:
+          - getent
+          - ahostsv4
+          - "{{ hostname_alternate_dns_name }}"
+      register: hostname_alternate_dns_verify
+      changed_when: false
+      retries: 12
+      delay: 10
+      until: >-
+        hostname_alternate_expected_dns_ip
+        in (hostname_alternate_dns_verify.stdout | default('') | regex_findall('(?m)^(\\S+)'))
+      when:
+        - hostname_alternate_hostname is defined
+        - hostname_alternate_expected_dns_ip not in (hostname_alternate_dns_ips | default([]))

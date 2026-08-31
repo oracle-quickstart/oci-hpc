@@ -118,6 +118,12 @@ NVRM_GPU_MAP_PATTERN = re.compile(
     r"NVRM: GPU at PCI:([0-9a-fA-F:.]+): (GPU-[0-9a-fA-F-]+)"
 )
 
+NVRM_INSUFFICIENT_RESOURCES_PATTERN = (
+    "NVRM: nvCheckOkFailedNoLog: Check failed: Ran out of a critical resource, "
+    "other than memory [NV_ERR_INSUFFICIENT_RESOURCES]"
+)
+NVRM_INSUFFICIENT_RESOURCES_MESSAGE = "Ran out of multicast groups, too many GMCs"
+
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -833,6 +839,12 @@ class XidChecker:
         }
         return ranks.get(severity, 0)
 
+    @staticmethod
+    def _dmesg_error_messages(dmesg_output: str) -> list[str]:
+        if NVRM_INSUFFICIENT_RESOURCES_PATTERN in dmesg_output:
+            return [NVRM_INSUFFICIENT_RESOURCES_MESSAGE]
+        return []
+
     def check_gpu_xid(self):
         categorized_results = {
             "critical": {},
@@ -845,13 +857,18 @@ class XidChecker:
         if dmesg_output == "":
             return {
                 "categories": categorized_results,
+                "dmesg_errors": [],
                 "results": self.results,
             }
 
+        dmesg_errors = self._dmesg_error_messages(dmesg_output)
+
         if "NVRM: Xid" not in dmesg_output:
-            log.info("Xid Check: Passed")
+            if not dmesg_errors:
+                log.info("Xid Check: Passed")
             return {
                 "categories": categorized_results,
+                "dmesg_errors": dmesg_errors,
                 "results": self.results,
             }
 
@@ -905,6 +922,7 @@ class XidChecker:
 
         return {
             "categories": categorized_results,
+            "dmesg_errors": dmesg_errors,
             "results": self.results,
         }
 

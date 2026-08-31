@@ -8,6 +8,14 @@ resource "oci_file_storage_file_system" "FSS" {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
   }
+
+  dynamic "locks" {
+    for_each = var.enable_fss_deletion_protection ? [1] : []
+    content {
+      type    = "DELETE"
+      message = "Protected by the Slurm stack to prevent accidental FSS deletion. Remove this lock before intentionally deleting the file system."
+    }
+  }
 }
 
 resource "oci_file_storage_file_system" "config_fss" {
@@ -18,6 +26,14 @@ resource "oci_file_storage_file_system" "config_fss" {
   freeform_tags = {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
+  }
+
+  dynamic "locks" {
+    for_each = var.enable_fss_deletion_protection ? [1] : []
+    content {
+      type    = "DELETE"
+      message = "Protected by the Slurm stack to prevent accidental FSS deletion. Remove this lock before intentionally deleting the file system."
+    }
   }
 }
 
@@ -31,6 +47,14 @@ resource "oci_file_storage_file_system" "FSS_home" {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
   }
+
+  dynamic "locks" {
+    for_each = var.enable_fss_deletion_protection ? [1] : []
+    content {
+      type    = "DELETE"
+      message = "Protected by the Slurm stack to prevent accidental FSS deletion. Remove this lock before intentionally deleting the file system."
+    }
+  }
 }
 
 resource "oci_file_storage_mount_target" "config_fss_mount_target" {
@@ -38,7 +62,7 @@ resource "oci_file_storage_mount_target" "config_fss_mount_target" {
   compartment_id      = var.targetCompartment
   subnet_id           = local.subnet_id
   display_name        = "${local.cluster_name}-config-mt"
-  hostname_label      = "configfs"
+  hostname_label      = "configfs-${substr(local.cluster_name, 0, 40)}-${substr(md5(local.cluster_name), 0, 6)}"
 
   freeform_tags = {
     "cluster_name"    = local.cluster_name
@@ -52,7 +76,7 @@ resource "oci_file_storage_mount_target" "FSSMountTarget" {
   compartment_id      = var.fss_compartment
   subnet_id           = local.subnet_id
   display_name        = "${local.cluster_name}-mt-${count.index}"
-  hostname_label      = "fileserver${count.index}"
+  hostname_label      = "fs-${substr(local.cluster_name, 0, 40)}-${substr(md5(local.cluster_name), 0, 6)}-${count.index}"
 
   freeform_tags = {
     "cluster_name"    = local.cluster_name

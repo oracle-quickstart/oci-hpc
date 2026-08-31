@@ -21,10 +21,14 @@
     group: ubuntu
   register: ubuntu_directory
 
-- name: Copy ubuntu/ dir
-  command: "cp -rpT /home/ubuntu {{ tmp_home }}{% if create_fss != 'new' %}/home{% endif %}/ubuntu"
+- name: Synchronize ubuntu home directory
+  ansible.builtin.command:
+    argv:
+      - rsync
+      - -a
+      - /home/ubuntu/
+      - "{{ tmp_home }}{% if create_fss != 'new' %}/home{% endif %}/ubuntu/"
   when: ubuntu_directory.changed
-  ignore_errors: true
 
 - name: Unmount {{ tmp_home }} mount
   mount:

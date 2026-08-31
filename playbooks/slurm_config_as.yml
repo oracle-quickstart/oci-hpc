@@ -1,15 +1,19 @@
 ---
-- hosts: all
+- name: Prepare Slurm config as
+  hosts: all
   gather_facts: true
   tasks:
-    - debug:
+    - name: Gather facts
+      ansible.builtin.debug:
         msg: "Gathering facts"
-- hosts: compute, slurm_backup
+- name: Slurm config as
+  hosts: compute, slurm_backup
   gather_facts: true
   vars:
     slurm_mode: "controller"
     enroot_top_path: "{{ nvme_path }}/enroot/"
   tasks:
-    - include_role:
+    - name: Slurm config as
+      ansible.builtin.include_role:
         name: slurm
       when: slurm | default(false) | bool

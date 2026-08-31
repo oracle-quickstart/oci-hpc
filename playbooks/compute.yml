@@ -11,8 +11,6 @@
   hosts: localhost
   become: true
   gather_facts: true
-  vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
     - name: Install mgmt
       ansible.builtin.include_role:
@@ -24,16 +22,10 @@
       ansible.builtin.include_role:
         name: hostname
       when: change_hostname | default(false) | bool
-    - name: Disable daily updates on Ubuntu, "hold" kernel, fix broken packages
-      ansible.builtin.include_role:
-        name: fix_broken
-      when: ansible_facts['os_family'] == 'Debian'
-
 - name: Run standard roles
   hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     http_server_status: "configuring"
     http_server_role: "compute"
   gather_facts: true
@@ -41,7 +33,6 @@
     - oci-cloud-agent
     - http_server
     - privilege_group
-    - oci-legacy
     - packages
     - firewall
     - oci-hostname
@@ -51,12 +42,10 @@
     - queue_read
     - oom-adjust
 
-- name: Setup local disk, health checks
+- name: Setup local disk
   hosts: localhost
   become: true
   gather_facts: true
-  vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   tasks:
     - name: Configure local NVMe drives
       ansible.builtin.include_role:
@@ -65,9 +54,6 @@
     - name: Load the nvidia_peermem kernel module
       ansible.builtin.include_role:
         name: nvidia_peermem
-    - name: Install health check scripts
-      ansible.builtin.include_role:
-        name: healthchecks
 
 - name: Clean old files in tmp
   hosts: localhost
@@ -91,10 +77,6 @@
   hosts: localhost
   become: true
   tasks:
-    - name: Enable NFS home directories in SELinux
-      ansible.builtin.include_role:
-        name: home_nfs
-      when: shared_home != "none"
     - name: Configure shared home directories via NFS
       ansible.builtin.include_role:
         name: nfs-client
@@ -114,6 +96,7 @@
         export_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}/home{% endif %}"
         options: ""
         lock: "none"
+        nfs_client_marker: "{{ fss_home_marker_path }}"
       when: shared_home == "fss"
     - name: Configure the generic NFS client
       ansible.builtin.include_role:
@@ -139,13 +122,11 @@
   hosts: localhost
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   pre_tasks:
     - name: Prepare shared 3rdparty paths
       ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
     - name: Configure Enroot/Pyxis/Container runtimes
-      when: enroot | default(true) | bool
       block:
         - name: Install and configure Docker
           ansible.builtin.include_role:
@@ -163,6 +144,20 @@
         - name: Set up Enroot
           ansible.builtin.include_role:
             name: nvidia-enroot
+        - name: Install health check scripts
+          ansible.builtin.include_role:
+            name: healthchecks
+            apply:
+              become: true
+        - name: Install DGXC benchmarking shell integration
+          ansible.builtin.include_role:
+            name: dgxc
+          vars:
+            dgxc_install_shared_components: false
+            dgxc_install_node_integration: true
+          when:
+            - dgxc_benchmarking | default(false) | bool
+            - pyxis | default(false) | bool
     - name: Add nccl-conf role for RDMA clusters
       ansible.builtin.include_role:
         name: nccl-conf
@@ -192,6 +187,11 @@
           export_path: "{{ lfs_source_path }}"
           lock: "none"
       when: add_lfs | default(false) | bool
+
+- name: Configure NHC
+  hosts: localhost
+  gather_facts: true
+  tasks:
     - name: Configure NHC
       ansible.builtin.include_role:
         name: nhc
@@ -204,6 +204,16 @@
       ansible.builtin.include_role:
         name: bucket-fs
       when: create_bucket | bool
+
+- name: Install nvtop for GPU monitoring
+  hosts: localhost
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install nvtop
+      ansible.builtin.include_role:
+        name: nvtop
+      when: "'GPU' in (shape | default(''))"
 
 - name: Run custom Ansible role
   hosts: localhost
@@ -219,7 +229,6 @@
   vars:
     slurm_mode: "compute"
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: true
   pre_tasks:
     - name: Collect cluster archiecture context
@@ -243,11 +252,16 @@
         name: metrics-exporter
       when: cluster_monitoring | default(false) | bool
 
+- name: Installing latest oci_dr_hpc_v2
+  hosts: localhost
+  gather_facts: true
+  roles:
+    - dr_hpc
+
 - name: Launch the HTTP metadata server
   hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     http_server_status: "configured"
     http_server_role: "compute"
   gather_facts: true

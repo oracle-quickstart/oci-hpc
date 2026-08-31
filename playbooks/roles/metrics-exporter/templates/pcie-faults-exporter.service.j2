@@ -4,8 +4,8 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-User={{ ansible_user }}
-Group={{ ansible_user }}
+User={{ cluster_admin_user }}
+Group={{ cluster_admin_user }}
 Type=simple
 ExecStart={{venv_path}}/bin/python3 /usr/local/bin/pcie_faults_exporter.py
 

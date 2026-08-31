@@ -1,3 +1,7 @@
+output "cluster_admin_user" {
+  value = local.cluster_admin_user
+}
+
 output "controller" {
   value = local.host
 }

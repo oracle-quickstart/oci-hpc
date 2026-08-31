@@ -22,11 +22,15 @@ def scan_vcn_logic(cidr, dns=False, change_hostname=False, manage_hosts=None, cf
         logger.error(f"Invalid CIDR: {cidr}")
         return False
     logger.info(f"Scanning subnet {cidr} for nodes")
-    content_dict = get_nodes_ocid_by_subnet(cidr, http_port)
+    scan_results = get_nodes_ocid_by_subnet(cidr, http_port)
+    content_dict = {
+        ip: content for ip, content in scan_results.items()
+        if isinstance(content, dict) and content.get("ocid")
+    }
 
     ocid_list = [entry.get("ocid") for entry in content_dict.values() if isinstance(entry, dict) and entry.get("ocid")]
     nodes = get_nodes_by_id(ocid_list)
-    logger.info(f"Discovered {len(content_dict)} IPs responding, {len(nodes)} already in DB")
+    logger.info(f"Discovered {len(content_dict)} nodes with valid metadata, {len(nodes)} already in DB")
     created = 0
     responder_ips = set(content_dict.keys())
     network = ipaddress.ip_network(cidr, strict=False)

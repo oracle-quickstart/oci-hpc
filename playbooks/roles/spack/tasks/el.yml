@@ -1,11 +1,4 @@
 ---
-- name: Install GIT
-  vars:
-    package_name:
-      - git
-  ansible.builtin.include_role:
-    name: safe_yum
-
 - name: Development Tools"
   vars:
     package_name:

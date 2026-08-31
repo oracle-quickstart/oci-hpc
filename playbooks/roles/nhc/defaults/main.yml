@@ -10,6 +10,7 @@ nhc_supported_gpu_shapes:
   - BM.GPU.H200.8
   - BM.GPU.B200.8
   - BM.GPU.B300.8
+  - BM.GPU.B300.HS.8
   - BM.GPU.GB200.4
   - BM.GPU.GB200-v2.4
   - BM.GPU.GB200-v3.4
@@ -19,3 +20,4 @@ nhc_supported_gpu_shapes:
   - BM.GPU.MI355X-v0.8
   - BM.GPU.MI355X-v1.8
   - BM.GPU.L40S-NC.4
+  - BM.GPU.RTXPRO.8

@@ -3,9 +3,9 @@ import click
 import oci
 from ClusterShell.NodeSet import NodeSet
 
-from lib.database import get_all_nodes, get_controller_node, get_nodes_by_any
+from lib.database import get_all_nodes, get_nodes_by_any
 from lib.logger import logger
-from lib.ociwrap import invoke_node_event_function, list_tagged_cluster_nodes
+from lib.ociwrap import invoke_node_event_function, list_controller_tagged_nodes
 
 
 EVENT_TYPES = {
@@ -40,16 +40,10 @@ def _node_identifiers(node):
 
 
 def _get_tagged_oci_nodes(include_private_ip=False):
-    controller = get_controller_node()
-    if not controller:
-        raise click.ClickException("Controller node was not found in the mgmt DB.")
-
-    return list_tagged_cluster_nodes(
-        controller.compartment_id,
-        controller.cluster_name,
-        controller.controller_name,
-        include_private_ip=include_private_ip,
-    )
+    try:
+        return list_controller_tagged_nodes(include_private_ip=include_private_ip)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 def _get_nodes_by_any_db_then_oci(node_identifiers):

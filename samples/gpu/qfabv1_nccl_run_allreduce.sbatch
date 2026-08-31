@@ -19,12 +19,7 @@ scontrol show hostnames $SLURM_JOB_NODELIST > $MACHINEFILE
 echo MACHINEFILE
 cat $MACHINEFILE
 
-source /etc/os-release
-if [ $ID == "ol" ] || [ $ID == "centos" ] ; then
-    python3 /home/opc/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
-elif [ $ID == "debian" ] || [ $ID == "ubuntu" ] ; then
-    python3 /home/ubuntu/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
-fi
+/opt/oci-hpc/bin/node_ordering_by_rack.py --input_file $MACHINEFILE > /dev/null
 
 echo ORDEREDMACHINEFILE
 cat $ORDEREDMACHINEFILE

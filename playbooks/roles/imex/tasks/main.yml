@@ -16,15 +16,73 @@
     return_content: true
   register: imex_oci_host_metadata
   changed_when: false
+  failed_when: false
+  ignore_errors: true
+  retries: 21
+  delay: 30
+  until: >-
+    imex_oci_host_metadata.json is defined and
+    (
+      imex_oci_host_metadata.json.get('rdmaTopologyData', {}).get('customerLocalBlock', '')
+      | default('', true)
+      | string
+      | lower
+    ) not in ['', 'none', 'null', '(null)']
 
-- name: Set rack_id fact
-  ansible.builtin.set_fact:
-    imex_rack_id: "{{ imex_oci_host_metadata.json.rackId | default('') }}"
+- name: Gather OCI instance metadata
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/instance/
+    method: GET
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
+  register: imex_instance_metadata
+  changed_when: false
 
-- name: Set NVIDIA IMEX rack prefix
+- name: Set IMEX instance metadata fact
   ansible.builtin.set_fact:
-    imex_rack_prefix: "{{ hostname_convention }}-{{ imex_rack_id[56:64] }}"
-  when: imex_rack_id | length >= 64
+    imex_instance_metadata_json: "{{ imex_instance_metadata.content | default('{}', true) | from_json }}"
+
+- name: Set IMEX local block fact
+  ansible.builtin.set_fact:
+    imex_local_block_id: >-
+      {{
+        (imex_oci_host_metadata.json | default({})).get('rdmaTopologyData', {}).get('customerLocalBlock', '')
+        | default('', true)
+      }}
+
+- name: Set IMEX rack ID fact
+  ansible.builtin.set_fact:
+    imex_rack_id: >-
+      {{
+        (imex_oci_host_metadata.json | default({})).get('rackId', '')
+        | default('', true)
+      }}
+
+- name: Set IMEX GPU memory cluster fact
+  ansible.builtin.set_fact:
+    imex_gmc_id: >-
+      {{
+        (imex_instance_metadata_json.get('freeformTags', {})).get(
+          'oci:compute:gpumemorycluster',
+          (imex_instance_metadata_json.get('freeformTags', {})).get('memory_cluster_name', '')
+        )
+        | default('', true)
+      }}
+
+- name: Set NVIDIA IMEX topology prefix
+  ansible.builtin.set_fact:
+    imex_node_prefix: "{{ hostname_convention }}-{{ imex_local_block_id[-5:] }}-{{ imex_gmc_id[-5:] }}"
+  when:
+    - imex_local_block_id | string | lower not in ['', 'none', 'null', '(null)']
+    - imex_gmc_id | string | lower not in ['', 'none', 'null', '(null)']
+
+- name: Set NVIDIA IMEX rack fallback prefix
+  ansible.builtin.set_fact:
+    imex_node_prefix: "{{ hostname_convention }}-{{ imex_rack_id[56:64] }}"
+  when:
+    - imex_node_prefix is not defined
+    - imex_rack_id | length >= 64
 
 - name: Write /etc/nvidia-imex/nodes_config.cfg
   become: true
@@ -35,9 +93,9 @@
     mode: "0644"
     content: |
       {% for j in range(0, 18) %}
-      {{ imex_rack_prefix }}-{{ j }}
+      {{ imex_node_prefix }}-{{ j }}
       {% endfor %}
-  when: imex_rack_prefix is defined
+  when: imex_node_prefix is defined
 
 - name: Start Imex
   become: true
@@ -45,3 +103,71 @@
     name: "nvidia-imex"
     enabled: true
     state: started
+
+- name: Ensure NVIDIA IMEX reports READY
+  block:
+    - name: Check NVIDIA IMEX readiness
+      become: true
+      ansible.builtin.command:
+        argv:
+          - nvidia-imex-ctl
+          - -q
+      register: imex_ready_initial
+      changed_when: false
+      retries: 3
+      delay: 5
+      until: imex_ready_initial.stdout | default('') | trim == "READY"
+
+  rescue:
+    - name: Restart NVIDIA IMEX after initial readiness check failed
+      become: true
+      ansible.builtin.service:
+        name: "nvidia-imex"
+        state: restarted
+
+    - name: Ensure NVIDIA IMEX reports READY after first restart
+      block:
+        - name: Check NVIDIA IMEX readiness after first restart
+          become: true
+          ansible.builtin.command:
+            argv:
+              - nvidia-imex-ctl
+              - -q
+          register: imex_ready_after_first_restart
+          changed_when: false
+          retries: 3
+          delay: 5
+          until: imex_ready_after_first_restart.stdout | default('') | trim == "READY"
+
+      rescue:
+        - name: Restart NVIDIA IMEX after second readiness check failed
+          become: true
+          ansible.builtin.service:
+            name: "nvidia-imex"
+            state: restarted
+
+        - name: Ensure NVIDIA IMEX reports READY after second restart
+          block:
+            - name: Check NVIDIA IMEX readiness after second restart
+              become: true
+              ansible.builtin.command:
+                argv:
+                  - nvidia-imex-ctl
+                  - -q
+              register: imex_ready_after_second_restart
+              changed_when: false
+              retries: 3
+              delay: 5
+              until: imex_ready_after_second_restart.stdout | default('') | trim == "READY"
+
+          rescue:
+            - name: Report NVIDIA IMEX readiness failure
+              ansible.builtin.debug:
+                msg: >-
+                  ERROR: NVIDIA IMEX did not report READY after service start and two restarts.
+                  Last nvidia-imex-ctl -q output:
+                  {{ imex_ready_after_second_restart.stdout | default(
+                    imex_ready_after_first_restart.stdout | default(
+                      imex_ready_initial.stdout | default('')
+                    )
+                  ) | trim }}

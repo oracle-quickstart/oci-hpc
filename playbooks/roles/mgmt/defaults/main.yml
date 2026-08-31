@@ -3,3 +3,6 @@ mgmt_active_healthchecks: true
 mgmt_active_healthchecks_frequency: 24
 mgmt_multi_nodes_healthchecks: true
 mgmt_multi_nodes_healthchecks_frequency: 24
+mgmt_maintenance_event_slurm_management: true
+mgmt_maintenance_event_healthcheck_drained_only: false
+mgmt_start_timer_service: true

@@ -13,7 +13,7 @@ resource "oci_core_instance" "login" {
     for_each = local.is_login_flex_shape
     content {
       ocpus         = shape_config.value
-      memory_in_gbs = var.login_custom_memory ? var.login_memory : 16 * shape_config.value
+      memory_in_gbs = var.login_custom_memory ? var.login_memory : (var.login_shape == "VM.DenseIO.E5.Flex" || var.login_shape == "VM.DenseIO.E6.Ax.Flex" ? 12 : 16) * shape_config.value
     }
   }
   agent_config {
@@ -22,9 +22,10 @@ resource "oci_core_instance" "login" {
   display_name = "${local.cluster_name}-login"
 
   freeform_tags = {
-    "cluster_name"    = local.cluster_name
-    "controller_name" = oci_core_instance.controller.display_name
-    "login"           = "true"
+    "cluster_name"        = local.cluster_name
+    "config_fss_hostname" = local.config_fss_hostname
+    "controller_name"     = oci_core_instance.controller.display_name
+    "login"               = "true"
   }
 
   metadata = {

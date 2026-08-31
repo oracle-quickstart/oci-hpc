@@ -1,0 +1,10 @@
+---
+- name: Reconcile Slurm
+  hosts: controller, slurm_backup
+  vars:
+    slurm_mode: "reconcile-ctld"
+  tasks:
+    - name: Reconcile Slurm
+      ansible.builtin.include_role:
+        name: slurm
+      when: slurm | default(false) | bool

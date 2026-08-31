@@ -1,33 +1,10 @@
 ---
-- name: Make sure clustershell is installed for node status script
-  vars:
-    package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL"
-    package_name:
-      - clustershell
-      - bash-completion
-    package_state: latest
-  ansible.builtin.include_role:
-    name: safe_yum
-  ignore_errors: true
-  when: ansible_facts['distribution'] == 'OracleLinux'
-
-- name: Make sure clustershell is installed for node status script
-  vars:
-    package_name:
-      - clustershell
-      - bash-completion
-    package_state: latest
-  ansible.builtin.include_role:
-    name: safe_yum
-  ignore_errors: true
-  when: ansible_facts['distribution'] != 'OracleLinux'
-
 - name: Ensure db directory exists
   file:
     path: "/opt/oci-hpc/db"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
 
 # Ignore the urllib deprecation warning triggered by the strict=True parameter
 # to OCIPoolManager, see here:
@@ -46,7 +23,7 @@
       # Ignore the urllib deprecation warning triggered by OCIPoolManager receiving
       # strict=True.
       # https://github.com/oracle/oci-python-sdk/blob/v2.174.0/src/oci/base_client.py#L377
-      if [ "$(id -un 2>/dev/null)" = "{{ ansible_user }}" ]; then
+      if [ "$(id -un 2>/dev/null)" = "{{ cluster_admin_user }}" ]; then
           export PYTHONWARNINGS="ignore:the 'strict' parameter::urllib3.poolmanager"
       fi
   run_once: true
@@ -62,8 +39,8 @@
     src: "initial.sql"
     dest: "/opt/oci-hpc/db/initial.sql"
     force: false
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
 
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
@@ -93,8 +70,8 @@
   file:
     path: "/opt/oci-hpc/db"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
 
 - name: Create systemd service unit file
   template:
@@ -113,18 +90,37 @@
   systemd:
     daemon_reload: true
 
-- name: Start and enable the service
-  service:
+- name: Start mgmt timer
+  ansible.builtin.service:
     name: mgmt.timer
     state: started
+    enabled: true
+  when: mgmt_start_timer_service | bool
 
 - name: Make sure the /config/mgmt directory exist
   file:
     path: "/config/mgmt"
     state: directory
     mode: "0755"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+
+- name: Make sure the /config/conf directory exists
+  file:
+    path: "/config/conf"
+    state: directory
+    mode: "0755"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+
+- name: Install default node auto-add configuration
+  copy:
+    src: "auto_add_nodes.json"
+    dest: "/config/mgmt/auto_add_nodes.json"
+    force: false
+    mode: "0644"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
 
 # - name: Git checkout
 #   ansible.builtin.git:
@@ -136,8 +132,8 @@
   ansible.builtin.template:
     src: templates/mgmt.ini.j2
     dest: "/config/mgmt/mgmt.ini"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0775"
   run_once: true
 
@@ -147,8 +143,8 @@
   ansible.builtin.template:
     src: templates/mgmt_controller.j2
     dest: "/usr/local/bin/mgmt"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
     mode: "0775"
   run_once: true
 
@@ -163,6 +159,7 @@
   run_once: true
 
 - name: Import the initial_configs into the DB
+  become: false
   shell: "{{ venv_path }}/bin/python3 /config/mgmt/manage.py configurations create from-file --file /config/conf/initial_configs.conf"
 
 - name: Ensure logrotate package is installed

@@ -2,7 +2,6 @@
 
 *||check_fs_mount_rw -f "/"
 *||check_fs_mount_rw -f "/run"
-*||check_fs_mount_rw -f "/boot/efi"
 *||check_fs_mount_rw -f "/dev/shm"
 
 
@@ -18,6 +17,19 @@
 *||check_fs_used {{ m.mount }} 90%
 *||check_fs_iused {{ m.mount }} 95%
 {% endfor %}
+
+
+{% if nhc_nvme_devices | default([]) | length > 0 %}
+#----------------------------------------------
+# Enroot local NVMe directory checks
+#----------------------------------------------
+{% set nhc_enroot_path = enroot_top_path | default((nvme_path | default('/mnt/localdisk/') | regex_replace('/+$', '')) ~ '/enroot') | regex_replace('/+$', '') %}
+{% set nhc_enroot_owner = cluster_admin_user %}
+{% set nhc_enroot_dirs = [nhc_enroot_path, nhc_enroot_path ~ '/enroot_runtime', nhc_enroot_path ~ '/enroot_cache', nhc_enroot_path ~ '/enroot_tmp', nhc_enroot_path ~ '/enroot_data'] %}
+*||check_file_test -d {{ nhc_enroot_dirs | join(' ') }}
+*||check_file_stat -U {{ nhc_enroot_owner }} -G {{ privilege_group_name }} -m 0777 {{ nhc_enroot_dirs | join(' ') }}
+
+{% endif %}
 
 
 {% if 'BM.GPU.B4.8' in nhc_node_shape %}
@@ -449,6 +461,7 @@
 *||check_hw_eth rdma5
 *||check_hw_eth rdma6
 *||check_hw_eth rdma7
+{% if nhc_rdma_planes | int < 1 %}
 *||check_hw_eth rdma8
 *||check_hw_eth rdma9
 *||check_hw_eth rdma10
@@ -457,6 +470,7 @@
 *||check_hw_eth rdma13
 *||check_hw_eth rdma14
 *||check_hw_eth rdma15
+{% endif %}
 
 
 # --- Process loadavg and required services ---
@@ -465,6 +479,7 @@
 
 
 # --- InfiniBand / RoCE checks  ---
+{% if nhc_rdma_planes | int < 1 %}
 *||check_hw_ib 400 mlx5_0:1
 *||check_hw_ib 400 mlx5_1:1
 *||check_hw_ib 400 mlx5_7:1
@@ -481,6 +496,87 @@
 *||check_hw_ib 400 mlx5_19:1
 *||check_hw_ib 400 mlx5_20:1
 *||check_hw_ib 400 mlx5_21:1
+{% elif nhc_rdma_planes | int == 4 %}
+*||check_hw_ib 100 mlx5_4:1
+*||check_hw_ib 100 mlx5_5:1
+*||check_hw_ib 100 mlx5_6:1
+*||check_hw_ib 100 mlx5_7:1
+# mlx5_8 is the front-end Ethernet NIC (eth0), so its expected link speed is 200 Gb/s.
+*||check_hw_ib 200 mlx5_8:1
+# Check that every expected multiplanar virtual RDMA link is active. Reference: https://confluence.oraclecorp.com/confluence/pages/viewpage.action?spaceKey=OCIPMTEAM&title=BM.GPU.B300.8+Multiplanar+Asset+Handover+Document
+{% for rail in range(8) %}
+{% for port in [2, 18, 36, 54, 72] %}
+*||check_hw_ib 200 rdma_rail{{ rail }}:{{ port }}
+{% endfor %}
+*||check_hw_ib 200 rdma_vf_rail{{ rail }}:1
+{% endfor %}
+{% endif %}
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
+{% elif 'BM.GPU.B300.HS.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.B300.HS.8 compute shape here.
+{% set nhc_b300_multiplanar = nhc_rdma_planes | int > 1 %}
+
+{% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 128 256
+{% else %}
+*||check_hw_cpuinfo 2 128 128
+{% endif %}
+
+*||check_hw_physmem 4294967296kB 4294967296kB 3%
+
+# --- Hardware checks  ---
+{% if nhc_b300_multiplanar %}
+{% for idx in range(8) %}
+*||check_hw_eth rdma{{ idx }}
+{% endfor %}
+{% else %}
+{% for idx in range(16) %}
+*||check_hw_eth rdma{{ idx }}
+{% endfor %}
+{% endif %}
+
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 448
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+{% if nhc_b300_multiplanar %}
+{% for idx in range(8) %}
+*||check_hw_ib 200 rdma_vf_rail{{ idx }}:1
+{% endfor %}
+{% else %}
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
+*||check_hw_ib 400 mlx5_9:1
+*||check_hw_ib 400 mlx5_10:1
+*||check_hw_ib 400 mlx5_11:1
+*||check_hw_ib 400 mlx5_12:1
+*||check_hw_ib 400 mlx5_13:1
+*||check_hw_ib 400 mlx5_14:1
+*||check_hw_ib 400 mlx5_16:1
+*||check_hw_ib 400 mlx5_17:1
+*||check_hw_ib 400 mlx5_18:1
+*||check_hw_ib 400 mlx5_19:1
+*||check_hw_ib 400 mlx5_20:1
+*||check_hw_ib 400 mlx5_21:1
+{% endif %}
 
 
 # --- NVMe checks ---
@@ -626,6 +722,12 @@
 *||check_hw_ib 400 mlx5_7:1
 *||check_hw_ib 400 mlx5_8:1
 {% elif nhc_rdma_planes | int == 4 %}
+# Check the front-end NIC and all expected multiplanar RDMA links.
+{% for rail in range(4) %}
+{% for port in [2, 18, 36, 54, 72] %}
+*||check_hw_ib 200 rdma_rail{{ rail }}:{{ port }}
+{% endfor %}
+{% endfor %}
 *||check_hw_ib 200 rdma_vf_rail0:1
 *||check_hw_ib 200 rdma_vf_rail1:1
 *||check_hw_ib 200 rdma_vf_rail2:1
@@ -779,6 +881,62 @@
 *||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
 
 
+{% elif 'BM.GPU.RTXPRO.8' in nhc_node_shape %}
+# Add checks specific to BM.GPU.RTXPRO.8 compute shape here.
+
+ {% if nhc_ht_enabled %}
+*||check_hw_cpuinfo 2 144 288
+{% else %}
+*||check_hw_cpuinfo 2 144 144
+{% endif %}
+
+*||check_hw_physmem 3095063MB 3095063MB 3%
+
+# --- Hardware checks  ---
+*||check_hw_eth lo
+*||check_hw_eth eth0
+*||check_hw_eth eth1
+*||check_hw_eth eth2
+*||check_hw_eth eth3
+
+*||check_hw_eth rdma0
+*||check_hw_eth rdma1
+*||check_hw_eth rdma2
+*||check_hw_eth rdma3
+*||check_hw_eth rdma4
+*||check_hw_eth rdma5
+*||check_hw_eth rdma6
+*||check_hw_eth rdma7
+
+# --- Process loadavg and required services ---
+*||check_ps_loadavg 256
+*||check_ps_service -r rpcbind
+
+
+# --- InfiniBand / RoCE checks  ---
+*||check_hw_ib 200 mlx5_4:1
+*||check_hw_ib 400 mlx5_0:1
+*||check_hw_ib 400 mlx5_1:1
+*||check_hw_ib 400 mlx5_2:1
+*||check_hw_ib 400 mlx5_3:1
+*||check_hw_ib 400 mlx5_6:1
+*||check_hw_ib 400 mlx5_7:1
+*||check_hw_ib 400 mlx5_8:1
+*||check_hw_ib 400 mlx5_9:1
+
+
+# --- NVMe checks ---
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme0n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme1n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme2n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme3n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme4n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme5n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme6n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+*||check_cmd_output -e "sudo nvme smart-log /dev/nvme7n1" -m "critical_warning[[:space:]]*:[[:space:]]*0"
+
+
+#----------------------------------------------
 {% else %}
 # -------------------------------------------------
 # Generic NHC checks for non-GPU shapes

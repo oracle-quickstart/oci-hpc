@@ -71,14 +71,23 @@ variableGroups:
   - title: "Function and Events configuration"
     variables:
       - ${prechecks}
-      - ${default_domain}
-      - ${domain_ocid}
       - ${is_gov_cloud}
       - ${use_OCI_generated_container}
+      - ${login_to_ocir_using_default_domain}
+      - ${custom_domain_ocid_to_authenticate_to_ocir}
       - ${use_existing_auth_token}
       - ${auth_token}
       - ${use_existing_registry}
       - ${registry_id}
+
+  - title: "Identity"
+    variables:
+      - ${create_policies}
+      - ${use_default_identity_domain}
+      - ${identity_domain_compartment_id}
+      - ${identity_domain_ocid}
+      - ${use_existing_dynamic_group}
+      - ${dynamic_group_id}
 
   - title: "Controller node options"
     variables:
@@ -86,19 +95,20 @@ variableGroups:
       - ${controller_shape}
       - ${controller_ocpus}
       - ${controller_ocpus_denseIO_flex}
+      - ${controller_ocpus_denseIO_e5_e6_flex}
       - ${controller_custom_memory}
       - ${controller_memory}
       - ${controller_boot_volume_size}
       - ${controller_boot_volume_backup}
 
-  - title: "Management nodes image options (controller,backup,monitoring,login)"
+  - title: "Management nodes image options (controller, backup, monitoring, login)"
     variables:
-      - ${use_marketplace_image_controller}
-      - ${marketplace_listing_controller}
-      - ${unsupported_controller}
+      - ${controller_image_source}
+      - ${controller_image_marketplace_listing}
+      - ${controller_image_uri}
       - ${controller_image_compartment}
-      - ${custom_controller_image}
-      - ${unsupported_controller_image}
+      - ${controller_image_ocid}
+      - ${controller_image_unlisted_ocid}
       - ${controller_username}
 
   - title: "Compute node options"
@@ -113,18 +123,12 @@ variableGroups:
       - ${memory_fabric_id}
       - ${instance_pool_ocpus}
       - ${instance_pool_ocpus_denseIO_flex}
+      - ${instance_pool_ocpus_denseIO_e5_e6_flex}
       - ${instance_pool_custom_memory}
       - ${instance_pool_memory}
       - ${node_count}
       - ${hyperthreading}
       - ${boot_volume_size}
-      - ${use_marketplace_image}
-      - ${marketplace_listing}
-      - ${unsupported}
-      - ${compute_image_compartment}
-      - ${image}
-      - ${image_ocid}
-      - ${compute_username}
       - ${BIOS}
       - ${IOMMU}
       - ${SMT}
@@ -138,6 +142,16 @@ variableGroups:
       - ${ondemand_partition}
       - ${ondemand_partition_count}
 
+  - title: "Compute nodes image options"
+    variables:
+      - ${compute_image_source}
+      - ${compute_image_marketplace_listing}
+      - ${compute_image_unlisted_ocid}
+      - ${compute_image_compartment}
+      - ${compute_image_ocid}
+      - ${compute_image_uri}
+      - ${compute_username}
+
   - title: "Login node options"
     variables:
       - ${login_node}
@@ -145,6 +159,7 @@ variableGroups:
       - ${login_shape}
       - ${login_ocpus}
       - ${login_ocpus_denseIO_flex}
+      - ${login_ocpus_denseIO_e5_e6_flex}
       - ${login_custom_memory}
       - ${login_memory}
       - ${login_boot_volume_size}
@@ -152,6 +167,9 @@ variableGroups:
   - title: "Cluster Monitoring"
     variables:
       - ${cluster_monitoring}
+      - ${slurm_job_monitoring}
+      - ${slurm_monitoring_mysql_backend}
+      - ${grafana_ldap_auth_enabled}
       - ${use_lets_encrypt_prod_ep}
       - ${alerting}
       - ${ingest_oci_metrics}
@@ -160,6 +178,7 @@ variableGroups:
       - ${monitoring_shape}
       - ${monitoring_ocpus}
       - ${monitoring_ocpus_denseIO_flex}
+      - ${monitoring_ocpus_denseIO_e5_e6_flex}
       - ${monitoring_custom_memory}
       - ${monitoring_memory}
       - ${monitoring_boot_volume_size}
@@ -172,6 +191,8 @@ variableGroups:
       - ${lfs_ad}
       - ${lfs_capacity_in_gbs}
       - ${lfs_perf_tier}
+      - ${lfs_freeform_tag_key}
+      - ${lfs_freeform_tag_value}
       - ${lfs_target_path}
       - ${lfs_source_IP}
       - ${lfs_source_path}
@@ -180,6 +201,7 @@ variableGroups:
   - title: "Storage options: File Storage Service"
     variables:
       - ${add_nfs}
+      - ${enable_fss_deletion_protection}
       - ${create_fss}
       - ${mount_target_count}
       - ${nfs_target_path}
@@ -215,29 +237,35 @@ variableGroups:
       - ${vcn_subnet}
       - ${public_subnet}
       - ${private_subnet}
+      - ${create_private_zone}
       - ${zone_name}
 
   - title: "Software"
     variables:
       - ${privilege_sudo}
       - ${privilege_group_name}
+      - ${spack}
+
+  - title: "Slurm Options"
+    variables:
       - ${slurm}
       - ${slurm_version}
       - ${slurm_federation}
       - ${ip_slurmdbd}
       - ${munge_key}
       - ${slurm_ha}
-      - ${mysql_shape}
-      - ${mysql_admin_username}
-      - ${mysql_admin_password}
       - ${queue}
-      - ${spack}
-      - ${enroot}
       - ${pyxis}
+      - ${dgxc_benchmarking}
       - ${pam}
       - ${sacct_limits}
       - ${healthchecks}
       - ${active_healthchecks}
+  - title: "Database Options"
+    variables:
+      - ${mysql_shape}
+      - ${mysql_admin_username}
+      - ${mysql_admin_password}
   - title: "Home region"
     variables:
       - ${home_region}
@@ -376,7 +404,7 @@ variables:
   controller_ocpus_denseIO_flex:
     title: Cores
     type: enum
-    description: Number of OCPUs for Dense IO Flex shape.
+    description: Number of OCPUs for Dense IO E4 Flex shape.
     enum:
       - 8
       - 16
@@ -384,13 +412,32 @@ variables:
     default: 8
     visible:
       and:
+        - eq:
+          - ${controller_shape}
+          - "VM.DenseIO.E4.Flex"
+    required: true
+
+  controller_ocpus_denseIO_e5_e6_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPUs for Dense IO E5/E6 Flex shape.
+    enum:
+      - 8
+      - 16
+      - 24
+      - 32
+      - 40
+      - 48
+    default: 8
+    visible:
+      and:
         - or:
           - eq:
             - ${controller_shape}
-            - "VM.DenseIO.E4.Flex"
+            - "VM.DenseIO.E5.Flex"
           - eq:
             - ${controller_shape}
-            - "VM.DenseIO.E5.Flex"
+            - "VM.DenseIO.E6.Ax.Flex"
     required: true
 
   controller_custom_memory:
@@ -495,23 +542,19 @@ variables:
     description: "Schedule: Daily, Type: Incremental, Start Time: 00:00 Regional Time, Retention: 90 days."
     default: true
 
-  use_marketplace_image_controller:
-    type: boolean
-    title: "Use marketplace image"
-    description: "Use a marketplace image for management nodes. Marketplace images are Oracle Linux 8-based; Oracle Linux 8 is deprecated and will be phased out in a future release."
-    default: true
+  controller_image_source:
+    type: enum
+    title: "Source of the image for management nodes."
+    required: true
     visible: true
+    default: "Marketplace"
+    enum:
+      - "Marketplace"
+      - "Unlisted"
+      - "Custom"
+      - "URI"
 
-  unsupported_controller:
-    title: "Use specific image"
-    description: "Use an image that is not listed for the management nodes (controller, controller backup, login and monitoring nodes)."
-    type: boolean
-    default: false
-    visible:
-      not:
-        - ${use_marketplace_image_controller}
-
-  marketplace_listing_controller:
+  controller_image_marketplace_listing:
     type: enum
     title: "Image version"
     description: "Marketplace listing to use."
@@ -522,49 +565,65 @@ variables:
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "HPC_OL8"
-    visible: ${use_marketplace_image_controller}
+    visible:
+      eq:
+        - ${controller_image_source}
+        - "Marketplace"
 
-  controller_username:
-    title: "Controller username"
-    description: "Default username for controller."
-    type: string
-    default: "opc"
-    required: true
-    visible: true
-
-  unsupported_controller_image:
-    title: "Custom controller image OCID"
+  controller_image_unlisted_ocid:
+    title: "Custom Image OCID"
     description: "Unlisted image ID for management nodes. Supported operating systems are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release."
     type: string
     required: true
-    visible: ${unsupported_controller}
-    default: "image.ocid"
+    visible:
+      eq:
+        - ${controller_image_source}
+        - "Unlisted"
 
   controller_image_compartment:
-    title: "Controller image compartment"
+    title: "Image Compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
-      and:
-        - not:
-          - ${unsupported_controller}
-        - not:
-          - ${use_marketplace_image_controller}
+      eq:
+        - ${controller_image_source}
+        - "Custom"
     required: true
 
-  custom_controller_image:
-    title: "Controller Custom Image"
+  controller_image_ocid:
+    title: "Custom Image"
     description: "Custom (imported) image for management nodes. Supported operating systems are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release."
     type: oci:core:image:id
     dependsOn:
       compartmentId: ${controller_image_compartment}
     visible:
-      and:
-        - not:
-          - ${unsupported_controller}
-        - not:
-          - ${use_marketplace_image_controller}
+      eq:
+        - ${controller_image_source}
+        - "Custom"
     required: true
+
+  controller_image_uri:
+    title: "Image URI"
+    description: "URI to use for the import of the OCI image for the management nodes."
+    type: string
+    pattern: "^(http|https)://.+"
+    required: true
+    visible:
+      eq:
+        - ${controller_image_source}
+        - "URI"
+
+  controller_username:
+    title: "Default username for management nodes"
+    description: "Will be auto-detected based on the image if empty."
+    type: string
+    default: ""
+    required: true
+    visible:
+      not:
+        - eq:
+          - ${controller_image_source}
+          - "Marketplace"
 
   shared_home:
     type: enum
@@ -694,6 +753,7 @@ variables:
       - "BM.GPU.H200.8"
       - "BM.GPU.B200.8"
       - "BM.GPU.B300.8"
+      - "BM.GPU.B300.HS.8"
       - "BM.GPU.GB200.4"
       - "BM.GPU.GB200-v2.4"
       - "BM.GPU.GB200-v3.4"
@@ -703,6 +763,7 @@ variables:
       - "BM.GPU.MI355X.8"
       - "BM.GPU.MI355X-v1.8"
       - "BM.GPU.L40S.4"
+      - "BM.GPU.RTXPRO.8"
       - "BM.Optimized3.36"
       - "BM.HPC.E5.144"
     default: "BM.GPU.H100.8"
@@ -775,7 +836,7 @@ variables:
   instance_pool_ocpus_denseIO_flex:
     title: Cores
     type: enum
-    description: Number of OCPUs for Dense IO flex shape.
+    description: Number of OCPUs for Dense IO E4 flex shape.
     enum:
       - 8
       - 16
@@ -783,13 +844,32 @@ variables:
     default: 8
     visible:
       and:
+        - eq:
+          - ${instance_pool_shape}
+          - "VM.DenseIO.E4.Flex"
+    required: true
+
+  instance_pool_ocpus_denseIO_e5_e6_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPUs for Dense IO E5/E6 Flex shape.
+    enum:
+      - 8
+      - 16
+      - 24
+      - 32
+      - 40
+      - 48
+    default: 8
+    visible:
+      and:
         - or:
           - eq:
             - ${instance_pool_shape}
-            - "VM.DenseIO.E4.Flex"
+            - "VM.DenseIO.E5.Flex"
           - eq:
             - ${instance_pool_shape}
-            - "VM.DenseIO.E5.Flex"
+            - "VM.DenseIO.E6.Ax.Flex"
     required: true
 
   instance_pool_custom_memory:
@@ -922,13 +1002,20 @@ variables:
     default: 256
     description: "Boot volume size in GB of each compute node."
 
-  use_marketplace_image:
-    type: boolean
-    title: "Use marketplace image"
-    description: "Use a marketplace image for compute nodes. Marketplace images are Oracle Linux 8-based; Oracle Linux 8 is deprecated and will be phased out in a future release."
-    default: true
+  compute_image_source:
+    type: enum
+    title: "Source of the image for compute nodes."
+    required: true
+    visible: true
+    default: "Same as management nodes"
+    enum:
+      - "Same as management nodes"
+      - "Marketplace"
+      - "Unlisted"
+      - "Custom"
+      - "URI"
 
-  marketplace_listing:
+  compute_image_marketplace_listing:
     type: enum
     title: "Image version"
     description: "Marketplace listing to use."
@@ -939,20 +1026,31 @@ variables:
       - "GPU_OL8_NV550"
       - "GPU_OL8_AMD632"
     default: "GPU_OL8_NV570"
-    visible: ${use_marketplace_image}
+    visible:
+      eq:
+        - ${compute_image_source}
+        - "Marketplace"
+
+  compute_image_unlisted_ocid:
+    title: "Custom compute image OCID"
+    description: "Unlisted image ID for compute nodes. Supported operating systems are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release."
+    type: string
+    required: true
+    visible:
+      eq:
+        - ${compute_image_source}
+        - "Unlisted"
 
   compute_image_compartment:
     title: "Compute custom image compartment"
     type: oci:identity:compartment:id
     default: ${targetCompartment}
     visible:
-      and:
-        - not:
-            - ${use_marketplace_image}
-        - not:
-            - ${unsupported}
+      eq:
+        - ${compute_image_source}
+        - "Custom"
 
-  image:
+  compute_image_ocid:
     title: "Custom compute image"
     description: "Custom (imported) image for compute nodes. Supported operating systems are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release."
     type: oci:core:image:id
@@ -960,43 +1058,36 @@ variables:
     dependsOn:
       compartmentId: ${compute_image_compartment}
     visible:
-      and:
-        - not:
-            - ${use_marketplace_image}
-        - not:
-            - ${unsupported}
+      eq:
+        - ${compute_image_source}
+        - "Custom"
+
+  compute_image_uri:
+    title: "Compute image URI"
+    description: "URI to use for the import of the OCI image for compute nodes."
+    type: string
+    pattern: "^(http|https)://.+"
+    required: true
+    visible:
+      eq:
+        - ${compute_image_source}
+        - "URI"
 
   compute_username:
     title: "Default username for compute hosts"
-    description: "Custom image ID for compute hosts."
+    description: "Will be auto-detected based on the image if empty."
     type: string
-    default: "opc"
+    default: ""
     visible:
       and:
         - not:
-            - ${use_marketplace_image}
-
-  unsupported:
-    title: "Use unlisted compute image"
-    description: "Use an unlisted image ID for compute nodes."
-    type: boolean
-    default: false
-    visible:
-      and:
+            - eq:
+              - ${compute_image_source}
+              - "Marketplace"
         - not:
-            - ${use_marketplace_image}
-
-  image_ocid:
-    title: "Custom compute image OCID"
-    description: "Unlisted image ID for compute nodes. Supported operating systems are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release."
-    type: string
-    required: true
-    visible:
-      and:
-        - not:
-            - ${use_marketplace_image}
-        - and:
-            - ${unsupported}
+            - eq:
+              - ${compute_image_source}
+              - "Same as management nodes"
 
   BIOS:
     title: "Modify advanced BIOS settings (aka Platform configuration)"
@@ -1093,6 +1184,13 @@ variables:
     title: "Use Existing VCN"
     description: "Use existing VCN or create new one. If true, make sure the security lists are correctly set in the subnets (ex: Open traffic within VCN)."
     default: false
+
+  create_private_zone:
+    type: boolean
+    title: "Create Private DNS Zone"
+    description: "Create the private DNS zone in the existing VCN private DNS view. Leave disabled if the zone already exists."
+    default: false
+    visible: ${use_existing_vcn}
 
   vcn_compartment:
     title: "VCN compartment"
@@ -1194,9 +1292,8 @@ variables:
     title: "SLURM version"
     description: "The HPC Stack requires at least SLURM 25+ for topology."
     enum:
-      - "25.11.5-1"
-      - "25.11.0-1"
-    default: "25.11.5-1"
+      - "26.05.0-1.oci"
+    default: "26.05.0-1.oci"
     visible: ${slurm}
     required: true
 
@@ -1223,14 +1320,32 @@ variables:
       - "MySQL.48"
       - "MySQL.64"
     default: "MySQL.4"
-    visible: ${slurm_ha}
+    visible:
+      or:
+        - ${slurm_ha}
+        - and:
+          - ${slurm}
+          - ${cluster_monitoring}
+          - ${slurm_job_monitoring}
+          - eq:
+            - ${slurm_monitoring_mysql_backend}
+            - "managed"
 
   mysql_admin_username:
     type: string
     title: "Admin username for MySQL service"
     required: true
     description: "Admin username for MySQL service"
-    visible: ${slurm_ha}
+    visible:
+      or:
+        - ${slurm_ha}
+        - and:
+          - ${slurm}
+          - ${cluster_monitoring}
+          - ${slurm_job_monitoring}
+          - eq:
+            - ${slurm_monitoring_mysql_backend}
+            - "managed"
 
   mysql_admin_password:
     type: string
@@ -1238,7 +1353,16 @@ variables:
     required: true
     pattern: "^(?=.*[!@#%^*_+\\-:?.,\\[\\]\\{\\}])(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?!.*[$\\(\\)]).{8,32}$"
     description: "Admin password for MySQL service"
-    visible: ${slurm_ha}
+    visible:
+      or:
+        - ${slurm_ha}
+        - and:
+          - ${slurm}
+          - ${cluster_monitoring}
+          - ${slurm_job_monitoring}
+          - eq:
+            - ${slurm_monitoring_mysql_backend}
+            - "managed"
 
   slurm_federation:
     type: boolean
@@ -1272,11 +1396,17 @@ variables:
     title: "Install Nvidia Pyxis plugin for slurm"
     default: true
     description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with slurm. (Warning: using Pyxis with autoscaling is causing an issue that prevents jobs from being scheduled on nodes to be spun up)."
+    visible: ${slurm}
+
+  dgxc_benchmarking:
+    type: boolean
+    title: "Install DGXC benchmarking shell integration"
+    default: false
+    description: "Install DGXC benchmarking shell integration. Requires Pyxis and shared /config storage."
     visible:
       and:
         - ${slurm}
-        - ${enroot}
-
+        - ${pyxis}
 
   queue:
     type: String
@@ -1292,18 +1422,48 @@ variables:
     default: false
     description: "Install Spack package manager. Requires shared folder."
 
-  enroot:
-    type: boolean
-    title: "Install Nvidia Enroot for containerized GPU workloads"
-    default: true
-    description: "Install Enroot, either the Nvidia or AMD Container Toolkit, and docker."
-    visible: ${slurm}
-
   cluster_monitoring:
     type: boolean
     title: "Install HPC Cluster Monitoring Tools"
     default: true
     description: "Install Grafana, Node-Exporter, and Prometheus tools for system monitoring."
+
+  slurm_job_monitoring:
+    type: boolean
+    title: "Enable Slurm job monitoring"
+    default: false
+    description: "Enable DB-backed Slurm job monitoring, including job exporter, job dashboards, and job/GPU utilization collection."
+    visible:
+      and:
+        - ${slurm}
+        - ${cluster_monitoring}
+
+  slurm_monitoring_mysql_backend:
+    type: enum
+    title: "Slurm monitoring MySQL backend"
+    description: "Choose whether Slurm job monitoring uses the controller-local MySQL service or an OCI managed MySQL DB System. If managed is selected, configure the shared MySQL DB System in Database Options. The same DB System is also used when Slurm HA is enabled."
+    enum:
+      - "local"
+      - "managed"
+    default: "managed"
+    required: true
+    visible:
+      and:
+        - ${slurm}
+        - ${cluster_monitoring}
+        - ${slurm_job_monitoring}
+        - not:
+            - ${slurm_ha}
+
+  grafana_ldap_auth_enabled:
+    type: boolean
+    title: "Enable LDAP for Grafana UI"
+    default: false
+    description: "Allow Grafana to authenticate users against the cluster LDAP directory. Requires both cluster monitoring and controller LDAP."
+    visible:
+      and:
+        - ${cluster_monitoring}
+        - ${ldap}
 
   use_lets_encrypt_prod_ep:
     title: "Use Let's Encrypt Production Endpoint"
@@ -1368,6 +1528,13 @@ variables:
     description: "Add optional shared storage for /home or an extra NFS/FSS mount. The /config filesystem is always created separately by the stack."
     visible: true
 
+  enable_fss_deletion_protection:
+    type: boolean
+    title: "Enable FSS deletion protection"
+    default: true
+    description: "Keep enabled to help prevent accidental deletion of stack-created FSS resources. When enabled, stack destroy will fail until the FSS delete lock is removed. Disable only if you intentionally want stack-created FSS resources to be deletable."
+    visible: true
+
   create_fss:
     type: enum
     title: "FSS type"
@@ -1423,6 +1590,7 @@ variables:
     type: boolean
     title: "Mount Localdisk"
     default: true
+    required: true
     description: "Mount the NVMe disks (if applicable)."
     visible: true
 
@@ -1439,6 +1607,7 @@ variables:
     type: boolean
     title: "Redundancy"
     default: false
+    required: true
     description: "Use RAID for redundancy."
     visible:
       and:
@@ -1580,7 +1749,7 @@ variables:
   login_ocpus_denseIO_flex:
     title: Cores
     type: enum
-    description: Number of OCPUs for Dense IO Flex shape.
+    description: Number of OCPUs for Dense IO E4 Flex shape.
     enum:
       - 8
       - 16
@@ -1592,9 +1761,30 @@ variables:
           - eq:
             - ${login_shape}
             - "VM.DenseIO.E4.Flex"
+        - ${login_node}
+    required: true
+
+  login_ocpus_denseIO_e5_e6_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPUs for Dense IO E5/E6 Flex shape.
+    enum:
+      - 8
+      - 16
+      - 24
+      - 32
+      - 40
+      - 48
+    default: 8
+    visible:
+      and:
+        - or:
           - eq:
             - ${login_shape}
             - "VM.DenseIO.E5.Flex"
+          - eq:
+            - ${login_shape}
+            - "VM.DenseIO.E6.Ax.Flex"
         - ${login_node}
     required: true
 
@@ -1775,7 +1965,7 @@ variables:
   monitoring_ocpus_denseIO_flex:
     title: Cores
     type: enum
-    description: Number of OCPUs for Dense IO Flex shape.
+    description: Number of OCPUs for Dense IO E4 Flex shape.
     enum:
       - 8
       - 16
@@ -1787,9 +1977,30 @@ variables:
           - eq:
             - ${monitoring_shape}
             - "VM.DenseIO.E4.Flex"
+        - ${monitoring_node}
+    required: true
+
+  monitoring_ocpus_denseIO_e5_e6_flex:
+    title: Cores
+    type: enum
+    description: Number of OCPUs for Dense IO E5/E6 Flex shape.
+    enum:
+      - 8
+      - 16
+      - 24
+      - 32
+      - 40
+      - 48
+    default: 8
+    visible:
+      and:
+        - or:
           - eq:
             - ${monitoring_shape}
             - "VM.DenseIO.E5.Flex"
+          - eq:
+            - ${monitoring_shape}
+            - "VM.DenseIO.E6.Ax.Flex"
         - ${monitoring_node}
     required: true
 
@@ -1902,22 +2113,100 @@ variables:
     default : true
     required: true
 
-  default_domain:
+  login_to_ocir_using_default_domain:
     type: boolean
-    title: "Using Default identity domain"
-    description: "Uncheck if current user belongs to non default identity domain."
+    title: "Current User Belongs to Default Identity Domain"
+    description: "Uncheck if current user belongs to non default identity domain. Domain information is used to generate the login user for OCIR."
     default : true
     required: true
-
-  domain_ocid:
-    type: string
-    title: "OCID of identity domain"
-    default : ""
-    description: "Identity domain OCID for the user; only overwrite if you are not using the Default identity domain."
-    required: true
     visible:
-      not:
-        - ${default_domain}
+      or:
+        - ${is_gov_cloud}
+        - not:
+          - ${use_OCI_generated_container}
+
+  custom_domain_ocid_to_authenticate_to_ocir:
+    type: string
+    title: "OCID of the identity domain the current user belongs to"
+    default : ""
+    description: "OCID of the identity domain the user deploying the stack belongs to. Domain information is used to generate the login user for OCIR."
+    visible:
+      and:
+        - or:
+          - ${is_gov_cloud}
+          - not:
+            - ${use_OCI_generated_container}
+        - not:
+          - ${login_to_ocir_using_default_domain}
+
+  create_policies:
+    title: "Create Policies"
+    description: "Create IAM policies for the Slurm controller and function resource principals. This option assumes your user has the necessary permissions to create policies."
+    type: boolean
+    default: false
+
+  use_existing_dynamic_group:
+    title: "Use existing Dynamic Group"
+    description: "Select an existing dynamic group instead of creating a new one."
+    type: boolean
+    default: false
+    visible: ${create_policies}
+
+  dynamic_group_id:
+    title: "Dynamic Group"
+    description: "Select an existing dynamic group."
+    type: oci:identity:dynamicgroups:id
+    required: true
+    default: ""
+    dependsOn:
+      compartmentId: identity_domain_compartment_id
+    visible:
+      and:
+        - ${create_policies}
+        - ${use_existing_dynamic_group}
+
+  use_default_identity_domain:
+    type: boolean
+    title: "Use the Default Identity Domain"
+    description: "Use the default identity domain of the tenancy. Uncheck to choose a different identity domain."
+    default : true
+    required: true
+    visible: ${create_policies}
+
+
+  identity_domain_compartment_id:
+    title: "Identity Domain Compartment"
+    description: "Select the compartment where your identity domain is located."
+    type: oci:identity:compartment:id
+    required: true
+    default: ${tenancy_ocid}
+    visible:
+      and:
+        - or:
+          - ${create_policies}
+          - not:
+            - ${use_OCI_generated_container}
+          - ${is_gov_cloud}
+        - not:
+          - ${use_default_identity_domain}
+
+  identity_domain_ocid:
+    type: oci:identity:domains:id
+    title: "Identity Domain"
+    default : ""
+    description: "Select an identity domain."
+    required: true
+    dependsOn:
+      compartmentId: identity_domain_compartment_id
+    visible:
+      and:
+        - or:
+          - ${create_policies}
+          - not:
+            - ${use_OCI_generated_container}
+          - ${is_gov_cloud}
+        - not:
+          - ${use_default_identity_domain}
 
   is_gov_cloud:
     type: boolean
@@ -1959,6 +2248,7 @@ variables:
     visible:
       or:
         - ${create_bucket}
+        - ${create_policies}
         - ${use_existing_auth_token}
 
   use_existing_registry:
@@ -2053,6 +2343,30 @@ variables:
       - "MBPS_PER_TB_500"
       - "MBPS_PER_TB_1000"
     default: "MBPS_PER_TB_125"
+    visible:
+      and:
+        - ${add_lfs}
+        - eq:
+          - ${create_lfs}
+          - "new"
+
+  lfs_freeform_tag_key:
+    type: string
+    title: "Lustre Freeform Tag Key"
+    default: ""
+    description: "Optional freeform tag key to apply when creating a new Lustre file system."
+    visible:
+      and:
+        - ${add_lfs}
+        - eq:
+          - ${create_lfs}
+          - "new"
+
+  lfs_freeform_tag_value:
+    type: string
+    title: "Lustre Freeform Tag Value"
+    default: ""
+    description: "Optional freeform tag value to apply when creating a new Lustre file system."
     visible:
       and:
         - ${add_lfs}

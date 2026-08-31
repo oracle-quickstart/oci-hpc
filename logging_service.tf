@@ -4,7 +4,7 @@ resource "oci_logging_log_group" "log_group" {
   freeform_tags = {
     "cluster_name"    = local.cluster_name
     "controller_name" = "${local.cluster_name}-controller"
-  }  
+  }
 }
 
 resource "oci_logging_log" "node_starting_event_log" {
@@ -14,7 +14,7 @@ resource "oci_logging_log" "node_starting_event_log" {
   configuration {
     source {
       category    = "ruleexecutionlog"
-      resource    = oci_events_rule.generated_oci_events_rule.id
+      resource    = oci_events_rule.node_starting.id
       service     = "cloudevents"
       source_type = "OCISERVICE"
     }
@@ -29,7 +29,7 @@ resource "oci_logging_log" "node_terminating_event_log" {
   configuration {
     source {
       category    = "ruleexecutionlog"
-      resource    = oci_events_rule.generated_oci_events_rule_2.id
+      resource    = oci_events_rule.node_terminating.id
       service     = "cloudevents"
       source_type = "OCISERVICE"
     }

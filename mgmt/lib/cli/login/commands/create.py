@@ -18,8 +18,7 @@ def create(count,configuration,names):
     if names:
         name_list=names.split(',')
         if count != len(name_list):
-            click.echo("The names does not match the count, exiting")
-            exit(1)
+            raise click.ClickException("The names does not match the count")
     config = get_config_by_name(configuration)
     controller = get_controller_node()
     if controller is None:

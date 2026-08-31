@@ -1,15 +1,15 @@
 from ClusterShell.NodeSet import NodeSet
 from ClusterShell.Task import task_self
 from concurrent.futures import ProcessPoolExecutor
-from lib.ociwrap import get_host_api_dict
+from lib.ociwrap import get_host_api_dict, list_instance_maintenance_events, get_instance_maintenance_event, reschedule_instance_maintenance_event
 from lib.database import get_all_nodes, db_update_node, get_controller_node, db_get_latest_healthchecks, db_create_healthcheck, db_update_healthcheck
 import configparser
+import os
+import re
 import subprocess
 import ipaddress
 import pathlib
 from typing import List, Dict, Optional, Tuple, Set
-import re
-import os
 import sys
 import time
 import json
@@ -233,15 +233,21 @@ def run_ansible(controller_name):
         print(result.stdout)
         return False
 
-def run_ansible_slurm_init(controller_name):
-    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/oci/bin/ansible-playbook /config/playbooks/slurm_init.yml"
+def run_ansible_slurm_reconcile(controller_name):
+    command = ". /etc/os-release; /config/venv/${ID^}_${VERSION_ID}_$(uname -m)/oci/bin/ansible-playbook /config/playbooks/slurm_reconcile.yml"
 
     try:
+        logger.info("Starting Slurm reconcile: %s", command)
         result = subprocess.run(
             command, shell=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             universal_newlines=True, executable="/bin/bash"
         )
+
+        for line in result.stdout.splitlines():
+            logger.info("[ansible] %s", line)
+        for line in result.stderr.splitlines():
+            logger.error("[ansible] %s", line)
 
         last_line=[s for s in result.stdout.split('\n') if s.startswith(controller_name)][-1]
         failure_count = int(
@@ -256,13 +262,18 @@ def run_ansible_slurm_init(controller_name):
 
         if failure_count:
             print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
             return False
         else:
             logger.info("Ansible finished succesfully")
             return True
     except Exception as e:
         logger.error(f"Error running ansible: {e}")
-        print(result.stdout)
+        if 'result' in locals():
+            print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
         return False
 
 def get_updates_based_on_url(nodes,HTTP_SERVER_PORT,filename):
@@ -360,7 +371,7 @@ def append_to_healthchecks(node_ocid, **kwargs):
                                 "healthcheck_status":kwargs["passive_healthcheck_status"]})
         else:
             logger.debug(f"Updating passive healthcheck for {node_ocid}")
-            db_update_healthcheck(passive_hc, {"healthcheck_last_time":kwargs["passive_healthcheck_time"],"healthcheck_logs":kwargs["passive_healthcheck_logs"]})
+            db_update_healthcheck(passive_hc, {"healthcheck_last_time":kwargs["passive_healthcheck_time"],"healthcheck_logs":kwargs["passive_healthcheck_logs"],"healthcheck_recommendation":kwargs["passive_healthcheck_recommendation"]})
 
     if "active_healthcheck_status" in kwargs:
         active_hc=None
@@ -379,7 +390,7 @@ def append_to_healthchecks(node_ocid, **kwargs):
                                         "healthcheck_status":kwargs["active_healthcheck_status"]})
         else:
                 logger.debug(f"Updating active healthcheck for {node_ocid}")
-                db_update_healthcheck(active_hc, {"healthcheck_last_time":kwargs["active_healthcheck_time"],"healthcheck_logs":kwargs["active_healthcheck_logs"]})
+                db_update_healthcheck(active_hc, {"healthcheck_last_time":kwargs["active_healthcheck_time"],"healthcheck_logs":kwargs["active_healthcheck_logs"],"healthcheck_recommendation":kwargs["active_healthcheck_recommendation"]})
 
     if "multi_node_healthcheck_status" in kwargs:
         multi_hc=None
@@ -402,29 +413,48 @@ def append_to_healthchecks(node_ocid, **kwargs):
                 logger.error(f"Failed to create multi-node healthcheck for {node_ocid}: {e}")
         else:
             logger.debug(f"Updating multi-node healthcheck for {node_ocid}")
-            db_update_healthcheck(multi_hc, {"healthcheck_last_time":kwargs["multi_node_healthcheck_time"],"healthcheck_logs":kwargs["multi_node_healthcheck_logs"]})
+            db_update_healthcheck(multi_hc, {"healthcheck_last_time":kwargs["multi_node_healthcheck_time"],"healthcheck_logs":kwargs["multi_node_healthcheck_logs"],"healthcheck_recommendation":kwargs["multi_node_healthcheck_recommendation"]})
 
 
-def scan_host_api_logic():
+def scan_host_api_logic(include_hpc_islands=False):
     available_nodes={}
+    available_by_hpc_island={}
     controller = get_controller_node()
     if controller is None:
-        return {}
+        return ({}, {}) if include_hpc_islands else {}
     host_api_list = get_host_api_dict(controller.compartment_id,controller.tenancy_id)
     if not len(host_api_list):
-        return {}
+        return ({}, {}) if include_hpc_islands else {}
     node_list = get_all_nodes()
     for node in node_list:
         for host_api in host_api_list:
             if node.ocid == host_api.instance_id:
-                db_update_node(node,oci_host_id=host_api.id)
-                #db_update_node(node,oci_health=host_api.health,oci_impacted_components=host_api.has_impacted_components,oci_host_id=host_api.id)
+                impacted_component_details = getattr(
+                    host_api,
+                    "impacted_component_details",
+                    None,
+                )
+                db_update_node(
+                    node,
+                    oci_host_id=host_api.id,
+                    oci_impacted_component_details=(
+                        json.dumps(impacted_component_details, sort_keys=True)
+                        if impacted_component_details is not None
+                        else None
+                    ),
+                )
     for host_api in host_api_list:
         if host_api.instance_id is None and host_api.lifecycle_state == "AVAILABLE":
             if host_api.shape in available_nodes.keys():
                 available_nodes[host_api.shape]+=1
             else:
                 available_nodes[host_api.shape]=1
+            hpc_island_id = getattr(host_api, "hpc_island_id", None)
+            if hpc_island_id:
+                island_shapes = available_by_hpc_island.setdefault(hpc_island_id, {})
+                island_shapes[host_api.shape] = island_shapes.get(host_api.shape, 0) + 1
+    if include_hpc_islands:
+        return available_nodes, available_by_hpc_island
     return available_nodes
 
 def get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT):
@@ -433,11 +463,7 @@ def get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT):
     max_workers = min(32, max(1, len(urls)))
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         content_results = list(executor.map(fetch_content, urls))
-    result_dict = {
-        ip: content
-        for ip, content in zip(ip_addresses, content_results)
-        if content is not None
-    }
+    result_dict = dict(zip(ip_addresses, content_results))
     logger.debug(f"Result dict size: {len(result_dict.keys())}")
     ocid_dict={}
     for ip_address,content in result_dict.items():
@@ -449,6 +475,8 @@ def get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT):
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to decode JSON from {ip_address}")
                 ocid_dict[ip_address]=None
+        else:
+            ocid_dict[ip_address]=None
     return ocid_dict
 
 def get_nodes_ocid_by_subnet(subnet_cidr, HTTP_SERVER_PORT):
@@ -457,70 +485,668 @@ def get_nodes_ocid_by_subnet(subnet_cidr, HTTP_SERVER_PORT):
     ip_addresses = [str(ip) for ip in network.hosts()]
     return get_nodes_ocid_by_ip(ip_addresses,HTTP_SERVER_PORT)
 
+def _slurm_json_value(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, dict):
+        for key in ("name", "string", "state", "value", "number"):
+            if key in value:
+                return _slurm_json_value(value[key])
+    return None
+
+def _slurm_json_values(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        values = []
+        for item in value:
+            item_value = _slurm_json_value(item)
+            if item_value:
+                values.append(item_value)
+        return values
+    if isinstance(value, str):
+        return [item for item in value.split(",") if item]
+    if isinstance(value, dict):
+        for key in ("current", "values", "list"):
+            if key in value:
+                return _slurm_json_values(value[key])
+    item_value = _slurm_json_value(value)
+    return [item_value] if item_value else []
+
+def _slurm_nodes_from_json_value(value):
+    nodes = []
+    for node_expression in _slurm_json_values(value):
+        try:
+            nodes.extend([str(node) for node in NodeSet(node_expression)])
+        except Exception:
+            nodes.append(node_expression)
+    return nodes
+
+def _slurm_node_start_time(value):
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        if value.get("set") is False:
+            return None
+        for key in ("number", "seconds", "time"):
+            parsed = _slurm_node_start_time(value.get(key))
+            if parsed is not None:
+                return parsed
+        return None
+    if isinstance(value, (int, float)):
+        if value <= 0:
+            return None
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    if isinstance(value, str):
+        if not value or value.lower() in ("none", "n/a", "null", "unknown"):
+            return None
+        try:
+            return datetime.fromtimestamp(int(value), tz=timezone.utc)
+        except ValueError:
+            pass
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    return None
+
+def _slurm_node_uptime(record, current_time):
+    start_time = _slurm_node_start_time(
+        record.get("slurmd_start_time")
+        or record.get("slurmdStartTime")
+        or record.get("slurmd_start")
+    )
+    if start_time is None:
+        return 0
+    return max(int((current_time - start_time).total_seconds()), 0)
+
+def _slurm_node_reason(record):
+    reason = _slurm_json_value(record.get("reason"))
+    if not reason or reason.lower() in ("none", "n/a", "null"):
+        return None
+    return re.sub(r"\s+\[[^]]+\]$", "", reason)
+
+def _add_slurm_node_record(
+    sinfo_dict,
+    node,
+    state,
+    partition=None,
+    reservation_id=None,
+    reason=None,
+    slurm_up_time=0,
+):
+    if node not in sinfo_dict:
+        sinfo_dict[node] = {
+            "state": state,
+            "partition": [],
+            "reservation_id": reservation_id,
+            "reason": reason,
+            "slurm_up_time": slurm_up_time,
+        }
+    if partition and partition not in sinfo_dict[node]["partition"]:
+        sinfo_dict[node]["partition"].append(partition)
+
 def get_slurm_state():
-    # Run sinfo -N -h and capture output
     if version >= (3, 12):
         current_time = datetime.now(UTC)
-        time_threshold = (current_time - timedelta(minutes=10))
     else:
         current_time = datetime.now().astimezone(timezone.utc)
-        time_threshold = (current_time - timedelta(minutes=10))
         
     try:
         result = subprocess.run(
-            ["sinfo", "-N", "-h", "-o", "%N %R %t %i"],
+            ["sinfo", "-N", "--json"],
             capture_output=True, text=True, check=True
         )
-        for i in range(10):
-            logger.debug(f"sinfo output: {result.stdout}")
+        for _ in range(10):
+            logger.debug(f"sinfo --json output: {result.stdout}")
             if result.stdout:
                 break
             time.sleep(10)
             result = subprocess.run(
-            ["sinfo", "-N", "-h", "-o", "%N %R %t %i"],
-            capture_output=True, text=True, check=True
+                ["sinfo", "-N", "--json"],
+                capture_output=True, text=True, check=True
             )
+        sinfo_payload = json.loads(result.stdout)
 
     except Exception as e:
-        logger.error(f"Failed to run sinfo: {e}")
+        logger.error(f"Failed to run sinfo --json: {e}")
         return {}
     sinfo_dict = {}
-    for line in result.stdout.strip().splitlines():
-        parts = line.split()
-        if len(parts) >= 3:
-            node, partition, state = parts[0], parts[1], parts[2]
-            if node not in sinfo_dict.keys():
-                sinfo_dict[node]={}
-                sinfo_dict[node]["state"]=state
-                sinfo_dict[node]["partition"]=[partition]
-            else:
-                sinfo_dict[node]["partition"].append(partition)
-            if len(parts) == 4:
-                sinfo_dict[node]["reservation_id"]=parts[3]
-            else:
-                sinfo_dict[node]["reservation_id"]=None
-    for node in sinfo_dict.keys():
+
+    for record in sinfo_payload.get("sinfo", []):
+        if not isinstance(record, dict):
+            continue
+        partition_info = record.get("partition")
+        if isinstance(partition_info, dict):
+            partition = _slurm_json_value(partition_info.get("name"))
+        else:
+            partition = _slurm_json_value(partition_info)
+
+        node_info = record.get("node")
+        state_values = (
+            _slurm_json_values(node_info.get("state"))
+            if isinstance(node_info, dict)
+            else []
+        )
+        state = "+".join(state_values).lower() or "unknown"
+
+        nodes_info = record.get("nodes")
+        if not isinstance(nodes_info, dict):
+            continue
+        reservation = _slurm_json_value(record.get("reservation"))
+        if not reservation or reservation.lower() in ("none", "n/a", "null"):
+            reservation = None
+        for node in _slurm_nodes_from_json_value(nodes_info.get("nodes")):
+            _add_slurm_node_record(
+                sinfo_dict,
+                node,
+                state,
+                partition=partition,
+                reservation_id=reservation,
+                reason=_slurm_node_reason(record),
+                slurm_up_time=_slurm_node_uptime(record, current_time),
+            )
+
+    nodes_needing_details = [
+        node
+        for node, details in sinfo_dict.items()
+        if details["reason"] is None or not details["slurm_up_time"]
+    ]
+    if not nodes_needing_details:
+        return sinfo_dict
+
+    try:
         result = subprocess.run(
-            ["scontrol", "show", "node", node],
+            ["scontrol", "show", "node", "--json"],
             capture_output=True, text=True, check=True
         )
-        for line in result.stdout.splitlines():
-            parts = line.strip().split()
-            for part in parts:
-                if part.startswith("SlurmdStartTime="):
-                    try:
-                        start_str = part.split("=")[1]
-                        start_time = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
-                        sinfo_dict[node]["slurm_up_time"] = int((current_time - start_time).total_seconds())
-                    except Exception as e:
-                        sinfo_dict[node]["slurm_up_time"] = 0
+        scontrol_payload = json.loads(result.stdout)
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+        output = (
+            (exc.stderr or exc.stdout or str(exc)).strip()
+            if isinstance(exc, subprocess.CalledProcessError)
+            else str(exc)
+        )
+        logger.warning("Skipping Slurm node details because scontrol show node --json failed: %s", output)
+        return sinfo_dict
+
+    scontrol_nodes = {
+        _slurm_json_value(record.get("name")): record
+        for record in scontrol_payload.get("nodes", [])
+        if isinstance(record, dict) and _slurm_json_value(record.get("name"))
+    }
+    for node in nodes_needing_details:
+        record = scontrol_nodes.get(node)
+        if record is None:
+            logger.warning("Skipping Slurm details for %s because it was not returned by scontrol", node)
+            continue
+        if sinfo_dict[node]["reason"] is None:
+            sinfo_dict[node]["reason"] = _slurm_node_reason(record)
+        if not sinfo_dict[node]["slurm_up_time"]:
+            sinfo_dict[node]["slurm_up_time"] = _slurm_node_uptime(record, current_time)
 
 
     return sinfo_dict
 
+
+def update_slurm_node_state(node, state, reason=None):
+    """Set a Slurm node state and return whether scontrol succeeded."""
+    command = [
+        "sudo",
+        "scontrol",
+        "update",
+        f"NodeName={node.hostname}",
+        f"State={state}",
+    ]
+    if reason:
+        command.append(f"Reason={reason}")
+
+    try:
+        subprocess.run(command, capture_output=True, text=True, check=True)
+        logger.info("Set Slurm node %s to %s", node.hostname, state)
+        return True
+    except subprocess.CalledProcessError as exc:
+        logger.error(
+            "Failed to set Slurm node %s to %s: %s",
+            node.hostname,
+            state,
+            exc.stderr or exc.stdout or exc,
+        )
+        return False
+
+
+IGNORED_MAINTENANCE_EVENT_STATES = {"FAILED", "CANCELED"}
+MAINTENANCE_EVENT_STATE_PRIORITY = {
+    "SCHEDULED": 0,
+    "STARTED": 1,
+    "PROCESSING": 2,
+    "SUCCEEDED": 3,
+}
+SLURM_MAINTENANCE_EVENT_NAMES = {
+    "DOWNTIME_HOST_MAINTENANCE",
+    "LIVE_HOST_MAINTENANCE",
+}
+SLURM_MAINTENANCE_REASON_PREFIX = "OCI-IME::"
+MAINTENANCE_EVENT_SCHEDULED_WINDOW_LIMIT = timedelta(minutes=5)
+
+
+def _maintenance_event_sort_key(event):
+    state = str(getattr(event, "lifecycle_state", "")).upper()
+    time_window_start = getattr(event, "time_window_start", None)
+    return (
+        MAINTENANCE_EVENT_STATE_PRIORITY.get(state, 99),
+        str(time_window_start or "9999-12-31T23:59:59Z"),
+        str(getattr(event, "id", "")),
+    )
+
+
+def _select_instance_maintenance_event(events):
+    candidates = [
+        event
+        for event in events
+        if str(getattr(event, "lifecycle_state", "")).upper()
+        not in IGNORED_MAINTENANCE_EVENT_STATES
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=_maintenance_event_sort_key)
+
+
+def _serialize_oci_datetime(value):
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _maintenance_event_fault_ids(event):
+    additional_details = getattr(event, "additional_details", None)
+    if not isinstance(additional_details, dict):
+        return []
+
+    fault_details = additional_details.get("faultDetails")
+    if not fault_details:
+        return []
+
+    if isinstance(fault_details, str):
+        try:
+            fault_details = json.loads(fault_details)
+        except ValueError:
+            return []
+
+    if isinstance(fault_details, dict):
+        fault_details = [fault_details]
+    if not isinstance(fault_details, list):
+        return []
+
+    fault_ids = set()
+    for fault_detail in fault_details:
+        if not isinstance(fault_detail, dict):
+            continue
+        fault_id = fault_detail.get("faultId")
+        if fault_id:
+            fault_ids.add(str(fault_id))
+    return sorted(fault_ids)
+
+
+def _maintenance_event_error_code(event):
+    fault_ids = _maintenance_event_fault_ids(event)
+    if not fault_ids:
+        return None
+    return ",".join(fault_ids)
+
+
+def _maintenance_event_with_details(event):
+    if _maintenance_event_fault_ids(event):
+        return event
+
+    event_id = getattr(event, "id", None)
+    if not event_id:
+        return event
+
+    return get_instance_maintenance_event(event_id) or event
+
+
+def _maintenance_event_db_values(event):
+    return {
+        "maintenance_event_display_name": getattr(event, "display_name", None),
+        "maintenance_event_error_code": _maintenance_event_error_code(event),
+        "maintenance_event_id": getattr(event, "id", None),
+        "maintenance_event_lifecycle_state": getattr(event, "lifecycle_state", None),
+        "maintenance_event_time_started": _serialize_oci_datetime(
+            getattr(event, "time_started", None)
+        ),
+        "maintenance_event_time_finished": _serialize_oci_datetime(
+            getattr(event, "time_finished", None)
+        ),
+        "maintenance_event_time_window_start": _serialize_oci_datetime(
+            getattr(event, "time_window_start", None)
+        ),
+    }
+
+
+def _maintenance_event_utc_datetime(value):
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _maintenance_event_is_scheduled_far_future(event):
+    time_window_start = getattr(event, "time_window_start", None)
+    if not time_window_start:
+        return False
+    time_window_start = _maintenance_event_utc_datetime(time_window_start)
+    scheduled_window_limit = (
+        datetime.now(timezone.utc) + MAINTENANCE_EVENT_SCHEDULED_WINDOW_LIMIT
+    )
+    return time_window_start > scheduled_window_limit
+
+
+def _slurm_state_is_drained(slurm_state):
+    state_components = {
+        component.strip()
+        for component in re.split(r"[+,]", str(slurm_state or "").lower())
+    }
+    return "drain" in state_components
+
+
+def _maintenance_events_by_instance(node_list, nodes_by_ocid):
+    events_by_instance = {}
+
+    compartment_ids = {
+        node.compartment_id
+        for node in node_list
+        if getattr(node, "compartment_id", None)
+    }
+    for compartment_id in sorted(compartment_ids):
+        events = list_instance_maintenance_events(compartment_id)
+        for event in events:
+            instance_id = getattr(event, "instance_id", None)
+            if instance_id not in nodes_by_ocid:
+                logger.debug(
+                    "Ignoring maintenance event %s for instance %s not present in the DB",
+                    getattr(event, "id", None),
+                    instance_id,
+                )
+                continue
+            events_by_instance.setdefault(instance_id, []).append(event)
+
+    return events_by_instance
+
+
+def _maintenance_event_is_current_state(node, event, lifecycle_state):
+    if lifecycle_state == "SCHEDULED" and _maintenance_event_is_scheduled_far_future(event):
+        return False
+    return (
+        getattr(node, "maintenance_event_id", None) == getattr(event, "id", None)
+        and str(getattr(node, "maintenance_event_lifecycle_state", "")).upper()
+        == lifecycle_state
+    )
+
+
+def _reschedule_maintenance_event(node, event):
+    event_id = getattr(event, "id", None)
+    updated_event, updated_time_window_start = reschedule_instance_maintenance_event(event_id)
+    if updated_time_window_start is None:
+        return None
+
+    if updated_event is not None:
+        event = updated_event
+    else:
+        event.time_window_start = updated_time_window_start
+    logger.info(
+        "Moved OCI maintenance event %s start window to %s for %s",
+        event_id,
+        updated_time_window_start.isoformat(),
+        node.hostname,
+    )
+    return event
+
+
+def _handle_scheduled_maintenance_event(node, event, slurm_info):
+    event_id = getattr(event, "id", None)
+    display_name = getattr(event, "display_name", None)
+
+    if slurm_info:
+        if _slurm_state_is_drained(slurm_info.get("state")):
+            slurm_reason = str(slurm_info.get("reason") or "").lower()
+            if slurm_reason.startswith("healthcheck::"):
+                if update_slurm_node_state(
+                    node,
+                    "DRAIN",
+                    reason=f"{SLURM_MAINTENANCE_REASON_PREFIX} {display_name}",
+                ):
+                    return event
+                return None
+            return event
+        if _maintenance_event_is_scheduled_far_future(event):
+            event = _reschedule_maintenance_event(node, event)
+            if event is None:
+                return None
+        if update_slurm_node_state(
+            node,
+            "DRAIN",
+            reason=f"{SLURM_MAINTENANCE_REASON_PREFIX} {display_name}",
+        ):
+            return event
+        return None
+
+    if node.role == "compute":
+        logger.warning(
+            "Deferring OCI maintenance event %s because %s is absent from Slurm",
+            event_id,
+            node.hostname,
+        )
+        return None
+
+    return event
+
+
+def _handle_active_maintenance_event(node, event, slurm_info):
+    event_id = getattr(event, "id", None)
+    display_name = getattr(event, "display_name", None)
+
+    if slurm_info:
+        slurm_state = slurm_info.get("state")
+        slurm_reason = str(slurm_info.get("reason") or "").lower()
+        if (
+            not _slurm_state_is_drained(slurm_state)
+            or slurm_reason.startswith("healthcheck::")
+        ):
+            if update_slurm_node_state(
+                node,
+                "DRAIN",
+                reason=f"{SLURM_MAINTENANCE_REASON_PREFIX} {display_name}",
+            ):
+                return event
+            return None
+        return event
+
+    if node.role == "compute":
+        logger.warning(
+            "Deferring OCI maintenance event %s because %s is absent from Slurm",
+            event_id,
+            node.hostname,
+        )
+        return None
+
+    return event
+
+
+def _handle_succeeded_maintenance_event(node, event, slurm_info):
+    event_id = getattr(event, "id", None)
+
+    if slurm_info:
+        slurm_state = slurm_info.get("state")
+        slurm_reason = str(slurm_info.get("reason") or "")
+        if _slurm_state_is_drained(slurm_state):
+            if slurm_reason.startswith(SLURM_MAINTENANCE_REASON_PREFIX):
+                if update_slurm_node_state(node, "RESUME"):
+                    return event
+                return None
+            logger.warning(
+                "Leaving %s drained because its reason is not owned by OCI-IME: %s",
+                node.hostname,
+                slurm_reason or "<none>",
+            )
+        return event
+
+    if node.role == "compute":
+        logger.warning(
+            "Deferring completion of OCI maintenance event %s because %s is absent from Slurm",
+            event_id,
+            node.hostname,
+        )
+        return None
+
+    return event
+
+
+def _handle_maintenance_event(
+    node,
+    event,
+    slurm_info,
+    manage_slurm=True,
+    healthcheck_drained_only=False,
+):
+    display_name = getattr(event, "display_name", None)
+    lifecycle_state = str(getattr(event, "lifecycle_state", "")).upper()
+    slurm_state = slurm_info.get("state") if slurm_info else None
+    slurm_reason = str(slurm_info.get("reason") or "").lower() if slurm_info else ""
+    healthcheck_drained = (
+        slurm_info
+        and _slurm_state_is_drained(slurm_state)
+        and slurm_reason.startswith("healthcheck::")
+    )
+    manage_event_slurm = manage_slurm and (
+        not healthcheck_drained_only or healthcheck_drained
+    )
+    maintenance_should_own_slurm = (
+        manage_event_slurm
+        and lifecycle_state in {"SCHEDULED", "STARTED", "PROCESSING"}
+        and slurm_info
+        and (
+            not _slurm_state_is_drained(slurm_state)
+            or slurm_reason.startswith("healthcheck::")
+        )
+    )
+
+    if display_name not in SLURM_MAINTENANCE_EVENT_NAMES:
+        return event
+    if _maintenance_event_is_current_state(
+        node,
+        event,
+        lifecycle_state,
+    ) and not maintenance_should_own_slurm:
+        return event
+
+    if lifecycle_state in {"SCHEDULED", "STARTED", "PROCESSING"} and not manage_event_slurm:
+        return event
+
+    if lifecycle_state == "SCHEDULED":
+        return _handle_scheduled_maintenance_event(node, event, slurm_info)
+    if lifecycle_state in {"STARTED", "PROCESSING"}:
+        return _handle_active_maintenance_event(node, event, slurm_info)
+    if lifecycle_state == "SUCCEEDED":
+        return _handle_succeeded_maintenance_event(node, event, slurm_info)
+    return event
+
+
+def _store_maintenance_event(node, event):
+    event = _maintenance_event_with_details(event)
+    db_update_node(node, **_maintenance_event_db_values(event))
+
+
+def process_instance_maintenance_events(
+    node_list,
+    slurm_dict,
+    manage_slurm=True,
+    healthcheck_drained_only=False,
+):
+    nodes_by_ocid = {node.ocid: node for node in node_list if node.ocid}
+    events_by_instance = _maintenance_events_by_instance(node_list, nodes_by_ocid)
+
+    for instance_id, events in events_by_instance.items():
+        node = nodes_by_ocid[instance_id]
+        event = _select_instance_maintenance_event(events)
+        if event is None:
+            logger.debug(
+                "Ignoring FAILED/CANCELED maintenance events for %s",
+                node.hostname or node.ocid,
+            )
+            continue
+
+        event_to_store = _handle_maintenance_event(
+            node,
+            event,
+            slurm_dict.get(node.hostname),
+            manage_slurm=manage_slurm,
+            healthcheck_drained_only=healthcheck_drained_only,
+        )
+        if event_to_store is not None:
+            _store_maintenance_event(node, event_to_store)
+
+
+def _node_display_name(node):
+    return getattr(node, "hostname", None) or getattr(node, "ocid", None) or "<unknown>"
+
+def _healthcheck_partitions(node):
+    slurm_partition = getattr(node, "slurm_partition", None)
+    if slurm_partition in (None, "", "None"):
+        logger.error(
+            "Cannot submit healthcheck for %s: slurm_partition is not set",
+            _node_display_name(node),
+        )
+        return None
+    return [
+        partition
+        for partition in str(slurm_partition).split(',')
+        if 'healthcheck' in partition
+    ]
+
+def _multi_node_healthcheck_gpu_count(nodes):
+    gpu_counts = []
+    for node in nodes:
+        shape = getattr(node, "shape", None)
+        try:
+            gpu_count = int(str(shape).split(".")[-1])
+        except (TypeError, ValueError):
+            logger.warning(
+                "Cannot determine GPU count for %s from shape %s",
+                _node_display_name(node),
+                shape,
+            )
+            continue
+        if gpu_count > 0:
+            gpu_counts.append(gpu_count)
+
+    if not gpu_counts:
+        logger.warning("Cannot determine GPU count for multi-node healthcheck; defaulting to 8")
+        return "8"
+
+    if len(set(gpu_counts)) > 1:
+        logger.warning(
+            "Multi-node healthcheck nodes have different GPU counts %s; using %s",
+            sorted(set(gpu_counts)),
+            min(gpu_counts),
+        )
+
+    return str(min(gpu_counts))
+
 def run_active_hc(node,reservation_id=None):
-    partitions=node.slurm_partition.split(',')
-    hc_partition=[partition for partition in partitions if 'healthcheck' in partition]
+    hc_partition = _healthcheck_partitions(node)
+    if hc_partition is None:
+        return
     if hc_partition:
         logger.debug(f"Submitting active healthcheck on {node.hostname} through partition {hc_partition[0]}")
         if reservation_id is None:
@@ -530,42 +1156,38 @@ def run_active_hc(node,reservation_id=None):
         logger.debug(f"Running command: {' '.join(cmd)}")
         results = subprocess.run(cmd)
         if results.returncode != 0:
-            logger.debug("Slurm launch failed, trying to reconfiguring Slurm before retrying")
-            reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
-            logger.debug(f"Running command: {' '.join(cmd)}")
-            results2 = subprocess.run(cmd)
-            if results2.returncode != 0:
-                logger.warning("Slurm launch failed after reconfiguring Slurm")
-                logger.warning(f"Error message: {results2.stderr}")
-            else:
-                logger.debug("Slurm Job launch successful after reconfiguring Slurm")
+            logger.error(
+                "Failed to submit active healthcheck for %s with sbatch "
+                "(return code %s): %s",
+                node.hostname,
+                results.returncode,
+                " ".join(cmd),
+            )
     else:
         logger.warning(f"No healthcheck partition found for {node.hostname}")
 
 def run_multi_node_active_hc(nodes,exclude_node=None,reservation_id=None):
+    hostnames = ",".join([_node_display_name(node) for node in nodes])
     if len(nodes)==1:
         node=nodes[0]
-        hostnames=node.hostname
-        partitions=node.slurm_partition.split(',')
-        hc_partition=[partition for partition in partitions if 'healthcheck' in partition]
+        hc_partition = _healthcheck_partitions(node)
+        if hc_partition is None:
+            return
     elif len(nodes)==2:
         node_1=nodes[0]
         node_2=nodes[1]
-        hostnames=node_1.hostname+','+node_2.hostname
-        partitions_1=node_1.slurm_partition.split(',')
-        partitions_2=node_2.slurm_partition.split(',')
-        hc_partition_1=[partition for partition in partitions_1 if 'healthcheck' in partition]
-        hc_partition_2=[partition for partition in partitions_2 if 'healthcheck' in partition]
+        hc_partition_1 = _healthcheck_partitions(node_1)
+        hc_partition_2 = _healthcheck_partitions(node_2)
+        if hc_partition_1 is None or hc_partition_2 is None:
+            return
         hc_partition=list(set(hc_partition_1) & set(hc_partition_2))
     else:
         logger.error("The number of nodes does not make sense")
+        return
     if hc_partition:
         logger.info(f"Submitting multi node healthcheck on {hostnames} through partition {hc_partition[0]}")
         healthcheck_script="/opt/oci-hpc/healthchecks/multi_node_active_HC.sbatch"
-        try:
-            gpu_count = str(int(node_1.shape.split(".")[-1]))
-        except:
-            gpu_count = str(8)
+        gpu_count = _multi_node_healthcheck_gpu_count(nodes)
         if exclude_node is None:
             if reservation_id is None:
                 cmd=["sbatch","-N","2","-p",hc_partition[0],"--ntasks-per-node",gpu_count,"--gpus-per-node",gpu_count,"-w",hostnames,"--deadline=now+5minutes","--time=4:00",healthcheck_script]       
@@ -579,15 +1201,13 @@ def run_multi_node_active_hc(nodes,exclude_node=None,reservation_id=None):
         logger.debug(f"Running command: {' '.join(cmd)}")
         results = subprocess.run(cmd)
         if results.returncode != 0:
-            logger.debug("Slurm launch failed, trying to reconfiguring Slurm before retrying")
-            reconfigure=subprocess.run(["sudo","scontrol","reconfigure"])
-            logger.debug(f"Running command: {' '.join(cmd)}")
-            results2 = subprocess.run(cmd)
-            if results2.returncode != 0:
-                logger.warning("Slurm launch failed after reconfiguring Slurm")
-                logger.warning(f"Error message: {results2.stderr}")
-            else:
-                logger.debug("Slurm Job launch successful after reconfiguring Slurm")
+            logger.error(
+                "Failed to submit multi-node active healthcheck for %s with sbatch "
+                "(return code %s): %s",
+                hostnames,
+                results.returncode,
+                " ".join(cmd),
+            )
     else:
         logger.warning(f"No healthcheck partition found for {hostnames}")
 
@@ -651,8 +1271,21 @@ def remove_nodes_from_reservation(nodes, name="InitialValidation"):
         logger.debug("No nodes found to remove reservation")
         return
 
+    def _slurm_hostlist(nodes) -> str:
+        nodenames = ",".join([node.hostname for node in nodes])
+        try:
+            return subprocess.check_output(
+                ["scontrol", "show", "hostlist", nodenames],
+                stderr=subprocess.STDOUT,
+            ).decode("utf-8").strip()
+        except subprocess.CalledProcessError as e:
+            output = e.output.decode("utf-8", errors="replace").strip()
+            logger.warning(f"Failed to format SLURM hostlist for {nodenames}: {e}: {output}")
+            return nodenames
+
     def _remove(nodes) -> bool:
         nodenames = ",".join([node.hostname for node in nodes])
+        slurm_hostlist = _slurm_hostlist(nodes)
         try:
             subprocess.check_call(
                 [
@@ -661,14 +1294,15 @@ def remove_nodes_from_reservation(nodes, name="InitialValidation"):
                     "update",
                     "reservation",
                     f"reservation={name}",
-                    f"Nodes-={nodenames}",
+                    f"Nodes-={slurm_hostlist}",
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT
             )
             return True
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to remove {nodenames} from reservation {name}: {e}")
+            output = (e.output or b"").decode("utf-8", errors="replace").strip()
+            logger.error(f"Failed to remove {nodenames} ({slurm_hostlist}) from reservation {name}: {e}: {output}")
             return False
 
     if _remove(nodes):
@@ -850,7 +1484,7 @@ def get_node_configuration(config) -> Dict[str, any]:
     flex_shapes = [
         "VM.Standard.E3.Flex", "VM.Standard.E4.Flex", "VM.Standard.E5.Flex",
         "VM.Standard.E6.Flex", "VM.Optimized3.Flex", "VM.Standard3.Flex",
-        "VM.DenseIO.E4.Flex", "VM.DenseIO.E5.Flex"
+        "VM.DenseIO.E4.Flex", "VM.DenseIO.E5.Flex", "VM.DenseIO.E6.Ax.Flex"
     ]
     
     # Check threadspercore-specific first
@@ -1062,7 +1696,7 @@ def check_root_privileges():
 
 def get_active_nodes_from_partition(partition_name: str) -> Set[str]:
     """
-    Get list of active nodes in a partition using sinfo.
+    Get list of active nodes in a partition using sinfo JSON output.
     
     Args:
         partition_name: Name of the partition
@@ -1072,28 +1706,43 @@ def get_active_nodes_from_partition(partition_name: str) -> Set[str]:
     """
     try:
         result = subprocess.run(
-            ['sinfo', '-h', '-p', partition_name, '-N', '-o', "'%N %T'"],
-            capture_output=True, text=True, timeout=10
+            ['sinfo', '-p', partition_name, '-N', '--json'],
+            capture_output=True, text=True, timeout=10, check=True
         )
-        
-        if result.returncode != 0:
-            logger.warning(f"Failed to query nodes for partition {partition_name}")
-            return set()
+        sinfo_payload = json.loads(result.stdout)
         
         active_nodes = set()
-        for line in result.stdout.strip().split('\n'):
-            if not line.strip():
+        for record in sinfo_payload.get("sinfo", []):
+            if not isinstance(record, dict):
                 continue
-            parts = line.split()
-            if len(parts) >= 2:
-                node_name = parts[0]
-                state = parts[1]
-                # Consider nodes as active if they're not in idle~ or down state
-                if 'idle~' not in state.lower() and 'down' not in state.lower():
-                    active_nodes.add(node_name)
+            partition_info = record.get("partition")
+            if isinstance(partition_info, dict):
+                record_partition = _slurm_json_value(partition_info.get("name"))
+            else:
+                record_partition = _slurm_json_value(partition_info)
+            if record_partition and record_partition != partition_name:
+                continue
+
+            node_info = record.get("node")
+            state_values = (
+                _slurm_json_values(node_info.get("state"))
+                if isinstance(node_info, dict)
+                else []
+            )
+            state = "+".join(state_values).lower()
+            nodes_info = record.get("nodes")
+            if "idle~" not in state and "down" not in state:
+                if isinstance(nodes_info, dict):
+                    active_nodes.update(
+                        _slurm_nodes_from_json_value(nodes_info.get("nodes"))
+                    )
         
         return active_nodes
         
+    except subprocess.CalledProcessError as e:
+        output = (e.stderr or e.stdout or str(e)).strip()
+        logger.warning(f"Failed to query nodes for partition {partition_name}: {output}")
+        return set()
     except subprocess.TimeoutExpired:
         logger.warning(f"Timeout querying nodes for partition {partition_name}")
         return set()

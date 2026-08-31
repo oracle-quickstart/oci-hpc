@@ -1,0 +1,27 @@
+---
+- name: Validate DGXC benchmarking node targets
+  hosts: localhost
+  gather_facts: false
+  vars:
+    dgxc_requested_targets: "{{ dgxc_target_hosts | default('localhost') }}"
+    dgxc_matched_targets: "{{ query('ansible.builtin.inventory_hostnames', dgxc_requested_targets) }}"
+  tasks:
+    - name: Ensure DGXC node integration matches at least one inventory host
+      ansible.builtin.assert:
+        that:
+          - dgxc_matched_targets | length > 0
+        fail_msg: >-
+          DGXC node integration must match at least one inventory host.
+          Pattern '{{ dgxc_requested_targets }}' matched no hosts.
+      when: dgxc_target_hosts is defined
+
+- name: Install DGXC benchmarking node wrappers and environment loader
+  hosts: "{{ dgxc_target_hosts | default('localhost') }}"
+  gather_facts: true
+  tasks:
+    - name: Install DGXC node wrappers and environment loader
+      ansible.builtin.include_role:
+        name: dgxc
+      vars:
+        dgxc_install_shared_components: false
+        dgxc_install_node_integration: true

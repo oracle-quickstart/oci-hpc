@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mgmt"
+version = "0.1.0"
+description = "Management CLI for OCI HPC cluster operations."
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8,<9",
+    "oci",
+    "PyYAML",
+    "pymysql",
+    "rich",
+    "sqlalchemy>=2,<3",
+    "ClusterShell",
+]
+
+[project.scripts]
+mgmt = "manage:cli"
+
+[tool.setuptools]
+py-modules = ["manage"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lib*"]

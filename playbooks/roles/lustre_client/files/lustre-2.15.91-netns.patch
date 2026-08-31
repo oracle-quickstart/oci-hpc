@@ -1,0 +1,37 @@
+From aa4697ff01710cc2b87cc3757d7f80edd616d07f Mon Sep 17 00:00:00 2001
+From: Andrei Ilas <andrei.ilas@oracle.com>
+Date: Wed, 18 Feb 2026 17:47:53 +0200
+Subject: [PATCH] Fix int namespace
+
+---
+ lnet/klnds/socklnd/socklnd.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/lnet/klnds/socklnd/socklnd.c b/lnet/klnds/socklnd/socklnd.c
+index 9dd8444747..4ffb9d7e98 100644
+--- a/lnet/klnds/socklnd/socklnd.c
++++ b/lnet/klnds/socklnd/socklnd.c
+@@ -1985,6 +1985,7 @@ ksocknal_handle_link_state_change(struct net_device *dev,
+ 	u32 ni_state_before;
+ 	bool update_ping_buf = false;
+ 	int state;
++	struct net *dev_netns = dev_net(dev);
+ 
+ 	link_down = !((operstate == IF_OPER_UP) || (operstate == IF_OPER_UNKNOWN));
+ 	ifindex = dev->ifindex;
+@@ -2021,6 +2022,13 @@ ksocknal_handle_link_state_change(struct net_device *dev,
+ 
+ 		ni = net->ksnn_ni;
+ 
++		/* Skip devices from a different namespace */
++		if (!net_eq(dev_netns, ni->ni_net_ns)) {
++			CDEBUG(D_NET, "Skipping device %s from namespace %p (expected %p)\n",
++			       dev->name, dev_netns, ni->ni_net_ns);
++			continue;
++		}
++		
+ 		sa = (void *)&ksi->ksni_addr;
+ 		switch (sa->sa_family) {
+ 		case AF_INET: {
+-- 
+2.34.1

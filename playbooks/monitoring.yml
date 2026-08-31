@@ -1,25 +1,12 @@
 ---
 - hosts: localhost
   tasks:
-    - name: Remove legacy InfluxData repo (without signed-by)
-      become: true
-      ansible.builtin.apt_repository:
-        repo: "deb https://repos.influxdata.com/debian stable main"
-        state: absent
-      when: ansible_facts['distribution'] == 'Ubuntu'
-
-- hosts: localhost
-  become: true
-  gather_facts: true
-  tasks:
     - include_role:
-        name: fix_broken
-      when: ansible_facts['os_family'] == 'Debian'
+        name: influxdata_repo_cleanup
 
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
     http_server_status: "configuring"
     http_server_role: "monitoring"
   gather_facts: true
@@ -27,7 +14,6 @@
     - oci-cloud-agent
     - http_server
     - privilege_group
-    - oci-legacy
     - packages
     - firewall
     - oci-hostname
@@ -41,14 +27,10 @@
 - hosts: localhost
   become: true
   gather_facts: true
-  vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else%}ubuntu{% endif %}"
   tasks:
     - include_role:
         name: localdisk
       when: localdisk | default(true) | bool
-    - include_role:
-        name: healthchecks
 
 # New role to clean old tmp dir files
 - hosts: localhost
@@ -60,9 +42,6 @@
 - hosts: localhost
   become: true
   tasks:
-    - include_role:
-        name: home_nfs
-      when: shared_home != "none"
     - include_role:
         name: nfs-client
       vars:
@@ -80,6 +59,7 @@
         export_path: "{% if create_fss == 'new' %}/home{% else %}{{ nfs_source_path }}/home{% endif %}"
         options: ""
         lock: "none"
+        nfs_client_marker: "{{ fss_home_marker_path }}"
       when: shared_home == "fss"
     - include_role:
         name: nfs-client
@@ -94,23 +74,31 @@
 - hosts: localhost
   vars:
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
   pre_tasks:
     - name: Prepare shared 3rdparty paths
       ansible.builtin.import_tasks: tasks/prepare_thirdparty_paths.yml
   tasks:
     - include_role:
         name: docker
-      when: enroot | default(true) | bool
     - include_role:
         name: nvidia-enroot
-      when: enroot | default(true) | bool
-
+    - include_role:
+        name: healthchecks
+        apply:
+          become: true
+    - name: Install DGXC benchmarking shell integration
+      ansible.builtin.include_role:
+        name: dgxc
+      vars:
+        dgxc_install_shared_components: false
+        dgxc_install_node_integration: true
+      when:
+        - dgxc_benchmarking | default(false) | bool
+        - pyxis | default(false) | bool
 - hosts: localhost
   vars:
     slurm_mode: "login"
     enroot_top_path: "{{ nvme_path }}/enroot/"
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     compute_node: false
   pre_tasks:
     - name: Collect cluster archiecture context
@@ -130,7 +118,6 @@
 - hosts: localhost
   become: true
   vars:
-    ansible_user: "{% if ansible_facts['os_family'] == 'RedHat' %}opc{% else %}ubuntu{% endif %}"
     http_server_status: "configured"
     http_server_role: "monitoring"
   gather_facts: true

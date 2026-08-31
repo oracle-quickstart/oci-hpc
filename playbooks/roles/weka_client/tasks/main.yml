@@ -195,36 +195,60 @@
   when: weka_nfs is defined
 
 - name: Mount Weka DPDK Filesystems GPU Nodes
+  vars:
+    weka_dpdk_gpu_mount_options: >-
+      {{
+        ((dpdk_opts ~ ',net=' ~ ansible_facts['default_ipv4']['alias'] ~ item.opts).split(',')
+        + ['nofail', 'x-systemd.automount'])
+        | reject('equalto', '') | unique | join(',')
+      }}
   mount:
     path: "{{ item.mountpoint }}"
     src: "{{ backends | join(',') }}/{{ item.name }}"
     fstype: wekafs
-    opts: "{{ dpdk_opts }},net={{ ansible_facts['default_ipv4']['alias'] }}{{ item.opts }}"
+    opts: "{{ weka_dpdk_gpu_mount_options }}"
     state: mounted
-    when: (shape == "BM.GPU4.8" or shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8" or shape == "BM.GPU.H100.8") and dpdk_fs is defined
-    loop: "{{ dpdk_fs }}"
+  when: (shape == "BM.GPU4.8" or shape == "BM.GPU.B4.8" or shape == "BM.GPU.A100-v2.8" or shape == "BM.GPU.H100.8") and dpdk_fs is defined
+  loop: "{{ dpdk_fs }}"
+  register: weka_dpdk_gpu_mount
 
 # TODO: Add additonal debug info for failing mounts
 
 - name: Mount Weka DPDK Filesystems to VM nodes
+  vars:
+    weka_dpdk_vm_mount_options: >-
+      {{
+        ((dpdk_opts ~ ',net=ens5/' ~ private_ip_2 ~ '/' ~ subnet_cidr_block_2 ~ '/' ~ gateway_2 ~ item.opts).split(',')
+        + ['nofail', 'x-systemd.automount'])
+        | reject('equalto', '') | unique | join(',')
+      }}
   mount:
     path: "{{ item.mountpoint }}"
     src: "{{ data_backends | join(',') }}/{{ item.name }}"
     fstype: wekafs
-    opts: "{{ dpdk_opts }},net=ens5/{{ private_ip_2 }}/{{ subnet_cidr_block_2 }}/{{ gateway_2 }}{{ item.opts }}"
+    opts: "{{ weka_dpdk_vm_mount_options }}"
     state: mounted
   when: (shape == "VM.Standard3.Flex" or shape == "VM.Standard.E4.Flex" or shape == "VM.Optimized3.Flex") and dpdk_fs is defined
   loop: "{{ dpdk_fs }}"
+  register: weka_dpdk_vm_mount
 
 - name: Mount Weka UDP to all nodes
+  vars:
+    weka_udp_mount_options: >-
+      {{
+        ((upd_opts ~ ',net=udp,' ~ item.opts).split(',')
+        + ['nofail', 'x-systemd.automount'])
+        | reject('equalto', '') | unique | join(',')
+      }}
   mount:
     path: "{{ item.mountpoint }}"
     src: "{{ backends | join(',') }}/{{ item.name }}"
     fstype: wekafs
-    opts: "{{ upd_opts }},net=udp,{{ item.opts }}"
+    opts: "{{ weka_udp_mount_options }}"
     state: mounted
   when: udp_fs is defined
   loop: "{{ udp_fs }}"
+  register: weka_udp_mount
 
 - name: Set NFS Mount
   set_fact:
@@ -236,9 +260,21 @@
     path: "{{ item.mountpoint }}"
     src: "{{ nfsmount }}:/{{ item.name }}"
     fstype: nfs
+    opts: defaults,nofail,x-systemd.automount
     state: mounted
   when: weka_nfs is defined
   loop: "{{ weka_nfs }}"
+  register: weka_nfs_mount
+
+- name: Reload systemd for Weka automounts
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: >
+    (weka_dpdk_gpu_mount is defined and weka_dpdk_gpu_mount is changed) or
+    (weka_dpdk_vm_mount is defined and weka_dpdk_vm_mount is changed) or
+    (weka_udp_mount is defined and weka_udp_mount is changed) or
+    (weka_nfs_mount is defined and weka_nfs_mount is changed)
 
 #
 # WEKA CLEAN-UP SCRIPTS

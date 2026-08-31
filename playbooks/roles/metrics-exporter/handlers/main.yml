@@ -1,0 +1,15 @@
+---
+- name: Restart Lustre utilization exporter
+  become: true
+  ansible.builtin.systemd:
+    name: lustre-utilization-exporter
+    state: restarted
+    daemon_reload: true
+
+- name: Restart dcgm exporter
+  become: true
+  ansible.builtin.systemd:
+    name: dcgm-exporter
+    daemon_reload: true
+    enabled: true
+    state: restarted

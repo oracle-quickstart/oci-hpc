@@ -1,0 +1,40 @@
+---
+- name: Select Slurm reservations containing {{ slurm_removed_node }}
+  ansible.builtin.set_fact:
+    slurm_node_reservations: >-
+      {{
+        slurm_reservation_hostnames.results | default([])
+        | selectattr('stdout_lines', 'contains', slurm_removed_node)
+        | list
+      }}
+
+- name: "Remove node from matching Slurm reservations: {{ slurm_removed_node }}"
+  become: true
+  ansible.builtin.command:
+    argv:
+      - scontrol
+      - update
+      - "reservation={{ item.item.name }}"
+      - "Nodes-={{ slurm_removed_node }}"
+  loop: "{{ slurm_node_reservations }}"
+  when: item.stdout_lines | length > 1
+
+- name: Delete single-node Slurm reservations for {{ slurm_removed_node }}
+  become: true
+  ansible.builtin.command:
+    argv:
+      - scontrol
+      - delete
+      - "reservation={{ item.item.name }}"
+  loop: "{{ slurm_node_reservations }}"
+  when: item.stdout_lines | length == 1
+
+- name: "Remove node from all-node Slurm reservations: {{ slurm_removed_node }}"
+  become: true
+  ansible.builtin.command:
+    argv:
+      - scontrol
+      - update
+      - "reservation={{ item.name }}"
+      - "Nodes-={{ slurm_removed_node }}"
+  loop: "{{ slurm_reservation_details | selectattr('nodes', 'equalto', 'ALL') | list }}"

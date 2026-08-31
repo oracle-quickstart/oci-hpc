@@ -2,6 +2,14 @@
 node_exporter: 1.8.2
 cpu_ports: 9100
 metrics_exporter_shared_path: "{{ thirdparty_root_path }}/metrics-exporter"
+metrics_exporter_install_dir: /opt/oci-hpc/metrics_exporter
+
+metrics_exporter_lustre_port: 9718
+metrics_exporter_lustre_mount_path: "{{ lfs_target_path | default('/mnt/lfs') }}"
+metrics_exporter_lustre_interval_seconds: 900
+metrics_exporter_lustre_timeout_seconds: 720
+metrics_exporter_lustre_log_level: INFO
+metrics_exporter_lustre_command: /usr/bin/lfs
 
 nccl_exporter_script: "/usr/local/bin/nccl_profiler_exporter.py"
 exporter_service_file: "/etc/systemd/system/nccl-profiler-exporter.service"
@@ -9,3 +17,13 @@ amd_exporter_port: 9400
 amd_exporter_host: "0.0.0.0"
 amd_exporter_image: "rocm/device-metrics-exporter:latest"
 amd_exporter_version: "1.4.0"
+
+# Slurm monitoring database settings for NVML exporter.
+nvml_metrics_port: 9800
+nvml_scrape_interval: 15
+nvml_db_interval: 60
+slurm_job_monitoring: false
+slurm_monitoring_db_host: ""
+slurm_monitoring_db_port: 3306
+slurm_monitoring_db_name: slurm_jobs
+slurm_monitoring_db_user: slurm_exporter

@@ -1,58 +1,94 @@
 ---
+- name: Set NVML exporter mode flags
+  ansible.builtin.set_fact:
+    metrics_exporter_nvidia_gpu_node: "{{ ('GPU' in shape) and ('BM.GPU.MI' not in shape) }}"
+
+- name: Ensure Slurm monitoring database variables are configured
+  ansible.builtin.assert:
+    that:
+      - slurm_monitoring_db_host | default('') | string | length > 0
+      - slurm_monitoring_db_password | default('') | string | length > 0
+    fail_msg: >-
+      NVML Slurm monitoring requires slurm_monitoring_db_host and generated
+      slurm_monitoring_db_password inventory variables.
+
 - name: Copy modprobe conf to allow NVML access to non-admins
-  copy:
+  ansible.builtin.copy:
     src: nvidia-allow-prof.conf
     dest: /etc/modprobe.d
     mode: "0755"
   become: true
-  when: not 'BM.GPU.MI' in shape
-
+  when: metrics_exporter_nvidia_gpu_node | bool
 
 - name: Get list of GPUs using nvidia-smi
-  shell: "nvidia-smi -L | cut -d':' -f 1 | cut -d' ' -f 2"
+  ansible.builtin.command:
+    cmd: nvidia-smi --query-gpu=index --format=csv,noheader,nounits
   register: nvidia_smi_output
-  when: not 'BM.GPU.MI' in shape
-
+  changed_when: false
+  when: metrics_exporter_nvidia_gpu_node | bool
 
 - name: Extract GPU IDs from nvidia-smi output
-  set_fact:
+  ansible.builtin.set_fact:
     gpu_ids: "{{ nvidia_smi_output.stdout_lines | list }}"
-  when: not 'BM.GPU.MI' in shape
+  when: metrics_exporter_nvidia_gpu_node | bool
 
-
-- debug:
+- name: Report GPU IDs found
+  ansible.builtin.debug:
     msg: "GPU IDs found: {{ gpu_ids }}"
-  when: not 'BM.GPU.MI' in shape
-
+  when: metrics_exporter_nvidia_gpu_node | bool
 
 - name: Enable accounting mode on each GPU
-  command: nvidia-smi --accounting-mode=1 --gpu {{ item }}
+  ansible.builtin.command: nvidia-smi --accounting-mode=1 --gpu {{ item }}
   loop: "{{ gpu_ids }}"
   become: true
-  ignore_errors: true
-  when: not 'BM.GPU.MI' in shape
+  changed_when: false
+  failed_when: false
+  when: metrics_exporter_nvidia_gpu_node | bool
 
-- name: Copy exporter file to scripts directory
-  copy:
+- name: Install mysql-connector-python for NVML exporter without Ansible pip module
+  become: true
+  ansible.builtin.command:
+    cmd: "{{ venv_path }}/bin/python3 -m pip install mysql-connector-python"
+  register: metrics_exporter_mysql_connector_install
+  changed_when: "'Successfully installed' in metrics_exporter_mysql_connector_install.stdout"
+
+- name: Ensure metrics exporter install directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy db_adapter_compute.py to metrics exporter install directory
+  ansible.builtin.copy:
+    src: db_adapter_compute.py
+    dest: "{{ metrics_exporter_install_dir }}/db_adapter_compute.py"
+    mode: "0755"
+  become: true
+
+- name: Copy exporter file to metrics exporter install directory
+  ansible.builtin.copy:
     src: nvml_metrics_exporter.py
-    dest: /usr/local/bin
+    dest: "{{ metrics_exporter_install_dir }}/nvml_metrics_exporter.py"
     mode: "0755"
   become: true
 
 - name: Render systemd service file
   become: true
-  template:
+  ansible.builtin.template:
     src: nvml-exporter.service.j2
     dest: /etc/systemd/system/nvml-exporter.service
     force: true
     backup: true
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0744"
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Start nvml exporter
   become: true
-  service:
+  ansible.builtin.service:
     name: nvml-exporter
     daemon_reload: true
     state: restarted

@@ -17,7 +17,9 @@ if [ ${shape} = "BM.GPU.H100.8" ] || \
    [ ${shape} = "BM.GPU.GB200-v3.4" ] || \
    [ ${shape} = "BM.GPU.GB300.4" ] || \
    [ ${shape} = "BM.GPU.B200.8" ] || \
-   [ ${shape} = "BM.GPU.B300.8" ]; then
+   [ ${shape} = "BM.GPU.B300.8" ] || \
+   [ ${shape} = "BM.GPU.B300.HS.8" ] || \
+   [ ${shape} = "BM.GPU.RTXPRO.8" ]; then
 
   FILE="/var/log/healthchecks/latest_healthcheck.log"
   if [ -e "$FILE" ]; then
@@ -33,12 +35,24 @@ if [ ${shape} = "BM.GPU.H100.8" ] || \
 
   # Check if the file is older than 60 seconds (1 minute)
   if [ $TIME_DIFF -gt 60 ]; then
-    sudo python3 /opt/oci-hpc/healthchecks/check_gpu_setup.py --slurm 2>&1
+    sudo /config/bin/uv_wrapper.sh run-venv /opt/oci-hpc/healthchecks/check_gpu_setup.py --slurm 2>&1
   fi
 
   # Check for healthcheck messages
   DRAIN_MSG=$(grep "Healthcheck::" /var/log/healthchecks/latest_healthcheck.log)
   if [ -n "$DRAIN_MSG" ]; then
+    JIRA_TICKET_FILE="/etc/slurm/prolog.d/healthcheck_jira_tickets.tsv"
+    JIRA_KEY=""
+    if [ -r "$JIRA_TICKET_FILE" ]; then
+      JIRA_KEY=$(awk -v node="$NODE" '$1 == node {print $2; exit}' "$JIRA_TICKET_FILE")
+    fi
+    if [ -z "$JIRA_KEY" ]; then
+      CURRENT_REASON=$(scontrol show node="$NODE" | awk -F= '/Reason=/{print $2}')
+      JIRA_KEY=$(printf '%s\n' "$CURRENT_REASON" | sed -n 's/^Healthcheck:: \([A-Z][A-Z0-9]*-[0-9][0-9]*\) .*/\1/p' | head -n 1)
+    fi
+    if [ -n "$JIRA_KEY" ] && ! printf '%s\n' "$DRAIN_MSG" | grep -E '^Healthcheck:: [A-Z][A-Z0-9]*-[0-9][0-9]* ' >/dev/null 2>&1; then
+      DRAIN_MSG=$(printf '%s\n' "$DRAIN_MSG" | sed "s/^Healthcheck:: /Healthcheck:: ${JIRA_KEY} /")
+    fi
     if [ -n "$SLURM_JOB_ID" ]; then
       echo "${DRAIN_MSG}"
       exit 1

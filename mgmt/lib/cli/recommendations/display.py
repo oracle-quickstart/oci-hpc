@@ -1,4 +1,5 @@
 import rich
+import rich.table
 
 def print_node_list(nodes, title):
     table = rich.table.Table(title=title)

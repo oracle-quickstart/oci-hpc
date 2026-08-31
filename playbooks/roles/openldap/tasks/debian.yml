@@ -1,6 +1,16 @@
 ---
 # tasks file for openldap
 
+- name: Disable AppArmor profile for slapd (even if the service is enabled in future)
+  command: aa-disable usr.sbin.slapd
+  failed_when: false
+
+- name: Reload AppArmor
+  systemd:
+    name: apparmor
+    state: reloaded
+  failed_when: false
+
 - name: Stop Apparmor service
   service:
     name: apparmor
@@ -12,15 +22,6 @@
     name: apparmor
     enabled: false
   failed_when: false
-
-- name: Remove Apparmor package
-  vars:
-    package_name:
-      - apparmor
-    package_state: absent
-    package_purge: true
-  include_role:
-    name: safe_yum
 
 - name: Create /etc/opt/oci-hpc/passwords/openldap
   become: true
@@ -51,7 +52,7 @@
 - block:
     - name: Write openldap root password to backup
       copy:
-        content: "{{ openldap_root_pwd }}"
+        content: "{{ openldap_root_pwd }}\n"
         dest: "/etc/opt/oci-hpc/passwords/openldap/root.txt"
       delegate_to: "{{ groups['slurm_backup'] | default([]) | first | default(omit) }}"
   when:

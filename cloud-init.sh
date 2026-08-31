@@ -30,9 +30,20 @@ function get_freeform_tag {
 # Freeform tags drive which role script this node should execute.
 controller_name=$(get_freeform_tag controller_name)
 cluster_name=$(get_freeform_tag cluster_name)
+config_fss_hostname=$(get_freeform_tag config_fss_hostname)
 login=$(get_freeform_tag login)
 monitoring=$(get_freeform_tag monitoring)
 controller=$(get_freeform_tag controller)
+
+if [ -z "$cluster_name" ] && [ -n "$controller_name" ]; then
+    cluster_name="${controller_name%-controller}"
+fi
+
+if [ -z "$config_fss_hostname" ] && [ -n "$cluster_name" ]; then
+    config_fss_hostname="fss-config-${cluster_name}"
+elif [ -z "$config_fss_hostname" ]; then
+    config_fss_hostname="fss-config"
+fi
 
 # The controller owns /config provisioning, so do not make it depend on /config.
 if [ "$controller" == "true" ] && [ "$controller_name" == "$(hostname)" ]; then
@@ -83,7 +94,7 @@ mkdir -p /config
 
 # Remove stale /config entries before adding the expected mount definition.
 sed -Ei '/^[[:space:]]*[^#[:space:]]+[[:space:]]+\/config([[:space:]]+|$)/d' /etc/fstab
-echo "fss-config:/config /config nfs defaults,nconnect=16 0 0" >> /etc/fstab
+echo "${config_fss_hostname}:/config /config nfs defaults,nconnect=16 0 0" >> /etc/fstab
 systemctl daemon-reload
 echo "Configured /config mount in /etc/fstab."
 
@@ -111,7 +122,8 @@ done
 # Run the selected role script as the image's default non-root user and log output.
 function run_role {
     role_command=$1
-    su - "$default_user" -c "$role_command" 2>&1 | tee -a /tmp/cloud-init.log
+    # Don't run in /home, directory may switch mountpoints.
+    su - "$default_user" -c "cd / && exec ${role_command}" 2>&1 | tee -a /tmp/cloud-init.log
     return ${PIPESTATUS[0]}
 }
 

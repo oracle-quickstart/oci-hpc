@@ -1,4 +1,4 @@
-#!/usr/bin/env -S /config/bin/uv_wrapper.sh run --script
+#!/usr/bin/env -S {{ uv_wrapper_path }} run --script
 #
 # /// script
 # dependencies = ["click", "ldap3"]
@@ -11,21 +11,21 @@ import pwd
 import os
 
 {% if groups['slurm_backup'] is defined and groups['slurm_backup'] | length > 0 %}
-controller = ldap3.Server('{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}', use_ssl=True)
-backup = ldap3.Server('{{ hostvars[groups['slurm_backup'][0]]['ansible_fqdn'] }}', use_ssl=True)
+controller = ldap3.Server('{{ controller_hostname }}', use_ssl=True)
+backup = ldap3.Server('{{ slurm_backup_hostname }}', use_ssl=True)
 ldap3_servers = [controller, backup]
 {% else %}
-controller = ldap3.Server('{{ hostvars[groups['controller'][0]]['ansible_fqdn'] }}', use_ssl=True)
+controller = ldap3.Server('{{ controller_hostname }}', use_ssl=True)
 ldap3_servers = [controller, ]
 {% endif %}
 
 bind_dn = 'cn=manager,dc=local'
 groups_dn = 'ou=Group,dc=local'
 people_dn = 'ou=People,dc=local'
- 
+
 #bind_pass = 'zEEUM6Vrqtfl4hBz0ebF'
 
-with open('/etc/opt/oci-hpc/passwords/openldap/root.txt', 'r') as f: 
+with open('/etc/opt/oci-hpc/passwords/openldap/root.txt', 'r') as f:
   bind_pass = f.read().splitlines()[0]
 
 def exists(key, value):
@@ -42,7 +42,7 @@ def exists(key, value):
     except KeyError:
         return False
 
-def find_next_gid(): 
+def find_next_gid():
   base_gid = 10005
   search_base = groups_dn
   search_filter = '(gidNumber=*)'
@@ -52,12 +52,12 @@ def find_next_gid():
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
     for entry in conn.entries:
-      if int(entry.gidNumber.raw_values[0]) > base_gid: 
+      if int(entry.gidNumber.raw_values[0]) > base_gid:
         base_gid = int(entry.gidNumber.raw_values[0])
 
     return base_gid + 1
-     
-def find_next_uid(): 
+
+def find_next_uid():
   base_uid = 10005
   search_base = people_dn
   search_filter = '(uidNumber=*)'
@@ -66,32 +66,32 @@ def find_next_uid():
   server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
-    if len(conn.entries) == 0: 
+    if len(conn.entries) == 0:
       base_uid = 10000
     for entry in conn.entries:
-      if int(entry.uidNumber.raw_values[0]) > base_uid: 
+      if int(entry.uidNumber.raw_values[0]) > base_uid:
         base_uid = int(entry.uidNumber.raw_values[0])
 
     return base_uid + 1
-     
+
 @click.group()
-def main(): 
+def main():
   pass
 
 @click.group()
-def group(): 
+def group():
   """ group commands """
   pass
 
 @group.command()
 @click.argument('group')
 @click.argument('user')
-def add(group,user): 
+def add(group,user):
   """ add user to group """
   search_base = groups_dn
   search_filter = '(cn=*)'
   attrs = ['*']
-  
+
   server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.modify("cn={},{}".format(group,search_base), {'member': [(MODIFY_ADD, ["cn={},{}".format(user, people_dn)])]})
@@ -100,7 +100,7 @@ def add(group,user):
   print(conn.result)
 
 @group.command()
-def list(): 
+def list():
   """ list groups """
   search_base = groups_dn
   search_filter = '(cn=*)'
@@ -109,16 +109,16 @@ def list():
   server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
-    if len(conn.entries) == 0: 
+    if len(conn.entries) == 0:
       print("No LDAP groups found")
-    else: 
+    else:
       for entry in conn.entries:
         print(entry)
 
 @group.command()
 @click.argument('group')
 @click.option('-i', '--gid', default=None)
-def create(group, gid): 
+def create(group, gid):
   """ Add group """
   if gid:
 
@@ -148,11 +148,11 @@ def delete(group):
 
 
 @click.group()
-def user(): 
+def user():
   """ user commands """
 
 @user.command()
-def list(): 
+def list():
   """ list users """
   search_base = people_dn
   search_filter = '(uid=*)'
@@ -161,9 +161,9 @@ def list():
   server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.search(search_base, search_filter, attributes=attrs)
-    if len(conn.entries) == 0: 
+    if len(conn.entries) == 0:
       print("No LDAP users found")
-    else: 
+    else:
       for entry in conn.entries:
         print(entry)
 
@@ -178,29 +178,29 @@ def edit(user, password, uid, gid, name, shell):
   """ edit user """
   search_base = people_dn
   dict_to_edit={}
-  if not uid is None: 
+  if not uid is None:
     dict_to_edit['uidNumber']= [(MODIFY_REPLACE, [uid])]
-  if not gid is None: 
+  if not gid is None:
     dict_to_edit['gidNumber']= [(MODIFY_REPLACE, [gid])]
-  if not password is None: 
+  if not password is None:
     dict_to_edit['userPassword']= [(MODIFY_REPLACE, [password])]
-  if not name is None: 
+  if not name is None:
     dict_to_edit['gecos']= [(MODIFY_REPLACE, [name])]
     dict_to_edit['displayName']= [(MODIFY_REPLACE, [name])]
-  if not shell is None: 
+  if not shell is None:
     dict_to_edit['loginShell']= [(MODIFY_REPLACE, [shell])]
 
   server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.modify("cn={},{}".format(user,search_base), dict_to_edit)
-  if(conn.result['result'] != 0): 
+  if(conn.result['result'] != 0):
     print(conn.result)
 
   if exists('gid', gid) is False:
 
     click.echo('Creating group')
     conn.add("cn={},{}".format(user, groups_dn), ['top', 'groupOfMembers', 'posixgroup'], { 'cn': [user], 'gidNumber': [gid] } )
-    if(conn.result['result'] != 0): 
+    if(conn.result['result'] != 0):
       print(conn.result)
 
 @user.command()
@@ -215,22 +215,22 @@ def edit(user, password, uid, gid, name, shell):
 def add(user, password, uid, gid, name, nossh, shell):
   """ add user """
   search_base = people_dn
-  if uid is None: 
+  if uid is None:
     uid = find_next_uid()
-  if gid is None: 
+  if gid is None:
     gid = find_next_gid()
 
   server = ldap3.ServerPool(ldap3_servers, ldap3.FIRST)
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.add("cn={},{}".format(user, search_base), ['inetOrgPerson', 'posixAccount', 'top', 'shadowAccount'], { 'sn': user, 'uid': user, 'uidNumber': uid, 'gidNumber': gid, 'userPassword': password, 'gecos': name, 'homeDirectory': '/home/{}'.format(user), 'displayName': name, 'loginShell': shell } )
-  if(conn.result['result'] != 0): 
+  if(conn.result['result'] != 0):
     print(conn.result)
 
   if exists('gid', gid) is False:
 
     click.echo('Creating group')
     conn.add("cn={},{}".format(user, groups_dn), ['top', 'groupOfMembers', 'posixgroup'], { 'cn': [user], 'gidNumber': [gid] } )
-    if(conn.result['result'] != 0): 
+    if(conn.result['result'] != 0):
       print(conn.result)
 
   homedir='/home/{}/'.format(user)
@@ -248,8 +248,8 @@ def delete(user):
   with ldap3.Connection(server, bind_dn, bind_pass, auto_bind=True) as conn:
     conn.delete("cn={},{}".format(user, search_base))
 
-  
-  
+
+
 main.add_command(group)
 main.add_command(user)
 
