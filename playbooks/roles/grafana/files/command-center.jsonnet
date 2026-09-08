@@ -111,11 +111,6 @@ g.dashboard.new('Command Center')
               url: '/d/${__field.labels.vendor}-gpu-health/gpu-health-status?var-hostname=${__field.labels.hostname}',
               targetBlank: true,
             },
-            {
-              title: 'GPU Failure Risk Score (beta)',
-              url: '/d/gpu-failure-risk-score-beta/gpu-failure-risk-score-beta?var-hostname=${__field.labels.hostname}',
-              targetBlank: true,
-            }
         ]),
     g.panel.stateTimeline.new('Historical Cluster Node Health')
       + g.panel.stateTimeline.queryOptions.withTargets([
