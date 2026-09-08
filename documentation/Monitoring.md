@@ -173,12 +173,6 @@ The command center is where you get a quick view of **cluster health** to determ
 
 ![Command Center](../images/command-center-panels.png)
 
-### GPU Failure Risk Score (beta)
-
-The **GPU Failure Risk Score (beta)** dashboard is available from the Compute Node Health panel tile menu in Command Center. It shows one gauge per NVIDIA GPU on the selected node. The score ranges from 0 to 100 and is calculated from current Prometheus recording rules for DCGM Xid, DCGM GPU health, PCIe, power and thermal, memory reliability, and stale telemetry signals.
-
-Treat this beta score as an investigation aid. It does not forecast failures or automate remediation.
-
 ### Context Menus
 
 There are two sets of context-sensitive dashboards:
@@ -190,7 +184,6 @@ There are two sets of context-sensitive dashboards:
     - Storage Metrics
     - GPU Metrics
     - GPU Health
-    - GPU Failure Risk Score (beta)
 
 You can access these menus as shown in the screenshots below.
 

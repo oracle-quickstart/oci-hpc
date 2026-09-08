@@ -244,7 +244,8 @@
     - amd-gpu-metrics-single.json
     - amd-gpu-throttling.json
     - nvidia-gpu-health.json
-    - gpu-failure-risk-score-beta.json
+    # Keep generating the dashboard JSON, but do not publish this beta dashboard.
+    # - gpu-failure-risk-score-beta.json
     - nvidia-gpu-metrics-single.json
     - nvidia-gpu-throttling.json
     - gpu-throttling-overview.json

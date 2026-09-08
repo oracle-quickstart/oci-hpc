@@ -380,101 +380,101 @@ groups:
           (max by (hostname, cluster_name, vendor) (rate(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS[1h])) < bool 0.1)
           or on(hostname, cluster_name, vendor) (DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS * 0 + 1)
 
-      # NVIDIA GPU failure risk score (beta)
+      # NVIDIA GPU failure risk score (beta), disabled until it is ready for users.
       # 0 = no observed risk signals, 100 = current severe risk signal.
-      - record: node_gpu_failure_risk_base
-        expr: max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (DCGM_FI_DEV_GPU_TEMP >= bool 0)
-
-      - record: node_gpu_failure_risk_xid_score
-        expr: |
-          max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
-            ((DCGM_FI_DEV_XID_ERRORS{err_code="79"} > bool 0) * 100)
-            or ((DCGM_FI_DEV_XID_ERRORS{err_code=~"46|48|62|64|95|109|110|119|120|136|140|143|151|155|156|158|159"} > bool 0) * 70)
-            or ((DCGM_FI_DEV_XID_ERRORS{err_code=~"54|162|163|164|165|166|167|168|169|170|171|172"} > bool 0) * 60)
-            or ((DCGM_FI_DEV_XID_ERRORS{err_code!=""} > bool 0) * 25)
-          )
-          or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
-
-      - record: node_gpu_failure_risk_pcie_replay_score
-        expr: |
-          clamp_max(
-            max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
-              increase(DCGM_FI_DEV_PCIE_REPLAY_COUNTER[15m])
-            ) * 5,
-            80
-          )
-          or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
-
-      - record: node_gpu_failure_risk_pcie_aer_score
-        expr: |
-          (
-            node_gpu_failure_risk_base
-            * on(hostname, cluster_name, vendor) group_left
-            max by (hostname, cluster_name, vendor) (
-              label_replace(clamp_max(increase(pcie_aer_correctable_error_count[15m]) * 2, 40), "risk_signal", "pcie-correctable", "hostname", ".*")
-              or label_replace(clamp_max(increase(pcie_aer_nonfatal_error_count[15m]) * 25, 80), "risk_signal", "pcie-nonfatal", "hostname", ".*")
-              or label_replace(clamp_max(increase(pcie_aer_fatal_error_count[15m]) * 100, 100), "risk_signal", "pcie-fatal", "hostname", ".*")
-              or label_replace((pcie_bus_inaccessible_status * 100), "risk_signal", "pcie-bus-inaccessible", "hostname", ".*")
-              or label_replace((pcie_bus_linkwidth_status * 80), "risk_signal", "pcie-link-width", "hostname", ".*")
-            )
-          )
-          or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
-
-      - record: node_gpu_failure_risk_dcgm_health_score
-        expr: |
-          max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
-            label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PCIE"} > bool 0) * 90), "risk_signal", "dcgm-pcie", "hostname", ".*")
-            or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="DRIVER"} > bool 0) * 80), "risk_signal", "dcgm-driver", "hostname", ".*")
-            or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="NVLINK"} > bool 0) * 45), "risk_signal", "dcgm-nvlink", "hostname", ".*")
-            or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="POWER"} > bool 0) * 35), "risk_signal", "dcgm-power", "hostname", ".*")
-            or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="THERMAL"} > bool 0) * 35), "risk_signal", "dcgm-thermal", "hostname", ".*")
-          )
-          or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
-
-      - record: node_gpu_failure_risk_power_thermal_score
-        expr: |
-          max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
-            label_replace(clamp_max((increase(DCGM_FI_DEV_THERMAL_VIOLATION[15m]) / 900000000000) * 100, 40), "risk_signal", "thermal-violation", "hostname", ".*")
-            or label_replace(clamp_max((increase(DCGM_FI_DEV_POWER_VIOLATION[15m]) / 900000000000) * 100, 30), "risk_signal", "power-violation", "hostname", ".*")
-            or label_replace(clamp_max((increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[15m]) / 900000000000) * 100, 30), "risk_signal", "board-limit", "hostname", ".*")
-            or label_replace(clamp_max(clamp_min(((DCGM_FI_DEV_GPU_TEMP / clamp_min(DCGM_FI_DEV_SLOWDOWN_TEMP, 1)) - 0.85) * 300, 0), 60), "risk_signal", "temperature-headroom", "hostname", ".*")
-            or label_replace((min_over_time(((DCGM_FI_DEV_GPU_TEMP / clamp_min(DCGM_FI_DEV_SLOWDOWN_TEMP, 1)) > bool 0.90)[3m:]) * 85), "risk_signal", "sustained-temperature", "hostname", ".*")
-          )
-          or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
-
-      - record: node_gpu_failure_risk_memory_score
-        expr: |
-          max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
-            label_replace(((DCGM_FI_DEV_ROW_REMAP_FAILURE > bool 0) * 90), "risk_signal", "row-remap-failure", "hostname", ".*")
-            or label_replace(((DCGM_FI_DEV_ROW_REMAP_PENDING > bool 0) * 60), "risk_signal", "row-remap-pending", "hostname", ".*")
-            or label_replace(((increase(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS[24h]) > bool 0) * 70), "risk_signal", "uncorrectable-remap", "hostname", ".*")
-            or label_replace(((increase(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS[24h]) > bool 0) * 30), "risk_signal", "correctable-remap", "hostname", ".*")
-            or label_replace(((increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[1h]) > bool 0) * 80), "risk_signal", "volatile-dbe", "hostname", ".*")
-            or label_replace(((increase(DCGM_FI_DEV_ECC_DBE_AGG_TOTAL[1h]) > bool 0) * 80), "risk_signal", "aggregate-dbe", "hostname", ".*")
-            or label_replace(clamp_max(rate(DCGM_FI_DEV_ECC_SBE_VOL_TOTAL[1h]) * 10, 40), "risk_signal", "volatile-sbe-rate", "hostname", ".*")
-            or label_replace(clamp_max(rate(DCGM_FI_DEV_ECC_SBE_AGG_TOTAL[1h]) * 10, 40), "risk_signal", "aggregate-sbe-rate", "hostname", ".*")
-          )
-          or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
-
-      - record: node_gpu_failure_risk_telemetry_score
-        expr: |
-          max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
-            ((time() - timestamp(DCGM_FI_DEV_GPU_TEMP)) > bool 300) * 80
-          )
-          or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
-
-      - record: node_gpu_failure_risk_score
-        expr: |
-          max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
-            label_replace(node_gpu_failure_risk_xid_score, "risk_signal", "xid", "hostname", ".*")
-            or label_replace(node_gpu_failure_risk_pcie_replay_score, "risk_signal", "pcie-replay", "hostname", ".*")
-            or label_replace(node_gpu_failure_risk_pcie_aer_score, "risk_signal", "pcie-aer", "hostname", ".*")
-            or label_replace(node_gpu_failure_risk_dcgm_health_score, "risk_signal", "dcgm-health", "hostname", ".*")
-            or label_replace(node_gpu_failure_risk_power_thermal_score, "risk_signal", "power-thermal", "hostname", ".*")
-            or label_replace(node_gpu_failure_risk_memory_score, "risk_signal", "memory", "hostname", ".*")
-            or label_replace(node_gpu_failure_risk_telemetry_score, "risk_signal", "telemetry", "hostname", ".*")
-          )
-
+      # - record: node_gpu_failure_risk_base
+      #   expr: max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (DCGM_FI_DEV_GPU_TEMP >= bool 0)
+      #
+      # - record: node_gpu_failure_risk_xid_score
+      #   expr: |
+      #     max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
+      #       ((DCGM_FI_DEV_XID_ERRORS{err_code="79"} > bool 0) * 100)
+      #       or ((DCGM_FI_DEV_XID_ERRORS{err_code=~"46|48|62|64|95|109|110|119|120|136|140|143|151|155|156|158|159"} > bool 0) * 70)
+      #       or ((DCGM_FI_DEV_XID_ERRORS{err_code=~"54|162|163|164|165|166|167|168|169|170|171|172"} > bool 0) * 60)
+      #       or ((DCGM_FI_DEV_XID_ERRORS{err_code!=""} > bool 0) * 25)
+      #     )
+      #     or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
+      #
+      # - record: node_gpu_failure_risk_pcie_replay_score
+      #   expr: |
+      #     clamp_max(
+      #       max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
+      #         increase(DCGM_FI_DEV_PCIE_REPLAY_COUNTER[15m])
+      #       ) * 5,
+      #       80
+      #     )
+      #     or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
+      #
+      # - record: node_gpu_failure_risk_pcie_aer_score
+      #   expr: |
+      #     (
+      #       node_gpu_failure_risk_base
+      #       * on(hostname, cluster_name, vendor) group_left
+      #       max by (hostname, cluster_name, vendor) (
+      #         label_replace(clamp_max(increase(pcie_aer_correctable_error_count[15m]) * 2, 40), "risk_signal", "pcie-correctable", "hostname", ".*")
+      #         or label_replace(clamp_max(increase(pcie_aer_nonfatal_error_count[15m]) * 25, 80), "risk_signal", "pcie-nonfatal", "hostname", ".*")
+      #         or label_replace(clamp_max(increase(pcie_aer_fatal_error_count[15m]) * 100, 100), "risk_signal", "pcie-fatal", "hostname", ".*")
+      #         or label_replace((pcie_bus_inaccessible_status * 100), "risk_signal", "pcie-bus-inaccessible", "hostname", ".*")
+      #         or label_replace((pcie_bus_linkwidth_status * 80), "risk_signal", "pcie-link-width", "hostname", ".*")
+      #       )
+      #     )
+      #     or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
+      #
+      # - record: node_gpu_failure_risk_dcgm_health_score
+      #   expr: |
+      #     max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
+      #       label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="PCIE"} > bool 0) * 90), "risk_signal", "dcgm-pcie", "hostname", ".*")
+      #       or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="DRIVER"} > bool 0) * 80), "risk_signal", "dcgm-driver", "hostname", ".*")
+      #       or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="NVLINK"} > bool 0) * 45), "risk_signal", "dcgm-nvlink", "hostname", ".*")
+      #       or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="POWER"} > bool 0) * 35), "risk_signal", "dcgm-power", "hostname", ".*")
+      #       or label_replace(((DCGM_EXP_GPU_HEALTH_STATUS{health_watch="THERMAL"} > bool 0) * 35), "risk_signal", "dcgm-thermal", "hostname", ".*")
+      #     )
+      #     or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
+      #
+      # - record: node_gpu_failure_risk_power_thermal_score
+      #   expr: |
+      #     max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
+      #       label_replace(clamp_max((increase(DCGM_FI_DEV_THERMAL_VIOLATION[15m]) / 900000000000) * 100, 40), "risk_signal", "thermal-violation", "hostname", ".*")
+      #       or label_replace(clamp_max((increase(DCGM_FI_DEV_POWER_VIOLATION[15m]) / 900000000000) * 100, 30), "risk_signal", "power-violation", "hostname", ".*")
+      #       or label_replace(clamp_max((increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[15m]) / 900000000000) * 100, 30), "risk_signal", "board-limit", "hostname", ".*")
+      #       or label_replace(clamp_max(clamp_min(((DCGM_FI_DEV_GPU_TEMP / clamp_min(DCGM_FI_DEV_SLOWDOWN_TEMP, 1)) - 0.85) * 300, 0), 60), "risk_signal", "temperature-headroom", "hostname", ".*")
+      #       or label_replace((min_over_time(((DCGM_FI_DEV_GPU_TEMP / clamp_min(DCGM_FI_DEV_SLOWDOWN_TEMP, 1)) > bool 0.90)[3m:]) * 85), "risk_signal", "sustained-temperature", "hostname", ".*")
+      #     )
+      #     or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
+      #
+      # - record: node_gpu_failure_risk_memory_score
+      #   expr: |
+      #     max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
+      #       label_replace(((DCGM_FI_DEV_ROW_REMAP_FAILURE > bool 0) * 90), "risk_signal", "row-remap-failure", "hostname", ".*")
+      #       or label_replace(((DCGM_FI_DEV_ROW_REMAP_PENDING > bool 0) * 60), "risk_signal", "row-remap-pending", "hostname", ".*")
+      #       or label_replace(((increase(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS[24h]) > bool 0) * 70), "risk_signal", "uncorrectable-remap", "hostname", ".*")
+      #       or label_replace(((increase(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS[24h]) > bool 0) * 30), "risk_signal", "correctable-remap", "hostname", ".*")
+      #       or label_replace(((increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[1h]) > bool 0) * 80), "risk_signal", "volatile-dbe", "hostname", ".*")
+      #       or label_replace(((increase(DCGM_FI_DEV_ECC_DBE_AGG_TOTAL[1h]) > bool 0) * 80), "risk_signal", "aggregate-dbe", "hostname", ".*")
+      #       or label_replace(clamp_max(rate(DCGM_FI_DEV_ECC_SBE_VOL_TOTAL[1h]) * 10, 40), "risk_signal", "volatile-sbe-rate", "hostname", ".*")
+      #       or label_replace(clamp_max(rate(DCGM_FI_DEV_ECC_SBE_AGG_TOTAL[1h]) * 10, 40), "risk_signal", "aggregate-sbe-rate", "hostname", ".*")
+      #     )
+      #     or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
+      #
+      # - record: node_gpu_failure_risk_telemetry_score
+      #   expr: |
+      #     max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
+      #       ((time() - timestamp(DCGM_FI_DEV_GPU_TEMP)) > bool 300) * 80
+      #     )
+      #     or on(hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (node_gpu_failure_risk_base * 0)
+      #
+      # - record: node_gpu_failure_risk_score
+      #   expr: |
+      #     max by (hostname, cluster_name, vendor, oci_name, gpu, UUID, GPU_I_PROFILE) (
+      #       label_replace(node_gpu_failure_risk_xid_score, "risk_signal", "xid", "hostname", ".*")
+      #       or label_replace(node_gpu_failure_risk_pcie_replay_score, "risk_signal", "pcie-replay", "hostname", ".*")
+      #       or label_replace(node_gpu_failure_risk_pcie_aer_score, "risk_signal", "pcie-aer", "hostname", ".*")
+      #       or label_replace(node_gpu_failure_risk_dcgm_health_score, "risk_signal", "dcgm-health", "hostname", ".*")
+      #       or label_replace(node_gpu_failure_risk_power_thermal_score, "risk_signal", "power-thermal", "hostname", ".*")
+      #       or label_replace(node_gpu_failure_risk_memory_score, "risk_signal", "memory", "hostname", ".*")
+      #       or label_replace(node_gpu_failure_risk_telemetry_score, "risk_signal", "telemetry", "hostname", ".*")
+      #     )
+      #
       # combine them: this will be 1 only if *all* success-flags are 1
       - record: node_health_status
         expr: |
