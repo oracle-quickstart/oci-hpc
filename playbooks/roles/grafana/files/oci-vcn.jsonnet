@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-vcn-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Virtual Cloud Network')
+g.dashboard.new('OCI Virtual Cloud Network')
 + g.dashboard.withUid('oci-vcn')
 + g.dashboard.withDescription(|||
   Virtual Cloud Network
@@ -90,4 +90,3 @@ g.dashboard.new('Virtual Cloud Network')
       {w:12, h:8, x:12, y:32}
     ),    
 ])
-

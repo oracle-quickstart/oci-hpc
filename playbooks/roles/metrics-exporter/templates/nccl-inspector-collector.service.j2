@@ -1,0 +1,25 @@
+[Unit]
+Description=NCCL Inspector dump collector (JSON dumps to MySQL)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User={{ cluster_admin_user }}
+Group={{ cluster_admin_user }}
+Type=simple
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$PATH
+Environment=NCCL_INSPECTOR_DUMP_DIR={{ nccl_inspector_dump_dir | default('/config/metrics/nccl-inspector') }}
+Environment="NCCL_INSPECTOR_DB_HOST={{ slurm_monitoring_db_host }}"
+Environment=NCCL_INSPECTOR_DB_PORT={{ slurm_monitoring_db_port | default(3306) }}
+Environment=NCCL_INSPECTOR_DB_USER={{ slurm_monitoring_db_user | default('slurm_exporter') }}
+Environment="NCCL_INSPECTOR_DB_PASSWORD={{ slurm_monitoring_db_password | replace('%', '%%') }}"
+Environment=NCCL_INSPECTOR_DB_NAME={{ slurm_monitoring_db_name | default('slurm_jobs') }}
+Environment=NCCL_INSPECTOR_POLL_INTERVAL={{ nccl_inspector_collector_interval_seconds | default(30) }}
+Environment=NCCL_INSPECTOR_RETENTION_DAYS={{ nccl_inspector_retention_days | default(30) }}
+Environment=NCCL_INSPECTOR_STATE_FILE={{ nccl_inspector_collector_state_dir | default('/var/lib/nccl-inspector-collector') }}/state.json
+ExecStart={{ venv_path }}/bin/python3 {{ metrics_exporter_install_dir }}/nccl_inspector_collector.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

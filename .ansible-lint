@@ -1,0 +1,4 @@
+---
+# Temporary: this is data with Jinja expressions, not Ansible content.
+exclude_paths:
+  - playbooks/versions.yaml

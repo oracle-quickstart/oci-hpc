@@ -1,11 +1,7 @@
 ---
 # tasks for mariadb role
 
-- include_vars: ubuntu_vars.yml
-  when: ansible_facts['distribution_major_version'] < "22"
-
 - include_vars: ubuntu-2204_vars.yml
-  when: ansible_facts['distribution_major_version'] >= "22"
 
 - name: Create /etc/opt/oci-hpc/passwords/mysql
   become: true
@@ -24,23 +20,6 @@
 - name: Get root password from /etc/opt/oci-hpc/passwords
   set_fact:
     mysql_root_pwd: "{{ lookup('password', '/etc/opt/oci-hpc/passwords/mysql/root.txt chars=ascii_letters,digits,hexdigits') }}"
-
-- name: Add repository to install python-mysqldb
-  become: true
-  ansible.builtin.deb822_repository:
-    name: ubuntu-bionic-main
-    types:
-      - deb
-    uris:
-      - http://archive.ubuntu.com/ubuntu
-    suites:
-      - bionic
-    components:
-      - main
-    state: present
-  when:
-    - ansible_facts['distribution'] == 'Ubuntu'
-    - ansible_facts['distribution_major_version'] | int < 22
 
 - name: Install MariaDB packages
   vars:
@@ -146,18 +125,6 @@
         check_implicit_admin: true
         login_unix_socket: /run/mysqld/mysqld.sock
         state: present
-      when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] >= "22"
-
-    - name: Set MariaDB's root password
-      become: true
-      mysql_user:
-        name: "root"
-        password: "{{ mysql_root_pwd }}"
-        host_all: true
-        check_implicit_admin: true
-        state: present
-      when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] < "22"
-
     - name: Render /root/.my.cnf
       become: true
       template:

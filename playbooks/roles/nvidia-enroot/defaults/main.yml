@@ -1,2 +1,0 @@
----
-nvidia_enroot_download_path: "{{ thirdparty_arch_path }}/nvidia-enroot"

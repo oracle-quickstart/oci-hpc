@@ -18,8 +18,6 @@ def update_metadata_logic(
     http_port=9876,
     nodes=None,
     process_maintenance_events=False,
-    maintenance_event_slurm_management=True,
-    maintenance_event_healthcheck_drained_only=False,
 ):
     if nodes:
         node_list = get_nodes_by_any(nodes)
@@ -34,12 +32,7 @@ def update_metadata_logic(
     )
     slurm_dict=get_slurm_state()
     if process_maintenance_events:
-        process_instance_maintenance_events(
-            node_list,
-            slurm_dict,
-            manage_slurm=maintenance_event_slurm_management,
-            healthcheck_drained_only=maintenance_event_healthcheck_drained_only,
-        )
+        process_instance_maintenance_events(node_list, slurm_dict)
     for node in node_list:
         if node.hostname in slurm_dict.keys():
             update_dict[node.ocid]["slurm_state"]=slurm_dict[node.hostname]["state"]
@@ -201,8 +194,6 @@ def all(cfg, http_port):
     update_metadata_logic(
         http_port,
         process_maintenance_events=True,
-        maintenance_event_slurm_management=cfg["maintenance_event_slurm_management"],
-        maintenance_event_healthcheck_drained_only=cfg["maintenance_event_healthcheck_drained_only"],
     )
     ansible_logic()
     available_nodes, available_by_hpc_island = scan_host_api_logic(include_hpc_islands=True)

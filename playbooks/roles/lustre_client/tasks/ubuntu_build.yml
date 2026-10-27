@@ -1,24 +1,10 @@
 ---
-- name: Check if Lustre is already installed on host
-  ansible.builtin.shell: |
-    set -o pipefail
-    dpkg-query -W -f='${Package} ${db:Status-Abbrev}\n' \
-      lustre-client-utils \
-      lustre-client-modules-dkms \
-      2>/dev/null \
-      | awk '$2 == "ii" { installed += 1 } END { exit(installed == 2 ? 0 : 1) }'
-  args:
-    executable: /bin/bash
-  register: lustre_client_installed
-  ignore_errors: true
-  changed_when: false
-
 - name: Check if Lustre package bundle was built
   ansible.builtin.stat:
     path: "{{ lustre_client_tarball_path }}"
   register: lustre_client_built
   ignore_errors: true
-  when: lustre_client_installed.rc != 0
+  when: not lustre_client_installed
 
 - name: Ensure shared Lustre build root path exists
   become: true
@@ -26,7 +12,7 @@
     path: "{{ lustre_client_build_root_path }}"
     state: directory
     mode: "0755"
-  when: lustre_client_installed.rc != 0
+  when: not lustre_client_installed
 
 - name: Try to acquire the shared Lustre build lock for the current platform
   become: true
@@ -37,17 +23,17 @@
     - lustre_client_build_lock.rc != 0
     - "'File exists' not in (lustre_client_build_lock.stderr | default(''))"
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))
 
 - name: Record whether this node builds Lustre for the current platform
   ansible.builtin.set_fact:
     lustre_client_build_lock_acquired: "{{ (lustre_client_build_lock.rc | default(1)) == 0 }}"
-  when: lustre_client_installed.rc != 0
+  when: not lustre_client_installed
 
 - name: Lustre client build
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))
     - lustre_client_build_lock_acquired | default(false) | bool
   block:
@@ -248,6 +234,14 @@
       # noqa command-instead-of-module
       loop: "{{ lustre_client_patch_files }}"
 
+    - name: Remove obsolete dpatch build dependency on Ubuntu 24
+      become: true
+      ansible.builtin.replace:
+        path: "{{ lustre_client_chroot_path }}/lustre-client/debian/control"
+        regexp: '^(Build-Depends:.*), dpatch, '
+        replace: '\1, '
+      when: ansible_facts['distribution_major_version'] == '24'
+
     - name: Apply Ubuntu kernel 6.14 fixes for Lustre 2.17
       ansible.builtin.include_tasks: ubuntu_lustre_217_kernel_614_fixes.yml
       when:
@@ -262,6 +256,7 @@
           --with-o2ib=[^\s'"]+
         replace: "--with-o2ib=no"
       register: lustre_client_ubuntu_dkms_o2ib_disable
+      when: lustre_client_version is version('2.17.0', '>=')
 
     - name: Ensure o2ib was disabled in Lustre DKMS config
       ansible.builtin.assert:
@@ -271,6 +266,7 @@
           Expected to disable o2ib in
           {{ lustre_client_chroot_path }}/lustre-client/debian/dkms.conf.in,
           but no matching DKMS option was replaced.
+      when: lustre_client_version is version('2.17.0', '>=')
 
     - name: Remove o2ib module from Lustre DKMS module list
       become: true
@@ -383,7 +379,7 @@
   retries: 60
   delay: 10
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))
 
 - name: Ensure shared Lustre package bundle is available after build coordination
@@ -396,5 +392,5 @@
       {{ lustre_client_tarball_path }} after waiting for the current platform
       build to complete.
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))

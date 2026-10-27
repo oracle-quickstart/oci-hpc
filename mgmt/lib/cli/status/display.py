@@ -149,6 +149,12 @@ def summarize_cluster(cluster: str, nodes: list[dict[str, Any]], cluster_block) 
 
 
 def render_status(nodes, no_color: bool):
+    """
+    Render the node-centric cluster status.
+
+    Returns True when the fraction of nodes needing attention is 50% or less,
+    False when it is higher.
+    """
 
     clusters: dict[str, list[dict[str, Any]]] = defaultdict(list)
     tenancy_ids: set[str] = set()
@@ -267,5 +273,9 @@ def render_status(nodes, no_color: bool):
             )
             click.echo(row)
 
+    overall_health = percent(len(nodes) - len(needs_attention), len(nodes))
+    if nodes and overall_health < 100:
         click.echo("\nHint: Run 'mgmt recommendations list' for more details")
+
+    return len(needs_attention) <= len(nodes) // 2
 

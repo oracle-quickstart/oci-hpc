@@ -43,7 +43,7 @@
       - slurm_monitoring_controller_jwt_token_stat.stat.exists
     fail_msg: >-
       Slurm monitoring controller exporters require the JWT token file created
-      by the slurm_rest_api role at {{ slurm_monitoring_controller_jwt_token_path }}.
+      by the slurm role at {{ slurm_monitoring_controller_jwt_token_path }}.
   when: slurm_monitoring_controller_rest_exporter_enabled | bool
 
 - name: Read Slurm JWT token file

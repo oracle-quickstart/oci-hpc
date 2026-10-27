@@ -1,41 +1,21 @@
 ---
 - block:
-    - name: Ensure nvidia-enroot package cache directory exists
-      ansible.builtin.file:
-        path: "{{ nvidia_enroot_download_path }}"
-        state: directory
-        mode: "0755"
-
-    - name: Check if required RPMs are already downloaded
-      ansible.builtin.stat:
-        path: "{{ nvidia_enroot_download_path }}/{{ item | basename }}"
-      register: rpm_files
-      with_items:
-        - "{{ enroot_file }}"
-        - "{{ enroot_caps_file }}"
-
-    - name: Download RPMs if not already present
-      when: not item.stat.exists and ansible_facts['distribution_major_version'] != "8"
-      ansible.builtin.get_url:
-        url: "{{ item.item }}"
-        dest: "{{ nvidia_enroot_download_path }}/{{ item.item | basename }}"
-        mode: "0755"
-      with_items: "{{ rpm_files.results }}"
-    - name: Download RPMs if not already present
-      when: not item.stat.exists and ansible_facts['distribution_major_version'] == "8"
-      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-      ansible.builtin.get_url:
-        url: "{{ item.item }}"
-        dest: "{{ nvidia_enroot_download_path }}/{{ item.item | basename }}"
-        mode: "0755"
-      with_items: "{{ rpm_files.results }}"
+    - name: Cache nvidia-enroot RPMs
+      ansible.builtin.include_role:
+        name: safe_cache
+      vars:
+        safe_cache_url: "{{ ansible_facts['oci_versions'].nvidia_enroot[item].url }}"
+        safe_cache_dest: "{{ ansible_facts['oci_versions'].nvidia_enroot[item].cache }}"
+      loop:
+        - enroot
+        - enroot_caps
 
     - name: Install required packages
       vars:
         package_name:
           - zstd
-          - "{{ nvidia_enroot_download_path }}/{{ enroot_file | basename }}"
-          - "{{ nvidia_enroot_download_path }}/{{ enroot_caps_file | basename }}"
+          - "{{ ansible_facts['oci_versions'].nvidia_enroot.enroot.cache }}"
+          - "{{ ansible_facts['oci_versions'].nvidia_enroot.enroot_caps.cache }}"
         package_repo: "epel,ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL"
         disable_gpg_check_var: true
       ansible.builtin.include_role:
@@ -56,29 +36,16 @@
         sysctl_file: /etc/sysctl.d/81-enroot.conf
         reload: true
 
-    - name: Check if enroot check RPMs are already downloaded
-      ansible.builtin.stat:
-        path: "{{ nvidia_enroot_download_path }}/{{ enroot_check_file | basename }}"
-      register: enroot_check_files
-
-    - name: Download enroot-check
-      ansible.builtin.get_url:
-        url: "{{ enroot_check_file }}"
-        dest: "{{ nvidia_enroot_download_path }}"
-        mode: "0755"
-      when: not enroot_check_files.stat.exists | bool and ansible_facts['distribution_major_version'] != "8"
-
-    - name: Download enroot-check
-      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-      ansible.builtin.get_url:
-        url: "{{ enroot_check_file }}"
-        dest: "{{ nvidia_enroot_download_path }}"
-        mode: "0755"
-      when: not enroot_check_files.stat.exists | bool
+    - name: Cache enroot-check
+      ansible.builtin.include_role:
+        name: safe_cache
+      vars:
+        safe_cache_url: "{{ ansible_facts['oci_versions'].nvidia_enroot.enroot_check.url }}"
+        safe_cache_dest: "{{ ansible_facts['oci_versions'].nvidia_enroot.enroot_check.cache }}"
 
     - name: Copy enroot-check to local /tmp
       ansible.builtin.copy:
-        src: "{{ nvidia_enroot_download_path }}/{{ enroot_check_file | basename }}"
+        src: "{{ ansible_facts['oci_versions'].nvidia_enroot.enroot_check.cache }}"
         dest: "/tmp"
         mode: "0755"
 

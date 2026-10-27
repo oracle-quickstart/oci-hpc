@@ -19,8 +19,6 @@ DEFAULTS = {
     "active_healthchecks_frequency": 24,
     "multi_nodes_healthchecks": True,
     "multi_nodes_healthchecks_frequency": 24,
-    "maintenance_event_slurm_management": True,
-    "maintenance_event_healthcheck_drained_only": False,
     "manage_hosts": False,
 }
 
@@ -52,8 +50,6 @@ def load_config(path: str | None) -> dict:
         "active_healthchecks_frequency": cfg.getint(section, "active_healthchecks_frequency"),
         "multi_nodes_healthchecks": cfg.getboolean(section, "multi_nodes_healthchecks"),
         "multi_nodes_healthchecks_frequency": cfg.getint(section, "multi_nodes_healthchecks_frequency"),
-        "maintenance_event_slurm_management": cfg.getboolean(section, "maintenance_event_slurm_management"),
-        "maintenance_event_healthcheck_drained_only": cfg.getboolean(section, "maintenance_event_healthcheck_drained_only"),
         "manage_hosts": cfg.getboolean(section, "manage_hosts"),
         "write_node_function_ocid": cfg.get(section, "write_node_function_ocid", fallback=None),
 

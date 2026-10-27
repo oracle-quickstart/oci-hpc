@@ -1,22 +1,10 @@
 ---
-- name: Check if Lustre is already installed on host
-  ansible.builtin.shell: |
-    set -o pipefail
-    dpkg-query -W -f='${Package} ${db:Status-Abbrev}\n' \
-      lustre-client-utils \
-      lustre-client-modules-dkms \
-      2>/dev/null \
-      | awk '$2 == "ii" { installed += 1 } END { exit(installed == 2 ? 0 : 1) }'
-  args:
-    executable: /bin/bash
-  register: lustre_client_installed
-  ignore_errors: true
-
 - name: Check if shared Lustre package bundle exists
   ansible.builtin.stat:
     path: "{{ lustre_client_tarball_path }}"
   register: lustre_client_built
   ignore_errors: true
+  when: not lustre_client_installed
 
 - name: Fail if Lustre client is not installed and no shared package is available
   ansible.builtin.fail:
@@ -24,12 +12,12 @@
       Lustre client is not installed and no shared package artifact was found at
       {{ lustre_client_tarball_path }}. Run the Lustre build phase first.
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))
 
 - name: Lustre client installation
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - lustre_client_built.stat.exists | default(false)
   block:
     - name: Create temporary staging directory

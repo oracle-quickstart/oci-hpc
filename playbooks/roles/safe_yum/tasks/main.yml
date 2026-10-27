@@ -1,5 +1,16 @@
 ---
 - ansible.builtin.include_tasks: el.yml
   when: ansible_facts['os_family'] == 'RedHat'
-- ansible.builtin.include_tasks: ubuntu.yml
+- name: Install Ubuntu packages
   when: ansible_facts['distribution'] == 'Ubuntu'
+  block:
+    - name: Classify packages
+      ansible.builtin.set_fact:
+        safe_yum_package_names: "{{ [] if deb_name is defined else [package_name] | flatten | reject('search', '[.]deb$') | list }}"
+        safe_yum_deb_names: "{{ deb_name if deb_name is defined else [package_name] | flatten | select('search', '[.]deb$') | list }}"
+
+    - name: Install classified packages # noqa: var-naming[no-role-prefix] -- safe_yum's existing interface
+      ansible.builtin.include_tasks: ubuntu.yml
+      vars:
+        package_name: "{{ safe_yum_package_names }}"
+        deb_name: "{{ safe_yum_deb_names }}"

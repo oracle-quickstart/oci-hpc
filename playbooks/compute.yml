@@ -1,11 +1,7 @@
 ---
 - name: Gather facts
   hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Gather facts before fact-dependent play vars
-      ansible.builtin.include_role:
-        name: gather-facts
+  gather_facts: true
 
 - name: Install node basics like mgmt, ssh
   hosts: localhost
@@ -34,12 +30,13 @@
     - http_server
     - privilege_group
     - packages
+    - role: system-logrotate
+      tags:
+        - system_logrotate
     - firewall
     - oci-hostname
     - limits
     - boot-volume
-    - mpivars
-    - queue_read
     - oom-adjust
 
 - name: Setup local disk
@@ -224,7 +221,7 @@
       ansible.builtin.include_role:
         name: custom
 
-- name: Set up SLURM, spack, metrics exporter
+- name: Set up SLURM, metrics exporter
   hosts: localhost
   vars:
     slurm_mode: "compute"
@@ -239,10 +236,6 @@
     - name: Install rack aware helper scripts
       ansible.builtin.include_role:
         name: rack-aware
-    - name: Set up Spack
-      ansible.builtin.include_role:
-        name: spack
-      when: spack | default(false) | bool
     - name: Set up SLURM
       ansible.builtin.include_role:
         name: slurm
@@ -252,7 +245,7 @@
         name: metrics-exporter
       when: cluster_monitoring | default(false) | bool
 
-- name: Installing latest oci_dr_hpc_v2
+- name: Install Dr HPC (v2)
   hosts: localhost
   gather_facts: true
   roles:

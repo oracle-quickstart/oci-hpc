@@ -2,7 +2,7 @@
 - name: Download nvidia-container-toolkit.repo.
   become: true
   ansible.builtin.get_url:
-    url: "https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
+    url: "{{ ansible_facts['oci_versions'].nvidia_container.repo }}"
     dest: "/etc/yum.repos.d/nvidia-toolkit-demo.repo"
     mode: "0644"
     owner: root
@@ -16,7 +16,7 @@
 - name: Download nvidia-container-toolkit.repo.
   become: true
   ansible.builtin.get_url:
-    url: "https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
+    url: "{{ ansible_facts['oci_versions'].nvidia_container.repo }}"
     dest: "/etc/yum.repos.d/nvidia-toolkit-demo.repo"
     mode: "0644"
     owner: root
@@ -30,8 +30,7 @@
 
 - name: Install nvidia-container-toolkit
   vars:
-    package_name:
-      - nvidia-container-toolkit
+    package_name: "{{ ansible_facts['oci_versions'].nvidia_container.packages }}"
     package_state: latest
     package_cache: true
   ansible.builtin.include_role:

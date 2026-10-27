@@ -1,28 +1,32 @@
 ---
 - name: Check if its a GPU shape
-  ansible.builtin.shell:
-    cmd: "curl -sH \"Authorization: Bearer Oracle\" -L http://169.254.169.254/opc/v2/instance/ | jq .shape | grep GPU"
+  ansible.builtin.uri:
+    url: http://169.254.169.254/opc/v2/instance/shape
+    headers:
+      Authorization: "Bearer Oracle"
+    return_content: true
   register: shape_gpu
+  changed_when: false
   failed_when: false
 
 - name: Check if nvidia drivers are installed
   ansible.builtin.shell: cat /sys/module/nvidia/version | wc -l
   register: nvidia
-  when: shape_gpu.stdout != ""
+  when: "'GPU' in (shape_gpu.content | default(''))"
 
 - name: Check if nvidia_peermem module is loaded
   ansible.builtin.shell: lsmod | grep nvidia_peermem | wc -l
   register: result
-  when: shape_gpu.stdout != "" and nvidia.stdout == '1'
+  when: "'GPU' in (shape_gpu.content | default('')) and nvidia.stdout == '1'"
 
 - name: Check ofed version
   ansible.builtin.shell:
     cmd: |
       /usr/bin/ofed_info |grep MLNX_OFED_LINUX|grep -v rpm|awk -F "(" '{print $2}'|cut -c 6-|awk -F "-" '{print $1}'
   register: ofed_version_local
-  when: shape_gpu.stdout != "" and nvidia.stdout == '1'
+  when: "'GPU' in (shape_gpu.content | default('')) and nvidia.stdout == '1'"
 
 - name: Load nvidia_peermem module
   become: true
   ansible.builtin.command: modprobe nvidia_peermem
-  when: shape_gpu.stdout != "" and nvidia.stdout == '1' and result.stdout != '3' and ofed_version_local.stdout|int >= '5.1'
+  when: "'GPU' in (shape_gpu.content | default('')) and nvidia.stdout == '1' and result.stdout != '3' and ofed_version_local.stdout|int >= '5.1'"

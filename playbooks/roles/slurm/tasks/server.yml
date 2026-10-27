@@ -11,6 +11,20 @@
   ansible.builtin.set_fact:
     slurm_queues: "{{ slurm_json_list.queues }}"
 
+- name: Generate policy-compliant Slurm DB password for OL8 HA
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt
+    content: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}Aa1!"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0600"
+    force: false
+  no_log: true
+  when:
+    - ansible_facts['distribution_major_version'] == "8"
+    - groups['slurm_backup'] | length > 0
+
 - name: Generate password for DB user and save it to /etc/trinity/passwords
   ansible.builtin.set_fact:
     tmp_pwd: '{{ lookup("password", "/etc/opt/oci-hpc/passwords/mysql/slurmdbd.txt chars=ascii_letters,digits,hexdigits") }}'
@@ -201,7 +215,7 @@
     priv: "{{ slurm_db_name }}.*:ALL"
     plugin: caching_sha2_password
     plugin_auth_string: "{{ slurmdbd_sql_pwd }}"
-    salt: 1234567890abcdefghij
+    salt: "{{ omit if ansible_facts['distribution_major_version'] == '8' else '1234567890abcdefghij' }}"
     state: present
   when: groups['slurm_backup'] | length > 0
 
@@ -253,6 +267,14 @@
     line: "#GRES.conf"
     state: present
     create: true
+
+- name: Enable GRES auto-detection
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}/gres.conf"
+    regexp: '^AutoDetect='
+    line: "AutoDetect=full"
+    insertafter: '^#GRES\.conf'
 
 - name: Generate slurm.conf
   become: true

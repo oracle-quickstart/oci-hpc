@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-natgw-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('NAT Gateway')
+g.dashboard.new('OCI NAT Gateway')
 + g.dashboard.withUid('oci-natgw')
 + g.dashboard.withDescription(|||
   NAT Gateway
@@ -53,4 +53,3 @@ g.dashboard.new('NAT Gateway')
       {w:12, h:8, x:12, y:16}
     ),    
 ])
-

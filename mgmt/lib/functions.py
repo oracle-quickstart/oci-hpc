@@ -4,6 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 from lib.ociwrap import get_host_api_dict, list_instance_maintenance_events, get_instance_maintenance_event, reschedule_instance_maintenance_event
 from lib.database import get_all_nodes, db_update_node, get_controller_node, db_get_latest_healthchecks, db_create_healthcheck, db_update_healthcheck
 import configparser
+from enum import Enum
 import os
 import re
 import subprocess
@@ -722,11 +723,11 @@ def update_slurm_node_state(node, state, reason=None):
         return False
 
 
-IGNORED_MAINTENANCE_EVENT_STATES = {"FAILED", "CANCELED"}
+MAINTENANCE_EVENT_STATES_EXCLUDED_FROM_GENERAL_SELECTION = {"FAILED", "CANCELED"}
 MAINTENANCE_EVENT_STATE_PRIORITY = {
-    "SCHEDULED": 0,
+    "PROCESSING": 0,
     "STARTED": 1,
-    "PROCESSING": 2,
+    "SCHEDULED": 2,
     "SUCCEEDED": 3,
 }
 SLURM_MAINTENANCE_EVENT_NAMES = {
@@ -735,6 +736,97 @@ SLURM_MAINTENANCE_EVENT_NAMES = {
 }
 SLURM_MAINTENANCE_REASON_PREFIX = "OCI-IME::"
 MAINTENANCE_EVENT_SCHEDULED_WINDOW_LIMIT = timedelta(minutes=5)
+MAINTENANCE_CONFIG_PATH = "/config/mgmt/maintenance.json"
+
+
+class MaintenanceAction(Enum):
+    ALWAYS = True
+    NEVER = False
+    HEALTHCHECK = "Healthcheck"
+
+
+MAINTENANCE_DEFAULT_POLICY = {
+    "drain": MaintenanceAction.ALWAYS,
+    "schedule": MaintenanceAction.ALWAYS,
+}
+MAINTENANCE_ACTIONS = set(MAINTENANCE_DEFAULT_POLICY)
+
+
+def _maintenance_config_value(value):
+    if isinstance(value, bool):
+        return MaintenanceAction.ALWAYS if value else MaintenanceAction.NEVER
+    if (
+        isinstance(value, str)
+        and value.lower() == MaintenanceAction.HEALTHCHECK.value.lower()
+    ):
+        return MaintenanceAction.HEALTHCHECK
+    return None
+
+
+def _load_maintenance_config(path=MAINTENANCE_CONFIG_PATH):
+    config = {
+        "default": MAINTENANCE_DEFAULT_POLICY.copy(),
+        "fault_codes": {},
+    }
+    try:
+        with open(path, encoding="utf-8") as config_file:
+            content = "\n".join(
+                line
+                for line in config_file
+                if not line.lstrip().startswith(("#", "//"))
+            )
+            data = json.loads(content)
+    except FileNotFoundError:
+        logger.info("Maintenance configuration %s not found; using defaults", path)
+        return config
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Unable to load maintenance configuration %s: %s", path, exc)
+        return config
+
+    if not isinstance(data, dict):
+        logger.warning("Maintenance configuration %s must contain a JSON object", path)
+        return config
+
+    default_policy = data.get("default", {})
+    if isinstance(default_policy, dict):
+        for action in MAINTENANCE_ACTIONS:
+            if action not in default_policy:
+                continue
+            value = _maintenance_config_value(default_policy[action])
+            if value is None:
+                logger.warning(
+                    "Ignoring invalid default maintenance %s value %r", action, default_policy[action]
+                )
+                continue
+            config["default"][action] = value
+
+    fault_code_policies = data.get("fault_codes", {})
+    if not isinstance(fault_code_policies, dict):
+        logger.warning("Ignoring invalid maintenance fault_codes configuration")
+        return config
+
+    for fault_code, policy in fault_code_policies.items():
+        if not isinstance(policy, dict):
+            logger.warning("Ignoring invalid maintenance policy for fault code %s", fault_code)
+            continue
+        parsed_policy = {}
+        for action in MAINTENANCE_ACTIONS:
+            if action not in policy:
+                continue
+            value = _maintenance_config_value(policy[action])
+            if value is None:
+                logger.warning(
+                    "Ignoring invalid maintenance %s value %r for fault code %s",
+                    action,
+                    policy[action],
+                    fault_code,
+                )
+                continue
+            parsed_policy[action] = value
+        if parsed_policy:
+            config["fault_codes"][str(fault_code)] = parsed_policy
+
+    return config
 
 
 def _maintenance_event_sort_key(event):
@@ -747,16 +839,74 @@ def _maintenance_event_sort_key(event):
     )
 
 
+def _maintenance_event_completed_key(event):
+    completed_at = (
+        getattr(event, "time_finished", None)
+        or getattr(event, "time_started", None)
+        or getattr(event, "time_window_start", None)
+    )
+    return (
+        _maintenance_event_utc_datetime(completed_at)
+        if completed_at
+        else datetime.min.replace(tzinfo=timezone.utc),
+        str(getattr(event, "id", "")),
+    )
+
+
 def _select_instance_maintenance_event(events):
     candidates = [
         event
         for event in events
         if str(getattr(event, "lifecycle_state", "")).upper()
-        not in IGNORED_MAINTENANCE_EVENT_STATES
+        not in MAINTENANCE_EVENT_STATES_EXCLUDED_FROM_GENERAL_SELECTION
     ]
     if not candidates:
         return None
-    return min(candidates, key=_maintenance_event_sort_key)
+
+    eligible_future_scheduled_events = [
+        event
+        for event in candidates
+        if (
+            str(getattr(event, "lifecycle_state", "")).upper() == "SCHEDULED"
+            and getattr(event, "display_name", None) in SLURM_MAINTENANCE_EVENT_NAMES
+            and _maintenance_event_is_scheduled_far_future(event)
+        )
+    ]
+    selected_event = min(candidates, key=_maintenance_event_sort_key)
+    if str(getattr(selected_event, "lifecycle_state", "")).upper() == "SUCCEEDED":
+        selected_event = max(
+            (
+                event
+                for event in candidates
+                if str(getattr(event, "lifecycle_state", "")).upper() == "SUCCEEDED"
+            ),
+            key=_maintenance_event_completed_key,
+        )
+    if (
+        eligible_future_scheduled_events
+        and str(getattr(selected_event, "lifecycle_state", "")).upper()
+        == "SCHEDULED"
+        and getattr(selected_event, "display_name", None)
+        in SLURM_MAINTENANCE_EVENT_NAMES
+        and _maintenance_event_is_scheduled_past_window(selected_event)
+    ):
+        selected_event = min(
+            eligible_future_scheduled_events,
+            key=_maintenance_event_sort_key,
+        )
+    if len(events) > 1:
+        logger.info(
+            "Selected OCI maintenance event %s from %s IMEs: lifecycle_state=%s "
+            "display_name=%s time_window_start=%s",
+            getattr(selected_event, "id", None),
+            len(events),
+            getattr(selected_event, "lifecycle_state", None),
+            getattr(selected_event, "display_name", None),
+            _serialize_oci_datetime(
+                getattr(selected_event, "time_window_start", None)
+            ),
+        )
+    return selected_event
 
 
 def _serialize_oci_datetime(value):
@@ -804,6 +954,34 @@ def _maintenance_event_error_code(event):
     return ",".join(fault_ids)
 
 
+def _maintenance_event_policy(event, config):
+    policy = config["default"].copy()
+    for fault_id in _maintenance_event_fault_ids(event):
+        fault_policy = config["fault_codes"].get(fault_id)
+        if fault_policy:
+            policy.update(fault_policy)
+            logger.info("Using maintenance policy override for fault code %s", fault_id)
+            break
+    return policy
+
+
+def _passive_healthcheck_is_unhealthy(node):
+    if not getattr(node, "ocid", None):
+        return False
+    for healthcheck in db_get_latest_healthchecks(node.ocid):
+        if str(healthcheck.healthcheck_type).lower() != "passive":
+            continue
+        recommendation = str(healthcheck.healthcheck_recommendation or "").strip()
+        return recommendation.lower() not in {"", "healthy"}
+    return False
+
+
+def _maintenance_action_enabled(value, passive_healthcheck_unhealthy):
+    if value is MaintenanceAction.HEALTHCHECK:
+        return passive_healthcheck_unhealthy
+    return value.value
+
+
 def _maintenance_event_with_details(event):
     if _maintenance_event_fault_ids(event):
         return event
@@ -841,6 +1019,56 @@ def _maintenance_event_utc_datetime(value):
     return value.astimezone(timezone.utc)
 
 
+def _maintenance_event_completion_time(event):
+    """Return the best available UTC timestamp for a completed IME."""
+    for field in ("time_finished", "time_started", "time_created", "time_window_start"):
+        value = getattr(event, field, None)
+        if value:
+            return _maintenance_event_utc_datetime(value)
+    return datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _select_instance_maintenance_event_for_node(node, events):
+    """Refresh a stored canceled/failed IME unless a newer event supersedes it."""
+    selected = _select_instance_maintenance_event(events)
+    stored_id = getattr(node, "maintenance_event_id", None)
+    if not stored_id:
+        return selected
+
+    stored_terminal = next(
+        (
+            event for event in events
+            if getattr(event, "id", None) == stored_id
+            and str(getattr(event, "lifecycle_state", "")).upper()
+            in MAINTENANCE_EVENT_STATES_EXCLUDED_FROM_GENERAL_SELECTION
+        ),
+        None,
+    )
+    if stored_terminal is None:
+        return selected
+
+    # A new active IME takes precedence over the canceled/failed stored event.
+    if selected and str(getattr(selected, "lifecycle_state", "")).upper() in {
+        "SCHEDULED", "STARTED", "PROCESSING"
+    }:
+        return selected
+
+    latest_succeeded = max(
+        (
+            event for event in events
+            if str(getattr(event, "lifecycle_state", "")).upper() == "SUCCEEDED"
+        ),
+        key=_maintenance_event_completion_time,
+        default=None,
+    )
+    if latest_succeeded and (
+        _maintenance_event_completion_time(latest_succeeded)
+        > _maintenance_event_completion_time(stored_terminal)
+    ):
+        return latest_succeeded
+    return stored_terminal
+
+
 def _maintenance_event_is_scheduled_far_future(event):
     time_window_start = getattr(event, "time_window_start", None)
     if not time_window_start:
@@ -850,6 +1078,15 @@ def _maintenance_event_is_scheduled_far_future(event):
         datetime.now(timezone.utc) + MAINTENANCE_EVENT_SCHEDULED_WINDOW_LIMIT
     )
     return time_window_start > scheduled_window_limit
+
+
+def _maintenance_event_is_scheduled_past_window(event):
+    time_window_start = getattr(event, "time_window_start", None)
+    if not time_window_start:
+        return False
+    return _maintenance_event_utc_datetime(time_window_start) < datetime.now(
+        timezone.utc
+    )
 
 
 def _slurm_state_is_drained(slurm_state):
@@ -913,14 +1150,58 @@ def _reschedule_maintenance_event(node, event):
     return event
 
 
-def _handle_scheduled_maintenance_event(node, event, slurm_info):
+def _handle_scheduled_maintenance_event(node, event, slurm_info, drain_node, schedule_event):
     event_id = getattr(event, "id", None)
     display_name = getattr(event, "display_name", None)
 
-    if slurm_info:
-        if _slurm_state_is_drained(slurm_info.get("state")):
+    if schedule_event and _maintenance_event_is_scheduled_far_future(event):
+        event = _reschedule_maintenance_event(node, event)
+        if event is None:
+            return None
+
+    if drain_node:
+        if slurm_info:
+            if _slurm_state_is_drained(slurm_info.get("state")):
+                slurm_reason = str(slurm_info.get("reason") or "").lower()
+                if slurm_reason.startswith("healthcheck::"):
+                    if update_slurm_node_state(
+                        node,
+                        "DRAIN",
+                        reason=f"{SLURM_MAINTENANCE_REASON_PREFIX} {display_name}",
+                    ):
+                        return event
+                    return None
+                return event
+            if update_slurm_node_state(
+                node,
+                "DRAIN",
+                reason=f"{SLURM_MAINTENANCE_REASON_PREFIX} {display_name}",
+            ):
+                return event
+            return None
+        elif node.role == "compute":
+            logger.warning(
+                "Deferring OCI maintenance event %s because %s is absent from Slurm",
+                event_id,
+                node.hostname,
+            )
+            return None
+
+    return event
+
+
+def _handle_active_maintenance_event(node, event, slurm_info, drain_node):
+    event_id = getattr(event, "id", None)
+    display_name = getattr(event, "display_name", None)
+
+    if drain_node:
+        if slurm_info:
+            slurm_state = slurm_info.get("state")
             slurm_reason = str(slurm_info.get("reason") or "").lower()
-            if slurm_reason.startswith("healthcheck::"):
+            if (
+                not _slurm_state_is_drained(slurm_state)
+                or slurm_reason.startswith("healthcheck::")
+            ):
                 if update_slurm_node_state(
                     node,
                     "DRAIN",
@@ -929,56 +1210,13 @@ def _handle_scheduled_maintenance_event(node, event, slurm_info):
                     return event
                 return None
             return event
-        if _maintenance_event_is_scheduled_far_future(event):
-            event = _reschedule_maintenance_event(node, event)
-            if event is None:
-                return None
-        if update_slurm_node_state(
-            node,
-            "DRAIN",
-            reason=f"{SLURM_MAINTENANCE_REASON_PREFIX} {display_name}",
-        ):
-            return event
-        return None
-
-    if node.role == "compute":
-        logger.warning(
-            "Deferring OCI maintenance event %s because %s is absent from Slurm",
-            event_id,
-            node.hostname,
-        )
-        return None
-
-    return event
-
-
-def _handle_active_maintenance_event(node, event, slurm_info):
-    event_id = getattr(event, "id", None)
-    display_name = getattr(event, "display_name", None)
-
-    if slurm_info:
-        slurm_state = slurm_info.get("state")
-        slurm_reason = str(slurm_info.get("reason") or "").lower()
-        if (
-            not _slurm_state_is_drained(slurm_state)
-            or slurm_reason.startswith("healthcheck::")
-        ):
-            if update_slurm_node_state(
-                node,
-                "DRAIN",
-                reason=f"{SLURM_MAINTENANCE_REASON_PREFIX} {display_name}",
-            ):
-                return event
+        elif node.role == "compute":
+            logger.warning(
+                "Deferring OCI maintenance event %s because %s is absent from Slurm",
+                event_id,
+                node.hostname,
+            )
             return None
-        return event
-
-    if node.role == "compute":
-        logger.warning(
-            "Deferring OCI maintenance event %s because %s is absent from Slurm",
-            event_id,
-            node.hostname,
-        )
-        return None
 
     return event
 
@@ -1016,21 +1254,14 @@ def _handle_maintenance_event(
     node,
     event,
     slurm_info,
-    manage_slurm=True,
-    healthcheck_drained_only=False,
+    drain_node=True,
+    schedule_event=True,
 ):
     display_name = getattr(event, "display_name", None)
     lifecycle_state = str(getattr(event, "lifecycle_state", "")).upper()
     slurm_state = slurm_info.get("state") if slurm_info else None
     slurm_reason = str(slurm_info.get("reason") or "").lower() if slurm_info else ""
-    healthcheck_drained = (
-        slurm_info
-        and _slurm_state_is_drained(slurm_state)
-        and slurm_reason.startswith("healthcheck::")
-    )
-    manage_event_slurm = manage_slurm and (
-        not healthcheck_drained_only or healthcheck_drained
-    )
+    manage_event_slurm = drain_node
     maintenance_should_own_slurm = (
         manage_event_slurm
         and lifecycle_state in {"SCHEDULED", "STARTED", "PROCESSING"}
@@ -1050,13 +1281,24 @@ def _handle_maintenance_event(
     ) and not maintenance_should_own_slurm:
         return event
 
-    if lifecycle_state in {"SCHEDULED", "STARTED", "PROCESSING"} and not manage_event_slurm:
+    if lifecycle_state in {"STARTED", "PROCESSING"} and not manage_event_slurm:
         return event
 
     if lifecycle_state == "SCHEDULED":
-        return _handle_scheduled_maintenance_event(node, event, slurm_info)
+        return _handle_scheduled_maintenance_event(
+            node,
+            event,
+            slurm_info,
+            drain_node=manage_event_slurm,
+            schedule_event=schedule_event,
+        )
     if lifecycle_state in {"STARTED", "PROCESSING"}:
-        return _handle_active_maintenance_event(node, event, slurm_info)
+        return _handle_active_maintenance_event(
+            node,
+            event,
+            slurm_info,
+            drain_node=manage_event_slurm,
+        )
     if lifecycle_state == "SUCCEEDED":
         return _handle_succeeded_maintenance_event(node, event, slurm_info)
     return event
@@ -1070,28 +1312,40 @@ def _store_maintenance_event(node, event):
 def process_instance_maintenance_events(
     node_list,
     slurm_dict,
-    manage_slurm=True,
-    healthcheck_drained_only=False,
+    maintenance_config_path=MAINTENANCE_CONFIG_PATH,
 ):
     nodes_by_ocid = {node.ocid: node for node in node_list if node.ocid}
     events_by_instance = _maintenance_events_by_instance(node_list, nodes_by_ocid)
+    maintenance_config = _load_maintenance_config(maintenance_config_path)
 
     for instance_id, events in events_by_instance.items():
         node = nodes_by_ocid[instance_id]
-        event = _select_instance_maintenance_event(events)
+        event = _select_instance_maintenance_event_for_node(node, events)
         if event is None:
             logger.debug(
-                "Ignoring FAILED/CANCELED maintenance events for %s",
+                "No selectable maintenance event for %s",
                 node.hostname or node.ocid,
             )
             continue
+
+        event = _maintenance_event_with_details(event)
+        policy = _maintenance_event_policy(event, maintenance_config)
+        passive_healthcheck_unhealthy = (
+            _passive_healthcheck_is_unhealthy(node)
+            if MaintenanceAction.HEALTHCHECK in policy.values()
+            else False
+        )
 
         event_to_store = _handle_maintenance_event(
             node,
             event,
             slurm_dict.get(node.hostname),
-            manage_slurm=manage_slurm,
-            healthcheck_drained_only=healthcheck_drained_only,
+            drain_node=_maintenance_action_enabled(
+                policy["drain"], passive_healthcheck_unhealthy
+            ),
+            schedule_event=_maintenance_action_enabled(
+                policy["schedule"], passive_healthcheck_unhealthy
+            ),
         )
         if event_to_store is not None:
             _store_maintenance_event(node, event_to_store)

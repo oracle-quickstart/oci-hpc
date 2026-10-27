@@ -122,6 +122,15 @@
     owner: "{{ cluster_admin_user }}"
     group: "{{ cluster_admin_user }}"
 
+- name: Install default maintenance configuration
+  copy:
+    src: "maintenance.json"
+    dest: "/config/mgmt/maintenance.json"
+    force: false
+    mode: "0644"
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+
 # - name: Git checkout
 #   ansible.builtin.git:
 #     repo: 'https://github.com/oracle-quickstart/oci-cluster-management'

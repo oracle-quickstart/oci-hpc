@@ -21,33 +21,22 @@
     owner: "prometheus"
     group: "prometheus"
 
-- name: Check cached node_exporter tarballs once per architecture
-  ansible.builtin.stat:
-    path: "{{ metrics_exporter_shared_path }}/node_exporter/{{ item }}/node_exporter-{{ node_exporter }}.linux-{{ binary_arch_map[item] }}.tar.gz"
+- name: Cache node_exporter tarballs once per architecture
+  ansible.builtin.include_role:
+    name: safe_cache
+    apply:
+      delegate_to: 127.0.0.1
+      run_once: true
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].metrics_exporter.node_exporter[item].url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].metrics_exporter.node_exporter[item].cache }}"
   loop: "{{ metrics_exporter_target_architectures }}"
-  register: node_exporter_cache_results
-  delegate_to: 127.0.0.1
   run_once: true
-
-- name: Download missing node_exporter tarballs once per architecture
-  ansible.builtin.get_url:
-    url: >-
-      https://github.com/prometheus/node_exporter/releases/download/v{{
-      node_exporter }}/node_exporter-{{ node_exporter }}.linux-{{
-      binary_arch_map[item.item] }}.tar.gz
-    dest: >-
-      {{ metrics_exporter_shared_path }}/node_exporter/{{ item.item
-      }}/node_exporter-{{ node_exporter }}.linux-{{
-      binary_arch_map[item.item] }}.tar.gz
-  delegate_to: 127.0.0.1
-  run_once: true
-  loop: "{{ node_exporter_cache_results.results }}"
-  when: not item.stat.exists | bool
 
 - name: Extract node_exporter {{ node_exporter }} into /var/lib/prometheus/node_exporter/
   become: true
   ansible.builtin.unarchive:
-    src: "{{ node_exporter_tarball_path }}"
+    src: "{{ ansible_facts['oci_versions'].metrics_exporter.node_exporter.cache }}"
     dest: "/var/lib/prometheus/node_exporter/"
     extra_opts: ["--strip-components=1"]
     remote_src: true

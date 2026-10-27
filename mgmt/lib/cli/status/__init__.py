@@ -1,6 +1,8 @@
 import click
 import lib.database as db
 from lib.cli.status.display import render_status
+from lib.cli.status.health import render_health
+
 
 def load_nodes():
 
@@ -31,14 +33,20 @@ def load_nodes():
 ###
 # Main 'status' command
 ###
-def cmd(no_color):
+@click.pass_context
+def cmd(ctx, no_color):
     """
     Display an overview status of the OCI-HPC Stack
 
-    By default the command runs once and prints the status in color.
+    Shows the control plane health first (services, mounts and automation
+    required for the cluster to accept jobs), then the node-centric cluster
+    status. Exits non-zero when a control plane check fails or when more
+    than half of the nodes need attention.
     """
-    
+
+    healthy = render_health(no_color)
+
     nodes = load_nodes()
-    status = render_status(nodes, no_color)
-    click.echo(status)
-    return
+    nodes_healthy = render_status(nodes, no_color)
+
+    ctx.exit(0 if healthy and nodes_healthy else 1)

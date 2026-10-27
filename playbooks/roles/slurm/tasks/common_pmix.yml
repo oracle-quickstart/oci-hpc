@@ -12,38 +12,20 @@
     name: safe_yum
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Download Slurm RPMs
-  when: ansible_facts['os_family'] == 'RedHat'
-
-  block:
-    - name: Download in shared location
-      block:
-        - name: Check if the RPMs exist
-          ansible.builtin.stat:
-            path: "{{ slurm_nfs_path }}/slurm_rpms/{{ item }}"
-          register: pmix_dwld
-          delegate_to: 127.0.0.1
-          run_once: true
-          with_items: "{{ pmix_download_packages }}"
-        - name: First try downloading RPMs
-          environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-          ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/pmix/{{ item.item }}"
-            dest: "{{ slurm_nfs_path }}/slurm_rpms"
-          when: ( not item.stat.exists )
-          delegate_to: 127.0.0.1
-          run_once: true
-          with_items: "{{ pmix_dwld.results }}"
-
-  rescue:
-    - name: Second try downloading RPMs
-      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-      ansible.builtin.get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/pmix/{{ item }}"
-        dest: "{{ slurm_nfs_path }}/slurm_rpms"
+- name: Download PMIx RPMs
+  ansible.builtin.include_role:
+    name: safe_cache
+    apply:
       delegate_to: 127.0.0.1
       run_once: true
-      with_items: "{{ pmix_download_packages }}"
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].slurm[pmix_package].url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].slurm[pmix_package].cache }}"
+  loop: "{{ pmix_download_packages }}"
+  loop_control:
+    loop_var: pmix_package
+  run_once: true
+  when: ansible_facts['os_family'] == 'RedHat'
 - name: Install PMIx packages RedHat
   vars:
     package_name: "{{ pmix_packages }}"

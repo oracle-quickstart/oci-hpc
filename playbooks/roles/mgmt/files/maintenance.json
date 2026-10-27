@@ -1,0 +1,25 @@
+# Each drain and schedule value must be true, false, or "Healthcheck".
+# "Healthcheck" performs that action only when the latest passive
+# healthcheck recommendation is not "Healthy".
+# The initial default schedules maintenance without draining the node.
+#
+# To drain without scheduling, set the default or a fault-code override to:
+# { "drain": true, "schedule": false }
+#
+# To schedule without draining, set the default or a fault-code override to:
+# { "drain": false, "schedule": true }
+#
+# Example fault-code override:
+# "fault_codes": {
+#   "FMSRDMA-0002-02": {
+#     "drain": "Healthcheck",
+#     "schedule": "Healthcheck"
+#   }
+# }
+{
+  "default": {
+    "drain": false,
+    "schedule": true
+  },
+  "fault_codes": {}
+}

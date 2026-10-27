@@ -20,8 +20,6 @@
     - ssh
     - limits
     - boot-volume
-    - mpivars
-    - queue_read
     - mgmt
 
 - hosts: localhost
@@ -109,11 +107,94 @@
     - include_role:
         name: rack-aware
     - include_role:
-        name: spack
-      when: spack | default(false) | bool
-    - include_role:
         name: slurm
       when: slurm | default(false) | bool
+
+- hosts: controller, slurm_backup
+  tasks:
+    - name: Wait for the Slurm REST API JWT token
+      become: true
+      ansible.builtin.wait_for:
+        path: "{{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm/jwt_hs256.token"
+        state: present
+        timeout: 1200
+      when:
+        - cluster_monitoring | default(false) | bool
+        - slurm | default(false) | bool
+        - slurm_job_monitoring | default(false) | bool
+        - groups['monitoring'] | length > 0
+
+    - ansible.builtin.include_role:
+        name: slurm_monitoring
+      vars:
+        slurm_monitoring_controller_rest_exporter_enabled: "{{ slurm_job_monitoring | default(false) | bool }}"
+        slurm_monitoring_controller_job_exporter_enabled: "{{ slurm_job_monitoring | default(false) | bool }}"
+        slurm_monitoring_controller_enable_db_compact: >-
+          {{
+            slurm_job_monitoring | default(false) | bool
+            and inventory_hostname == (groups['controller'] | first)
+          }}
+      when:
+        - cluster_monitoring | default(false) | bool
+        - slurm | default(false) | bool
+        - slurm_job_monitoring | default(false) | bool
+        - groups['monitoring'] | length > 0
+
+- hosts: controller
+  tasks:
+    - ansible.builtin.include_role:
+        name: get_nodes_in_cluster
+      when: cluster_monitoring | default(false) | bool
+
+    - ansible.builtin.include_role:
+        name: prometheus_targets
+      when: cluster_monitoring | default(false) | bool
+
+- hosts: localhost
+  gather_facts: true
+  vars:
+    ansible_user: "{{ cluster_admin_user }}"
+  tasks:
+    - ansible.builtin.include_role:
+        name: wait_for_cloud_init
+
+    - ansible.builtin.include_role:
+        name: grafana
+      when: cluster_monitoring | default(false) | bool
+
+    - ansible.builtin.include_role:
+        name: metrics-exporter
+        tasks_from: nccl_inspector_collector.yml
+      when:
+        - cluster_monitoring | default(false) | bool
+        - slurm_job_monitoring | default(false) | bool
+
+- hosts: localhost
+  gather_facts: true
+  vars:
+    ansible_user: "{{ cluster_admin_user }}"
+  tasks:
+    - ansible.builtin.include_role:
+        name: oci-metrics-telegraf
+      when:
+        - cluster_monitoring | default(false) | bool
+        - (metrics_stream_ocid | default('')) | length > 0
+
+- hosts: localhost
+  gather_facts: true
+  vars:
+    ansible_user: "{{ cluster_admin_user }}"
+  tasks:
+    - name: Force delegated monitoring host tasks to run locally during monitoring bootstrap
+      ansible.builtin.add_host:
+        name: "{{ groups['monitoring'][0] }}"
+        ansible_connection: local
+        ansible_user: "{{ cluster_admin_user }}"
+      when: groups['monitoring'] | length > 0
+
+    - ansible.builtin.include_role:
+        name: prometheus
+      when: cluster_monitoring | default(false) | bool
 
 - hosts: localhost
   become: true

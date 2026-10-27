@@ -1,6 +1,3 @@
 ---
-- name: Configure slurmrestd
-  ansible.builtin.include_tasks: slurm_restd.yml
-
 - name: Configure Slurm REST API SDK
   ansible.builtin.include_tasks: slurm_sdk.yml

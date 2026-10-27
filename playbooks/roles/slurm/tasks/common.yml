@@ -41,89 +41,36 @@
   ansible.builtin.include_role:
     name: safe_yum
 
-- name: Create Slurm RPM directory
-  become: true
-  ansible.builtin.file:
-    path: "{{ slurm_nfs_path }}/slurm_rpms"
-    state: directory
-    owner: "{{ cluster_admin_user }}"
-    group: "{{ cluster_admin_user }}"
-  delegate_to: 127.0.0.1
-  run_once: true
-
-- name: Get DEB architecture # noqa no-changed-when
-  ansible.builtin.command: dpkg --print-architecture
-  register: deb_architecture_out
-  when: ansible_facts['os_family'] == 'Debian'
-
-- name: Map system architecture to suffix
-  ansible.builtin.set_fact:
-    deb_architecture: "{{ deb_architecture_out.stdout }}"
-  when: ansible_facts['os_family'] == 'Debian'
-
 - name: Download Slurm DEB
+  ansible.builtin.include_role:
+    name: safe_cache
+    apply:
+      delegate_to: 127.0.0.1
+      run_once: true
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].slurm.slurm.url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].slurm.slurm.cache }}"
+  run_once: true
   when: ansible_facts['os_family'] == 'Debian'
 
-  block:
-    - name: Download in shared location
-      block:
-        - name: Check if the deb file exists
-          ansible.builtin.stat:
-            path: "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
-          register: slurm_dwld
-          delegate_to: 127.0.0.1
-          run_once: true
-        - name: First try downloading .deb
-          ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
-            dest: "{{ slurm_nfs_path }}/slurm_rpms"
-          when: ( not slurm_dwld.stat.exists )
-          delegate_to: 127.0.0.1
-          run_once: true
-  rescue:
-    - name: Second try downloading .deb
-      ansible.builtin.get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
-        dest: "{{ slurm_nfs_path }}/slurm_rpms"
-      delegate_to: 127.0.0.1
-      run_once: true
 - name: Download Slurm RPMs
-  when: ansible_facts['os_family'] == 'RedHat'
-
-  block:
-    - name: Download in shared location
-      block:
-        - name: Check if the RPMs exist
-          ansible.builtin.stat:
-            path: "{{ slurm_nfs_path }}/slurm_rpms/{{ item }}"
-          register: slurm_dwld
-          delegate_to: 127.0.0.1
-          run_once: true
-          with_items: "{{ slurm_all_packages }}"
-        - name: First try downloading RPMs
-          environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-          ansible.builtin.get_url:
-            url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/{{ item.item }}"
-            dest: "{{ slurm_nfs_path }}/slurm_rpms"
-          when: ( not item.stat.exists )
-          delegate_to: 127.0.0.1
-          run_once: true
-          with_items: "{{ slurm_dwld.results }}"
-
-  rescue:
-    - name: Second try downloading RPMs
-      environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-      ansible.builtin.get_url:
-        url: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/{{ item
-          }}"
-        dest: "{{ slurm_nfs_path }}/slurm_rpms"
+  ansible.builtin.include_role:
+    name: safe_cache
+    apply:
       delegate_to: 127.0.0.1
       run_once: true
-      with_items: "{{ slurm_all_packages }}"
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].slurm[slurm_package].url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].slurm[slurm_package].cache }}"
+  loop: "{{ slurm_all_packages }}"
+  loop_control:
+    loop_var: slurm_package
+  run_once: true
+  when: ansible_facts['os_family'] == 'RedHat'
 - name: Install .deb
   vars:
     deb_name:
-      - "{{ slurm_nfs_path }}/slurm_rpms/slurm-{{ slurm_version }}_{{ ansible_facts['distribution_version'] }}_{{ deb_architecture }}.deb"
+      - "{{ ansible_facts['oci_versions'].slurm.slurm.cache }}"
     package_state: present
   ansible.builtin.include_role:
     name: safe_yum
@@ -255,10 +202,10 @@
     group: root
     mode: "0644"
 
-- name: Copy healthchecks
+- name: Configure healthchecks
   become: true
-  ansible.builtin.copy:
-    src: healthchecks.sh
+  ansible.builtin.template:
+    src: healthchecks.sh.j2
     dest: "{{ slurm_conf_path }}/prolog.d/healthchecks.sh"
     owner: root
     group: root

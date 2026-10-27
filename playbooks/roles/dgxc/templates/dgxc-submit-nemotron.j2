@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: dgxc-submit-nemotron --nodelist <slurm-node-list> [options]
+
+Submit the DGXC Nemotron-H pretraining workload with GB300 defaults.
+
+Options:
+  --nodelist <nodes>     Required Slurm nodelist expression.
+                         Scale is derived as node_count x 4 GPUs.
+  --max-steps <steps>    MAX_STEPS exported to the DGXC recipe. Default: 300.
+  --time-limit <time>    TIME_LIMIT exported to the DGXC recipe. Default: 00:30:00.
+  -h, --help             Show this help text.
+USAGE
+}
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+NODELIST=""
+MAX_STEPS="300"
+TIME_LIMIT="00:30:00"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --nodelist)
+      [[ $# -ge 2 ]] || die "--nodelist requires a value"
+      NODELIST="$2"
+      shift 2
+      ;;
+    --nodelist=*)
+      NODELIST="${1#--nodelist=}"
+      shift
+      ;;
+    --max-steps)
+      [[ $# -ge 2 ]] || die "--max-steps requires a value"
+      MAX_STEPS="$2"
+      shift 2
+      ;;
+    --max-steps=*)
+      MAX_STEPS="${1#--max-steps=}"
+      shift
+      ;;
+    --time-limit)
+      [[ $# -ge 2 ]] || die "--time-limit requires a value"
+      TIME_LIMIT="$2"
+      shift 2
+      ;;
+    --time-limit=*)
+      TIME_LIMIT="${1#--time-limit=}"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+done
+
+[[ -n "${NODELIST}" ]] || die "--nodelist is required"
+[[ "${MAX_STEPS}" =~ ^[0-9]+$ ]] || die "--max-steps must be an integer"
+
+expected_architecture="aarch64"
+if [[ "$(uname -m)" != "${expected_architecture}" ]]; then
+  die "dgxc-submit-nemotron must be run from a GB300 GPU or login node (${expected_architecture}); this node uses $(uname -m)"
+fi
+
+if [[ -r "{{ dgxc_env_loader_path }}" ]]; then
+  # shellcheck disable=SC1091
+  source "{{ dgxc_env_loader_path }}"
+fi
+
+export LLMB_INSTALL="${LLMB_INSTALL:-{{ dgxc_install_path }}}"
+export DGXC_REPO="${DGXC_REPO:-{{ dgxc_repo_path }}}"
+export DGXC_VENV="${DGXC_VENV:-{{ dgxc_venv_path }}}"
+
+[[ -d "${LLMB_INSTALL}" ]] || die "DGXC install path does not exist: ${LLMB_INSTALL}"
+[[ -x "${DGXC_VENV}/bin/llmb-run" ]] || die "llmb-run is not installed at ${DGXC_VENV}/bin/llmb-run"
+
+SCONTROL="$(command -v scontrol || true)"
+[[ -x "${SCONTROL}" ]] || die "unable to locate scontrol"
+
+mapfile -t expanded_nodes < <("${SCONTROL}" show hostnames "${NODELIST}" 2>/dev/null || true)
+expanded_node_count=0
+non_gb300_nodes=""
+for _node in "${expanded_nodes[@]}"; do
+  expanded_node_count=$((expanded_node_count + 1))
+  node_info="$("${SCONTROL}" show node "${_node}" --oneliner 2>/dev/null || true)"
+  if [[ "${node_info}" != *"Gres=gpu:B300:4"* ]]; then
+    non_gb300_nodes="${non_gb300_nodes}${non_gb300_nodes:+,}${_node}"
+  fi
+done
+[[ "${expanded_node_count}" -gt 0 ]] || die "unable to expand --nodelist '${NODELIST}'"
+[[ -z "${non_gb300_nodes}" ]] || die "dgxc-submit-nemotron supports only GB300 nodes with Gres=gpu:B300:4; rejected: ${non_gb300_nodes}"
+
+SCALE=$((expanded_node_count * 4))
+
+export TORCH_NCCL_TRACE_BUFFER_SIZE="${TORCH_NCCL_TRACE_BUFFER_SIZE:-50000}"
+export TORCH_NCCL_DUMP_ON_TIMEOUT="${TORCH_NCCL_DUMP_ON_TIMEOUT:-1}"
+export RX_QUEUE_LEN="${RX_QUEUE_LEN:-8192}"
+export IB_RX_QUEUE_LEN="${IB_RX_QUEUE_LEN:-8192}"
+export HCOLL_ENABLE_MCAST_ALL="${HCOLL_ENABLE_MCAST_ALL:-0}"
+export coll_hcoll_enable="${coll_hcoll_enable:-0}"
+export NCCL_TOPO_DUMP_FILE="${NCCL_TOPO_DUMP_FILE:-${HOME:-/tmp}/nccl-topo-$(date +%F-%H%M%S).txt}"
+export NCCL_DEBUG="${NCCL_DEBUG:-WARN}"
+export NCCL_DEBUG_SUBSYS="${NCCL_DEBUG_SUBSYS:-NET,IB}"
+export NCCL_NET="${NCCL_NET:-IB}"
+export NCCL_NET_PLUGIN="${NCCL_NET_PLUGIN:-spcx}"
+export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-0}"
+export NCCL_SOCKET_IFNAME="${NCCL_SOCKET_IFNAME:-eth0}"
+export NCCL_IB_GID_INDEX="${NCCL_IB_GID_INDEX:-3}"
+export NCCL_IB_HCA="${NCCL_IB_HCA:-rdma_vf_rail0,rdma_vf_rail1,rdma_vf_rail2,rdma_vf_rail3}"
+export NCCL_IB_QPS_PER_CONNECTION="${NCCL_IB_QPS_PER_CONNECTION:-4}"
+export NCCL_MIN_CTAS="${NCCL_MIN_CTAS:-16}"
+export NCCL_IB_SPLIT_DATA_ON_QPS="${NCCL_IB_SPLIT_DATA_ON_QPS:-1}"
+export NCCL_ASYNC_ERROR_HANDLING="${NCCL_ASYNC_ERROR_HANDLING:-1}"
+export NCCL_CUMEM_ENABLE="${NCCL_CUMEM_ENABLE:-0}"
+export NCCL_IB_TIMEOUT="${NCCL_IB_TIMEOUT:-22}"
+export NCCL_IB_SL="${NCCL_IB_SL:-0}"
+export NCCL_IB_TC="${NCCL_IB_TC:-96}"
+export NCCL_BUFFSIZE="${NCCL_BUFFSIZE:-16777216}"
+export NCCL_NVLS_ENABLE="${NCCL_NVLS_ENABLE:-0}"
+export NCCL_MNNVL_ENABLE="${NCCL_MNNVL_ENABLE:-0}"
+export NCCL_DMABUF_ENABLE="${NCCL_DMABUF_ENABLE:-1}"
+export TIME_LIMIT
+export MAX_STEPS
+
+REAL_SRUN="$(command -v srun || true)"
+[[ -x "${REAL_SRUN}" ]] || die "unable to locate srun"
+[[ -r "{{ dgxc_srun_masteraddr_shim_path }}" ]] || die "DGXC srun shim does not exist: {{ dgxc_srun_masteraddr_shim_path }}"
+
+DGXC_RUN_USER="${USER:-$(id -un)}"
+SHIM_DIR="${LLMB_INSTALL}/bin/llmb-masteraddr-shim-${DGXC_RUN_USER}"
+mkdir -p "${SHIM_DIR}"
+cp "{{ dgxc_srun_masteraddr_shim_path }}" "${SHIM_DIR}/srun"
+chmod 0755 "${SHIM_DIR}/srun"
+export LLMB_REAL_SRUN="${REAL_SRUN}"
+export PATH="${SHIM_DIR}:${PATH}"
+
+LLMB_ARGS=(
+  submit
+  -w pretrain_nemotron-h
+  -s 56b
+  -d fp8
+  --scale "${SCALE}"
+  --force
+  --nodelist "${NODELIST}"
+  --slurm-arg "export=ALL,LLMB_REAL_SRUN=${LLMB_REAL_SRUN},PATH=${PATH}"
+)
+
+LLMB_ARGS+=(
+  --env "TORCH_NCCL_TRACE_BUFFER_SIZE=${TORCH_NCCL_TRACE_BUFFER_SIZE}"
+  --env "TORCH_NCCL_DUMP_ON_TIMEOUT=${TORCH_NCCL_DUMP_ON_TIMEOUT}"
+  --env "RX_QUEUE_LEN=${RX_QUEUE_LEN}"
+  --env "IB_RX_QUEUE_LEN=${IB_RX_QUEUE_LEN}"
+  --env "HCOLL_ENABLE_MCAST_ALL=${HCOLL_ENABLE_MCAST_ALL}"
+  --env "coll_hcoll_enable=${coll_hcoll_enable}"
+  --env "NCCL_TOPO_DUMP_FILE=${NCCL_TOPO_DUMP_FILE}"
+  --env "NCCL_DEBUG=${NCCL_DEBUG}"
+  --env "NCCL_DEBUG_SUBSYS=${NCCL_DEBUG_SUBSYS}"
+  --env "NCCL_NET=${NCCL_NET}"
+  --env "NCCL_NET_PLUGIN=${NCCL_NET_PLUGIN}"
+  --env "NCCL_IB_DISABLE=${NCCL_IB_DISABLE}"
+  --env "NCCL_SOCKET_IFNAME=${NCCL_SOCKET_IFNAME}"
+  --env "NCCL_IB_GID_INDEX=${NCCL_IB_GID_INDEX}"
+  --env "NCCL_IB_HCA=${NCCL_IB_HCA}"
+  --env "NCCL_IB_QPS_PER_CONNECTION=${NCCL_IB_QPS_PER_CONNECTION}"
+  --env "NCCL_MIN_CTAS=${NCCL_MIN_CTAS}"
+  --env "NCCL_IB_SPLIT_DATA_ON_QPS=${NCCL_IB_SPLIT_DATA_ON_QPS}"
+  --env "NCCL_ASYNC_ERROR_HANDLING=${NCCL_ASYNC_ERROR_HANDLING}"
+  --env "NCCL_CUMEM_ENABLE=${NCCL_CUMEM_ENABLE}"
+  --env "NCCL_IB_TIMEOUT=${NCCL_IB_TIMEOUT}"
+  --env "NCCL_IB_SL=${NCCL_IB_SL}"
+  --env "NCCL_IB_TC=${NCCL_IB_TC}"
+  --env "NCCL_BUFFSIZE=${NCCL_BUFFSIZE}"
+  --env "NCCL_NVLS_ENABLE=${NCCL_NVLS_ENABLE}"
+  --env "NCCL_MNNVL_ENABLE=${NCCL_MNNVL_ENABLE}"
+  --env "NCCL_DMABUF_ENABLE=${NCCL_DMABUF_ENABLE}"
+  --env "TIME_LIMIT=${TIME_LIMIT}"
+  --env "MAX_STEPS=${MAX_STEPS}"
+)
+
+cd "${LLMB_INSTALL}"
+exec "${DGXC_VENV}/bin/llmb-run" "${LLMB_ARGS[@]}"

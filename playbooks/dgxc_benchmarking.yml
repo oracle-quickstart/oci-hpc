@@ -1,7 +1,7 @@
 ---
 - name: Validate DGXC benchmarking install target
   hosts: localhost
-  gather_facts: false
+  gather_facts: true
   vars:
     dgxc_requested_targets: "{{ dgxc_target_hosts | default('localhost') }}"
     dgxc_matched_targets: "{{ query('ansible.builtin.inventory_hostnames', dgxc_requested_targets) }}"

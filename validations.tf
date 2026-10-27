@@ -11,6 +11,20 @@ data "oci_core_image_shapes" "test_compute_image_shapes" {
 
 
 locals {
+  # Leave 20% free beyond an image's required size so normal image growth does
+  # not turn a previously valid boot-volume setting into a launch-time error.
+  boot_volume_safety_coefficient = 1.20
+  boot_volume_minimums = {
+    controller = ceil(tonumber(data.oci_core_image.controller_validation.size_in_mbs) / 1024 * local.boot_volume_safety_coefficient)
+    compute    = ceil(tonumber(data.oci_core_image.compute_validation.size_in_mbs) / 1024 * local.boot_volume_safety_coefficient)
+  }
+  boot_volume_checks = {
+    controller = { enabled = true, requested = var.controller_boot_volume_size, minimum = local.boot_volume_minimums.controller }
+    compute    = { enabled = var.node_count > 0, requested = var.boot_volume_size, minimum = local.boot_volume_minimums.compute }
+    login      = { enabled = var.login_node, requested = var.login_boot_volume_size, minimum = local.boot_volume_minimums.controller }
+    monitoring = { enabled = var.monitoring_node, requested = var.monitoring_boot_volume_size, minimum = local.boot_volume_minimums.controller }
+  }
+
   invalid_federation_config = var.slurm_federation && var.slurm_ha
   invalid_dgxc_config       = var.dgxc_benchmarking && (!var.slurm || !var.pyxis)
   invalid_shared_fss_mount_target_ad = (
@@ -103,6 +117,42 @@ resource "null_resource" "validate_compute_image_source_inputs" {
     precondition {
       condition     = local.valid_compute_image_source_inputs
       error_message = "Set only the compute image field that matches compute_image_source. Marketplace requires compute_image_unlisted_ocid, compute_image_ocid, and compute_image_uri to be unset; Unlisted requires only compute_image_unlisted_ocid; Custom requires only compute_image_ocid; URI requires only compute_image_uri."
+    }
+  }
+}
+
+# Marketplace images cannot have compatible shapes added. Validate optional
+# management-image roles before launching their instances. Custom and imported
+# images are handled by the corresponding shape-management resources.
+resource "null_resource" "validate_management_role_image_shapes" {
+  lifecycle {
+    precondition {
+      condition     = var.controller_image_source != "Marketplace" || !var.login_node || contains(local.compatible_controller_shapes, var.login_shape)
+      error_message = "login_shape is not compatible with the selected marketplace management image. Select a compatible login shape or use a custom/imported image."
+    }
+
+    precondition {
+      condition     = var.controller_image_source != "Marketplace" || !var.monitoring_node || contains(local.compatible_controller_shapes, var.monitoring_shape)
+      error_message = "monitoring_shape is not compatible with the selected marketplace management image. Select a compatible monitoring shape or use a custom/imported image."
+    }
+
+    precondition {
+      condition     = var.controller_image_source != "Marketplace" || !var.slurm_ha || contains(local.compatible_controller_shapes, var.controller_shape)
+      error_message = "controller_shape is not compatible with the selected marketplace management image for the Slurm backup controller. Select a compatible controller shape."
+    }
+  }
+}
+
+# Validate image-dependent boot-volume sizes before any instance or instance
+# configuration is created. OCI returns the image minimum only at launch time;
+# retain 20% headroom to make that requirement resilient to image updates.
+resource "null_resource" "validate_boot_volume_sizes" {
+  for_each = { for role, check in local.boot_volume_checks : role => check if check.enabled }
+
+  lifecycle {
+    precondition {
+      condition     = each.value.requested >= each.value.minimum
+      error_message = "${each.key} boot volume size must be at least ${each.value.minimum} GB (the selected image size plus 20% safety headroom)."
     }
   }
 }

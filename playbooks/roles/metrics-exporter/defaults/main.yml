@@ -1,7 +1,7 @@
 ---
-node_exporter: 1.8.2
+node_exporter: "{{ ansible_facts['oci_versions'].metrics_exporter.node_exporter.version }}"
 cpu_ports: 9100
-metrics_exporter_shared_path: "{{ thirdparty_root_path }}/metrics-exporter"
+metrics_exporter_shared_path: "{{ thirdparty_arch_path }}/metrics-exporter"
 metrics_exporter_install_dir: /opt/oci-hpc/metrics_exporter
 
 metrics_exporter_lustre_port: 9718
@@ -11,12 +11,17 @@ metrics_exporter_lustre_timeout_seconds: 720
 metrics_exporter_lustre_log_level: INFO
 metrics_exporter_lustre_command: /usr/bin/lfs
 
-nccl_exporter_script: "/usr/local/bin/nccl_profiler_exporter.py"
-exporter_service_file: "/etc/systemd/system/nccl-profiler-exporter.service"
+# NCCL inspector: dump directory and collector configuration.
+nccl_inspector_dump_dir: "/config/metrics/nccl-inspector"
+nccl_inspector_collector_interval_seconds: 30
+nccl_inspector_retention_days: 30
+nccl_inspector_collector_state_dir: /var/lib/nccl-inspector-collector
+otelcol_install_dir: /usr/local/bin
+otelcol_config_dir: /etc/otelcol
+otelcol_metrics_port: 8889
+otelcol_otlp_port: 4318
 amd_exporter_port: 9400
-amd_exporter_host: "0.0.0.0"
 amd_exporter_image: "rocm/device-metrics-exporter:latest"
-amd_exporter_version: "1.4.0"
 
 # Slurm monitoring database settings for NVML exporter.
 nvml_metrics_port: 9800

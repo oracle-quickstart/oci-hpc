@@ -43,3 +43,21 @@
     owner: root
     group: root
     mode: "0755"
+
+- name: Install DGXC srun master address shim
+  become: true
+  ansible.builtin.copy:
+    src: dgxc-srun-masteraddr-shim
+    dest: "{{ dgxc_srun_masteraddr_shim_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install DGXC Nemotron submit wrapper
+  become: true
+  ansible.builtin.template:
+    src: dgxc-submit-nemotron.j2
+    dest: "{{ dgxc_nemotron_runner_path }}"
+    owner: root
+    group: root
+    mode: "0755"

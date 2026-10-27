@@ -18,10 +18,10 @@ slurm_server_packages:
   - libjwt-dev
 
 slurm_compute_packages:
-  - libpmi0
+  - "{{ 'libjwt0' if ansible_facts['distribution_version'] is version('24.04', '<') else 'libjwt2' }}"
 
 slurm_backup_server_packages:
-  - libpmi0
+  - "{{ 'libjwt0' if ansible_facts['distribution_version'] is version('24.04', '<') else 'libjwt2' }}"
 
 slurm_login_packages:
-  - libpmi0
+  - "{{ 'libjwt0' if ansible_facts['distribution_version'] is version('24.04', '<') else 'libjwt2' }}"

@@ -27,7 +27,7 @@ Architecture:
     1. Initializes OCI Monitoring API client with appropriate authentication
     2. Creates a continuous metrics fetcher with rate limiting
     3. Registers metric queries to be polled
-    4. Runs a worker thread that fetches missing minute-interval data
+    4. Runs a worker thread that fetches overlapping metric windows
     5. Converts OCI metric responses to InfluxDB line protocol
     6. Outputs metrics to stdout for Telegraf consumption
 
@@ -36,7 +36,9 @@ Rate Limiting:
     and RPM (requests per minute) limits, preventing API throttling.
 
 Features:
-    - Continuous polling with gap-filling (no minute intervals lost)
+    - Overlapping lookback windows to capture delayed OCI metrics
+    - Per-query polling profiles for request and hourly capacity metrics
+    - Bounded datapoint deduplication for overlapping API responses
     - Configurable rate limiting
     - Multiple concurrent metric queries
     - Graceful shutdown on SIGHUP or SIGINT
@@ -67,21 +69,39 @@ OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
 OCI_REGION = os.environ.get("OCI_REGION", None)
 OCI_COMPARTMENT_ID = os.environ.get("OCI_COMPARTMENT_ID", None)
 
-# Default OCI Object Storage metrics to collect
-# Format: "namespace:metric_definition[resolution].aggregation()"
-# These metrics are polled continuously in one-minute intervals
+
+def metric_query(
+    namespace: str,
+    query: str,
+    lookback_minutes: int = 10,
+    end_delay_minutes: int = 2,
+    poll_interval_seconds: int = 60,
+) -> Dict[str, Any]:
+    """Build an OCI metric polling profile."""
+    return {
+        "namespace": namespace,
+        "query": query,
+        "lookback_minutes": lookback_minutes,
+        "end_delay_minutes": end_delay_minutes,
+        "poll_interval_seconds": poll_interval_seconds,
+    }
+
+
+# Request metrics use a short, delayed lookback to avoid incomplete minute
+# aggregations. Capacity metrics are emitted hourly and can arrive late, so they
+# use a longer overlapping window.
 metrics_to_collect = [
-    "oci_objectstorage:AllRequests[1m].sum()",
-    "oci_objectstorage:ClientErrors[1m].sum()",
-    "oci_objectstorage:DeleteRequests[1m].sum()",
-    "oci_objectstorage:FirstByteLatency[1m].mean()",
-    "oci_objectstorage:GetRequests[1m].sum()",
-    "oci_objectstorage:ListRequests[1m].sum()",
-    "oci_objectstorage:ObjectCount[1m].mean()",
-    "oci_objectstorage:PutRequests[1m].sum()",
-    "oci_objectstorage:StoredBytes[1m].mean()",
-    "oci_objectstorage:TotalRequestLatency[1m].mean()",
-    "oci_objectstorage:UncommittedParts[1m].sum()"
+    metric_query("oci_objectstorage", "AllRequests[1m].sum()"),
+    metric_query("oci_objectstorage", "ClientErrors[1m].sum()"),
+    metric_query("oci_objectstorage", "DeleteRequests[1m].sum()"),
+    metric_query("oci_objectstorage", "FirstByteLatency[1m].mean()"),
+    metric_query("oci_objectstorage", "GetRequests[1m].sum()"),
+    metric_query("oci_objectstorage", "ListRequests[1m].sum()"),
+    metric_query("oci_objectstorage", "PutRequests[1m].sum()"),
+    metric_query("oci_objectstorage", "TotalRequestLatency[1m].mean()"),
+    metric_query("oci_objectstorage", "ObjectCount[1h].mean()", 180, 0, 300),
+    metric_query("oci_objectstorage", "StoredBytes[1h].mean()", 180, 0, 300),
+    metric_query("oci_objectstorage", "UncommittedParts[1h].mean()", 180, 0, 300),
 ]
 
 logger = logging.getLogger(__name__)
@@ -225,6 +245,56 @@ def to_influxdb_line_protocol(metric_data: Dict[str, Any]) -> Optional[List[Metr
         logger.error(f"Failed to convert to InfluxDB line protocol: {traceback.format_exc()}")
         return None
 
+
+class DatapointDeduplicator:
+    """Suppress datapoints repeated by overlapping Monitoring API queries."""
+
+    def __init__(self, retention: timedelta = timedelta(hours=6)):
+        self.retention = retention
+        self.seen = {}
+        self.next_cleanup_at = datetime.min.replace(tzinfo=timezone.utc)
+
+    def filter_new(self, metric_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Return a shallow copy containing only previously unseen datapoints."""
+        now = datetime.now(timezone.utc)
+        if now >= self.next_cleanup_at:
+            cutoff = now - self.retention
+            self.seen = {
+                key: seen_at
+                for key, seen_at in self.seen.items()
+                if seen_at >= cutoff
+            }
+            self.next_cleanup_at = now + timedelta(minutes=10)
+
+        dimensions = json.dumps(
+            metric_data.get('dimensions', {}),
+            sort_keys=True,
+            separators=(',', ':'),
+        )
+        new_datapoints = []
+        for datapoint in metric_data.get('aggregated_datapoints', []):
+            timestamp = datapoint.get('timestamp')
+            if timestamp is None:
+                new_datapoints.append(datapoint)
+                continue
+
+            key = (
+                metric_data.get('namespace'),
+                metric_data.get('name'),
+                dimensions,
+                timestamp,
+            )
+            if key in self.seen:
+                continue
+
+            self.seen[key] = now
+            new_datapoints.append(datapoint)
+
+        filtered_metric_data = dict(metric_data)
+        filtered_metric_data['aggregated_datapoints'] = new_datapoints
+        return filtered_metric_data
+
+
 class RateLimiter:
     """
     Token bucket rate limiter to control API request rates.
@@ -306,15 +376,12 @@ class RateLimiter:
 
 class OCIContinuousMetricsFetcher:
     """
-    Continuous metrics fetcher with gap-filling and rate limiting.
+    Continuous metrics fetcher with overlapping lookbacks and rate limiting.
 
     Manages continuous polling of OCI Monitoring API metrics for multiple queries.
-    Implements gap-filling logic to ensure no minute intervals are missed, even if
-    the script temporarily stops or the API experiences issues. Uses a background
-    worker thread that periodically fetches missing data intervals.
-
-    The fetcher tracks the last successful fetch time for each query and fills in
-    all missing minute-intervals on each polling cycle, ensuring complete data coverage.
+    Each query defines its lookback, end delay, and polling interval. Overlapping
+    windows allow the collector to retrieve datapoints that OCI publishes after
+    their original timestamp.
 
     Attributes:
         monitoring_client: Authenticated OCI MonitoringClient instance
@@ -324,12 +391,11 @@ class OCIContinuousMetricsFetcher:
         thread: Background worker thread
         rate_limiter: RateLimiter instance for API throttling
         queries: List of query configurations to fetch
-        last_fetch_times: Dict tracking last successful fetch per query
 
     Workflow:
         1. Configure queries using add_query()
         2. Start background worker with start()
-        3. Worker polls for missing intervals every poll_interval_seconds
+        3. Worker fetches due query windows every poll_interval_seconds
         4. Fetches are rate-limited to prevent API throttling
         5. Retrieved metrics are placed in metrics_queue
         6. Stop gracefully with stop()
@@ -358,17 +424,17 @@ class OCIContinuousMetricsFetcher:
         self.thread = None
         self.rate_limiter = RateLimiter(max_rps=max_rps, max_rpm=max_rpm)
 
-        # Query configurations: list of dicts with 'namespace', 'query', 'compartment_id' (optional)
+        # Query configurations include their own lookback and polling schedule.
         self.queries = []
-
-        # Track last fetch time for each query (key: namespace:query)
-        self.last_fetch_times = {}
 
     def add_query(
         self,
         namespace: str,
         query: str,
-        compartment_id: Optional[str] = None
+        compartment_id: Optional[str] = None,
+        lookback_minutes: int = 10,
+        end_delay_minutes: int = 2,
+        poll_interval_seconds: int = 60,
     ) -> None:
         """
         Add a query configuration to be fetched continuously.
@@ -377,20 +443,26 @@ class OCIContinuousMetricsFetcher:
             namespace: The OCI service namespace (e.g., 'oci_objectstorage')
             query: The metric query in OCI query syntax
             compartment_id: Override compartment ID for this query (optional)
+            lookback_minutes: Size of the overlapping query window
+            end_delay_minutes: Delay applied to the end of the query window
+            poll_interval_seconds: Minimum time between API calls for this query
         """
         query_config = {
             'namespace': namespace,
             'query': query,
-            'compartment_id': compartment_id or self.compartment_id
+            'compartment_id': compartment_id or self.compartment_id,
+            'lookback_minutes': lookback_minutes,
+            'end_delay_minutes': end_delay_minutes,
+            'poll_interval_seconds': poll_interval_seconds,
+            'next_fetch_at': datetime.min.replace(tzinfo=timezone.utc),
         }
         self.queries.append(query_config)
 
-        # Initialize last fetch time to 2 minutes ago for new queries
-        key = f"{namespace}:{query}"
-        if key not in self.last_fetch_times:
-            self.last_fetch_times[key] = datetime.now(timezone.utc) - timedelta(minutes=2)
-
-        logger.info(f"Added query: {namespace}:{query}")
+        logger.info(
+            f"Added query: {namespace}:{query} "
+            f"(lookback={lookback_minutes}m, delay={end_delay_minutes}m, "
+            f"poll={poll_interval_seconds}s)"
+        )
 
     def _truncate_to_minute(self, dt: datetime) -> datetime:
         """Truncate datetime to the start of the minute."""
@@ -448,50 +520,37 @@ class OCIContinuousMetricsFetcher:
             logger.error(f"Error fetching metrics for {namespace}:{query} for interval {start_time.isoformat()} {end_time.isoformat()}. Error: {traceback.format_exc()}")
             return None
 
-    def fetch_missing_intervals_for_query(self, query_config: Dict[str, str]) -> int:
+    def fetch_query_window(self, query_config: Dict[str, Any]) -> Optional[Any]:
         """
-        Fetch all missing intervals for a specific query.
+        Fetch the current overlapping window for a query.
 
         Args:
-            query_config: Dict with 'namespace', 'query', 'compartment_id'
+            query_config: Query and polling profile
 
         Returns:
-            Number of intervals successfully fetched
+            Metrics data response, or None if the request fails
         """
         namespace = query_config['namespace']
         query = query_config['query']
         compartment_id = query_config['compartment_id']
 
-        now = self._truncate_to_minute(datetime.now(timezone.utc) - timedelta(minutes=1))
-        key = f"{namespace}:{query}"
-        last_fetch = self._truncate_to_minute(self.last_fetch_times.get(key, now - timedelta(minutes=1)))
+        end_time = self._truncate_to_minute(
+            datetime.now(timezone.utc)
+            - timedelta(minutes=query_config['end_delay_minutes'])
+        )
+        start_time = end_time - timedelta(minutes=query_config['lookback_minutes'])
 
-        # Calculate how many minute intervals we need to fetch
-        intervals_to_fetch = int((now - last_fetch).total_seconds() / 60)
-
-        if intervals_to_fetch <= 0:
-            return 0
-
-        logger.debug(f"Fetching {intervals_to_fetch} intervals for {namespace}:{query}")
-
-        intervals_fetched = 0
-
-        # Fetch each minute interval
-        for i in range(intervals_to_fetch):
-            if self.stop_event.is_set():
-                break
-
-            interval_start = last_fetch + timedelta(minutes=i)
-            interval_end = interval_start + timedelta(minutes=1)
-
-            data = self.fetch_interval(namespace, query, compartment_id, interval_start, interval_end)
-
-            if data is not None:
-                intervals_fetched += 1
-                # Update last fetch time only on success
-                self.last_fetch_times[key] = interval_end
-
-        return intervals_fetched
+        logger.debug(
+            f"Fetching window for {namespace}:{query} from "
+            f"{start_time.isoformat()} to {end_time.isoformat()}"
+        )
+        return self.fetch_interval(
+            namespace,
+            query,
+            compartment_id,
+            start_time,
+            end_time,
+        )
 
     def worker(self, poll_interval_seconds: int = 30) -> None:
         """
@@ -504,12 +563,20 @@ class OCIContinuousMetricsFetcher:
 
         while not self.stop_event.is_set():
             try:
-                # Fetch missing intervals for each query
+                now = datetime.now(timezone.utc)
                 for query_config in self.queries:
                     if self.stop_event.is_set():
                         break
 
-                    self.fetch_missing_intervals_for_query(query_config)
+                    if now < query_config['next_fetch_at']:
+                        continue
+
+                    # Schedule the next attempt before fetching so API failures do
+                    # not cause a tight retry loop.
+                    query_config['next_fetch_at'] = now + timedelta(
+                        seconds=query_config['poll_interval_seconds']
+                    )
+                    self.fetch_query_window(query_config)
 
             except Exception as e:
                 logger.error(f"Error in metrics fetcher worker: {traceback.format_exc()}")
@@ -678,10 +745,9 @@ if __name__ == "__main__":
         max_rpm=30
     )
 
-    # Register all configured metrics queries
+    # Register all configured metrics queries and polling profiles
     for entry in metrics_to_collect:
-        ns, query = entry.split(":")
-        fetcher.add_query(ns, query)
+        fetcher.add_query(**entry)
 
     # Setup graceful shutdown handler for SIGHUP signal
     def graceful_shutdown(signum, frame):
@@ -695,6 +761,7 @@ if __name__ == "__main__":
     try:
         # Start the continuous fetcher with 10-second polling interval
         metrics_queue = fetcher.start(poll_interval_seconds=10)
+        deduplicator = DatapointDeduplicator()
 
         # Main loop: Process metrics as they arrive in the queue
         while True:
@@ -703,6 +770,7 @@ if __name__ == "__main__":
                 # Parse JSON response (may contain multiple metric summaries)
                 oci_metrics_summary_list = json.loads(oci_metrics_summary)
                 for oci_metrics_summary in oci_metrics_summary_list:
+                    oci_metrics_summary = deduplicator.filter_new(oci_metrics_summary)
                     # Convert each OCI metric to InfluxDB line protocol
                     influx_metrics = to_influxdb_line_protocol(oci_metrics_summary)
                     if influx_metrics:

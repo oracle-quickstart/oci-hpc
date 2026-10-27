@@ -130,7 +130,7 @@ The results of the above command are written to `/var/log/healthchecks/multi_nod
 Run NCCL test between two nodes:
 
 ```bash
-sbatch -N 1 -w h100-ord01-03-[14,294] /opt/oci-hpc/samples/gpu/nccl_run_allreduce_H100.sbatch
+sbatch -N 1 -w h100-ord01-03-[14,294] /opt/oci-hpc/samples/gpu/nccl_run_allreduce.sbatch
 ```
 This command submits a Slurm job; you can monitor the job status and details using squeue. Once the job completes, the output of the NCCL test is written to the `slurm-<jobid>.out` file in the submission directory. For example:
 
@@ -180,13 +180,13 @@ NCCL version 2.23.4+cuda12.6
 #
 ```
 
-2. The `/opt/oci-hpc/healthchecks/ncclscout.py` script is used to diagnose and validate NVIDIA GPU connectivity and inter-node communication performance across the cluster. It leverages NCCL (NVIDIA Collective Communications Library) to verify that GPUs can communicate efficiently over the underlying network and RDMA fabric, making it a key tool for identifying distributed training and multi-node workload issues.
+2. The `/opt/oci-hpc/scripts/diagnostics/ncclscout.py` script is used to diagnose and validate NVIDIA GPU connectivity and inter-node communication performance across the cluster. It leverages NCCL (NVIDIA Collective Communications Library) to verify that GPUs can communicate efficiently over the underlying network and RDMA fabric, making it a key tool for identifying distributed training and multi-node workload issues.
 
 #### Usage Examples
 - Run NCCL test on all nodes in the cluster:
 
 ```bash
-python3 /opt/oci-hpc/healthchecks/ncclscout.py
+python3 /opt/oci-hpc/scripts/diagnostics/ncclscout.py
 ```
 
 - Run NCCL test on a specific set of nodes using a host file:
@@ -194,13 +194,13 @@ python3 /opt/oci-hpc/healthchecks/ncclscout.py
 *Make sure the host file contains the target node names listed one per line.*
 
 ```bash
-python3 /opt/oci-hpc/healthchecks/ncclscout.py hosts.txt
+python3 /opt/oci-hpc/scripts/diagnostics/ncclscout.py hosts.txt
 ```
 
 #### Sample output:
 
 ```bash
-ubuntu@h100-ord01-03-controller:/opt/oci-hpc/healthchecks$ python3 ncclscout.py hosts.txt
+ubuntu@h100-ord01-03-controller:/opt/oci-hpc/scripts/diagnostics/$ python3 ncclscout.py hosts.txt
 Running NCCL test on 3 nodes from file...
 
 Checking reachability of 3 nodes...

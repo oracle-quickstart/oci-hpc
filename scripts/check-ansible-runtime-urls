@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""Validate active OCI Object Storage PAR runtime assets.
+
+The checker resolves ``playbooks/versions.yaml`` through the existing
+``get-ansible-urls`` helper. It then checks each distinct PAR URL with HEAD,
+using a one-byte GET only when HEAD is unsupported. Output deliberately uses
+only a non-secret URL fingerprint and manifest locations.
+"""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import hashlib
+import json
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from collections import defaultdict
+from dataclasses import dataclass
+from urllib.parse import urlsplit
+
+
+@dataclass(frozen=True)
+class Platform:
+    """One supported operating system and its permitted architectures."""
+
+    os_name: str
+    os_version: str
+    architectures: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Asset:
+    """One resolved PAR URL and its logical manifest location."""
+
+    url: str
+    path: str
+    architecture: str
+
+
+@dataclass(frozen=True)
+class Result:
+    """The internal result of validating one URL."""
+
+    url: str
+    status: int | None
+
+    @property
+    def ok(self) -> bool:
+        """Return whether the endpoint returned a successful HTTP response."""
+        return self.status is not None and 200 <= self.status < 300
+
+
+PLATFORMS = (
+    Platform("Ubuntu", "22.04", ("x86_64", "aarch64")),
+    Platform("Ubuntu", "24.04", ("x86_64", "aarch64")),
+    Platform("Oracle", "8.10", ("x86_64",)),
+    Platform("Oracle", "9.6", ("x86_64",)),
+)
+USER_AGENT = "oci-hpc-runtime-url-check/1.0"
+
+
+def arguments() -> argparse.Namespace:
+    """Parse explicit checker options."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--slurm-version", required=True)
+    parser.add_argument("--timeout", type=float, default=15)
+    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--dry-run", action="store_true")
+    return parser.parse_args()
+
+
+def is_par_url(url: str) -> bool:
+    """Return whether a URL is an OCI Object Storage pre-authenticated request."""
+    parts = urlsplit(url)
+    hostname = parts.hostname or ""
+    return (
+        parts.scheme == "https"
+        and hostname.startswith("objectstorage.")
+        and hostname.endswith(".oraclecloud.com")
+        and parts.path.startswith("/p/")
+    )
+
+
+def resolve_platform_assets(platform: Platform, slurm_version: str) -> list[Asset]:
+    """Resolve manifest URLs for one platform without exposing resolver output."""
+    command = [
+        sys.executable,
+        "scripts/get-ansible-urls",
+        "--os",
+        platform.os_name,
+        "--os-version",
+        platform.os_version,
+        "--slurm-version",
+        slurm_version,
+        "--format",
+        "json",
+    ]
+    try:
+        completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        records = json.loads(completed.stdout)
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
+        raise RuntimeError("Unable to resolve runtime asset URLs") from error
+
+    return [
+        Asset(record["url"], record["path"], record["architecture"])
+        for record in records
+        if record["architecture"] in platform.architectures and is_par_url(record["url"])
+    ]
+
+
+def fingerprint(url: str) -> str:
+    """Return a stable identifier without disclosing a PAR URL or token."""
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()[:12]
+
+
+def request_status(url: str, method: str, timeout: float) -> int:
+    """Make a metadata request, reading no response body."""
+    headers = {"User-Agent": USER_AGENT}
+    if method == "GET":
+        headers["Range"] = "bytes=0-0"
+    request = urllib.request.Request(url, headers=headers, method=method)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.status
+
+
+def check_url(url: str, timeout: float) -> Result:
+    """Use HEAD, falling back to a one-byte GET only when HEAD is unsupported."""
+    try:
+        return Result(url, request_status(url, "HEAD", timeout))
+    except urllib.error.HTTPError as error:
+        if error.code not in {405, 501}:
+            return Result(url, error.code)
+    except (TimeoutError, urllib.error.URLError, ValueError):
+        return Result(url, None)
+
+    try:
+        return Result(url, request_status(url, "GET", timeout))
+    except urllib.error.HTTPError as error:
+        return Result(url, error.code)
+    except (TimeoutError, urllib.error.URLError, ValueError):
+        return Result(url, None)
+
+
+def locations(assets: list[Asset]) -> str:
+    """Format safe, deduplicated manifest locations for one failed URL."""
+    return ", ".join(sorted({f"{asset.path} ({asset.architecture})" for asset in assets}))
+
+
+def main() -> int:
+    """Resolve, deduplicate, validate, and safely report active PAR assets."""
+    options = arguments()
+    assets = [
+        asset
+        for platform in PLATFORMS
+        for asset in resolve_platform_assets(platform, options.slurm_version)
+    ]
+    assets_by_url: dict[str, list[Asset]] = defaultdict(list)
+    for asset in assets:
+        assets_by_url[asset.url].append(asset)
+
+    print(f"Resolved {len(assets)} PAR asset references, {len(assets_by_url)} distinct assets.")
+    if options.dry_run:
+        for url, url_assets in sorted(assets_by_url.items(), key=lambda item: fingerprint(item[0])):
+            print(f"CHECK {fingerprint(url)}: {locations(url_assets)}")
+        return 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=options.workers) as executor:
+        results = list(executor.map(lambda url: check_url(url, options.timeout), assets_by_url))
+
+    failures = [result for result in results if not result.ok]
+    for failure in failures:
+        status = f"HTTP {failure.status}" if failure.status is not None else "request error"
+        print(f"FAIL {status} {fingerprint(failure.url)}: {locations(assets_by_url[failure.url])}")
+    return int(bool(failures))
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except RuntimeError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        raise SystemExit(2)

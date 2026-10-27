@@ -1,21 +1,9 @@
-- name: Check if Lustre is already installed on host
-  ansible.builtin.command:
-    argv:
-      - rpm
-      - -q
-      - lustre-client
-      - lustre-client-dkms
-  # noqa command-instead-of-module
-  register: lustre_client_installed
-  ignore_errors: true
-  changed_when: false
-
 - name: Check if Lustre package bundle was built
   ansible.builtin.stat:
     path: "{{ lustre_client_tarball_path }}"
   register: lustre_client_built
   ignore_errors: true
-  when: lustre_client_installed.rc != 0
+  when: not lustre_client_installed
 
 - name: Ensure shared Lustre build root path exists
   become: true
@@ -23,7 +11,7 @@
     path: "{{ lustre_client_build_root_path }}"
     state: directory
     mode: "0755"
-  when: lustre_client_installed.rc != 0
+  when: not lustre_client_installed
 
 - name: Try to acquire the shared Lustre build lock for the current platform
   become: true
@@ -34,17 +22,17 @@
     - lustre_client_build_lock.rc != 0
     - "'File exists' not in (lustre_client_build_lock.stderr | default(''))"
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))
 
 - name: Record whether this node builds Lustre for the current platform
   ansible.builtin.set_fact: # noqa: var-naming[no-role-prefix]
     lustre_client_build_lock_acquired: "{{ (lustre_client_build_lock.rc | default(1)) == 0 }}"
-  when: lustre_client_installed.rc != 0
+  when: not lustre_client_installed
 
 - name: Lustre client build
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))
     - lustre_client_build_lock_acquired | default(false) | bool
   block:
@@ -234,7 +222,7 @@
   retries: 60
   delay: 10
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))
 
 - name: Ensure shared Lustre package bundle is available after build coordination
@@ -247,5 +235,5 @@
       {{ lustre_client_tarball_path }} after waiting for the current platform
       build to complete.
   when:
-    - lustre_client_installed.rc != 0
+    - not lustre_client_installed
     - not (lustre_client_built.stat.exists | default(false))

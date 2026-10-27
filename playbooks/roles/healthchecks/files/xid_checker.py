@@ -122,7 +122,14 @@ NVRM_INSUFFICIENT_RESOURCES_PATTERN = (
     "NVRM: nvCheckOkFailedNoLog: Check failed: Ran out of a critical resource, "
     "other than memory [NV_ERR_INSUFFICIENT_RESOURCES]"
 )
-NVRM_INSUFFICIENT_RESOURCES_MESSAGE = "Ran out of multicast groups, too many GMCs"
+NVRM_INSUFFICIENT_RESOURCES_GB_MESSAGE = (
+    "Ran out of a critical resource other than memory. This is likely a multicast "
+    "group issue (too many GMCs)."
+)
+NVRM_INSUFFICIENT_RESOURCES_MESSAGE = (
+    "Ran out of a critical resource other than memory. This could be channels, "
+    "mappings, queues, or another non-memory resource."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -769,6 +776,7 @@ class XidChecker:
         time_interval: int = 60,
         catalog_path: str | None = None,
         driver_version: str = "",
+        shape: str = "",
     ):
         if os.geteuid() != 0:
             raise PermissionError("Root privileges are required to run XidChecker")
@@ -778,6 +786,7 @@ class XidChecker:
         self.results: dict[str, dict] = {}
         self.catalog_path = catalog_path
         self.driver_version = driver_version
+        self.shape = shape
 
         self.catalog = XIDCatalog(self.catalog_path, self.driver_version)
 
@@ -840,8 +849,10 @@ class XidChecker:
         return ranks.get(severity, 0)
 
     @staticmethod
-    def _dmesg_error_messages(dmesg_output: str) -> list[str]:
+    def _dmesg_error_messages(dmesg_output: str, shape: str = "") -> list[str]:
         if NVRM_INSUFFICIENT_RESOURCES_PATTERN in dmesg_output:
+            if "GPU.GB" in shape:
+                return [NVRM_INSUFFICIENT_RESOURCES_GB_MESSAGE]
             return [NVRM_INSUFFICIENT_RESOURCES_MESSAGE]
         return []
 
@@ -861,7 +872,7 @@ class XidChecker:
                 "results": self.results,
             }
 
-        dmesg_errors = self._dmesg_error_messages(dmesg_output)
+        dmesg_errors = self._dmesg_error_messages(dmesg_output, self.shape)
 
         if "NVRM: Xid" not in dmesg_output:
             if not dmesg_errors:

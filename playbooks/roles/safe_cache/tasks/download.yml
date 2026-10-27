@@ -1,0 +1,28 @@
+---
+- name: Download safe cache file
+  ansible.builtin.get_url:
+    url: "{{ safe_cache_candidate_url }}"
+    dest: "{{ safe_cache_dest }}"
+    force: false
+    validate_certs: "{{ safe_cache_validate_certs | default(true) }}"
+  environment: >-
+    {{
+      {
+        'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt',
+        'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'
+      }
+      if ansible_facts['distribution'] == 'OracleLinux' else {}
+    }}
+  failed_when: false
+  when: not safe_cache_available | bool
+
+- name: Check safe cache after download attempt
+  ansible.builtin.stat:
+    path: "{{ safe_cache_dest }}"
+  register: safe_cache_attempt_stat
+  when: not safe_cache_available | bool
+
+- name: Record safe cache download result
+  ansible.builtin.set_fact:
+    safe_cache_available: "{{ safe_cache_attempt_stat.stat.exists | default(false) | bool }}"
+  when: not safe_cache_available | bool

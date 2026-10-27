@@ -1,17 +1,15 @@
 ---
-- name: Download and install AMD ROCm GPG key
+- name: Add AMD Container Toolkit repository
   become: true
-  ansible.builtin.shell:
-    cmd: wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null
-  args:
-    creates: /etc/apt/keyrings/rocm.gpg
-
-- name: Add AMD Container Toolkit repository to sources list
-  become: true
-  ansible.builtin.shell:
-    cmd: echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/amd-container-toolkit/apt/ jammy  main" | tee /etc/apt/sources.list.d/amd-container-toolkit.list
-  args:
-    creates: /etc/apt/sources.list.d/amd-container-toolkit.list
+  ansible.builtin.deb822_repository:
+    name: amd-container-toolkit
+    types: deb
+    uris: "{{ ansible_facts['oci_versions'].amd_container.repo }}"
+    suites: jammy
+    components: main
+    architectures: amd64
+    signed_by: "{{ ansible_facts['oci_versions'].amd_container.key_url }}"
+    state: present
 
 - name: Update apt cache
   become: true
@@ -21,7 +19,7 @@
 - name: Install the AMD Container Toolkit package
   become: true
   ansible.builtin.apt:
-    name: amd-container-toolkit
+    name: "{{ ansible_facts['oci_versions'].amd_container.packages }}"
     state: present
     update_cache: true
 

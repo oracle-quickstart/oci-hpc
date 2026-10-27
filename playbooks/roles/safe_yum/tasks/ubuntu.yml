@@ -20,7 +20,7 @@
   until: result is not failed
   retries: 5
   delay: 5
-  when: not deb_name is defined
+  when: package_name | length > 0
 
 - name: "Installing/Removing deb package"
   become: true
@@ -35,7 +35,6 @@
   until: result is not failed
   retries: 5
   delay: 5
-  when: deb_name is defined
   with_items: "{{ deb_name }}"
 
 - name: Ensure apt process is completed

@@ -48,7 +48,7 @@ CommunicationParameters=block_null_hash
 # topology.yaml in {{ slurm_conf_path }} is used by Slurm when present.
 TopologyParam=SwitchAsNodeRank
 TreeWidth=16
-SlurmctldParameters=enable_configless
+SlurmctldParameters=enable_configless,node_reg_mem_percent=99.9
 SlurmdParameters=numa_node_as_socket
 MaxNodeCount=10000
 UnkillableStepTimeout=600

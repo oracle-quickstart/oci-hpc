@@ -274,7 +274,7 @@ def complete_node_fields(ctx, param, incomplete):
 
 def complete_display_columns(ctx, param, incomplete):
     def _values():
-        return list(COLUMN_SPECIAL_VALUES) + db.list_columns()
+        return list(COLUMN_SPECIAL_VALUES) + db.list_columns() + ["assessment"]
 
     prefix = ""
     current = incomplete

@@ -12,29 +12,16 @@
     name: safe_yum
   ignore_errors: true
 
-- name: Download Docker APT repo GPG key
-  ansible.builtin.get_url:
-    url: "https://download.docker.com/linux/ubuntu/gpg"
-    dest: /tmp/docker.asc.gpg
-    mode: '0644'
-    force: true
-
-- name: Convert Docker APT repo key to binary keyring
-  become: true
-  ansible.builtin.command:
-    cmd: "gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.asc.gpg"
-    creates: /etc/apt/keyrings/docker.gpg
-
 - name: Add Docker repository
   become: true
   ansible.builtin.deb822_repository:
     name: docker
     types: deb
-    uris: https://download.docker.com/linux/ubuntu
+    uris: "{{ ansible_facts['oci_versions'].docker.repo }}"
     suites: "{{ ansible_facts['distribution_release'] }}"
     components:
       - stable
-    signed_by: /etc/apt/keyrings/docker.gpg
+    signed_by: "{{ ansible_facts['oci_versions'].docker.key_url }}"
     state: present
 
 - name: Update apt cache for Docker repository
@@ -50,11 +37,7 @@
 
 - name: Update apt and install pre-req packages for docker
   vars:
-    package_name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-compose-plugin
+    package_name: "{{ ansible_facts['oci_versions'].docker.packages }}"
     package_state: latest
     package_cache: true
     package_cache_valid_time: 0

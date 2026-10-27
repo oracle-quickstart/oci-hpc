@@ -1,26 +1,4 @@
 ---
-- name: Ensure keyrings directory exists
-  become: true
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-
-- name: Download Grafana APT GPG key
-  become: true
-  ansible.builtin.get_url:
-    url: https://apt.grafana.com/gpg.key
-    dest: /tmp/grafana.gpg.key
-    mode: '0644'
-
-- name: Convert Grafana key to dearmored keyring
-  become: true
-  ansible.builtin.shell: |
-    gpg --dearmor -o /etc/apt/keyrings/grafana.gpg /tmp/grafana.gpg.key
-    chmod 0644 /etc/apt/keyrings/grafana.gpg
-  args:
-    creates: /etc/apt/keyrings/grafana.gpg
-
 - name: Add Grafana repository
   become: true
   ansible.builtin.deb822_repository:
@@ -28,19 +6,13 @@
     types:
       - deb
     uris:
-      - https://apt.grafana.com
+      - "{{ ansible_facts['oci_versions'].grafana.grafana.repo }}"
     suites:
       - stable
     components:
       - main
-    architectures:
-      - "{{ arch_map[ansible_facts['architecture']] }}"
-    signed_by: /etc/apt/keyrings/grafana.gpg
+    signed_by: "{{ ansible_facts['oci_versions'].grafana.grafana.key_url }}"
     state: present
-  vars:
-    arch_map:
-      x86_64: amd64
-      aarch64: arm64
   register: mirror_results
   until: mirror_results is not failed
   retries: 10
@@ -52,12 +24,10 @@
     update_cache: true
 
 # Install packages directly with apt on Ubuntu/Debian
-- name: Install Grafana and Tempo
+- name: Install Grafana
   become: true
   ansible.builtin.apt:
-    name:
-      - grafana
-      - tempo
+    name: "{{ ansible_facts['oci_versions'].grafana.grafana.packages }}"
     state: present
 
 - name: Start and enable Grafana service

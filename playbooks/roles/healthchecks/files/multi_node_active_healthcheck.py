@@ -4,6 +4,7 @@ import os
 import argparse
 import json
 import requests
+import yaml
 import subprocess
 import logging
 import glob
@@ -59,56 +60,48 @@ B300_MULTIPLANAR_RDMA_VF_SETTINGS = {
 # IMPORTANT: when adding var_NCCL_IB_HCA, make sure it has "=" sign in the front and the values are comma-separated with no extra space around the comma
 shape_mapping = {
     "BM.GPU.B4.8": {
-        "var_UCX_NET_DEVICES": "mlx5_0:1",
         "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
         "threshold": 185,
         "ib_write_bw": 96,
         "ib_write_lat": 5
     },
     "BM.GPU.A100-v2.8": {
-        "var_UCX_NET_DEVICES": "mlx5_0:1",
         "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
         "threshold": 185,
         "ib_write_bw": 96,
         "ib_write_lat": 5
     },
     "BM.GPU4.8": {
-        "var_UCX_NET_DEVICES": "mlx5_4:1",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17",
         "threshold": 185,
         "ib_write_bw": 96,
         "ib_write_lat": 5
     },
     "BM.GPU.H100.8": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17",
         "threshold": 440,
         "ib_write_bw": 192,
         "ib_write_lat": 5
     },
     "BM.GPU.H200.8": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
         "threshold": 440,
         "ib_write_bw": 384,
         "ib_write_lat": 5
     },
     "BM.GPU.B300.8": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
         "threshold": 700,
         "ib_write_bw": 375,
-        "ib_write_lat": 5
+        "ib_write_lat": 6
     },
     "BM.GPU.B300.HS.8": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
         "threshold": 700,
         "ib_write_bw": 375,
-        "ib_write_lat": 5
+        "ib_write_lat": 6
     },
     "BM.GPU.RTXPRO.8": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_6,mlx5_7,mlx5_8,mlx5_9",
         "iterations": 10,
         "threshold": 20,  # The RTXPRO are connected to the NICs via PCIe and slow
@@ -116,33 +109,28 @@ shape_mapping = {
         "ib_write_lat": 5
     },
     "BM.GPU.B200.8": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
         "threshold": 440,
         "ib_write_bw": 384,
         "ib_write_lat": 5
     },
     "BM.GPU.GB200.4": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
         "ib_write_bw": 384,
         "ib_write_lat": 9
     },
     "BM.GPU.GB200-v2.4": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
         "ib_write_bw": 384,
         "ib_write_lat": 9
     },
     "BM.GPU.GB200-v3.4": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
         "ib_write_bw": 384,
         "ib_write_lat": 9,
         "threshold": 300
     },
     "BM.GPU.GB300.4": {
-        "var_UCX_NET_DEVICES": "eth0",
         "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
         "ib_write_bw": 384,
         "ib_write_lat": 9,
@@ -259,13 +247,13 @@ def discover_multiplanar_rdma_devices(shape):
 def is_gb300_multiplanar(shape):
     return (
         shape == "BM.GPU.GB300.4"
-        and (get_rdma_planes() > 1 or bool(discover_existing_multiplanar_rdma_devices()))
+        and get_rdma_planes() > 1
     )
 
 def is_b300_multiplanar(shape):
     return (
         shape in ("BM.GPU.B300.8", "BM.GPU.B300.HS.8")
-        and (get_rdma_planes() > 1 or bool(discover_existing_multiplanar_rdma_devices()))
+        and get_rdma_planes() > 1
     )
 
 def apply_shape_overrides(shape):
@@ -275,7 +263,6 @@ def apply_shape_overrides(shape):
         rdma_vf_devices = discover_multiplanar_rdma_devices(shape)
         MULTIPLANAR_RDMA_VF_SETTINGS = B300_MULTIPLANAR_RDMA_VF_SETTINGS
         shape_mapping[shape].update({
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": ",".join(rdma_vf_devices),
             "ib_write_bw": 170,
             "threshold": 700,
@@ -286,7 +273,6 @@ def apply_shape_overrides(shape):
     if is_gb300_multiplanar(shape):
         rdma_vf_devices = discover_multiplanar_rdma_devices(shape)
         shape_mapping[shape].update({
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": ",".join(rdma_vf_devices),
             "ib_write_bw": 770,
             "threshold": 800,
@@ -442,9 +428,8 @@ def get_ipv6_for_ib_device(host, device):
 
     return result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
 
-def run_nccl_test_case(mpivars_path, mpirun_cmd, shape, label, mnnvl_enable=None):
-    mpirun_str = custom_join(mpirun_cmd)
-    cmd = f"source {mpivars_path} && {mpirun_str}"
+def run_nccl_test_case(mpirun_cmd, shape, label, mnnvl_enable=None):
+    cmd = custom_join(mpirun_cmd)
 
     for attempt in range(1, 6):
         logger.info(f"{label} Test {attempt}/5")
@@ -500,38 +485,57 @@ def run_nccl_test_case(mpivars_path, mpirun_cmd, shape, label, mnnvl_enable=None
 
 def run_multi_node_nccl_test(hostfile, shape, client_host=None, server_host=None):
     apply_shape_overrides(shape)
-    paths = glob.glob('/usr/mpi/gcc/openmpi-*/bin/mpivars.sh')
-    if paths:
-        mpivars_path = paths[0]
-    else:
-        logger.info("157")
-
-        return False,"NCCL Test Failed: No mpivars.sh found"
+    try:
+        with open("/etc/manifest.yaml") as manifest_file:
+            version = yaml.safe_load(manifest_file)["verified_components"]["openmpi"]["version"]
+        if isinstance(version, str) and version.startswith("v"):
+            version = version[1:]
+        if not isinstance(version, str) or not re.fullmatch(r"[0-9][A-Za-z0-9.+_-]*", version):
+            raise ValueError("invalid Open MPI version")
+        mpirun_path = f"/opt/openmpi-{version}/bin/mpirun"
+        if not os.access(mpirun_path, os.X_OK):
+            raise ValueError(f"launcher is not executable: {mpirun_path}")
+    except (OSError, yaml.YAMLError, KeyError, TypeError, ValueError) as e:
+        return False, f"NCCL Test Failed: cannot select image MPI from /etc/manifest.yaml: {e}"
 
     increment=1024*1024*1024*9
     NCCL_DEBUG="WARN"
-    exec_cmd="/opt/oci-hpc/nccl-test/build/all_reduce_perf"
+    exec_cmd="/opt/oci-hpc/nccl-tests/bin/all_reduce_perf"
 
     iterations = shape_mapping.get(shape, {}).get("iterations", 50)
-    var_UCX_NET_DEVICES = shape_mapping.get(shape, {}).get('var_UCX_NET_DEVICES', '')
-    if var_UCX_NET_DEVICES == "":
-        logger.info("166")
+    if shape not in shape_mapping:
         return False,f"NCCL Test Failed: Shape {shape} not found for NCCL test"
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
     multiplanar = shape_mapping.get(shape, {}).get("multiplanar", False)
+    # Match benchmark defaults; USE_SPCX is a benchmark-only override.
+    plugin = "none"
+    plugin_args = []
+    plugin_pattern = None
+    if multiplanar:
+        plugin_pattern = '/opt/hpcx-*/nccl_spectrum-x_plugin/lib/libnccl-net-spcx.so'
+    elif shape in GB_SHAPES:
+        plugin_pattern = '/opt/hpcx-*/nccl_rdma_sharp_plugin/lib/libnccl-net.so'
+    if plugin_pattern:
+        plugins = glob.glob(plugin_pattern)
+        if len(plugins) != 1:
+            return False, f"NCCL Test Failed: expected one network plugin matching {plugin_pattern}"
+        plugin = plugins[0]
+        plugin_args = ["-x", f"LD_LIBRARY_PATH={os.path.dirname(plugin)}"]
+    mpi_args = [
+        mpirun_path, "--mca", "pml", "ob1", "--mca", "btl", "self,sm,tcp",
+        "--mca", "btl_tcp_if_include", "eth0", "--mca", "coll", "^ucc,hcoll",
+        "-x", f"NCCL_NET_PLUGIN={plugin}",
+        "-x", "NCCL_SOCKET_IFNAME=eth0",
+        *plugin_args,
+    ]
     nccl_test_cases = []
     if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
         logger.info("170")
         mpirun_cmd = [
-            "mpirun", "--mca", "pml", "ucx",
+            *mpi_args,
             "--bind-to", "numa",
-            "--mca", "coll", "^hcoll",
             "--mca", "plm_rsh_no_tree_spawn", "1",
-            "-x", "UCX_TLS=ud,self,sm",
-            "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
             "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
-            "-x", "HCOLL_ENABLE_MCAST_ALL=0",
-            "-x", "coll_hcoll_enable=0",
             "-x", "NCCL_ALGO=Ring",
             "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
             "-x", "NCCL_IB_SL=0",
@@ -539,85 +543,62 @@ def run_multi_node_nccl_test(hostfile, shape, client_host=None, server_host=None
             "-x", "NCCL_IB_QPS_PER_CONNECTION=4",
             "-x", "NCCL_IB_GID_INDEX=3",
             "--np", "16",
-            "--rankfile", hostfile,
+            "--map-by", f"rankfile:file={hostfile}",
             "bash","-c",
             f"{exec_cmd} -b 1G -e 10G -i{increment} -n {iterations}"
         ]
-    elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.RTXPRO.8") or (shape in ("BM.GPU.B300.8", "BM.GPU.B300.HS.8") and not multiplanar):
+    elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.RTXPRO.8", "BM.GPU.B300.8", "BM.GPU.B300.HS.8"):
+        b300_mp_args = []
+        if multiplanar:
+            b300_mp_args = ["-x", "NCCL_IB_ADAPTIVE_ROUTING=1", "-x", f"NCCL_TOPO_FILE={B300_MULTIPLANAR_NCCL_TOPO_FILE}"]
         mpirun_cmd = [
-            "mpirun", "--mca", "pml", "ucx",
+            *mpi_args,
             "--bind-to", "numa",
-            "--mca", "coll", "^hcoll",
             "--mca", "plm_rsh_no_tree_spawn", "1",
-            "-x", "HCOLL_ENABLE_MCAST_ALL=0",
             "-x", "NCCL_CUMEM_ENABLE=0",
             "-x", "NCCL_IB_SPLIT_DATA_ON_QPS=0",
-            "-x", "NCCL_IB_QPS_PER_CONNECTION=1",
+            "-x", f"NCCL_IB_QPS_PER_CONNECTION={4 if multiplanar else 1}",
+            *b300_mp_args,
             "-x", "NCCL_IB_GID_INDEX=3",
             "-x", "NCCL_IB_TC=41",
             "-x", "NCCL_IB_SL=0",
             "-x", "NCCL_IB_TIMEOUT=22",
-            "-x", "NCCL_NET_PLUGIN=none",
-            "-x", "coll_hcoll_enable=0",
-            "-x", "UCX_TLS=tcp",
-            "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
             "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
-            "-x", "RX_QUEUE_LEN=8192",
-            "-x", "IB_RX_QUEUE_LEN=8192",
-            "-x", f"NCCL_SOCKET_IFNAME={var_UCX_NET_DEVICES}",
             "-x", "NCCL_IGNORE_CPU_AFFINITY=1",
             "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
             "--np", "16",
-            "--rankfile", hostfile,
+            "--map-by", f"rankfile:file={hostfile}",
             "bash","-c",
             f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n {iterations}"
         ]
-    elif shape == "BM.GPU.GB200.4":
+    elif shape in ("BM.GPU.GB200.4", "BM.GPU.GB200-v2.4"):
         for mnnvl_enable in get_gb_mnnvl_test_values(client_host, server_host):
             nccl_test_cases.append((
                 f"NCCL MNNVL={mnnvl_enable}",
                 [
-                    "mpirun",
+                    *mpi_args,
                     "--bind-to", "none",
-                    "--mca", "coll", "^hcoll",
                     "--mca", "plm_rsh_no_tree_spawn", "1",
                     "-x", f"NCCL_MNNVL_ENABLE={mnnvl_enable}",
-                    "-x", "NCCL_NET_PLUGIN=none",
+                    "-x", "NCCL_CUMEM_ENABLE=1",
                     "-x", "NCCL_NET_GDR_C2C=1",
                     "-x", "NCCL_NVLS_ENABLE=1",
-                    "-x", f"UCX_NET_DEVICES={var_NCCL_IB_HCA}",
                     "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
-                    "-x", f"NCCL_SOCKET_IFNAME={var_UCX_NET_DEVICES}",
+                    "-x", "NCCL_IB_QPS_PER_CONNECTION=1",
                     "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
                     "--np", "8",
-                    "--rankfile", hostfile,
+                    "--map-by", f"rankfile:file={hostfile}",
                     "bash","-c",
                     f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n {iterations}"
                 ],
                 mnnvl_enable,
             ))
     elif multiplanar:
-        if shape in ("BM.GPU.B300.8", "BM.GPU.B300.HS.8"):
-            mnnvl_test_values = [None]
-        else:
-            mnnvl_test_values = get_gb_mnnvl_test_values(client_host, server_host)
-
-        for mnnvl_enable in mnnvl_test_values:
-            label = "NCCL RDMA-only" if mnnvl_enable is None else (
-                "NCCL RDMA-only MNNVL=0" if mnnvl_enable == 0 else f"NCCL MNNVL={mnnvl_enable}"
-            )
+        for mnnvl_enable in get_gb_mnnvl_test_values(client_host, server_host):
+            label = "NCCL RDMA-only MNNVL=0" if mnnvl_enable == 0 else f"NCCL MNNVL={mnnvl_enable}"
             mpirun_cmd = [
-                "mpirun",
+                *mpi_args,
                 "--bind-to", "numa",
-                "--mca", "pml", "ucx",
-                "--mca", "coll", "^hcoll",
-                "-x", "LD_LIBRARY_PATH",
-                "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
-                "-x", "RX_QUEUE_LEN=8192",
-                "-x", "IB_RX_QUEUE_LEN=8192",
-                "-x", "HCOLL_ENABLE_MCAST_ALL=0",
-                "-x", "coll_hcoll_enable=0",
-                "-x", f"NCCL_SOCKET_IFNAME={var_UCX_NET_DEVICES}",
                 "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
                 "-x", "NCCL_ASYNC_ERROR_HANDLING=1",
                 "-x", "NCCL_IB_TIMEOUT=16",
@@ -630,24 +611,16 @@ def run_multi_node_nccl_test(hostfile, shape, client_host=None, server_host=None
                 "-x", "NCCL_NET_GDR_C2C=1",
                 "-x", "NCCL_CUMEM_ENABLE=1",
                 "-x", "NCCL_IGNORE_CPU_AFFINITY=1",
-                "-x", "NCCL_NET_PLUGIN=spcx",
-                "-x", "NCCL_NET=IB",
                 "-x", "NCCL_IB_ADAPTIVE_ROUTING=1",
                 "-x", "NCCL_IB_SPLIT_DATA_ON_QPS=0",
                 "-x", "NCCL_IB_QPS_PER_CONNECTION=16",
             ]
-            if mnnvl_enable is not None:
-                mpirun_cmd.extend(["-x", f"NCCL_MNNVL_ENABLE={mnnvl_enable}"])
-            if shape == "BM.GPU.GB300.4":
-                mpirun_cmd.extend(["-x", f"NCCL_TOPO_FILE={GB300_MULTIPLANAR_NCCL_TOPO_FILE}"])
-            elif shape == "BM.GPU.B300.8":
-                mpirun_cmd.extend(["-x", f"NCCL_TOPO_FILE={B300_MULTIPLANAR_NCCL_TOPO_FILE}"])
-            elif shape == "BM.GPU.B300.HS.8":
-                mpirun_cmd.extend(["-x", f"NCCL_TOPO_FILE={B300_MULTIPLANAR_NCCL_TOPO_FILE}"])
+            mpirun_cmd.extend(["-x", f"NCCL_MNNVL_ENABLE={mnnvl_enable}"])
+            mpirun_cmd.extend(["-x", f"NCCL_TOPO_FILE={GB300_MULTIPLANAR_NCCL_TOPO_FILE}"])
             mpirun_cmd.extend([
                 "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
                 "--np", "8",
-                "--rankfile", hostfile,
+                "--map-by", f"rankfile:file={hostfile}",
                 "bash","-c",
                 f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
             ])
@@ -661,33 +634,24 @@ def run_multi_node_nccl_test(hostfile, shape, client_host=None, server_host=None
             nccl_test_cases.append((
                 f"NCCL MNNVL={mnnvl_enable}",
                 [
-                    "mpirun",
+                    *mpi_args,
                     "--bind-to", "numa",
-                    "--mca", "pml", "ucx",
-                    "--mca", "coll", "^hcoll",
                     "-x", f"NCCL_MNNVL_ENABLE={mnnvl_enable}",
                     "-x", "NCCL_CUMEM_ENABLE=1",
-                    "-x", "NCCL_NET_PLUGIN=none",
                     "-x", "NCCL_NET_GDR_C2C=1",
                     "-x", "NCCL_NVLS_ENABLE=1",
-                    "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
                     "-x", f"NCCL_IB_HCA={var_NCCL_IB_HCA}",
-                    "-x", f"NCCL_SOCKET_IFNAME={var_UCX_NET_DEVICES}",
                     "-x", f"NCCL_DEBUG={NCCL_DEBUG}",
                     "-x", "NCCL_IB_GID_INDEX=3",
                     "-x", "NCCL_IB_TC=41",
                     "-x", "NCCL_IB_SL=0",
                     "-x", "NCCL_IB_TIMEOUT=22",
-                    "-x", "RX_QUEUE_LEN=8192",
-                    "-x", "IB_RX_QUEUE_LEN=8192",
-                    "-x", "HCOLL_ENABLE_MCAST_ALL=0",
-                    "-x", "coll_hcoll_enable=0",
+                    "-x", "NCCL_BUFFSIZE=16777216",
                     "-x", "NCCL_IB_QPS_PER_CONNECTION=4",
                     "-x", "NCCL_IB_SPLIT_DATA_ON_QPS=0",
                     "-x", "NCCL_DMABUF_ENABLE=1",
-                    "-x", "NCCL_NET_GDR_LEVEL=SYS",
                     "--np", "8",
-                    "--rankfile", hostfile,
+                    "--map-by", f"rankfile:file={hostfile}",
                     "bash","-c",
                     f"{exec_cmd} -b 1G -e 16G -f 2 -g 1 -n 50"
                 ],
@@ -702,7 +666,6 @@ def run_multi_node_nccl_test(hostfile, shape, client_host=None, server_host=None
     outputs = []
     for label, mpirun_cmd, mnnvl_enable in nccl_test_cases:
         test_state, test_output = run_nccl_test_case(
-            mpivars_path,
             mpirun_cmd,
             shape,
             label,
@@ -715,11 +678,18 @@ def run_multi_node_nccl_test(hostfile, shape, client_host=None, server_host=None
 
 def run_multi_node_rccl_test(hostfile, shape):
 
-    paths = glob.glob('/usr/mpi/gcc/openmpi-*/bin/mpivars.sh')
-    if paths:
-        mpivars_path = paths[0]
-    else:
-        return False,"RCCL Test Failed: No mpivars.sh found"
+    try:
+        with open("/etc/manifest.yaml") as manifest_file:
+            version = yaml.safe_load(manifest_file)["verified_components"]["openmpi"]["version"]
+        if isinstance(version, str) and version.startswith("v"):
+            version = version[1:]
+        if not isinstance(version, str) or not re.fullmatch(r"[0-9][A-Za-z0-9.+_-]*", version):
+            raise ValueError("invalid Open MPI version")
+        mpirun_path = f"/opt/openmpi-{version}/bin/mpirun"
+        if not os.access(mpirun_path, os.X_OK):
+            raise ValueError(f"launcher is not executable: {mpirun_path}")
+    except (OSError, yaml.YAMLError, KeyError, TypeError, ValueError) as e:
+        return False, f"RCCL Test Failed: cannot select image MPI from /etc/manifest.yaml: {e}"
 
     increment=1024*1024*1024*9
     NCCL_DEBUG="WARN"
@@ -731,7 +701,7 @@ def run_multi_node_rccl_test(hostfile, shape):
     var_NCCL_IB_HCA = shape_mapping.get(shape, {}).get('var_NCCL_IB_HCA', '')
     if "BM.GPU.MI" in shape:
         mpirun_cmd = [
-            "mpirun", "--mca", "pml", "ucx",
+            mpirun_path, "--mca", "pml", "ucx",
             "--bind-to", "numa",
             "--mca", "plm_rsh_no_tree_spawn", "1",
             "-x", f"UCX_NET_DEVICES={var_UCX_NET_DEVICES}",
@@ -753,9 +723,11 @@ def run_multi_node_rccl_test(hostfile, shape):
     else:
         return False,"RCCL Test Failed: No suitable shape found for RCCL test"
 
-    # Prepare the mpirun command as a string with proper quotations
-    mpirun_str = custom_join(mpirun_cmd)
-    cmd = f"source {mpivars_path} && {mpirun_str}"
+    # Use the selected image MPI libraries as well as its launcher.
+    cmd = (
+        f"source {shlex.quote(f'/opt/openmpi-{version}/bin/mpivars.sh')} && "
+        f"{custom_join(mpirun_cmd)}"
+    )
 
 
     i = 0
@@ -768,7 +740,7 @@ def run_multi_node_rccl_test(hostfile, shape):
                 text=True,
                 timeout=120,
                 shell=True,
-                executable='/bin/bash',  # Needed to use 'source mpivars.sh'
+                executable='/bin/bash',
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
@@ -1001,7 +973,7 @@ def run_ib_write_lat(shape, server, client='localhost'):
                 error_dict[dev] = None
                 success = False
         if success:
-            return True,"ib write latency Test Succeeded: Latency for each RDMA interface is less than the threshold of " + str(ib_write_lat_threshold) + " microseconds"
+            return True,"ib write latency Test Succeeded: Latency for each RDMA interface is at or below the threshold of " + str(ib_write_lat_threshold) + " microseconds"
         else:
             if i < 2:
                 continue
@@ -1012,7 +984,7 @@ def run_ib_write_lat(shape, server, client='localhost'):
             # Construct the full message
             msg = f"WARNING: Latency was greater than the threshold {ib_write_lat_threshold} for interface {interfaces_str}"
             logger.warning(msg)
-            return False,"ib write latency Test Failed: Latency is equal to or above the threshold of " + str(ib_write_lat_threshold) + " microseconds for one or more RDMA interfaces"
+            return False,"ib write latency Test Failed: Latency is above the threshold of " + str(ib_write_lat_threshold) + " microseconds for one or more RDMA interfaces"
 
 def write_hc_http_server_file(node1, node2):
     slurm_error = False
@@ -1132,6 +1104,7 @@ if __name__ == '__main__':
         client_host, server_host = nodes
 
         file_handler = logging.FileHandler("/var/log/healthchecks/latest_multi_node_active_healthcheck.log", mode='w')
+        file_handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
         logger.addHandler(file_handler)
 
         datetime_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

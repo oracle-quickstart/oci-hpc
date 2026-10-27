@@ -24,3 +24,29 @@ def print_node_list(nodes, title):
 
     console = rich.get_console()
     console.print(table)
+
+
+def print_ime_node_list(nodes, title):
+    """Display the selected OCI event beside the passive HC recommendation."""
+    table = rich.table.Table(title=title)
+    for column in (
+        "hostname",
+        "ime_recommendation",
+        "maintenance_event_lifecycle_state",
+        "maintenance_event_error_code",
+        "passive_healthcheck_recommendation",
+        "maintenance_event_time_window_start",
+    ):
+        table.add_column(column, justify="left")
+
+    for node in nodes:
+        table.add_row(
+            node.hostname,
+            node.ime_recommendation,
+            node.maintenance_event_lifecycle_state,
+            node.maintenance_event_error_code or "",
+            node.passive_healthcheck_recommendation or "",
+            node.maintenance_event_time_window_start or "",
+        )
+
+    rich.get_console().print(table)

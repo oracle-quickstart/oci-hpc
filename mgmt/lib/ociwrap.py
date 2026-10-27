@@ -171,8 +171,8 @@ def list_controller_tagged_nodes(include_private_ip=False):
     )
 
 
-def list_instance_maintenance_events(compartment_id):
-    """List every instance maintenance event in a compartment."""
+def list_instance_maintenance_events(compartment_id, strict=False):
+    """List IMEs; strict callers need an error instead of an empty result on failure."""
     try:
         return oci.pagination.list_call_get_all_results(
             CLIENTS.compute_client.list_instance_maintenance_events,
@@ -184,6 +184,8 @@ def list_instance_maintenance_events(compartment_id):
             compartment_id,
             exc,
         )
+        if strict:
+            raise
         return []
 
 
@@ -366,7 +368,7 @@ def run_terminate(node):
         if cluster_type == "SA" or cluster_type == "CC":
             logger.info(f"Terminating node with details {node.hostname}, {node.oci_name}, {node.ip_address}, {node.serial}")
             if hasattr(CLIENTS.compute_client_composite_operations, "terminate_instance_and_wait_for_work_request"):
-                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_work_request(node.ocid,work_request_states=["STATUS_SUCCEEDED"],waiter_kwargs={'max_wait_seconds': 600})
+                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_work_request(node.ocid,work_request_states=["STATUS_SUCCEEDED", "SUCCEEDED"],waiter_kwargs={'max_wait_seconds': 600})
             else:
                 CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(node.ocid,wait_for_states=["TERMINATING", "TERMINATED"],waiter_kwargs={'max_wait_seconds': 600})
         elif cluster_type == "IPA" or cluster_type == "CN":
@@ -491,13 +493,16 @@ def run_add(nodes, count, names, cluster, compartment_ocid, memory_cluster_ocid=
                 cluster_ocid=clusters[0].id
                 instance_pool_ocid=clusters[0].instance_pools[0].id
                 cluster_name=clusters[0].display_name
-    if nodes:
-        first_node=None
-        if len(nodes):
-            for node in nodes:
-                if node.cluster_name and node.controller_name:
-                    first_node=node
-                    break
+    else:
+        for first_node in nodes:
+            if first_node.cluster_name and first_node.controller_name:
+                break
+        else:
+            logger.error(
+                "No initialized nodes found for cluster %s; retry after provisioning completes",
+                cluster,
+            )
+            sys.exit(1)
         if "GPU.GB" in first_node.shape:
             memory_cluster=CLIENTS.compute_client.get_compute_gpu_memory_cluster(first_node.memory_cluster_id).data
             mc_id=memory_cluster.id
@@ -515,7 +520,13 @@ def run_add(nodes, count, names, cluster, compartment_ocid, memory_cluster_ocid=
             cluster_type,cluster_ocid,instance_pool_ocid = get_instance_type(first_node)
             cluster_name=first_node.cluster_name
             logger.debug(f"The detected type is {cluster_type} and the cluster name is {cluster_name}")
-    current_size=get_instance_count(cluster_type,cluster_ocid,compartment_ocid,cluster_name)
+    current_size = (
+        memory_cluster_data.size
+        if cluster_type == "MC"
+        else get_instance_count(
+            cluster_type, cluster_ocid, compartment_ocid, cluster_name
+        )
+    )
     logger.debug(f"The detected type is {cluster_type} with a size of {current_size}")
     target_size = current_size + count
     logger.debug(f"The target size is {target_size}")
@@ -840,6 +851,8 @@ def get_instance_type(node):
         if len(instance_pools):
             logger.debug(f"Found Cluster Network with name {node.cluster_name}")
             for instance_pool in instance_pools:
+                if instance_pool.lifecycle_state == "TERMINATED":
+                    continue
                 ipa_ocid=instance_pool.instance_pools[0].id
                 instance_summaries = oci.pagination.list_call_get_all_results(CLIENTS.compute_management_client.list_instance_pool_instances,compartment_id,ipa_ocid).data
                 for instance_summary in instance_summaries:
@@ -1507,7 +1520,7 @@ def _list_compute_gpu_memory_fabrics_for_delete():
     ).data
 
 def _resolve_compute_gpu_memory_clusters_by_fabric_scope(
-    compartments,
+    memory_clusters,
     compute_local_block_id=None,
     compute_network_block_id=None,
     compute_hpc_island_id=None,
@@ -1527,7 +1540,7 @@ def _resolve_compute_gpu_memory_clusters_by_fabric_scope(
 
     fabric_ids = {fabric.id for fabric in fabrics}
     matches = [
-        cluster for cluster in _list_compute_gpu_memory_clusters(compartments)
+        cluster for cluster in memory_clusters
         if getattr(cluster, "gpu_memory_fabric_id", None) in fabric_ids
     ]
     if not matches:
@@ -1551,11 +1564,16 @@ def resolve_compute_gpu_memory_cluster_delete_targets(
     nodes = nodes or []
     compartments = _memory_cluster_lookup_compartments(nodes)
     memory_clusters = []
+    fabric_memory_clusters = []
+    if any(
+        (compute_local_block_id, compute_network_block_id, compute_hpc_island_id)
+    ) or any(target.startswith("ocid1.computegpumemoryfabric.") for target in targets):
+        fabric_memory_clusters = _list_compute_gpu_memory_clusters(compartments)
 
     if compute_local_block_id or compute_network_block_id or compute_hpc_island_id:
         memory_clusters.extend(
             _resolve_compute_gpu_memory_clusters_by_fabric_scope(
-                compartments,
+                memory_clusters=fabric_memory_clusters,
                 compute_local_block_id=compute_local_block_id,
                 compute_network_block_id=compute_network_block_id,
                 compute_hpc_island_id=compute_hpc_island_id,
@@ -1565,7 +1583,7 @@ def resolve_compute_gpu_memory_cluster_delete_targets(
     for target in targets:
         if target.startswith("ocid1.computegpumemoryfabric."):
             matches = [
-                cluster for cluster in _list_compute_gpu_memory_clusters(compartments)
+                cluster for cluster in fabric_memory_clusters
                 if getattr(cluster, "gpu_memory_fabric_id", None) == target
             ]
             if not matches:
@@ -1985,7 +2003,7 @@ def remove_inventory(cluster_name):
     else:
         logger.warning(f"Inventory {inventory_name} was not present.")
 
-def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None, targetsize=0, gpu_memory_fabrics=None):
+def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_memory_fabric=None, gpu_memory_cluster_name=None, targetsize=0, gpu_memory_fabrics=None, compute_hpc_island_id=None):
     generate_inventory(config, cluster_name)
     if gpu_memory_fabrics is None and gpu_memory_fabric is not None:
         gpu_memory_fabrics = [{
@@ -2042,7 +2060,19 @@ def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_
                 ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=config.private_subnet_id)
                 ip_placement_details=oci.core.models.ClusterNetworkPlacementConfigurationDetails(availability_domain=config.availability_domain,primary_vnic_subnets=ip_placement_subnet_details)
                 instance_pools_details=oci.core.models.CreateClusterNetworkInstancePoolDetails(display_name=cluster_name,instance_configuration_id=instance_config_ocid,size=count)
-                cn_details=oci.core.models.CreateClusterNetworkDetails(compartment_id=config.target_compartment_id,display_name=cluster_name,instance_pools=[instance_pools_details],placement_configuration=ip_placement_details)
+                cluster_network_details = {
+                    "compartment_id": config.target_compartment_id,
+                    "display_name": cluster_name,
+                    "instance_pools": [instance_pools_details],
+                    "placement_configuration": ip_placement_details,
+                }
+                if compute_hpc_island_id:
+                    cluster_network_details["cluster_configuration"] = (
+                        oci.core.models.ClusterConfigurationDetails(
+                            hpc_island_id=compute_hpc_island_id
+                        )
+                    )
+                cn_details=oci.core.models.CreateClusterNetworkDetails(**cluster_network_details)
                 cn = CLIENTS.compute_management_client_composite_operations.create_cluster_network_and_wait_for_state(create_cluster_network_details=cn_details,wait_for_states=["RUNNING"],waiter_kwargs={'max_wait_seconds':3600})
         else:
             ip_placement_subnet_details=oci.core.models.InstancePoolPlacementPrimarySubnet(subnet_id=config.private_subnet_id)
@@ -2053,7 +2083,18 @@ def create_cluster(config, count, cluster_name, controller_hostname, names, gpu_
 
     else:
         if config.rdma_enabled:
-            cc_details=oci.core.models.CreateComputeClusterDetails(compartment_id=config.target_compartment_id,availability_domain=config.availability_domain,display_name=cluster_name)
+            compute_cluster_details = {
+                "compartment_id": config.target_compartment_id,
+                "availability_domain": config.availability_domain,
+                "display_name": cluster_name,
+            }
+            if compute_hpc_island_id:
+                compute_cluster_details["placement_constraint_details"] = (
+                    oci.core.models.ComputeClusterPlacementConstraintDetails(
+                        hpc_island_id=compute_hpc_island_id
+                    )
+                )
+            cc_details=oci.core.models.CreateComputeClusterDetails(**compute_cluster_details)
             cn = CLIENTS.compute_client.create_compute_cluster(create_compute_cluster_details=cc_details).data
             cn_id=cn.id
         else:
@@ -2076,7 +2117,7 @@ def delete_cluster(cluster_name,nodes_list):
     elif cluster_type == "CC" or cluster_type == "SA":
         for instance in nodes_list:
             if hasattr(CLIENTS.compute_client_composite_operations, "terminate_instance_and_wait_for_work_request"):
-                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_work_request(instance.ocid,work_request_states=["STATUS_SUCCEEDED"],waiter_kwargs={'max_wait_seconds': 600})
+                CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_work_request(instance.ocid,work_request_states=["STATUS_SUCCEEDED", "SUCCEEDED"],waiter_kwargs={'max_wait_seconds': 600})
             else:
                 CLIENTS.compute_client_composite_operations.terminate_instance_and_wait_for_state(instance.ocid,wait_for_states=["TERMINATING", "TERMINATED"],waiter_kwargs={'max_wait_seconds':  600})
         instance_running=True
@@ -2291,6 +2332,37 @@ def set_memory_fabric_recycle_level(fabric_id, recycle_level):
         {"memoryFabricPreferences": memory_fabric_preferences},
     )
 
+def wait_for_memory_cluster_deleted(memory_cluster_id, display_name=None, max_attempts=10, interval_seconds=30):
+    name = display_name or memory_cluster_id
+    for attempt in range(1, max_attempts + 1):
+        try:
+            memory_cluster = CLIENTS.compute_client.get_compute_gpu_memory_cluster(memory_cluster_id).data
+        except oci.exceptions.ServiceError as e:
+            if e.status == 404:
+                logger.info(f"Compute GPU memory cluster {name} has been deleted")
+                return
+            logger.error(f"Error waiting for compute GPU memory cluster {name} to be deleted: {e}")
+            sys.exit(1)
+
+        state = getattr(memory_cluster, "lifecycle_state", None)
+        if state in ("DELETED", "TERMINATED"):
+            logger.info(f"Compute GPU memory cluster {name} reached state {state}")
+            return
+        if attempt == max_attempts:
+            logger.error(
+                f"Compute GPU memory cluster {name} was not deleted after {max_attempts} attempts; "
+                f"last state was {state}"
+            )
+            sys.exit(1)
+
+        logger.info(
+            f"Waiting for compute GPU memory cluster {name} to finish deleting; "
+            f"current state is {state}. Retrying in {interval_seconds}s "
+            f"(attempt {attempt + 1}/{max_attempts})"
+        )
+        time.sleep(interval_seconds)
+
+
 def delete_memory_cluster(memory_cluster_id,nodelist,recycle_level=None):
     try:
         memory_cluster=CLIENTS.compute_client.get_compute_gpu_memory_cluster(memory_cluster_id).data
@@ -2305,7 +2377,7 @@ def delete_memory_cluster(memory_cluster_id,nodelist,recycle_level=None):
         logger.warning(f"Skipping memory cluster {memory_cluster_id}: it cannot be found")
         return None
     mc_id=memory_cluster.id
-    cluster_data=CLIENTS.compute_client.get_compute_gpu_memory_cluster(mc_id).data
+    cluster_data=memory_cluster
     cluster_ocid=cluster_data.compute_cluster_id
     if recycle_level:
         set_memory_fabric_recycle_level(cluster_data.gpu_memory_fabric_id, recycle_level)
@@ -2332,13 +2404,49 @@ def delete_memory_cluster(memory_cluster_id,nodelist,recycle_level=None):
             cluster_data.display_name or mc_id,
         )
     logger.info(f"Deleting compute GPU memory cluster {cluster_data.display_name or mc_id} ({mc_id})")
-    CLIENTS.compute_client.delete_compute_gpu_memory_cluster(mc_id)
+    for attempt in range(1, 4):
+        try:
+            CLIENTS.compute_client.delete_compute_gpu_memory_cluster(mc_id)
+            break
+        except oci.exceptions.ServiceError as error:
+            if error.status != 429 or attempt == 3:
+                raise
+            logger.warning(
+                "Rate limited deleting compute GPU memory cluster %s; retrying in 2 seconds",
+                cluster_data.display_name or mc_id,
+            )
+            time.sleep(2)
+    wait_for_memory_cluster_deleted(mc_id, cluster_data.display_name or mc_id)
     return cluster_ocid
 
 
-def delete_compute_cluster(cluster_ocid):
+def delete_compute_cluster(cluster_ocid, max_attempts=10, interval_seconds=30):
     cluster_name=CLIENTS.compute_client.get_compute_cluster(cluster_ocid).data.display_name
-    CLIENTS.compute_client.delete_compute_cluster(cluster_ocid)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            CLIENTS.compute_client.delete_compute_cluster(cluster_ocid)
+            break
+        except oci.exceptions.ServiceError as e:
+            message = getattr(e, "message", str(e))
+            message_lower = message.lower()
+            blocked_by_deleting_memory_cluster = (
+                e.status == 409
+                and "gpu memory cluster" in message_lower
+                and "deleting" in message_lower
+            )
+            if not blocked_by_deleting_memory_cluster:
+                raise
+            if attempt == max_attempts:
+                logger.error(
+                    f"Compute cluster {cluster_name} ({cluster_ocid}) was not deleted after "
+                    f"{max_attempts} attempts; still blocked by a deleting GPU memory cluster"
+                )
+                sys.exit(1)
+            logger.info(
+                f"Compute cluster {cluster_name} is still blocked by a deleting GPU memory cluster. "
+                f"Retrying in {interval_seconds}s (attempt {attempt + 1}/{max_attempts})"
+            )
+            time.sleep(interval_seconds)
     remove_inventory(cluster_name)
 
 

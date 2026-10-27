@@ -14,6 +14,13 @@ compute_to_add
 compute_configured
 [all:vars]
 ansible_connection=ssh
+# Disable parallel fact finding:
+# * We use the default setup module
+# * We add our fact injection
+# * With more than one fact module, Ansible switches to parallel execution, async
+# * Async/parallel instates a very short timeout that the default setup may trigger
+# * Serial execution does not time out.
+ansible_facts_parallel=false
 rdma_network=${rdma_network}
 rdma_netmask=${rdma_netmask}
 public_subnet=${public_subnet}
@@ -26,7 +33,6 @@ slurm_nfs_path=${slurm_nfs_path}
 rdma_enabled=${rdma_enabled}
 slurm=${slurm}
 slurm_version=${slurm_version}
-spack=${spack}
 cluster_name=${cluster_name}
 shape=${shape}
 add_nfs=${add_nfs}
@@ -64,6 +70,7 @@ hostname_convention=${hostname_convention}
 controller_hostname=${controller_name}
 monitoring_hostname=%{ if monitoring_name !="" }${monitoring_name}%{ else }%{ if cluster_monitoring}${controller_name}%{ endif }%{ endif }
 slurm_backup_hostname=%{ if backup_name !="" }${backup_name}%{ endif }
+slurm_rest_openapi=${slurm_rest_openapi}
 http_server_port=9876
 db_name=network_scan
 collection_name=http_servers

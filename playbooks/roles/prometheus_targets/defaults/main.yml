@@ -3,20 +3,18 @@
 prometheus_user: prometheus
 prometheus_dest_dir: /etc/prometheus
 prometheus_targets_dir: /etc/prometheus/targets
-
 # Port notes from current monitoring service/exporter usage.
 # 9090 - Prometheus web UI and self-scrape endpoint.
 # 9100 - Node exporter system metrics for all scraped nodes.
-# 9200 - Deprecated OCI FSS metrics exporter.
-# 9250 - Deprecated OCI Lustre metrics exporter.
 # 9273 - Telegraf OCI metrics Prometheus output when OCI metric ingestion is enabled.
-# 9300 - OCI RDMA faults exporter.
 # 9400 - GPU device metrics exporter for NVIDIA DCGM or AMD device metrics.
 # 9500 - RDMA counters exporter.
 # 9600 - NVLink counters exporter.
-# 9700 - PCIe faults or critical process monitor exporter.
+# 9700 - PCIe faults exporter.
 # 9718 - Lustre MDT, OST, and filesystem utilization exporter.
 # 9800 - NVML node/GPU exporter; writes Slurm job utilization when Slurm job monitoring is enabled.
+# 8889 - OpenTelemetry collector agent Prometheus exporter (NCCL inspector metrics,
+#        NVIDIA GPU compute nodes only).
 # 9900 - Slurm metrics from slurmrestd.
 # 9901 - Optional Slurm REST API Prometheus exporter when Slurm job monitoring is enabled.
 # 9902 - Optional Slurm job accounting exporter when Slurm job monitoring is enabled.
@@ -48,6 +46,10 @@ compute_ports:
   - "9600"
   - "9700"
   - "9800"
+
+# Ports scraped only on NVIDIA GPU compute nodes.
+nvidia_gpu_compute_ports:
+  - "8889"
 
 controller_ports:
   - "9100"

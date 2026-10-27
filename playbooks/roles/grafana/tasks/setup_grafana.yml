@@ -159,6 +159,22 @@
     regexp: "DATASOURCE_UID"
     replace: "{{ output.datasource.uid }}"
 
+- name: Provision OCI metrics alert rules
+  become: true
+  ansible.builtin.copy:
+    src: files/oci-alert-rules.yaml
+    dest: /etc/grafana/provisioning/alerting/oci-alert-rules.yaml
+    mode: "0777"
+  when: (metrics_stream_ocid | default('') | length) > 0
+
+- name: Set Prometheus datasource in OCI metrics alert rules
+  become: true
+  ansible.builtin.replace:
+    path: /etc/grafana/provisioning/alerting/oci-alert-rules.yaml
+    regexp: "DATASOURCE_UID"
+    replace: "{{ output.datasource.uid }}"
+  when: (metrics_stream_ocid | default('') | length) > 0
+
 - name: Get instance VNICs
   ansible.builtin.uri:
     url: "http://169.254.169.254/opc/v2/vnics/"

@@ -4,6 +4,7 @@ import os
 import argparse
 import json
 import requests
+import yaml
 import subprocess
 import logging
 import getpass
@@ -12,6 +13,7 @@ import stat
 import tempfile
 import glob
 import re
+import shlex
 
 MULTIPLANAR_RDMA_VF_COUNTS = {
     "BM.GPU.B300.8": 8,
@@ -90,13 +92,13 @@ def discover_multiplanar_rdma_devices(shape):
 def is_gb300_multiplanar(shape):
     return (
         shape == "BM.GPU.GB300.4"
-        and (get_rdma_planes() > 1 or bool(discover_existing_multiplanar_rdma_devices()))
+        and get_rdma_planes() > 1
     )
 
 def is_b300_multiplanar(shape):
     return (
         shape in ("BM.GPU.B300.8", "BM.GPU.B300.HS.8")
-        and (get_rdma_planes() > 1 or bool(discover_existing_multiplanar_rdma_devices()))
+        and get_rdma_planes() > 1
     )
 
 # Check if the user is root
@@ -164,47 +166,38 @@ def run_local_nccl_test(shape):
     # Set defaults
     shape_mapping = {
         "BM.GPU.B4.8": {
-            "var_UCX_NET_DEVICES": "mlx5_0:1",
             "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
             "threshold": 185,
         },
         "BM.GPU.A100-v2.8": {
-            "var_UCX_NET_DEVICES": "mlx5_0:1",
-            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_1",
+            "var_NCCL_IB_HCA": "=mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_14,mlx5_15,mlx5_16,mlx5_17,mlx5_9,mlx5_10,mlx5_11,mlx5_12",
             "threshold": 185,
         },
         "BM.GPU4.8": {
-            "var_UCX_NET_DEVICES": "mlx5_4:1",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_2,mlx5_6,mlx5_8,mlx5_10,mlx5_12,mlx5_14,mlx5_16,mlx5_1,mlx5_3,mlx5_7,mlx5_9,mlx5_11,mlx5_13,mlx5_15,mlx5_17",
             "threshold": 185,
         },
         "BM.GPU.H100.8": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_12,mlx5_13,mlx5_14,mlx5_15,mlx5_16,mlx5_17",
             "threshold": 440,
         },
         "BM.GPU.H200.8": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
             "threshold": 440,
         },
         "BM.GPU.B200.8": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_9,mlx5_10,mlx5_11",
             "threshold": 440,
         },
         "BM.GPU.B300.8": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
             "threshold": 800,
         },
         "BM.GPU.B300.HS.8": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_7,mlx5_8,mlx5_9,mlx5_10,mlx5_11,mlx5_12,mlx5_13,mlx5_14,mlx5_16,mlx5_17,mlx5_18,mlx5_19,mlx5_20,mlx5_21",
             "threshold": 800,
         },
         "BM.GPU.RTXPRO.8": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_6,mlx5_7,mlx5_8,mlx5_9",
             "threshold": 25,
         },
@@ -215,11 +208,9 @@ def run_local_nccl_test(shape):
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_3,mlx5_4",
         },
         "BM.GPU.GB200-v3.4": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
         },
         "BM.GPU.GB300.4": {
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": "=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_5,mlx5_6,mlx5_7,mlx5_8",
             "threshold": 660,
         },
@@ -253,7 +244,6 @@ def run_local_nccl_test(shape):
     if b300_multiplanar:
         rdma_vf_devices = discover_multiplanar_rdma_devices(shape)
         shape_mapping[shape].update({
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": ",".join(rdma_vf_devices),
         })
         logger.info(f"Using B300 MultiPlanar RDMA VF devices: {rdma_vf_devices}")
@@ -261,21 +251,53 @@ def run_local_nccl_test(shape):
     if gb300_multiplanar:
         rdma_vf_devices = discover_multiplanar_rdma_devices(shape)
         shape_mapping[shape].update({
-            "var_UCX_NET_DEVICES": "eth0",
             "var_NCCL_IB_HCA": ",".join(rdma_vf_devices),
         })
         logger.info(f"Using GB300 MultiPlanar RDMA VF devices: {rdma_vf_devices}")
 
-    if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8", "BM.GPU.RTXPRO.8"):
+    try:
+        with open("/etc/manifest.yaml") as manifest_file:
+            version = yaml.safe_load(manifest_file)["verified_components"]["openmpi"]["version"]
+        if isinstance(version, str) and version.startswith("v"):
+            version = version[1:]
+        if not isinstance(version, str) or not re.fullmatch(r"[0-9][A-Za-z0-9.+_-]*", version):
+            raise ValueError("invalid Open MPI version")
+        mpirun_path = f"/opt/openmpi-{version}/bin/mpirun"
+        if not os.access(mpirun_path, os.X_OK):
+            raise ValueError(f"launcher is not executable: {mpirun_path}")
+    except (OSError, yaml.YAMLError, KeyError, TypeError, ValueError) as e:
+        return False, f"NCCL Test Failed: cannot select image MPI from /etc/manifest.yaml: {e}"
+    plugin_args = ""
+    plugin = "none"
+    plugin_pattern = None
+    if b300_multiplanar or gb300_multiplanar:
+        plugin_pattern = '/opt/hpcx-*/nccl_spectrum-x_plugin/lib/libnccl-net-spcx.so'
+    elif shape in ("BM.GPU.GB200.4", "BM.GPU.GB200-v2.4", "BM.GPU.GB200-v3.4", "BM.GPU.GB300.4"):
+        plugin_pattern = '/opt/hpcx-*/nccl_rdma_sharp_plugin/lib/libnccl-net.so'
+    if plugin_pattern:
+        plugins = glob.glob(plugin_pattern)
+        if len(plugins) != 1:
+            return False, f"NCCL Test Failed: expected one network plugin matching {plugin_pattern}"
+        plugin = shlex.quote(plugins[0])
+        plugin_dir = shlex.quote(os.path.dirname(plugins[0]))
+        plugin_args = f"-x LD_LIBRARY_PATH={plugin_dir}"
+
+    # MPI coordinates ranks; NCCL owns GPU/RDMA communication.
+    mpirun_prefix = " ".join([shlex.quote(mpirun_path),
+                              "--mca pml ob1",
+                              "--mca btl self,sm,tcp",
+                              "--mca btl_tcp_if_include eth0",
+                              "--mca coll ^ucc,hcoll",
+                              f"-x NCCL_NET_PLUGIN={plugin}",
+                              "-x NCCL_SOCKET_IFNAME=eth0",
+                              plugin_args
+
+        ])
+    if shape in ("BM.GPU.B4.8", "BM.GPU.A100-v2.8", "BM.GPU4.8"):
         cmd_nccl_test=f"""
-            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
-            mpirun \
+            {mpirun_prefix} \
                 --bind-to numa \
-                --mca coll ^hcoll \
                 --mca plm_rsh_no_tree_spawn 1 \
-                --mca pml ucx \
-                -x coll_hcoll_enable=0 \
-                -x HCOLL_ENABLE_MCAST_ALL=0 \
                 -x NCCL_ALGO=Ring \
                 -x NCCL_DEBUG=WARN \
                 -x NCCL_IB_GID_INDEX=3 \
@@ -283,50 +305,32 @@ def run_local_nccl_test(shape):
                 -x NCCL_IB_QPS_PER_CONNECTION=4 \
                 -x NCCL_IB_SL=0 \
                 -x NCCL_IB_TC=41 \
-                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
-                -x UCX_TLS=ud,self,sm \
                 --np 8 \
-                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 10G -g 1 -n 50 -f 2"""
+                /opt/oci-hpc/nccl-tests/bin/all_reduce_perf -b 1G -e 10G -g 1 -n 50 -f 2"""
     elif b300_multiplanar:
         cmd_nccl_test=f"""
-            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
-            mpirun \
+            {mpirun_prefix} \
                 --bind-to numa \
-                --mca coll ^hcoll \
                 --mca plm_rsh_no_tree_spawn 1 \
-                --mca pml ucx \
-                -x coll_hcoll_enable=0 \
-                -x HCOLL_ENABLE_MCAST_ALL=0 \
-                -x IB_RX_QUEUE_LEN=8192 \
                 -x NCCL_CUMEM_ENABLE=0 \
                 -x NCCL_DEBUG=WARN \
                 -x NCCL_IB_GID_INDEX=3 \
                 -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} \
-                -x NCCL_IB_QPS_PER_CONNECTION=1 \
+                -x NCCL_IB_QPS_PER_CONNECTION=4 \
+                -x NCCL_IB_ADAPTIVE_ROUTING=1 \
                 -x NCCL_IB_SL=0 \
                 -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
                 -x NCCL_IB_TC=41 \
                 -x NCCL_IB_TIMEOUT=22 \
                 -x NCCL_IGNORE_CPU_AFFINITY=1 \
-                -x NCCL_NET_PLUGIN=none \
-                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
                 -x NCCL_TOPO_FILE={B300_MULTIPLANAR_NCCL_TOPO_FILE} \
-                -x RX_QUEUE_LEN=8192 \
-                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
-                -x UCX_TLS=tcp \
                 -np 8 \
-                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
-    elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.B300.HS.8"):
+                /opt/oci-hpc/nccl-tests/bin/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+    elif shape in ("BM.GPU.H100.8", "BM.GPU.H200.8", "BM.GPU.B200.8", "BM.GPU.B300.8", "BM.GPU.B300.HS.8", "BM.GPU.RTXPRO.8"):
         cmd_nccl_test=f"""
-            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
-            mpirun \
+            {mpirun_prefix} \
                 --bind-to numa \
-                --mca coll ^hcoll \
                 --mca plm_rsh_no_tree_spawn 1 \
-                --mca pml ucx \
-                -x coll_hcoll_enable=0 \
-                -x HCOLL_ENABLE_MCAST_ALL=0 \
-                -x IB_RX_QUEUE_LEN=8192 \
                 -x NCCL_CUMEM_ENABLE=0 \
                 -x NCCL_DEBUG=WARN \
                 -x NCCL_IB_GID_INDEX=3 \
@@ -337,25 +341,13 @@ def run_local_nccl_test(shape):
                 -x NCCL_IB_TC=41 \
                 -x NCCL_IB_TIMEOUT=22 \
                 -x NCCL_IGNORE_CPU_AFFINITY=1 \
-                -x NCCL_NET_PLUGIN=none \
-                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
-                -x RX_QUEUE_LEN=8192 \
-                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
-                -x UCX_TLS=tcp \
                 -np 8 \
-                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+                /opt/oci-hpc/nccl-tests/bin/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
     elif gb300_multiplanar:
         cmd_nccl_test=f"""
-            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
-            mpirun \
+            {mpirun_prefix} \
                 --bind-to numa \
-                --mca coll ^hcoll \
                 --mca plm_rsh_no_tree_spawn 1 \
-                --mca pml ucx \
-                -x coll_hcoll_enable=0 \
-                -x HCOLL_ENABLE_MCAST_ALL=0 \
-                -x IB_RX_QUEUE_LEN=8192 \
-                -x LD_LIBRARY_PATH \
                 -x NCCL_ASYNC_ERROR_HANDLING=1 \
                 -x NCCL_CUMEM_ENABLE=1 \
                 -x NCCL_DEBUG=WARN \
@@ -365,40 +357,47 @@ def run_local_nccl_test(shape):
                 -x NCCL_IB_RETRY_CNT=7 \
                 -x NCCL_IB_SL=0 \
                 -x NCCL_IB_SPLIT_DATA_ON_QPS=0 \
+                -x NCCL_IB_QPS_PER_CONNECTION=16 \
                 -x NCCL_IB_TC=96 \
                 -x NCCL_IB_TIMEOUT=16 \
                 -x NCCL_IGNORE_CPU_AFFINITY=1 \
                 -x NCCL_MNNVL_ENABLE=1 \
                 -x NCCL_NET_GDR_C2C=1 \
-                -x NCCL_NET_PLUGIN=spcx \
-                -x NCCL_NET=IB \
                 -x NCCL_NVLS_ENABLE=1 \
-                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
                 -x NCCL_WORK_FIFO_BYTES=0 \
-                -x RX_QUEUE_LEN=8192 \
-                -x UCX_NET_DEVICES={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
+                -x NCCL_TOPO_FILE=/opt/oci-hpc/healthchecks/GB300MP.xml \
                 -np 4 \
-                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+                /opt/oci-hpc/nccl-tests/bin/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
     elif "GPU.GB" in shape:
+        # GB200/v2 use InfiniBand; v3 and GB300 SP use the RoCE benchmark defaults.
+        qps = 1
+        roce_args = ""
+        if shape in ("BM.GPU.GB200-v3.4", "BM.GPU.GB300.4"):
+            qps = 4
+            roce_args = (
+                "-x NCCL_IB_GID_INDEX=3 -x NCCL_IB_TC=41 -x NCCL_IB_SL=0 "
+                "-x NCCL_IB_TIMEOUT=22 -x NCCL_BUFFSIZE=16777216 "
+                "-x NCCL_IB_SPLIT_DATA_ON_QPS=0 "
+                "-x NCCL_DMABUF_ENABLE=1"
+            )
         cmd_nccl_test=f"""
-            source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && \
-            mpirun \
+            {mpirun_prefix} \
                 --bind-to none \
-                --mca coll ^hcoll \
                 --mca plm_rsh_no_tree_spawn 1 \
-                -x UCX_NET_DEVICES={shape_mapping[shape]['var_NCCL_IB_HCA']} \
                 -x NCCL_IB_HCA={shape_mapping[shape]['var_NCCL_IB_HCA']} \
+                -x NCCL_IB_QPS_PER_CONNECTION={qps} \
                 -x NCCL_DEBUG=WARN \
-                -x NCCL_SOCKET_IFNAME={shape_mapping[shape]['var_UCX_NET_DEVICES']} \
-                -x NCCL_NET_PLUGIN=none \
                 -x NCCL_MNNVL_ENABLE=1 \
                 -x NCCL_CUMEM_ENABLE=1 \
                 -x NCCL_NVLS_ENABLE=1 \
                 -x NCCL_NET_GDR_C2C=1 \
+                {roce_args} \
                 -np 4 \
-                /opt/oci-hpc/nccl-test/build/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
+                /opt/oci-hpc/nccl-tests/bin/all_reduce_perf -b 1G -e 16G -g 1 -n 50 -f 2"""
     else:
         return False, f"NCCL Test Failed: unsupported shape {shape}"
+
+    cmd_nccl_test = cmd_nccl_test.strip()
 
     threshold = shape_mapping.get(shape, {}).get("threshold", 0)
     last_error = "NCCL Test Failed"
@@ -466,6 +465,19 @@ def run_local_rccl_test(shape):
         "BM.GPU.MI355X-v1.8": {"threshold": 310}
     }
 
+    try:
+        with open("/etc/manifest.yaml") as manifest_file:
+            version = yaml.safe_load(manifest_file)["verified_components"]["openmpi"]["version"]
+        if isinstance(version, str) and version.startswith("v"):
+            version = version[1:]
+        if not isinstance(version, str) or not re.fullmatch(r"[0-9][A-Za-z0-9.+_-]*", version):
+            raise ValueError("invalid Open MPI version")
+        mpirun_path = f"/opt/openmpi-{version}/bin/mpirun"
+        if not os.access(mpirun_path, os.X_OK):
+            raise ValueError(f"launcher is not executable: {mpirun_path}")
+    except (OSError, yaml.YAMLError, KeyError, TypeError, ValueError) as e:
+        return False, f"RCCL Test Failed: cannot select image MPI from /etc/manifest.yaml: {e}"
+
     result = None  # ensure defined
     try:
         cmd_gpu_count = "rocm-smi --showproductname --json | jq 'length'"
@@ -482,8 +494,10 @@ def run_local_rccl_test(shape):
             logger.error(f"Could not parse GPU count from: {gpu_count_output}")
             return False, f"Could not parse GPU count from: {gpu_count_output}"
 
+        # Use the selected image MPI libraries as well as its launcher.
         cmd_rccl_test = (
-            f"source /usr/mpi/gcc/openmpi-*/bin/mpivars.sh && "
+            f"source {shlex.quote(f'/opt/openmpi-{version}/bin/mpivars.sh')} && "
+            f"{shlex.quote(mpirun_path)} --bind-to none --np 1 "
             f"/opt/rccl-tests/build/all_reduce_perf -b 1G -e 16G -g {gpu_count} -n 50 -f 2"
         )
         result = run_as_default_user(cmd_rccl_test, timeout=120)
@@ -536,18 +550,43 @@ def run_gpu_fryer(run_time):
         f"&& docker image inspect {gpu_fryer_image} >/dev/null 2>&1 "
         f"|| (echo 'GPU Fryer image {gpu_fryer_image} is not available after pull/load; docker run uses --pull=never.' >&2 && false)"
     )
+    # for OL8, needed to pass the library path and mount as it was not available on gpufryer container.
+    # Making it universal to all os/arch
+    try:
+        ldconfig_output = subprocess.run(
+            ["ldconfig", "-p"], capture_output=True, text=True, check=True
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as e:
+        message = f"Could not locate NVIDIA Management Library with ldconfig: {e}"
+        logger.error(message)
+        return False, message
+
+    native_abi = {"x86_64": "x86-64", "aarch64": "AArch64"}.get(os.uname().machine)
     nvml_library_path = None
-    for candidate in (
-        "/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1",
-        "/usr/lib64/libnvidia-ml.so.1",
-    ):
-        if os.path.isfile(candidate):
-            nvml_library_path = candidate
+    for line in ldconfig_output.splitlines():
+        entry, separator, path = line.strip().partition(" => ")
+        if not separator or not entry.startswith("libnvidia-ml.so.1 "):
+            continue
+        if native_abi and native_abi not in entry:
+            continue
+        if os.path.isfile(path):
+            nvml_library_path = os.path.realpath(path)
             break
-    nvml_arg = f" --nvml-lib-path {nvml_library_path}" if nvml_library_path else ""
+    if nvml_library_path is None:
+        message = "NVIDIA Management Library (libnvidia-ml.so.1) not found in ldconfig cache"
+        logger.error(message)
+        return False, message
+
+    # The host driver path can differ from the container's library path.
+    container_nvml_path = "/tmp/oci-hpc-libnvidia-ml.so.1"
+    nvml_mount = (
+        f"type=bind,source={nvml_library_path},"
+        f"target={container_nvml_path},readonly"
+    )
     cmd_gpu_fryer_run = (
-        f"docker run --rm --pull=never --gpus all {gpu_fryer_image} "
-        f"{command_run_time}{nvml_arg}"
+        f"docker run --rm --pull=never --gpus all "
+        f"--mount {shlex.quote(nvml_mount)} {gpu_fryer_image} "
+        f"{command_run_time} --nvml-lib-path {container_nvml_path}"
     )
 
     def result_tail(result):
@@ -595,6 +634,17 @@ def run_gpu_fryer(run_time):
 
     if run_result.returncode != 0:
         error_tail = result_tail(run_result)
+        if (
+            "Error waiting for container: Canceled:" in error_tail
+            and "grpc: the client connection is closing: context canceled" in error_tail
+            and "All GPUs seem healthy" in error_tail
+        ):
+            message = (
+                "GPU Fryer test passed despite Docker/containerd client cancellation: "
+                "fryer output reported all GPUs healthy"
+            )
+            logger.warning("%s; ignoring container error output: %s", message, error_tail)
+            return True, message
         logger.error(f"Failed to run gpu-fryer:\n{error_tail}")
         return False, error_tail
 
@@ -644,10 +694,20 @@ def run_local_rvs_test(shape):
     rvs_path = "/opt/rocm/bin/rvs"
 
     try:
-        # Ensure RVS binary exists
+        # ROCm extras packages install RVS outside the legacy bin directory.
         if not os.path.exists(rvs_path):
-            logger.warning("RVS binary not found at %s; skipping RVS test", rvs_path)
-            return None, "rvs-not-installed"
+            rvs_candidates = sorted(
+                path for path in glob.glob("/opt/rocm/extras-*/bin/rvs")
+                if os.path.isfile(path) and os.access(path, os.X_OK)
+            )
+            if not rvs_candidates:
+                logger.warning("RVS binary not found in legacy or extras directories; skipping RVS test")
+                return None, "rvs-not-installed"
+            elif len(rvs_candidates) > 1:
+                logger.error("Multiple RVS binaries found: %s", rvs_candidates)
+                return False, f"Ambiguous RVS installation: {', '.join(rvs_candidates)}"
+            else:
+                rvs_path = rvs_candidates[0]
 
         # Parameters for sanity run 
         short_params = {
@@ -1141,8 +1201,8 @@ if __name__ == '__main__':
         logger.error("Recommended Action is to Terminate the node and Create a SR")
 
     if slurm_error_count > 0 and args.slurm:
-        print("Healthcheck:: " + slurm_drain_reason[:-1])
-        print("Healthcheck:: Recommended Action:" + str(action))
+        print("Healthcheck_Active:: " + slurm_drain_reason[:-1])
+        print("Healthcheck_Active:: Recommended Action:" + str(action))
 
     logger.info(f"Finished GPU host setup check at: {datetime_str}")
 

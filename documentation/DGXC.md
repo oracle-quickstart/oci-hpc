@@ -41,6 +41,17 @@ source /opt/dgxc-benchmarking/bin/load-dgxc-env
 llmb-run --version
 ```
 
+To submit the GB300 Nemotron-H workload after the shared DGXC install completes:
+
+```bash
+source /opt/dgxc-benchmarking/bin/load-dgxc-env
+dgxc-submit-nemotron --nodelist '<gb300-node-list>'
+```
+
+The Nemotron submit wrapper is standalone and uses `llmb-run submit`; it is not
+part of the Slurm prolog healthcheck or the multi-node active healthcheck. It
+derives `--scale` from the selected GB300 node count.
+
 DGXC notes:
 
 - `dgxc_benchmarking=true` and `pyxis=true` enable DGXC shell integration during normal controller, login, monitoring, and compute node configuration.
@@ -48,6 +59,9 @@ DGXC notes:
 - The DGXC shared install should target a GPU node, not the controller.
 - `playbooks/dgxc_benchmarking.yml` replays the generated DGXC config when `dgxc_run_llmb_install=true`.
 - `playbooks/dgxc_benchmarking_nodes.yml` installs `/opt/dgxc-benchmarking/bin` wrappers and the `load-dgxc-env` loader only.
+- `dgxc-submit-nemotron` currently supports GB300 only and requires an explicit Slurm nodelist.
 - DGXC shell integration does not install `git`, `git-lfs`, or other packages on every node.
-- The same shell integration is also part of the standard controller, login, monitoring, and compute node playbooks so future nodes receive it during normal configuration when `dgxc_benchmarking=true`.
+- The same shell integration is also part of the standard controller, login,
+  monitoring, and compute node playbooks so future nodes receive it during
+  normal configuration when `dgxc_benchmarking=true`.
 - Live `llmb-install` playback output is written to `/config/3rdparty/dgxc-benchmarking/logs/llmb-install-<node>.latest.log`.

@@ -1,0 +1,168 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: OCI Metrics Alerts
+    folder: OCI
+    interval: 1m
+    rules:
+      - uid: oci-metrics-pipeline-down
+        title: OCI metrics ingestion is unavailable
+        condition: B
+        data:
+          - &oci_prometheus_query
+            refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: DATASOURCE_UID
+            model: &oci_prometheus_model
+              datasource:
+                type: prometheus
+                uid: DATASOURCE_UID
+              editorMode: code
+              expr: (up{job="oci-metrics"} == bool 0) or absent(up{job="oci-metrics"})
+              hide: false
+              instant: true
+              intervalMs: 60000
+              legendFormat: OCI metrics
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - &oci_threshold_query
+            refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: max
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: ""
+        panelId: 0
+        noDataState: Alerting
+        execErrState: KeepLast
+        for: 5m
+        annotations:
+          summary: Check the Telegraf service, OCI stream consumer, and Prometheus oci-metrics target.
+        labels:
+          service: oci
+          severity: critical
+        isPaused: false
+        notification_settings: &oci_notification
+          receiver: ons-webhook
+          repeat_interval: 4h
+
+      - uid: oci-vcn-conntrack-full
+        title: OCI VNIC connection tracking table is full
+        condition: B
+        data:
+          - <<: *oci_prometheus_query
+            model:
+              <<: *oci_prometheus_model
+              expr: max_over_time(oci_vcn:vnic_conntrack_is_full_count[5m]) > bool 0
+              legendFormat: "{{ display_name }}"
+          - *oci_threshold_query
+        dashboardUid: oci-vcn
+        panelId: 0
+        noDataState: OK
+        execErrState: KeepLast
+        for: 1m
+        annotations:
+          summary: A VNIC connection tracking table is full and may be dropping connections.
+        labels:
+          service: oci-vcn
+          severity: critical
+        isPaused: false
+        notification_settings: *oci_notification
+
+      - uid: oci-nat-port-exhaustion
+        title: OCI NAT Gateway ports are exhausted
+        condition: B
+        data:
+          - <<: *oci_prometheus_query
+            model:
+              <<: *oci_prometheus_model
+              expr: >-
+                sum by (resource_id, display_name) (
+                  sum_over_time(oci_nat_gateway:drops_to_natgw_count{drop_type="noPorts"}[5m])
+                ) > bool 0
+              legendFormat: "{{ display_name }}"
+          - *oci_threshold_query
+        dashboardUid: oci-natgw
+        panelId: 0
+        noDataState: OK
+        execErrState: KeepLast
+        for: 1m
+        annotations:
+          summary: NAT Gateway packets were dropped because no translation ports were available.
+        labels:
+          service: oci-nat-gateway
+          severity: critical
+        isPaused: false
+        notification_settings: *oci_notification
+
+      - uid: oci-fastconnect-down
+        title: OCI FastConnect connection is down
+        condition: B
+        data:
+          - <<: *oci_prometheus_query
+            model:
+              <<: *oci_prometheus_model
+              expr: max_over_time(oci_fastconnect:connection_state_count[5m]) < bool 1
+              legendFormat: "{{ display_name }}"
+          - *oci_threshold_query
+        dashboardUid: oci-fastconnect
+        panelId: 0
+        noDataState: OK
+        execErrState: KeepLast
+        for: 1m
+        annotations:
+          summary: A FastConnect virtual circuit or cross-connect group remained down.
+        labels:
+          service: oci-fastconnect
+          severity: critical
+        isPaused: false
+        notification_settings: *oci_notification
+      - uid: oci-fastconnect-packet-faults
+        title: OCI FastConnect is reporting packet errors or discards
+        condition: B
+        data:
+          - <<: *oci_prometheus_query
+            model:
+              <<: *oci_prometheus_model
+              expr: >-
+                sum by (resource_id, display_name) (
+                  sum_over_time({__name__=~"oci_fastconnect:packets_(error|discarded)_count"}[5m])
+                ) > bool 0
+              legendFormat: "{{ display_name }}"
+          - *oci_threshold_query
+        dashboardUid: oci-fastconnect
+        panelId: 0
+        noDataState: OK
+        execErrState: KeepLast
+        for: 1m
+        annotations:
+          summary: FastConnect packet errors or discarded packets were reported.
+        labels:
+          service: oci-fastconnect
+          severity: critical
+        isPaused: false
+        notification_settings: *oci_notification

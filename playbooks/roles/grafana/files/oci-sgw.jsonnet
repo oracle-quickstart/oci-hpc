@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-sgw-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Service Gateway')
+g.dashboard.new('OCI Service Gateway')
 + g.dashboard.withUid('oci-sgw')
 + g.dashboard.withDescription(|||
   Service Gateway
@@ -60,4 +60,3 @@ g.dashboard.new('Service Gateway')
       {w:12, h:8, x:12, y:16}
     ),    
 ])
-

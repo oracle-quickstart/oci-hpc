@@ -10,7 +10,7 @@
     group: opc
     recurse: true
 
-- name: Install dependencies (OL8, OL9)
+- name: Install dependencies
   vars:
     package_name: policycoreutils-python-utils
     package_state: present
@@ -21,12 +21,12 @@
 - block:
     - name: Install OpenLDAP servers (OL8)
       ansible.builtin.yum:
-        name: https://vault.centos.org/centos/8/PowerTools/{{ ansible_facts['architecture'] }}/os/Packages/openldap-servers-2.4.46-18.el8.{{ ansible_facts['architecture'] }}.rpm
+        name: "{{ ansible_facts['oci_versions'].openldap.url }}"
         state: present
         disable_gpg_check: true
   when: ansible_facts['distribution_major_version'] == '8'
 
-- name: Install OpenLDAP packages (OL8, OL9)
+- name: Install OpenLDAP packages
   vars:
     package_name: >-
       {{
@@ -42,7 +42,7 @@
     content: ""
     dest: /etc/sysconfig/slapd
     mode: "0644"
-  when: ansible_facts['distribution_major_version'] in ["8", "9"]
+
 
 - name: Generate openldap root password
   set_fact:
@@ -112,24 +112,24 @@
     regexp: "^SLAPD_URLS="
     line: 'SLAPD_URLS="{{ openldap_slapd_urls }}"'
 
-- name: Create OpenLDAP systemd override directory (OL9)
+- name: Create OpenLDAP systemd override directory
   ansible.builtin.file:
     path: /etc/systemd/system/slapd.service.d
     state: directory
     mode: "0755"
-  when: ansible_facts['distribution_major_version'] == "9"
 
-- name: Override OpenLDAP listener URLs in systemd (OL9)
+
+- name: Override OpenLDAP listener URLs in systemd
   ansible.builtin.template:
     src: slapd.service.override.conf.j2
     dest: /etc/systemd/system/slapd.service.d/override.conf
     mode: "0644"
-  when: ansible_facts['distribution_major_version'] == "9"
 
-- name: Reload systemd after OpenLDAP listener override (OL9)
+
+- name: Reload systemd after OpenLDAP listener override
   ansible.builtin.systemd:
     daemon_reload: true
-  when: ansible_facts['distribution_major_version'] == "9"
+
 
 - name: Adjust OpenLDAP client TLS configuration
   lineinfile:
@@ -160,7 +160,7 @@
   lineinfile:
     dest: /etc/openldap/ldap.conf
     line: TLS_REQSAN allow
-  when: ansible_facts['distribution_major_version'] in ["8", "9"]
+
 
 - name: Ensure OpenLDAP data directory exists
   file:
@@ -178,7 +178,7 @@
     enabled: true
 
 - block:
-    - name: Copy OpenLDAP schemas (OL8 or OL9)
+    - name: Copy OpenLDAP schemas
       copy:
         src: "{{ item }}"
         dest: "/etc/openldap/schema/"
@@ -200,16 +200,16 @@
         mode: "0644"
       when: ansible_facts['distribution_major_version'] == "9"
 
-    - name: Copy `memberof.ldif` schemas (OL8 or OL9)
+    - name: Copy `memberof.ldif` schemas
       copy:
         src: "el_memberof_ol8.ldif"
         dest: "/tmp/memberof.ldif"
         owner: "{{ openldap_default_user }}"
         group: "{{ openldap_default_group }}"
         mode: "0644"
-      when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
-    - name: Render OpenLDAP configuration templates (OL8 or OL9)
+
+    - name: Render OpenLDAP configuration templates
       template:
         src: "{{ item.src }}"
         dest: "/tmp/{{ item.dest }}"
@@ -219,7 +219,7 @@
       with_items:
         - { src: "config.ldif.j2", dest: "config.ldif" }
         - { src: "{{ 'el_local_ol9.ldif.j2' if ansible_facts['distribution_major_version'] == '9' else 'el_local_ol8.ldif.j2' }}", dest: "local.ldif" }
-  when: ansible_facts['distribution_major_version'] in ["8", "9"]
+
 
 - name: Find matching files
   ansible.builtin.find:
@@ -229,13 +229,13 @@
   register: openldap_schemas_output
   with_items: "{{ openldap_schemas }}"
 
-- name: Load OpenLDAP schemas and configs (OL8, OL9)
+- name: Load OpenLDAP schemas and configs
   command: ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /etc/openldap/schema/{{ item.item }}.ldif
   with_items: "{{ openldap_schemas_output.results }}"
   when: item.files | length == 0
   ignore_errors: true
 
-- name: Load OpenLDAP global configuration (OL8, OL9)
+- name: Load OpenLDAP global configuration
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/config.ldif
   args:
     creates: "/etc/openldap/slapd.d/cn=config.ldif"
@@ -246,9 +246,8 @@
     name: slapd
     state: restarted
     enabled: true
-  when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
-- name: Load OpenLDAP local configuration (OL8, OL9)
+- name: Load OpenLDAP local configuration
   command: ldapmodify -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/{{ item }}
   args:
     creates: "/etc/openldap/slapd.d/cn=config/olcDatabase={?}mdb/olcOverlay={0}memberof.ldif"
@@ -257,7 +256,6 @@
     - local.ldif
     - memberof.ldif
   notify: Restart openldap
-  when: ansible_facts['distribution_major_version'] in ["8", "9"]
 
 - name: Check local schemas
   command: ldapsearch -H ldapi:// -Y EXTERNAL -b "dc=local" "cn=pwdDefaultPolicy,ou=Policies,dc=local"
@@ -265,19 +263,86 @@
   failed_when: false
   changed_when: false
 
+- name: Load OpenLDAP local schema for OL9 HA
+  ansible.builtin.command:
+    argv:
+      - ldapadd
+      - -x
+      - -H
+      - >-
+        ldaps://{{
+          controller_hostname
+          if inventory_hostname in groups['controller']
+          else slurm_backup_hostname
+        }}:636
+      - -D
+      - cn=manager,dc=local
+      - -w
+      - "{{ openldap_root_pwd }}"
+      - -f
+      - /etc/openldap/schema/local_schema.ldif
+  no_log: true
+  when:
+    - ldapsearch.rc == 32
+    - ansible_facts['distribution_major_version'] == "9"
+    - groups['slurm_backup'] | default([]) | length > 0
+
 - name: Load OpenLDAP local schema
   command: >
     ldapadd -x -H ldaps:// -D "cn=manager,dc=local" -w {{ openldap_root_pwd }}
                          -f /etc/openldap/schema/local_schema.ldif
   ignore_errors: true
-  when: ldapsearch.rc == 32
+  when: >-
+    ldapsearch.rc == 32
+    and not (
+      ansible_facts['distribution_major_version'] == "9"
+      and groups['slurm_backup'] | default([]) | length > 0
+    )
 
 - name: Enable replication
   when:
     - groups['slurm_backup'] is defined
     - groups['slurm_backup'] | length > 0
   block:
-    - name: Copy OpenLDAP schemas (OL8, OL9)
+    - name: Select OpenLDAP replication peer
+      ansible.builtin.set_fact:
+        openldap_replication_peer_hostname: >-
+          {{
+            slurm_backup_hostname
+            if inventory_hostname in groups['controller']
+            else controller_hostname
+          }}
+
+    - name: Wait for OpenLDAP replication peer LDAPS bind
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - 10s
+          - ldapsearch
+          - -LLL
+          - -x
+          - -H
+          - "ldaps://{{ openldap_replication_peer_hostname }}:636"
+          - -D
+          - cn=manager,dc=local
+          - -w
+          - "{{ openldap_root_pwd }}"
+          - -b
+          - dc=local
+          - -s
+          - base
+          - dn
+      environment:
+        LDAPTLS_CACERT: "{{ ssl_cert_path }}/cluster-ca.crt"
+        LDAPTLS_REQCERT: demand
+      register: openldap_replication_peer_ldap
+      retries: 18
+      delay: 5
+      until: openldap_replication_peer_ldap.rc == 0
+      changed_when: false
+      no_log: true
+
+    - name: Copy OpenLDAP schemas
       template:
         src: '{{ item }}.j2'
         dest: '/tmp/{{ item }}'
@@ -289,23 +354,65 @@
         - mod_syncprov_el.ldif
         - replicate_config.ldif
         - replicate_database_el_mdb.ldif
-      when: ansible_facts['distribution_major_version'] in ["8", "9"]
+
+    - name: Check loaded OpenLDAP modules (OL8)
+      ansible.builtin.command: "ldapsearch -LLL -Y EXTERNAL -H ldapi:/// -b cn=config -s sub '(objectClass=olcModuleList)' olcModuleLoad"
+      register: openldap_module_list
+      changed_when: false
+      become: true
+      when: ansible_facts['distribution_major_version'] == "8"
 
     - name: Add syncprov module to openLDAP
-      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/mod_syncprov_el.ldif'
-      ignore_errors: true  #set to get around erroring out that items already exist
+      ansible.builtin.command: 'timeout 60s ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/mod_syncprov_el.ldif'
+      when: >-
+        ansible_facts['distribution_major_version'] != "8"
+        or 'syncprov.la' not in (openldap_module_list.stdout | default(''))
+      register: openldap_syncprov_add
+      changed_when: "'adding new entry' in openldap_syncprov_add.stdout"
+      failed_when: >-
+        openldap_syncprov_add.rc not in [0, 20, 68]
+        and 'Already exists' not in openldap_syncprov_add.stderr
+        and 'Type or value exists' not in openldap_syncprov_add.stderr
       become: true
 
     - name: Add replicate configuration to openLDAP
-      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_config.ldif'
-      ignore_errors: true  #set to get around erroring out that items already exist
+      ansible.builtin.command: 'timeout 60s ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_config.ldif'
+      register: openldap_replicate_config_add
+      changed_when: "'adding new entry' in openldap_replicate_config_add.stdout"
+      failed_when: >-
+        openldap_replicate_config_add.rc not in [0, 20, 68]
+        and 'Already exists' not in openldap_replicate_config_add.stderr
+        and 'Type or value exists' not in openldap_replicate_config_add.stderr
       become: true
 
-    - name: Add replicate database to openLDAP (OL8, OL9)
-      shell: 'ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_el_mdb.ldif'
-      ignore_errors: true  #set to get around erroring out that items already exist
+    - name: Add replicate database to OpenLDAP controller
+      ansible.builtin.command: 'timeout 60s ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_el_mdb.ldif'
+      register: openldap_replicate_database_add
+      changed_when: >-
+        'adding new entry' in openldap_replicate_database_add.stdout
+        or 'modifying entry' in openldap_replicate_database_add.stdout
+      failed_when: >-
+        openldap_replicate_database_add.rc not in [0, 20, 68]
+        and 'Already exists' not in openldap_replicate_database_add.stderr
+        and 'Type or value exists' not in openldap_replicate_database_add.stderr
       become: true
-      when: ansible_facts['distribution_major_version'] in ["8", "9"]
+      when:
+        - inventory_hostname in groups['controller']
+      notify: Restart openldap
+
+    - name: Add replicate database to OpenLDAP backup
+      ansible.builtin.command: 'timeout 60s ldapadd -c -Y EXTERNAL -H ldapi:/// -Q -f /tmp/replicate_database_el_mdb.ldif'
+      register: openldap_replicate_database_add
+      changed_when: >-
+        'adding new entry' in openldap_replicate_database_add.stdout
+        or 'modifying entry' in openldap_replicate_database_add.stdout
+      failed_when: >-
+        openldap_replicate_database_add.rc not in [0, 20, 68]
+        and 'Already exists' not in openldap_replicate_database_add.stderr
+        and 'Type or value exists' not in openldap_replicate_database_add.stderr
+      become: true
+      when:
+        - inventory_hostname in groups['slurm_backup']
       notify: Restart openldap
 
 

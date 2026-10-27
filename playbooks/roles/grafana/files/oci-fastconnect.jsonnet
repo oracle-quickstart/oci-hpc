@@ -2,8 +2,8 @@ local g = import './g.libsonnet';
 local variables = import './oci-fastconnect-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Fast Connect')
-+ g.dashboard.withUid('oci-fastconnet')
+g.dashboard.new('OCI Fast Connect')
++ g.dashboard.withUid('oci-fastconnect')
 + g.dashboard.withDescription(|||
   Fast Connect
 |||)
@@ -67,4 +67,3 @@ g.dashboard.new('Fast Connect')
       {w:12, h:8, x:12, y:24}
     ),     
 ])
-

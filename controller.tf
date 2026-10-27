@@ -52,7 +52,8 @@ resource "oci_core_instance" "controller" {
   depends_on = [
     local.controller_subnet,
     oci_events_rule.node_starting,
-    oci_core_shape_management.controller-shape
+    oci_core_shape_management.controller-shape,
+    null_resource.validate_boot_volume_sizes
   ]
   availability_domain = var.controller_ad
   compartment_id      = var.targetCompartment
@@ -304,7 +305,6 @@ resource "null_resource" "cluster" {
       slurm                          = var.slurm,
       slurm_version                  = var.slurm_version,
       slurm_nfs_path                 = "/config",
-      spack                          = var.spack,
       ldap                           = var.ldap,
       cluster_name                   = local.cluster_name,
       cluster_admin_user             = local.cluster_admin_user,
@@ -343,6 +343,7 @@ resource "null_resource" "cluster" {
       slurm_monitoring_mysql_backend = local.slurm_monitoring_mysql_backend,
       slurm_monitoring_db_host       = local.slurm_monitoring_db_host,
       slurm_federation               = var.slurm_federation,
+      slurm_rest_openapi             = var.slurm_rest_openapi,
       ip_slurmdbd                    = var.ip_slurmdbd,
       wildcard_dns_domain            = var.wildcard_dns_domain,
       use_lets_encrypt_prod_ep       = var.use_lets_encrypt_prod_ep,

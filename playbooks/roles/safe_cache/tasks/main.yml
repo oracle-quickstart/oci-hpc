@@ -1,0 +1,106 @@
+---
+- name: Validate safe cache inputs
+  ansible.builtin.assert:
+    that:
+      - safe_cache_url is defined
+      - safe_cache_dest is defined
+      - safe_cache_dest is string
+      - safe_cache_url is string or (safe_cache_url is sequence and safe_cache_url is not mapping)
+    fail_msg: safe_cache_url must be a URL or ordered list of URLs, and safe_cache_dest must be a file path.
+
+- name: Normalize safe cache URLs
+  ansible.builtin.set_fact:
+    safe_cache_urls: "{{ [safe_cache_url] if safe_cache_url is string else safe_cache_url }}"
+
+- name: Validate safe cache URL list
+  ansible.builtin.assert:
+    that:
+      - safe_cache_urls | length > 0
+      - (safe_cache_urls | select('string') | list | length) == (safe_cache_urls | length)
+    fail_msg: safe_cache_url must contain at least one URL.
+
+- name: Ensure safe cache directory exists
+  ansible.builtin.file:
+    path: "{{ safe_cache_dest | dirname }}"
+    state: directory
+
+- name: Check safe cache destination
+  ansible.builtin.stat:
+    path: "{{ safe_cache_dest }}"
+  register: safe_cache_dest_stat
+
+- name: Ensure safe cache destination is not a directory
+  ansible.builtin.assert:
+    that:
+      - not (safe_cache_dest_stat.stat.isdir | default(false))
+    fail_msg: safe_cache_dest must name a file, not a directory.
+
+- name: Record safe cache hit
+  ansible.builtin.set_fact:
+    safe_cache_available: "{{ safe_cache_dest_stat.stat.exists | default(false) | bool }}"
+
+- name: Populate missing safe cache file
+  when:
+    - not safe_cache_dest_stat.stat.exists
+    - not ansible_check_mode
+  block:
+    - name: Try to acquire safe cache lock
+      ansible.builtin.command:
+        argv: [mkdir, "{{ safe_cache_dest }}.lock"]
+      environment:
+        LC_ALL: C
+      register: safe_cache_lock
+      changed_when: safe_cache_lock.rc == 0
+      failed_when:
+        - safe_cache_lock.rc != 0
+        - "'File exists' not in safe_cache_lock.stderr"
+
+    - name: Download while holding safe cache lock
+      when: safe_cache_lock.rc == 0
+      block:
+        - name: Recheck safe cache after acquiring lock
+          ansible.builtin.stat:
+            path: "{{ safe_cache_dest }}"
+          register: safe_cache_locked_stat
+
+        - name: Record safe cache after acquiring lock
+          ansible.builtin.set_fact:
+            safe_cache_available: "{{ safe_cache_locked_stat.stat.exists }}"
+
+        - name: Try safe cache URLs
+          ansible.builtin.include_tasks: download.yml
+          loop: "{{ safe_cache_urls }}"
+          loop_control:
+            loop_var: safe_cache_candidate_url
+          when: not safe_cache_available | bool
+      always:
+        - name: Release owned safe cache lock
+          ansible.builtin.file:
+            path: "{{ safe_cache_dest }}.lock"
+            state: absent
+
+    - name: Wait for safe cache owner to finish
+      ansible.builtin.wait_for:
+        path: "{{ safe_cache_dest }}.lock"
+        state: absent
+        timeout: 600
+        msg: "Timed out waiting for {{ safe_cache_dest }}.lock; check its owner before removing a stale lock."
+      when: safe_cache_lock.rc != 0
+
+    - name: Verify shared safe cache result
+      ansible.builtin.stat:
+        path: "{{ safe_cache_dest }}"
+      register: safe_cache_final_stat
+
+    - name: Record shared safe cache result
+      ansible.builtin.set_fact:
+        safe_cache_available: "{{ safe_cache_final_stat.stat.isreg | default(false) }}"
+
+- name: Fail when safe cache URLs are unavailable
+  ansible.builtin.fail:
+    msg: >-
+      Unable to cache {{ safe_cache_dest }} from any configured URL:
+      {{ safe_cache_urls | join(', ') }}
+  when:
+    - not safe_cache_available | bool
+    - not ansible_check_mode

@@ -98,7 +98,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: node_systemd_unit_state{hostname=~".*controller*|.*backup*", state="failed", name=~"mariadb.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-rest-exporter.service|slurm-job-exporter.service|node_exporter.service|oci-rdma-faults-exporter.service|oci-fss-exporter.service"}
+              expr: node_systemd_unit_state{hostname=~".*controller*|.*backup*", state="failed", name=~"mariadb.service|ssh.service|sssd.service|slurmctld.service|slurmrestd.service|slapd.service|slurm-rest-exporter.service|slurm-job-exporter.service|node_exporter.service"}
               hide: false
               instant: true
               intervalMs: 60000
@@ -934,7 +934,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) / 300000000
+              expr: increase(DCGM_FI_DEV_POWER_VIOLATION[5m]) / 300000000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -993,7 +993,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m])
+              expr: increase(DCGM_FI_DEV_BOARD_LIMIT_VIOLATION[5m]) / 300000000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -1052,7 +1052,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000
+              expr: increase(DCGM_FI_DEV_THERMAL_VIOLATION[5m]) / 300000000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -1111,7 +1111,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_LOW_UTIL_VIOLATION[5m]) / 300000000
+              expr: increase(DCGM_FI_DEV_LOW_UTIL_VIOLATION[5m]) / 300000000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -1170,7 +1170,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m])
+              expr: increase(DCGM_FI_DEV_SYNC_BOOST_VIOLATION[5m]) / 300000000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -1229,7 +1229,7 @@ groups:
                 type: prometheus
                 uid: DATASOURCE_UID
               editorMode: code
-              expr: increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m])
+              expr: increase(DCGM_FI_DEV_RELIABILITY_VIOLATION[5m]) / 300000000000
               hide: false
               instant: true
               intervalMs: 60000
@@ -1743,360 +1743,6 @@ groups:
         for: 15m
         annotations:
           summary: Reboot, if persistent.
-        isPaused: false
-        notification_settings:
-          receiver: ons-webhook
-          repeat_interval: 24h
-      - uid: oci-rdma-link-speed-fault
-        title: RDMA Link Speed Fault
-        condition: B
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: DATASOURCE_UID
-            model:
-              datasource:
-                type: prometheus
-                uid: DATASOURCE_UID
-              editorMode: code
-              expr: increase(oci_rdma_link_speed_fault[5m])
-              hide: false
-              instant: true
-              intervalMs: 60000
-              legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
-              maxDataPoints: 43200
-              range: false
-              refId: A
-          - refId: B
-            datasourceUid: __expr__
-            model:
-              conditions:
-                - evaluator:
-                    params:
-                      - 0
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: []
-                  reducer:
-                    params: []
-                    type: avg
-                  type: query
-              datasource:
-                name: Expression
-                type: __expr__
-                uid: __expr__
-              expression: A
-              hide: false
-              intervalMs: 60000
-              maxDataPoints: 43200
-              refId: B
-              type: threshold
-        dashboardUid: ""
-        panelId: 0
-        noDataState: KeepLast
-        execErrState: KeepLast
-        for: 15m
-        annotations:
-          summary: Tag and Terminate.
-        isPaused: false
-        notification_settings:
-          receiver: ons-webhook
-          repeat_interval: 24h
-      - uid: oci-rdma-pcie-address-fault
-        title: RDMA PCIE Address Fault
-        condition: B
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: DATASOURCE_UID
-            model:
-              datasource:
-                type: prometheus
-                uid: DATASOURCE_UID
-              editorMode: code
-              expr: increase(oci_rdma_pcie_address_fault[5m])
-              hide: false
-              instant: true
-              intervalMs: 60000
-              legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
-              maxDataPoints: 43200
-              range: false
-              refId: A
-          - refId: B
-            datasourceUid: __expr__
-            model:
-              conditions:
-                - evaluator:
-                    params:
-                      - 0
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: []
-                  reducer:
-                    params: []
-                    type: avg
-                  type: query
-              datasource:
-                name: Expression
-                type: __expr__
-                uid: __expr__
-              expression: A
-              hide: false
-              intervalMs: 60000
-              maxDataPoints: 43200
-              refId: B
-              type: threshold
-        dashboardUid: ""
-        panelId: 0
-        noDataState: KeepLast
-        execErrState: KeepLast
-        for: 15m
-        annotations:
-          summary: Tag and Terminate
-        isPaused: false
-        notification_settings:
-          receiver: ons-webhook
-          repeat_interval: 24h
-      - uid: oci-rdma-pcie-cable-flap-fault
-        title: RDMA PCIE Cable Flap Fault
-        condition: B
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: DATASOURCE_UID
-            model:
-              datasource:
-                type: prometheus
-                uid: DATASOURCE_UID
-              editorMode: code
-              expr: increase(oci_rdma_pcie_cable_flap_fault[5m])
-              hide: false
-              instant: true
-              intervalMs: 60000
-              legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
-              maxDataPoints: 43200
-              range: false
-              refId: A
-          - refId: B
-            datasourceUid: __expr__
-            model:
-              conditions:
-                - evaluator:
-                    params:
-                      - 0
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: []
-                  reducer:
-                    params: []
-                    type: avg
-                  type: query
-              datasource:
-                name: Expression
-                type: __expr__
-                uid: __expr__
-              expression: A
-              hide: false
-              intervalMs: 60000
-              maxDataPoints: 43200
-              refId: B
-              type: threshold
-        dashboardUid: ""
-        panelId: 0
-        noDataState: KeepLast
-        execErrState: KeepLast
-        for: 15m
-        annotations:
-          summary: Tag and Terminate.
-        isPaused: false
-        notification_settings:
-          receiver: ons-webhook
-          repeat_interval: 24h
-      - uid: oci-rdma-pcie-cable-plug-fault
-        title: RDMA PCIE Cable Plug Fault
-        condition: B
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: DATASOURCE_UID
-            model:
-              datasource:
-                type: prometheus
-                uid: DATASOURCE_UID
-              editorMode: code
-              expr: increase(oci_rdma_pcie_cable_plug_fault[5m])
-              hide: false
-              instant: true
-              intervalMs: 60000
-              legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
-              maxDataPoints: 43200
-              range: false
-              refId: A
-          - refId: B
-            datasourceUid: __expr__
-            model:
-              conditions:
-                - evaluator:
-                    params:
-                      - 0
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: []
-                  reducer:
-                    params: []
-                    type: avg
-                  type: query
-              datasource:
-                name: Expression
-                type: __expr__
-                uid: __expr__
-              expression: A
-              hide: false
-              intervalMs: 60000
-              maxDataPoints: 43200
-              refId: B
-              type: threshold
-        dashboardUid: ""
-        panelId: 0
-        noDataState: KeepLast
-        execErrState: KeepLast
-        for: 15m
-        annotations:
-          summary: Tag and Terminate.
-        isPaused: false
-        notification_settings:
-          receiver: ons-webhook
-          repeat_interval: 24h
-      - uid: oci-rdma-pcie-cable-state-fault
-        title: RDMA PCIE Cable State Fault
-        condition: B
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: DATASOURCE_UID
-            model:
-              datasource:
-                type: prometheus
-                uid: DATASOURCE_UID
-              editorMode: code
-              expr: increase(oci_rdma_pcie_cable_state_fault[5m])
-              hide: false
-              instant: true
-              intervalMs: 60000
-              legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
-              maxDataPoints: 43200
-              range: false
-              refId: A
-          - refId: B
-            datasourceUid: __expr__
-            model:
-              conditions:
-                - evaluator:
-                    params:
-                      - 0
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: []
-                  reducer:
-                    params: []
-                    type: avg
-                  type: query
-              datasource:
-                name: Expression
-                type: __expr__
-                uid: __expr__
-              expression: A
-              hide: false
-              intervalMs: 60000
-              maxDataPoints: 43200
-              refId: B
-              type: threshold
-        dashboardUid: ""
-        panelId: 0
-        noDataState: KeepLast
-        execErrState: KeepLast
-        for: 15m
-        annotations:
-          summary: Tag and Terminate.
-        isPaused: false
-        notification_settings:
-          receiver: ons-webhook
-          repeat_interval: 24h
-      - uid: oci-rdma-pcie-ber-check-fault
-        title: RDMA PCIE BER Check Fault
-        condition: B
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: DATASOURCE_UID
-            model:
-              datasource:
-                type: prometheus
-                uid: DATASOURCE_UID
-              editorMode: code
-              expr: increase(oci_rdma_pcie_ber_check_fault[5m])
-              hide: false
-              instant: true
-              intervalMs: 60000
-              legendFormat: "{{ oci_name }} {{ hostname }} {{ device_name }}"
-              maxDataPoints: 43200
-              range: false
-              refId: A
-          - refId: B
-            datasourceUid: __expr__
-            model:
-              conditions:
-                - evaluator:
-                    params:
-                      - 0
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: []
-                  reducer:
-                    params: []
-                    type: avg
-                  type: query
-              datasource:
-                name: Expression
-                type: __expr__
-                uid: __expr__
-              expression: A
-              hide: false
-              intervalMs: 60000
-              maxDataPoints: 43200
-              refId: B
-              type: threshold
-        dashboardUid: ""
-        panelId: 0
-        noDataState: KeepLast
-        execErrState: KeepLast
-        for: 15m
-        annotations:
-          summary: Tag and Terminate.
         isPaused: false
         notification_settings:
           receiver: ons-webhook

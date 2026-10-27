@@ -104,11 +104,9 @@ variableGroups:
   - title: "Management nodes image options (controller, backup, monitoring, login)"
     variables:
       - ${controller_image_source}
-      - ${controller_image_marketplace_listing}
       - ${controller_image_uri}
       - ${controller_image_compartment}
       - ${controller_image_ocid}
-      - ${controller_image_unlisted_ocid}
       - ${controller_username}
 
   - title: "Compute node options"
@@ -145,8 +143,6 @@ variableGroups:
   - title: "Compute nodes image options"
     variables:
       - ${compute_image_source}
-      - ${compute_image_marketplace_listing}
-      - ${compute_image_unlisted_ocid}
       - ${compute_image_compartment}
       - ${compute_image_ocid}
       - ${compute_image_uri}
@@ -244,7 +240,6 @@ variableGroups:
     variables:
       - ${privilege_sudo}
       - ${privilege_group_name}
-      - ${spack}
 
   - title: "Slurm Options"
     variables:
@@ -256,6 +251,7 @@ variableGroups:
       - ${slurm_ha}
       - ${queue}
       - ${pyxis}
+      - ${slurm_rest_openapi}
       - ${dgxc_benchmarking}
       - ${pam}
       - ${sacct_limits}
@@ -281,6 +277,10 @@ variableGroups:
       - ${ssh_cidr}
       - ${marketplace_source_images}
       - ${marketplace_version_id}
+      - ${controller_image_marketplace_listing}
+      - ${compute_image_marketplace_listing}
+      - ${controller_image_unlisted_ocid}
+      - ${compute_image_unlisted_ocid}
       - ${controller_boot_volume_backup_period}
       - ${controller_boot_volume_backup_retention_seconds}
       - ${controller_boot_volume_backup_time_zone}
@@ -547,38 +547,10 @@ variables:
     title: "Source of the image for management nodes."
     required: true
     visible: true
-    default: "Marketplace"
+    default: "Custom"
     enum:
-      - "Marketplace"
-      - "Unlisted"
       - "Custom"
       - "URI"
-
-  controller_image_marketplace_listing:
-    type: enum
-    title: "Image version"
-    description: "Marketplace listing to use."
-    required: true
-    enum:
-      - "HPC_OL8"
-      - "GPU_OL8_NV570"
-      - "GPU_OL8_NV550"
-      - "GPU_OL8_AMD632"
-    default: "HPC_OL8"
-    visible:
-      eq:
-        - ${controller_image_source}
-        - "Marketplace"
-
-  controller_image_unlisted_ocid:
-    title: "Custom Image OCID"
-    description: "Unlisted image ID for management nodes. Supported operating systems are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release."
-    type: string
-    required: true
-    visible:
-      eq:
-        - ${controller_image_source}
-        - "Unlisted"
 
   controller_image_compartment:
     title: "Image Compartment"
@@ -604,7 +576,7 @@ variables:
 
   controller_image_uri:
     title: "Image URI"
-    description: "URI to use for the import of the OCI image for the management nodes."
+    description: "URI, including an Object Storage pre-authenticated request (PAR), to import an image for management nodes."
     type: string
     pattern: "^(http|https)://.+"
     required: true
@@ -619,11 +591,6 @@ variables:
     type: string
     default: ""
     required: true
-    visible:
-      not:
-        - eq:
-          - ${controller_image_source}
-          - "Marketplace"
 
   shared_home:
     type: enum
@@ -1010,36 +977,8 @@ variables:
     default: "Same as management nodes"
     enum:
       - "Same as management nodes"
-      - "Marketplace"
-      - "Unlisted"
       - "Custom"
       - "URI"
-
-  compute_image_marketplace_listing:
-    type: enum
-    title: "Image version"
-    description: "Marketplace listing to use."
-    required: true
-    enum:
-      - "HPC_OL8"
-      - "GPU_OL8_NV570"
-      - "GPU_OL8_NV550"
-      - "GPU_OL8_AMD632"
-    default: "GPU_OL8_NV570"
-    visible:
-      eq:
-        - ${compute_image_source}
-        - "Marketplace"
-
-  compute_image_unlisted_ocid:
-    title: "Custom compute image OCID"
-    description: "Unlisted image ID for compute nodes. Supported operating systems are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release."
-    type: string
-    required: true
-    visible:
-      eq:
-        - ${compute_image_source}
-        - "Unlisted"
 
   compute_image_compartment:
     title: "Compute custom image compartment"
@@ -1064,7 +1003,7 @@ variables:
 
   compute_image_uri:
     title: "Compute image URI"
-    description: "URI to use for the import of the OCI image for compute nodes."
+    description: "URI, including an Object Storage pre-authenticated request (PAR), to import an image for compute nodes."
     type: string
     pattern: "^(http|https)://.+"
     required: true
@@ -1079,15 +1018,10 @@ variables:
     type: string
     default: ""
     visible:
-      and:
-        - not:
-            - eq:
-              - ${compute_image_source}
-              - "Marketplace"
-        - not:
-            - eq:
-              - ${compute_image_source}
-              - "Same as management nodes"
+      not:
+        - eq:
+          - ${compute_image_source}
+          - "Same as management nodes"
 
   BIOS:
     title: "Modify advanced BIOS settings (aka Platform configuration)"
@@ -1292,8 +1226,9 @@ variables:
     title: "SLURM version"
     description: "The HPC Stack requires at least SLURM 25+ for topology."
     enum:
+      - "26.05.4-1.oci"
       - "26.05.0-1.oci"
-    default: "26.05.0-1.oci"
+    default: "26.05.4-1.oci"
     visible: ${slurm}
     required: true
 
@@ -1398,6 +1333,13 @@ variables:
     description: "Install Pyxis. Pyxis is a plugin that integrates Enroot with slurm. (Warning: using Pyxis with autoscaling is causing an issue that prevents jobs from being scheduled on nodes to be spun up)."
     visible: ${slurm}
 
+  slurm_rest_openapi:
+    type: boolean
+    title: "Install an OpenAPI compatible Python interface for slurmrestd"
+    default: false
+    description: "Generate and install an OpenAPI compatible interface for slurmrestd. This option is deprecated and will be removed in a future release."
+    visible: ${slurm}
+
   dgxc_benchmarking:
     type: boolean
     title: "Install DGXC benchmarking shell integration"
@@ -1415,12 +1357,6 @@ variables:
     required: true
     description: "Add the permanent cluster to a specific queue, compute is the default queue."
     visible: ${slurm}
-
-  spack:
-    type: boolean
-    title: "Install Spack package manager"
-    default: false
-    description: "Install Spack package manager. Requires shared folder."
 
   cluster_monitoring:
     type: boolean

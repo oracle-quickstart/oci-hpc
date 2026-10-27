@@ -1,43 +1,10 @@
-
 import click
-from lib.cli import completion
+from lib.cli import click_filter_nodes
 from lib.ociwrap import run_terminate, run_terminate_no_wait
 import lib.database as db
 from lib.database import get_controller_node
-from ClusterShell.NodeSet import NodeSet
 from lib.functions import update_hosts_on_cluster
 from lib.logger import logger
-
-
-def filter_cmd(ctx, nodes, fields, topology_filters=None):
-    topology_filters = {
-        field: value
-        for field, value in (topology_filters or {}).items()
-        if value
-    }
-    selector_count = int(bool(nodes)) + int(bool(fields)) + len(topology_filters)
-    if selector_count != 1:
-        click.echo("Error: You must specify exactly one node selector")
-        click.echo()
-        click.echo(ctx.get_help())
-        ctx.exit(1)
-
-    # If fields are provided, use them to filter nodes
-    if fields:
-        field_dict = {}
-        for field in fields.split(','):
-            if '=' not in field:
-                raise click.BadParameter(f"Field must be in key=value format: {field}")
-            key, value = field.split('=', 1)
-            field_dict[key] = value.lower() == 'true' if value.lower() in ['true', 'false'] else value
-        nodes_list = db.get_nodes_by_fields(field_dict)
-    elif topology_filters:
-        nodes_list = db.get_nodes_by_fields(topology_filters)
-    else:
-        # Use the provided node identifiers
-        nodes_list = db.get_nodes_by_any(NodeSet(nodes)) if nodes else []
-
-    return nodes_list
 
 
 def is_controller_node(node):
@@ -56,26 +23,52 @@ def memory_clusters_from_nodes(nodes):
     })
 
 
+def nodes_to_wait_for_gmc_termination(nodes):
+    """Return one final node per GMC when this command empties that GMC.
+
+    Individual instance termination is normally submitted asynchronously.  A
+    synchronous waiter is only useful when every still-active node in a GPU
+    memory cluster is part of this request: the final request provides a
+    completion point for a caller that will subsequently delete that GMC.
+    """
+    selected_node_ocids = {
+        node.ocid
+        for node in nodes
+        if getattr(node, "ocid", None)
+    }
+    wait_node_ocids = set()
+
+    for memory_cluster_id in memory_clusters_from_nodes(nodes):
+        active_gmc_nodes = [
+            node
+            for node in db.get_nodes_by_memory_cluster(memory_cluster_id)
+            if getattr(node, "status", None) not in ("terminating", "terminated")
+            and getattr(node, "ocid", None)
+        ]
+        active_gmc_node_ocids = {node.ocid for node in active_gmc_nodes}
+        if not active_gmc_node_ocids or not active_gmc_node_ocids.issubset(selected_node_ocids):
+            continue
+
+        # Preserve the caller's ordering and wait only for the final selected
+        # node in this GMC after all preceding nodes have been submitted.
+        final_node = next(
+            (
+                node
+                for node in reversed(nodes)
+                if node.memory_cluster_id == memory_cluster_id
+                and node.ocid in active_gmc_node_ocids
+            ),
+            None,
+        )
+        if final_node:
+            wait_node_ocids.add(final_node.ocid)
+
+    return wait_node_ocids
+
+
 @click.command()
 @click.pass_context
-@click.option(
-    "--nodes",
-    required=False,
-    help="Comma separated list of nodes (IP Addresses, hostnames, OCID's, serials or oci names)",
-    shell_complete=completion.complete_node_identifiers,
-)
-@click.option(
-    '--fields',
-    required=False,
-    help='Fields to filter nodes (e.g., role=compute,status=running)',
-    shell_complete=completion.complete_node_fields,
-)
-@click.option(
-    '--compute-local-block-id', '--local-block-id', '--local-block', '--localblock',
-    'compute_local_block_id',
-    required=False,
-    help='Terminate all nodes in this compute local block.',
-)
+@click_filter_nodes(local_block=True)
 @click.option(
     '--force',
     is_flag=True,
@@ -88,20 +81,9 @@ def memory_clusters_from_nodes(nodes):
     hidden=True,
     help='Submit OCI termination requests without waiting for completion.'
 )
-def terminate(ctx, nodes, fields, compute_local_block_id, force, no_wait):
+def terminate(ctx, nodes, compute_local_block_id, force, no_wait):
     """Terminate nodes."""
-    nodes_list = filter_cmd(
-        ctx,
-        nodes,
-        fields,
-        topology_filters={"rail_id": compute_local_block_id},
-    )
-
-    if not nodes_list:
-        click.echo("Node not found.")
-        return
-
-    memory_clusters = memory_clusters_from_nodes(nodes_list)
+    memory_clusters = memory_clusters_from_nodes(nodes)
     if compute_local_block_id and memory_clusters and not force:
         raise click.ClickException(
             "The selected local block contains node(s) in GPU memory cluster(s): {}. "
@@ -112,14 +94,30 @@ def terminate(ctx, nodes, fields, compute_local_block_id, force, no_wait):
             )
         )
 
-    for node in nodes_list:
+    wait_node_ocids = set() if no_wait else nodes_to_wait_for_gmc_termination(nodes)
+    if wait_node_ocids:
+        logger.info(
+            "Submitting node terminations asynchronously; waiting only for the final node in each fully selected GPU memory cluster."
+        )
+    elif not no_wait:
+        logger.info("Submitting node terminations asynchronously; no selected GPU memory cluster is being emptied.")
+
+    nodes_to_terminate = []
+    for node in nodes:
         if is_controller_node(node):
             logger.error(f"Refusing to terminate controller node: {node.hostname}")
             continue
         db.db_update_node(node, status="terminating", controller_status="terminating")
-        if no_wait:
+        nodes_to_terminate.append(node)
+
+    # Submit every independent request before waiting. This avoids serial
+    # 10-minute waiters and ensures the reserved GMC node is truly last.
+    for node in nodes_to_terminate:
+        if node.ocid not in wait_node_ocids:
             run_terminate_no_wait(node)
-        else:
+
+    for node in nodes_to_terminate:
+        if node.ocid in wait_node_ocids:
             run_terminate(node)
 
     cfg = ctx.find_object(dict) or {}

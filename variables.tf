@@ -170,7 +170,7 @@ variable "slurm" {
   type    = bool
 }
 variable "slurm_version" {
-  default = "26.05.0-1.oci"
+  default = "26.05.4-1.oci"
   type    = string
 }
 variable "slurm_ha" {
@@ -178,6 +178,10 @@ variable "slurm_ha" {
   type    = bool
 }
 variable "slurm_federation" {
+  default = false
+  type    = bool
+}
+variable "slurm_rest_openapi" {
   default = false
   type    = bool
 }
@@ -225,10 +229,6 @@ variable "monitoring_boot_volume_size" {
 }
 variable "ldap" {
   default = true
-  type    = bool
-}
-variable "spack" {
-  default = false
   type    = bool
 }
 variable "controller_ocpus" {

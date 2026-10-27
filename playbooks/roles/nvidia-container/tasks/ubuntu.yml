@@ -2,32 +2,22 @@
 - name: Add key
   become: true
   ansible.builtin.apt_key:
-    url: "{{ libnvidia_container_repo_gpg_url }}"
+    url: "{{ ansible_facts['oci_versions'].nvidia_container.key_url }}"
     state: present
 
 - name: Add repo
   become: true
   ansible.builtin.get_url:
-    url: "{{ libnvidia_container_repo_base_url }}/stable/deb/{{ ubuntu_repo_file_name }}"
-    dest: "{{ ubuntu_repo_file_path }}"
+    url: "{{ ansible_facts['oci_versions'].nvidia_container.repo }}"
+    dest: "/etc/apt/sources.list.d/{{ ansible_facts['oci_versions'].nvidia_container.repo | basename }}"
     mode: "0644"
     owner: root
     group: root
 
 - name: Install packages
   vars:
-    package_name:
-      - libnvidia-container-tools{{ libnvidia_container_tools_package_version | ternary("=" + libnvidia_container_tools_package_version, "") }}
-    package_state: "{{ libnvidia_container_tools_package_state }}"
-    package_cache: true
-  ansible.builtin.include_role:
-    name: safe_yum
-
-- name: Install nvidia-container-toolkit
-  vars:
-    package_name:
-      - nvidia-container-toolkit
-    package_state: latest
+    package_name: "{{ ansible_facts['oci_versions'].nvidia_container.packages }}"
+    package_state: present
     package_cache: true
   ansible.builtin.include_role:
     name: safe_yum

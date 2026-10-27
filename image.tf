@@ -25,6 +25,22 @@ resource "oci_core_shape_management" "controller-shape" {
   shape_name     = var.controller_shape
 }
 
+# Login and monitoring nodes use the management image, but may select different
+# shapes. Register those shapes for non-marketplace images before launch.
+resource "oci_core_shape_management" "login-shape" {
+  count          = !var.login_node || var.controller_image_source == "Marketplace" ? 0 : (var.controller_image_source == "URI" ? 1 : (contains(local.compatible_controller_shapes, var.login_shape) ? 0 : 1))
+  compartment_id = var.targetCompartment
+  image_id       = local.controller_image
+  shape_name     = var.login_shape
+}
+
+resource "oci_core_shape_management" "monitoring-shape" {
+  count          = !var.monitoring_node || var.controller_image_source == "Marketplace" ? 0 : (var.controller_image_source == "URI" ? 1 : (contains(local.compatible_controller_shapes, var.monitoring_shape) ? 0 : 1))
+  compartment_id = var.targetCompartment
+  image_id       = local.controller_image
+  shape_name     = var.monitoring_shape
+}
+
 data "oci_core_image" "controller_validation" {
   image_id = local.controller_image
 }

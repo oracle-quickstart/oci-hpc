@@ -1,6 +1,8 @@
 import pkgutil
 from importlib import import_module
 
+from .helpers import click_filter_nodes
+
 """
 To add a new Click subcommand, create a module (either a single file or a
 directory) and make a function named "cmd" decorated as a click group or
@@ -33,3 +35,5 @@ for modinfo in pkgutil.iter_modules(__path__):
         subcommands.append(getattr(module, "cmd"))
     except AttributeError:
         pass
+
+__all__ = ["click_filter_nodes", "subcommands"]

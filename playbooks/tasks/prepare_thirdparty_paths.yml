@@ -33,7 +33,7 @@
       hostvars.get('localhost', {}).get(
         'cluster_target_architectures',
         [ansible_facts['architecture']]
-      )
+      ) + ['noarch']
     }}
   delegate_to: localhost
   run_once: true

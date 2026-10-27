@@ -1,0 +1,30 @@
+---
+- name: Ensure logrotate package is installed
+  ansible.builtin.package:
+    name: logrotate
+    state: present
+
+- name: Manage Ubuntu rsyslog logrotate policy
+  ansible.builtin.template:
+    src: rsyslog-ubuntu.j2
+    dest: /etc/logrotate.d/rsyslog
+    owner: root
+    group: root
+    mode: '0644'
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Manage RedHat-family rsyslog logrotate policy
+  ansible.builtin.template:
+    src: rsyslog-redhat.j2
+    dest: "/etc/logrotate.d/{{ 'syslog' if ansible_facts['distribution_major_version'] == '8' else 'rsyslog' }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Validate system logrotate configuration
+  ansible.builtin.command:
+    cmd: logrotate -d /etc/logrotate.conf
+  register: system_logrotate_test
+  changed_when: false
+  failed_when: system_logrotate_test.rc != 0

@@ -1,27 +1,9 @@
 ---
-- name: Ensure metrics-exporter shared cache directory exists
+- name: Ensure dcgm-exporter release metadata directory exists
   ansible.builtin.file:
-    path: "{{ metrics_exporter_shared_path }}"
+    path: "{{ dcgm_release_cache_path | dirname }}"
     state: directory
     mode: "0755"
-  delegate_to: localhost
-  run_once: true
-
-- name: Ensure metrics-exporter go cache directories exist
-  ansible.builtin.file:
-    path: "{{ metrics_exporter_shared_path }}/go/{{ item }}"
-    state: directory
-    mode: "0755"
-  loop: "{{ metrics_exporter_target_architectures }}"
-  delegate_to: localhost
-  run_once: true
-
-- name: Ensure node_exporter cache directories exist
-  ansible.builtin.file:
-    path: "{{ metrics_exporter_shared_path }}/node_exporter/{{ item }}"
-    state: directory
-    mode: "0755"
-  loop: "{{ metrics_exporter_target_architectures }}"
   delegate_to: localhost
   run_once: true
 
@@ -31,6 +13,14 @@
     state: directory
     mode: "0755"
   loop: "{{ metrics_exporter_target_architectures }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Ensure nccl inspector cache directory exists
+  ansible.builtin.file:
+    path: "{{ nccl_inspector_cache_dir }}"
+    state: directory
+    mode: "0755"
   delegate_to: localhost
   run_once: true
 
@@ -76,12 +66,25 @@
 - include_tasks: pcie_faults.yml
   when: compute_node|bool and 'GPU' in shape
 
-- include_tasks: nccl_profiler.yml
-  when: compute_node|bool and 'GPU' in shape
-# - ansible.builtin.include_tasks: critical_process_monitor.yml
-
 - ansible.builtin.include_tasks: amd_metrics_exporter_el.yml
   when: compute_node|bool and ansible_facts['os_family'] == 'RedHat' and 'BM.GPU.MI' in shape
 
 - ansible.builtin.include_tasks: amd_metrics_exporter_ubuntu.yml
   when: compute_node|bool and ansible_facts['distribution'] == 'Ubuntu' and 'BM.GPU.MI' in shape
+
+- name: Install NCCL inspector plugin and OTEL collector
+  ansible.builtin.include_tasks: nccl_inspector.yml
+  when:
+    - cluster_monitoring | default(false) | bool
+    - compute_node | bool
+    - "'GPU' in shape"
+    - "'BM.GPU.MI' not in shape"
+
+- name: Install NCCL inspector collector on the controller
+  ansible.builtin.include_tasks: nccl_inspector_collector.yml
+  when:
+    - cluster_monitoring | default(false) | bool
+    - slurm_job_monitoring | default(false) | bool
+    - not compute_node | bool
+    - groups['monitoring'] | length == 0
+    - inventory_hostname == (groups['controller'] | first)

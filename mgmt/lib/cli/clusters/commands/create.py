@@ -21,7 +21,7 @@ import socket
 @click.option('--all', 'all_fabrics', is_flag=True, default=False, help='Use all unused GPU memory fabrics that have AVAILABLE hosts')
 @click.option('--compute-local-block-id', required=False, help='Use all unused GPU memory fabrics in this compute local block')
 @click.option('--compute-network-block-id', required=False, help='Use all unused GPU memory fabrics in this compute network block')
-@click.option('--compute-hpc-island-id', required=False, help='Use all unused GPU memory fabrics in this compute HPC island')
+@click.option('--compute-hpc-island-id', required=False, help='Constrain GPU memory fabrics, Cluster Networks, or Compute Clusters to this HPC island')
 @click.option('--memorycluster', required=False, help='Name used for the memory cluster, default will be cluster_xxxxx with xxxxx the last 5 character of the fabric ocid', shell_complete=completion.complete_memory_clusters)
 @click.option('--targetsize', type=int, required=False, default=0, help='Target size for the memory cluster scale config, use 0 to deactivate')
 @click.option('--minimum-gmc-size', type=click.IntRange(min=1), required=False, help='Only use GPU memory fabrics with at least this many AVAILABLE hosts')
@@ -52,17 +52,21 @@ def create(count, cluster, instancetype, names, fabric, all_fabrics, compute_loc
     else:
         controller_hostname=controller.hostname
     is_gmf_shape = "GPU.GB" in config.shape
-    scoped_fabrics = bool(compute_local_block_id or compute_network_block_id or compute_hpc_island_id)
-    if (fabric or all_fabrics or scoped_fabrics or minimum_gmc_size) and not is_gmf_shape:
+    fabric_scopes = bool(compute_local_block_id or compute_network_block_id)
+    if (fabric or all_fabrics or fabric_scopes or minimum_gmc_size) and not is_gmf_shape:
         raise click.ClickException(
             "--fabric, --all, fabric scope options, and --minimum-gmc-size can only be used with GPU memory fabric shapes"
+        )
+    if compute_hpc_island_id and not config.rdma_enabled:
+        raise click.ClickException(
+            "--compute-hpc-island-id requires an RDMA-enabled Cluster Network or Compute Cluster"
         )
     if count is None and not is_gmf_shape:
         raise click.ClickException("--count is required when creating a non-GMF cluster")
 
     fabric_targets = []
     if is_gmf_shape:
-        if fabric or all_fabrics or scoped_fabrics:
+        if fabric or all_fabrics or fabric_scopes or compute_hpc_island_id:
             fabric_targets = resolve_fabric_targets(
                 controller,
                 fabric=fabric,
@@ -122,4 +126,5 @@ def create(count, cluster, instancetype, names, fabric, all_fabrics, compute_loc
         name_list,
         gpu_memory_fabrics=gpu_memory_fabrics or None,
         targetsize=targetsize,
+        compute_hpc_island_id=compute_hpc_island_id,
     )

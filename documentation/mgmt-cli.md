@@ -733,6 +733,13 @@ mgmt nodes healthchecks --nodes gpu-6175
 ### nodes list
 
 List nodes with various filters and formats.
+The default tabular view shows an `assessment` that combines the selected OCI
+maintenance event with the latest healthcheck recommendation. Active maintenance
+takes precedence over a previous `Healthy` result; a completed event requires a
+new healthcheck before the assessment returns to the healthcheck result. This is
+a display summary only. Select it explicitly with `--columns hostname,assessment`.
+`nodes get`, default JSON/CSV output, and raw `--columns` fields retain the
+underlying values and timestamps.
 
 ```bash
 Usage: mgmt nodes list [OPTIONS]
@@ -809,7 +816,7 @@ Usage: mgmt nodes reconfigure [OPTIONS]
   - `command` - Run a custom command on the nodes
   - `ansible` - Run a specific playbook on the selected nodes with `--playbook`
   - `install-lfs` - Build and install the Lustre client, then mount Lustre using inventory-backed `lfs_*` settings
-  - `dr-hpc` - Install or update DR HPC on compute nodes; use `--version` to pin a version
+  - `dr-hpc` - Resolve latest DR HPC (or use `--version`), update the shared manifest pin, then install on selected compute nodes
   - `metadata` - Refresh metadata on selected nodes
   - `slurm-reinit` - Restart SLURM on selected nodes after clearing local SLURM state
   - `localdisk-recover` - Recover `/mnt/localdisk` on selected nodes
@@ -818,7 +825,7 @@ Usage: mgmt nodes reconfigure [OPTIONS]
   - `enable-instance-rdma-plugins` - Enable the OCI Compute RDMA instance plugins (Compute HPC RDMA Authentication and Compute HPC RDMA Auto-Configuration) on selected nodes
 - `--command TEXT` - Specify the command to run on the nodes. To be used with --action=command
 - `--playbook TEXT` - Specify the playbook to run on the nodes. To be used with --action=ansible
-- `--version TEXT` - DR HPC version to pin; use with `--action=dr-hpc`
+- `--version TEXT` - DR HPC version to persist in `/config/playbooks/versions.yaml`; use with `--action=dr-hpc`
 
 **Lustre notes:**
 - `install-lfs` requires `add_lfs=true` and valid `lfs_target_path`, `lfs_source_IP`, `lfs_source_path`, and `lfs_options` values in the cluster inventory before it is run.
@@ -887,7 +894,16 @@ Usage: mgmt recommendations [OPTIONS] COMMAND [ARGS]...
 
 ### recommendations list
 
-List all the nodes with recommendations.
+List health-check and reachability recommendations alongside the selected OCI
+instance maintenance event. `ime_recommendation` is derived from the event type:
+`DOWNTIME_REPAIR`, `LIVE_REPAIR`, or `TERMINATE`. Ongoing repairs and repairs
+scheduled to start within five minutes defer node actions in this list. A
+scheduled `TERMINATE` event is shown separately from health-check termination.
+The active-or-imminent section includes OCI events even when no other node
+action is proposed.
+Healthcheck actions based on a passive result from before completed OCI
+maintenance wait for a new passive check. `run` applies the same holds and
+rechecks OCI events before acting.
 
 ```bash
 Usage: mgmt recommendations list [OPTIONS]
@@ -902,7 +918,10 @@ Usage: mgmt recommendations list [OPTIONS]
 
 ### recommendations run
 
-Run all the recommendations.
+Run the selected recommendations. `--nodes` scopes every action category,
+including reconfiguration. `--dry-run` shows actions and skip reasons without
+changing nodes or OCI resources. Before acting, the command verifies OCI events;
+if that lookup fails, it stops rather than assuming there is no maintenance.
 
 ```bash
 Usage: mgmt recommendations run [OPTIONS]
@@ -915,6 +934,7 @@ Usage: mgmt recommendations run [OPTIONS]
 - `--unconfigured` - Get full information about the nodes
 - `--unreachable_timeout INTEGER` - Timeout in minutes before a node is considered unreachable
 - `--unconfigured_timeout INTEGER` - Timeout in minutes before a node is considered unreachable
+- `--dry-run` - Show actions and skips without changing nodes or OCI resources
 
 ---
 
@@ -1036,6 +1056,30 @@ Display an overview status of the OCI-HPC Stack.
 ```bash
 Usage: mgmt status [OPTIONS]
 ```
+
+The command prints two sections:
+
+1. Control plane health: verifies that the services and mounts required for
+   nodes to join the cluster and for jobs to be accepted are healthy. The
+   expected topology is read from the inventory file under
+   `/config/playbooks`. Checks performed:
+   - Slurm services on the controller (`slurmctld`, `slurmdbd`, `slurmrestd`, `munge`; `slurmdbd` is skipped when `slurm_federation` is enabled since accounting is external), that `sinfo` reports partitions and that a default partition exists (job readiness)
+   - `clusterDB` (MySQL) reachable and the mysql service active
+   - `/config/bin` and `/config/playbooks` exist (Terraform-copied repo assets)
+   - `initial_configure.log` latest attempt completed with no failed task (tail-scanned for ansible failures and the completion marker; skipped when the log is absent)
+   - Disk usage on `/` below 90%
+   - `/config` mounted from FSS
+   - `/home` mounted from FSS (`shared_home=fss` with `add_nfs`) or exported by the controller (`shared_home=nfs`); skipped when `/home` is not shared
+   - `slapd` and `sssd` running when `ldap` is enabled
+   - Backup controller reachable over ssh with its services running and its munge key matching the controller, when configured
+   - `mgmt.timer` enabled and active, and `mgmt.service` last run successful
+   - `queue_ocid` present in the inventory
+   - `mgmt.log` readable with no ERROR in the last 5 minutes
+2. Node-centric cluster status: cluster overview, node health and capacity,
+   and the list of nodes needing attention.
+
+The command exits non-zero when a control plane check fails or when more than
+half of the nodes need attention.
 
 By default the command runs once and prints the status in color.
 
