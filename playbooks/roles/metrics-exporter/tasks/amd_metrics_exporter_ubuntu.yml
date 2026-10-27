@@ -13,19 +13,6 @@
       - gpg
     state: present
 
-- name: Create keyrings directory with proper permissions
-  become: true
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-
-- name: Download and add ROCm GPG key
-  become: true
-  ansible.builtin.shell:
-    cmd: wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null
-    creates: /etc/apt/keyrings/rocm.gpg
-
 - name: Set Ubuntu codename for ROCm repository
   ansible.builtin.set_fact:
     ubuntu_codename: "{{ 'noble' if ansible_facts['distribution_version'] == '24.04' else 'jammy' }}"
@@ -37,14 +24,14 @@
     types:
       - deb
     uris:
-      - "https://repo.radeon.com/device-metrics-exporter/apt/{{ amd_exporter_version }}"
+      - "{{ ansible_facts['oci_versions'].metrics_exporter.amd_device_metrics_exporter.repo }}"
     suites:
       - "{{ ubuntu_codename }}"
     components:
       - main
     architectures:
       - amd64
-    signed_by: /etc/apt/keyrings/rocm.gpg
+    signed_by: "{{ ansible_facts['oci_versions'].metrics_exporter.amd_device_metrics_exporter.key_url }}"
     state: present
 
 - name: Update apt cache after adding repository
@@ -55,7 +42,7 @@
 - name: Install AMD GPU exporter package
   become: true
   ansible.builtin.apt:
-    name: amdgpu-exporter
+    name: "{{ ansible_facts['oci_versions'].metrics_exporter.amd_device_metrics_exporter.packages }}"
     state: present
 
 - name: Render amd_gpu_exporter config file

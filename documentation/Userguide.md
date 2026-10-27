@@ -1,5 +1,7 @@
 # Stack Usage
 
+This guide explains how to operate and manage an OCI HPC cluster after deployment.
+
 ## Resizing
 
 > [!IMPORTANT]
@@ -102,12 +104,18 @@ Lustre notes:
 DGXC notes:
 - `dgxc_benchmarking=true` and `pyxis=true` enable DGXC shell integration during normal controller, login, monitoring, and compute node configuration.
 - `playbooks/dgxc_benchmarking.yml` must target exactly one host because it writes to shared DGXC paths under `/config/3rdparty`.
-- The DGXC shared install should target a GPU node, not the controller. If the target GPU node is not present in the Ansible inventory, SSH to the GPU node and run the same playbook locally without `dgxc_target_hosts`.
+- The DGXC shared install should target a GPU node, not the controller. If the
+  target GPU node is not present in the Ansible inventory, SSH to the GPU node
+  and run the same playbook locally without `dgxc_target_hosts`.
 - `playbooks/dgxc_benchmarking.yml` replays the generated DGXC config when `dgxc_run_llmb_install=true`.
 - `playbooks/dgxc_benchmarking_nodes.yml` installs `/opt/dgxc-benchmarking/bin` wrappers and the `load-dgxc-env` loader only.
 - DGXC shell integration does not add DGXC commands to the default system `PATH` and does not install `git`, `git-lfs`, or other packages on every node.
 - Source `/opt/dgxc-benchmarking/bin/load-dgxc-env` to add DGXC commands to an interactive shell.
-- The same shell integration is also part of the standard controller, login, monitoring, and compute node playbooks so future nodes receive it during normal configuration when `dgxc_benchmarking=true`.
+- Use `dgxc-submit-nemotron --nodelist '<gb300-node-list>'` to submit the
+  standalone GB300 Nemotron-H workload after the shared install completes.
+- The same shell integration is also part of the standard controller, login,
+  monitoring, and compute node playbooks so future nodes receive it during
+  normal configuration when `dgxc_benchmarking=true`.
 - Live `llmb-install` playback output is written to `/config/3rdparty/dgxc-benchmarking/logs/llmb-install-<node>.latest.log`.
 
 [Local Disk Recovery](LocaldiskRecovery.md)
@@ -115,9 +123,9 @@ DGXC notes:
 ## Submitting jobs
 
 Slurm job examples (NCCL allreduce) can be found for several GPU shapes: 
-* [A100, H100, H200 and B200](/samples/gpu/nccl_run_allreduce.sbatch)
-* [GB200 and GB300](/samples/gpu/nccl_run_allreduce_GB.sbatch)
-* [MI300X](/samples/gpu/rccl_run_allreduce.sbatch)
+* [A100, H100, H200, B200, GB200, B300 and GB300](../samples/gpu/nccl_run_allreduce.sbatch)
+* [MI300X](../samples/gpu/rccl_run_allreduce.sbatch)
+* NCCL Inspector: use the NVIDIA sample above with `--with-nccl-inspector-jsonl` or `--with-nccl-inspector-otel`.
 
 ## Logs
 

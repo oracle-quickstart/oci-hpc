@@ -129,6 +129,16 @@
     - munge
     - slurmd
 
+- name: Install OCA RDMA readiness check
+  become: true
+  ansible.builtin.copy:
+    src: wait-for-oca-rdma.sh
+    dest: /usr/local/sbin/wait-for-oca-rdma
+    owner: root
+    group: root
+    mode: "0755"
+  when: rdma_enabled | bool
+
 - name: Render systemd units for slurmd and munge
   become: true
   ansible.builtin.template:
@@ -195,6 +205,23 @@
 - name: Run handlers
   ansible.builtin.meta: flush_handlers
 
+- name: Wait for NVIDIA GPU enumeration before starting slurmd
+  become: true
+  ansible.builtin.command:
+    argv:
+      - nvidia-smi
+      - -L
+  register: nvidia_gpu_readiness
+  changed_when: false
+  until: >-
+    nvidia_gpu_readiness.rc == 0 and
+    (nvidia_gpu_readiness.stdout_lines | length > 0)
+  retries: 60
+  delay: 10
+  when:
+    - "'GPU' in shape"
+    - shape not in ["BM.GPU.MI300X.8", "BM.GPU.MI355X-v0.8", "BM.GPU.MI355X.8", "BM.GPU.MI355X-v1.8"]
+
 - name: Start slurmd
   become: true
   ansible.builtin.service:
@@ -222,7 +249,7 @@
 
 - name: Create Reservation
   become: true
-  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ ansible_facts['hostname'] }} user=ubuntu reservation=InitialValidation"
+  ansible.builtin.command: "scontrol create reservation starttime=now duration=UNLIMITED Nodes={{ ansible_facts['hostname'] }} user={{ cluster_admin_user }} reservation=InitialValidation"
   register: create_reservation
   until: create_reservation is not failed
   retries: 5

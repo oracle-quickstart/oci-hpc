@@ -1,0 +1,174 @@
+---
+- name: Get nccl version
+  become: true
+  ansible.builtin.shell: |
+    set -o pipefail
+    find -L /usr/lib /usr/lib64 /usr/local/lib /usr/lib/{{ ansible_facts['architecture'] }}-linux-gnu -name "libnccl.so*" -print |
+    grep -E "libnccl\.so\.[0-9]+\.[0-9]+\.[0-9]+$" |
+    awk -F".so." '{print $2}' | head -n 1
+  args:
+    executable: /bin/bash
+  register: nccl_version_output
+  ignore_errors: true
+  failed_when: nccl_version_output.stdout | trim == ""
+  changed_when: false
+  when: nccl_version is not defined
+
+- name: Set detected NCCL version
+  ansible.builtin.set_fact:
+    nccl_version: "{{ nccl_version_output.stdout | trim }}"
+  when:
+    - nccl_version is not defined
+    - nccl_version_output.stdout | default('') | trim != ""
+
+- name: Run nccl inspector tasks
+  when:
+    - nccl_version is defined
+  block:
+    - name: Select NCCL inspector source version
+      ansible.builtin.set_fact:
+        nccl_inspector_version: >-
+          {{ ansible_facts['oci_versions'].metrics_exporter.nccl.version
+             if nccl_version is version(
+               ansible_facts['oci_versions'].metrics_exporter.nccl.version, '<')
+             else nccl_version }}
+
+    - name: Set NCCL inspector ref, URL, and cache
+      ansible.builtin.set_fact:
+        nccl_inspector_ref: "v{{ nccl_inspector_version }}-1"
+        nccl_url: >-
+          {{ ansible_facts['oci_versions'].metrics_exporter.nccl.url
+             | replace(ansible_facts['oci_versions'].metrics_exporter.nccl.version,
+                       nccl_inspector_version) }}
+        nccl_cache: >-
+          {{ ansible_facts['oci_versions'].metrics_exporter.nccl.cache
+             | replace(ansible_facts['oci_versions'].metrics_exporter.nccl.version,
+                       nccl_inspector_version) }}
+
+    - name: Set NCCL inspector install path
+      ansible.builtin.set_fact:
+        nccl_inspector_so_path: >-
+          {{
+            '/usr/lib/' + ansible_facts['architecture'] + '-linux-gnu/libnccl-profiler-inspector.so'
+            if ansible_facts['os_family'] == 'Debian'
+            else '/usr/lib64/libnccl-profiler-inspector.so'
+          }}
+
+    - name: Check if NCCL inspector plugin is already installed
+      ansible.builtin.stat:
+        path: "{{ nccl_inspector_so_path }}"
+      register: nccl_inspector_so
+
+    - name: Check installed plugin for OTLP export support
+      ansible.builtin.command: grep -aq NCCL_INSPECTOR_OTEL_EXPORT {{ nccl_inspector_so_path }}
+      register: nccl_inspector_so_otel
+      changed_when: false
+      failed_when: false
+      when: nccl_inspector_so.stat.exists | bool
+
+    - name: Set NCCL inspector build requirement
+      ansible.builtin.set_fact:
+        nccl_inspector_build_required: >-
+          {{
+            not (nccl_inspector_so.stat.exists | bool)
+            or (nccl_inspector_so_otel.rc | default(1)) != 0
+          }}
+
+    - name: Check shared cache for prebuilt NCCL inspector library
+      ansible.builtin.stat:
+        path: "{{ nccl_inspector_artifact_path }}"
+      register: nccl_inspector_artifact_cache
+      when: nccl_inspector_build_required | bool
+
+    - name: Check cached NCCL inspector library for OTLP export support
+      ansible.builtin.command: grep -aq NCCL_INSPECTOR_OTEL_EXPORT {{ nccl_inspector_artifact_path }}
+      register: nccl_inspector_artifact_otel
+      changed_when: false
+      failed_when: false
+      when: nccl_inspector_artifact_cache.stat.exists | default(false) | bool
+
+    - name: Install NCCL inspector library from shared cache
+      become: true
+      ansible.builtin.copy:
+        src: "{{ nccl_inspector_artifact_path }}"
+        dest: "{{ nccl_inspector_so_path }}"
+        mode: "0644"
+        remote_src: true
+      when:
+        - nccl_inspector_build_required | bool
+        - nccl_inspector_artifact_cache.stat.exists | default(false) | bool
+        - (nccl_inspector_artifact_otel.rc | default(1)) == 0
+
+    - name: Update NCCL inspector build requirement for cached artifact
+      ansible.builtin.set_fact:
+        nccl_inspector_build_required: >-
+          {{ nccl_inspector_build_required | bool
+             and not (nccl_inspector_artifact_cache.stat.exists | default(false) | bool
+                      and (nccl_inspector_artifact_otel.rc | default(1)) == 0) }}
+
+    - name: Cache NCCL source tarball before building inspector plugin
+      ansible.builtin.include_role:
+        name: safe_cache
+      vars:
+        safe_cache_url: "{{ nccl_url }}"
+        safe_cache_dest: "{{ nccl_cache }}"
+      when: nccl_inspector_build_required | bool
+
+    - name: Build NCCL inspector plugin once in the shared cache
+      become: true
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          timeout -k 10s 30m flock -x "{{ nccl_inspector_cache_dir }}/.build.lock" /bin/bash -c '
+            set -euo pipefail
+            artifact="{{ nccl_inspector_artifact_path }}"
+            if [ -s "$artifact" ] && grep -aq NCCL_INSPECTOR_OTEL_EXPORT "$artifact"; then
+              exit 0
+            fi
+            tarball="{{ nccl_cache }}"
+            test -s "$tarball"
+            src=$(mktemp -d /tmp/nccl-inspector.XXXXXX)
+            trap '\''rm -rf "$src"'\'' EXIT
+            tar -xzf "$tarball" --strip-components=1 -C "$src"
+            inspector_dir="$src/plugins/profiler/inspector"
+            test -d "$inspector_dir"
+            make -C "$inspector_dir"
+            so=$(find "$inspector_dir" -type f -name "*.so" -print -quit)
+            test -n "$so"
+            mkdir -p "$(dirname "$artifact")"
+            artifact_tmp=$(mktemp "${artifact}.XXXXXX")
+            trap '\''rm -rf "$src"; rm -f "$artifact_tmp"'\'' EXIT
+            install -m 0644 "$so" "$artifact_tmp"
+            mv -f "$artifact_tmp" "$artifact"
+            echo NCCL_INSPECTOR_BUILT
+          '
+      args:
+        executable: /bin/bash
+      register: nccl_inspector_build
+      changed_when: "'NCCL_INSPECTOR_BUILT' in nccl_inspector_build.stdout_lines"
+      when: nccl_inspector_build_required | bool
+
+    - name: Install cached NCCL inspector library
+      become: true
+      ansible.builtin.copy:
+        src: "{{ nccl_inspector_artifact_path }}"
+        dest: "{{ nccl_inspector_so_path }}"
+        mode: "0644"
+        remote_src: true
+      when:
+        - nccl_inspector_build_required | bool
+        - nccl_inspector_artifact_cache.stat.exists | default(false) | bool or nccl_inspector_build is not skipped
+
+- name: Install otelcol agent for NCCL inspector OTLP export
+  ansible.builtin.include_tasks: otelcol.yml
+  when:
+    - nccl_version is defined
+
+- name: Ensure NCCL inspector dump directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ nccl_inspector_dump_dir }}"
+    state: directory
+    mode: "1777"
+  when:
+    - nccl_version is defined

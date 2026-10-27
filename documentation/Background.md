@@ -1,6 +1,10 @@
-# Technical background
+# OCI HPC Cluster Lifecycle Architecture
+
+This page explains how OCI HPC Cluster Stack uses OCI services and host-side automation to configure nodes and manage their lifecycle.
 
 ## Serverless Part
+
+![Architecture overview](../images/Serverless_diagram.png)
 
 This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/Functions/Concepts/functionsoverview.htm) and [Events](https://docs.oracle.com/en-us/iaas/Content/Events/Concepts/eventsoverview.htm) to communicate the status of the nodes to a [Queue](https://docs.oracle.com/en-us/iaas/Content/queue/overview.htm). The creation of the function requires an [Auth Token](https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrygettingauthtoken.htm) to authenticate to the [Oracle Registry](https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm) where the function image is stored. Auth Tokens are limited and an existing one can be specified during the configuration.
 
@@ -10,7 +14,7 @@ This implementation uses [Functions](https://docs.oracle.com/en-us/iaas/Content/
 
 ## Workflow
 
-![Workflow for node configuration](/images/workflow.png)
+![Workflow for node configuration](../images/workflow.png)
 
 ### Serverless function
 

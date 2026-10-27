@@ -5,6 +5,7 @@ This command allows nodes to be displayed in a variety of formats/styles.
 """
 
 import click
+from click.core import ParameterSource
 import lib.database as db
 from lib.cli import completion
 from lib.cli.nodes import display
@@ -178,11 +179,13 @@ def list_cmd(columns, format, **options):
     else:
         base_query = db.get_nodes_with_latest_healthchecks()
 
-    query = db.get_query_by_fields(base_query, field_dict)
     try:
+        query = db.get_query_by_fields(base_query, field_dict)
         nodes = query.all()
+    except ValueError as exc:
+        raise click.BadParameter(str(exc), param_hint="--fields") from exc
     finally:
-        query.session.close()
+        base_query.session.close()
     if not nodes:
         click.echo("No nodes found.", err=True)
         if options.get("topology"):
@@ -193,6 +196,13 @@ def list_cmd(columns, format, **options):
         return
 
     nodes = display.sort_nodes(nodes, options["sort"] or DEFAULT_SORT_FIELDS)
+
+    if (
+        format == "tabular"
+        and not options.get("terminated")
+        and click.get_current_context().get_parameter_source("columns") == ParameterSource.DEFAULT
+    ):
+        columns = ["assessment" if field == "healthcheck_recommendation" else field for field in columns]
 
     display.display_nodes(
         nodes, format, columns,

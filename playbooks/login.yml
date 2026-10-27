@@ -14,8 +14,6 @@
     - ssh
     - limits
     - boot-volume
-    - mpivars
-    - queue_read
     - mgmt
     - oom-adjust
 
@@ -146,9 +144,6 @@
   tasks:
     - ansible.builtin.include_role:
         name: rack-aware
-    - ansible.builtin.include_role:
-        name: spack
-      when: spack | default(false) | bool
     - ansible.builtin.include_role:
         name: metrics-exporter
       when: cluster_monitoring | default(false) | bool

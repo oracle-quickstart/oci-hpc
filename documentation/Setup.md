@@ -1,5 +1,7 @@
 # Stack Configuration
 
+This page describes the stack configuration options needed to deploy and customize an OCI HPC cluster.
+
 ## Cluster Configuration
 
 ### Public SSH key
@@ -14,14 +16,28 @@ When using an existing VCN, it is possible to point to an `existing` NFS/FSS ins
 
 If the LDAP option is selected during the stack configuration, the controller node will act as an LDAP server for the cluster. In this case, it is strongly recommended to leave the default value for the shared home directory. User management can be performed from the controller using the `cluster` command. 
 
-Example:
-* Adding a new user: 
-```cluster user add name```
-By default, a `privilege` group that has access to the NFS and can have sudo access on all nodes (defined at the stack creation step) is created with the ID 9876.
-* The group name can be modified:
-```cluster user add name --gid 9876```
-* To avoid generating a user-specific key for passwordless ssh between nodes, use the `--nossh` option: 
-```cluster user add name --nossh --gid 9876```
+> [!NOTE]
+> **Example**
+>
+> Add a new user:
+>
+> ```
+> cluster user add name
+> ```
+>
+> By default, a `privilege` group that has access to the NFS and can have sudo access on all nodes (defined at the stack creation step) is created with the ID 9876.
+>
+> Specify the new user’s group ID:
+>
+> ```
+> cluster user add name --gid 9876
+> ```
+>
+> To avoid generating a user-specific key for passwordless SSH between nodes, use the `--nossh` option:
+>
+> ```
+> cluster user add name --nossh --gid 9876
+> ```
 
 ## Functions and Events Configuration
 
@@ -61,11 +77,9 @@ There are possibly up to 4 management nodes:
 * Monitoring: monitoring tasks dedicated node (Prometheus, Grafana)
 * Controller backup: for High Availability purpose (requires the File Storage Service to host a slurm MySQL HeatWave database)
 
-Marketplace images are based on Oracle Linux 8. They are HPC specific versions with NVIDIA or AMD GPU drivers (except HPC_OL8) and RDMA drivers preinstalled. Oracle Linux 8 is deprecated and will be phased out in a future release, so new deployments should plan to move to Oracle Linux 9, Ubuntu 22.04, or Ubuntu 24.04.
-
 Supported custom images are Oracle Linux 8, Oracle Linux 9, Ubuntu 22.04, and Ubuntu 24.04. Oracle Linux 8 is deprecated and will be phased out in a future release. Username must be changed accordingly (default is `opc` for Oracle Linux, `ubuntu` for Ubuntu).
 
-If a non-listed image must be used, the image ocid must be provided. The image must have been previously imported as a Custom Image.
+Select a custom image already imported into the selected compartment, or import an image by providing an HTTPS URI, including an Object Storage pre-authenticated request (PAR).
 
 ## Compute Nodes Options
 
@@ -77,7 +91,7 @@ The initial cluster size corresponds to the number of nodes of the permanent clu
 
 Boot volume size can be set at this stage.
 
-Image options are the same as for the management nodes. Management node and compute node images do not have to be identical but they must be compatible. Example: Canonical-Ubuntu-22.04 for the management nodes and Canonical-Ubuntu-22.04-OFED-GPU-570-OPEN-CUDA-12.8 for the compute nodes (GPU Bare Metal).
+For compute nodes, select a custom image already imported into the selected compartment, or import an image by providing an HTTPS URI, including an Object Storage pre-authenticated request (PAR). Management node and compute node images do not have to be identical but they must be compatible. Example: Canonical-Ubuntu-22.04 for the management nodes and Canonical-Ubuntu-22.04-OFED-GPU-570-OPEN-CUDA-12.8 for the compute nodes (GPU Bare Metal).
 
 ### On-demand partition
 
@@ -98,10 +112,10 @@ HPC cluster monitoring tools can be installed. This includes alerting tools, and
 ## Storage Options
 
 Depending on the requirements, different "hot" storage options can be configured:
-* OCI File Storage service
-* OCI File Storage with Lustre service
+* [OCI File Storage service](https://docs.oracle.com/en-us/iaas/Content/File/Concepts/filestorageoverview.htm)
+* [OCI File Storage with Lustre service](https://docs.oracle.com/en-us/iaas/Content/lustre/overview.htm)
 * Local Storage (NVMe)
-* Object Storage
+* [Object Storage](https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm)
 
 ### Lustre Filesystem
 

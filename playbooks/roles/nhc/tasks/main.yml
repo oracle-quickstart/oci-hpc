@@ -59,34 +59,21 @@
         path: /usr/sbin/nhc
       register: nhc_installed
 
-    - name: Check if NHC tarball already cached
-      ansible.builtin.stat:
-        path: "{{ nhc_tarball_path }}"
-      register: nhc_cache
-      delegate_to: localhost
+    - name: Cache NHC tarball in shared storage
+      ansible.builtin.include_role:
+        name: safe_cache
+        apply:
+          delegate_to: localhost
+          run_once: true
+      vars:
+        safe_cache_url: "{{ ansible_facts['oci_versions'].nhc.url }}"
+        safe_cache_dest: "{{ ansible_facts['oci_versions'].nhc.cache }}"
+        safe_cache_validate_certs: false
       run_once: true
-
-    - name: Download NHC tarball to shared storage
-      ansible.builtin.file:
-        path: "{{ nhc_tarball_path | dirname }}"
-        state: directory
-        mode: "0755"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Download NHC tarball to shared storage
-      get_url:
-        url: https://github.com/mej/nhc/releases/download/1.4.3/lbnl-nhc-1.4.3.tar.xz
-        dest: "{{ nhc_tarball_path }}"
-        mode: '0644'
-        validate_certs: false
-      delegate_to: localhost
-      run_once: true
-      when: not nhc_cache.stat.exists | bool
 
     - name: Extract NHC source from shared storage
       unarchive:
-        src: "{{ nhc_tarball_path }}"
+        src: "{{ ansible_facts['oci_versions'].nhc.cache }}"
         dest: /tmp
         remote_src: true
       when: not nhc_installed.stat.exists
@@ -94,20 +81,20 @@
     - name: Run configure
       command: ./configure --prefix=/usr --sysconfdir=/etc --libexecdir=/usr/libexec
       args:
-        chdir: /tmp/lbnl-nhc-1.4.3
+        chdir: "/tmp/{{ nhc_tarball_path }}"
       when: not nhc_installed.stat.exists
 
     - name: Run make test
       command: make test
       args:
-        chdir: /tmp/lbnl-nhc-1.4.3
+        chdir: "/tmp/{{ nhc_tarball_path }}"
       when: not nhc_installed.stat.exists
 
     - name: Run make install
       become: true
       command: make install
       args:
-        chdir: /tmp/lbnl-nhc-1.4.3
+        chdir: "/tmp/{{ nhc_tarball_path }}"
       when: not nhc_installed.stat.exists
 
     # -----------------------------------------
@@ -116,7 +103,7 @@
 
     - name: Remove NHC source directory from /tmp
       file:
-        path: /tmp/lbnl-nhc-1.4.3
+        path: "/tmp/{{ nhc_tarball_path }}"
         state: absent
 
     # -----------------------------------------

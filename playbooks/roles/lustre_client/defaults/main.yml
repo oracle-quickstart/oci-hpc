@@ -25,17 +25,17 @@ lustre_client_release_family: >-
     else 'unsupported'
   }}
 lustre_client_repo_map:
-  "2_15": "https://github.com/lustre/lustre-release"
+  "2_15": "https://github.com/oracle-samples/oci-lustre-client"
   "2_17": "https://github.com/lustre/lustre-release"
   "unsupported": ""
 lustre_client_tag_map:
   "2_15":
     "RedHat":
-      "kernel_4": "2.15.8"
-      "kernel_5": "2.15.8"
+      "kernel_4": "2.15.8_oci_v1"
+      "kernel_5": "2.15.8_oci_v1"
     "Debian":
-      "kernel_5": "2.15.8"
-      "kernel_6": "2.15.91"
+      "kernel_5": "2.15.8_oci_v1"
+      "kernel_6": "2.15.8_oci_v1"
   "2_17":
     "RedHat":
       "kernel_4": "2.17.0"
@@ -52,10 +52,9 @@ lustre_client_version: >-
     else lustre_client_tag_map[lustre_client_release_family][ansible_facts['os_family']]['kernel_' ~ lustre_client_kernel_major]
   }}
 lustre_client_patches_by_version:
-  "2.15.8":
+  "2.15.8_oci_v1":
     - lustre-2.15.8-netns-dkms-o2ib.patch
-  "2.15.91":
-    - lustre-2.15.91-netns.patch
+    - lustre-2.15.8-debian-dkms-disable-o2ib.patch
 lustre_client_patches: []
 lustre_client_patch_files: "{{ lustre_client_patches_by_version[lustre_client_version] | default(lustre_client_patches) }}"
 lustre_client_version_key: "{{ lustre_client_version | lower | regex_replace('[^a-z0-9]+', '_') }}"

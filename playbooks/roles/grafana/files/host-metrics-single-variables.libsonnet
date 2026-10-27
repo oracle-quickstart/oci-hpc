@@ -10,8 +10,6 @@ local var = g.dashboard.variable;
     var.query.new('hostname')
     + var.query.withDatasourceFromVariable(self.prometheus)
     + var.query.queryTypes.withLabelValues('hostname', 'up')
-    + var.query.selectionOptions.withMulti()
-    + var.query.selectionOptions.withIncludeAll()
     + var.query.withRefresh(1),
 
   oci_name:

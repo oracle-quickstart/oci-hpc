@@ -1,4 +1,28 @@
 ---
+- name: Choose Java package on OL/RHEL
+  ansible.builtin.set_fact:
+    java_pkg: >-
+      {{ 'java-17-openjdk' if (ansible_facts['distribution'] == 'OracleLinux'
+         and (ansible_facts['distribution_major_version'] | int) >= 9) else 'java-11-openjdk' }}
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Install Java for SDK generation (Ubuntu)
+  become: true
+  ansible.builtin.apt:
+    name:
+      - default-jre
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install Java for SDK generation (OL/RHEL)
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - "{{ java_pkg }}"
+    state: present
+  when: ansible_facts['os_family'] == "RedHat"
+
 - name: Set Python/UV facts from venv
   set_fact:
     python_executable: "{{ venv_path }}/bin/python3"
@@ -24,49 +48,14 @@
   debug:
     msg: "Using Python: {{ python_executable }} (version {{ python_version }})"
 
-# ----------------- Ensure OpenAPI download directory -----------------
-- name: Ensure OpenAPI download dir
-  file:
-    path: "{{ openapi_download_path }}"
-    state: directory
-    mode: '0755'
-  become: true
+- name: Download openapi-generator jar
+  ansible.builtin.include_role:
+    name: safe_cache
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].slurm_rest_api.openapi_generator.url }}"
+    safe_cache_dest: "{{ openapi_download_path }}/openapi-generator.jar"
 
-# ----------------- OpenAPI Generator JAR -----------------
-- name: Download openapi-generator jar directly
-  get_url:
-    url: "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/{{ openapi_generator_jar_version }}/openapi-generator-cli-{{ openapi_generator_jar_version }}.jar"
-    dest: "{{ openapi_download_path }}/openapi-generator.jar"
-    mode: '0644'
-    validate_certs: "{{ false if ansible_facts['distribution'] == 'OracleLinux' else true }}"
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  become: true
-
-- name: Verify jar file exists
-  stat:
-    path: "{{ openapi_download_path }}/openapi-generator.jar"
-  register: jar_stat
-  failed_when: not jar_stat.stat.exists
-
-# ----------------- JWT + OpenAPI Spec -----------------
-- name: Generate JWT token
-  command: "scontrol token lifespan=infinite"
-  become_user: "{{ slurm_user }}"
-  register: jwt_token_result
-  delegate_to: 127.0.0.1
-  run_once: true
-
-- name: Save JWT token to file
-  copy:
-    content: "{{ jwt_token_result.stdout }}"
-    dest: "{{ slurm_jwt_token_path }}"
-    owner: "{{ slurm_user }}"
-    group: "{{ slurm_group }}"
-    mode: "0600"
-  become: true
-  delegate_to: 127.0.0.1
-  run_once: true
-
+# ----------------- Read JWT + OpenAPI Spec -----------------
 - name: Read JWT token from file
   slurp:
     src: "{{ slurm_jwt_token_path }}"

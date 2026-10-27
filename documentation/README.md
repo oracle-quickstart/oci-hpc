@@ -1,19 +1,46 @@
 # Documentation
 
-The following section guides users through stack deployment and usage.
+This documentation is organized by task and audience.
 
-> [!WARNING]
-> Don't forget to complete all the [prerequisites](/documentation/Prerequisites.md) before starting any configuration or deployment.
+## Deployers
 
-* [Setup.md](/documentation/Setup.md): how to configure and deploy the cluster.
-* [Userguide.md](/documentation/Userguide.md): how to use the cluster.
-* [Slurm-Partition-Runbook.md](/documentation/Slurm-Partition-Runbook.md): Create a new Slurm partition and add GPU nodes.
-* [Slurm-Troubleshooting-Runbook.md](/documentation/Slurm-Troubleshooting-Runbook.md): Diagnose and resolve common Slurm job, node, topology, controller, and accounting issues.
-* [Healthcheck-NCCL-Runbook.md](/documentation/Healthcheck-NCCL-Runbook.md): Run passive, active, and multi-node NCCL healthchecks.
-* [LocaldiskRecovery.md](/documentation/LocaldiskRecovery.md): Recover and manage local NVMe storage.
-* [Background.md](/documentation/Background.md): technical information on the infrastructure.
-* [Troubleshooting.md](/documentation/Troubleshooting.md): how to solve problems.
-* [Monitoring.md](/documentation/Monitoring.md): monitoring and alerting.
-* [GraceBlackwell-based-shapes.md](/documentation/GraceBlackwell-based-shapes.md): GB200 and GB300 specific technical content.
-* [DGXC.md](/documentation/DGXC.md): full documentation on installing DGXC benchmarking.
-* [mgmt-cli.md](/documentation/mgmt-cli.md): full reference for the `mgmt` command.
+- [Prerequisites, IAM policies, supported operating systems, and images](Prerequisites.md)
+- [Stack configuration and deployment](Setup.md)
+- [Cluster usage, resizing, and job submission](Userguide.md)
+- [Technical background and deployment workflow](Background.md)
+
+## Architects and administrators
+
+- [Architecture overview](Architecture-Overview.md)
+- [Sequence diagram: Terraform provisioning, node bootstrap, event, and management flows](architecture-sequence-diagram.md)
+- [Cluster Lifecycle](Background.md)
+- [Stack configuration](Setup.md)
+- [Monitoring architecture and configuration](Monitoring.md)
+- [GB200/GB300 memory-fabric deployments](GraceBlackwell-based-shapes.md)
+- [DGXC benchmarking](DGXC.md)
+- [Slurm monitoring metrics decision record](adr-slurm-monitoring-mysql-for-high-granularity-metrics.md)
+- [Package versioning decision record](adr-versioning.md)
+
+
+## Operators
+
+- [Cluster management CLI (`mgmt`)](mgmt-cli.md)
+- [Instance maintenance events and policy](Maintenance-Events.md)
+- [Monitoring and alerting](Monitoring.md)
+- [Centralized logging and troubleshooting](Troubleshooting.md)
+
+## Runbooks
+
+- [Create a Slurm GPU partition](Slurm-Partition-Runbook.md)
+- [Diagnose and resolve Slurm issues](Slurm-Troubleshooting-Runbook.md)
+- [Run passive, active, multi-node, and NCCL health checks](Healthcheck-NCCL-Runbook.md)
+- [Recover or reconfigure local NVMe RAID](LocaldiskRecovery.md)
+
+## Contributors
+
+- [Contribution guide](../CONTRIBUTING.md)
+- [Security guide](../SECURITY.md)
+
+Commands are examples and must be reviewed for the target tenancy, operating
+system, image, and topology. Values in `variables.tf`, `schema.yaml`, and the
+OCI console remain authoritative for a particular release.

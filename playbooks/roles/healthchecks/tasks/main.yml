@@ -29,6 +29,7 @@
     - active_healthcheck.py
     - active_HC.sbatch
     - gpu_bw_test.py
+    - rdma_gid_index.py
     - rdma_link_flapping.py
     - xid_checker.py
     - xid_catalog_data.json
@@ -65,6 +66,14 @@
     - "'GPU' in (shape | default(''))"
     - "'BM.GPU.MI' not in (shape | default(''))"
 
+- name: Make existing GPU fryer cache readable by the healthcheck user
+  become: true
+  ansible.builtin.file:
+    path: "{{ healthchecks_gpu_fryer_cache_tar }}"
+    state: file
+    mode: "0644"
+  when: healthchecks_gpu_fryer_cache_tar_stat.stat.exists | default(false)
+
 - name: Check if Docker is available for GPU fryer image cache
   become: true
   ansible.builtin.command:
@@ -89,6 +98,7 @@
       if [ ! -f "$1" ]; then
         docker pull "$2"
         docker save -o "$1.tmp" "$2"
+        chmod 0644 "$1.tmp"
         mv "$1.tmp" "$1"
       fi
     ' _ "{{ healthchecks_gpu_fryer_cache_tar }}" "{{ healthchecks_gpu_fryer_image }}"

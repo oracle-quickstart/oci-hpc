@@ -57,7 +57,6 @@ SACCT_TERMINAL_STATES = [
     'OUT_OF_MEMORY',
     'PREEMPTED',
     'REVOKED',
-    'SPECIAL_EXIT',
     'TIMEOUT',
 ]
 
@@ -656,6 +655,7 @@ class SlurmJobCollector:
 
             sacct_jobs = collect_sacct(
                 start_time=datetime.now() - timedelta(hours=self.lookback_hours),
+                end_time=datetime.now(),
                 states=SACCT_TERMINAL_STATES,
                 cluster=self.cluster
             )
@@ -686,7 +686,8 @@ class SlurmJobCollector:
                         if job.state not in ('RUNNING', 'PENDING')
                     ]
 
-                all_jobs = running_jobs + sacct_jobs + stale_jobs
+                # Persist historical records first so squeue is authoritative for live jobs.
+                all_jobs = sacct_jobs + stale_jobs + running_jobs
             else:
                 all_jobs = sacct_jobs
 

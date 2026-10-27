@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-igw-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Internet Gateway')
+g.dashboard.new('OCI Internet Gateway')
 + g.dashboard.withUid('oci-igw')
 + g.dashboard.withDescription(|||
   Internet Gateway
@@ -60,4 +60,3 @@ g.dashboard.new('Internet Gateway')
       {w:12, h:8, x:12, y:16}
     ),   
 ])
-

@@ -1150,7 +1150,10 @@ Usage: manage.py status [OPTIONS]
 
   Display an overview status of the OCI-HPC Stack
 
-  By default the command runs once and prints the status in color.
+  Shows the control plane health first (services, mounts and automation
+  required for the cluster to accept jobs), then the node-centric cluster
+  status. Exits non-zero when a control plane check fails or when more
+  than half of the nodes need attention.
 
 Options:
   --no_color  Disable color output.

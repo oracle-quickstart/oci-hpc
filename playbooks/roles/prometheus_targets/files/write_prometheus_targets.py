@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 import argparse
+import grp
 import json
 import os
 import pwd
-import grp
 import tempfile
 from pathlib import Path
-
 
 ROLE_PORTS = {
     "controller": "controller_ports",
     "login": "login_ports",
     "compute": "compute_ports",
 }
+
+
+def shape_vendor(shape):
+    if not shape or "GPU" not in shape:
+        return None
+    return "amd" if "BM.GPU.MI" in shape else "nvidia"
 
 
 def target_payload(node, labels_map, ports):
@@ -22,9 +27,8 @@ def target_payload(node, labels_map, ports):
         if value is not None:
             labels[prom_label] = str(value)
 
-    shape = node.get("shape")
-    if shape and "GPU" in shape:
-        labels["vendor"] = "amd" if "BM.GPU.MI" in shape else "nvidia"
+    if vendor := shape_vendor(node.get("shape")):
+        labels["vendor"] = vendor
 
     hostname = node["hostname"]
     return [
@@ -85,6 +89,7 @@ def main():
         "login": config.get("login_ports", []),
         "compute": config.get("compute_ports", []),
     }
+    nvidia_gpu_ports = config.get("nvidia_gpu_compute_ports", [])
 
     desired = {}
     for node in all_hosts.values():
@@ -97,7 +102,10 @@ def main():
         if not hostname:
             continue
 
-        payload = target_payload(node, labels_map, ports_by_role[role])
+        ports = ports_by_role[role]
+        if role == "compute" and shape_vendor(node.get("shape")) == "nvidia":
+            ports = ports + nvidia_gpu_ports
+        payload = target_payload(node, labels_map, ports)
         desired[f"{hostname}.json"] = json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
     changed = 0

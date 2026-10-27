@@ -69,6 +69,7 @@
       controller_ports: "{{ prometheus_targets_controller_ports }}"
       login_ports: "{{ login_ports }}"
       compute_ports: "{{ compute_ports }}"
+      nvidia_gpu_compute_ports: "{{ nvidia_gpu_compute_ports }}"
     prometheus_targets_controller_ports: >-
       {{
         controller_ports
@@ -87,6 +88,7 @@
   become: true
   ansible.builtin.command:
     argv:
+      - "{{ venv_path }}/bin/python3"
       - /tmp/write_prometheus_targets.py
       - --input
       - /tmp/prometheus_targets_input.json

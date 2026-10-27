@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-drg-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Dynamic Routing Gateway')
+g.dashboard.new('OCI Dynamic Routing Gateway')
 + g.dashboard.withUid('oci-drg')
 + g.dashboard.withDescription(|||
   Dynamic Routing Gateway
@@ -60,4 +60,3 @@ g.dashboard.new('Dynamic Routing Gateway')
       {w:12, h:8, x:12, y:16}
     ),     
 ])
-

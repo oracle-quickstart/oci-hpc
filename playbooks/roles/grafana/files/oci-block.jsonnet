@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-block-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Block Volumes')
+g.dashboard.new('OCI Block Volumes')
 + g.dashboard.withUid('oci-block')
 + g.dashboard.withDescription(|||
   Block Volumes
@@ -56,4 +56,3 @@ g.dashboard.new('Block Volumes')
     ),    
    
 ])
-

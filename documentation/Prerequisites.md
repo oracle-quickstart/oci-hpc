@@ -1,109 +1,194 @@
-# Prerequisites and Consideration
+# Prerequisites and Considerations
+
+Review OCI capacity and IAM requirements, select a supported operating system
+and image, and validate any custom image before deploying the stack.
+
+## Contents
+
+- [Service limits](#service-limits)
+- [IAM Policies for deployment](#iam-policies-for-deployment)
+- [IAM Policies for Runtime](#iam-policies-for-runtime)
+- [Supported operating systems](#supported-operating-systems)
+- [Images](#images)
+  - [Importing published image artifacts (recommended)](#importing-published-image-artifacts-recommended)
+  - [Build your own images](#build-your-own-images)
+  - [Custom-image qualification](#custom-image-qualification)
 
 ## Service Limits
 
-> [!WARNING]
-> Be sure to have the appropriate Limits for each service that is used. In case you reach *limit exceeded*, you can create a [Service Limit Increase Request](https://docs.oracle.com/en-us/iaas/Content/GSG/support/create-incident-limit.htm).
+> [!IMPORTANT]
+> You need a tenancy, region, target compartment, and access to the selected
+> availability domain. Confirm limits and capacity for controller, login,
+> monitoring, and compute shapes before deployment. HPC and GPU shapes may
+> require a limit increase, reservation, or capacity coordination.
+>
+> Also check limits for boot volumes, VNICs, private IPs, File Storage mount
+> targets, Lustre, Functions, Queue, Streaming, Notifications, Object Storage,
+> and MySQL when those features are enabled. See OCI's
+> [service-limit request guidance](https://docs.oracle.com/en-us/iaas/Content/GSG/support/create-incident-limit.htm).
 
-## Policies
+## IAM Policies for deployment
 
-Different sets of Policies must be set to create the required authorizations.
+The identity running Resource Manager or Terraform must be able to create and
+manage the resources selected in the stack.
 
-### Policies to deploy the stack
+> [!IMPORTANT]
+> Create these deployment identity policies before you create or apply the
+> stack. The stack deployment cannot create its required resources without
+> them.
 
-The following policies are required to allon the stack service to create and manage resources in the tenancy.
+**Create the IAM policies for the deployment identity and Compute Management
+service:**
 
-```
+```text
 allow service compute_management to use tag-namespace in tenancy
 allow service compute_management to manage compute-management-family in tenancy
 allow service compute_management to read app-catalog-listing in tenancy
-allow group user to manage all-resources in compartment compartmentName
+allow group <group-name> to manage all-resources in compartment <compartment-name>
 ```
 
-### Runtime policies
+In the last policy statement:
+
+- `<group-name>` is the IAM group that contains the user who deploys the stack.
+- `<compartment-name>` is the compartment where the stack resources are
+  deployed.
+- `manage all-resources` grants the group permission to create, update, and
+  delete all supported resource types in the specified compartment. This
+  permission is convenient but broad. Production deployments should use
+  dedicated groups, a dedicated compartment, and policies limited to the
+  required resource families.
+
+## IAM Policies for Runtime
 
 The stack runtime uses [Resource Principals](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionsaccessingociresources.htm) for the Function and [Instance Principals](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm) for cluster nodes.
 
-#### Stack-managed IAM (recommended)
+### Stack-managed IAM (recommended)
 
-Enable **Create Policies** in the Resource Manager **Identity** options to have the stack create the runtime dynamic group and its policies. The stack creates the policies needed for Functions, Queue, cluster resize operations, and boot-volume replacement. It also creates conditional policies for enabled features such as monitoring, Lustre, and GPU memory shapes.
+Stack-managed IAM automatically creates the runtime dynamic group and the
+policies required by enabled features.
 
-By default, **Create Policies** is disabled so existing manual IAM configurations continue to work unchanged. The deployment policies above are still required to create and update the stack.
+To preserve existing IAM configurations, it is disabled by default. Enable it
+when you want the stack to create these resources.
 
-For manual runtime IAM, use the following sections only when **Create Policies** is disabled or when your organization manages IAM outside the stack. Keep the dynamic group and policies aligned with the cluster's enabled features and compartments.
+To enable stack-managed IAM, choose the option that matches your deployment
+method:
 
-### Policies for Functions
+- **Resource Manager:** In the **Configure Variables** step, within the
+  **Identity** section, enable **Create Policies**.
+- **Terraform CLI:** Set `create_policies = true`.
 
-For the Function to manage resources in the compartment, create a [Dynamic Group](https://docs.oracle.com/en-us/iaas/Content/Identity/dynamicgroups/To_create_a_dynamic_group.htm) and grant it the required authorization.
+When enabled, the stack creates the required policies and dynamic group for:
 
-Example:
+- Functions and Queue.
+- Cluster resize operations and boot-volume replacement.
+- Enabled monitoring, Lustre, and GPU memory-shape features.
 
-1. Create a Dynamic Group named *fn_dg*:
-```
-ALL {resource.type = 'fnfunc', resource.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
-```
-2. Create a Policy for this Dynamic Group:
-```
-Allow dynamic-group fn_dg to manage all-resources in compartment compartmentName
-```
+### Manually created runtime IAM
 
-### Policies for Queue
+> [!TIP]
+> Use manual runtime IAM when **Create Policies** is disabled or when your
+> organization manages IAM outside the stack.
 
-In order to read messages from the OCI Queue service, the management and compute nodes must be part of a Dynamic Group with the necessary Policies (see [Instance Principals](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm)).
+<details>
+<summary>Show manually created IAM policy details</summary>
 
-Example:
+The deployment policies above are required to create and update the
+stack. Keep dynamic groups and policies aligned with the cluster's enabled
+features and compartments.
 
-1. Create a Dynamic Group named *instance_principal*:
-```
-All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
-```
-2. Create the Policies for this Dynamic Group:
-```
-Allow dynamic-group instance_principal to use queue-push in compartment CompartmentName
-Allow dynamic-group instance_principal to use queue-pull in compartment CompartmentName
-allow dynamic-group instance_principal to manage queues in compartment CompartmentName
-```
-If the Dynamic Group is created in a different Identity Domain, user must use `IdentityDomainName/DynamicGroupName` instead of `DynamicGroupName` in the Policies definition.
+#### Policies for Functions
 
-### Policies for resizing or adding clusters
+The Function needs a [dynamic group](https://docs.oracle.com/en-us/iaas/Content/Identity/dynamicgroups/To_create_a_dynamic_group.htm) and permission to manage resources in the cluster compartment.
 
-As described when variables are specified, selecting Instance Principals as a way of authenticating nodes, user must generate a Dynamic Group that includes one or more Instances in a Compartment and all the Functions of the Compartment.
+##### Create a dynamic group for the Function
 
-Example:
-
-1. Create a Dynamic Group named *instance_principal*: 
-```
-All {instance.compartment.id = 'ocid1.compartment.oc1..aaaXXXX'}
-```
-If the Dynamic Group is created in a different Identity Domain, user must use `IdentityDomainName/DynamicGroupName` instead of `DynamicGroupName` in the Policies definition.
-
-2. Create the Policies for this Dynamic Group:
-```
-Allow dynamic-group instance_principal to read app-catalog-listing in tenancy
-Allow dynamic-group instance_principal to use tag-namespace in tenancy
+```text
+ALL {resource.type = 'fnfunc', resource.compartment.id = '<compartment-ocid>'}
 ```
 
-3. Create additional Policies, either:
-```
-Allow dynamic-group instance_principal to manage compute-management-family in compartment compartmentName
-Allow dynamic-group instance_principal to manage instance-family in compartment compartmentName
-Allow dynamic-group instance_principal to use virtual-network-family in compartment compartmentName
-Allow dynamic-group instance_principal to manage volume-family in compartment compartmentName
-Allow dynamic-group instance_principal to manage dns in compartment compartmentName
-```
-or:
-```
-Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName
+##### Grant the dynamic group access to the cluster compartment
+
+```text
+Allow dynamic-group <function-dynamic-group> to manage all-resources in compartment <compartment-name>
 ```
 
-### Policies for Host API
+Replace `<compartment-ocid>`, `<function-dynamic-group>`, and
+`<compartment-name>` with the values for the deployment.
 
-The Capacity Topology is created by default in the root Compartment. The folowing Policy must be created to access it: 
+#### Policies for Queue
+
+Management and compute nodes use [Instance Principals](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm) to read and manage OCI Queue messages.
+
+##### Create a dynamic group for the cluster nodes
+
+```text
+All {instance.compartment.id = '<compartment-ocid>'}
 ```
-Allow dynamic-group instance_principal to manage compute-bare-metal-hosts in tenancy
+
+##### Grant the dynamic group access to Queue
+
+```text
+Allow dynamic-group <node-dynamic-group> to use queue-push in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to use queue-pull in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to manage queues in compartment <compartment-name>
 ```
-For the GB series GPU, you will also need to add those policies: 
+
+Replace `<node-dynamic-group>` with the name you choose for the dynamic group
+that contains the cluster's management and compute nodes.
+
+If the dynamic group is created in a different identity domain, use
+`<identity-domain>/<dynamic-group>` in policy statements.
+
+#### Policies for resizing or adding clusters
+
+When nodes use Instance Principals for authentication, their dynamic group needs
+permissions to resize the cluster or add clusters.
+
+##### Create a dynamic group for the cluster nodes
+
+```text
+All {instance.compartment.id = '<compartment-ocid>'}
 ```
+
+##### Grant the baseline resize permissions
+
+```text
+Allow dynamic-group <node-dynamic-group> to read app-catalog-listing in tenancy
+Allow dynamic-group <node-dynamic-group> to use tag-namespace in tenancy
+```
+
+##### Grant the required resource-family permissions
+
+```text
+Allow dynamic-group <node-dynamic-group> to manage compute-management-family in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to manage instance-family in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to use virtual-network-family in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to manage volume-family in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to manage dns in compartment <compartment-name>
+```
+
+##### Or grant broad compartment access
+
+```text
+Allow dynamic-group <node-dynamic-group> to manage all-resources in compartment <compartment-name>
+```
+
+Use broad access only when it is appropriate for the organization's IAM model.
+
+#### Policies for Host API
+
+Capacity Topology is created in the root compartment by default. Cluster nodes
+need permission to access it.
+
+##### Grant the node dynamic group access to bare-metal hosts
+
+```text
+Allow dynamic-group <node-dynamic-group> to manage compute-bare-metal-hosts in tenancy
+```
+
+##### Grant GPU-memory fabric access for GB-series GPU shapes
+
+```text
 Allow any-user to use compute-hpc-islands in tenancy
 Allow any-user to use compute-network-blocks in tenancy
 Allow any-user to use compute-local-blocks in tenancy
@@ -111,109 +196,209 @@ Allow any-user to use compute-bare-metal-hosts in tenancy
 Allow any-user to use compute-gpu-memory-fabrics in tenancy
 ```
 
-### Policies for OCI Lustre Filesystem
+#### Policies for OCI Lustre Filesystem
 
-When creating an OCI Lustre filesystem, the Lustre service needs network authorization:
-```
+The OCI Lustre service needs network authorization when the stack creates an
+OCI Lustre filesystem.
+
+##### Grant the Lustre service access to virtual networking
+
+```text
 Allow service lustrefs to use virtual-network-family in tenancy
 ```
 
-### Policies for monitoring:
+#### Policies for monitoring
 
-Integration with OCI services for monitoring purpose is optional and can be enabled by setting the variables:  - `alerting = true` to push Grafana alerts to OCI topics.
-- `ingest_oci_metrics = true` to ingest OCI infrastructure metrics into Prometheus using OCI Service Connector Hub, Streaming and Telegraf.
+OCI monitoring integration is optional. Enable it with either of these
+variables:
 
-If you have not set this policy in the previous step:  
+- `alerting = true` to push Grafana alerts to OCI topics.
+- `ingest_oci_metrics = true` to ingest OCI infrastructure metrics into
+  Prometheus through OCI Service Connector Hub, Streaming, and Telegraf.
+
+##### Grant the node dynamic group access to the cluster compartment
+
+```text
+Allow dynamic-group <node-dynamic-group> to manage all-resources in compartment <compartment-name>
 ```
-Allow dynamic-group instance_principal to manage all-resources in compartment compartmentName
-``` 
 
-The policies needed are:
+##### Grant the monitoring and Service Connector policies
+
+```text
+Allow dynamic-group <node-dynamic-group> to use ons-family in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to use stream-family in compartment <compartment-name>
+Allow dynamic-group <node-dynamic-group> to read all-resources in compartment <compartment-name>
+```
+
+When `ingest_oci_metrics = true`, both of the following Service Connector Hub policies are required in addition to the dynamic-group policy above:
 
 ```
-Allow dynamic-group instance_principal to use ons-family in compartment compartmentName
-Allow dynamic-group instance_principal to use stream-family in compartment compartmentName
-Allow dynamic-group instance_principal to read all-resources in compartment compartmentName
-
-Allow any-user to read metrics in tenancy where all {request.principal.type = 'serviceconnector', request.principal.compartment.id = '<compartment_OCID>'}
-Allow any-user to use stream-push in compartment id <target_stream_compartment_OCID> where all {request.principal.type='serviceconnector', request.principal.compartment.id='<compartment_OCID>'}
+Allow any-user to read metrics in tenancy where all {request.principal.type = 'serviceconnector', request.principal.compartment.id = '<compartment-ocid>'}
+Allow any-user to use stream-push in compartment id <target-stream-compartment-ocid> where all {request.principal.type='serviceconnector', request.principal.compartment.id='<compartment-ocid>'}
 ```
+
+</details>
 
 ## Supported operating systems
 
-This stack supports the operating systems and operating system combinations listed below. We can't guarantee any other combination. Mixing Ubuntu with Oracle Linux is not supported. Oracle Linux 8 is deprecated and will be phased out in a future release; new deployments should prefer Oracle Linux 9, Ubuntu 22.04, or Ubuntu 24.04.
+This stack supports the operating systems and operating system combinations listed below. We can't guarantee any other combination. Mixing Ubuntu with Oracle Linux is not supported.
 
-|  Management nodes  |   Compute nodes   |
-|--------------------|-------------------|
-|         OL8        |         OL8       |
-|         OL9        |         OL9       |
-|    Ubuntu  22.04   |    Ubuntu 22.04   |
-|    Ubuntu  24.04   |    Ubuntu 24.04   |
+| Management nodes | Compute nodes | Notes |
+|---|---|---|
+| Oracle Linux 8 | Oracle Linux 8 | Deprecated and planned for removal in a future release. New deployments should prefer Oracle Linux 9, Ubuntu 22.04, or Ubuntu 24.04. |
+| Oracle Linux 9 | Oracle Linux 9 | Preferred |
+| Ubuntu 22.04 | Ubuntu 22.04 | Preferred |
+| Ubuntu 24.04 | Ubuntu 24.04 | Preferred |
 
-When switching to Ubuntu, user must ensure that the username is changed from `opc` to `ubuntu` in Oracle Resource Manager for both the management nodes and the compute nodes. 
+During deployment, set the username in Oracle Resource Manager to `opc` for
+Oracle Linux or `ubuntu` for Ubuntu, for both management and compute nodes.
+
+> [!NOTE]
+> Use the same operating-system username for SSH access: `opc` for Oracle
+> Linux and `ubuntu` for Ubuntu.
 
 ## Images
-To run on HPC/GPU nodes, you will need to use a custom image that has the appropriate drivers installed. The following link will allow you to build your own specific images: https://github.com/oracle-quickstart/oci-hpc-images
+HPC and GPU compute nodes require an image with a compatible kernel, OCI
+agents, RDMA stack, accelerator drivers, firmware tooling, and user account.
+Successful instance launch alone does not establish image compatibility.
 
-To make your life easier, here are a few images build using this website. In the custom image page, import those images by selecting import from URL, select OCI type, choose the correct OS and update the name. Keeping the name of the image the same as the name of the file in the URL lets you keep track of which image is in your tenancy. 
+Do not mix operating-system families or versions between management and compute
+nodes. Ubuntu deployments use `ubuntu`; Oracle Linux deployments use `opc`.
 
-### Ubuntu 22.04
+### Importing published image artifacts (recommended)
 
-#### HPC (No NVIDIA drivers)
+This section provides images built with the drivers and tools required for the
+corresponding OCI compute shapes.
 
-[Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0.oci)
+> [!WARNING]
+> Published image URLs are often pre-authenticated Object Storage requests and
+> can expire. Verify availability, provenance, checksum, architecture, and
+> driver compatibility before importing an artifact into a tenancy.
 
-#### AMD (MI300X, MI355X CX-7)
+Select Import from an Object Storage URL, choose the operating system (e.g. Oracle Linux or
+Canonical Ubuntu) and OCI as the image type, and retain the artifact filename in the 
+custom-image name for traceability.
 
-[Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
+> [!TIP]
+> Import the image and wait for it to become available before deploying the
+> stack. For detailed instructions, see [Importing an Image from a
+> URL](https://docs.oracle.com/en-us/iaas/private-cloud-appliance/cmn/images/importing-an-image-from-a-url.htm).
 
-#### AMD (MI355X with Pollara NICs)
+#### NVIDIA x86 GPU shapes
 
-[Canonical-Ubuntu-22.04-Kernel-5.15-OFED-5.9-AMD-ROCM-702_POLLARA-OPENMPI-4.1.6](https://objectstorage.us-saltlake-2.oraclecloud.com/p/02QYYf_pFsZlBzMQi5-kp3jTYTJiX4RnkOfgpqTxlvwpO7pCie2bfYrRCr5KD_ll/n/hpctraininglab/b/Sudhir-test-bucket/o/Canonical-Ubuntu-22.04-Kernel-5.15-OFED-5.9-AMD-ROCM-702_POLLARA-OPENMPI-4.1.6)
+<details>
+<summary>Show image artifacts</summary>
 
-#### NVIDIA x86 (A100, H100, H200, B200, B300)
+**Supported shapes:** A100, H100, H200, B200, and B300 families.
 
-[Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
+##### Ubuntu 24.04
 
-#### NVIDIA Arm (GB200, GB300)
+- [Kernel 6.8, GPU driver 580.178.04 LTS, CUDA 13.2, and DOCA-OFED 3.2.3](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-2026.09.18-0-6.8-DOCA-OFED-3.2.3-GPU-580.178.04-OPEN-CUDA-13.2-LTS-2026.10.19-0.oci)
+- [Kernel 6.8, GPU driver 595, CUDA 13.2, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-2026.09.18-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.5.0-GPU-595-OPEN-CUDA-13.2-2026.10.19-0.oci)
+- [Kernel 6.17, GPU driver 595, CUDA 13.2, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-2026.09.18-0-KERNEL-ORACLE-6.17-DOCA-OFED-3.5.0-GPU-595-OPEN-CUDA-13.2-2026.10.19-0.oci)
 
-[Canonical-Ubuntu-22.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-22.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
+##### Ubuntu 22.04
 
+- [Kernel 6.8, GPU driver 580.178.04 LTS, CUDA 13.2, and DOCA-OFED 3.2.3](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-2026.09.18-0-6.8-DOCA-OFED-3.2.3-GPU-580.178.04-OPEN-CUDA-13.2-LTS-2026.10.19-0.oci)
+- [Kernel 6.8, GPU driver 595, CUDA 13.2, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-2026.09.18-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.5.0-GPU-595-OPEN-CUDA-13.2-2026.10.19-0.oci)
 
-### Ubuntu 24.04
+##### Oracle Linux 9
 
-#### AMD (MI300X, MI355X CX-7):
+- [GPU driver 595, CUDA 13.2, RHCK, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.5.0-GPU-595-OPEN-CUDA-13.2-2026.10.19-0.oci)
 
-[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
-[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
-#### AMD (MI355X with Pollara NICs)
+##### Oracle Linux 8
 
-[Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0](https://objectstorage.ap-kulai-1.oraclecloud.com/p/r7NmOiphWU9Pm9G7yBSkGIYRT5EXCjSNL2BYqso7R-s2zYBoTPmdwn3uyJ-pCvGb/n/hpctraininglab/b/Sudhir-Bucket/o/Canonical-Ubuntu-24.04-2026.02.28-0-MOFED-2410_1140-AMD-ROCM-72-2026.03.13-0)
+Oracle Linux 8 is deprecated for new deployments.
 
-#### Nvidia_x86 (A100, H100, H200, B200, B300,...):
+- [GPU driver 595, CUDA 13.2, RHCK, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Oracle-Linux-8.10-2026.09.18-0-KERNEL-RHCK-DOCA-OFED-3.5.0-GPU-595-OPEN-CUDA-13.2-2026.10.19-0.oci)
 
-[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
-[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
-#### Nvidia_arm (GB200, GB300):
-[Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
-[Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-aarch64-2026.02.28-0-KERNEL-NVIDIA-64K-6.14-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
+</details>
 
-#### HPC (No Nvidia drivers):
-[Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Canonical-Ubuntu-24.04-2026.02.28-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.3.0-2026.07.16-0.oci)
+#### NVIDIA Grace Blackwell GPU shapes
 
-### Oracle Linux 8
-Oracle Linux 8 is deprecated and will be phased out in a future release. Prefer Oracle Linux 9 for new deployments.
-#### AMD
-[Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
-#### NVIDIA GPUs
-[Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
-#### HPC (No Nvidia drivers):
-[Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-8.10-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0.oci)
+<details>
+<summary>Show image artifacts</summary>
 
-### Oracle Linux 9
-#### AMD
-[Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-AMD-ROCM-724-2026.07.16-0.oci)
-#### NVIDIA GPUs
-[Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-GPU-595-OPEN-CUDA-13.2-2026.07.16-0.oci)
-#### HPC (No Nvidia drivers):
-[Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/rr0d4Zw8yIc-Bwwu8cUDPJ6ooh4LQ_SVHPDBFJ5T89j2drv-hmkeMTwVv8DANpvC/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/2026.07.16/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.3.0-2026.07.16-0.oci)
+**Supported shapes:** GB200 and GB300 families.
+
+##### Ubuntu 24.04
+
+- [Kernel 6.8, GPU driver 580.178.04 LTS, CUDA 13.2, Arm64, and DOCA-OFED 3.2.3](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-aarch64-2026.09.18-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.2.3-GPU-580.178.04-OPEN-CUDA-13.2-LTS-2026.10.19-0.oci)
+- [Kernel 6.17, GPU driver 595, CUDA 13.2, Arm64, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-aarch64-2026.09.18-0-KERNEL-NVIDIA-64K-6.17-DOCA-OFED-3.5.0-GPU-595-OPEN-CUDA-13.2-2026.10.19-0.oci)
+
+##### Ubuntu 22.04
+
+- [Kernel 6.8, GPU driver 580.178.04 LTS, CUDA 13.2, Arm64, and DOCA-OFED 3.2.3](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-aarch64-2026.09.18-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.2.3-GPU-580.178.04-OPEN-CUDA-13.2-LTS-2026.10.19-0.oci)
+- [Kernel 6.8, GPU driver 595, CUDA 13.2, Arm64, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-aarch64-2026.09.18-0-KERNEL-NVIDIA-64K-6.8-DOCA-OFED-3.5.0-GPU-595-OPEN-CUDA-13.2-2026.10.19-0.oci)
+
+</details>
+
+#### AMD GPU shapes
+
+<details>
+<summary>Show image artifacts</summary>
+
+**Supported shapes:** MI300X and MI355X families.
+
+##### Ubuntu 24.04
+
+- [MI300X/MI355X CX-7: kernel 6.8, ROCm 10.0, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-2026.09.18-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.5.0-AMD-ROCM-10.0-2026.10.19-0.oci)
+- [MI300X/MI355X CX-7: kernel 6.17, ROCm 10.0, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-2026.09.18-0-KERNEL-ORACLE-6.17-DOCA-OFED-3.5.0-AMD-ROCM-10.0-2026.10.19-0.oci)
+
+##### Ubuntu 22.04
+
+- [MI300X/MI355X CX-7: kernel 6.8, ROCm 10.0, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-2026.09.18-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.5.0-AMD-ROCM-10.0-2026.10.19-0.oci)
+- [MI355X Pollara: kernel 6.8, Pollara 1.117.5-a-56, and ROCm 7.2.4](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-2026.09.18-0-KERNEL-ORACLE-6.8-POLLARA-1.117.5-a-56-AMD-ROCM-7.2.4-2026.10.19-0.oci)
+- [MI355X Pollara: kernel 6.8, Pollara 1.117.5-a-77, and ROCm 7.2.4](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-2026.09.18-0-KERNEL-ORACLE-6.8-POLLARA-1.117.5-a-77-AMD-ROCM-7.2.4-2026.10.19-0.oci)
+
+##### Oracle Linux 9
+
+- [ROCm 10.0, RHCK, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.5.0-AMD-ROCM-10.0-2026.10.19-0.oci)
+
+##### Oracle Linux 8
+
+Oracle Linux 8 is deprecated for new deployments.
+
+- [ROCm 7.2.4, RHCK, and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Oracle-Linux-8.10-2026.09.18-0-KERNEL-RHCK-DOCA-OFED-3.5.0-AMD-ROCM-724-2026.10.19-0.oci)
+
+</details>
+
+#### CPU and HPC shapes
+
+<details>
+<summary>Show image artifacts</summary>
+
+These images have no NVIDIA drivers and support compatible CPU and HPC shapes.
+
+##### Ubuntu 24.04
+
+- [Kernel 6.8 and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-24.04-2026.09.18-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.5.0-2026.10.19-0.oci)
+
+##### Ubuntu 22.04
+
+- [Kernel 6.8 and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Canonical-Ubuntu-22.04-2026.09.18-0-KERNEL-ORACLE-6.8-DOCA-OFED-3.5.0-2026.10.19-0.oci)
+
+##### Oracle Linux 9
+
+- [RHCK and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Oracle-Linux-9.7-2026.06.15-1-KERNEL-RHCK-DOCA-OFED-3.5.0-2026.10.19-0.oci)
+
+##### Oracle Linux 8
+
+Oracle Linux 8 is deprecated for new deployments.
+
+- [RHCK and DOCA-OFED 3.5.0](https://idxzjcdglx2s.objectstorage.eu-frankfurt-1.oci.customer-oci.com/p/ZPwaXxeidz3BPrdzEQt_9r-CnrWWOUR_DQ7sB60j3-lqq5bXhLL0LF43J-QYGaua/n/idxzjcdglx2s/b/oci-hpc-image-builds/o/images/release/2026.10.19/Oracle-Linux-8.10-2026.09.18-0-KERNEL-RHCK-DOCA-OFED-3.5.0-2026.10.19-0.oci)
+
+</details>
+
+### Build your own images
+
+The maintained [OCI HPC image builder](https://github.com/oracle-quickstart/oci-hpc-images)
+contains Packer and Ansible templates for Oracle Linux and Ubuntu HPC images.
+Use it to create reproducible images for the required architecture and driver
+stack.
+
+### Custom-image qualification
+
+Test a custom image in a small isolated cluster and verify cloud-init, OCI and
+RDMA agents, Ansible convergence, networking, storage, Slurm registration,
+accelerator visibility, and the applicable multi-node workload tests.

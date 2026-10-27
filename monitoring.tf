@@ -1,10 +1,13 @@
 resource "oci_core_instance" "monitoring" {
   count               = var.monitoring_node ? 1 : 0
-  depends_on          = [oci_core_subnet.public-subnet, oci_core_shape_management.controller-shape]
+  depends_on          = [oci_core_subnet.public-subnet, oci_core_shape_management.controller-shape, oci_core_shape_management.monitoring-shape, null_resource.validate_management_role_image_shapes, null_resource.validate_boot_volume_sizes]
   availability_domain = var.monitoring_ad
   compartment_id      = var.targetCompartment
   shape               = var.monitoring_shape
 
+  instance_options {
+    are_legacy_imds_endpoints_disabled = true
+  }
   dynamic "shape_config" {
     for_each = local.is_monitoring_flex_shape
     content {

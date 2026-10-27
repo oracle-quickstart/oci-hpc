@@ -28,12 +28,12 @@ g.dashboard.new('NVIDIA GPU Metrics')
     ),
     tempGuagePanel(
       'Max Temp / Slowdown',
-      'ceil(max by (hostname) (DCGM_FI_DEV_GPU_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"}) / max by (hostname) (DCGM_FI_DEV_SLOWDOWN_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"}) * 100)',
+      'ceil(max by (hostname) (DCGM_FI_DEV_GPU_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"} / DCGM_FI_DEV_SLOWDOWN_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"} * 100))',
       {w:4, h:4, x:4, y:0}
     ),
     tempGuagePanel(
       'Max Temp / Shutdown',
-      'ceil(max by (hostname) (DCGM_FI_DEV_GPU_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"}) / max by (hostname) (DCGM_FI_DEV_SHUTDOWN_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"}) * 100)',
+      'ceil(max by (hostname) (DCGM_FI_DEV_GPU_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"} / DCGM_FI_DEV_SHUTDOWN_TEMP{hostname=~"$hostname", oci_name=~"$oci_name"} * 100))',
       {w:4, h:4, x:8, y:0}
     ),
     utilGaugePanel(
@@ -76,9 +76,9 @@ g.dashboard.new('NVIDIA GPU Metrics')
     ),
     timeseriesPanel(
       'SM Clock',
-      'DCGM_FI_DEV_SM_CLOCK{hostname=~"$hostname", oci_name=~"$oci_name"}',
+      'DCGM_FI_DEV_SM_CLOCK{hostname=~"$hostname", oci_name=~"$oci_name"} * 1000000',
       '{{ gpu }} {{GPU_I_PROFILE}}',
-      'rotkhz',
+      'hertz',
       {w:8, h:8, x:8, y:12}
     ),
     timeseriesPanel(
@@ -106,7 +106,7 @@ g.dashboard.new('NVIDIA GPU Metrics')
       'DRAM Active',
       'DCGM_FI_PROF_DRAM_ACTIVE{hostname=~"$hostname", oci_name=~"$oci_name"}',
       '{{ gpu }} {{GPU_I_PROFILE}}',
-      'percent',
+      'percentunit',
       {w:8, h:8, x:16, y:20}
     ),
     timeseriesPanel(

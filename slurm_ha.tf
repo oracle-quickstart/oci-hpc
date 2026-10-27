@@ -1,6 +1,6 @@
 resource "oci_core_instance" "backup" {
   count               = var.slurm_ha ? 1 : 0
-  depends_on          = [oci_core_subnet.public-subnet, oci_core_shape_management.controller-shape]
+  depends_on          = [oci_core_subnet.public-subnet, oci_core_shape_management.controller-shape, null_resource.validate_management_role_image_shapes, null_resource.validate_boot_volume_sizes]
   availability_domain = var.controller_ad
   compartment_id      = var.targetCompartment
   shape               = var.controller_shape
@@ -208,7 +208,6 @@ resource "null_resource" "cluster_backup" {
       slurm                          = var.slurm,
       slurm_version                  = var.slurm_version,
       slurm_nfs_path                 = "/config",
-      spack                          = var.spack,
       ldap                           = var.ldap,
       cluster_name                   = local.cluster_name,
       cluster_admin_user             = local.cluster_admin_user,
@@ -247,6 +246,7 @@ resource "null_resource" "cluster_backup" {
       slurm_monitoring_mysql_backend = local.slurm_monitoring_mysql_backend,
       slurm_monitoring_db_host       = local.slurm_monitoring_db_host,
       slurm_federation               = var.slurm_federation,
+      slurm_rest_openapi             = var.slurm_rest_openapi,
       ip_slurmdbd                    = var.ip_slurmdbd,
       wildcard_dns_domain            = var.wildcard_dns_domain,
       use_lets_encrypt_prod_ep       = var.use_lets_encrypt_prod_ep,

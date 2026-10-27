@@ -9,10 +9,6 @@ uv_wrapper_path: "/config/bin/uv_wrapper.sh"
 
 fss_home_marker_path: "/config/logs/fss-home-ready.marker"
 
-binary_arch_map:
-  x86_64: amd64
-  aarch64: arm64
-
 venv_path: >-
   {{
     (

@@ -2,9 +2,6 @@
 - ansible.builtin.include_vars: el_vars.yml
   when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'OracleLinux'
 
-- ansible.builtin.include_vars: centos_vars.yml
-  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution'] == 'CentOS'
-
 - ansible.builtin.include_vars: ubuntu_vars.yml
   when: ansible_facts['distribution'] == 'Ubuntu'
 
@@ -28,6 +25,10 @@
     - name: Move topology.yaml on backup slurm controller
       ansible.builtin.include_tasks: move-topology.yml
       when: ('slurm_backup' in group_names)
+
+    - name: Configure Slurm REST API
+      ansible.builtin.include_tasks: rest.yml
+      when: "'controller' in group_names or 'slurm_backup' in group_names"
 
 - when: slurm_mode == 'compute-ctld'
 

@@ -1,0 +1,104 @@
+---
+- name: Cache otelcol tarball in shared storage
+  ansible.builtin.include_role:
+    name: safe_cache
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].metrics_exporter.otelcol.url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].metrics_exporter.otelcol.cache }}"
+
+- name: Check installed otelcol version
+  ansible.builtin.command: "{{ otelcol_install_dir }}/otelcol --version"
+  register: otelcol_version_check
+  changed_when: false
+  failed_when: false
+
+- name: Install otelcol agent
+  become: true
+  ansible.builtin.unarchive:
+    src: "{{ ansible_facts['oci_versions'].metrics_exporter.otelcol.cache }}"
+    dest: "{{ otelcol_install_dir }}"
+    remote_src: true
+    include: otelcol
+    mode: "0755"
+  when: >
+    otelcol_version_check.rc != 0
+    or ansible_facts['oci_versions'].metrics_exporter.otelcol.version not in otelcol_version_check.stdout
+  notify: Restart otelcol agent
+
+- name: Ensure otelcol config directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ otelcol_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure otelcol agent
+  become: true
+  ansible.builtin.copy:
+    content: |
+      receivers:
+        otlp:
+          protocols:
+            http:
+              # IPv4 loopback only: Go binds a single address for a
+              # hostname, so "localhost" would stay IPv4-only while the
+              # plugin default resolves to ::1. Jobs must therefore set
+              # OTEL_EXPORTER_OTLP_METRICS_ENDPOINT to the URL below.
+              endpoint: 127.0.0.1:{{ otelcol_otlp_port }}
+
+      exporters:
+        prometheus:
+          endpoint: 0.0.0.0:{{ otelcol_metrics_port }}
+          # Keep upstream NCCL instrument names verbatim: the plugin
+          # already embeds units in names (e.g.
+          # nccl_collective_exec_time_microseconds), so exporter-added
+          # unit suffixes would double them.
+          add_metric_suffixes: false
+          resource_to_telemetry_conversion:
+            enabled: true
+
+      service:
+        telemetry:
+          logs:
+            level: info
+        pipelines:
+          metrics:
+            receivers: [otlp]
+            exporters: [prometheus]
+    dest: "{{ otelcol_config_dir }}/config.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart otelcol agent
+
+- name: Install otelcol agent service
+  become: true
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=OpenTelemetry Collector Agent
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      ExecStart={{ otelcol_install_dir }}/otelcol --config {{ otelcol_config_dir }}/config.yaml
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/otelcol-agent.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart otelcol agent
+
+- name: Enable otelcol agent service
+  become: true
+  ansible.builtin.systemd:
+    name: otelcol-agent.service
+    enabled: true
+    state: started
+    daemon_reload: true

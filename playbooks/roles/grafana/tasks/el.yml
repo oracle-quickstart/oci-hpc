@@ -4,19 +4,17 @@
   ansible.builtin.yum_repository:
     name: grafana
     description: Grafana
-    baseurl: https://rpm.grafana.com
+    baseurl: "{{ ansible_facts['oci_versions'].grafana.grafana.repo }}"
     enabled: 1
     gpgcheck: 1
     repo_gpgcheck: 1
-    gpgkey: https://rpm.grafana.com/gpg.key
+    gpgkey: "{{ ansible_facts['oci_versions'].grafana.grafana.key_url }}"
     sslverify: 1
     sslcacert: /etc/pki/tls/certs/ca-bundle.crt
 
-- name: Install grafana and tempo
+- name: Install grafana
   vars:
-    package_name:
-      - grafana
-      - tempo
+    package_name: "{{ ansible_facts['oci_versions'].grafana.grafana.packages }}"
     package_state: present
   include_role:
     name: safe_yum

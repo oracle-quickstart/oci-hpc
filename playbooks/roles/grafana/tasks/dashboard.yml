@@ -1,39 +1,38 @@
 ---
-- name: Map system architecture to suffix
-  set_fact:
-    arch_suffix: "{{ arch_map[ansible_facts['architecture']] }}"
+- name: Cache jb in shared storage
+  ansible.builtin.include_role:
+    name: safe_cache
+    apply:
+      delegate_to: localhost
+      run_once: true
   vars:
-    arch_map:
-      x86_64: amd64
-      aarch64: arm64
+    safe_cache_url: "{{ ansible_facts['oci_versions'].grafana.jsonnet_bundler.url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].grafana.jsonnet_bundler.cache }}"
+  run_once: true
 
-- name: Map system architecture to suffix
-  set_fact:
-    jsonnet_file: "go-jsonnet_Linux_{{ arch_map[ansible_facts['architecture']] }}.tar.gz"
-  vars:
-    arch_map:
-      x86_64: x86_64
-      aarch64: arm64
-
-- name: Download jb
+- name: Install jb from shared storage
   become: true
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  ansible.builtin.get_url:
-    url: https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v0.6.0/jb-linux-{{ arch_suffix }}
+  ansible.builtin.copy:
+    src: "{{ ansible_facts['oci_versions'].grafana.jsonnet_bundler.cache }}"
     dest: /usr/local/bin/jb
     mode: "0755"
+    remote_src: true
 
-- name: Download jsonnet
-  become: true
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  ansible.builtin.get_url:
-    url: https://github.com/google/go-jsonnet/releases/download/v0.21.0/{{ jsonnet_file }}
-    dest: /tmp
+- name: Cache jsonnet archive in shared storage
+  ansible.builtin.include_role:
+    name: safe_cache
+    apply:
+      delegate_to: localhost
+      run_once: true
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].grafana.go_jsonnet.url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].grafana.go_jsonnet.cache }}"
+  run_once: true
 
-- name: Extract jsonnet
+- name: Extract jsonnet from shared storage
   become: true
-  unarchive:
-    src: /tmp/{{ jsonnet_file }}
+  ansible.builtin.unarchive:
+    src: "{{ ansible_facts['oci_versions'].grafana.go_jsonnet.cache }}"
     dest: /usr/local/bin
     mode: "0755"
     remote_src: true
@@ -82,7 +81,8 @@
     - health-by-node-matrix.jsonnet
     - multi-node-variables.libsonnet
     - multi-node.jsonnet
-    - nccl-traces.jsonnet
+    - nccl-inspector-jsonl.jsonnet
+    - nccl-inspector-otel.jsonnet
     - node-by-health-matrix.jsonnet
     - oci-block-variables.libsonnet
     - oci-block.jsonnet
@@ -98,12 +98,12 @@
     - oci-lustre.jsonnet
     - oci-natgw-variables.libsonnet
     - oci-natgw.jsonnet
+    - oci-objectstorage-variables.libsonnet
+    - oci-objectstorage.jsonnet
     - oci-sgw-variables.libsonnet
     - oci-sgw.jsonnet
     - oci-vcn-variables.libsonnet
     - oci-vcn.jsonnet
-    - oci-variables.libsonnet
-    - oci-dashboard.jsonnet
     - slurm-variables.libsonnet
     - slurm-cluster-dashboard.jsonnet
     - slurm-job-dashboard.jsonnet
@@ -117,7 +117,6 @@
     - statetimeline-panel.libsonnet
     - storage-metrics.jsonnet
     - storage-metrics-variables.libsonnet
-    - table-panel.libsonnet
     - timeseries-panel.libsonnet
     - Makefile
   retries: 10
@@ -131,8 +130,8 @@
       make all
       JSONNET=/usr/local/bin/jsonnet
       JB=/usr/local/bin/jb
-      GRAFONNET_GEN_REPO_URL={{ grafonnet_gen_repo_url }}
-      GRAFONNET_LIB_REPO_URL={{ grafonnet_lib_repo_url }}
+      GRAFONNET_GEN_REPO_URL={{ ansible_facts['oci_versions'].grafana.grafonnet_generator.url }}
+      GRAFONNET_LIB_REPO_URL={{ ansible_facts['oci_versions'].grafana.grafonnet_library.url }}
   args:
     chdir: "{{ dashboard_build_dir }}"
   changed_when: true
@@ -176,6 +175,7 @@
       - slurm-job-dashboard.json
       - slurm-job-detail-dashboard.json
       - slurm-reporting-dashboard.json
+      - nccl-inspector-jsonl.json
   ansible.builtin.copy:
     src: "{{ dashboard_build_dir }}/{{ item }}"
     dest: "/opt/oci-hpc/monitoring/{{ item }}"
@@ -196,7 +196,6 @@
     - health-by-node-agg-counts.json
     - health-by-node-matrix.json
     - multi-node.json
-    - nccl-traces.json
     - node-by-health-matrix.json
     - oci-block.json
     - oci-drg.json
@@ -205,14 +204,16 @@
     - oci-igw.json
     - oci-lustre.json
     - oci-natgw.json
+    - oci-objectstorage.json
     - oci-sgw.json
     - oci-vcn.json
-    - oci-dashboard.json
     - slurm-cluster-dashboard.json
     - slurm-job-dashboard.json
     - slurm-job-detail-dashboard.json
     - slurm-reporting-dashboard.json
     - storage-metrics.json
+    - nccl-inspector-jsonl.json
+    - nccl-inspector-otel.json
   when: item not in grafana_slurm_monitoring_dashboard_files or slurm_job_monitoring | default(false) | bool
 
 # Preserve the order in order to show the dashboards in non-alphabetic
@@ -224,6 +225,7 @@
       - slurm-job-dashboard.json
       - slurm-job-detail-dashboard.json
       - slurm-reporting-dashboard.json
+      - nccl-inspector-jsonl.json
   community.grafana.grafana_dashboard:
     grafana_url: http://localhost:3000
     grafana_api_key: "{{ grafana_api_token }}"
@@ -258,9 +260,11 @@
     - oci-fss.json
     - oci-lustre.json
     - oci-fastconnect.json
+    - oci-objectstorage.json
     - slurm-cluster-dashboard.json
     - slurm-job-dashboard.json
     - slurm-job-detail-dashboard.json
     - slurm-reporting-dashboard.json
-    - nccl-traces.json
+    - nccl-inspector-jsonl.json
+    - nccl-inspector-otel.json
   when: item not in grafana_slurm_monitoring_dashboard_files or slurm_job_monitoring | default(false) | bool

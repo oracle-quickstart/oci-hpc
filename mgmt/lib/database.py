@@ -38,6 +38,7 @@ SUPPORTED_GPU_SHAPES = [
     "BM.GPU.GB200-v3.4",
     "BM.GPU.GB200.4",
     "BM.GPU.GB300.4",
+    "BM.GPU.MI300X.8",
     "BM.GPU.MI355X-v0.8",
     "BM.GPU.MI355X-v1.8",
     "BM.GPU.MI355X.8",
@@ -510,6 +511,35 @@ def get_nodes_with_latest_healthchecks():
             ),
             else_=base_subq.c.passive_healthcheck_recommendation,
         ).label("healthcheck_recommendation"),
+        case(
+            (
+                and_(
+                    base_subq.c.maintenance_event_lifecycle_state.in_(
+                        ("SCHEDULED", "STARTED", "PROCESSING")
+                    ),
+                    base_subq.c.maintenance_event_display_name == "TERMINATE",
+                ),
+                "TERMINATE",
+            ),
+            (
+                and_(
+                    base_subq.c.maintenance_event_lifecycle_state.in_(
+                        ("SCHEDULED", "STARTED", "PROCESSING")
+                    ),
+                    base_subq.c.maintenance_event_display_name == "DOWNTIME_HOST_MAINTENANCE",
+                ),
+                "DOWNTIME_REPAIR",
+            ),
+            (
+                and_(
+                    base_subq.c.maintenance_event_lifecycle_state.in_(
+                        ("SCHEDULED", "STARTED", "PROCESSING")
+                    ),
+                    base_subq.c.maintenance_event_display_name == "LIVE_HOST_MAINTENANCE",
+                ),
+                "LIVE_REPAIR",
+            ),
+        ).label("ime_recommendation"),
     )
     return query_with_global_rec
 
@@ -638,8 +668,10 @@ def get_query_by_fields(query, field_dict):
         for i, (key, value) in enumerate(field_dict.items()):
             param_name = f"value_{i}"  # unique param per filter
 
-            if key == "healthcheck_recommendation":
-                query = query.having(text(f"healthcheck_recommendation = :{param_name}")).params(**{param_name: value})
+            if key in ("healthcheck_recommendation", "ime_recommendation"):
+                if key not in col_names:
+                    raise ValueError(f"Field '{key}' is not available for this node query")
+                query = query.having(text(f"{key} = :{param_name}")).params(**{param_name: value})
             elif key in col_names:
                 query = query.filter(text(f"{key} = :{param_name}")).params(**{param_name: value})
             else:
@@ -647,6 +679,8 @@ def get_query_by_fields(query, field_dict):
 
         return query
 
+    except ValueError:
+        raise
     except Exception as exc:
         logger.error(f"Error filtering nodes with fields {field_dict}: {exc}")
         raise
@@ -871,6 +905,8 @@ def get_recommendation_node_groups(unreachable_timeout, unconfigured_timeout):
     nodes_to_reset_gpus = []
     nodes_to_terminate = []
     nodes_to_enable_instance_rdma_plugins = []
+    ime_repair = []
+    ime_terminate = []
 
     for node in nodes:
         if (
@@ -898,6 +934,11 @@ def get_recommendation_node_groups(unreachable_timeout, unconfigured_timeout):
         elif node.passive_healthcheck_recommendation == "Enable_Instance_RDMA_Plugins":
             nodes_to_enable_instance_rdma_plugins.append(node)
 
+        if node.ime_recommendation == "TERMINATE":
+            ime_terminate.append(node)
+        elif node.ime_recommendation in ("DOWNTIME_REPAIR", "LIVE_REPAIR"):
+            ime_repair.append(node)
+
     return {
         "unreachable": unreachable_nodes,
         "failing_to_start": nodes_failing_to_start,
@@ -906,6 +947,8 @@ def get_recommendation_node_groups(unreachable_timeout, unconfigured_timeout):
         "reset_gpus": nodes_to_reset_gpus,
         "terminate": nodes_to_terminate,
         "enable_instance_rdma_plugins": nodes_to_enable_instance_rdma_plugins,
+        "ime_repair": ime_repair,
+        "ime_terminate": ime_terminate,
     }
 
 

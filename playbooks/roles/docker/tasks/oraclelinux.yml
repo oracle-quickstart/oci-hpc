@@ -9,32 +9,19 @@
       ansible.builtin.include_role:
         name: safe_yum
 
-    - name: Add centos-extras repo required for docker-ce
-      become: true
-      ansible.builtin.yum_repository:
-        name: centos-extras
-        description: Centos extras - $basearch
-        baseurl: http://mirror.centos.org/centos/{{ ansible_facts['distribution_major_version'] }}/extras/{{ ansible_facts['architecture'] }}
-        enabled: 1
-        gpgcheck: 0
-      when: ansible_facts['distribution_major_version'] == '7'
-
     - name: Add docker-ce repository
       become: true
       ansible.builtin.yum_repository:
         name: docker-ce
         description: Docker CE Stable - $basearch
-        baseurl: https://download.docker.com/linux/centos/{{ ansible_facts['distribution_major_version'] }}/$basearch/stable
+        baseurl: "{{ ansible_facts['oci_versions'].docker.repo }}"
         enabled: 1
         gpgcheck: 1
-        gpgkey: https://download.docker.com/linux/centos/gpg
+        gpgkey: "{{ ansible_facts['oci_versions'].docker.key_url }}"
 
     - name: Install Docker
       vars:
-        package_name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
+        package_name: "{{ ansible_facts['oci_versions'].docker.packages }}"
         package_state: latest
         package_cache: true
         package_repo: "ol{{ ansible_facts['distribution_major_version'] }}_developer_EPEL" # noqa: var-naming[no-role-prefix]

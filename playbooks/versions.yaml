@@ -1,0 +1,303 @@
+---
+# This file serves as a central place to define 3rd party downloads and repositories.
+#
+# The global structure follows the pattern
+#
+#   role -> [package ->] selector -> source,
+#
+# where role refers to the ansible role, and selectors define the operating
+# system, e.g. ubuntu24, oraclelinux, or default.
+#
+# Source may be either a url or a repository definition as per the examples
+# below.  The following architecture variables are expanded:
+# - architecture
+# - amd64_or_arm64
+# - x86_64_or_aarch64
+# with additional filters that will translate x86_64 or aarch64:
+# - maybe_arm64
+# - maybe_amd64
+#
+# The OCI fact finder will take this file and provide expansions of URLs and
+# repositories for the current operating system and architecture, as well as a
+# cache location for URL artifacts, i.e.:
+#
+#   ansible_facts['oci_versions'].role.url
+#   ansible_facts['oci_versions'].role.cache
+#
+# with an optional architecture expansion (if such an expansion is present in
+# the URL):
+#
+#   ansible_facts['oci_versions'].role['x86_64'].url
+#   ansible_facts['oci_versions'].role['x86_64'].cache
+#
+# or
+# 
+#   ansible_facts['oci_versions'].role.package.repo
+#   ansible_facts['oci_versions'].role.package.packages
+#
+# The nested `package` indirection is optional.
+#
+# Examples:
+#
+# monitoring:
+#   agent:
+#     default:
+#       version: "2.0"
+#       url:   # Can also be a single URL
+#         - "https://example.org/agent-{{ version }}-{{ amd64_or_arm64 }}.tar.gz"
+#         - "https://mirror.org/agent-{{ version }}-{{ architecture | maybe_arm64 }}.tar.gz"
+# container:
+#   ubuntu24:
+#     repo: "https://example.org/apt"
+#     packages: [container-toolkit]
+nvidia_enroot:
+  enroot:
+    ubuntu:
+      version: "3.5.0"
+      url: "https://github.com/NVIDIA/enroot/releases/download/v{{ version }}/enroot_{{ version }}-1_{{ architecture | maybe_amd64 | maybe_arm64 }}.deb"
+    oraclelinux:
+      version: "3.5.0"
+      url: "https://github.com/NVIDIA/enroot/releases/download/v{{ version }}/enroot-{{ version }}-1.el8.{{ architecture }}.rpm"
+  enroot_caps:
+    ubuntu:
+      version: "3.5.0"
+      url: "https://github.com/NVIDIA/enroot/releases/download/v{{ version }}/enroot+caps_{{ version }}-1_{{ architecture | maybe_amd64 | maybe_arm64 }}.deb"
+    oraclelinux:
+      version: "3.5.0"
+      url: "https://github.com/NVIDIA/enroot/releases/download/v{{ version }}/enroot+caps-{{ version }}-1.el8.{{ architecture }}.rpm"
+  enroot_check:
+    default:
+      version: "3.5.0"
+      url: "https://github.com/NVIDIA/enroot/releases/download/v{{ version }}/enroot-check_{{ version }}_{{ architecture }}.run"
+
+prometheus:
+  default:
+    version: "3.3.1"
+    url: "https://github.com/prometheus/prometheus/releases/download/v{{ version }}/prometheus-{{ version }}.linux-{{ architecture | maybe_amd64 | maybe_arm64 }}.tar.gz"
+
+metrics_exporter:
+  amd_device_metrics_exporter:
+    ubuntu:
+      repo: "https://repo.radeon.com/device-metrics-exporter/apt/1.4.0"
+      version: "1.4.0"
+      key_url: "https://repo.radeon.com/rocm/rocm.gpg.key"
+      packages: [amdgpu-exporter]
+  go:
+    default:
+      version: "1.23.0"
+      url: "https://go.dev/dl/go{{ version }}.linux-{{ amd64_or_arm64 }}.tar.gz"
+  nccl:
+    default:
+      version: "2.31.2"
+      url: "https://github.com/NVIDIA/nccl/archive/refs/tags/v{{ version }}-1.tar.gz"
+  node_exporter:
+    default:
+      version: "1.8.2"
+      url: "https://github.com/prometheus/node_exporter/releases/download/v{{ version }}/node_exporter-{{ version }}.linux-{{ amd64_or_arm64 }}.tar.gz"
+  otelcol:
+    default:
+      version: "0.160.0"
+      url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ version }}/otelcol_{{ version }}_linux_{{ amd64_or_arm64 }}.tar.gz"
+
+nhc:
+  default:
+    version: "1.4.3"
+    url: "https://github.com/mej/nhc/releases/download/{{ version }}/lbnl-nhc-{{ version }}.tar.xz"
+
+slurm:
+  slurm:
+    ubuntu:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-{{ version }}_{{ os_version }}_{{ amd64_or_arm64 }}.deb"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-{{ version }}_{{ os_version }}_{{ amd64_or_arm64 }}.deb"
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+
+  slurm_devel:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-devel-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-devel-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_contribs:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-contribs-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-contribs-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_perlapi:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-perlapi-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-perlapi-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_torque:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-torque-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-torque-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_openlava:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-openlava-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-openlava-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_slurmctld:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-slurmctld-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-slurmctld-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_slurmdbd:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-slurmdbd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-slurmdbd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_slurmrestd:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-slurmrestd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-slurmrestd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_pam_slurm:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-pam_slurm-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-pam_slurm-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_libpmi:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-libpmi-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-libpmi-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_slurmd:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-slurmd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-slurmd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  slurm_sackd:
+    oraclelinux:
+      version: "{{ slurm_version }}"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/slurm/slurm-sackd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/slurm/slurm-sackd-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  pmix:
+    oraclelinux:
+      version: "5.0.9-1"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/pmix/pmix-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/pmix/pmix-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+  pmix_devel:
+    oraclelinux:
+      version: "5.0.9-1"
+      url:
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/CxUOf0otllMR8UyVsUWiwYwzrdRnRlo34o6u3-v6ENydPnSKm2I6WDML_39XqCBC/n/hpctraininglab/b/stacks-artifacts/o/pmix/pmix-devel-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+        - "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/uiJjbknIu5GoJQqG74bAxC9WPoXr-fIj4scASC2OIIR-v5dyh1PMFFYRfWtJkfDN/n/idxzjcdglx2s/b/stacks-artifacts/o/pmix/pmix-devel-{{ version }}.el{{ os_version_major }}.{{ architecture }}.rpm"
+
+slurm_rest_api:
+  nvm:
+    default:
+      version: "0.40.1"
+      url: "https://raw.githubusercontent.com/nvm-sh/nvm/v{{ version }}/install.sh"
+  openapi_generator:
+    default:
+      version: "7.10.0"
+      url: "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/{{ version }}/openapi-generator-cli-{{ version }}.jar"
+
+openldap:
+  oraclelinux8:
+    version: "2.4.46-18"
+    url: "https://vault.centos.org/centos/8/PowerTools/{{ architecture }}/os/Packages/openldap-servers-{{ version }}.el8.{{ architecture }}.rpm"
+
+docker:
+  ubuntu:
+    repo: "https://download.docker.com/linux/ubuntu"
+    key_url: "https://download.docker.com/linux/ubuntu/gpg"
+    packages: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin]
+  oraclelinux:
+    repo: "https://download.docker.com/linux/centos/{{ os_version_major }}/$basearch/stable"
+    key_url: "https://download.docker.com/linux/centos/gpg"
+    packages: [docker-ce, docker-ce-cli, containerd.io]
+
+amd_container:
+  ubuntu:
+    repo: "https://repo.radeon.com/amd-container-toolkit/apt/"
+    key_url: "https://repo.radeon.com/rocm/rocm.gpg.key"
+    packages: [amd-container-toolkit]
+
+nvidia_container:
+  ubuntu:
+    repo: "https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list"
+    key_url: "https://nvidia.github.io/libnvidia-container/gpgkey"
+    packages: [libnvidia-container-tools, nvidia-container-toolkit]
+  oraclelinux:
+    repo: "https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo"
+    packages: [nvidia-container-toolkit]
+
+grafana:
+  grafana:
+    ubuntu:
+      repo: "https://apt.grafana.com"
+      key_url: "https://apt.grafana.com/gpg.key"
+      packages: [grafana]
+    oraclelinux:
+      repo: "https://rpm.grafana.com"
+      key_url: "https://rpm.grafana.com/gpg.key"
+      packages: [grafana]
+  jsonnet_bundler:
+    default:
+      version: "0.6.0"
+      url: "https://github.com/jsonnet-bundler/jsonnet-bundler/releases/download/v{{ version }}/jb-linux-{{ architecture | maybe_amd64 | maybe_arm64 }}"
+  go_jsonnet:
+    default:
+      version: "0.21.0"
+      url: "https://github.com/google/go-jsonnet/releases/download/v{{ version }}/go-jsonnet_Linux_{{ architecture | maybe_arm64 }}.tar.gz"
+  caddy:
+    ubuntu:
+      version: "2.11.7"
+      url: "https://github.com/caddyserver/caddy/releases/download/v{{ version }}/caddy_{{ version }}_linux_{{ architecture | maybe_amd64 | maybe_arm64 }}.deb"
+  grafonnet_library:
+    default:
+      version: "master"
+      url: "github.com/grafana/grafonnet-lib/grafonnet@{{ version }}"
+  grafonnet_generator:
+    default:
+      version: "main"
+      url: "github.com/grafana/grafonnet/gen/grafonnet-latest@{{ version }}"
+
+oci_metrics_telegraf:
+  influxdata:
+    ubuntu:
+      repo: "https://repos.influxdata.com/debian"
+      key_url: "https://repos.influxdata.com/influxdata-archive.key"
+      packages: [telegraf]
+    oraclelinux:
+      repo: "https://repos.influxdata.com/stable/$basearch/main"
+      key_url: "https://repos.influxdata.com/influxdata-archive_compat-exp2029.key"
+      packages: [telegraf]
+
+dgxc:
+  default:
+    url: "https://github.com/NVIDIA/dgxc-benchmarking.git"
+    version: "v26.06.00"
+
+pyxis:
+  default:
+    url: "https://github.com/NVIDIA/pyxis.git"
+    version: "v0.24.0"
+
+dr_hpc:
+  ubuntu:
+    version: "1.0.704"
+    url: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/GZZBIGhc3IyliM7hVYyclYsva62TdMLQmr63HKt9uSQWq1a0Rb4UBtyD_CIy9SLO/n/hpc/b/drhpcv2/o/{{ version }}/oci-dr-hpc-v2_{{ version }}-1ubuntu_{{ amd64_or_arm64 }}.deb"
+  oraclelinux:
+    version: "1.0.704"
+    url: "https://objectstorage.us-phoenix-1.oraclecloud.com/p/GZZBIGhc3IyliM7hVYyclYsva62TdMLQmr63HKt9uSQWq1a0Rb4UBtyD_CIy9SLO/n/hpc/b/drhpcv2/o/{{ version }}/oci-dr-hpc-v2_{{ version }}-1_{{ amd64_or_arm64 }}.rpm"

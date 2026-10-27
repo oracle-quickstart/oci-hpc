@@ -5,7 +5,7 @@ export VERSION
 export VERSION_ID
 export VERSION_MAJOR="$(echo "${VERSION_ID}" | awk -F. '{print $1}')"
 
-if [[ ( "${ID}" == "ol" || "${ID}" == "centos" ) && "${VERSION_MAJOR}" == "8" ]]; then
+if [[ "${ID}" == "ol" && "${VERSION_MAJOR}" == "8" ]]; then
   export USING_OL8=true
 else
   export USING_OL8=false

@@ -21,6 +21,7 @@ openldap_schemas:
   - ppolicy
   - sudo
 
+# Password policy is intentionally disabled on Ubuntu 22.04/24.04.
 openldap_schemas_22:
   - cosine
   - inetorgperson

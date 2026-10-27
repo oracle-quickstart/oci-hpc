@@ -3,13 +3,64 @@
     msg: "Unsupported lustre_client_action '{{ lustre_client_action }}'. Expected 'deployment' or 'build'."
   when: lustre_client_action not in ['deployment', 'build']
 
+- name: Check if Lustre client packages are installed on Ubuntu
+  ansible.builtin.shell: |
+    set -o pipefail
+    dpkg-query -W -f='${Package} ${db:Status-Abbrev} ${Version}\n' \
+      lustre-client-utils \
+      lustre-client-modules-dkms \
+      2>/dev/null \
+      | awk '$2 == "ii" { installed += 1; if ($1 == "lustre-client-utils") print $3 }
+             END { exit(installed == 2 ? 0 : 1) }'
+  args:
+    executable: /bin/bash
+  register: lustre_client_ubuntu_installed
+  failed_when: false
+  changed_when: false
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Check if Lustre client packages are installed on Oracle Linux
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -q
+      - --qf
+      - '%{VERSION}-%{RELEASE}\n'
+      - lustre-client
+      - lustre-client-dkms
+  # noqa command-instead-of-module
+  register: lustre_client_el_installed
+  failed_when: false
+  changed_when: false
+  when:
+    - ansible_facts['distribution'] == 'OracleLinux'
+    - ansible_facts['distribution_major_version'] in ['8', '9']
+
+- name: Record Lustre client installation status and version
+  ansible.builtin.set_fact:
+    lustre_client_installed: >-
+      {{
+        (lustre_client_ubuntu_installed.rc | default(1)) == 0 or
+        (lustre_client_el_installed.rc | default(1)) == 0
+      }}
+    lustre_client_installed_version: >-
+      {{
+        lustre_client_ubuntu_installed.stdout | trim
+        if (lustre_client_ubuntu_installed.rc | default(1)) == 0
+        else lustre_client_el_installed.stdout_lines | first
+        if (lustre_client_el_installed.rc | default(1)) == 0
+        else ''
+      }}
+
 - name: "Lustre client: Fail on unsupported Lustre client / Linux kernel combination"
   ansible.builtin.fail:
     msg: >-
       Unsupported kernel {{ ansible_facts['kernel'] }} for lustre_client.
       Supported kernels currently map to Lustre 2.15.x for 6.8 and earlier,
       and Lustre 2.17.x for 6.14.x.
-  when: lustre_client_release_family == 'unsupported'
+  when:
+    - not lustre_client_installed
+    - lustre_client_release_family == 'unsupported'
 
 - name: Build Lustre client on Oracle Linux
   ansible.builtin.include_tasks: el_build.yml

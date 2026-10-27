@@ -148,16 +148,9 @@ ${cupy_pkg}
 # metrics-exporter - pcie_faults_exporter.py
 pyudev
 
-# metrics-exporter - nccl_profiler_exporter.py
-opentelemetry-sdk
-opentelemetry-exporter-otlp
-orjson
-watchdog
-
 # slurm monitoring
 mysql-connector-python
 
-# oci-metrics
 # metrics-exporter
 prometheus_client
 

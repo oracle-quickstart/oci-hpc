@@ -12,10 +12,6 @@ mgmt configurations create from-existing --configuration default --name perjob
 mgmt configurations update --name perjob --fields hostname_convention="TEST"
 ```
 
-Make sure Slurm is updated: 
-```
-sudo mgmt configurations update-slurm
-```
 
 ### Submission file requirements
 The Slurm submission file must contain the following flags for number of nodes and constraint. This is needed by the wrapper:

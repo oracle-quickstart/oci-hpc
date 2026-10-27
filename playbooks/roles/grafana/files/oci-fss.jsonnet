@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-fss-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('File Storage Service')
+g.dashboard.new('OCI File Storage Service')
 + g.dashboard.withUid('oci-fss')
 + g.dashboard.withDescription(|||
   File Storage Service
@@ -69,4 +69,3 @@ g.dashboard.new('File Storage Service')
       {w:12, h:8, x:0, y:24}
     ),    
 ])
-

@@ -117,7 +117,7 @@ g.dashboard.new('Multi-Node Metrics')
     ),
     timeseriesPanel(
       'GPU Power Usage by Node',
-      'avg by (hostname) (DCGM_FI_DEV_POWER_USAGE{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      'sum by (hostname) (DCGM_FI_DEV_POWER_USAGE{hostname=~"$hostname", oci_name=~"$oci_name"})',
       '{{ hostname }}',
       'watts',
       {w:8, h:8, x:8, y:48}
@@ -138,7 +138,7 @@ g.dashboard.new('Multi-Node Metrics')
     ),
     timeseriesPanel(
       'GPU SM Clock by Node',
-      'avg by (hostname) (DCGM_FI_DEV_SM_CLOCK{hostname=~"$hostname", oci_name=~"$oci_name"})',
+      'avg by (hostname) (DCGM_FI_DEV_SM_CLOCK{hostname=~"$hostname", oci_name=~"$oci_name"}) * 1000000',
       '{{ hostname }}',
       'hertz',
       {w:8, h:8, x:8, y:56}

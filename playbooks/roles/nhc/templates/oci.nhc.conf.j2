@@ -65,7 +65,7 @@
 *||check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 512
+*||check_ps_loadavg '' '' 512
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -129,7 +129,7 @@
 *||check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 512
+*||check_ps_loadavg '' '' 512
 *||check_ps_service -r rpcbind
 
 
@@ -176,7 +176,7 @@
 *||check_hw_eth eth1
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 256
+*||check_ps_loadavg '' '' 256
 *||check_ps_service -r rpcbind
 
 
@@ -222,7 +222,7 @@
 *||check_hw_eth rdma15
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 256
+*||check_ps_loadavg '' '' 256
 *||check_ps_service -r rpcbind
 
 
@@ -288,7 +288,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 448
+*||check_ps_loadavg '' '' 448
 *||check_ps_service -r rpcbind
 
 
@@ -359,7 +359,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 448
+*||check_ps_loadavg '' '' 448
 *||check_ps_service -r rpcbind
 
 
@@ -415,7 +415,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 512
+*||check_ps_loadavg '' '' 512
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -474,7 +474,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 448
+*||check_ps_loadavg '' '' 448
 *||check_ps_service -r rpcbind
 
 
@@ -550,7 +550,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 448
+*||check_ps_loadavg '' '' 448
 *||check_ps_service -r rpcbind
 
 
@@ -614,7 +614,7 @@
 *||check_hw_eth rdma3
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 576
+*||check_ps_loadavg '' '' 576
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -658,7 +658,7 @@
 *||check_hw_eth rdma7
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 576
+*||check_ps_loadavg '' '' 576
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -708,7 +708,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 576
+*||check_ps_loadavg '' '' 576
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -771,7 +771,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 448
+*||check_ps_loadavg '' '' 448
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -826,7 +826,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 512
+*||check_ps_loadavg '' '' 512
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -870,7 +870,7 @@
 
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 448
+*||check_ps_loadavg '' '' 448
 *||check_ps_service -r rpcbind
 
 # --- InfiniBand / RoCE checks ---
@@ -909,7 +909,7 @@
 *||check_hw_eth rdma7
 
 # --- Process loadavg and required services ---
-*||check_ps_loadavg 256
+*||check_ps_loadavg '' '' 256
 *||check_ps_service -r rpcbind
 
 
@@ -964,7 +964,7 @@
 
 
 # --- Load average ---
-*||check_ps_loadavg {{ nhc_load_threshold }}
+*||check_ps_loadavg '' '' {{ nhc_load_threshold }}
 
 # --- Required services ---
 *||check_ps_service -r rpcbind

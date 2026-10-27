@@ -17,20 +17,6 @@
     group: "{{ cluster_admin_user }}"
     mode: "0744"
 
-- name: Check if critical-process-monitor service exists
-  shell: systemctl list-unit-files | grep -q '^critical-process-monitor'
-  register: cpmon_check
-  ignore_errors: true
-  changed_when: false
-
-- name: Stop and disable critical-process-monitor if it exists
-  service:
-    name: critical-process-monitor
-    state: stopped
-    enabled: false
-  become: true
-  when: cpmon_check.rc == 0
-
 - name: Restart pcie faults exporter
   become: true
   service:

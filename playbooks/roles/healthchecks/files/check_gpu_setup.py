@@ -53,6 +53,7 @@ import re
 import argparse
 from gpu_bw_test import BandwidthTest
 from rdma_link_flapping import LinkFlappingTest
+from rdma_gid_index import check_rdma_gid_index
 from xid_checker import XidChecker
 import platform
 import os
@@ -145,35 +146,27 @@ RDMA_VF_LOG_COUNTERS = (
     "resp_cqe_flush_error",
 )
 
+MULTIPLANAR_RDMA_MTU_MINIMUM = 9000
+MULTIPLANAR_RDMA_MTU_MAXIMUM = 10000
+
 MULTIPLANAR_OVS_RDMA_CONFIG = {
     "BM.GPU.B300.8": {
-        "ovs_mtu": 9216,
-        "bridge_kernel_mtu": 9216,
-        "dpdk_kernel_mtu": [9216, 9266],
-        "dpdk_mtu_request": 9216,
-        "dpdk_max_rx_pktlen": 9234,
         "rails": 8,
         "planes": 4,
     },
     "BM.GPU.B300.HS.8": {
-        "ovs_mtu": 9216,
-        "bridge_kernel_mtu": 9216,
-        "dpdk_kernel_mtu": [9216, 9266],
-        "dpdk_mtu_request": 9216,
-        "dpdk_max_rx_pktlen": 9234,
         "rails": 8,
         "planes": 4,
     },
     "BM.GPU.GB300.4": {
-        "ovs_mtu": 9216,
-        "bridge_kernel_mtu": 9216,
-        "dpdk_kernel_mtu": [9216, 9266],
-        "dpdk_mtu_request": 9216,
-        "dpdk_max_rx_pktlen": 9234,
         "rails": 4,
         "planes": 4,
     },
 }
+
+MULTIPLANAR_MTU_1500_RECOVERY_GUIDANCE = (
+    "RDMA OVS configuration is incomplete: one or more interfaces are at MTU 1500."
+)
 
 #Section 0: Common Functions for all Health Checks.
 ###################################################
@@ -583,16 +576,6 @@ def _parse_optional_int(value):
         return None
 
 
-def _expected_values(value):
-    if isinstance(value, (list, tuple, set)):
-        return tuple(value)
-    return (value,)
-
-
-def _format_expected_values(values):
-    return " or ".join(str(value) for value in values)
-
-
 def _get_netdev_mtu(interface):
     mtu_path = os.path.join("/sys/class/net", interface, "mtu")
     if not os.path.isfile(mtu_path):
@@ -610,7 +593,7 @@ def _get_ovs_interface_state():
         "--format=csv",
         "--data=bare",
         "--no-headings",
-        "--columns=name,type,mtu,mtu_request,status",
+        "--columns=name,type,mtu,mtu_request",
         "list",
         "Interface",
     ]
@@ -635,18 +618,13 @@ def _get_ovs_interface_state():
 
     state = {}
     for row in csv.reader(result.stdout.splitlines()):
-        if len(row) < 5:
+        if len(row) < 4:
             continue
-        name, interface_type, mtu, mtu_request, status = row[:5]
-        max_rx_pktlen = None
-        match = re.search(r'(?:^| )max_rx_pktlen=(\d+)(?: |$)', status)
-        if match:
-            max_rx_pktlen = int(match.group(1))
+        name, interface_type, mtu, mtu_request = row[:4]
         state[name] = {
             "type": interface_type,
             "mtu": _parse_optional_int(mtu),
             "mtu_request": _parse_optional_int(mtu_request),
-            "max_rx_pktlen": max_rx_pktlen,
         }
     return state
 
@@ -665,13 +643,6 @@ def check_multiplanar_rdma_ovs_mtu(metadata):
         return []
 
     issues = []
-    expected_ovs_mtu = config["ovs_mtu"]
-    expected_bridge_kernel_mtu = config.get("bridge_kernel_mtu", expected_ovs_mtu)
-    expected_dpdk_kernel_mtu_values = _expected_values(
-        config.get("dpdk_kernel_mtu", expected_ovs_mtu)
-    )
-    expected_dpdk_mtu_request = config.get("dpdk_mtu_request", expected_ovs_mtu)
-    expected_dpdk_max_rx_pktlen = config.get("dpdk_max_rx_pktlen", expected_ovs_mtu + 18)
     expected_rails = config["rails"]
     expected_planes = max(get_rdma_planes(), config["planes"])
 
@@ -696,13 +667,29 @@ def check_multiplanar_rdma_ovs_mtu(metadata):
         logger.warning("RDMA OVS MTU Check: Failed")
         return issues
 
+    interface_state = {
+        interface: (ovs_state.get(interface), _get_netdev_mtu(interface))
+        for interface in bridge_interfaces + dpdk_interfaces
+    }
+
+    def mtu_in_range(value):
+        return (
+            value is not None
+            and MULTIPLANAR_RDMA_MTU_MINIMUM <= value <= MULTIPLANAR_RDMA_MTU_MAXIMUM
+        )
+
+    def expected_mtu_range():
+        return (
+            str(MULTIPLANAR_RDMA_MTU_MINIMUM) + " through " +
+            str(MULTIPLANAR_RDMA_MTU_MAXIMUM)
+        )
+
     missing_ovs_interfaces = []
     bad_bridge_interfaces = []
     bad_dpdk_interfaces = []
 
     for interface in bridge_interfaces:
-        state = ovs_state.get(interface)
-        kernel_mtu = _get_netdev_mtu(interface)
+        state, kernel_mtu = interface_state[interface]
         if state is None:
             missing_ovs_interfaces.append(interface)
             continue
@@ -710,17 +697,15 @@ def check_multiplanar_rdma_ovs_mtu(metadata):
         interface_issues = []
         if state["type"] != "internal":
             interface_issues.append("type=" + str(state["type"]) + " expected internal")
-        if state["mtu"] != expected_ovs_mtu:
-            interface_issues.append("ovs_mtu=" + str(state["mtu"]) + " expected " + str(expected_ovs_mtu))
-        if kernel_mtu != expected_bridge_kernel_mtu:
-            interface_issues.append("kernel_mtu=" + str(kernel_mtu) + " expected " + str(expected_bridge_kernel_mtu))
-
+        if not mtu_in_range(state["mtu"]):
+            interface_issues.append("ovs_mtu=" + str(state["mtu"]) + " expected " + expected_mtu_range())
+        if not mtu_in_range(kernel_mtu):
+            interface_issues.append("kernel_mtu=" + str(kernel_mtu) + " expected " + expected_mtu_range())
         if interface_issues:
             bad_bridge_interfaces.append(interface + "(" + ", ".join(interface_issues) + ")")
 
     for interface in dpdk_interfaces:
-        state = ovs_state.get(interface)
-        kernel_mtu = _get_netdev_mtu(interface)
+        state, kernel_mtu = interface_state[interface]
         if state is None:
             missing_ovs_interfaces.append(interface)
             continue
@@ -728,20 +713,28 @@ def check_multiplanar_rdma_ovs_mtu(metadata):
         interface_issues = []
         if state["type"] != "dpdk":
             interface_issues.append("type=" + str(state["type"]) + " expected dpdk")
-        if state["mtu"] != expected_ovs_mtu:
-            interface_issues.append("ovs_mtu=" + str(state["mtu"]) + " expected " + str(expected_ovs_mtu))
-        if state["mtu_request"] != expected_dpdk_mtu_request:
-            interface_issues.append("mtu_request=" + str(state["mtu_request"]) + " expected " + str(expected_dpdk_mtu_request))
-        if state["max_rx_pktlen"] != expected_dpdk_max_rx_pktlen:
-            interface_issues.append("max_rx_pktlen=" + str(state["max_rx_pktlen"]) + " expected " + str(expected_dpdk_max_rx_pktlen))
-        if kernel_mtu not in expected_dpdk_kernel_mtu_values:
-            interface_issues.append(
-                "kernel_mtu=" + str(kernel_mtu) + " expected " +
-                _format_expected_values(expected_dpdk_kernel_mtu_values)
-            )
-
+        if not mtu_in_range(state["mtu"]):
+            interface_issues.append("ovs_mtu=" + str(state["mtu"]) + " expected " + expected_mtu_range())
+        if not mtu_in_range(state["mtu_request"]):
+            interface_issues.append("mtu_request=" + str(state["mtu_request"]) + " expected " + expected_mtu_range())
+        if not mtu_in_range(kernel_mtu):
+            interface_issues.append("kernel_mtu=" + str(kernel_mtu) + " expected " + expected_mtu_range())
         if interface_issues:
             bad_dpdk_interfaces.append(interface + "(" + ", ".join(interface_issues) + ")")
+
+    mtu_1500_interfaces = []
+    for interface in bridge_interfaces:
+        state, kernel_mtu = interface_state[interface]
+        if state is not None and (state["mtu"] == 1500 or kernel_mtu == 1500):
+            mtu_1500_interfaces.append(interface)
+    for interface in dpdk_interfaces:
+        state, kernel_mtu = interface_state[interface]
+        if state is not None and (
+            state["mtu"] == 1500
+            or state["mtu_request"] == 1500
+            or kernel_mtu == 1500
+        ):
+            mtu_1500_interfaces.append(interface)
 
     if missing_ovs_interfaces:
         issues.append("missing expected OVS RDMA interfaces: " + _format_interface_list(missing_ovs_interfaces))
@@ -755,6 +748,8 @@ def check_multiplanar_rdma_ovs_mtu(metadata):
             "OVS DPDK RDMA MTU/runtime mismatch on " + str(len(bad_dpdk_interfaces)) + "/" +
             str(len(dpdk_interfaces)) + " interfaces: " + _format_interface_list(bad_dpdk_interfaces, limit=12)
         )
+    if mtu_1500_interfaces:
+        issues.append(MULTIPLANAR_MTU_1500_RECOVERY_GUIDANCE)
 
     if issues:
         logger.warning("RDMA OVS MTU Check: Failed")
@@ -848,18 +843,15 @@ def get_mlxlink_devices():
     shape = metadata['shape']
 
     output_devices = RDMA_SHAPE_DEVICES.get(shape, [])
-    if shape == "BM.GPU.B300.8" and is_multiplanar(shape):
+    if shape in ("BM.GPU.B300.8", "BM.GPU.B300.HS.8") and is_multiplanar(shape):
         output_devices = discover_multiplanar_mlxlink_fwctl_devices()
         if not output_devices:
             output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
     elif shape in MLXLINK_MULTI_PLANE_SHAPE_DEVICES and is_multiplanar(shape):
         output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
-    if shape == "BM.GPU.B300.HS.8" and is_multiplanar(shape):
-        output_devices = discover_multiplanar_mlxlink_fwctl_devices()
-        if not output_devices:
-            output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
-    elif shape in MLXLINK_MULTI_PLANE_SHAPE_DEVICES and is_multiplanar(shape):
-        output_devices = MLXLINK_MULTI_PLANE_SHAPE_DEVICES[shape]
+
+    if not output_devices:
+        raise RuntimeError(f"no mlxlink devices configured for shape {shape}")
 
     logger.debug(f"Using mlxlink devices {output_devices}")
     return output_devices
@@ -913,6 +905,7 @@ RDMA_SLURM_REASON_PRIORITY = (
     "RDMA Link down",
     "WPA Auth Error",
     "RDMA Route Missing",
+    "RDMA GID Index Error",
     "RDMA Missing IP",
     "RDMA OVS MTU Error",
     "RDMA Rail IPv6 Sequence Error",
@@ -1880,10 +1873,10 @@ def check_wpa_auth(metadata):
 def check_fabric_manager():
     fabric_manager_health = False
     try:
-        # Run the nvidia-smi -q -i 0 | grep -i -A 2 Fabric
-        result = subprocess.run('nvidia-smi -q -i 0 | grep -i -A 2 Fabric', shell=True, stdout=subprocess.PIPE, timeout=SMI_TIMEOUT_SEC)
+        result = subprocess.run(["nvidia-smi", "-q", "-i", "0"], capture_output=True, check=False, text=True, timeout=SMI_TIMEOUT_SEC)
         if result.returncode != 0:
             logger.debug(f"Fabric Manager Check exited with error code: {result.returncode}")
+            return fabric_manager_health
 
     except FileNotFoundError:
         logger.warning("Skipping Fabric Manager test: nvidia-smi command not found")
@@ -1893,22 +1886,28 @@ def check_fabric_manager():
         logger.warning(f"Fabric Manager Check: Failed - nvidia-smi timed out after {SMI_TIMEOUT_SEC}s")
         return False
 
-    # Decode the output from bytes to string
-    output = result.stdout.decode('utf-8')
-    logger.debug("Output: {}".format(output))
-    fabric_manager_status=False
-    fabric_manager_state=False
-    for i, line in enumerate(output.split('\n')):
-        if "State" in line:
-            if "Completed" in line:
-                fabric_manager_state = True
-        elif "Status" in line:
-            if "Success" in line:
-                fabric_manager_status = True
-        else:
+    logger.debug("Output: {}".format(result.stdout))
+    fabric_state = None
+    fabric_status = None
+    in_fabric_section = False
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if stripped == "Fabric":
+            in_fabric_section = True
             continue
-    fabric_manager_health= ( fabric_manager_status and fabric_manager_state )
-    return fabric_manager_health
+        if not in_fabric_section:
+            continue
+        if stripped.startswith("State"):
+            fabric_state = stripped.split(":", 1)[1].strip()
+        elif stripped.startswith("Status"):
+            fabric_status = stripped.split(":", 1)[1].strip()
+        if fabric_state and fabric_status:
+            break
+
+    fabric_health = fabric_state == "Completed" and fabric_status == "Success"
+    if not fabric_health:
+        logger.debug(f"NVIDIA Fabric Check: State={fabric_state or 'Unknown'}, Status={fabric_status or 'Unknown'}")
+    return fabric_health
 
 # 15.1 Retrieve online CPUs and check if their profile is set to 'performance'.
 def get_current_cpu_profile():
@@ -2487,6 +2486,7 @@ if __name__ == '__main__':
     parser.add_argument('--rdmalink-flap', action='store_true', help='Run RDMA link flapping check')
     parser.add_argument("--rdma-vf-routes", action="store_true", help="Check MultiPlanar rdma_vf_rail IPv6 addresses/default routes and rdma_p rail IPv6 sequence")
     parser.add_argument("--rdma-vf-counters", action="store_true", help="Check MultiPlanar rdma_vf_rail hardware counters")
+    parser.add_argument("--rdma-gid-index", action="store_true", help="Check RDMA devices expose usable RoCE v2 gid index 3")
     parser.add_argument("--rdma-ovs-mtu", action="store_true", help="Check B300/GB300 MultiPlanar OVS/DPDK RDMA MTU runtime state")
     parser.add_argument("--imex", action="store_true", help="Check NVIDIA IMEX service readiness on GB300 MultiPlanar hosts")
     parser.add_argument('--lf-interval', type=int, default=6, help='Link flapping interval with no flapping or link down events (default: 6 hours)')
@@ -2534,6 +2534,7 @@ if __name__ == '__main__':
         or args.rttcc_stat
         or args.rdmalink_stat
         or args.rdma_vf_routes
+        or args.rdma_gid_index
         or args.rdma_ovs_mtu
         or args.rdmalink_flap
         or args.wpa_auth
@@ -2687,6 +2688,22 @@ if __name__ == '__main__':
         else:
             rdma_vf_counter_issues = []
 
+    # 10.6.1 Check RDMA GID index 3
+    if run_all or args.rdma_gid_index:
+        if oca_state == "COMPLETED":
+            try:
+                # GPU count in the shape name is not the RDMA interface count.
+                if is_multiplanar(shape):
+                    expected_interface_count = get_multiplanar_rdma_vf_count(shape)
+                else:
+                    expected_interface_count = len(RDMA_SHAPE_DEVICES.get(shape, []))
+                rdma_gid_index_issues = check_rdma_gid_index(shape, expected_interface_count)
+            except Exception as e:
+                logger.warning("Failed to check RDMA GID index with error: " + str(e))
+                rdma_gid_index_issues = []
+        else:
+            rdma_gid_index_issues = []
+
     # 10.7 Check B300/GB300 MultiPlanar OVS/DPDK RDMA MTU runtime state
     if run_all or args.rdma_ovs_mtu:
         if oca_state == "COMPLETED" and is_multiplanar(shape):
@@ -2728,7 +2745,7 @@ if __name__ == '__main__':
         gpu_reset_action = ""
         gpu_reset_status = True
         try:
-            xc = XidChecker()
+            xc = XidChecker(shape=shape)
             xid_results = xc.check_gpu_xid()
             xid_categories = xid_results.get("categories", {})
             critical_xids = xid_categories.get("critical", {})
@@ -2763,17 +2780,17 @@ if __name__ == '__main__':
         else:
             wpa_auth_results = None
 
-    # 14.3 Check Fabric Manager status
+    # 14.3 Check NVIDIA Fabric status
     if run_all or args.fabric_mgr:
-        if shape == "BM.GPU.H100.8" or shape == "BM.GPU.H200.8" or shape == "BM.GPU.B200.8":
+        if shape.startswith(("BM.GPU.GB", "BM.GPU.H100", "BM.GPU.H200", "BM.GPU.B200", "BM.GPU.B300")):
             try:
                 fabric_manager_health = check_fabric_manager()
             except Exception as e:
-                logger.warning(f"Failed to check Fabric Manager with error: {e}")
+                logger.warning(f"Failed to check NVIDIA Fabric with error: {e}")
                 fabric_manager_health = True
 
             if fabric_manager_health:
-                logger.info("Fabric Manager Running: Passed")
+                logger.info("NVIDIA Fabric Check: Passed")
         else:
             fabric_manager_health = True
 
@@ -2995,6 +3012,14 @@ if __name__ == '__main__':
             slurm_reason("RDMA VF Counter Error")
             action = recommended_action(action, "Terminate")
 
+    # 10.7.1 Summarize RDMA GID index state
+    if run_all or args.rdma_gid_index:
+        if len(rdma_gid_index_issues) > 0:
+            for issue in rdma_gid_index_issues:
+                logger.error(host_serial + " - RDMA GID index issues: " + issue)
+            slurm_reason("RDMA GID Index Error")
+            action = recommended_action(action, "Wait_For_OCA")
+
     # 10.8 Summarize B300/GB300 MultiPlanar OVS/DPDK RDMA MTU runtime state
     if run_all or args.rdma_ovs_mtu:
         if len(rdma_ovs_mtu_issues) > 0:
@@ -3044,7 +3069,10 @@ if __name__ == '__main__':
             action = recommended_action(action, "Terminate")
             for issue in dmesg_errors:
                 logger.error(f"{host_serial} - {issue}")
-                slurm_reason("Multicast Error")
+                if "GPU.GB" in shape:
+                    slurm_reason("Likely multicast group resource exhaustion")
+                else:
+                    slurm_reason("NVRM insufficient resources")
         if critical_xids:
             action = recommended_action(action, "Terminate")
             for xid, info in critical_xids.items():
@@ -3094,11 +3122,11 @@ if __name__ == '__main__':
             slurm_reason("WPA Auth Error")
             action = recommended_action(action, "Reboot")
 
-    # 14.4 Summarize Fabric Manager check
+    # 14.4 Summarize NVIDIA Fabric check
     if run_all or args.fabric_mgr:
         if not fabric_manager_health:
-            logger.error(f"{host_serial} - Fabric Manager not started")
-            slurm_reason("Fabric Manager Error")
+            logger.error(f"{host_serial} - NVIDIA Fabric not ready")
+            slurm_reason("NVIDIA Fabric Error")
             action = recommended_action(action, "FabricManagerRestart")
 
     # 15.4 Summarize CPU profile check

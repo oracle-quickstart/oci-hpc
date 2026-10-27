@@ -5,23 +5,17 @@
     name: "{{ dependencies }}"
     state: present
 
-- name: Check cached Go tarballs once per architecture
-  ansible.builtin.stat:
-    path: "{{ metrics_exporter_shared_path }}/go/{{ item }}/go{{ go_version }}.linux-{{ binary_arch_map[item] }}.tar.gz"
+- name: Cache Go tarballs once per architecture
+  ansible.builtin.include_role:
+    name: safe_cache
+    apply:
+      delegate_to: localhost
+      run_once: true
+  vars:
+    safe_cache_url: "{{ ansible_facts['oci_versions'].metrics_exporter.go[item].url }}"
+    safe_cache_dest: "{{ ansible_facts['oci_versions'].metrics_exporter.go[item].cache }}"
   loop: "{{ metrics_exporter_target_architectures }}"
-  register: go_cache_results
-  delegate_to: localhost
   run_once: true
-
-- name: Download missing Go tarballs once per architecture
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  ansible.builtin.get_url:
-    url: "https://go.dev/dl/go{{ go_version }}.linux-{{ binary_arch_map[item.item] }}.tar.gz"
-    dest: "{{ metrics_exporter_shared_path }}/go/{{ item.item }}/go{{ go_version }}.linux-{{ binary_arch_map[item.item] }}.tar.gz"
-  delegate_to: localhost
-  run_once: true
-  loop: "{{ go_cache_results.results }}"
-  when: not item.stat.exists | bool
 
 - name: Remove old Go installation
   become: true
@@ -32,7 +26,7 @@
 - name: Extract Go tarball from shared storage
   become: true
   ansible.builtin.unarchive:
-    src: "{{ go_cache_path }}"
+    src: "{{ ansible_facts['oci_versions'].metrics_exporter.go.cache }}"
     dest: "{{ go_install_dir }}"
     remote_src: true
 
@@ -57,7 +51,7 @@
   changed_when: false
   failed_when: false
 
-- name: Extract DCGM version and legacy DEV_COUNT support
+- name: Extract DCGM version
   ansible.builtin.set_fact:
     dcgm_version: >-
       {{
@@ -92,7 +86,7 @@
         cat "{{ dcgm_release_cache_path }}"
       else
         releases=$(curl -s https://api.github.com/repos/nvidia/dcgm-exporter/releases | jq -r '.[] | "\(.tag_name) \(.tarball_url)"')
-        tmp=$(mktemp "{{ metrics_exporter_shared_path }}/.dcgm-releases.XXXXXX")
+        tmp=$(mktemp "{{ dcgm_release_cache_path | dirname }}/.dcgm-releases.XXXXXX")
         echo "$releases" > "$tmp"
         mv "$tmp" "{{ dcgm_release_cache_path }}"
         echo "$releases"
@@ -109,14 +103,24 @@
 
 - name: Select appropriate DCGM Exporter version
   ansible.builtin.set_fact:
-    dcgm_exporter_url: "{{ dcgm_exporter_releases.stdout_lines | select('search', dcgm_version) | first | split(' ') | last }}"
+    dcgm_exporter_url: >-
+      {{
+        (
+          dcgm_exporter_releases.stdout_lines
+          | select('search', dcgm_version)
+          | first
+          | default(dcgm_exporter_releases.stdout_lines | first, true)
+        )
+        | split(' ') | last
+      }}
   when: not dcgm_exporter.stat.exists | bool
 
-- name: Download DCGM Exporter tarball
-  environment: "{{ {'SSL_CERT_FILE': '/etc/pki/tls/certs/ca-bundle.crt', 'REQUESTS_CA_BUNDLE': '/etc/pki/tls/certs/ca-bundle.crt'} if ansible_facts['distribution'] == 'OracleLinux' else {} }}"
-  ansible.builtin.get_url:
-    url: "{{ dcgm_exporter_url }}"
-    dest: "{{ dcgm_tarball_path }}"
+- name: Cache DCGM Exporter tarball
+  ansible.builtin.include_role:
+    name: safe_cache
+  vars:
+    safe_cache_url: "{{ dcgm_exporter_url }}"
+    safe_cache_dest: "{{ dcgm_tarball_path }}"
   when: not dcgm_exporter.stat.exists | bool
 
 - name: Ensure dcgm-exporter build directory exists

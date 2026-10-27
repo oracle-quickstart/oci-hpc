@@ -2,7 +2,7 @@ local g = import './g.libsonnet';
 local variables = import './oci-lustre-variables.libsonnet';
 local timeseriesPanel = import './timeseries-panel.libsonnet';
 
-g.dashboard.new('Lustre File System')
+g.dashboard.new('OCI Lustre File System')
 + g.dashboard.withUid('oci-lustre')
 + g.dashboard.withDescription(|||
   Lustre File System
@@ -62,4 +62,3 @@ g.dashboard.new('Lustre File System')
       {w:12, h:8, x:12, y:16}
     ),    
 ])
-

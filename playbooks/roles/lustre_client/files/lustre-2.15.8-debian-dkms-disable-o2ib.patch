@@ -1,0 +1,65 @@
+Subject: [PATCH] Disable o2ib in Debian DKMS packages
+
+These images use Lustre over TCP, so o2ib must remain disabled when DKMS
+rebuilds the client modules on the Ubuntu image host. Debian packaging
+generates dkms.conf directly from debian/dkms.conf.in; it does not use the
+lustre-dkms_pre-build.sh hook changed by the existing DKMS patch. Without
+the flag, configure detects DOCA/OFED and fails looking for OFED headers.
+
+Pass --with-o2ib=no to the Debian DKMS build. Since that omits ko2iblnd.ko,
+also remove ko2iblnd from DKMS's expected modules and keep the array
+indices aligned; otherwise compilation succeeds but DKMS rejects the build.
+
+---
+ debian/dkms.conf.in | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/debian/dkms.conf.in b/debian/dkms.conf.in
+--- a/debian/dkms.conf.in
++++ b/debian/dkms.conf.in
+@@ -22,3 +22,3 @@
+ # We need to run autogen.sh between builds, see Ubuntu bug #952817
+-MAKE="sh autogen.sh && ./configure --with-linux=$kernel_source_dir --with-linux-obj=$kernel_source_dir --disable-server --disable-quilt --disable-dependency-tracking --disable-doc --disable-utils --disable-iokit --disable-snmp --disable-tests --enable-quota --with-kmp-moddir=updates && make"
++MAKE="sh autogen.sh && ./configure --with-linux=$kernel_source_dir --with-linux-obj=$kernel_source_dir --disable-server --disable-quilt --disable-dependency-tracking --disable-doc --disable-utils --disable-iokit --disable-snmp --disable-tests --enable-quota --with-kmp-moddir=updates --with-o2ib=no && make"
+ CLEAN="make distclean || true"
+@@ -38,10 +38,9 @@
+ BUILT_MODULE_NAME[8]="obdecho"
+ BUILT_MODULE_NAME[9]="osc"
+ BUILT_MODULE_NAME[10]="ptlrpc"
+-BUILT_MODULE_NAME[11]="ko2iblnd"
+-BUILT_MODULE_NAME[12]="ksocklnd"
+-BUILT_MODULE_NAME[13]="libcfs"
+-BUILT_MODULE_NAME[14]="lnet"
+-BUILT_MODULE_NAME[15]="lnet_selftest"
++BUILT_MODULE_NAME[11]="ksocklnd"
++BUILT_MODULE_NAME[12]="libcfs"
++BUILT_MODULE_NAME[13]="lnet"
++BUILT_MODULE_NAME[14]="lnet_selftest"
+-
++
+ # Location of the modules in the source tree after build
+@@ -56,10 +55,9 @@
+ BUILT_MODULE_LOCATION[8]="lustre/obdecho"
+ BUILT_MODULE_LOCATION[9]="lustre/osc"
+ BUILT_MODULE_LOCATION[10]="lustre/ptlrpc"
+-BUILT_MODULE_LOCATION[11]="lnet/klnds/o2iblnd"
+-BUILT_MODULE_LOCATION[12]="lnet/klnds/socklnd"
+-BUILT_MODULE_LOCATION[13]="libcfs/libcfs"
+-BUILT_MODULE_LOCATION[14]="lnet/lnet"
+-BUILT_MODULE_LOCATION[15]="lnet/selftest"
++BUILT_MODULE_LOCATION[11]="lnet/klnds/socklnd"
++BUILT_MODULE_LOCATION[12]="libcfs/libcfs"
++BUILT_MODULE_LOCATION[13]="lnet/lnet"
++BUILT_MODULE_LOCATION[14]="lnet/selftest"
+-
++
+ # Final destination of the modules under /lib/modules/<kernel>/
+@@ -74,8 +72,7 @@
+ DEST_MODULE_LOCATION[8]="/updates/kernel/fs/lustre"
+ DEST_MODULE_LOCATION[9]="/updates/kernel/fs/lustre"
+ DEST_MODULE_LOCATION[10]="/updates/kernel/fs/lustre"
+ DEST_MODULE_LOCATION[11]="/updates/kernel/net/lustre"
+ DEST_MODULE_LOCATION[12]="/updates/kernel/net/lustre"
+ DEST_MODULE_LOCATION[13]="/updates/kernel/net/lustre"
+ DEST_MODULE_LOCATION[14]="/updates/kernel/net/lustre"
+-DEST_MODULE_LOCATION[15]="/updates/kernel/net/lustre"

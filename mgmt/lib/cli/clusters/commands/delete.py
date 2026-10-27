@@ -119,7 +119,11 @@ def delete(cluster,memory_cluster,compute_local_block_id,compute_network_block_i
             delete_cluster(cluster_name,node_list)
         else:
             logger.debug("Deleting memory cluster: {}".format(cluster_name))
-            memory_clusters = list({i.memory_cluster_id for i in node_list})
+            memory_clusters = _memory_clusters_from_nodes(node_list)
+            if not memory_clusters:
+                raise click.ClickException(
+                    "No valid memory cluster IDs found for cluster {}".format(cluster_name)
+                )
             cc_id = None
             for memory_cluster in memory_clusters:        
                 memory_cluster_node_list = get_nodes_by_memory_cluster(memory_cluster)
@@ -179,6 +183,28 @@ def delete(cluster,memory_cluster,compute_local_block_id,compute_network_block_i
             resolved_memory_clusters = _filter_memory_clusters_in_db(resolved_memory_clusters)
             if not resolved_memory_clusters:
                 raise click.ClickException("No requested memory clusters are present in the mgmt DB")
-        for memory_cluster in resolved_memory_clusters:
-            memory_cluster_node_list = _get_nodes_for_memory_cluster(memory_cluster)
-            delete_memory_cluster(memory_cluster.id,memory_cluster_node_list,recycle_level=recycle_level)
+        failed_count = 0
+        for index, memory_cluster in enumerate(resolved_memory_clusters):
+            if index:
+                time.sleep(2)
+            memory_cluster_name = memory_cluster.display_name or memory_cluster.id
+            try:
+                memory_cluster_node_list = _get_nodes_for_memory_cluster(memory_cluster)
+                delete_memory_cluster(memory_cluster.id,memory_cluster_node_list,recycle_level=recycle_level)
+            except (Exception, SystemExit) as error:
+                failed_count += 1
+                logger.error(
+                    "Failed to delete GMC %s: %s",
+                    memory_cluster_name,
+                    error or type(error).__name__,
+                )
+
+        logger.debug(
+            "GMC deletions: %s attempted, %s failed",
+            len(resolved_memory_clusters),
+            failed_count,
+        )
+        if failed_count:
+            raise click.ClickException(
+                f"{failed_count} of {len(resolved_memory_clusters)} GMC deletion(s) failed"
+            )

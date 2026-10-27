@@ -21,3 +21,5 @@ slurm_uid: 1501
 munge_gid: 1500
 munge_uid: 1500
 slurm_jwt_key_path: "{{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm/jwt_hs256.key"
+slurm_jwt_token_path: "{{ slurm_nfs_path }}/spool_{{ cluster_name }}/slurm/jwt_hs256.token"
+slurm_restd_path: "{{ '/usr/local/sbin/slurmrestd' if ansible_facts['os_family'] == 'Debian' else '/usr/sbin/slurmrestd' }}"

@@ -13,3 +13,17 @@
     daemon_reload: true
     enabled: true
     state: restarted
+
+- name: Restart otelcol agent
+  become: true
+  ansible.builtin.systemd:
+    name: otelcol-agent.service
+    daemon_reload: true
+    state: restarted
+
+- name: Restart NCCL inspector collector
+  become: true
+  ansible.builtin.systemd:
+    name: nccl-inspector-collector.service
+    daemon_reload: true
+    state: restarted

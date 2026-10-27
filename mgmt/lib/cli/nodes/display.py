@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import sys
+from datetime import datetime, timezone
 
 import click
 import lib.database as db
@@ -13,6 +14,20 @@ from lib.logger import logger
 
 # Not wrong, but the messages are obscuring real errors
 # pylint: disable=missing-function-docstring
+
+DEFAULT_NODE_FIELDS = [
+    "hostname",
+    "healthcheck_recommendation",
+    "status",
+    "compute_status",
+    "cluster_name",
+    "memory_cluster_id",
+    "ocid",
+    "serial",
+    "ip_address",
+    "shape",
+    "alternate_hostname",
+]
 
 
 def print_nodes_info(nodes, full=False):
@@ -132,7 +147,7 @@ def parse_sort_spec(sort_spec):
     Returns the requested sort field names in the user-specified order.
     """
 
-    valid_fields = set(db.list_columns())
+    valid_fields = set(db.list_columns()) | {"assessment"}
 
     if sort_spec is None:
         return []
@@ -203,22 +218,10 @@ def parse_fields_spec(fields_spec):
     # pylint: disable=too-many-branches
 
 	# Default list of fields
-    fields_def = [
-        "hostname",
-        "healthcheck_recommendation",
-        "status",
-        "compute_status",
-        "cluster_name",
-        "memory_cluster_id",
-        "ocid",
-        "serial",
-        "ip_address",
-        "shape",
-        "alternate_hostname"
-    ]
+    fields_def = DEFAULT_NODE_FIELDS.copy()
 
     fields_all = db.list_columns()
-    valid_fields = set(fields_all)
+    valid_fields = set(fields_all) | {"assessment"}
 
     fields = []
 
@@ -243,7 +246,7 @@ def parse_fields_spec(fields_spec):
             fields = fields_def + fields_hc
             value.pop(0)
         elif value[0].lower() == "list":
-            raise ListValidFields(fields_all)
+            raise ListValidFields(valid_fields)
 
         op = "+"
 
@@ -297,7 +300,8 @@ def sort_nodes(nodes, sort_fields):
     return sorted(
         nodes,
         key=lambda node: tuple(
-            _normalize_sort_value(getattr(node, field, None)) for field in sort_fields
+            _normalize_sort_value(_node_assessment(node) if field == "assessment" else getattr(node, field, None))
+            for field in sort_fields
         ),
     )
 
@@ -309,6 +313,9 @@ def sort_nodes(nodes, sort_fields):
 def display_nodes_as_json(nodes, fields, one_line=False, **ignored_kwargs):
     keys = set(fields) if fields else None
     node_dicts = [db.node_to_dict(node, keys) for node in nodes]
+    if keys and "assessment" in keys:
+        for node, values in zip(nodes, node_dicts):
+            values["assessment"] = _node_assessment(node)
     if one_line:
         print(json.dumps(node_dicts))
     else:
@@ -317,6 +324,9 @@ def display_nodes_as_json(nodes, fields, one_line=False, **ignored_kwargs):
 
 def display_nodes_as_csv(nodes, fields, show_header=True, **ignored_kwargs):
     node_dicts = [db.node_to_dict(node, fields) for node in nodes]
+    if "assessment" in fields:
+        for node, values in zip(nodes, node_dicts):
+            values["assessment"] = _node_assessment(node)
     writer = csv.DictWriter(sys.stdout, fieldnames=fields, dialect="unix")
     if show_header:
         writer.writeheader()
@@ -325,6 +335,62 @@ def display_nodes_as_csv(nodes, fields, show_header=True, **ignored_kwargs):
 
 def display_nodes_as_nodeset(nodes, **ignored_kwargs):
     click.echo(NodeSet.fromlist(node.hostname for node in nodes))
+
+
+def _utc_datetime(value):
+    """Return a stored timestamp in UTC, or None when it cannot be parsed."""
+    if not value:
+        return None
+    try:
+        result = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return result.replace(tzinfo=timezone.utc) if result.tzinfo is None else result.astimezone(timezone.utc)
+
+
+def _selected_healthcheck_time(node):
+    """Time of the healthcheck selected by healthcheck_recommendation."""
+    passive = node.passive_healthcheck_recommendation
+    if passive is not None and passive != "Healthy":
+        return _utc_datetime(node.passive_healthcheck_last_time)
+    for check in ("active", "multi_node"):
+        recommendation = getattr(node, f"{check}_healthcheck_recommendation")
+        if recommendation not in (None, "", "Healthy"):
+            return _utc_datetime(getattr(node, f"{check}_healthcheck_last_time"))
+    return _utc_datetime(node.passive_healthcheck_last_time)
+
+
+def _node_assessment(node):
+    """Summarize the latest HC and selected OCI event for the default node table."""
+    healthcheck = node.healthcheck_recommendation
+    ime = getattr(node, "ime_recommendation", None)
+    if ime:
+        event = {
+            "TERMINATE": "OCI terminate",
+            "DOWNTIME_REPAIR": "OCI downtime",
+            "LIVE_REPAIR": "OCI live repair",
+        }[ime]
+        summary = f"{event} ({node.maintenance_event_lifecycle_state.lower()})"
+        if healthcheck and healthcheck != "Healthy":
+            summary += f"\nHC: {healthcheck}"
+        return summary
+
+    if node.status == "unreachable":
+        summary = "Unreachable"
+        if healthcheck and healthcheck != "Healthy":
+            summary += f"\nHC: {healthcheck}"
+        return summary
+
+    if node.maintenance_event_lifecycle_state == "SUCCEEDED":
+        finished = _utc_datetime(node.maintenance_event_time_finished)
+        check_time = _selected_healthcheck_time(node)
+        if finished and (check_time is None or check_time <= finished):
+            summary = "Recheck after OCI maintenance"
+            if healthcheck and healthcheck != "Healthy":
+                summary += f"\nPrior HC: {healthcheck}"
+            return summary
+
+    return f"HC: {healthcheck}" if healthcheck else ""
 
 
 def display_nodes_as_table(nodes, fields, per_node=False, table_style=None, show_header=True, width=None):
@@ -344,7 +410,14 @@ def display_nodes_as_table(nodes, fields, per_node=False, table_style=None, show
         "none":  {"show_lines": False, "box": None},
         "box":   {"show_lines": False},
     }[table_style]
-    node_lists = (db.node_to_list(node, fields) for node in nodes)
+    def display_row(node):
+        """Insert the computed assessment into this node's tabular row."""
+        row = db.node_to_list(node, fields)
+        if "assessment" in fields:
+            row[fields.index("assessment")] = _node_assessment(node)
+        return row
+
+    node_lists = (display_row(node) for node in nodes)
 
     if per_node:
         # Each node gets its own table

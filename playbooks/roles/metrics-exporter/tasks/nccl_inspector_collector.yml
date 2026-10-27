@@ -1,0 +1,62 @@
+---
+- name: Ensure Slurm monitoring database variables are configured
+  ansible.builtin.assert:
+    that:
+      - slurm_monitoring_db_host | default('') | string | length > 0
+      - slurm_monitoring_db_password | default('') | string | length > 0
+    fail_msg: >-
+      The NCCL inspector collector requires slurm_monitoring_db_host and
+      slurm_monitoring_db_password inventory variables.
+
+- name: Ensure metrics exporter install directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ metrics_exporter_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure NCCL inspector collector state directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ nccl_inspector_collector_state_dir }}"
+    state: directory
+    owner: "{{ cluster_admin_user }}"
+    group: "{{ cluster_admin_user }}"
+    mode: "0755"
+
+- name: Copy NCCL inspector collector script
+  become: true
+  ansible.builtin.copy:
+    src: nccl_inspector_collector.py
+    dest: "{{ metrics_exporter_install_dir }}/nccl_inspector_collector.py"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart NCCL inspector collector
+
+- name: Ensure NCCL inspector dump directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ nccl_inspector_dump_dir }}"
+    state: directory
+    mode: "1777"
+
+- name: Render NCCL inspector collector service file
+  become: true
+  ansible.builtin.template:
+    src: nccl-inspector-collector.service.j2
+    dest: /etc/systemd/system/nccl-inspector-collector.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart NCCL inspector collector
+
+- name: Enable NCCL inspector collector service
+  become: true
+  ansible.builtin.systemd:
+    name: nccl-inspector-collector
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,13 +1,5 @@
 ---
 # tasks file for prometheus
-- name: Map system architecture to suffix
-  ansible.builtin.set_fact:
-    arch_suffix: "{{ arch_map[ansible_facts['architecture']] }}"
-  vars:
-    arch_map:
-      x86_64: amd64
-      aarch64: arm64
-
 - name: Create group for prometheus
   become: true
   group:

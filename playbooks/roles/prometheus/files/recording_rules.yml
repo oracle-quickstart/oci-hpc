@@ -307,11 +307,11 @@ groups:
 
       # DBE: any new double-bit ECC error is considered a failure
       - record: node_gpu_ecc_dbe_errors
-        expr: increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[5m]) or increase(DCGM_FI_DEV_ECC_DBE_AGG_TOTAL[5m])
+        expr: max without (__name__) (increase({__name__=~"DCGM_FI_DEV_ECC_DBE_(VOL|AGG)_TOTAL"}[5m]))
 
       # SBE: use rate; high sustained rate is unhealthy
       - record: node_gpu_ecc_sbe_errors
-        expr: rate(DCGM_FI_DEV_ECC_SBE_VOL_TOTAL[1h]) or rate(DCGM_FI_DEV_ECC_SBE_AGG_TOTAL[1h])
+        expr: max without (__name__) (rate({__name__=~"DCGM_FI_DEV_ECC_SBE_(VOL|AGG)_TOTAL"}[1h]))
 
       # Node-level ECC health status (worst case across all GPUs)
       - record: node_ecc_dbe_status
@@ -326,7 +326,7 @@ groups:
       # OK if SBE rate is below 1 error/hour (per worst GPU on node)
       - record: node_ecc_sbe_ok
         expr: |
-          (node_ecc_sbe_status < bool 1) or on(hostname, cluster_name, vendor) (node_ecc_sbe_status * 0 + 1)
+          (node_ecc_sbe_status < bool (1 / 3600)) or on(hostname, cluster_name, vendor) (node_ecc_sbe_status * 0 + 1)
 
       # Row remap health
       - record: node_gpu_row_remap_failure

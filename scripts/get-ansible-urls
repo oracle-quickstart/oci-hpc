@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""Dump the URLs resolved by playbooks/library/oci_hpc_facts.py."""
+
+import argparse
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+FACTS_PATH = REPOSITORY_ROOT / "playbooks" / "library" / "oci_hpc_facts.py"
+
+
+def load_facts_module():
+    spec = importlib.util.spec_from_file_location("oci_hpc_facts", FACTS_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load {FACTS_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--os", choices=("Ubuntu", "Oracle"), required=True)
+    parser.add_argument("--os-version", required=True)
+    parser.add_argument("--slurm-version", required=True)
+    parser.add_argument("--format", choices=("tsv", "json"), default="tsv")
+    return parser.parse_args()
+
+
+def configure_facts(module, arguments, architecture):
+    module.detect_architecture = lambda: architecture
+    module.get_distribution = lambda: arguments.os
+    module.get_distribution_version = lambda: arguments.os_version
+
+    def get_inventory_variable(name):
+        if name == "slurm_version":
+            return arguments.slurm_version
+        raise ValueError(f"Unsupported inventory variable {name}")
+
+    module.get_inventory_variable = get_inventory_variable
+
+
+def values(value):
+    return value if isinstance(value, list) else [value]
+
+
+def is_url_field(key):
+    return key == "url" or key == "repo" or key.endswith("_url")
+
+
+def add_records(records, path, field, architecture, value):
+    for url in values(value):
+        records.append(
+            {
+                "path": ".".join(path + (field,)),
+                "architecture": architecture,
+                "url": url,
+            }
+        )
+
+
+def collect_urls(value, supported_architectures, selected_architecture, path=()):
+    records = []
+    for key, child in value.items():
+        if not isinstance(child, dict):
+            continue
+
+        child_path = path + (key,)
+        if "url" in child:
+            if all(architecture in child for architecture in supported_architectures):
+                for architecture in supported_architectures:
+                    add_records(records, child_path, "url", architecture, child[architecture]["url"])
+            else:
+                add_records(records, child_path, "url", "noarch", child["url"])
+
+        for field, endpoint in child.items():
+            if field == "url" or not is_url_field(field):
+                continue
+            architecture = selected_architecture if field == "repo" else "noarch"
+            add_records(records, child_path, field, architecture, endpoint)
+
+        nested = {
+            nested_key: nested_value
+            for nested_key, nested_value in child.items()
+            if nested_key not in supported_architectures and isinstance(nested_value, dict)
+        }
+        records.extend(collect_urls(nested, supported_architectures, selected_architecture, child_path))
+    return records
+
+
+def main():
+    arguments = parse_arguments()
+    module = load_facts_module()
+    records = []
+    for architecture in module.SUPPORTED_ARCHITECTURES:
+        configure_facts(module, arguments, architecture)
+        with FACTS_PATH.parent.parent.joinpath("versions.yaml").open(encoding="utf-8") as manifest_file:
+            manifest = module.yaml.safe_load(manifest_file)
+        module.validate_manifest(manifest)
+        module.Expander().expand(manifest)
+        records.extend(collect_urls(manifest, module.SUPPORTED_ARCHITECTURES, architecture))
+
+    unique_records = []
+    seen = set()
+    for record in records:
+        key = (record["path"], record["architecture"], record["url"])
+        if key not in seen:
+            seen.add(key)
+            unique_records.append(record)
+
+    if arguments.format == "json":
+        json.dump(unique_records, sys.stdout, indent=2)
+        print()
+        return
+
+    print("path\tarchitecture\turl")
+    for record in unique_records:
+        print("{path}\t{architecture}\t{url}".format(**record))
+
+
+if __name__ == "__main__":
+    main()
